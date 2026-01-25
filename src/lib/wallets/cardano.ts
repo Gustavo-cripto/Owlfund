@@ -20,7 +20,7 @@ const getCardanoWasm = () => {
 export const isEternlAvailable = () =>
   typeof window !== "undefined" && !!window.cardano?.eternl;
 
-type EternlApi = {
+export type EternlApi = {
   getChangeAddress: () => Promise<string>;
   getBalance: () => Promise<string>;
 };

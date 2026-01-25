@@ -11,7 +11,12 @@ import {
   getBtcBalanceFromWallet,
   isXverseAvailable,
 } from "@/lib/wallets/bitcoin";
-import { connectEternl, getAdaBalance, isEternlAvailable } from "@/lib/wallets/cardano";
+import {
+  connectEternl,
+  getAdaBalance,
+  isEternlAvailable,
+  type EternlApi,
+} from "@/lib/wallets/cardano";
 import { updateWalletSnapshot } from "@/lib/wallets/storage";
 
 export default function WalletsPage() {
@@ -51,7 +56,7 @@ export default function WalletsPage() {
   const [adaBalance, setAdaBalance] = useState<string>();
   const [adaError, setAdaError] = useState<string | null>(null);
   const [adaLoading, setAdaLoading] = useState(false);
-  const [adaApi, setAdaApi] = useState<unknown>();
+  const [adaApi, setAdaApi] = useState<EternlApi | null>(null);
 
   const handleEthConnect = async () => {
     try {
