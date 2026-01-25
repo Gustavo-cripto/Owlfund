@@ -1,12 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  webpack: (config) => {
-    config.watchOptions = {
-      ...config.watchOptions,
-      ignored: ["**/desktop/**", "**/mobile/**"],
-    };
-    return config;
-  },
+  turbopack: {},
 };
 
 module.exports = nextConfig;
