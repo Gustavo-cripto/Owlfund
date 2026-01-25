@@ -20,20 +20,25 @@ const getCardanoWasm = () => {
 export const isEternlAvailable = () =>
   typeof window !== "undefined" && !!window.cardano?.eternl;
 
+type EternlApi = {
+  getChangeAddress: () => Promise<string>;
+  getBalance: () => Promise<string>;
+};
+
 export const connectEternl = async () => {
   if (!window.cardano?.eternl) {
     throw new Error("Eternl não está disponível.");
   }
 
-  const api = await window.cardano.eternl.enable();
+  const api = (await window.cardano.eternl.enable()) as EternlApi;
   const changeAddressHex = await api.getChangeAddress();
   const CardanoWasm = await getCardanoWasm();
   const address = CardanoWasm.Address.from_bytes(hexToBytes(changeAddressHex)).to_bech32();
   return { api, address };
 };
 
-export const getAdaBalance = async (api: unknown) => {
-  const balanceHex = await (api as { getBalance: () => Promise<string> }).getBalance();
+export const getAdaBalance = async (api: EternlApi) => {
+  const balanceHex = await api.getBalance();
   const CardanoWasm = await getCardanoWasm();
   const value = CardanoWasm.Value.from_bytes(hexToBytes(balanceHex));
   const lovelace = value.coin().to_str();
