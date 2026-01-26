@@ -1,14 +1,25 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { loadStripe } from "@stripe/stripe-js";
 
+import { createClient } from "@/lib/supabase/client";
 import { loadWalletSnapshot } from "@/lib/wallets/storage";
+
+const stripePromise = loadStripe(
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ""
+);
 
 type WalletBalance = {
   label: string;
   symbol: string;
   balance?: string;
   address?: string;
+};
+
+type SubscriptionStatus = {
+  status: string;
+  current_period_end: string | null;
 };
 
 const formatAddress = (address?: string) => {
@@ -25,7 +36,15 @@ const sumCrypto = (balances: WalletBalance[]) => {
 };
 
 export default function PortfolioPage() {
+  const supabase = createClient();
   const [wallets, setWallets] = useState<WalletBalance[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [isPro, setIsPro] = useState(false);
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  const [isBillingLoading, setIsBillingLoading] = useState(false);
+  const [billingError, setBillingError] = useState<string | null>(null);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const snapshot = loadWalletSnapshot();
@@ -56,6 +75,84 @@ export default function PortfolioPage() {
       },
     ]);
   }, []);
+
+  useEffect(() => {
+    const loadAuth = async () => {
+      const { data } = await supabase.auth.getUser();
+      const user = data.user;
+      if (!user) {
+        setIsLoadingAuth(false);
+        return;
+      }
+
+      setUserId(user.id);
+      setUserEmail(user.email ?? null);
+
+      const { data: subscription } = await supabase
+        .from("subscriptions")
+        .select("status, current_period_end")
+        .eq("user_id", user.id)
+        .order("current_period_end", { ascending: false })
+        .limit(1)
+        .maybeSingle<SubscriptionStatus>();
+
+      const isActive =
+        subscription?.status === "active" || subscription?.status === "trialing";
+      const periodEnd = subscription?.current_period_end
+        ? new Date(subscription.current_period_end).getTime()
+        : null;
+
+      setIsPro(isActive && (!periodEnd || periodEnd > Date.now()));
+      setIsLoadingAuth(false);
+    };
+
+    loadAuth();
+  }, [supabase]);
+
+  const handleCheckout = async () => {
+    if (!userId || !userEmail) return;
+    setBillingError(null);
+    setIsBillingLoading(true);
+
+    try {
+      const response = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, email: userEmail }),
+      });
+
+      const data = (await response.json()) as { url?: string; error?: string };
+      if (!response.ok || !data.url) {
+        throw new Error(data.error ?? "Não foi possível iniciar o pagamento.");
+      }
+
+      const stripe = await stripePromise;
+      if (stripe) {
+        window.location.href = data.url;
+      }
+    } catch (error) {
+      setBillingError(error instanceof Error ? error.message : "Erro no pagamento.");
+    } finally {
+      setIsBillingLoading(false);
+    }
+  };
+
+  const handleSaveSnapshot = async () => {
+    if (!userId) return;
+    setSaveMessage(null);
+
+    const snapshot = loadWalletSnapshot();
+    const { error } = await supabase
+      .from("portfolio_snapshots")
+      .insert({ user_id: userId, data: snapshot });
+
+    if (error) {
+      setSaveMessage("Não foi possível salvar o portfólio.");
+      return;
+    }
+
+    setSaveMessage("Portfólio salvo com sucesso.");
+  };
 
   const cryptoTotal = useMemo(() => sumCrypto(wallets), [wallets]);
 
@@ -127,6 +224,65 @@ export default function PortfolioPage() {
               </div>
             </div>
           </div>
+        </section>
+
+        <section className="rounded-2xl border border-orange-500/20 bg-slate-900/60 p-6">
+          <h2 className="text-lg font-semibold text-white">Plano Owlfund</h2>
+          {isLoadingAuth ? (
+            <p className="mt-2 text-sm text-slate-400">A carregar acesso...</p>
+          ) : userId ? (
+            <div className="mt-4 space-y-3">
+              <p className="text-sm text-slate-300">
+                {isPro
+                  ? "Plano ativo. Pode salvar e consultar o portfólio na nuvem."
+                  : "Plano Free. Assina para desbloquear portfólio cloud e alertas."}
+              </p>
+              {billingError ? (
+                <p className="text-sm text-rose-300">{billingError}</p>
+              ) : null}
+              <div className="flex flex-col gap-3 sm:flex-row">
+                {isPro ? (
+                  <button
+                    className="rounded-full border border-orange-400/40 px-6 py-3 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
+                    onClick={handleSaveSnapshot}
+                    type="button"
+                  >
+                    Salvar portfólio na nuvem
+                  </button>
+                ) : (
+                  <button
+                    className="rounded-full bg-orange-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-70"
+                    onClick={handleCheckout}
+                    type="button"
+                    disabled={isBillingLoading}
+                  >
+                    {isBillingLoading ? "A iniciar..." : "Ativar plano Pro"}
+                  </button>
+                )}
+                <a
+                  className="rounded-full border border-slate-700 px-6 py-3 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                  href="/account"
+                >
+                  Gerir conta
+                </a>
+              </div>
+              {saveMessage ? (
+                <p className="text-sm text-emerald-300">{saveMessage}</p>
+              ) : null}
+            </div>
+          ) : (
+            <div className="mt-4 space-y-3">
+              <p className="text-sm text-slate-300">
+                Faça login para guardar o seu portfólio e acessar a versão paga.
+              </p>
+              <a
+                className="inline-flex rounded-full border border-orange-400/40 px-6 py-3 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
+                href="/login"
+              >
+                Entrar
+              </a>
+            </div>
+          )}
         </section>
       </main>
     </div>

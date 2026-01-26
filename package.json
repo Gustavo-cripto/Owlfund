@@ -10,6 +10,9 @@
   },
   "dependencies": {
     "@emurgo/cardano-serialization-lib-browser": "^15.0.3",
+    "@stripe/stripe-js": "^5.4.0",
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.49.1",
     "@solana/wallet-adapter-react": "^0.15.39",
     "@solana/wallet-adapter-wallets": "^0.19.37",
     "@solana/web3.js": "^1.98.4",
@@ -20,6 +23,7 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "sats-connect": "^4.2.1",
+    "stripe": "^14.25.0",
     "viem": "^2.44.4",
     "wagmi": "^3.4.1"
   },

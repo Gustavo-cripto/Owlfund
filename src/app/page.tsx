@@ -1,3 +1,4 @@
+import AuthButton from "@/components/AuthButton";
 import ChatWidget from "@/components/ChatWidget";
 
 export default function Home() {
@@ -81,12 +82,15 @@ export default function Home() {
             Contato
           </a>
         </nav>
-        <a
-          className="rounded-full border border-orange-400/40 px-4 py-2 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
-          href="#contato"
-        >
-          Solicitar demo
-        </a>
+        <div className="flex items-center gap-4">
+          <AuthButton />
+          <a
+            className="rounded-full border border-orange-400/40 px-4 py-2 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
+            href="#contato"
+          >
+            Solicitar demo
+          </a>
+        </div>
       </header>
 
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-16 px-6 pb-24 pt-8">
