@@ -40,11 +40,12 @@ import { useState } from "react";
        }
  
        const data = (await response.json()) as { reply?: string };
-       if (!data.reply) {
+       const reply = typeof data.reply === "string" ? data.reply : "";
+       if (!reply) {
          throw new Error("Resposta vazia da IA.");
        }
  
-       setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
+       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
      } catch (err) {
        setError(err instanceof Error ? err.message : "Erro inesperado.");
      } finally {
