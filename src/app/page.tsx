@@ -50,7 +50,7 @@ export default function Home() {
           <img
             src="/owlfund-owl.png"
             alt="Owlfund"
-            className="mt-2 h-20 w-20 rounded-full object-cover shadow-lg [transform:scaleX(-1)]"
+            className="mt-6 h-20 w-20 rounded-full object-cover shadow-lg [transform:scaleX(-1)]"
           />
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-orange-300/80">
