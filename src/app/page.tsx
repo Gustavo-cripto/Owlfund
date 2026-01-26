@@ -102,6 +102,15 @@ export default function Home() {
               Acompanhe variações, tendências e resultado real das suas posições com um
               painel focado em clareza e velocidade.
             </p>
+            <div className="space-y-2 text-sm text-slate-300">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">
+                Chat Mercado
+              </p>
+              <p>
+                Faça perguntas rápidas sobre o mercado e receba respostas em tempo real
+                com a Owlfund IA.
+              </p>
+            </div>
             <ChatWidget />
           </div>
 
