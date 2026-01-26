@@ -95,7 +95,7 @@ export default function Home() {
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-orange-300/80">
               Dashboard completo
             </p>
-            <h1 className="text-4xl font-semibold leading-tight text-white md:text-5xl">
+            <h1 className="text-3xl font-medium leading-tight text-slate-200 md:text-4xl">
               Domine o mercado de Blockchain e Bitcoin com dados em tempo real.
             </h1>
             <p className="text-base text-slate-300 md:text-lg">
