@@ -1,3 +1,5 @@
+import ChatWidget from "@/components/ChatWidget";
+
 export default function Home() {
   const metrics = [
     { label: "Ativos monitorados", value: "120+" },
@@ -100,6 +102,7 @@ export default function Home() {
               Acompanhe variações, tendências e resultado real das suas posições com um
               painel focado em clareza e velocidade.
             </p>
+            <ChatWidget />
           </div>
 
           <div className="rounded-3xl border border-orange-500/20 bg-gradient-to-br from-orange-500/20 via-slate-900 to-slate-950 p-6">
