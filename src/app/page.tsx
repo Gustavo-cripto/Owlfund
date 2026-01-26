@@ -52,7 +52,7 @@ export default function Home() {
           </span>
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-orange-300/80">
-              Portfolio Insight
+              Portfólio Owlfund
             </p>
             <p className="text-sm text-slate-400">Controle inteligente de investimentos</p>
           </div>
@@ -77,12 +77,19 @@ export default function Home() {
             Contato
           </a>
         </nav>
-        <a
-          className="rounded-full border border-orange-400/40 px-4 py-2 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
-          href="#contato"
-        >
-          Solicitar demo
-        </a>
+        <div className="flex items-center gap-4">
+          <a
+            className="rounded-full border border-orange-400/40 px-4 py-2 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
+            href="#contato"
+          >
+            Solicitar demo
+          </a>
+          <img
+            src="/owlfund-owl.png"
+            alt="Owlfund"
+            className="h-12 w-12 rounded-full object-cover shadow-lg"
+          />
+        </div>
       </header>
 
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-16 px-6 pb-24 pt-8">

@@ -4,7 +4,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Portfolio Insight",
+  title: "Portfólio Owlfund",
   description:
     "Dashboard inteligente para acompanhar seus investimentos com clareza.",
 };
