@@ -47,9 +47,11 @@ export default function Home() {
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
         <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-500/20 text-lg font-semibold text-orange-400">
-            PI
-          </span>
+          <img
+            src="/owlfund-owl.png"
+            alt="Owlfund"
+            className="h-14 w-14 rounded-full object-cover shadow-lg [transform:scaleX(-1)]"
+          />
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-orange-300/80">
               Portfólio Owlfund
@@ -77,19 +79,12 @@ export default function Home() {
             Contato
           </a>
         </nav>
-        <div className="flex items-center gap-4">
-          <a
-            className="rounded-full border border-orange-400/40 px-4 py-2 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
-            href="#contato"
-          >
-            Solicitar demo
-          </a>
-          <img
-            src="/owlfund-owl.png"
-            alt="Owlfund"
-            className="h-12 w-12 rounded-full object-cover shadow-lg"
-          />
-        </div>
+        <a
+          className="rounded-full border border-orange-400/40 px-4 py-2 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
+          href="#contato"
+        >
+          Solicitar demo
+        </a>
       </header>
 
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-16 px-6 pb-24 pt-8">
