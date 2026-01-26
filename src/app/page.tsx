@@ -96,7 +96,7 @@ export default function Home() {
               Dashboard completo
             </p>
             <h1 className="text-4xl font-semibold leading-tight text-white md:text-5xl">
-              Organize seu portfólio com dados que fazem sentido.
+              Domine o mercado de Blockchain e Bitcoin com dados em tempo real.
             </h1>
             <p className="text-base text-slate-300 md:text-lg">
               Acompanhe variações, tendências e resultado real das suas posições com um
