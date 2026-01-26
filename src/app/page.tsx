@@ -60,11 +60,11 @@ export default function Home() {
           </div>
         </div>
         <nav className="hidden items-center gap-8 text-sm text-slate-300 md:flex">
-          <a className="transition hover:text-white" href="/wallets">
-            Carteiras
-          </a>
           <a className="transition hover:text-white" href="/portfolio">
             Portfolio
+          </a>
+          <a className="transition hover:text-white" href="/wallets">
+            Carteiras
           </a>
           <a className="transition hover:text-white" href="/mercado">
             Mercado
@@ -100,38 +100,6 @@ export default function Home() {
               Acompanhe variações, tendências e resultado real das suas posições com um
               painel focado em clareza e velocidade.
             </p>
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <a
-                className="rounded-full bg-orange-500 px-6 py-3 text-center text-sm font-semibold text-slate-950 transition hover:bg-orange-400"
-                href="#contato"
-              >
-                Quero testar
-              </a>
-              <a
-                className="rounded-full border border-orange-400/40 px-6 py-3 text-center text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
-                href="/wallets"
-              >
-                Carteiras
-              </a>
-              <a
-                className="rounded-full border border-slate-700 px-6 py-3 text-center text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                href="/portfolio"
-              >
-                Portfolio
-              </a>
-              <a
-                className="rounded-full border border-slate-700 px-6 py-3 text-center text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                href="/mercado"
-              >
-                Mercado
-              </a>
-              <a
-                className="rounded-full border border-slate-700 px-6 py-3 text-center text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                href="#recursos"
-              >
-                Ver recursos
-              </a>
-            </div>
           </div>
 
           <div className="rounded-3xl border border-orange-500/20 bg-gradient-to-br from-orange-500/20 via-slate-900 to-slate-950 p-6">
