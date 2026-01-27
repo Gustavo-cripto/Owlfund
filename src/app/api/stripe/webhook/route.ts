@@ -21,8 +21,11 @@ const upsertSubscription = async (subscription: Stripe.Subscription) => {
   if (!profile?.id) return;
 
   const priceId = subscription.items.data[0]?.price?.id ?? null;
-  const currentPeriodEnd = subscription.current_period_end
-    ? new Date(subscription.current_period_end * 1000).toISOString()
+  // Stripe types podem variar por versão; garantimos compatibilidade.
+  const currentPeriodEndUnix = (subscription as unknown as { current_period_end?: number })
+    .current_period_end;
+  const currentPeriodEnd = currentPeriodEndUnix
+    ? new Date(currentPeriodEndUnix * 1000).toISOString()
     : null;
 
   await supabaseAdmin.from("subscriptions").upsert({
