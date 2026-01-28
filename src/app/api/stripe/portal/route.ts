@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 
-import { stripe } from "@/lib/stripe";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getStripe } from "@/lib/stripe";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL ??
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 
 export async function POST(request: Request) {
+  const stripe = getStripe();
+  const supabaseAdmin = getSupabaseAdmin();
   const body = (await request.json().catch(() => null)) as { userId?: string } | null;
 
   if (!body?.userId) {

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 
-import { stripe } from "@/lib/stripe";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getStripe } from "@/lib/stripe";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET ?? "";
 
@@ -10,6 +10,7 @@ const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET ?? "";
 // para não bloquear o build da Vercel.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const upsertSubscription = async (subscription: any) => {
+  const supabaseAdmin = getSupabaseAdmin();
   const customerId =
     typeof subscription.customer === "string"
       ? subscription.customer
@@ -45,6 +46,8 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
+
+  const stripe = getStripe();
 
   const signature = request.headers.get("stripe-signature");
   if (!signature) {

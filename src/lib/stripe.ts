@@ -1,12 +1,17 @@
 import Stripe from "stripe";
 
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY ?? "";
+let stripeSingleton: Stripe | null = null;
 
-if (!stripeSecretKey) {
-  throw new Error("STRIPE_SECRET_KEY não configurada.");
-}
+export const getStripe = () => {
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY ?? "";
+  // Não lançar no import (para não quebrar o build). Validamos quando usado.
+  if (!stripeSecretKey) {
+    throw new Error("STRIPE_SECRET_KEY não configurada.");
+  }
 
-export const stripe = new Stripe(stripeSecretKey, {
-  // Deixamos sem apiVersion para evitar incompatibilidades de tipagem
-  // entre versões do SDK (Vercel pode usar versão mais recente).
-});
+  if (!stripeSingleton) {
+    stripeSingleton = new Stripe(stripeSecretKey);
+  }
+
+  return stripeSingleton;
+};
