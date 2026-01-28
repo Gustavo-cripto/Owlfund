@@ -30,6 +30,12 @@ type WalletSnapshot = {
   ada?: { address?: string; balance?: string };
 };
 
+type SnapshotRow = {
+  id: number;
+  created_at: string;
+  data: WalletSnapshot;
+};
+
 const snapshotToWallets = (snapshot: WalletSnapshot): WalletBalance[] => [
   {
     label: "Ethereum",
@@ -74,6 +80,8 @@ export default function PortfolioPage() {
   const supabase = createClient();
   useRequireAuth("/login");
   const [wallets, setWallets] = useState<WalletBalance[]>([]);
+  const [snapshots, setSnapshots] = useState<SnapshotRow[]>([]);
+  const [isSnapshotsLoading, setIsSnapshotsLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [isPro, setIsPro] = useState(false);
@@ -116,20 +124,25 @@ export default function PortfolioPage() {
       const pro = isActive && (!periodEnd || periodEnd > Date.now());
       setIsPro(pro);
 
-      // Carrega o último snapshot salvo pelo utilizador (cada conta vê só o seu user_id).
-      const { data: snapshotRow } = await supabase
+      setIsSnapshotsLoading(true);
+
+      const { data: snapshotRows } = await supabase
         .from("portfolio_snapshots")
-        .select("data, created_at")
+        .select("id, created_at, data")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle<{ data: WalletSnapshot; created_at: string }>();
+        .limit(10);
 
-      if (snapshotRow?.data) {
+      const rows = (snapshotRows ?? []) as SnapshotRow[];
+      setSnapshots(rows);
+
+      const latest = rows[0];
+      if (latest?.data) {
         // Se existir algo salvo na nuvem, mostramos isso (é sempre privado do user).
-        // Para Free, ele pode continuar a usar localStorage; mas o cloud é por user_id.
-        setWallets(snapshotToWallets(snapshotRow.data));
+        setWallets(snapshotToWallets(latest.data));
       }
+
+      setIsSnapshotsLoading(false);
       setIsLoadingAuth(false);
     };
 
@@ -179,6 +192,20 @@ export default function PortfolioPage() {
     }
 
     setSaveMessage("Portfólio salvo com sucesso.");
+
+    const { data: snapshotRows } = await supabase
+      .from("portfolio_snapshots")
+      .select("id, created_at, data")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    setSnapshots((snapshotRows ?? []) as SnapshotRow[]);
+  };
+
+  const handleRestoreSnapshot = (row: SnapshotRow) => {
+    setWallets(snapshotToWallets(row.data));
+    setSaveMessage(`Snapshot de ${new Date(row.created_at).toLocaleString("pt-BR")} carregado.`);
   };
 
   const cryptoTotal = useMemo(() => sumCrypto(wallets), [wallets]);
@@ -308,6 +335,54 @@ export default function PortfolioPage() {
               >
                 Entrar
               </a>
+            </div>
+          )}
+        </section>
+
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-white">Histórico do portfólio</h2>
+              <p className="text-sm text-slate-400">
+                Últimos snapshots salvos na nuvem (por utilizador).
+              </p>
+            </div>
+            <a
+              className="rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+              href="/dashboard"
+            >
+              Voltar ao dashboard
+            </a>
+          </div>
+
+          {isLoadingAuth || isSnapshotsLoading ? (
+            <p className="mt-4 text-sm text-slate-400">A carregar histórico...</p>
+          ) : snapshots.length === 0 ? (
+            <p className="mt-4 text-sm text-slate-400">
+              Ainda não tens snapshots salvos. Salva um para aparecer aqui.
+            </p>
+          ) : (
+            <div className="mt-6 space-y-3">
+              {snapshots.map((row) => (
+                <div
+                  key={row.id}
+                  className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-white">
+                      {new Date(row.created_at).toLocaleString("pt-BR")}
+                    </p>
+                    <p className="text-xs text-slate-500">ID #{row.id}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRestoreSnapshot(row)}
+                    className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
+                  >
+                    Restaurar
+                  </button>
+                </div>
+              ))}
             </div>
           )}
         </section>
