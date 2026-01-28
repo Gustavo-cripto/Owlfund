@@ -20,7 +20,7 @@ export default function LoginPage() {
       setMessage(error.message || "Não foi possível entrar. Verifica os dados.");
     } else {
       setMessage("Login realizado. Redirecionando...");
-      window.location.href = "/account";
+      window.location.href = "/dashboard";
     }
 
     setLoading(false);

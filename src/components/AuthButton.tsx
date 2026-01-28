@@ -40,9 +40,9 @@ import { createClient } from "@/lib/supabase/client";
      return (
        <a
          className="text-sm font-semibold text-slate-200 transition hover:text-white"
-         href="/account"
+        href="/dashboard"
        >
-         Minha conta
+        Dashboard
        </a>
      );
    }

@@ -1,5 +1,4 @@
 import AuthButton from "@/components/AuthButton";
-import ChatWidget from "@/components/ChatWidget";
 
 export default function Home() {
   const metrics = [
@@ -63,15 +62,6 @@ export default function Home() {
           </div>
         </div>
         <nav className="hidden items-center gap-8 text-sm text-slate-300 md:flex">
-          <a className="transition hover:text-white" href="/portfolio">
-            Portfolio
-          </a>
-          <a className="transition hover:text-white" href="/wallets">
-            Carteiras
-          </a>
-          <a className="transition hover:text-white" href="/mercado">
-            Mercado
-          </a>
           <a className="transition hover:text-white" href="#recursos">
             Recursos
           </a>
@@ -106,16 +96,9 @@ export default function Home() {
               Acompanhe variações, tendências e resultado real das suas posições com um
               painel focado em clareza e velocidade.
             </p>
-            <div className="space-y-2 text-sm text-slate-300">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">
-                Chat Mercado
-              </p>
-              <p>
-                Faça perguntas rápidas sobre o mercado e receba respostas em tempo real
-                com a Owlfund IA.
-              </p>
-            </div>
-            <ChatWidget />
+            <p className="text-sm text-slate-400">
+              Para acessar Portfolio, Carteiras e Mercado, entra na tua conta.
+            </p>
           </div>
 
           <div className="rounded-3xl border border-orange-500/20 bg-gradient-to-br from-orange-500/20 via-slate-900 to-slate-950 p-6">

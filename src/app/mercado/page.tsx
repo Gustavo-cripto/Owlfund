@@ -2,6 +2,8 @@
 
 import { useMemo } from "react";
 
+import { useRequireAuth } from "@/lib/auth/useRequireAuth";
+
 const markets = [
   { name: "Bitcoin", symbol: "BTC", trend: "Alta moderada", change: "+2.4%" },
   { name: "Ethereum", symbol: "ETH", trend: "Consolidação", change: "+0.6%" },
@@ -10,6 +12,7 @@ const markets = [
 ];
 
 export default function MercadoPage() {
+  useRequireAuth("/login");
   const today = useMemo(() => {
     const now = new Date();
     return now.toLocaleDateString("pt-BR", {

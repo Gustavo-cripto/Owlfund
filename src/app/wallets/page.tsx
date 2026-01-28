@@ -18,8 +18,10 @@ import {
   type EternlApi,
 } from "@/lib/wallets/cardano";
 import { updateWalletSnapshot } from "@/lib/wallets/storage";
+import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 
 export default function WalletsPage() {
+  useRequireAuth("/login");
   const [isClient, setIsClient] = useState(false);
   const [availability, setAvailability] = useState({
     metamask: false,

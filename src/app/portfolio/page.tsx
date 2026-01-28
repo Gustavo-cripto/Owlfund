@@ -5,6 +5,7 @@ import { loadStripe } from "@stripe/stripe-js";
 
 import { createClient } from "@/lib/supabase/client";
 import { loadWalletSnapshot } from "@/lib/wallets/storage";
+import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ""
@@ -22,6 +23,40 @@ type SubscriptionStatus = {
   current_period_end: string | null;
 };
 
+type WalletSnapshot = {
+  eth?: { address?: string; balance?: string };
+  sol?: { address?: string; balance?: string };
+  btc?: { address?: string; balance?: string };
+  ada?: { address?: string; balance?: string };
+};
+
+const snapshotToWallets = (snapshot: WalletSnapshot): WalletBalance[] => [
+  {
+    label: "Ethereum",
+    symbol: "ETH",
+    balance: snapshot.eth?.balance,
+    address: snapshot.eth?.address,
+  },
+  {
+    label: "Solana",
+    symbol: "SOL",
+    balance: snapshot.sol?.balance,
+    address: snapshot.sol?.address,
+  },
+  {
+    label: "Bitcoin",
+    symbol: "BTC",
+    balance: snapshot.btc?.balance,
+    address: snapshot.btc?.address,
+  },
+  {
+    label: "Cardano",
+    symbol: "ADA",
+    balance: snapshot.ada?.balance,
+    address: snapshot.ada?.address,
+  },
+];
+
 const formatAddress = (address?: string) => {
   if (!address) return "—";
   if (address.length <= 12) return address;
@@ -37,6 +72,7 @@ const sumCrypto = (balances: WalletBalance[]) => {
 
 export default function PortfolioPage() {
   const supabase = createClient();
+  useRequireAuth("/login");
   const [wallets, setWallets] = useState<WalletBalance[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -48,32 +84,7 @@ export default function PortfolioPage() {
 
   useEffect(() => {
     const snapshot = loadWalletSnapshot();
-    setWallets([
-      {
-        label: "Ethereum",
-        symbol: "ETH",
-        balance: snapshot.eth?.balance,
-        address: snapshot.eth?.address,
-      },
-      {
-        label: "Solana",
-        symbol: "SOL",
-        balance: snapshot.sol?.balance,
-        address: snapshot.sol?.address,
-      },
-      {
-        label: "Bitcoin",
-        symbol: "BTC",
-        balance: snapshot.btc?.balance,
-        address: snapshot.btc?.address,
-      },
-      {
-        label: "Cardano",
-        symbol: "ADA",
-        balance: snapshot.ada?.balance,
-        address: snapshot.ada?.address,
-      },
-    ]);
+    setWallets(snapshotToWallets(snapshot as WalletSnapshot));
   }, []);
 
   useEffect(() => {
@@ -102,7 +113,23 @@ export default function PortfolioPage() {
         ? new Date(subscription.current_period_end).getTime()
         : null;
 
-      setIsPro(isActive && (!periodEnd || periodEnd > Date.now()));
+      const pro = isActive && (!periodEnd || periodEnd > Date.now());
+      setIsPro(pro);
+
+      // Carrega o último snapshot salvo pelo utilizador (cada conta vê só o seu user_id).
+      const { data: snapshotRow } = await supabase
+        .from("portfolio_snapshots")
+        .select("data, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle<{ data: WalletSnapshot; created_at: string }>();
+
+      if (snapshotRow?.data) {
+        // Se existir algo salvo na nuvem, mostramos isso (é sempre privado do user).
+        // Para Free, ele pode continuar a usar localStorage; mas o cloud é por user_id.
+        setWallets(snapshotToWallets(snapshotRow.data));
+      }
       setIsLoadingAuth(false);
     };
 
