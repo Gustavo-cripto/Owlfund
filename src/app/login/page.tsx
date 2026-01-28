@@ -17,7 +17,7 @@ export default function LoginPage() {
 
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      setMessage("Não foi possível entrar. Verifica os dados.");
+      setMessage(error.message || "Não foi possível entrar. Verifica os dados.");
     } else {
       setMessage("Login realizado. Redirecionando...");
       window.location.href = "/account";
@@ -30,9 +30,16 @@ export default function LoginPage() {
     setLoading(true);
     setMessage(null);
 
-    const { error } = await supabase.auth.signUp({ email, password });
+    const origin = window.location.origin;
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${origin}/api/auth/callback`,
+      },
+    });
     if (error) {
-      setMessage("Não foi possível criar a conta.");
+      setMessage(error.message || "Não foi possível criar a conta.");
     } else {
       setMessage("Conta criada. Verifica o email para confirmar.");
     }
@@ -53,7 +60,7 @@ export default function LoginPage() {
     });
 
     if (error) {
-      setMessage("Não foi possível iniciar com Google.");
+      setMessage(error.message || "Não foi possível iniciar com Google.");
       setLoading(false);
     }
   };
