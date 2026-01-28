@@ -7,5 +7,6 @@ if (!stripeSecretKey) {
 }
 
 export const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: "2023-10-16",
+  // Deixamos sem apiVersion para evitar incompatibilidades de tipagem
+  // entre versões do SDK (Vercel pode usar versão mais recente).
 });
