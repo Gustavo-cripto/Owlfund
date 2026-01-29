@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [mode, setMode] = useState<"login" | "signup">("login");
 
   const validateCredentials = () => {
     const nextEmail = email.trim();
@@ -29,6 +30,7 @@ export default function LoginPage() {
   };
 
   const handleEmailLogin = async () => {
+    setMode("login");
     setLoading(true);
     setMessage(null);
 
@@ -50,6 +52,7 @@ export default function LoginPage() {
   };
 
   const handleSignUp = async () => {
+    setMode("signup");
     setLoading(true);
     setMessage(null);
 
@@ -106,7 +109,9 @@ export default function LoginPage() {
           <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">
             Acesso
           </p>
-          <h1 className="text-3xl font-semibold text-white">Entrar na Owlfund</h1>
+          <h1 className="text-3xl font-semibold text-white">
+            {mode === "signup" ? "Criar conta na Owlfund" : "Entrar na Owlfund"}
+          </h1>
           <p className="text-sm text-slate-400">
             Use email e senha ou faça login com Google.
           </p>
@@ -134,7 +139,11 @@ export default function LoginPage() {
 
           <div className="mt-6 flex flex-col gap-3">
             <button
-              className="rounded-full bg-orange-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-70"
+              className={
+                mode === "login"
+                  ? "rounded-full bg-orange-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-70"
+                  : "rounded-full border border-slate-700 px-6 py-3 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
+              }
               onClick={handleEmailLogin}
               disabled={loading}
               type="button"
@@ -142,7 +151,11 @@ export default function LoginPage() {
               Entrar
             </button>
             <button
-              className="rounded-full border border-slate-700 px-6 py-3 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
+              className={
+                mode === "signup"
+                  ? "rounded-full bg-orange-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-70"
+                  : "rounded-full border border-slate-700 px-6 py-3 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
+              }
               onClick={handleSignUp}
               disabled={loading}
               type="button"
