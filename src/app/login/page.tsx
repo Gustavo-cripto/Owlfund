@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { createClient } from "@/lib/supabase/client";
 
@@ -9,9 +9,27 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [mode, setMode] = useState<"login" | "signup">("login");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (!isMounted) return;
+      if (data.session) {
+        window.location.href = "/dashboard";
+        return;
+      }
+      setIsCheckingSession(false);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [supabase]);
 
   const validateCredentials = () => {
     const nextEmail = email.trim();
@@ -168,7 +186,7 @@ export default function LoginPage() {
                   : "rounded-full border border-slate-700 px-6 py-3 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
               }
               onClick={handleEmailLogin}
-              disabled={loading}
+              disabled={loading || isCheckingSession}
               type="button"
             >
               Entrar
@@ -180,7 +198,7 @@ export default function LoginPage() {
                   : "rounded-full border border-slate-700 px-6 py-3 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
               }
               onClick={handleSignUp}
-              disabled={loading}
+              disabled={loading || isCheckingSession}
               type="button"
             >
               Criar conta
@@ -188,7 +206,7 @@ export default function LoginPage() {
             <button
               className="rounded-full border border-orange-400/40 px-6 py-3 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
               onClick={handleGoogle}
-              disabled={loading}
+              disabled={loading || isCheckingSession}
               type="button"
             >
               Entrar com Google

@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 
+import AppHeader from "@/components/AppHeader";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 
 const markets = [
@@ -24,30 +25,9 @@ export default function MercadoPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-20 pt-12">
+      <AppHeader variant="app" subtitle="Panorama do mercado" />
+      <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-20 pt-2">
         <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <a
-              className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 transition hover:text-slate-200"
-              href="/"
-            >
-              Voltar para início
-            </a>
-            <div className="flex flex-wrap gap-2">
-              <a
-                className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
-                href="/wallets"
-              >
-                Carteiras
-              </a>
-              <a
-                className="rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                href="/portfolio"
-              >
-                Portfolio
-              </a>
-            </div>
-          </div>
           <h1 className="text-3xl font-semibold text-white">Mercado</h1>
           <p className="max-w-2xl text-sm text-slate-400">
             Acompanhe o panorama diário e insights gerados por IA para orientar

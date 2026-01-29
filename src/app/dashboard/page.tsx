@@ -1,17 +1,11 @@
 "use client";
 
 import ChatWidget from "@/components/ChatWidget";
-import { createClient } from "@/lib/supabase/client";
+import AppHeader from "@/components/AppHeader";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 
 export default function DashboardPage() {
-  const supabase = createClient();
   const { isLoading } = useRequireAuth("/login");
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    window.location.href = "/";
-  };
 
   if (isLoading) {
     return (
@@ -25,44 +19,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
-        <div className="flex items-center gap-3">
-          <img
-            src="/owlfund-owl.png"
-            alt="Owlfund"
-            className="h-12 w-12 rounded-full object-cover shadow-lg [transform:scaleX(-1)]"
-          />
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-orange-300/80">
-              Owlfund
-            </p>
-            <p className="text-sm text-slate-400">Dashboard do utilizador</p>
-          </div>
-        </div>
-
-        <nav className="hidden items-center gap-8 text-sm text-slate-300 md:flex">
-          <a className="transition hover:text-white" href="/portfolio">
-            Portfolio
-          </a>
-          <a className="transition hover:text-white" href="/wallets">
-            Carteiras
-          </a>
-          <a className="transition hover:text-white" href="/mercado">
-            Mercado
-          </a>
-          <a className="transition hover:text-white" href="/account">
-            Conta
-          </a>
-        </nav>
-
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="rounded-full border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-        >
-          Sair
-        </button>
-      </header>
+      <AppHeader variant="app" subtitle="Dashboard do utilizador" />
 
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-24 pt-2">
         <section className="grid gap-6 md:grid-cols-[1.1fr_0.9fr] md:items-start">

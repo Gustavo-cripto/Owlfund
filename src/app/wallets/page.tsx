@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import AppHeader from "@/components/AppHeader";
 import WalletCard from "@/components/wallets/WalletCard";
 import { connectMetaMask, getEthBalance, isMetaMaskAvailable } from "@/lib/wallets/evm";
 import { connectPhantom, getSolBalance, isPhantomAvailable } from "@/lib/wallets/solana";
@@ -207,14 +208,9 @@ export default function WalletsPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-20 pt-12">
+      <AppHeader variant="app" subtitle="Carteiras Web3" />
+      <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-20 pt-2">
         <div className="flex flex-col gap-4">
-          <a
-            className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 transition hover:text-slate-200"
-            href="/"
-          >
-            Voltar para início
-          </a>
           <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">
             Carteiras Web3
           </p>
