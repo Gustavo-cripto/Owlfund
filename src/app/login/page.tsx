@@ -11,11 +11,34 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  const validateCredentials = () => {
+    const nextEmail = email.trim();
+    const nextPassword = password.trim();
+
+    if (!nextEmail || !nextPassword) {
+      setMessage("Preenche email e senha.");
+      return null;
+    }
+
+    if (nextPassword.length < 6) {
+      setMessage("A senha deve ter pelo menos 6 caracteres.");
+      return null;
+    }
+
+    return { email: nextEmail, password: nextPassword };
+  };
+
   const handleEmailLogin = async () => {
     setLoading(true);
     setMessage(null);
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const creds = validateCredentials();
+    if (!creds) {
+      setLoading(false);
+      return;
+    }
+
+    const { error } = await supabase.auth.signInWithPassword(creds);
     if (error) {
       setMessage(error.message || "Não foi possível entrar. Verifica os dados.");
     } else {
@@ -31,9 +54,14 @@ export default function LoginPage() {
     setMessage(null);
 
     const origin = window.location.origin;
+    const creds = validateCredentials();
+    if (!creds) {
+      setLoading(false);
+      return;
+    }
+
     const { error } = await supabase.auth.signUp({
-      email,
-      password,
+      ...creds,
       options: {
         emailRedirectTo: `${origin}/api/auth/callback`,
       },
