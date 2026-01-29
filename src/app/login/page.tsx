@@ -8,6 +8,7 @@ export default function LoginPage() {
   const supabase = createClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -59,6 +60,19 @@ export default function LoginPage() {
     const origin = window.location.origin;
     const creds = validateCredentials();
     if (!creds) {
+      setLoading(false);
+      return;
+    }
+
+    const nextConfirm = confirmPassword.trim();
+    if (!nextConfirm) {
+      setMessage("Confirma a senha.");
+      setLoading(false);
+      return;
+    }
+
+    if (creds.password !== nextConfirm) {
+      setMessage("As senhas não coincidem.");
       setLoading(false);
       return;
     }
@@ -133,6 +147,15 @@ export default function LoginPage() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
             />
+            {mode === "signup" ? (
+              <input
+                className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-orange-400"
+                placeholder="Confirmar senha"
+                type="password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+              />
+            ) : null}
           </div>
 
           {message ? <p className="mt-4 text-sm text-orange-200">{message}</p> : null}
