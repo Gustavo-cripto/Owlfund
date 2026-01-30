@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type HeaderVariant = "public" | "app";
+type ThemeMode = "dark" | "light";
 
 type AppHeaderProps = {
   variant?: HeaderVariant;
@@ -21,6 +22,7 @@ export default function AppHeader({
   const [isReady, setIsReady] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
+  const [theme, setTheme] = useState<ThemeMode>("dark");
 
   useEffect(() => {
     let isMounted = true;
@@ -44,6 +46,26 @@ export default function AppHeader({
       subscription.subscription.unsubscribe();
     };
   }, [supabase]);
+
+  useEffect(() => {
+    const stored = typeof window !== "undefined" ? localStorage.getItem("theme") : null;
+    if (stored === "light" || stored === "dark") {
+      setTheme(stored);
+      if (typeof document !== "undefined") {
+        document.body.classList.toggle("theme-light", stored === "light");
+      }
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      const prefersLight = window.matchMedia("(prefers-color-scheme: light)").matches;
+      const next = prefersLight ? "light" : "dark";
+      setTheme(next);
+      if (typeof document !== "undefined") {
+        document.body.classList.toggle("theme-light", next === "light");
+      }
+    }
+  }, []);
 
   const logoClassName =
     variant === "public"
@@ -70,18 +92,20 @@ export default function AppHeader({
     window.location.href = "/dashboard";
   };
 
+  const handleToggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    if (typeof document !== "undefined") {
+      document.body.classList.toggle("theme-light", next === "light");
+    }
+    if (typeof window !== "undefined") {
+      localStorage.setItem("theme", next);
+    }
+  };
+
   return (
     <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
       <div className="flex items-center gap-3">
-        {variant === "app" ? (
-          <button
-            type="button"
-            onClick={handleBack}
-            className="rounded-full border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-          >
-            Voltar
-          </button>
-        ) : null}
         <img src="/owlfund-owl.png" alt="Owlfund" className={logoClassName} />
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.3em] text-orange-300/80">
@@ -162,6 +186,22 @@ export default function AppHeader({
             <span className="hidden text-sm text-slate-400 md:inline">
               {isReady && email ? email : ""}
             </span>
+            <button
+              type="button"
+              onClick={handleBack}
+              className="rounded-full border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+            >
+              Voltar
+            </button>
+            <button
+              type="button"
+              onClick={handleToggleTheme}
+              className="rounded-full border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+              aria-label={theme === "dark" ? "Modo escuro" : "Modo claro"}
+              title={theme === "dark" ? "Modo escuro" : "Modo claro"}
+            >
+              {theme === "dark" ? "🌙" : "☀️"}
+            </button>
             {isReady && isLoggedIn ? (
               <button
                 type="button"
