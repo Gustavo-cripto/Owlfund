@@ -118,31 +118,31 @@ export default function AppHeader({
       <nav className="hidden items-center gap-8 text-sm text-slate-300 md:flex">
         {variant === "public" ? (
           <>
-            <a className="transition hover:text-white" href="#recursos">
+            <a className="app-nav-link transition hover:text-white" href="#recursos">
               Recursos
             </a>
-            <a className="transition hover:text-white" href="#fluxo">
+            <a className="app-nav-link transition hover:text-white" href="#fluxo">
               Fluxo
             </a>
-            <a className="transition hover:text-white" href="#contato">
+            <a className="app-nav-link transition hover:text-white" href="#contato">
               Contato
             </a>
           </>
         ) : (
           <>
-            <a className="transition hover:text-white" href="/dashboard">
+            <a className="app-nav-link transition hover:text-white" href="/dashboard">
               Dashboard
             </a>
-            <a className="transition hover:text-white" href="/portfolio">
+            <a className="app-nav-link transition hover:text-white" href="/portfolio">
               Portfolio
             </a>
-            <a className="transition hover:text-white" href="/wallets">
+            <a className="app-nav-link transition hover:text-white" href="/wallets">
               Carteiras
             </a>
-            <a className="transition hover:text-white" href="/mercado">
+            <a className="app-nav-link transition hover:text-white" href="/mercado">
               Mercado
             </a>
-            <a className="transition hover:text-white" href="/account">
+            <a className="app-nav-link transition hover:text-white" href="/account">
               Conta
             </a>
           </>

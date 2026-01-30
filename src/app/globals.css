@@ -70,3 +70,7 @@ body.theme-light .text-slate-400,
 body.theme-light .text-slate-500 {
   color: #334155 !important;
 }
+
+body.theme-light .app-nav-link:hover {
+  color: #c2410c !important;
+}
