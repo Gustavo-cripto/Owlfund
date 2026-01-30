@@ -173,6 +173,15 @@ export default function AppHeader({
                 Carregando
               </span>
             )}
+            <button
+              type="button"
+              onClick={handleToggleTheme}
+              className="rounded-full border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+              aria-label={theme === "dark" ? "Modo escuro" : "Modo claro"}
+              title={theme === "dark" ? "Modo escuro" : "Modo claro"}
+            >
+              {theme === "dark" ? "🌙" : "☀️"}
+            </button>
 
             <a
               className="rounded-full border border-orange-400/40 px-4 py-2 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
