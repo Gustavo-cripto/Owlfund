@@ -633,6 +633,7 @@ export default function WalletsPage() {
             error={btcError}
             onConnect={handleBtcConnect}
             onRefresh={handleBtcRefresh}
+            allowConnectWhenUnavailable
           >
             <div className="space-y-3">
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">

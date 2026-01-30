@@ -11,6 +11,7 @@ type WalletCardProps = {
   onConnect: () => void;
   onRefresh?: () => void;
   children?: React.ReactNode;
+  allowConnectWhenUnavailable?: boolean;
 };
 
 const formatAddress = (address?: string) => {
@@ -32,6 +33,7 @@ export default function WalletCard({
   onConnect,
   onRefresh,
   children,
+  allowConnectWhenUnavailable,
 }: WalletCardProps) {
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
@@ -67,7 +69,7 @@ export default function WalletCard({
         <button
           className="rounded-full bg-orange-500 px-4 py-2 text-xs font-semibold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-60"
           onClick={onConnect}
-          disabled={!isAvailable || isLoading}
+          disabled={isLoading || (!isAvailable && !allowConnectWhenUnavailable)}
         >
           {isConnected ? "Reconectar" : "Conectar"}
         </button>
