@@ -10,6 +10,7 @@ type WalletCardProps = {
   isAvailable: boolean;
   onConnect: () => void;
   onRefresh?: () => void;
+  children?: React.ReactNode;
 };
 
 const formatAddress = (address?: string) => {
@@ -80,6 +81,7 @@ export default function WalletCard({
         ) : null}
         {isLoading ? <span className="text-xs text-slate-500">Carregando...</span> : null}
       </div>
+      {children ? <div className="mt-5 space-y-4">{children}</div> : null}
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { loadStripe } from "@stripe/stripe-js";
 
 import AppHeader from "@/components/AppHeader";
 import { createClient } from "@/lib/supabase/client";
-import { loadWalletSnapshot } from "@/lib/wallets/storage";
+import { loadWalletSnapshot, type StoredWalletEntry, type WalletSnapshot } from "@/lib/wallets/storage";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 
 const stripePromise = loadStripe(
@@ -24,43 +24,42 @@ type SubscriptionStatus = {
   current_period_end: string | null;
 };
 
-type WalletSnapshot = {
-  eth?: { address?: string; balance?: string };
-  sol?: { address?: string; balance?: string };
-  btc?: { address?: string; balance?: string };
-  ada?: { address?: string; balance?: string };
-};
-
 type SnapshotRow = {
   id: number;
   created_at: string;
   data: WalletSnapshot;
 };
 
+const sumEntries = (entries?: StoredWalletEntry[]) =>
+  (entries ?? []).reduce((sum, entry) => {
+    const value = Number(entry.balance ?? 0);
+    return Number.isFinite(value) ? sum + value : sum;
+  }, 0);
+
 const snapshotToWallets = (snapshot: WalletSnapshot): WalletBalance[] => [
   {
     label: "Ethereum",
     symbol: "ETH",
-    balance: snapshot.eth?.balance,
-    address: snapshot.eth?.address,
+    balance: sumEntries(snapshot.eth).toFixed(4),
+    address: snapshot.eth?.[0]?.address,
   },
   {
     label: "Solana",
     symbol: "SOL",
-    balance: snapshot.sol?.balance,
-    address: snapshot.sol?.address,
+    balance: sumEntries(snapshot.sol).toFixed(4),
+    address: snapshot.sol?.[0]?.address,
   },
   {
     label: "Bitcoin",
     symbol: "BTC",
-    balance: snapshot.btc?.balance,
-    address: snapshot.btc?.address,
+    balance: sumEntries(snapshot.btc).toFixed(4),
+    address: snapshot.btc?.[0]?.address,
   },
   {
     label: "Cardano",
     symbol: "ADA",
-    balance: snapshot.ada?.balance,
-    address: snapshot.ada?.address,
+    balance: sumEntries(snapshot.ada).toFixed(4),
+    address: snapshot.ada?.[0]?.address,
   },
 ];
 
