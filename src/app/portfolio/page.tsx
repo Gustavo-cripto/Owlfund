@@ -36,6 +36,12 @@ const sumEntries = (entries?: StoredWalletEntry[]) =>
     return Number.isFinite(value) ? sum + value : sum;
   }, 0);
 
+const snapshotTotal = (snapshot: WalletSnapshot) =>
+  sumEntries(snapshot.eth) +
+  sumEntries(snapshot.sol) +
+  sumEntries(snapshot.btc) +
+  sumEntries(snapshot.ada);
+
 const snapshotToWallets = (snapshot: WalletSnapshot): WalletBalance[] => [
   {
     label: "Ethereum",
@@ -155,8 +161,13 @@ export default function PortfolioPage() {
 
       const latest = rows[0];
       if (latest?.data) {
-        // Se existir algo salvo na nuvem, mostramos isso (é sempre privado do user).
-        setWallets(snapshotToWallets(latest.data));
+        const localSnapshot = loadWalletSnapshot();
+        const latestTotal = snapshotTotal(latest.data);
+        const localTotal = snapshotTotal(localSnapshot);
+        if (latestTotal > 0 || localTotal === 0) {
+          // Se existir algo salvo na nuvem, mostramos isso (é sempre privado do user).
+          setWallets(snapshotToWallets(latest.data));
+        }
       }
 
       setIsSnapshotsLoading(false);
