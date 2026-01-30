@@ -91,7 +91,7 @@ import { createClient } from "@/lib/supabase/client";
  
            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
              <button
-               className="rounded-full border border-orange-400/40 px-6 py-3 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
+              className="accent-button rounded-full border border-orange-400/40 px-6 py-3 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
                onClick={handleManageBilling}
                type="button"
              >

@@ -74,3 +74,12 @@ body.theme-light .text-slate-500 {
 body.theme-light .app-nav-link:hover {
   color: #c2410c !important;
 }
+
+body.theme-light .brand-accent {
+  color: #c2410c !important;
+}
+
+body.theme-light .accent-button:hover {
+  color: #c2410c !important;
+  border-color: #c2410c !important;
+}

@@ -108,7 +108,7 @@ export default function AppHeader({
       <div className="flex items-center gap-3">
         <img src="/owlfund-owl.png" alt="Owlfund" className={logoClassName} />
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-orange-300/80">
+          <p className="brand-accent text-sm font-semibold uppercase tracking-[0.3em] text-orange-300/80">
             {title}
           </p>
           <p className="text-sm text-slate-400">{computedSubtitle}</p>
