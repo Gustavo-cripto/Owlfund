@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import AppHeader from "@/components/AppHeader";
 import { createClient } from "@/lib/supabase/client";
  
  type SubscriptionStatus = {
@@ -63,13 +64,8 @@ import { createClient } from "@/lib/supabase/client";
  
    return (
      <div className="min-h-screen bg-slate-950 text-slate-100">
-       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 pb-20 pt-12">
-         <a
-           className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 transition hover:text-slate-200"
-           href="/"
-         >
-           Voltar para início
-         </a>
+      <AppHeader variant="app" subtitle="Conta" />
+      <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 pb-20 pt-2">
          <div className="space-y-2">
            <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">
              Conta

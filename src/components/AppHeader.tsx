@@ -61,9 +61,27 @@ export default function AppHeader({
     window.location.href = "/";
   };
 
+  const handleBack = () => {
+    if (typeof window === "undefined") return;
+    if (window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+    window.location.href = "/dashboard";
+  };
+
   return (
     <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
       <div className="flex items-center gap-3">
+        {variant === "app" ? (
+          <button
+            type="button"
+            onClick={handleBack}
+            className="rounded-full border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+          >
+            Voltar
+          </button>
+        ) : null}
         <img src="/owlfund-owl.png" alt="Owlfund" className={logoClassName} />
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.3em] text-orange-300/80">
