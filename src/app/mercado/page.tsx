@@ -64,7 +64,15 @@ function TrendSparkline({ change, seed }: { change: number; seed: number }) {
   );
 }
 
-function TradingViewWidget({ symbol }: { symbol: string }) {
+function TradingViewWidget({
+  symbol,
+  height,
+  interval,
+}: {
+  symbol: string;
+  height?: number | string;
+  interval: string;
+}) {
   useEffect(() => {
     const scriptId = "tradingview-widget-script";
     const ensureScript = () =>
@@ -89,22 +97,25 @@ function TradingViewWidget({ symbol }: { symbol: string }) {
       new window.TradingView.widget({
         container_id: "tradingview-widget",
         symbol,
-        interval: "60",
+        interval,
         timezone: "Etc/UTC",
         theme: "dark",
-        style: "1",
+        style: 1,
         locale: "pt",
         enable_publishing: false,
         hide_top_toolbar: true,
         withdateranges: true,
         hide_side_toolbar: false,
         save_image: false,
-        height: 480,
+        height: height ?? 480,
       });
     });
-  }, [symbol]);
+  }, [symbol, height, interval]);
 
-  return <div id="tradingview-widget" className="h-[480px] w-full" />;
+  const resolvedHeight = height ?? 480;
+  const heightClass =
+    typeof resolvedHeight === "number" ? `h-[${resolvedHeight}px]` : "h-full";
+  return <div id="tradingview-widget" className={`w-full ${heightClass}`} />;
 }
 
 export default function MercadoPage() {
@@ -114,6 +125,10 @@ export default function MercadoPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const chartRef = useRef<HTMLDivElement | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [timeframe, setTimeframe] = useState<"24h" | "7d" | "1M" | "3M" | "1A" | "Máx">(
+    "24h"
+  );
 
   useEffect(() => {
     const load = async () => {
@@ -135,10 +150,35 @@ export default function MercadoPage() {
     load();
   }, []);
 
+  useEffect(() => {
+    const handleChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", handleChange);
+    return () => document.removeEventListener("fullscreenchange", handleChange);
+  }, []);
+
   const tradingViewSymbol = useMemo(() => {
     if (!selected) return "COINEX:BTCUSDT";
     return `COINEX:${selected.market}`;
   }, [selected]);
+
+  const tradingViewInterval = useMemo(() => {
+    switch (timeframe) {
+      case "24h":
+        return "60";
+      case "7d":
+        return "240";
+      case "1M":
+        return "D";
+      case "3M":
+        return "D";
+      case "1A":
+        return "W";
+      case "Máx":
+        return "W";
+      default:
+        return "60";
+    }
+  }, [timeframe]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -160,17 +200,47 @@ export default function MercadoPage() {
                 {selected ? `${selected.name} · ${selected.symbol}` : "Selecione um ativo"}
               </p>
             </div>
-            <div className="flex items-center gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs font-semibold text-slate-300">
-              <span className="rounded-full bg-slate-800 px-3 py-1 text-white">24h</span>
-              <span className="px-2 text-slate-500">7d</span>
-              <span className="px-2 text-slate-500">1M</span>
-              <span className="px-2 text-slate-500">3M</span>
-              <span className="px-2 text-slate-500">1A</span>
-              <span className="px-2 text-slate-500">Máx</span>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs font-semibold text-slate-300">
+                {(["24h", "7d", "1M", "3M", "1A", "Máx"] as const).map((label) => {
+                  const isActive = timeframe === label;
+                  return (
+                    <button
+                      key={label}
+                      type="button"
+                      className={`rounded-full px-3 py-1 transition ${
+                        isActive
+                          ? "bg-slate-800 text-white"
+                          : "text-slate-500 hover:text-slate-200"
+                      }`}
+                      onClick={() => setTimeframe(label)}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                className="rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                onClick={() => {
+                  if (document.fullscreenElement) {
+                    document.exitFullscreen();
+                    return;
+                  }
+                  chartRef.current?.requestFullscreen?.();
+                }}
+              >
+                {isFullscreen ? "Sair do ecrã inteiro" : "Ecrã inteiro"}
+              </button>
             </div>
           </div>
-          <div className="mt-6" ref={chartRef}>
-            <TradingViewWidget symbol={tradingViewSymbol} />
+          <div className={`mt-6 ${isFullscreen ? "h-screen" : "h-[480px]"}`} ref={chartRef}>
+            <TradingViewWidget
+              symbol={tradingViewSymbol}
+              height={isFullscreen ? "100%" : 480}
+              interval={tradingViewInterval}
+            />
           </div>
         </section>
 
