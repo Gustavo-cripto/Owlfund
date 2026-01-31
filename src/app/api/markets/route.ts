@@ -15,8 +15,24 @@ type CoinGeckoRow = {
 
 const extractCoinExTickers = (payload: unknown): Record<string, CoinExTicker> => {
   const data = (payload ?? {}) as Record<string, unknown>;
-  const inner = (data.data ?? {}) as Record<string, unknown>;
-  const ticker = inner.ticker ?? inner.tickers;
+  const inner = data.data;
+  if (Array.isArray(inner)) {
+    return inner.reduce<Record<string, CoinExTicker>>((acc, item) => {
+      if (!item || typeof item !== "object") return acc;
+      const row = item as Record<string, unknown>;
+      const market = typeof row.market === "string" ? row.market : "";
+      if (!market) return acc;
+      acc[market] = {
+        last: String(row.last ?? row.close ?? ""),
+        open: String(row.open ?? ""),
+        vol: String(row.volume ?? row.vol ?? ""),
+        value: String(row.value ?? ""),
+      };
+      return acc;
+    }, {});
+  }
+  const innerRecord = (inner ?? {}) as Record<string, unknown>;
+  const ticker = innerRecord.ticker ?? innerRecord.tickers;
   if (ticker && typeof ticker === "object") {
     return ticker as Record<string, CoinExTicker>;
   }
@@ -26,21 +42,15 @@ const extractCoinExTickers = (payload: unknown): Record<string, CoinExTicker> =>
 export async function GET() {
   try {
     const [coinexResponse, coingeckoResponse] = await Promise.all([
-      fetch("https://api.coinex.com/v2/spot/market/ticker"),
+      fetch("https://api.coinex.com/v2/spot/ticker"),
       fetch(
         "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1"
       ),
     ]);
 
-    let coinexPayload: unknown = null;
-    if (coinexResponse.ok) {
-      coinexPayload = await coinexResponse.json().catch(() => null);
-    } else {
-      const fallback = await fetch("https://api.coinex.com/v1/market/ticker");
-      if (fallback.ok) {
-        coinexPayload = await fallback.json().catch(() => null);
-      }
-    }
+    const coinexPayload = coinexResponse.ok
+      ? await coinexResponse.json().catch(() => null)
+      : null;
 
     if (!coinexPayload) {
       return NextResponse.json({ error: "Falha ao consultar CoinEx." }, { status: 502 });
