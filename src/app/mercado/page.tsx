@@ -34,32 +34,73 @@ const formatPercent = (value: number) => `${value >= 0 ? "+" : ""}${value.toFixe
 const hashSeed = (value: string) =>
   value.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
-const buildSparkline = (change: number, seed: number) => {
-  const points: Array<[number, number]> = [];
-  const base = change >= 0 ? 9 : 13;
-  const amplitude = 4;
-  for (let i = 0; i <= 8; i += 1) {
-    const x = (i / 8) * 100;
-    const noise = Math.sin((i + seed) * 0.7) * amplitude;
-    const trend = (change >= 0 ? -1 : 1) * (i / 8) * 6;
-    const y = Math.max(2, Math.min(18, base + noise + trend));
-    points.push([x, y]);
+type CandlePoint = {
+  x: number;
+  open: number;
+  close: number;
+  high: number;
+  low: number;
+  isUp: boolean;
+};
+
+const buildCandles = (change: number, seed: number): CandlePoint[] => {
+  const candles: CandlePoint[] = [];
+  const base = change >= 0 ? 9 : 12;
+  let last = base + (seed % 5) * 0.3;
+  for (let i = 0; i < 10; i += 1) {
+    const drift = (change >= 0 ? -1 : 1) * (i / 9) * 2.2;
+    const noise = Math.sin((i + seed) * 0.9) * 1.4;
+    const open = Math.max(2.2, Math.min(17.5, last));
+    const close = Math.max(2.2, Math.min(17.5, open + noise + drift));
+    const high = Math.max(open, close) + 1.1 + Math.abs(Math.cos((i + seed) * 0.6));
+    const low = Math.min(open, close) - 1.1 - Math.abs(Math.sin((i + seed) * 0.5));
+    const clampedHigh = Math.min(19, high);
+    const clampedLow = Math.max(1, low);
+    candles.push({
+      x: i * 10 + 5,
+      open,
+      close,
+      high: clampedHigh,
+      low: clampedLow,
+      isUp: close >= open,
+    });
+    last = close;
   }
-  return points.map((point) => point.join(",")).join(" ");
+  return candles;
 };
 
 function TrendSparkline({ change, seed }: { change: number; seed: number }) {
-  const stroke = change >= 0 ? "#34d399" : "#fb7185";
+  const upColor = "#34d399";
+  const downColor = "#fb7185";
+  const candles = buildCandles(change, seed);
   return (
     <svg width="90" height="24" viewBox="0 0 100 20" aria-hidden>
-      <polyline
-        fill="none"
-        stroke={stroke}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        points={buildSparkline(change, seed)}
-      />
+      {candles.map((candle, index) => {
+        const color = candle.isUp ? upColor : downColor;
+        const bodyTop = candle.isUp ? candle.close : candle.open;
+        const bodyBottom = candle.isUp ? candle.open : candle.close;
+        const bodyHeight = Math.max(0.8, bodyBottom - bodyTop);
+        return (
+          <g key={`${candle.x}-${index}`}>
+            <line
+              x1={candle.x}
+              y1={candle.high}
+              x2={candle.x}
+              y2={candle.low}
+              stroke={color}
+              strokeWidth="1"
+            />
+            <rect
+              x={candle.x - 1.8}
+              y={bodyTop}
+              width="3.6"
+              height={bodyHeight}
+              fill={color}
+              rx="0.6"
+            />
+          </g>
+        );
+      })}
     </svg>
   );
 }
