@@ -126,9 +126,9 @@ export default function MercadoPage() {
   const [error, setError] = useState<string | null>(null);
   const chartRef = useRef<HTMLDivElement | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [timeframe, setTimeframe] = useState<"24h" | "7d" | "1M" | "3M" | "1A" | "Máx">(
-    "24h"
-  );
+  const [timeframe, setTimeframe] = useState<
+    "1h" | "4h" | "24h" | "7d" | "1M" | "3M" | "1A" | "Máx"
+  >("24h");
 
   useEffect(() => {
     const load = async () => {
@@ -163,14 +163,18 @@ export default function MercadoPage() {
 
   const tradingViewInterval = useMemo(() => {
     switch (timeframe) {
-      case "24h":
+      case "1h":
         return "60";
-      case "7d":
+      case "4h":
         return "240";
+      case "24h":
+        return "D";
+      case "7d":
+        return "D";
       case "1M":
         return "D";
       case "3M":
-        return "D";
+        return "W";
       case "1A":
         return "W";
       case "Máx":
@@ -202,7 +206,8 @@ export default function MercadoPage() {
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs font-semibold text-slate-300">
-                {(["24h", "7d", "1M", "3M", "1A", "Máx"] as const).map((label) => {
+                {(["1h", "4h", "24h", "7d", "1M", "3M", "1A", "Máx"] as const).map(
+                  (label) => {
                   const isActive = timeframe === label;
                   return (
                     <button
