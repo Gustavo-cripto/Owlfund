@@ -276,7 +276,9 @@ export default function MercadoPage() {
             </div>
           </div>
           <div
-            className={`mt-6 ${isFullscreen ? "h-screen" : "h-[480px]"} relative`}
+            className={`mt-6 ${
+              isFullscreen ? "h-[92vh] px-2 py-3" : "h-[480px]"
+            } relative`}
             ref={chartRef}
           >
             {isFullscreen && (
