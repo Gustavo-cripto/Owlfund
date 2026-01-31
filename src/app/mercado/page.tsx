@@ -127,8 +127,8 @@ export default function MercadoPage() {
   const chartRef = useRef<HTMLDivElement | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [timeframe, setTimeframe] = useState<
-    "1h" | "4h" | "24h" | "7d" | "1M" | "3M" | "1A" | "Máx"
-  >("24h");
+    "1h" | "4h" | "7d" | "Diária" | "Semanal" | "1M" | "3M" | "1A" | "Máx"
+  >("Diária");
 
   useEffect(() => {
     const load = async () => {
@@ -167,10 +167,12 @@ export default function MercadoPage() {
         return "60";
       case "4h":
         return "240";
-      case "24h":
-        return "D";
       case "7d":
+        return "240";
+      case "Diária":
         return "D";
+      case "Semanal":
+        return "W";
       case "1M":
         return "D";
       case "3M":
@@ -206,8 +208,9 @@ export default function MercadoPage() {
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs font-semibold text-slate-300">
-                {(["1h", "4h", "24h", "7d", "1M", "3M", "1A", "Máx"] as const).map(
-                  (label) => {
+                {(
+                  ["1h", "4h", "7d", "Diária", "Semanal", "1M", "3M", "1A", "Máx"] as const
+                ).map((label) => {
                   const isActive = timeframe === label;
                   return (
                     <button
@@ -240,7 +243,19 @@ export default function MercadoPage() {
               </button>
             </div>
           </div>
-          <div className={`mt-6 ${isFullscreen ? "h-screen" : "h-[480px]"}`} ref={chartRef}>
+          <div
+            className={`mt-6 ${isFullscreen ? "h-screen" : "h-[480px]"} relative`}
+            ref={chartRef}
+          >
+            {isFullscreen && (
+              <button
+                type="button"
+                className="absolute right-4 top-4 z-50 rounded-full border border-slate-700 bg-slate-950/90 px-4 py-2 text-xs font-semibold text-slate-100 shadow-lg transition hover:border-slate-500 hover:text-white"
+                onClick={() => document.exitFullscreen()}
+              >
+                Sair do ecrã inteiro
+              </button>
+            )}
             <TradingViewWidget
               symbol={tradingViewSymbol}
               height={isFullscreen ? "100%" : 480}
