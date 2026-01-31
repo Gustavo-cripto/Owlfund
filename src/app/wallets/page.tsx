@@ -66,6 +66,8 @@ export default function WalletsPage() {
   const [ethNewNetwork, setEthNewNetwork] = useState<EvmNetwork>("Ethereum");
   const [ethNewError, setEthNewError] = useState<string | null>(null);
   const [ethNewLoading, setEthNewLoading] = useState(false);
+  const [ethShowMain, setEthShowMain] = useState(false);
+  const [ethShown, setEthShown] = useState<Record<string, boolean>>({});
 
   const [solAddress, setSolAddress] = useState<string>();
   const [solBalance, setSolBalance] = useState<string>();
@@ -75,6 +77,8 @@ export default function WalletsPage() {
   const [solNewAddress, setSolNewAddress] = useState("");
   const [solNewError, setSolNewError] = useState<string | null>(null);
   const [solNewLoading, setSolNewLoading] = useState(false);
+  const [solShowMain, setSolShowMain] = useState(false);
+  const [solShown, setSolShown] = useState<Record<string, boolean>>({});
 
   const [btcAddress, setBtcAddress] = useState<string>();
   const [btcBalance, setBtcBalance] = useState<number | null>(null);
@@ -84,6 +88,8 @@ export default function WalletsPage() {
   const [btcNewAddress, setBtcNewAddress] = useState("");
   const [btcNewError, setBtcNewError] = useState<string | null>(null);
   const [btcNewLoading, setBtcNewLoading] = useState(false);
+  const [btcShowMain, setBtcShowMain] = useState(false);
+  const [btcShown, setBtcShown] = useState<Record<string, boolean>>({});
 
   const [adaAddress, setAdaAddress] = useState<string>();
   const [adaBalance, setAdaBalance] = useState<string>();
@@ -93,6 +99,8 @@ export default function WalletsPage() {
   const [adaWallets, setAdaWallets] = useState<StoredWalletEntry[]>([]);
   const [adaNewAddress, setAdaNewAddress] = useState("");
   const [adaNewError, setAdaNewError] = useState<string | null>(null);
+  const [adaShowMain, setAdaShowMain] = useState(false);
+  const [adaShown, setAdaShown] = useState<Record<string, boolean>>({});
 
   const ethIsAvailable = isClient && (availability.metamask || ethWallets.length > 0);
   const solIsAvailable = isClient && (availability.phantom || solWallets.length > 0);
@@ -115,6 +123,12 @@ export default function WalletsPage() {
     list: StoredWalletEntry[],
     matcher: (item: StoredWalletEntry) => boolean
   ) => list.filter((item) => !matcher(item));
+
+  const formatAddress = (address?: string) => {
+    if (!address) return "—";
+    if (address.length <= 12) return address;
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
 
   const handleEthConnect = async () => {
     try {
@@ -426,6 +440,7 @@ export default function WalletsPage() {
             title="Ethereum"
             description="MetaMask (ETH)"
             address={ethAddress}
+            addressDisplay={ethShowMain ? ethAddress : formatAddress(ethAddress)}
             balance={ethBalance}
             balanceUnit="ETH"
             isConnected={!!ethAddress}
@@ -434,6 +449,8 @@ export default function WalletsPage() {
             error={ethError}
             onConnect={handleEthConnect}
             onRefresh={handleEthRefresh}
+            onToggleAddress={() => setEthShowMain((prev) => !prev)}
+            isAddressVisible={ethShowMain}
           >
             <div className="space-y-3">
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
@@ -479,7 +496,24 @@ export default function WalletsPage() {
                         <p className="font-semibold text-white">
                           {item.network ?? "Ethereum"}
                         </p>
-                        <p className="text-slate-500">{item.address}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-slate-500">
+                            {ethShown[item.address ?? ""] ? item.address : formatAddress(item.address)}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setEthShown((prev) => ({
+                                ...prev,
+                                [item.address ?? ""]: !prev[item.address ?? ""],
+                              }))
+                            }
+                            className="rounded-full border border-slate-700 px-2 py-1 text-[10px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                            title={ethShown[item.address ?? ""] ? "Ocultar" : "Mostrar"}
+                          >
+                            {ethShown[item.address ?? ""] ? "🙈" : "👁️"}
+                          </button>
+                        </div>
                       </div>
                       <div className="text-right">
                         <p>
@@ -536,6 +570,7 @@ export default function WalletsPage() {
             title="Solana"
             description="Phantom (SOL)"
             address={solAddress}
+            addressDisplay={solShowMain ? solAddress : formatAddress(solAddress)}
             balance={solBalance}
             balanceUnit="SOL"
             isConnected={!!solAddress}
@@ -544,6 +579,8 @@ export default function WalletsPage() {
             error={solError}
             onConnect={handleSolConnect}
             onRefresh={handleSolRefresh}
+            onToggleAddress={() => setSolShowMain((prev) => !prev)}
+            isAddressVisible={solShowMain}
           >
             <div className="space-y-3">
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
@@ -576,7 +613,24 @@ export default function WalletsPage() {
                     >
                       <div className="space-y-1">
                         <p className="font-semibold text-white">Solana</p>
-                        <p className="text-slate-500">{item.address}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-slate-500">
+                            {solShown[item.address ?? ""] ? item.address : formatAddress(item.address)}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSolShown((prev) => ({
+                                ...prev,
+                                [item.address ?? ""]: !prev[item.address ?? ""],
+                              }))
+                            }
+                            className="rounded-full border border-slate-700 px-2 py-1 text-[10px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                            title={solShown[item.address ?? ""] ? "Ocultar" : "Mostrar"}
+                          >
+                            {solShown[item.address ?? ""] ? "🙈" : "👁️"}
+                          </button>
+                        </div>
                       </div>
                       <div className="text-right">
                         <p>
@@ -625,6 +679,7 @@ export default function WalletsPage() {
             title="Bitcoin"
             description="Xverse (BTC)"
             address={btcAddress}
+            addressDisplay={btcShowMain ? btcAddress : formatAddress(btcAddress)}
             balance={btcBalance !== null ? btcBalance.toFixed(8) : null}
             balanceUnit="BTC"
             isConnected={!!btcAddress}
@@ -634,6 +689,8 @@ export default function WalletsPage() {
             onConnect={handleBtcConnect}
             onRefresh={handleBtcRefresh}
             allowConnectWhenUnavailable
+            onToggleAddress={() => setBtcShowMain((prev) => !prev)}
+            isAddressVisible={btcShowMain}
           >
             <div className="space-y-3">
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
@@ -666,7 +723,24 @@ export default function WalletsPage() {
                     >
                       <div className="space-y-1">
                         <p className="font-semibold text-white">Bitcoin</p>
-                        <p className="text-slate-500">{item.address}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-slate-500">
+                            {btcShown[item.address ?? ""] ? item.address : formatAddress(item.address)}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setBtcShown((prev) => ({
+                                ...prev,
+                                [item.address ?? ""]: !prev[item.address ?? ""],
+                              }))
+                            }
+                            className="rounded-full border border-slate-700 px-2 py-1 text-[10px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                            title={btcShown[item.address ?? ""] ? "Ocultar" : "Mostrar"}
+                          >
+                            {btcShown[item.address ?? ""] ? "🙈" : "👁️"}
+                          </button>
+                        </div>
                       </div>
                       <div className="text-right">
                         <p>
@@ -715,6 +789,7 @@ export default function WalletsPage() {
             title="Cardano"
             description="Eternl (ADA)"
             address={adaAddress}
+            addressDisplay={adaShowMain ? adaAddress : formatAddress(adaAddress)}
             balance={adaBalance}
             balanceUnit="ADA"
             isConnected={!!adaAddress}
@@ -723,6 +798,8 @@ export default function WalletsPage() {
             error={adaError}
             onConnect={handleAdaConnect}
             onRefresh={handleAdaRefresh}
+            onToggleAddress={() => setAdaShowMain((prev) => !prev)}
+            isAddressVisible={adaShowMain}
           >
             <div className="space-y-3">
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
@@ -754,7 +831,24 @@ export default function WalletsPage() {
                     >
                       <div className="space-y-1">
                         <p className="font-semibold text-white">Cardano</p>
-                        <p className="text-slate-500">{item.address}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-slate-500">
+                            {adaShown[item.address ?? ""] ? item.address : formatAddress(item.address)}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setAdaShown((prev) => ({
+                                ...prev,
+                                [item.address ?? ""]: !prev[item.address ?? ""],
+                              }))
+                            }
+                            className="rounded-full border border-slate-700 px-2 py-1 text-[10px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                            title={adaShown[item.address ?? ""] ? "Ocultar" : "Mostrar"}
+                          >
+                            {adaShown[item.address ?? ""] ? "🙈" : "👁️"}
+                          </button>
+                        </div>
                       </div>
                       <div className="text-right">
                         <p>{item.balance ?? "—"} {item.balance ? "ADA" : ""}</p>

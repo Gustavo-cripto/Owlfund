@@ -2,6 +2,7 @@ type WalletCardProps = {
   title: string;
   description: string;
   address?: string;
+  addressDisplay?: string;
   balance?: string | number | null;
   balanceUnit?: string;
   isLoading?: boolean;
@@ -12,6 +13,8 @@ type WalletCardProps = {
   onRefresh?: () => void;
   children?: React.ReactNode;
   allowConnectWhenUnavailable?: boolean;
+  onToggleAddress?: () => void;
+  isAddressVisible?: boolean;
 };
 
 const formatAddress = (address?: string) => {
@@ -24,6 +27,7 @@ export default function WalletCard({
   title,
   description,
   address,
+  addressDisplay,
   balance,
   balanceUnit,
   isLoading,
@@ -34,6 +38,8 @@ export default function WalletCard({
   onRefresh,
   children,
   allowConnectWhenUnavailable,
+  onToggleAddress,
+  isAddressVisible,
 }: WalletCardProps) {
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
@@ -52,9 +58,24 @@ export default function WalletCard({
       </div>
 
       <div className="mt-5 space-y-3 text-sm text-slate-300">
-        <div>
-          <span className="text-slate-500">Endereço:</span>{" "}
-          {address ? formatAddress(address) : "—"}
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <span className="text-slate-500">Endereço:</span>{" "}
+            {address
+              ? addressDisplay ?? formatAddress(address)
+              : "—"}
+          </div>
+          {address && onToggleAddress ? (
+            <button
+              type="button"
+              onClick={onToggleAddress}
+              className="rounded-full border border-slate-700 px-2 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+              title={isAddressVisible ? "Ocultar endereço" : "Mostrar endereço"}
+              aria-label={isAddressVisible ? "Ocultar endereço" : "Mostrar endereço"}
+            >
+              {isAddressVisible ? "🙈" : "👁️"}
+            </button>
+          ) : null}
         </div>
         <div>
           <span className="text-slate-500">Saldo:</span>{" "}
