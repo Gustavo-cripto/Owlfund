@@ -13,27 +13,40 @@ type CoinGeckoRow = {
   market_cap: number | null;
 };
 
+const extractCoinExTickers = (payload: unknown): Record<string, CoinExTicker> => {
+  const data = (payload ?? {}) as Record<string, unknown>;
+  const inner = (data.data ?? {}) as Record<string, unknown>;
+  const ticker = inner.ticker ?? inner.tickers;
+  if (ticker && typeof ticker === "object") {
+    return ticker as Record<string, CoinExTicker>;
+  }
+  return {};
+};
+
 export async function GET() {
   try {
     const [coinexResponse, coingeckoResponse] = await Promise.all([
-      fetch("https://api.coinex.com/v1/market/ticker"),
+      fetch("https://api.coinex.com/v2/spot/market/ticker"),
       fetch(
         "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1"
       ),
     ]);
 
-    if (!coinexResponse.ok) {
-      return NextResponse.json(
-        { error: "Falha ao consultar CoinEx." },
-        { status: 502 }
-      );
+    let coinexPayload: unknown = null;
+    if (coinexResponse.ok) {
+      coinexPayload = await coinexResponse.json().catch(() => null);
+    } else {
+      const fallback = await fetch("https://api.coinex.com/v1/market/ticker");
+      if (fallback.ok) {
+        coinexPayload = await fallback.json().catch(() => null);
+      }
     }
 
-    const coinexPayload = (await coinexResponse.json()) as {
-      data?: { ticker?: Record<string, CoinExTicker> };
-    };
+    if (!coinexPayload) {
+      return NextResponse.json({ error: "Falha ao consultar CoinEx." }, { status: 502 });
+    }
 
-    const tickers = coinexPayload.data?.ticker ?? {};
+    const tickers = extractCoinExTickers(coinexPayload);
 
     const coingeckoPayload = coingeckoResponse.ok
       ? ((await coingeckoResponse.json()) as CoinGeckoRow[])
@@ -43,10 +56,13 @@ export async function GET() {
       coingeckoPayload.map((row) => [row.symbol.toUpperCase(), row])
     );
 
-    const rows = Object.entries(tickers)
-      .filter(([market]) => market.endsWith("USDT"))
-      .map(([market, ticker]) => {
-        const symbol = market.replace("USDT", "");
+    const rows = coingeckoPayload
+      .filter((row) => row.symbol)
+      .map((row) => {
+        const symbol = row.symbol.toUpperCase();
+        const market = `${symbol}USDT`;
+        const ticker = tickers[market];
+        if (!ticker) return null;
         const last = Number(ticker.last);
         const open = Number(ticker.open);
         const change24h = open ? ((last - open) / open) * 100 : 0;
@@ -64,7 +80,8 @@ export async function GET() {
           volume24hUsd: Number.isFinite(volume) ? volume : 0,
         };
       })
-      .sort((a, b) => b.volume24hUsd - a.volume24hUsd)
+      .filter((row): row is NonNullable<typeof row> => !!row)
+      .sort((a, b) => (b.marketCapUsd ?? 0) - (a.marketCapUsd ?? 0))
       .slice(0, 200);
 
     return NextResponse.json({ data: rows });

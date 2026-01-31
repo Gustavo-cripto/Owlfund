@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import AppHeader from "@/components/AppHeader";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
@@ -113,6 +113,7 @@ export default function MercadoPage() {
   const [selected, setSelected] = useState<MarketRow | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const chartRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -168,7 +169,7 @@ export default function MercadoPage() {
               <span className="px-2 text-slate-500">Máx</span>
             </div>
           </div>
-          <div className="mt-6">
+          <div className="mt-6" ref={chartRef}>
             <TradingViewWidget symbol={tradingViewSymbol} />
           </div>
         </section>
@@ -204,19 +205,24 @@ export default function MercadoPage() {
                     <tr
                       key={row.market}
                       className="border-b border-slate-800/60 transition hover:bg-slate-950/60"
-                      onClick={() => setSelected(row)}
-                      role="button"
                     >
                       <td className="px-4 py-4 text-slate-500">{index + 1}</td>
                       <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          className="flex items-center gap-3 text-left transition hover:text-white"
+                          onClick={() => {
+                            setSelected(row);
+                            chartRef.current?.scrollIntoView({ behavior: "smooth" });
+                          }}
+                        >
                           <div>
                             <p className="font-semibold text-white">
                               {row.symbol}
                             </p>
                             <p className="text-xs text-slate-500">{row.name}</p>
                           </div>
-                        </div>
+                        </button>
                       </td>
                       <td className="px-4 py-4 font-semibold text-white">
                         {formatCurrency(row.priceUsd, row.priceUsd < 1 ? 6 : 2)}
