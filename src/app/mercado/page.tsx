@@ -125,10 +125,16 @@ function TradingViewWidget({
         style: 1,
         locale: "pt",
         enable_publishing: false,
-        hide_top_toolbar: true,
+        hide_top_toolbar: false,
         withdateranges: true,
         hide_side_toolbar: false,
         save_image: false,
+        studies: [
+          "RSI@tv-basicstudies",
+          "MACD@tv-basicstudies",
+          "Volume@tv-basicstudies",
+          "MASimple@tv-basicstudies",
+        ],
         height: height ?? 480,
       });
     });
