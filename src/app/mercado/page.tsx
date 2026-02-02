@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import AppHeader from "@/components/AppHeader";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
@@ -102,6 +102,9 @@ const mapClassificationPt = (value: string) => {
 };
 
 function FearGreedGauge({ value }: { value: number }) {
+  const uid = useId();
+  const gradId = `${uid}-fng-grad`;
+  const shadowId = `${uid}-softShadow`;
   const v = Math.max(0, Math.min(100, value));
   // map 0..100 => 180..0 (left -> right)
   const angle = 180 - (v / 100) * 180;
@@ -117,13 +120,13 @@ function FearGreedGauge({ value }: { value: number }) {
   return (
     <svg viewBox="0 0 240 140" className="w-full" aria-hidden>
       <defs>
-        <linearGradient id="fng-grad" x1="0" y1="0" x2="1" y2="0">
+        <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
           <stop offset="0%" stopColor="#ef4444" />
           <stop offset="35%" stopColor="#f59e0b" />
           <stop offset="60%" stopColor="#eab308" />
           <stop offset="100%" stopColor="#22c55e" />
         </linearGradient>
-        <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+        <filter id={shadowId} x="-20%" y="-20%" width="140%" height="140%">
           <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#000" floodOpacity="0.25" />
         </filter>
       </defs>
@@ -132,10 +135,10 @@ function FearGreedGauge({ value }: { value: number }) {
       <path
         d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`}
         fill="none"
-        stroke="url(#fng-grad)"
+        stroke={`url(#${gradId})`}
         strokeWidth="18"
         strokeLinecap="round"
-        filter="url(#softShadow)"
+        filter={`url(#${shadowId})`}
       />
 
       {/* needle */}
@@ -147,7 +150,7 @@ function FearGreedGauge({ value }: { value: number }) {
       <g transform={`translate(${20},${92})`}>
         <circle cx="18" cy="18" r="18" fill="#c2410c" />
         <text x="18" y="23" textAnchor="middle" fontSize="14" fill="#fff" fontWeight="700">
-          {v}
+          {Math.round(v)}
         </text>
       </g>
     </svg>
@@ -433,6 +436,8 @@ export default function MercadoPage() {
   const [fearGreedPoints, setFearGreedPoints] = useState<FearGreedPoint[]>([]);
   const [fearGreedCountdown, setFearGreedCountdown] = useState<number | null>(null);
   const [sentimentTop10, setSentimentTop10] = useState<SentimentRow[]>([]);
+  const [page, setPage] = useState(0);
+  const pageSize = 20;
 
   const closeTradingViewOverlay = () => {
     // Best-effort: closes TradingView popovers/panels (e.g., Markets/Favorites/Trending).
@@ -463,6 +468,7 @@ export default function MercadoPage() {
         setRows(data.data);
         setSelected(data.data[0] ?? null);
         setSentimentTop10(data.sentimentTop10 ?? []);
+        setPage(0);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Erro ao carregar mercados.");
       } finally {
@@ -587,6 +593,23 @@ export default function MercadoPage() {
     }
   }, [timeframe]);
 
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(rows.length / pageSize)),
+    [rows.length]
+  );
+
+  const currentPage = Math.min(page, totalPages - 1);
+  const pagedRows = useMemo(() => {
+    const start = currentPage * pageSize;
+    return rows.slice(start, start + pageSize);
+  }, [rows, currentPage]);
+
+  const pageRange = useMemo(() => {
+    const start = currentPage * pageSize;
+    const end = Math.min(rows.length, start + pageSize);
+    return { start, end };
+  }, [currentPage, rows.length]);
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <AppHeader variant="app" subtitle="Panorama do mercado" />
@@ -616,201 +639,236 @@ export default function MercadoPage() {
             />
           </aside>
 
-          <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-semibold text-white">Gráfico do ativo</h2>
-                <p className="text-sm text-slate-400">
-                  {selected ? `${selected.name} · ${selected.symbol}` : "Selecione um ativo"}
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs font-semibold text-slate-300">
-                  {(
-                    ["1h", "4h", "7d", "Diária", "Semanal", "1M", "3M", "1A", "Máx"] as const
-                  ).map((label) => {
-                    const isActive = timeframe === label;
-                    return (
-                      <button
-                        key={label}
-                        type="button"
-                        className={`rounded-full px-3 py-1 transition ${
-                          isActive
-                            ? "bg-slate-800 text-white"
-                            : "text-slate-500 hover:text-slate-200"
-                        }`}
-                        onClick={() => setTimeframe(label)}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
+          <div className="flex flex-col gap-6">
+            <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-white">Gráfico do ativo</h2>
+                  <p className="text-sm text-slate-400">
+                    {selected ? `${selected.name} · ${selected.symbol}` : "Selecione um ativo"}
+                  </p>
                 </div>
-                <div className="flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/80 px-2 py-1 text-xs font-semibold text-slate-200">
-                  <button
-                    type="button"
-                    className={`rounded-full px-3 py-1 transition ${
-                      chartSource === "tradingview"
-                        ? "bg-slate-800 text-white"
-                        : "text-slate-400 hover:text-slate-200"
-                    }`}
-                    onClick={() => setChartSource("tradingview")}
-                  >
-                    TradingView
-                  </button>
-                  <button
-                    type="button"
-                    className={`rounded-full px-3 py-1 transition ${
-                      chartSource === "coinglass"
-                        ? "bg-slate-800 text-white"
-                        : "text-slate-400 hover:text-slate-200"
-                    }`}
-                    onClick={() => setChartSource("coinglass")}
-                  >
-                    Coinglass
-                  </button>
-                </div>
-                {chartSource === "tradingview" && (
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs font-semibold text-slate-300">
+                    {(
+                      ["1h", "4h", "7d", "Diária", "Semanal", "1M", "3M", "1A", "Máx"] as const
+                    ).map((label) => {
+                      const isActive = timeframe === label;
+                      return (
+                        <button
+                          key={label}
+                          type="button"
+                          className={`rounded-full px-3 py-1 transition ${
+                            isActive
+                              ? "bg-slate-800 text-white"
+                              : "text-slate-500 hover:text-slate-200"
+                          }`}
+                          onClick={() => setTimeframe(label)}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/80 px-2 py-1 text-xs font-semibold text-slate-200">
+                    <button
+                      type="button"
+                      className={`rounded-full px-3 py-1 transition ${
+                        chartSource === "tradingview"
+                          ? "bg-slate-800 text-white"
+                          : "text-slate-400 hover:text-slate-200"
+                      }`}
+                      onClick={() => setChartSource("tradingview")}
+                    >
+                      TradingView
+                    </button>
+                    <button
+                      type="button"
+                      className={`rounded-full px-3 py-1 transition ${
+                        chartSource === "coinglass"
+                          ? "bg-slate-800 text-white"
+                          : "text-slate-400 hover:text-slate-200"
+                      }`}
+                      onClick={() => setChartSource("coinglass")}
+                    >
+                      Coinglass
+                    </button>
+                  </div>
+                  {chartSource === "tradingview" && (
+                    <button
+                      type="button"
+                      className="rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                      onClick={closeTradingViewOverlay}
+                      title="Fecha painéis/menus abertos no TradingView"
+                    >
+                      Fechar painel
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                    onClick={closeTradingViewOverlay}
-                    title="Fecha painéis/menus abertos no TradingView"
+                    onClick={() => {
+                      if (document.fullscreenElement) {
+                        document.exitFullscreen();
+                        return;
+                      }
+                      chartRef.current?.requestFullscreen?.();
+                    }}
                   >
-                    Fechar painel
+                    {isFullscreen ? "Sair do ecrã inteiro" : "Ecrã inteiro"}
+                  </button>
+                </div>
+              </div>
+              <div
+                className={`mt-6 ${
+                  isFullscreen ? "h-[92vh] px-2 py-3" : "h-[480px]"
+                } relative`}
+                ref={chartRef}
+              >
+                {isFullscreen && (
+                  <button
+                    type="button"
+                    className="absolute right-4 top-4 z-50 rounded-full border border-slate-700 bg-slate-950/90 px-4 py-2 text-xs font-semibold text-slate-100 shadow-lg transition hover:border-slate-500 hover:text-white"
+                    onClick={() => document.exitFullscreen()}
+                  >
+                    Sair do ecrã inteiro
                   </button>
                 )}
-                <button
-                  type="button"
-                  className="rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                  onClick={() => {
-                    if (document.fullscreenElement) {
-                      document.exitFullscreen();
-                      return;
-                    }
-                    chartRef.current?.requestFullscreen?.();
-                  }}
-                >
-                  {isFullscreen ? "Sair do ecrã inteiro" : "Ecrã inteiro"}
-                </button>
+                {chartSource === "tradingview" ? (
+                  <TradingViewWidget
+                    key={`${tradingViewSymbol}-${tradingViewInterval}`}
+                    symbol={tradingViewSymbol}
+                    height={isFullscreen ? "100%" : 480}
+                    interval={tradingViewInterval}
+                  />
+                ) : (
+                  <iframe
+                    title="Coinglass chart"
+                    src={coinglassUrl}
+                    key={coinglassUrl}
+                    className="h-full w-full rounded-xl border border-slate-800"
+                    loading="lazy"
+                    allowFullScreen
+                  />
+                )}
               </div>
-            </div>
-            <div
-              className={`mt-6 ${
-                isFullscreen ? "h-[92vh] px-2 py-3" : "h-[480px]"
-              } relative`}
-              ref={chartRef}
-            >
-              {isFullscreen && (
-                <button
-                  type="button"
-                  className="absolute right-4 top-4 z-50 rounded-full border border-slate-700 bg-slate-950/90 px-4 py-2 text-xs font-semibold text-slate-100 shadow-lg transition hover:border-slate-500 hover:text-white"
-                  onClick={() => document.exitFullscreen()}
-                >
-                  Sair do ecrã inteiro
-                </button>
-              )}
-              {chartSource === "tradingview" ? (
-                <TradingViewWidget
-                  key={`${tradingViewSymbol}-${tradingViewInterval}`}
-                  symbol={tradingViewSymbol}
-                  height={isFullscreen ? "100%" : 480}
-                  interval={tradingViewInterval}
-                />
+            </section>
+
+            <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-lg font-semibold text-white">Top 200 criptoativos</h2>
+                <span className="text-xs text-slate-500">
+                  Fonte: CoinEx · atualização automática
+                </span>
+              </div>
+
+              {isLoading ? (
+                <p className="mt-6 text-sm text-slate-400">A carregar mercados...</p>
+              ) : error ? (
+                <p className="mt-6 text-sm text-rose-300">{error}</p>
               ) : (
-                <iframe
-                  title="Coinglass chart"
-                  src={coinglassUrl}
-                  key={coinglassUrl}
-                  className="h-full w-full rounded-xl border border-slate-800"
-                  loading="lazy"
-                  allowFullScreen
-                />
-              )}
-            </div>
-          </section>
-        </div>
-
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-semibold text-white">Top 200 criptoativos</h2>
-            <span className="text-xs text-slate-500">
-              Fonte: CoinEx · atualização automática
-            </span>
-          </div>
-
-          {isLoading ? (
-            <p className="mt-6 text-sm text-slate-400">A carregar mercados...</p>
-          ) : error ? (
-            <p className="mt-6 text-sm text-rose-300">{error}</p>
-          ) : (
-            <div className="mt-6 overflow-x-auto">
-              <table className="min-w-full text-left text-sm">
-                <thead className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                  <tr className="border-b border-slate-800">
-                    <th className="px-4 py-3">#</th>
-                    <th className="px-4 py-3">Cripto</th>
-                    <th className="px-4 py-3">Preço (USD)</th>
-                    <th className="px-4 py-3">Variação 24h</th>
-                    <th className="px-4 py-3">Valor de Mercado (USD)</th>
-                    <th className="px-4 py-3">Volume 24h (USD)</th>
-                    <th className="px-4 py-3">Tendência</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row, index) => (
-                    <tr
-                      key={row.market}
-                      className="border-b border-slate-800/60 transition hover:bg-slate-950/60"
-                    >
-                      <td className="px-4 py-4 text-slate-500">{index + 1}</td>
-                      <td className="px-4 py-4">
-                        <button
-                          type="button"
-                          className="flex items-center gap-3 text-left transition hover:text-white"
-                          onClick={() => {
-                            setSelected(row);
-                            chartRef.current?.scrollIntoView({ behavior: "smooth" });
-                          }}
-                        >
-                          <div>
-                            <p className="font-semibold text-white">
-                              {row.symbol}
-                            </p>
-                            <p className="text-xs text-slate-500">{row.name}</p>
-                          </div>
-                        </button>
-                      </td>
-                      <td className="px-4 py-4 font-semibold text-white">
-                        {formatCurrency(row.priceUsd, row.priceUsd < 1 ? 6 : 2)}
-                      </td>
-                      <td
-                        className={`px-4 py-4 font-semibold ${
-                          row.change24h >= 0 ? "text-emerald-300" : "text-rose-300"
-                        }`}
+                <div className="mt-6">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-xs text-slate-400">
+                      Mostrando <span className="font-semibold text-slate-200">{pageRange.start + 1}</span>
+                      {"–"}
+                      <span className="font-semibold text-slate-200">{pageRange.end}</span> de{" "}
+                      <span className="font-semibold text-slate-200">{rows.length}</span>
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                        onClick={() => setPage((p) => Math.max(0, p - 1))}
+                        disabled={currentPage <= 0}
                       >
-                        {formatPercent(row.change24h)}
-                      </td>
-                      <td className="px-4 py-4 text-slate-300">
-                        {row.marketCapUsd ? formatCompact(row.marketCapUsd) : "—"}
-                      </td>
-                      <td className="px-4 py-4 text-slate-300">
-                        {formatCompact(row.volume24hUsd)}
-                      </td>
-                      <td className="px-4 py-4">
-                        <TrendSparkline
-                          change={row.change24h}
-                          seed={hashSeed(row.market)}
-                          isLight={isLightMode}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
+                        Anterior
+                      </button>
+                      <div className="text-xs text-slate-400">
+                        Página <span className="font-semibold text-slate-200">{currentPage + 1}</span> /{" "}
+                        <span className="font-semibold text-slate-200">{totalPages}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                        onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                        disabled={currentPage >= totalPages - 1}
+                      >
+                        Próximo
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="min-w-full text-left text-sm">
+                    <thead className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                      <tr className="border-b border-slate-800">
+                        <th className="px-4 py-3">#</th>
+                        <th className="px-4 py-3">Cripto</th>
+                        <th className="px-4 py-3">Preço (USD)</th>
+                        <th className="px-4 py-3">Variação 24h</th>
+                        <th className="px-4 py-3">Valor de Mercado (USD)</th>
+                        <th className="px-4 py-3">Volume 24h (USD)</th>
+                        <th className="px-4 py-3">Tendência</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pagedRows.map((row, index) => (
+                        <tr
+                          key={row.market}
+                          className="border-b border-slate-800/60 transition hover:bg-slate-950/60"
+                        >
+                          <td className="px-4 py-4 text-slate-500">
+                            {pageRange.start + index + 1}
+                          </td>
+                          <td className="px-4 py-4">
+                            <button
+                              type="button"
+                              className="flex items-center gap-3 text-left transition hover:text-white"
+                              onClick={() => {
+                                setSelected(row);
+                                chartRef.current?.scrollIntoView({ behavior: "smooth" });
+                              }}
+                            >
+                              <div>
+                                <p className="font-semibold text-white">{row.symbol}</p>
+                                <p className="text-xs text-slate-500">{row.name}</p>
+                              </div>
+                            </button>
+                          </td>
+                          <td className="px-4 py-4 font-semibold text-white">
+                            {formatCurrency(row.priceUsd, row.priceUsd < 1 ? 6 : 2)}
+                          </td>
+                          <td
+                            className={`px-4 py-4 font-semibold ${
+                              row.change24h >= 0 ? "text-emerald-300" : "text-rose-300"
+                            }`}
+                          >
+                            {formatPercent(row.change24h)}
+                          </td>
+                          <td className="px-4 py-4 text-slate-300">
+                            {row.marketCapUsd ? formatCompact(row.marketCapUsd) : "—"}
+                          </td>
+                          <td className="px-4 py-4 text-slate-300">
+                            {formatCompact(row.volume24hUsd)}
+                          </td>
+                          <td className="px-4 py-4">
+                            <TrendSparkline
+                              change={row.change24h}
+                              seed={hashSeed(row.market)}
+                              isLight={isLightMode}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  </div>
+                </div>
+              )}
+            </section>
+          </div>
+        </div>
       </main>
     </div>
   );
