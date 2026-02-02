@@ -89,6 +89,19 @@ const labelFromScore = (score: number | null) => {
   return "Ganância extrema";
 };
 
+const STABLE_SYMBOLS = new Set([
+  "USDT",
+  "USDC",
+  "DAI",
+  "BUSD",
+  "TUSD",
+  "FDUSD",
+  "USDE",
+  "PYUSD",
+  "USDP",
+  "EURC",
+]);
+
 export async function GET() {
   try {
     const [coinexResponse, coingeckoResponse, coingeckoTopResponse] = await Promise.all([
@@ -97,7 +110,8 @@ export async function GET() {
         "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1"
       ),
       fetch(
-        "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=10&page=1&sparkline=true"
+        // fetch more and then filter (avoid stablecoins / missing markets)
+        "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&sparkline=true"
       ),
     ]);
 
@@ -151,18 +165,25 @@ export async function GET() {
       .sort((a, b) => (b.marketCapUsd ?? 0) - (a.marketCapUsd ?? 0))
       .slice(0, 200);
 
-    const sentimentTop10: SentimentRow[] = coingeckoTopPayload.map((row) => {
-      const prices = row.sparkline_in_7d?.price ?? [];
-      const rsi = computeRsi(prices, 14);
-      const score = rsi == null ? null : clamp(rsi, 0, 100);
-      return {
-        symbol: row.symbol.toUpperCase(),
-        name: row.name,
-        rsi7d: rsi,
-        score,
-        label: labelFromScore(score),
-      };
-    });
+    const sentimentTop10: SentimentRow[] = coingeckoTopPayload
+      .filter((row) => row.symbol)
+      .filter((row) => !STABLE_SYMBOLS.has(row.symbol.toUpperCase()))
+      .map((row) => {
+        const symbol = row.symbol.toUpperCase();
+        const prices = row.sparkline_in_7d?.price ?? [];
+        const rsi = computeRsi(prices, 14);
+        const score = rsi == null ? null : clamp(rsi, 0, 100);
+        return {
+          symbol,
+          name: row.name,
+          rsi7d: rsi,
+          score,
+          label: labelFromScore(score),
+        };
+      })
+      // keep only assets that exist in our CoinEx rows (so clicking always works)
+      .filter((row) => rows.some((marketRow) => marketRow.symbol === row.symbol))
+      .slice(0, 10);
 
     return NextResponse.json({ data: rows, sentimentTop10 });
   } catch (error) {

@@ -158,16 +158,21 @@ function FearGreedWidget({
   timeUntilUpdateSec,
   top10,
   onSelectSymbol,
+  selectedSymbol,
 }: {
   points: FearGreedPoint[];
   timeUntilUpdateSec: number | null;
   top10: SentimentRow[];
   onSelectSymbol: (symbol: string) => void;
+  selectedSymbol: string | null;
 }) {
   const now = points[0];
   const yesterday = points[1];
   const lastWeek = points[7];
   const lastMonth = points[30];
+  const selected = selectedSymbol
+    ? top10.find((row) => row.symbol === selectedSymbol) ?? null
+    : null;
 
   const rows = [
     { label: "Agora", point: now },
@@ -185,7 +190,7 @@ function FearGreedWidget({
           <div className="text-2xl leading-none">₿</div>
           <div>
             <h2 className="text-base font-semibold text-white">Fear &amp; Greed Index</h2>
-            <p className="text-xs text-slate-500">Análise de sentimento do mercado</p>
+            <p className="text-xs text-slate-500">Global (alternative.me)</p>
           </div>
         </div>
 
@@ -200,6 +205,40 @@ function FearGreedWidget({
             {updatedAt ? `Última atualização: ${updatedAt}` : " "}
           </p>
         </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-semibold text-white">Fear &amp; Greed do ativo</h3>
+            <p className="text-xs text-slate-500">
+              {selectedSymbol ? `${selectedSymbol} · estimativa por RSI (7d)` : "Selecione um ativo"}
+            </p>
+          </div>
+          {selected && (
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-600/90 text-sm font-semibold text-white">
+              {selected.score == null ? "—" : Math.round(selected.score)}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-4">
+          {selected?.score != null ? (
+            <FearGreedGauge value={selected.score} />
+          ) : (
+            <div className="h-[140px] w-full rounded-xl border border-slate-800 bg-slate-950/50 p-4">
+              <p className="text-sm text-slate-300">
+                {selectedSymbol
+                  ? "Sem dados para este ativo (fora do Top 10)."
+                  : "Selecione um ativo para ver o indicador."}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {selected && (
+          <p className="mt-2 text-sm font-semibold text-white">{selected.label}</p>
+        )}
       </div>
 
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
@@ -559,6 +598,7 @@ export default function MercadoPage() {
                   chartRef.current?.scrollIntoView({ behavior: "smooth" });
                 }
               }}
+              selectedSymbol={selected?.symbol ?? null}
             />
           </aside>
 
