@@ -103,15 +103,16 @@ const mapClassificationPt = (value: string) => {
 
 function FearGreedGauge({ value }: { value: number }) {
   const v = Math.max(0, Math.min(100, value));
-  // map 0..100 => -90..90
-  const angle = -90 + (v / 100) * 180;
+  // map 0..100 => 180..0 (left -> right)
+  const angle = 180 - (v / 100) * 180;
   const cx = 120;
   const cy = 110;
   const r = 82;
   const needleLen = 70;
   const rad = (angle * Math.PI) / 180;
   const nx = cx + Math.cos(rad) * needleLen;
-  const ny = cy + Math.sin(rad) * needleLen;
+  // SVG y axis grows downward, invert sin
+  const ny = cy - Math.sin(rad) * needleLen;
 
   return (
     <svg viewBox="0 0 240 140" className="w-full" aria-hidden>
@@ -433,6 +434,19 @@ export default function MercadoPage() {
   const [fearGreedCountdown, setFearGreedCountdown] = useState<number | null>(null);
   const [sentimentTop10, setSentimentTop10] = useState<SentimentRow[]>([]);
 
+  const closeTradingViewOverlay = () => {
+    // Best-effort: closes TradingView popovers/panels (e.g., Markets/Favorites/Trending).
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Escape",
+        code: "Escape",
+        keyCode: 27,
+        which: 27,
+        bubbles: true,
+      })
+    );
+  };
+
   useEffect(() => {
     const load = async () => {
       try {
@@ -656,6 +670,16 @@ export default function MercadoPage() {
                     Coinglass
                   </button>
                 </div>
+                {chartSource === "tradingview" && (
+                  <button
+                    type="button"
+                    className="rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                    onClick={closeTradingViewOverlay}
+                    title="Fecha painéis/menus abertos no TradingView"
+                  >
+                    Fechar painel
+                  </button>
+                )}
                 <button
                   type="button"
                   className="rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
