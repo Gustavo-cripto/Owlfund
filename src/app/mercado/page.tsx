@@ -15,6 +15,14 @@ type MarketRow = {
   volume24hUsd: number;
 };
 
+type SentimentRow = {
+  symbol: string;
+  name: string;
+  rsi7d: number | null;
+  score: number | null;
+  label: string;
+};
+
 const formatCurrency = (value: number, digits = 2) =>
   value.toLocaleString("en-US", {
     style: "currency",
@@ -148,9 +156,13 @@ function FearGreedGauge({ value }: { value: number }) {
 function FearGreedWidget({
   points,
   timeUntilUpdateSec,
+  top10,
+  onSelectSymbol,
 }: {
   points: FearGreedPoint[];
   timeUntilUpdateSec: number | null;
+  top10: SentimentRow[];
+  onSelectSymbol: (symbol: string) => void;
 }) {
   const now = points[0];
   const yesterday = points[1];
@@ -216,6 +228,36 @@ function FearGreedWidget({
           {timeUntilUpdateSec == null ? "—" : formatCountdown(timeUntilUpdateSec)}
         </p>
         <p className="mt-4 text-xs text-slate-500">Fonte: alternative.me</p>
+      </div>
+
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+        <h3 className="text-sm font-semibold text-white">Fear &amp; Greed (ETH + mais 9)</h3>
+        <p className="mt-1 text-xs text-slate-500">Estimativa por RSI (7d) · Top 10 por market cap</p>
+        <div className="mt-4 flex flex-col gap-3">
+          {top10.length ? (
+            top10.map((row) => (
+              <button
+                key={row.symbol}
+                type="button"
+                className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/50 px-3 py-2 text-left transition hover:border-slate-600"
+                onClick={() => onSelectSymbol(row.symbol)}
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-white">{row.symbol}</p>
+                  <p className="truncate text-xs text-slate-500">{row.label}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="text-xs text-slate-400">RSI</div>
+                  <div className="flex h-8 w-10 items-center justify-center rounded-full bg-slate-800 text-xs font-semibold text-white">
+                    {row.rsi7d == null ? "—" : Math.round(row.rsi7d)}
+                  </div>
+                </div>
+              </button>
+            ))
+          ) : (
+            <p className="text-sm text-slate-400">A carregar...</p>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -350,18 +392,24 @@ export default function MercadoPage() {
   );
   const [fearGreedPoints, setFearGreedPoints] = useState<FearGreedPoint[]>([]);
   const [fearGreedCountdown, setFearGreedCountdown] = useState<number | null>(null);
+  const [sentimentTop10, setSentimentTop10] = useState<SentimentRow[]>([]);
 
   useEffect(() => {
     const load = async () => {
       try {
         setIsLoading(true);
         const response = await fetch("/api/markets");
-        const data = (await response.json()) as { data?: MarketRow[]; error?: string };
+        const data = (await response.json()) as {
+          data?: MarketRow[];
+          sentimentTop10?: SentimentRow[];
+          error?: string;
+        };
         if (!response.ok || !data.data) {
           throw new Error(data.error ?? "Não foi possível carregar mercados.");
         }
         setRows(data.data);
         setSelected(data.data[0] ?? null);
+        setSentimentTop10(data.sentimentTop10 ?? []);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Erro ao carregar mercados.");
       } finally {
@@ -500,7 +548,18 @@ export default function MercadoPage() {
 
         <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
           <aside>
-            <FearGreedWidget points={fearGreedPoints} timeUntilUpdateSec={fearGreedCountdown} />
+            <FearGreedWidget
+              points={fearGreedPoints}
+              timeUntilUpdateSec={fearGreedCountdown}
+              top10={sentimentTop10}
+              onSelectSymbol={(symbol) => {
+                const match = rows.find((row) => row.symbol === symbol);
+                if (match) {
+                  setSelected(match);
+                  chartRef.current?.scrollIntoView({ behavior: "smooth" });
+                }
+              }}
+            />
           </aside>
 
           <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
