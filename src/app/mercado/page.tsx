@@ -34,6 +34,193 @@ const formatPercent = (value: number) => `${value >= 0 ? "+" : ""}${value.toFixe
 const hashSeed = (value: string) =>
   value.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
+type FearGreedApiRow = {
+  value: string;
+  value_classification: string;
+  timestamp: string;
+  time_until_update?: string;
+};
+
+type FearGreedPoint = {
+  value: number;
+  classification: string;
+  timestampSec: number;
+};
+
+const toNumber = (value: unknown, fallback = 0) => {
+  const num = typeof value === "string" ? Number(value) : typeof value === "number" ? value : NaN;
+  return Number.isFinite(num) ? num : fallback;
+};
+
+const pad2 = (value: number) => String(value).padStart(2, "0");
+
+const formatCountdown = (seconds: number) => {
+  const safe = Math.max(0, Math.floor(seconds));
+  const h = Math.floor(safe / 3600);
+  const m = Math.floor((safe % 3600) / 60);
+  const s = safe % 60;
+  if (h > 0) return `${h}h ${pad2(m)}m ${pad2(s)}s`;
+  if (m > 0) return `${m}m ${pad2(s)}s`;
+  return `${s}s`;
+};
+
+const formatDateShort = (timestampSec: number) => {
+  try {
+    return new Date(timestampSec * 1000).toLocaleDateString("pt-PT", {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+    });
+  } catch {
+    return "";
+  }
+};
+
+const mapClassificationPt = (value: string) => {
+  switch (value) {
+    case "Extreme Fear":
+      return "Medo extremo";
+    case "Fear":
+      return "Medo";
+    case "Neutral":
+      return "Neutro";
+    case "Greed":
+      return "Ganância";
+    case "Extreme Greed":
+      return "Ganância extrema";
+    default:
+      return value;
+  }
+};
+
+function FearGreedGauge({ value }: { value: number }) {
+  const v = Math.max(0, Math.min(100, value));
+  // map 0..100 => -90..90
+  const angle = -90 + (v / 100) * 180;
+  const cx = 120;
+  const cy = 110;
+  const r = 82;
+  const needleLen = 70;
+  const rad = (angle * Math.PI) / 180;
+  const nx = cx + Math.cos(rad) * needleLen;
+  const ny = cy + Math.sin(rad) * needleLen;
+
+  return (
+    <svg viewBox="0 0 240 140" className="w-full" aria-hidden>
+      <defs>
+        <linearGradient id="fng-grad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#ef4444" />
+          <stop offset="35%" stopColor="#f59e0b" />
+          <stop offset="60%" stopColor="#eab308" />
+          <stop offset="100%" stopColor="#22c55e" />
+        </linearGradient>
+        <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#000" floodOpacity="0.25" />
+        </filter>
+      </defs>
+
+      {/* arc */}
+      <path
+        d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`}
+        fill="none"
+        stroke="url(#fng-grad)"
+        strokeWidth="18"
+        strokeLinecap="round"
+        filter="url(#softShadow)"
+      />
+
+      {/* needle */}
+      <line x1={cx} y1={cy} x2={nx} y2={ny} stroke="#94a3b8" strokeWidth="6" strokeLinecap="round" />
+      <circle cx={cx} cy={cy} r="10" fill="#e2e8f0" />
+      <circle cx={cx} cy={cy} r="6" fill="#94a3b8" />
+
+      {/* value bubble */}
+      <g transform={`translate(${20},${92})`}>
+        <circle cx="18" cy="18" r="18" fill="#c2410c" />
+        <text x="18" y="23" textAnchor="middle" fontSize="14" fill="#fff" fontWeight="700">
+          {v}
+        </text>
+      </g>
+    </svg>
+  );
+}
+
+function FearGreedWidget({
+  points,
+  timeUntilUpdateSec,
+}: {
+  points: FearGreedPoint[];
+  timeUntilUpdateSec: number | null;
+}) {
+  const now = points[0];
+  const yesterday = points[1];
+  const lastWeek = points[7];
+  const lastMonth = points[30];
+
+  const rows = [
+    { label: "Agora", point: now },
+    { label: "Ontem", point: yesterday },
+    { label: "Última semana", point: lastWeek },
+    { label: "Último mês", point: lastMonth },
+  ].filter((row) => row.point);
+
+  const updatedAt = now ? formatDateShort(now.timestampSec) : "";
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+        <div className="flex items-start gap-3">
+          <div className="text-2xl leading-none">₿</div>
+          <div>
+            <h2 className="text-base font-semibold text-white">Fear &amp; Greed Index</h2>
+            <p className="text-xs text-slate-500">Análise de sentimento do mercado</p>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          {now ? <FearGreedGauge value={now.value} /> : <div className="h-[140px] w-full animate-pulse rounded-xl bg-slate-950/60" />}
+        </div>
+
+        <div className="mt-2">
+          <p className="text-sm text-slate-400">Agora:</p>
+          <p className="text-lg font-semibold text-white">{now ? mapClassificationPt(now.classification) : "A carregar..."}</p>
+          <p className="mt-2 text-xs text-slate-500">
+            {updatedAt ? `Última atualização: ${updatedAt}` : " "}
+          </p>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+        <h3 className="text-sm font-semibold text-white">Valores históricos</h3>
+        <div className="mt-4 flex flex-col gap-3">
+          {rows.map((row) => (
+            <div key={row.label} className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm text-slate-200">{row.label}</p>
+                <p className="text-xs text-slate-500">
+                  {mapClassificationPt(row.point!.classification)}
+                </p>
+              </div>
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-600/90 text-sm font-semibold text-white">
+                {row.point!.value}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+        <h3 className="text-sm font-semibold text-white">Próxima atualização</h3>
+        <p className="mt-4 text-sm text-slate-400">A próxima atualização acontece em:</p>
+        <p className="mt-2 text-lg font-semibold text-white">
+          {timeUntilUpdateSec == null ? "—" : formatCountdown(timeUntilUpdateSec)}
+        </p>
+        <p className="mt-4 text-xs text-slate-500">Fonte: alternative.me</p>
+      </div>
+    </div>
+  );
+}
+
 const buildSparkline = (change: number, seed: number) => {
   const points: Array<[number, number]> = [];
   const base = change >= 0 ? 9 : 13;
@@ -161,11 +348,8 @@ export default function MercadoPage() {
   const [chartSource, setChartSource] = useState<"tradingview" | "coinglass">(
     "tradingview"
   );
-  const [fearGreed, setFearGreed] = useState<{
-    value: string;
-    classification: string;
-    timestamp: string;
-  } | null>(null);
+  const [fearGreedPoints, setFearGreedPoints] = useState<FearGreedPoint[]>([]);
+  const [fearGreedCountdown, setFearGreedCountdown] = useState<number | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -190,24 +374,39 @@ export default function MercadoPage() {
   useEffect(() => {
     const loadFearGreed = async () => {
       try {
-        const response = await fetch("https://api.alternative.me/fng/?limit=1");
-        const data = (await response.json()) as {
-          data?: Array<{ value: string; value_classification: string; timestamp: string }>;
-        };
-        const entry = data.data?.[0];
-        if (entry) {
-          setFearGreed({
-            value: entry.value,
-            classification: entry.value_classification,
-            timestamp: entry.timestamp,
-          });
-        }
+        const response = await fetch("https://api.alternative.me/fng/?limit=32&format=json");
+        const payload = (await response.json()) as { data?: FearGreedApiRow[] };
+        const data = payload.data ?? [];
+        const points = data
+          .map((row) => ({
+            value: toNumber(row.value, 0),
+            classification: row.value_classification ?? "",
+            timestampSec: toNumber(row.timestamp, 0),
+          }))
+          .filter((row) => row.timestampSec > 0);
+        setFearGreedPoints(points);
+        const first = data[0];
+        const next = first?.time_until_update ? toNumber(first.time_until_update, 0) : null;
+        setFearGreedCountdown(next);
       } catch {
-        setFearGreed(null);
+        setFearGreedPoints([]);
+        setFearGreedCountdown(null);
       }
     };
     loadFearGreed();
   }, []);
+
+  useEffect(() => {
+    if (fearGreedCountdown == null) return;
+    const id = window.setInterval(() => {
+      setFearGreedCountdown((prev) => {
+        if (prev == null) return prev;
+        if (prev <= 1) return 0;
+        return prev - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [fearGreedCountdown]);
 
   useEffect(() => {
     const updateTheme = () =>
@@ -228,6 +427,39 @@ export default function MercadoPage() {
     if (!selected) return "COINEX:BTCUSDT";
     return `COINEX:${selected.market}`;
   }, [selected]);
+
+  const coinglassInterval = useMemo(() => {
+    switch (timeframe) {
+      case "1h":
+        return "1H";
+      case "4h":
+        return "4H";
+      case "7d":
+        return "4H";
+      case "Diária":
+        return "1D";
+      case "Semanal":
+        return "1W";
+      case "1M":
+        return "1D";
+      case "3M":
+        return "1W";
+      case "1A":
+        return "1W";
+      case "Máx":
+        return "1W";
+      default:
+        return "1D";
+    }
+  }, [timeframe]);
+
+  const coinglassUrl = useMemo(() => {
+    const market = selected?.market ?? "BTCUSDT";
+    // Best-effort: Coinglass may ignore interval param depending on their app.
+    return `https://www.coinglass.com/tv/Binance_${market}?interval=${encodeURIComponent(
+      coinglassInterval
+    )}`;
+  }, [selected, coinglassInterval]);
 
   const tradingViewInterval = useMemo(() => {
     switch (timeframe) {
@@ -266,26 +498,9 @@ export default function MercadoPage() {
           </p>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
-          <aside className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-            <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">
-              Fear & Greed
-            </h2>
-            <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950/70 p-4">
-              {fearGreed ? (
-                <>
-                  <p className="text-3xl font-semibold text-white">{fearGreed.value}</p>
-                  <p className="mt-1 text-sm text-slate-400">
-                    {fearGreed.classification}
-                  </p>
-                </>
-              ) : (
-                <p className="text-sm text-slate-400">A carregar índice...</p>
-              )}
-            </div>
-            <p className="mt-3 text-xs text-slate-500">
-              Fonte: alternative.me
-            </p>
+        <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
+          <aside>
+            <FearGreedWidget points={fearGreedPoints} timeUntilUpdateSec={fearGreedCountdown} />
           </aside>
 
           <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
@@ -374,6 +589,7 @@ export default function MercadoPage() {
               )}
               {chartSource === "tradingview" ? (
                 <TradingViewWidget
+                  key={`${tradingViewSymbol}-${tradingViewInterval}`}
                   symbol={tradingViewSymbol}
                   height={isFullscreen ? "100%" : 480}
                   interval={tradingViewInterval}
@@ -381,7 +597,8 @@ export default function MercadoPage() {
               ) : (
                 <iframe
                   title="Coinglass chart"
-                  src="https://www.coinglass.com/tv"
+                  src={coinglassUrl}
+                  key={coinglassUrl}
                   className="h-full w-full rounded-xl border border-slate-800"
                   loading="lazy"
                   allowFullScreen
