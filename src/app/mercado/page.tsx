@@ -158,6 +158,14 @@ export default function MercadoPage() {
     "1h" | "4h" | "7d" | "Diária" | "Semanal" | "1M" | "3M" | "1A" | "Máx"
   >("Diária");
   const [isLightMode, setIsLightMode] = useState(false);
+  const [chartSource, setChartSource] = useState<"tradingview" | "coinglass">(
+    "tradingview"
+  );
+  const [fearGreed, setFearGreed] = useState<{
+    value: string;
+    classification: string;
+    timestamp: string;
+  } | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -177,6 +185,28 @@ export default function MercadoPage() {
       }
     };
     load();
+  }, []);
+
+  useEffect(() => {
+    const loadFearGreed = async () => {
+      try {
+        const response = await fetch("https://api.alternative.me/fng/?limit=1");
+        const data = (await response.json()) as {
+          data?: Array<{ value: string; value_classification: string; timestamp: string }>;
+        };
+        const entry = data.data?.[0];
+        if (entry) {
+          setFearGreed({
+            value: entry.value,
+            classification: entry.value_classification,
+            timestamp: entry.timestamp,
+          });
+        }
+      } catch {
+        setFearGreed(null);
+      }
+    };
+    loadFearGreed();
   }, []);
 
   useEffect(() => {
@@ -236,73 +266,130 @@ export default function MercadoPage() {
           </p>
         </div>
 
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-semibold text-white">Gráfico do ativo</h2>
-              <p className="text-sm text-slate-400">
-                {selected ? `${selected.name} · ${selected.symbol}` : "Selecione um ativo"}
-              </p>
+        <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
+          <aside className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+            <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-400">
+              Fear & Greed
+            </h2>
+            <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950/70 p-4">
+              {fearGreed ? (
+                <>
+                  <p className="text-3xl font-semibold text-white">{fearGreed.value}</p>
+                  <p className="mt-1 text-sm text-slate-400">
+                    {fearGreed.classification}
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-slate-400">A carregar índice...</p>
+              )}
             </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs font-semibold text-slate-300">
-                {(
-                  ["1h", "4h", "7d", "Diária", "Semanal", "1M", "3M", "1A", "Máx"] as const
-                ).map((label) => {
-                  const isActive = timeframe === label;
-                  return (
-                    <button
-                      key={label}
-                      type="button"
-                      className={`rounded-full px-3 py-1 transition ${
-                        isActive
-                          ? "bg-slate-800 text-white"
-                          : "text-slate-500 hover:text-slate-200"
-                      }`}
-                      onClick={() => setTimeframe(label)}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
+            <p className="mt-3 text-xs text-slate-500">
+              Fonte: alternative.me
+            </p>
+          </aside>
+
+          <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-white">Gráfico do ativo</h2>
+                <p className="text-sm text-slate-400">
+                  {selected ? `${selected.name} · ${selected.symbol}` : "Selecione um ativo"}
+                </p>
               </div>
-              <button
-                type="button"
-                className="rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                onClick={() => {
-                  if (document.fullscreenElement) {
-                    document.exitFullscreen();
-                    return;
-                  }
-                  chartRef.current?.requestFullscreen?.();
-                }}
-              >
-                {isFullscreen ? "Sair do ecrã inteiro" : "Ecrã inteiro"}
-              </button>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs font-semibold text-slate-300">
+                  {(
+                    ["1h", "4h", "7d", "Diária", "Semanal", "1M", "3M", "1A", "Máx"] as const
+                  ).map((label) => {
+                    const isActive = timeframe === label;
+                    return (
+                      <button
+                        key={label}
+                        type="button"
+                        className={`rounded-full px-3 py-1 transition ${
+                          isActive
+                            ? "bg-slate-800 text-white"
+                            : "text-slate-500 hover:text-slate-200"
+                        }`}
+                        onClick={() => setTimeframe(label)}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/80 px-2 py-1 text-xs font-semibold text-slate-200">
+                  <button
+                    type="button"
+                    className={`rounded-full px-3 py-1 transition ${
+                      chartSource === "tradingview"
+                        ? "bg-slate-800 text-white"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                    onClick={() => setChartSource("tradingview")}
+                  >
+                    TradingView
+                  </button>
+                  <button
+                    type="button"
+                    className={`rounded-full px-3 py-1 transition ${
+                      chartSource === "coinglass"
+                        ? "bg-slate-800 text-white"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                    onClick={() => setChartSource("coinglass")}
+                  >
+                    Coinglass
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  className="rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                  onClick={() => {
+                    if (document.fullscreenElement) {
+                      document.exitFullscreen();
+                      return;
+                    }
+                    chartRef.current?.requestFullscreen?.();
+                  }}
+                >
+                  {isFullscreen ? "Sair do ecrã inteiro" : "Ecrã inteiro"}
+                </button>
+              </div>
             </div>
-          </div>
-          <div
-            className={`mt-6 ${
-              isFullscreen ? "h-[92vh] px-2 py-3" : "h-[480px]"
-            } relative`}
-            ref={chartRef}
-          >
-            {isFullscreen && (
-              <button
-                type="button"
-                className="absolute right-4 top-4 z-50 rounded-full border border-slate-700 bg-slate-950/90 px-4 py-2 text-xs font-semibold text-slate-100 shadow-lg transition hover:border-slate-500 hover:text-white"
-                onClick={() => document.exitFullscreen()}
-              >
-                Sair do ecrã inteiro
-              </button>
-            )}
-            <TradingViewWidget
-              symbol={tradingViewSymbol}
-              height={isFullscreen ? "100%" : 480}
-              interval={tradingViewInterval}
-            />
-          </div>
-        </section>
+            <div
+              className={`mt-6 ${
+                isFullscreen ? "h-[92vh] px-2 py-3" : "h-[480px]"
+              } relative`}
+              ref={chartRef}
+            >
+              {isFullscreen && (
+                <button
+                  type="button"
+                  className="absolute right-4 top-4 z-50 rounded-full border border-slate-700 bg-slate-950/90 px-4 py-2 text-xs font-semibold text-slate-100 shadow-lg transition hover:border-slate-500 hover:text-white"
+                  onClick={() => document.exitFullscreen()}
+                >
+                  Sair do ecrã inteiro
+                </button>
+              )}
+              {chartSource === "tradingview" ? (
+                <TradingViewWidget
+                  symbol={tradingViewSymbol}
+                  height={isFullscreen ? "100%" : 480}
+                  interval={tradingViewInterval}
+                />
+              ) : (
+                <iframe
+                  title="Coinglass chart"
+                  src="https://www.coinglass.com/tv"
+                  className="h-full w-full rounded-xl border border-slate-800"
+                  loading="lazy"
+                  allowFullScreen
+                />
+              )}
+            </div>
+          </section>
+        </div>
 
         <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
