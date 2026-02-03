@@ -7,7 +7,25 @@ import { useState } from "react";
    content: string;
  };
  
- export default function ChatWidget() {
+ type ChatWidgetProps = {
+   /** Renderiza o “card” externo com borda/padding (default: true). */
+   withContainer?: boolean;
+   /** Classe para controlar altura do scroll das mensagens. */
+   messagesMaxHeightClassName?: string;
+   /** Texto do cabeçalho. */
+   title?: string;
+   subtitle?: string;
+   /** Nome mostrado nas mensagens do assistente. */
+   assistantLabel?: string;
+ };
+ 
+ export default function ChatWidget({
+   withContainer = true,
+   messagesMaxHeightClassName = "max-h-56",
+   title = "Chat IA",
+   subtitle = "Pergunta sobre o mercado e receba insights em PT.",
+   assistantLabel = "Gust_Crypto",
+ }: ChatWidgetProps) {
    const [messages, setMessages] = useState<ChatMessage[]>([]);
    const [input, setInput] = useState("");
    const [isLoading, setIsLoading] = useState(false);
@@ -53,69 +71,73 @@ import { useState } from "react";
      }
    };
  
-   return (
-     <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-5">
-       <div className="flex items-center justify-between">
-         <div>
-           <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">
-             Chat IA
-           </p>
-           <p className="text-sm text-slate-400">
-             Pergunta sobre o mercado e receba insights em PT-BR.
-           </p>
-         </div>
-       </div>
- 
-       <div className="mt-4 space-y-3">
-         <div className="max-h-56 space-y-3 overflow-y-auto pr-2">
-           {messages.length === 0 ? (
-             <p className="text-sm text-slate-500">
-               Exemplo: "O que impacta o preço do BTC hoje?"
-             </p>
-           ) : (
-             messages.map((message, index) => (
-               <div
-                 key={`${message.role}-${index}`}
-                 className={
-                   message.role === "user"
-                     ? "rounded-xl bg-slate-900/80 p-3 text-sm text-slate-100"
-                     : "rounded-xl border border-orange-500/20 bg-slate-900/60 p-3 text-sm text-slate-200"
-                 }
-               >
-                 <span className="block text-[11px] uppercase tracking-[0.25em] text-slate-500">
-                   {message.role === "user" ? "Você" : "Owlfund IA"}
-                 </span>
-                 <p className="mt-1 whitespace-pre-wrap">{message.content}</p>
-               </div>
-             ))
-           )}
-         </div>
- 
-         {error ? <p className="text-sm text-rose-300">{error}</p> : null}
- 
-         <div className="flex flex-col gap-2 sm:flex-row">
-           <input
-             className="flex-1 rounded-full border border-slate-800 bg-slate-950 px-4 py-2 text-sm text-slate-200 outline-none transition focus:border-orange-400"
-             placeholder="Escreve a tua pergunta..."
-             value={input}
-             onChange={(event) => setInput(event.target.value)}
-             onKeyDown={(event) => {
-               if (event.key === "Enter" && !event.shiftKey) {
-                 event.preventDefault();
-                 handleSend();
-               }
-             }}
-           />
-           <button
-             type="button"
-             className="rounded-full bg-orange-500 px-5 py-2 text-sm font-semibold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-60"
-             onClick={handleSend}
-             disabled={isLoading}
-           >
-             {isLoading ? "A enviar..." : "Enviar"}
-           </button>
-         </div>
-       </div>
-     </div>
-   );
+  const content = (
+    <>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">{title}</p>
+          <p className="text-sm text-slate-400">{subtitle}</p>
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-3">
+        <div className={`${messagesMaxHeightClassName} space-y-3 overflow-y-auto pr-2`}>
+          {messages.length === 0 ? (
+            <p className="text-sm text-slate-500">
+              Exemplo: "O que está a mexer com o BTC hoje?"
+            </p>
+          ) : (
+            messages.map((message, index) => (
+              <div
+                key={`${message.role}-${index}`}
+                className={
+                  message.role === "user"
+                    ? "rounded-xl bg-slate-900/80 p-3 text-sm text-slate-100"
+                    : "rounded-xl border border-orange-500/20 bg-slate-900/60 p-3 text-sm text-slate-200"
+                }
+              >
+                <span className="block text-[11px] uppercase tracking-[0.25em] text-slate-500">
+                  {message.role === "user" ? "Você" : assistantLabel}
+                </span>
+                <p className="mt-1 whitespace-pre-wrap">{message.content}</p>
+              </div>
+            ))
+          )}
+        </div>
+
+        {error ? <p className="text-sm text-rose-300">{error}</p> : null}
+
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input
+            className="flex-1 rounded-full border border-slate-800 bg-slate-950 px-4 py-2 text-sm text-slate-200 outline-none transition focus:border-orange-400"
+            placeholder="Escreve a tua pergunta..."
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                handleSend();
+              }
+            }}
+          />
+          <button
+            type="button"
+            className="rounded-full bg-orange-500 px-5 py-2 text-sm font-semibold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={handleSend}
+            disabled={isLoading}
+          >
+            {isLoading ? "A enviar..." : "Enviar"}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+
+  if (!withContainer) return content;
+
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-5">
+      {content}
+    </div>
+  );
  }
