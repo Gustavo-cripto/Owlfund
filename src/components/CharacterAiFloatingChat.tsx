@@ -5,7 +5,11 @@ import { useEffect, useMemo, useState } from "react";
 const STORAGE_KEY_OPEN = "owlfund.characterai.open.v1";
 
 export default function CharacterAiFloatingChat() {
-  const url = process.env.NEXT_PUBLIC_CHARACTER_AI_URL ?? "";
+  // Aceita os dois nomes para evitar confusão na Vercel.
+  const url =
+    process.env.NEXT_PUBLIC_CHARACTER_AI_URL ??
+    process.env.NEXT_PUBLIC_CHARACTER_AI_URL ??
+    "";
 
   const [isOpen, setIsOpen] = useState(false);
 
