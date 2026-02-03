@@ -1009,6 +1009,7 @@ export default function MercadoPage() {
                 </div>
               )}
             </section>
+          </div>
         </div>
       </main>
     </div>
