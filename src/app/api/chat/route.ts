@@ -25,12 +25,15 @@ export async function POST(request: Request) {
   const recentMessages = incoming.slice(-12);
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
+      signal: controller.signal,
       body: JSON.stringify({
         model: "gpt-4o-mini",
         temperature: 0.6,
@@ -43,7 +46,7 @@ export async function POST(request: Request) {
           ...recentMessages,
         ],
       }),
-    });
+    }).finally(() => clearTimeout(timeoutId));
 
     if (!response.ok) {
       const payload = await response.json().catch(() => null);
@@ -67,6 +70,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ reply });
   } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      return NextResponse.json(
+        { error: "Timeout ao contactar o OpenAI." },
+        { status: 504 }
+      );
+    }
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Erro inesperado." },
       { status: 500 }

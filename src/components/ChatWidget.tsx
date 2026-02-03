@@ -53,11 +53,14 @@ import { useState } from "react";
      setIsLoading(true);
  
      try {
-       const response = await fetch("/api/chat", {
-         method: "POST",
-         headers: { "Content-Type": "application/json" },
-         body: JSON.stringify({ messages: nextMessages }),
-       });
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 20000);
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: nextMessages }),
+        signal: controller.signal,
+      }).finally(() => window.clearTimeout(timeoutId));
  
        if (!response.ok) {
          const payload = await response.json().catch(() => null);
@@ -72,7 +75,13 @@ import { useState } from "react";
  
        setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
      } catch (err) {
-       setError(err instanceof Error ? err.message : "Erro inesperado.");
+      const message =
+        err instanceof DOMException && err.name === "AbortError"
+          ? "O pedido demorou demasiado (timeout). Confirma se a `OPENAI_API_KEY` está configurada na Vercel e tenta novamente."
+          : err instanceof Error
+            ? err.message
+            : "Erro inesperado.";
+      setError(message);
      } finally {
        setIsLoading(false);
      }
