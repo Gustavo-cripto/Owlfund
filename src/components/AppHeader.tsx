@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/client";
 
@@ -19,6 +20,7 @@ export default function AppHeader({
   subtitle,
 }: AppHeaderProps) {
   const supabase = createClient();
+  const pathname = usePathname();
   const [isReady, setIsReady] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
@@ -103,8 +105,23 @@ export default function AppHeader({
     }
   };
 
+  const isActiveHref = (href: string) => {
+    if (!pathname) return false;
+    if (href === "/") return pathname === "/";
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
+
+  const navLinkClass = (href: string) => {
+    const isActive = isActiveHref(href);
+    return `app-nav-link rounded-full px-4 py-2 text-base font-semibold transition ${
+      isActive
+        ? "bg-slate-800 text-white"
+        : "text-slate-200 hover:bg-slate-950/60 hover:text-white"
+    }`;
+  };
+
   return (
-    <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
+    <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-6">
       <div className="flex items-center gap-3">
         <img src="/owlfund-owl.png" alt="Owlfund" className={logoClassName} />
         <div>
@@ -115,37 +132,37 @@ export default function AppHeader({
         </div>
       </div>
 
-      <nav className="hidden items-center gap-8 text-sm text-slate-300 md:flex">
+      <nav className="hidden items-center md:flex">
         {variant === "public" ? (
-          <>
-            <a className="app-nav-link transition hover:text-white" href="#recursos">
+          <div className="flex items-center gap-1 rounded-full border border-slate-800 bg-slate-900/40 p-1.5 backdrop-blur">
+            <a className="app-nav-link rounded-full px-4 py-2 text-base font-semibold transition hover:bg-slate-950/60 hover:text-white" href="#recursos">
               Recursos
             </a>
-            <a className="app-nav-link transition hover:text-white" href="#fluxo">
+            <a className="app-nav-link rounded-full px-4 py-2 text-base font-semibold transition hover:bg-slate-950/60 hover:text-white" href="#fluxo">
               Fluxo
             </a>
-            <a className="app-nav-link transition hover:text-white" href="#contato">
+            <a className="app-nav-link rounded-full px-4 py-2 text-base font-semibold transition hover:bg-slate-950/60 hover:text-white" href="#contato">
               Contato
             </a>
-          </>
+          </div>
         ) : (
-          <>
-            <a className="app-nav-link transition hover:text-white" href="/dashboard">
+          <div className="flex items-center gap-1 rounded-full border border-slate-800 bg-slate-900/40 p-1.5 backdrop-blur">
+            <a className={navLinkClass("/dashboard")} href="/dashboard">
               Dashboard
             </a>
-            <a className="app-nav-link transition hover:text-white" href="/portfolio">
+            <a className={navLinkClass("/portfolio")} href="/portfolio">
               Portfolio
             </a>
-            <a className="app-nav-link transition hover:text-white" href="/wallets">
+            <a className={navLinkClass("/wallets")} href="/wallets">
               Carteiras
             </a>
-            <a className="app-nav-link transition hover:text-white" href="/mercado">
+            <a className={navLinkClass("/mercado")} href="/mercado">
               Mercado
             </a>
-            <a className="app-nav-link transition hover:text-white" href="/account">
+            <a className={navLinkClass("/account")} href="/account">
               Conta
             </a>
-          </>
+          </div>
         )}
       </nav>
 

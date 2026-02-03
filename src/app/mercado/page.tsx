@@ -633,7 +633,7 @@ export default function MercadoPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <AppHeader variant="app" subtitle="Panorama do mercado" />
-      <main className="mx-auto flex w-full max-w-none flex-col gap-8 px-4 pb-20 pt-2 lg:px-10">
+      <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 pb-20 pt-2 lg:px-8">
         <div className="flex flex-col gap-4">
           <h1 className="text-3xl font-semibold text-white">Mercado</h1>
           <p className="max-w-2xl text-sm text-slate-400">
@@ -642,7 +642,7 @@ export default function MercadoPage() {
           </p>
         </div>
 
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+        <section className="mx-auto w-full max-w-6xl rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h2 className="text-lg font-semibold text-white">Gráfico do ativo</h2>
@@ -735,7 +735,7 @@ export default function MercadoPage() {
           </div>
         </section>
 
-        <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
+        <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[420px_1fr]">
           <aside className="order-2 lg:order-1">
             <FearGreedWidget
               points={fearGreedPoints}
