@@ -33,7 +33,7 @@ export default function FloatingChat() {
           <div
             className="pointer-events-none absolute inset-0 opacity-[0.22]"
             style={{
-              backgroundImage: "url(/chat-bg.png)",
+              backgroundImage: "url(/chain-bg.jpg)",
               backgroundRepeat: "no-repeat",
               backgroundPosition: "center",
               backgroundSize: "cover",
@@ -48,13 +48,13 @@ export default function FloatingChat() {
             <div className="flex min-w-0 items-center gap-3">
               <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full border border-slate-700 bg-slate-900/40">
                 <img
-                  src="/owlfund-owl.png"
-                  alt="Gust_Crypto"
-                  className="h-full w-full object-cover [transform:scaleX(-1)]"
+                  src="/chain-icon.png"
+                  alt="Chain"
+                  className="h-full w-full object-cover"
                 />
               </span>
               <div className="min-w-0">
-                <p className="truncate text-base font-semibold text-white">Gust_Crypto</p>
+                <p className="truncate text-base font-semibold text-white">Chain</p>
                 <p className="truncate text-xs text-slate-400">
                   Pergunta sobre cripto, notícias e níveis técnicos.
                 </p>
@@ -76,7 +76,7 @@ export default function FloatingChat() {
               withContainer={false}
               title="Chat"
               subtitle="Respostas em PT, sem aconselhamento financeiro direto."
-              assistantLabel="Gust_Crypto"
+              assistantLabel="Chain"
               messagesMaxHeightClassName="max-h-[60vh]"
               inputClassName="py-3 text-base"
               buttonClassName="px-7 py-3 text-base"
@@ -95,9 +95,9 @@ export default function FloatingChat() {
         <span className="pointer-events-none absolute -inset-1 rounded-full bg-orange-500/10 opacity-0 blur transition group-hover:opacity-100" />
         <span className="relative grid h-12 w-12 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-orange-400 to-amber-500 text-slate-950 shadow-lg ring-1 ring-orange-200/20 transition group-hover:brightness-110">
           <img
-            src="/owlfund-owl.png"
+            src="/chain-icon.png"
             alt=""
-            className="h-full w-full object-cover opacity-95 [transform:scaleX(-1)]"
+            className="h-full w-full object-cover opacity-95"
           />
         </span>
         <span className="hidden sm:inline">Chat</span>
