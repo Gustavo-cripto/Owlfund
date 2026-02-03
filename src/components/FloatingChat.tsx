@@ -48,7 +48,7 @@ export default function FloatingChat() {
             <div className="flex min-w-0 items-center gap-3">
               <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full border border-slate-700 bg-slate-900/40">
                 <img
-                  src="/chain-icon.png"
+                  src="/chain-icon.jpg"
                   alt="Chain"
                   className="h-full w-full object-cover"
                 />
@@ -95,7 +95,7 @@ export default function FloatingChat() {
         <span className="pointer-events-none absolute -inset-1 rounded-full bg-orange-500/10 opacity-0 blur transition group-hover:opacity-100" />
         <span className="relative grid h-12 w-12 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-orange-400 to-amber-500 text-slate-950 shadow-lg ring-1 ring-orange-200/20 transition group-hover:brightness-110">
           <img
-            src="/chain-icon.png"
+            src="/chain-icon.jpg"
             alt=""
             className="h-full w-full object-cover opacity-95"
           />
