@@ -12,9 +12,9 @@ export default function CharacterAiFloatingChat() {
     "";
 
   const [isOpen, setIsOpen] = useState(false);
+  const [tryEmbed, setTryEmbed] = useState(false);
   const [mountIframe, setMountIframe] = useState(false);
   const [iframeLoaded, setIframeLoaded] = useState(false);
-  const [showFallbackHint, setShowFallbackHint] = useState(false);
 
   useEffect(() => {
     try {
@@ -37,19 +37,26 @@ export default function CharacterAiFloatingChat() {
     if (!isOpen) {
       setMountIframe(false);
       setIframeLoaded(false);
-      setShowFallbackHint(false);
+      setTryEmbed(false);
       return;
     }
 
-    // Abre o painel já, e só monta o iframe logo a seguir
-    // para reduzir INP/jank no clique do botão.
+    // Só tenta montar iframe quando o utilizador pede.
+    if (!tryEmbed) return;
     const t1 = window.setTimeout(() => setMountIframe(true), 50);
-    const t2 = window.setTimeout(() => setShowFallbackHint(true), 2500);
-    return () => {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-    };
+    return () => window.clearTimeout(t1);
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!tryEmbed) {
+      setMountIframe(false);
+      setIframeLoaded(false);
+      return;
+    }
+    const t1 = window.setTimeout(() => setMountIframe(true), 50);
+    return () => window.clearTimeout(t1);
+  }, [isOpen, tryEmbed]);
 
   const safeUrl = useMemo(() => {
     const trimmed = url.trim();
@@ -60,6 +67,14 @@ export default function CharacterAiFloatingChat() {
 
   // If not configured, don't render anything.
   if (!safeUrl) return null;
+
+  const openExternal = () => {
+    try {
+      window.open(safeUrl, "_blank", "noopener,noreferrer");
+    } catch {
+      window.location.href = safeUrl;
+    }
+  };
 
   return (
     <div className="pointer-events-none fixed bottom-4 right-4 z-50 flex flex-col items-end gap-3 sm:bottom-6 sm:right-6">
@@ -95,30 +110,75 @@ export default function CharacterAiFloatingChat() {
           </div>
 
           <div className="relative bg-slate-950/40">
-            {!mountIframe ? (
-              <div className="h-[62vh] min-h-[520px] w-full animate-pulse bg-slate-950/40" />
-            ) : (
-              <iframe
-                title="Character.AI agent"
-                src={safeUrl}
-                className="h-[62vh] min-h-[520px] w-full border-0"
-                loading="lazy"
-                referrerPolicy="no-referrer"
-                onLoad={() => setIframeLoaded(true)}
-                // Nota: Character.AI pode bloquear iframe via X-Frame-Options/CSP.
-              />
-            )}
-
-            {!iframeLoaded && showFallbackHint ? (
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 p-4">
-                <div className="pointer-events-auto rounded-2xl border border-slate-800 bg-slate-950/90 p-4 text-sm text-slate-200 shadow-xl backdrop-blur">
-                  <p className="font-semibold text-white">O embed pode estar bloqueado.</p>
+            {!tryEmbed ? (
+              <div className="p-5">
+                <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+                  <p className="text-sm font-semibold text-white">Abrir o chat</p>
                   <p className="mt-1 text-xs text-slate-400">
-                    Isto é normal no Character.AI. Usa o botão <span className="font-semibold text-slate-200">“Abrir”</span> para conversar numa nova aba.
+                    O Character.AI normalmente <span className="font-semibold text-slate-200">não permite</span> abrir dentro do site (iframe).
+                    O mais estável é abrir numa nova aba/janela.
                   </p>
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={openExternal}
+                      className="rounded-full bg-orange-500 px-4 py-2 text-xs font-semibold text-slate-950 transition hover:bg-orange-400"
+                    >
+                      Abrir chat agora
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTryEmbed(true)}
+                      className="rounded-full border border-slate-700 bg-slate-900/40 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                    >
+                      Tentar embed (beta)
+                    </button>
+                  </div>
                 </div>
               </div>
-            ) : null}
+            ) : (
+              <>
+                {!mountIframe ? (
+                  <div className="h-[62vh] min-h-[520px] w-full animate-pulse bg-slate-950/40" />
+                ) : (
+                  <iframe
+                    title="Character.AI agent"
+                    src={safeUrl}
+                    className="h-[62vh] min-h-[520px] w-full border-0"
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                    onLoad={() => setIframeLoaded(true)}
+                    // Nota: Character.AI pode bloquear iframe via X-Frame-Options/CSP.
+                  />
+                )}
+                {!iframeLoaded ? (
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 p-4">
+                    <div className="pointer-events-auto rounded-2xl border border-slate-800 bg-slate-950/90 p-4 text-sm text-slate-200 shadow-xl backdrop-blur">
+                      <p className="font-semibold text-white">Se ficar em branco, usa “Abrir”.</p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        Se o embed estiver bloqueado, abre numa nova aba para funcionar sempre.
+                      </p>
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={openExternal}
+                          className="pointer-events-auto rounded-full bg-orange-500 px-4 py-2 text-xs font-semibold text-slate-950 transition hover:bg-orange-400"
+                        >
+                          Abrir chat
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setTryEmbed(false)}
+                          className="pointer-events-auto rounded-full border border-slate-700 bg-slate-900/40 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                        >
+                          Voltar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            )}
           </div>
         </div>
       ) : null}
