@@ -649,12 +649,22 @@ export default function MercadoPage() {
       ? base.filter((r) => r.symbol.toLowerCase().includes(q) || r.name.toLowerCase().includes(q))
       : base;
     const dir = sortDir === "asc" ? 1 : -1;
+    const num = (value: number | null) => (typeof value === "number" ? value : 0);
     const sorted = [...filtered].sort((a, b) => {
-      const av = a[sortKey];
-      const bv = b[sortKey];
-      if (sortKey === "marketCapUsd") return ((av ?? 0) - (bv ?? 0)) * dir;
-      if (sortKey === "symbol") return a.symbol.localeCompare(b.symbol) * dir;
-      return ((av as number) - (bv as number)) * dir;
+      switch (sortKey) {
+        case "marketCapUsd":
+          return (num(a.marketCapUsd) - num(b.marketCapUsd)) * dir;
+        case "volume24hUsd":
+          return (a.volume24hUsd - b.volume24hUsd) * dir;
+        case "priceUsd":
+          return (a.priceUsd - b.priceUsd) * dir;
+        case "change24h":
+          return (a.change24h - b.change24h) * dir;
+        case "symbol":
+          return a.symbol.localeCompare(b.symbol) * dir;
+        default:
+          return 0;
+      }
     });
     // keep selected visible feel: favorites already filter; otherwise no
     return sorted;
