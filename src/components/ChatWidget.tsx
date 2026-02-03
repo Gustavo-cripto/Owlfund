@@ -17,6 +17,10 @@ import { useState } from "react";
    subtitle?: string;
    /** Nome mostrado nas mensagens do assistente. */
    assistantLabel?: string;
+  /** Classes opcionais para aumentar o input/botão quando usado no balão. */
+  inputClassName?: string;
+  buttonClassName?: string;
+  placeholder?: string;
  };
  
  export default function ChatWidget({
@@ -25,6 +29,9 @@ import { useState } from "react";
    title = "Chat IA",
    subtitle = "Pergunta sobre o mercado e receba insights em PT.",
    assistantLabel = "Gust_Crypto",
+  inputClassName = "",
+  buttonClassName = "",
+  placeholder = "Escreve a tua pergunta...",
  }: ChatWidgetProps) {
    const [messages, setMessages] = useState<ChatMessage[]>([]);
    const [input, setInput] = useState("");
@@ -109,8 +116,8 @@ import { useState } from "react";
 
         <div className="flex flex-col gap-2 sm:flex-row">
           <input
-            className="flex-1 rounded-full border border-slate-800 bg-slate-950 px-4 py-2 text-sm text-slate-200 outline-none transition focus:border-orange-400"
-            placeholder="Escreve a tua pergunta..."
+            className={`flex-1 rounded-full border border-slate-800 bg-slate-950 px-4 py-2 text-sm text-slate-200 outline-none transition focus:border-orange-400 ${inputClassName}`}
+            placeholder={placeholder}
             value={input}
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={(event) => {
@@ -122,7 +129,7 @@ import { useState } from "react";
           />
           <button
             type="button"
-            className="rounded-full bg-orange-500 px-5 py-2 text-sm font-semibold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-60"
+            className={`rounded-full bg-orange-500 px-5 py-2 text-sm font-semibold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-60 ${buttonClassName}`}
             onClick={handleSend}
             disabled={isLoading}
           >
