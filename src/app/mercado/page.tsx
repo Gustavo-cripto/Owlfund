@@ -569,8 +569,9 @@ export default function MercadoPage() {
   }, []);
 
   const tradingViewSymbol = useMemo(() => {
-    if (!selected) return "COINEX:BTCUSDT";
-    return `COINEX:${selected.market}`;
+    // Use BINANCE symbols for better widget compatibility (table is still CoinEx).
+    if (!selected) return "BINANCE:BTCUSDT";
+    return `BINANCE:${selected.market}`;
   }, [selected]);
 
   const coinglassInterval = useMemo(() => {
