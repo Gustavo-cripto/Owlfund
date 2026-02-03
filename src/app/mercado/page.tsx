@@ -384,11 +384,9 @@ function TrendSparkline({
 
 function TradingViewWidget({
   symbol,
-  height,
   interval,
 }: {
   symbol: string;
-  height?: number | string;
   interval: string;
 }) {
   const containerId = useMemo(() => {
@@ -428,23 +426,20 @@ function TradingViewWidget({
         enable_publishing: false,
         hide_top_toolbar: false,
         withdateranges: true,
-        hide_side_toolbar: false,
+        hide_side_toolbar: true,
         save_image: false,
+        autosize: true,
         studies: [
           "RSI@tv-basicstudies",
           "MACD@tv-basicstudies",
           "Volume@tv-basicstudies",
           "MASimple@tv-basicstudies",
         ],
-        height: height ?? 480,
       });
     });
-  }, [symbol, height, interval, containerId]);
+  }, [symbol, interval, containerId]);
 
-  const resolvedHeight = height ?? 480;
-  const heightClass =
-    typeof resolvedHeight === "number" ? `h-[${resolvedHeight}px]` : "h-full";
-  return <div id={containerId} className={`w-full ${heightClass}`} />;
+  return <div id={containerId} className="h-full w-full" />;
 }
 
 export default function MercadoPage() {
@@ -456,7 +451,19 @@ export default function MercadoPage() {
   const chartRef = useRef<HTMLDivElement | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [timeframe, setTimeframe] = useState<
-    "1h" | "4h" | "7d" | "Diária" | "Semanal" | "1M" | "3M" | "1A" | "Máx"
+    | "1m"
+    | "5m"
+    | "15m"
+    | "30m"
+    | "1h"
+    | "4h"
+    | "7d"
+    | "Diária"
+    | "Semanal"
+    | "1M"
+    | "3M"
+    | "1A"
+    | "Máx"
   >("Diária");
   const [isLightMode, setIsLightMode] = useState(false);
   const [chartSource, setChartSource] = useState<"tradingview" | "coinglass">(
@@ -576,12 +583,20 @@ export default function MercadoPage() {
 
   const coinglassInterval = useMemo(() => {
     switch (timeframe) {
+      case "1m":
+        return "1m";
+      case "5m":
+        return "5m";
+      case "15m":
+        return "15m";
+      case "30m":
+        return "30m";
       case "1h":
         return "1H";
       case "4h":
         return "4H";
       case "7d":
-        return "4H";
+        return "1H";
       case "Diária":
         return "1D";
       case "Semanal":
@@ -609,12 +624,20 @@ export default function MercadoPage() {
 
   const tradingViewInterval = useMemo(() => {
     switch (timeframe) {
+      case "1m":
+        return "1";
+      case "5m":
+        return "5";
+      case "15m":
+        return "15";
+      case "30m":
+        return "30";
       case "1h":
         return "60";
       case "4h":
         return "240";
       case "7d":
-        return "240";
+        return "60";
       case "Diária":
         return "D";
       case "Semanal":
@@ -710,7 +733,21 @@ export default function MercadoPage() {
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs font-semibold text-slate-300">
                 {(
-                  ["1h", "4h", "7d", "Diária", "Semanal", "1M", "3M", "1A", "Máx"] as const
+                  [
+                    "1m",
+                    "5m",
+                    "15m",
+                    "30m",
+                    "1h",
+                    "4h",
+                    "7d",
+                    "Diária",
+                    "Semanal",
+                    "1M",
+                    "3M",
+                    "1A",
+                    "Máx",
+                  ] as const
                 ).map((label) => {
                   const isActive = timeframe === label;
                   return (
@@ -797,7 +834,6 @@ export default function MercadoPage() {
               <TradingViewWidget
                 key={`${tradingViewSymbol}-${tradingViewInterval}`}
                 symbol={tradingViewSymbol}
-                height={isFullscreen ? "100%" : "100%"}
                 interval={tradingViewInterval}
               />
             ) : (
