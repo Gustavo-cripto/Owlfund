@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
+import CharacterAiFloatingChat from "@/components/CharacterAiFloatingChat";
 
 export const metadata: Metadata = {
   title: "Portfólio Owlfund",
@@ -18,6 +19,7 @@ export default function RootLayout({
     <html lang="pt-BR" suppressHydrationWarning>
       <body className="antialiased">
         {children}
+        <CharacterAiFloatingChat />
         <Analytics />
         <SpeedInsights />
       </body>
