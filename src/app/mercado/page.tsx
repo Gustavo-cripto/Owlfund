@@ -15,6 +15,30 @@ type MarketRow = {
   volume24hUsd: number;
 };
 
+type SortKey = "marketCapUsd" | "priceUsd" | "change24h" | "volume24hUsd" | "symbol";
+type SortDir = "desc" | "asc";
+
+const FAVORITES_KEY = "owlfund.market.favorites.v1";
+
+const loadFavorites = () => {
+  try {
+    const raw = localStorage.getItem(FAVORITES_KEY);
+    const parsed = raw ? (JSON.parse(raw) as unknown) : [];
+    if (!Array.isArray(parsed)) return new Set<string>();
+    return new Set(parsed.filter((v) => typeof v === "string"));
+  } catch {
+    return new Set<string>();
+  }
+};
+
+const saveFavorites = (favorites: Set<string>) => {
+  try {
+    localStorage.setItem(FAVORITES_KEY, JSON.stringify(Array.from(favorites)));
+  } catch {
+    // ignore
+  }
+};
+
 type SentimentRow = {
   symbol: string;
   name: string;
@@ -367,6 +391,11 @@ function TradingViewWidget({
   height?: number | string;
   interval: string;
 }) {
+  const containerId = useMemo(() => {
+    const safe = `${symbol}-${interval}`.replace(/[^a-zA-Z0-9_-]/g, "-");
+    return `tradingview-widget-${safe}`;
+  }, [symbol, interval]);
+
   useEffect(() => {
     const scriptId = "tradingview-widget-script";
     const ensureScript = () =>
@@ -384,12 +413,12 @@ function TradingViewWidget({
       });
 
     ensureScript().then(() => {
-      const container = document.getElementById("tradingview-widget");
+      const container = document.getElementById(containerId);
       if (!container || !("TradingView" in window)) return;
       container.innerHTML = "";
       // @ts-expect-error TradingView is injected by script
       new window.TradingView.widget({
-        container_id: "tradingview-widget",
+        container_id: containerId,
         symbol,
         interval,
         timezone: "Etc/UTC",
@@ -410,12 +439,12 @@ function TradingViewWidget({
         height: height ?? 480,
       });
     });
-  }, [symbol, height, interval]);
+  }, [symbol, height, interval, containerId]);
 
   const resolvedHeight = height ?? 480;
   const heightClass =
     typeof resolvedHeight === "number" ? `h-[${resolvedHeight}px]` : "h-full";
-  return <div id="tradingview-widget" className={`w-full ${heightClass}`} />;
+  return <div id={containerId} className={`w-full ${heightClass}`} />;
 }
 
 export default function MercadoPage() {
@@ -438,6 +467,11 @@ export default function MercadoPage() {
   const [sentimentTop10, setSentimentTop10] = useState<SentimentRow[]>([]);
   const [page, setPage] = useState(0);
   const pageSize = 20;
+  const [query, setQuery] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("marketCapUsd");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [showFavorites, setShowFavorites] = useState(false);
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
 
   const closeTradingViewOverlay = () => {
     // Best-effort: closes TradingView popovers/panels (e.g., Markets/Favorites/Trending).
@@ -476,6 +510,10 @@ export default function MercadoPage() {
       }
     };
     load();
+  }, []);
+
+  useEffect(() => {
+    setFavorites(loadFavorites());
   }, []);
 
   useEffect(() => {
@@ -593,22 +631,50 @@ export default function MercadoPage() {
     }
   }, [timeframe]);
 
+  const toggleFavorite = (symbol: string) => {
+    setFavorites((prev) => {
+      const next = new Set(prev);
+      if (next.has(symbol)) next.delete(symbol);
+      else next.add(symbol);
+      saveFavorites(next);
+      return next;
+    });
+  };
+
+  const filteredSortedRows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const base = showFavorites ? rows.filter((r) => favorites.has(r.symbol)) : rows;
+    const filtered = q
+      ? base.filter((r) => r.symbol.toLowerCase().includes(q) || r.name.toLowerCase().includes(q))
+      : base;
+    const dir = sortDir === "asc" ? 1 : -1;
+    const sorted = [...filtered].sort((a, b) => {
+      const av = a[sortKey];
+      const bv = b[sortKey];
+      if (sortKey === "marketCapUsd") return ((av ?? 0) - (bv ?? 0)) * dir;
+      if (sortKey === "symbol") return a.symbol.localeCompare(b.symbol) * dir;
+      return ((av as number) - (bv as number)) * dir;
+    });
+    // keep selected visible feel: favorites already filter; otherwise no
+    return sorted;
+  }, [rows, query, sortKey, sortDir, showFavorites, favorites]);
+
   const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(rows.length / pageSize)),
-    [rows.length]
+    () => Math.max(1, Math.ceil(filteredSortedRows.length / pageSize)),
+    [filteredSortedRows.length]
   );
 
   const currentPage = Math.min(page, totalPages - 1);
   const pagedRows = useMemo(() => {
     const start = currentPage * pageSize;
-    return rows.slice(start, start + pageSize);
-  }, [rows, currentPage]);
+    return filteredSortedRows.slice(start, start + pageSize);
+  }, [filteredSortedRows, currentPage]);
 
   const pageRange = useMemo(() => {
     const start = currentPage * pageSize;
-    const end = Math.min(rows.length, start + pageSize);
-    return { start, end };
-  }, [currentPage, rows.length]);
+    const end = Math.min(filteredSortedRows.length, start + pageSize);
+    return { start, end, total: filteredSortedRows.length };
+  }, [currentPage, filteredSortedRows.length]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -768,13 +834,62 @@ export default function MercadoPage() {
                 <p className="mt-6 text-sm text-rose-300">{error}</p>
               ) : (
                 <div className="mt-6">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-3">
+                    <div className="flex flex-1 flex-wrap items-center gap-3">
+                      <input
+                        value={query}
+                        onChange={(e) => {
+                          setQuery(e.target.value);
+                          setPage(0);
+                        }}
+                        placeholder="Pesquisar (ex: BTC, Ethereum)"
+                        className="w-full max-w-xs rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:border-slate-600"
+                      />
+                      <button
+                        type="button"
+                        className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                          showFavorites
+                            ? "border-slate-600 bg-slate-800 text-white"
+                            : "border-slate-700 bg-slate-950/80 text-slate-200 hover:border-slate-500 hover:text-white"
+                        }`}
+                        onClick={() => {
+                          setShowFavorites((v) => !v);
+                          setPage(0);
+                        }}
+                      >
+                        {showFavorites ? "A mostrar favoritos" : "Mostrar favoritos"}
+                      </button>
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={sortKey}
+                          onChange={(e) => setSortKey(e.target.value as SortKey)}
+                          className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-slate-600"
+                        >
+                          <option value="marketCapUsd">Market cap</option>
+                          <option value="volume24hUsd">Volume 24h</option>
+                          <option value="priceUsd">Preço</option>
+                          <option value="change24h">Variação 24h</option>
+                          <option value="symbol">Símbolo</option>
+                        </select>
+                        <button
+                          type="button"
+                          className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                          onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+                        >
+                          {sortDir === "asc" ? "Asc" : "Desc"}
+                        </button>
+                      </div>
+                    </div>
                     <p className="text-xs text-slate-400">
-                      Mostrando <span className="font-semibold text-slate-200">{pageRange.start + 1}</span>
+                      Mostrando{" "}
+                      <span className="font-semibold text-slate-200">{pageRange.total ? pageRange.start + 1 : 0}</span>
                       {"–"}
                       <span className="font-semibold text-slate-200">{pageRange.end}</span> de{" "}
-                      <span className="font-semibold text-slate-200">{rows.length}</span>
+                      <span className="font-semibold text-slate-200">{pageRange.total}</span>
                     </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
@@ -804,6 +919,7 @@ export default function MercadoPage() {
                     <thead className="text-xs uppercase tracking-[0.2em] text-slate-500">
                       <tr className="border-b border-slate-800">
                         <th className="px-4 py-3">#</th>
+                        <th className="px-4 py-3">★</th>
                         <th className="px-4 py-3">Cripto</th>
                         <th className="px-4 py-3">Preço (USD)</th>
                         <th className="px-4 py-3">Variação 24h</th>
@@ -816,10 +932,26 @@ export default function MercadoPage() {
                       {pagedRows.map((row, index) => (
                         <tr
                           key={row.market}
-                          className="border-b border-slate-800/60 transition hover:bg-slate-950/60"
+                          className={`border-b border-slate-800/60 transition hover:bg-slate-950/60 ${
+                            selected?.market === row.market ? "bg-slate-950/50" : ""
+                          }`}
                         >
                           <td className="px-4 py-4 text-slate-500">
                             {pageRange.start + index + 1}
+                          </td>
+                          <td className="px-4 py-4">
+                            <button
+                              type="button"
+                              className={`text-base transition ${
+                                favorites.has(row.symbol)
+                                  ? "text-amber-300 hover:text-amber-200"
+                                  : "text-slate-600 hover:text-slate-300"
+                              }`}
+                              onClick={() => toggleFavorite(row.symbol)}
+                              aria-label={`Favorito ${row.symbol}`}
+                            >
+                              {favorites.has(row.symbol) ? "★" : "☆"}
+                            </button>
                           </td>
                           <td className="px-4 py-4">
                             <button
