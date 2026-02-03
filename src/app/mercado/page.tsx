@@ -680,7 +680,7 @@ export default function MercadoPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <AppHeader variant="app" subtitle="Panorama do mercado" />
-      <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-20 pt-2">
+      <main className="mx-auto flex w-full max-w-none flex-col gap-8 px-4 pb-20 pt-2 lg:px-10">
         <div className="flex flex-col gap-4">
           <h1 className="text-3xl font-semibold text-white">Mercado</h1>
           <p className="max-w-2xl text-sm text-slate-400">
@@ -689,8 +689,122 @@ export default function MercadoPage() {
           </p>
         </div>
 
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-white">Gráfico do ativo</h2>
+              <p className="text-sm text-slate-400">
+                {selected ? `${selected.name} · ${selected.symbol}` : "Selecione um ativo"}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs font-semibold text-slate-300">
+                {(
+                  ["1h", "4h", "7d", "Diária", "Semanal", "1M", "3M", "1A", "Máx"] as const
+                ).map((label) => {
+                  const isActive = timeframe === label;
+                  return (
+                    <button
+                      key={label}
+                      type="button"
+                      className={`rounded-full px-3 py-1 transition ${
+                        isActive
+                          ? "bg-slate-800 text-white"
+                          : "text-slate-500 hover:text-slate-200"
+                      }`}
+                      onClick={() => setTimeframe(label)}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/80 px-2 py-1 text-xs font-semibold text-slate-200">
+                <button
+                  type="button"
+                  className={`rounded-full px-3 py-1 transition ${
+                    chartSource === "tradingview"
+                      ? "bg-slate-800 text-white"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                  onClick={() => setChartSource("tradingview")}
+                >
+                  TradingView
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-full px-3 py-1 transition ${
+                    chartSource === "coinglass"
+                      ? "bg-slate-800 text-white"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                  onClick={() => setChartSource("coinglass")}
+                >
+                  Coinglass
+                </button>
+              </div>
+              {chartSource === "tradingview" && (
+                <button
+                  type="button"
+                  className="rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                  onClick={closeTradingViewOverlay}
+                  title="Fecha painéis/menus abertos no TradingView"
+                >
+                  Fechar painel
+                </button>
+              )}
+              <button
+                type="button"
+                className="rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                onClick={() => {
+                  if (document.fullscreenElement) {
+                    document.exitFullscreen();
+                    return;
+                  }
+                  chartRef.current?.requestFullscreen?.();
+                }}
+              >
+                {isFullscreen ? "Sair do ecrã inteiro" : "Ecrã inteiro"}
+              </button>
+            </div>
+          </div>
+          <div
+            className={`mt-6 ${
+              isFullscreen ? "h-[92vh] px-2 py-3" : "h-[560px] lg:h-[640px]"
+            } relative`}
+            ref={chartRef}
+          >
+            {isFullscreen && (
+              <button
+                type="button"
+                className="absolute right-4 top-4 z-50 rounded-full border border-slate-700 bg-slate-950/90 px-4 py-2 text-xs font-semibold text-slate-100 shadow-lg transition hover:border-slate-500 hover:text-white"
+                onClick={() => document.exitFullscreen()}
+              >
+                Sair do ecrã inteiro
+              </button>
+            )}
+            {chartSource === "tradingview" ? (
+              <TradingViewWidget
+                key={`${tradingViewSymbol}-${tradingViewInterval}`}
+                symbol={tradingViewSymbol}
+                height={isFullscreen ? "100%" : "100%"}
+                interval={tradingViewInterval}
+              />
+            ) : (
+              <iframe
+                title="Coinglass chart"
+                src={coinglassUrl}
+                key={coinglassUrl}
+                className="h-full w-full rounded-xl border border-slate-800"
+                loading="lazy"
+                allowFullScreen
+              />
+            )}
+          </div>
+        </section>
+
         <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
-          <aside>
+          <aside className="order-2 lg:order-1">
             <FearGreedWidget
               points={fearGreedPoints}
               timeUntilUpdateSec={fearGreedCountdown}
@@ -706,121 +820,7 @@ export default function MercadoPage() {
             />
           </aside>
 
-          <div className="flex flex-col gap-6">
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-lg font-semibold text-white">Gráfico do ativo</h2>
-                  <p className="text-sm text-slate-400">
-                    {selected ? `${selected.name} · ${selected.symbol}` : "Selecione um ativo"}
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs font-semibold text-slate-300">
-                    {(
-                      ["1h", "4h", "7d", "Diária", "Semanal", "1M", "3M", "1A", "Máx"] as const
-                    ).map((label) => {
-                      const isActive = timeframe === label;
-                      return (
-                        <button
-                          key={label}
-                          type="button"
-                          className={`rounded-full px-3 py-1 transition ${
-                            isActive
-                              ? "bg-slate-800 text-white"
-                              : "text-slate-500 hover:text-slate-200"
-                          }`}
-                          onClick={() => setTimeframe(label)}
-                        >
-                          {label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/80 px-2 py-1 text-xs font-semibold text-slate-200">
-                    <button
-                      type="button"
-                      className={`rounded-full px-3 py-1 transition ${
-                        chartSource === "tradingview"
-                          ? "bg-slate-800 text-white"
-                          : "text-slate-400 hover:text-slate-200"
-                      }`}
-                      onClick={() => setChartSource("tradingview")}
-                    >
-                      TradingView
-                    </button>
-                    <button
-                      type="button"
-                      className={`rounded-full px-3 py-1 transition ${
-                        chartSource === "coinglass"
-                          ? "bg-slate-800 text-white"
-                          : "text-slate-400 hover:text-slate-200"
-                      }`}
-                      onClick={() => setChartSource("coinglass")}
-                    >
-                      Coinglass
-                    </button>
-                  </div>
-                  {chartSource === "tradingview" && (
-                    <button
-                      type="button"
-                      className="rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                      onClick={closeTradingViewOverlay}
-                      title="Fecha painéis/menus abertos no TradingView"
-                    >
-                      Fechar painel
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                    onClick={() => {
-                      if (document.fullscreenElement) {
-                        document.exitFullscreen();
-                        return;
-                      }
-                      chartRef.current?.requestFullscreen?.();
-                    }}
-                  >
-                    {isFullscreen ? "Sair do ecrã inteiro" : "Ecrã inteiro"}
-                  </button>
-                </div>
-              </div>
-              <div
-                className={`mt-6 ${
-                  isFullscreen ? "h-[92vh] px-2 py-3" : "h-[480px]"
-                } relative`}
-                ref={chartRef}
-              >
-                {isFullscreen && (
-                  <button
-                    type="button"
-                    className="absolute right-4 top-4 z-50 rounded-full border border-slate-700 bg-slate-950/90 px-4 py-2 text-xs font-semibold text-slate-100 shadow-lg transition hover:border-slate-500 hover:text-white"
-                    onClick={() => document.exitFullscreen()}
-                  >
-                    Sair do ecrã inteiro
-                  </button>
-                )}
-                {chartSource === "tradingview" ? (
-                  <TradingViewWidget
-                    key={`${tradingViewSymbol}-${tradingViewInterval}`}
-                    symbol={tradingViewSymbol}
-                    height={isFullscreen ? "100%" : 480}
-                    interval={tradingViewInterval}
-                  />
-                ) : (
-                  <iframe
-                    title="Coinglass chart"
-                    src={coinglassUrl}
-                    key={coinglassUrl}
-                    className="h-full w-full rounded-xl border border-slate-800"
-                    loading="lazy"
-                    allowFullScreen
-                  />
-                )}
-              </div>
-            </section>
-
+          <div className="order-1 lg:order-2">
             <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-lg font-semibold text-white">Top 200 criptoativos</h2>
@@ -920,7 +920,6 @@ export default function MercadoPage() {
                     <thead className="text-xs uppercase tracking-[0.2em] text-slate-500">
                       <tr className="border-b border-slate-800">
                         <th className="px-4 py-3">#</th>
-                        <th className="px-4 py-3">★</th>
                         <th className="px-4 py-3">Cripto</th>
                         <th className="px-4 py-3">Preço (USD)</th>
                         <th className="px-4 py-3">Variação 24h</th>
@@ -930,7 +929,12 @@ export default function MercadoPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {pagedRows.map((row, index) => (
+                      {pagedRows.map((row, index) => {
+                        const selectRow = () => {
+                          setSelected(row);
+                          chartRef.current?.scrollIntoView({ behavior: "smooth" });
+                        };
+                        return (
                         <tr
                           key={row.market}
                           className={`cursor-pointer border-b border-slate-800/60 transition hover:bg-slate-950/60 ${
@@ -938,40 +942,35 @@ export default function MercadoPage() {
                           }`}
                           role="button"
                           tabIndex={0}
-                          onClick={() => {
-                            setSelected(row);
-                            chartRef.current?.scrollIntoView({ behavior: "smooth" });
-                          }}
+                          onClick={selectRow}
                           onKeyDown={(e) => {
                             if (e.key === "Enter" || e.key === " ") {
                               e.preventDefault();
-                              setSelected(row);
-                              chartRef.current?.scrollIntoView({ behavior: "smooth" });
+                              selectRow();
                             }
                           }}
                         >
                           <td className="px-4 py-4 text-slate-500">
                             {pageRange.start + index + 1}
                           </td>
-                          <td className="px-4 py-4">
-                            <button
-                              type="button"
-                              className={`text-base transition ${
-                                favorites.has(row.symbol)
-                                  ? "text-amber-300 hover:text-amber-200"
-                                  : "text-slate-600 hover:text-slate-300"
-                              }`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleFavorite(row.symbol);
-                              }}
-                              aria-label={`Favorito ${row.symbol}`}
-                            >
-                              {favorites.has(row.symbol) ? "★" : "☆"}
-                            </button>
-                          </td>
-                          <td className="px-4 py-4">
+                          <td className="px-4 py-4" onClick={selectRow}>
                             <div className="flex items-center gap-3 text-left">
+                              <button
+                                type="button"
+                                className={`text-base transition ${
+                                  favorites.has(row.symbol)
+                                    ? "text-amber-300 hover:text-amber-200"
+                                    : "text-slate-600 hover:text-slate-300"
+                                }`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleFavorite(row.symbol);
+                                }}
+                                aria-label={`Favorito ${row.symbol}`}
+                                title={favorites.has(row.symbol) ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                              >
+                                {favorites.has(row.symbol) ? "★" : "☆"}
+                              </button>
                               <div>
                                 <p className="font-semibold text-white">{row.symbol}</p>
                                 <p className="text-xs text-slate-500">{row.name}</p>
@@ -994,7 +993,7 @@ export default function MercadoPage() {
                           <td className="px-4 py-4 text-slate-300">
                             {formatCompact(row.volume24hUsd)}
                           </td>
-                          <td className="px-4 py-4">
+                          <td className="px-4 py-4" onClick={selectRow}>
                             <TrendSparkline
                               change={row.change24h}
                               seed={hashSeed(row.market)}
@@ -1002,14 +1001,14 @@ export default function MercadoPage() {
                             />
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                   </div>
                 </div>
               )}
             </section>
-          </div>
         </div>
       </main>
     </div>
