@@ -12,6 +12,9 @@ export default function CharacterAiFloatingChat() {
     "";
 
   const [isOpen, setIsOpen] = useState(false);
+  const [mountIframe, setMountIframe] = useState(false);
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+  const [showFallbackHint, setShowFallbackHint] = useState(false);
 
   useEffect(() => {
     try {
@@ -28,6 +31,24 @@ export default function CharacterAiFloatingChat() {
     } catch {
       // ignore
     }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setMountIframe(false);
+      setIframeLoaded(false);
+      setShowFallbackHint(false);
+      return;
+    }
+
+    // Abre o painel já, e só monta o iframe logo a seguir
+    // para reduzir INP/jank no clique do botão.
+    const t1 = window.setTimeout(() => setMountIframe(true), 50);
+    const t2 = window.setTimeout(() => setShowFallbackHint(true), 2500);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
   }, [isOpen]);
 
   const safeUrl = useMemo(() => {
@@ -73,15 +94,31 @@ export default function CharacterAiFloatingChat() {
             </div>
           </div>
 
-          <div className="bg-slate-950/40">
-            <iframe
-              title="Character.AI agent"
-              src={safeUrl}
-              className="h-[62vh] min-h-[520px] w-full border-0"
-              loading="lazy"
-              referrerPolicy="no-referrer"
-              // Nota: Character.AI pode bloquear iframe via X-Frame-Options/CSP.
-            />
+          <div className="relative bg-slate-950/40">
+            {!mountIframe ? (
+              <div className="h-[62vh] min-h-[520px] w-full animate-pulse bg-slate-950/40" />
+            ) : (
+              <iframe
+                title="Character.AI agent"
+                src={safeUrl}
+                className="h-[62vh] min-h-[520px] w-full border-0"
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                onLoad={() => setIframeLoaded(true)}
+                // Nota: Character.AI pode bloquear iframe via X-Frame-Options/CSP.
+              />
+            )}
+
+            {!iframeLoaded && showFallbackHint ? (
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 p-4">
+                <div className="pointer-events-auto rounded-2xl border border-slate-800 bg-slate-950/90 p-4 text-sm text-slate-200 shadow-xl backdrop-blur">
+                  <p className="font-semibold text-white">O embed pode estar bloqueado.</p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Isto é normal no Character.AI. Usa o botão <span className="font-semibold text-slate-200">“Abrir”</span> para conversar numa nova aba.
+                  </p>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -89,12 +126,15 @@ export default function CharacterAiFloatingChat() {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="pointer-events-auto flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/85 px-4 py-3 text-sm font-semibold text-slate-100 shadow-xl transition hover:border-slate-500 hover:bg-slate-950"
+        className="pointer-events-auto group relative flex items-center gap-3 rounded-full border border-slate-700 bg-slate-950/85 px-5 py-4 text-sm font-semibold text-slate-100 shadow-2xl transition hover:scale-[1.02] hover:border-slate-500 hover:bg-slate-950 active:scale-[0.98]"
         aria-label="Abrir chat do agente"
         title="Abrir chat"
       >
-        <span className="grid h-8 w-8 place-items-center rounded-full bg-orange-500 text-slate-950">
-          💬
+        {/* pulse ring */}
+        <span className="pointer-events-none absolute -inset-1 rounded-full bg-orange-500/10 opacity-0 blur transition group-hover:opacity-100" />
+
+        <span className="relative grid h-11 w-11 place-items-center rounded-full bg-gradient-to-br from-orange-400 to-amber-500 text-slate-950 shadow-lg ring-1 ring-orange-200/20 transition group-hover:brightness-110">
+          <span className="text-lg leading-none">💬</span>
         </span>
         <span className="hidden sm:inline">Agente</span>
       </button>
