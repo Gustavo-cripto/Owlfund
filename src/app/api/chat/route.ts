@@ -6,7 +6,8 @@ type IncomingMessage = {
 };
 
 export async function POST(request: Request) {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const rawKey = process.env.OPENAI_API_KEY ?? "";
+  const apiKey = rawKey.trim();
   if (!apiKey) {
     return NextResponse.json(
       { error: "OPENAI_API_KEY não configurada." },
@@ -50,6 +51,28 @@ export async function POST(request: Request) {
 
     if (!response.ok) {
       const payload = await response.json().catch(() => null);
+      const msg = payload?.error?.message as unknown;
+      const message = typeof msg === "string" ? msg : "";
+
+      if (response.status === 401) {
+        return NextResponse.json(
+          {
+            error:
+              "Chave OpenAI inválida. Na Vercel, confirma `OPENAI_API_KEY` (sem espaços/linhas a mais e sem aspas) e faz Redeploy.",
+          },
+          { status: 401 }
+        );
+      }
+
+      if (/exceeded your current quota/i.test(message)) {
+        return NextResponse.json(
+          {
+            error:
+              "A tua conta OpenAI está sem créditos/quota. Vai ao Billing na OpenAI Platform, ativa pagamento/créditos e tenta novamente.",
+          },
+          { status: 402 }
+        );
+      }
       return NextResponse.json(
         { error: payload?.error?.message ?? "Erro ao chamar OpenAI." },
         { status: response.status }
