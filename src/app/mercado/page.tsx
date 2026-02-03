@@ -933,9 +933,22 @@ export default function MercadoPage() {
                       {pagedRows.map((row, index) => (
                         <tr
                           key={row.market}
-                          className={`border-b border-slate-800/60 transition hover:bg-slate-950/60 ${
+                          className={`cursor-pointer border-b border-slate-800/60 transition hover:bg-slate-950/60 ${
                             selected?.market === row.market ? "bg-slate-950/50" : ""
                           }`}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => {
+                            setSelected(row);
+                            chartRef.current?.scrollIntoView({ behavior: "smooth" });
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setSelected(row);
+                              chartRef.current?.scrollIntoView({ behavior: "smooth" });
+                            }
+                          }}
                         >
                           <td className="px-4 py-4 text-slate-500">
                             {pageRange.start + index + 1}
@@ -948,26 +961,22 @@ export default function MercadoPage() {
                                   ? "text-amber-300 hover:text-amber-200"
                                   : "text-slate-600 hover:text-slate-300"
                               }`}
-                              onClick={() => toggleFavorite(row.symbol)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleFavorite(row.symbol);
+                              }}
                               aria-label={`Favorito ${row.symbol}`}
                             >
                               {favorites.has(row.symbol) ? "★" : "☆"}
                             </button>
                           </td>
                           <td className="px-4 py-4">
-                            <button
-                              type="button"
-                              className="flex items-center gap-3 text-left transition hover:text-white"
-                              onClick={() => {
-                                setSelected(row);
-                                chartRef.current?.scrollIntoView({ behavior: "smooth" });
-                              }}
-                            >
+                            <div className="flex items-center gap-3 text-left">
                               <div>
                                 <p className="font-semibold text-white">{row.symbol}</p>
                                 <p className="text-xs text-slate-500">{row.name}</p>
                               </div>
-                            </button>
+                            </div>
                           </td>
                           <td className="px-4 py-4 font-semibold text-white">
                             {formatCurrency(row.priceUsd, row.priceUsd < 1 ? 6 : 2)}
