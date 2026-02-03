@@ -236,6 +236,34 @@ function FearGreedWidget({
       </div>
 
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+        <h3 className="text-sm font-semibold text-white">Valores históricos</h3>
+        <div className="mt-4 flex flex-col gap-3">
+          {rows.map((row) => (
+            <div key={row.label} className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm text-slate-200">{row.label}</p>
+                <p className="text-xs text-slate-500">
+                  {mapClassificationPt(row.point!.classification)}
+                </p>
+              </div>
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-600/90 text-sm font-semibold text-white">
+                {row.point!.value}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+        <h3 className="text-sm font-semibold text-white">Próxima atualização</h3>
+        <p className="mt-4 text-sm text-slate-400">A próxima atualização acontece em:</p>
+        <p className="mt-2 text-lg font-semibold text-white">
+          {timeUntilUpdateSec == null ? "—" : formatCountdown(timeUntilUpdateSec)}
+        </p>
+        <p className="mt-4 text-xs text-slate-500">Fonte: alternative.me</p>
+      </div>
+
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h3 className="text-sm font-semibold text-white">Fear &amp; Greed do ativo</h3>
@@ -267,34 +295,6 @@ function FearGreedWidget({
         {selected && (
           <p className="mt-2 text-sm font-semibold text-white">{selected.label}</p>
         )}
-      </div>
-
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-        <h3 className="text-sm font-semibold text-white">Valores históricos</h3>
-        <div className="mt-4 flex flex-col gap-3">
-          {rows.map((row) => (
-            <div key={row.label} className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm text-slate-200">{row.label}</p>
-                <p className="text-xs text-slate-500">
-                  {mapClassificationPt(row.point!.classification)}
-                </p>
-              </div>
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-600/90 text-sm font-semibold text-white">
-                {row.point!.value}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-        <h3 className="text-sm font-semibold text-white">Próxima atualização</h3>
-        <p className="mt-4 text-sm text-slate-400">A próxima atualização acontece em:</p>
-        <p className="mt-2 text-lg font-semibold text-white">
-          {timeUntilUpdateSec == null ? "—" : formatCountdown(timeUntilUpdateSec)}
-        </p>
-        <p className="mt-4 text-xs text-slate-500">Fonte: alternative.me</p>
       </div>
 
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
@@ -450,21 +450,8 @@ export default function MercadoPage() {
   const [error, setError] = useState<string | null>(null);
   const chartRef = useRef<HTMLDivElement | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [timeframe, setTimeframe] = useState<
-    | "1m"
-    | "5m"
-    | "15m"
-    | "30m"
-    | "1h"
-    | "4h"
-    | "7d"
-    | "Diária"
-    | "Semanal"
-    | "1M"
-    | "3M"
-    | "1A"
-    | "Máx"
-  >("Diária");
+  // Timeframes are controlled inside each chart widget (TradingView/Coinglass),
+  // so we don't render an extra timeframe bar in the page UI.
   const [isLightMode, setIsLightMode] = useState(false);
   const [chartSource, setChartSource] = useState<"tradingview" | "coinglass">(
     "tradingview"
@@ -581,79 +568,12 @@ export default function MercadoPage() {
     return `BINANCE:${selected.market}`;
   }, [selected]);
 
-  const coinglassInterval = useMemo(() => {
-    switch (timeframe) {
-      case "1m":
-        return "1m";
-      case "5m":
-        return "5m";
-      case "15m":
-        return "15m";
-      case "30m":
-        return "30m";
-      case "1h":
-        return "1H";
-      case "4h":
-        return "4H";
-      case "7d":
-        return "1H";
-      case "Diária":
-        return "1D";
-      case "Semanal":
-        return "1W";
-      case "1M":
-        return "1D";
-      case "3M":
-        return "1W";
-      case "1A":
-        return "1W";
-      case "Máx":
-        return "1W";
-      default:
-        return "1D";
-    }
-  }, [timeframe]);
-
   const coinglassUrl = useMemo(() => {
     const market = selected?.market ?? "BTCUSDT";
-    // Best-effort: Coinglass may ignore interval param depending on their app.
-    return `https://www.coinglass.com/tv/Binance_${market}?interval=${encodeURIComponent(
-      coinglassInterval
-    )}`;
-  }, [selected, coinglassInterval]);
+    return `https://www.coinglass.com/tv/Binance_${market}`;
+  }, [selected]);
 
-  const tradingViewInterval = useMemo(() => {
-    switch (timeframe) {
-      case "1m":
-        return "1";
-      case "5m":
-        return "5";
-      case "15m":
-        return "15";
-      case "30m":
-        return "30";
-      case "1h":
-        return "60";
-      case "4h":
-        return "240";
-      case "7d":
-        return "60";
-      case "Diária":
-        return "D";
-      case "Semanal":
-        return "W";
-      case "1M":
-        return "D";
-      case "3M":
-        return "W";
-      case "1A":
-        return "W";
-      case "Máx":
-        return "W";
-      default:
-        return "60";
-    }
-  }, [timeframe]);
+  const tradingViewInterval = "D";
 
   const toggleFavorite = (symbol: string) => {
     setFavorites((prev) => {
@@ -731,41 +651,7 @@ export default function MercadoPage() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs font-semibold text-slate-300">
-                {(
-                  [
-                    "1m",
-                    "5m",
-                    "15m",
-                    "30m",
-                    "1h",
-                    "4h",
-                    "7d",
-                    "Diária",
-                    "Semanal",
-                    "1M",
-                    "3M",
-                    "1A",
-                    "Máx",
-                  ] as const
-                ).map((label) => {
-                  const isActive = timeframe === label;
-                  return (
-                    <button
-                      key={label}
-                      type="button"
-                      className={`rounded-full px-3 py-1 transition ${
-                        isActive
-                          ? "bg-slate-800 text-white"
-                          : "text-slate-500 hover:text-slate-200"
-                      }`}
-                      onClick={() => setTimeframe(label)}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
+              {/* timeframe bar removed (use chart internal controls) */}
               <div className="flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/80 px-2 py-1 text-xs font-semibold text-slate-200">
                 <button
                   type="button"
@@ -795,9 +681,9 @@ export default function MercadoPage() {
                   type="button"
                   className="rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
                   onClick={closeTradingViewOverlay}
-                  title="Fecha painéis/menus abertos no TradingView"
+                  title="Minimiza/fecha o painel (Markets/Favorites/Trending) do TradingView"
                 >
-                  Fechar painel
+                  Minimizar painel
                 </button>
               )}
               <button
