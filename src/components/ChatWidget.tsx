@@ -63,10 +63,13 @@ import { useState } from "react";
         signal: controller.signal,
       }).finally(() => window.clearTimeout(timeoutId));
  
-       if (!response.ok) {
-         const payload = await response.json().catch(() => null);
-         throw new Error(payload?.error ?? "Falha ao conectar com a IA.");
-       }
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as
+          | { error?: string; provider?: string }
+          | null;
+        if (payload?.provider) setProvider(payload.provider);
+        throw new Error(payload?.error ?? "Falha ao conectar com a IA.");
+      }
  
       const data = (await response.json()) as { reply?: string; provider?: string };
        const reply = typeof data.reply === "string" ? data.reply : "";

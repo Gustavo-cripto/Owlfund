@@ -347,7 +347,17 @@ export async function POST(request: Request) {
     }
 
     if (!result.ok) {
-      return NextResponse.json({ error: result.error }, { status: result.status });
+      return NextResponse.json(
+        {
+          error: result.error,
+          provider: usedProvider,
+          hasGroqKey: hasGroq(),
+          hasXaiKey: hasXai(),
+          hasOpenAiKey: hasOpenAi(),
+          hasOllamaBaseUrl: hasOllama(),
+        },
+        { status: result.status }
+      );
     }
 
     return NextResponse.json({ reply: result.reply, provider: usedProvider });
