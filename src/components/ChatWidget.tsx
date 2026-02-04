@@ -37,6 +37,7 @@ import { useState } from "react";
    const [input, setInput] = useState("");
    const [isLoading, setIsLoading] = useState(false);
    const [error, setError] = useState<string | null>(null);
+  const [provider, setProvider] = useState<string | null>(null);
  
    const handleSend = async () => {
      const trimmed = input.trim();
@@ -67,17 +68,20 @@ import { useState } from "react";
          throw new Error(payload?.error ?? "Falha ao conectar com a IA.");
        }
  
-       const data = (await response.json()) as { reply?: string };
+      const data = (await response.json()) as { reply?: string; provider?: string };
        const reply = typeof data.reply === "string" ? data.reply : "";
        if (!reply) {
          throw new Error("Resposta vazia da IA.");
        }
+      if (typeof data.provider === "string" && data.provider) {
+        setProvider(data.provider);
+      }
  
        setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
      } catch (err) {
       const message =
         err instanceof DOMException && err.name === "AbortError"
-          ? "O pedido demorou demasiado (timeout). Confirma se a `OPENAI_API_KEY` está configurada na Vercel e tenta novamente."
+          ? "O pedido demorou demasiado (timeout)."
           : err instanceof Error
             ? err.message
             : "Erro inesperado.";
@@ -93,6 +97,11 @@ import { useState } from "react";
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">{title}</p>
           <p className="text-sm text-slate-400">{subtitle}</p>
+          {provider ? (
+            <p className="mt-1 text-xs text-slate-500">
+              Provider: <span className="font-semibold text-slate-300">{provider}</span>
+            </p>
+          ) : null}
         </div>
       </div>
 

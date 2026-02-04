@@ -339,16 +339,18 @@ export async function POST(request: Request) {
     };
 
     // tenta por ordem até um responder
-    result = await callProvider(candidates[0]!);
+    let usedProvider = candidates[0]!;
+    result = await callProvider(usedProvider);
     for (let i = 1; i < candidates.length && !result.ok; i += 1) {
-      result = await callProvider(candidates[i]!);
+      usedProvider = candidates[i]!;
+      result = await callProvider(usedProvider);
     }
 
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }
 
-    return NextResponse.json({ reply: result.reply });
+    return NextResponse.json({ reply: result.reply, provider: usedProvider });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
       return NextResponse.json(
