@@ -44,6 +44,14 @@ export default function FloatingChat() {
           {/* subtle dark overlay for contrast */}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-slate-950/40 via-slate-950/60 to-slate-950/80" aria-hidden />
 
+          {/* big "CHAIN" watermark */}
+          <div
+            className="pointer-events-none absolute left-5 top-[86px] select-none text-[64px] font-extrabold tracking-[0.35em] text-white/10 sm:text-[88px]"
+            aria-hidden
+          >
+            CHAIN
+          </div>
+
           <div className="relative flex items-center justify-between gap-3 border-b border-slate-800 px-5 py-4">
             <div className="flex min-w-0 items-center gap-3">
               <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full border border-slate-700 bg-slate-900/40">
@@ -54,7 +62,7 @@ export default function FloatingChat() {
                 />
               </span>
               <div className="min-w-0">
-                <p className="truncate text-base font-semibold text-white">Chain</p>
+                <p className="truncate text-xl font-semibold text-white">Chain</p>
                 <p className="truncate text-xs text-slate-400">
                   Pergunta sobre cripto, notícias e níveis técnicos.
                 </p>
