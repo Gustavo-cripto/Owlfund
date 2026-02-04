@@ -44,9 +44,10 @@ export default function FloatingChat() {
           {/* subtle dark overlay for contrast */}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-slate-950/40 via-slate-950/60 to-slate-950/80" aria-hidden />
 
-          {/* big "CHAIN" watermark */}
+          {/* big "CHAIN" watermark (more visible) */}
           <div
-            className="pointer-events-none absolute left-5 top-[86px] select-none text-[64px] font-extrabold tracking-[0.35em] text-white/10 sm:text-[88px]"
+            className="pointer-events-none absolute left-1/2 top-1/2 select-none whitespace-nowrap text-[84px] font-extrabold tracking-[0.28em] text-white/20 opacity-100 [text-shadow:0_2px_24px_rgba(0,0,0,0.35)] sm:text-[120px]"
+            style={{ transform: "translate(-50%, -10%)" }}
             aria-hidden
           >
             CHAIN
