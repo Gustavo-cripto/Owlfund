@@ -296,13 +296,14 @@ export async function POST(request: Request) {
       | { ok: true; reply: string }
       | { ok: false; status: number; error: string };
 
-    const order: ProviderName[] = [
-      provider,
-      "groq",
-      "xai",
-      "openai",
-      "ollama",
-    ].filter((p, idx, arr) => arr.indexOf(p) === idx);
+    const baseOrder: ProviderName[] = [provider, "groq", "xai", "openai", "ollama"];
+    const order: ProviderName[] = [];
+    const seen = new Set<ProviderName>();
+    for (const p of baseOrder) {
+      if (seen.has(p)) continue;
+      seen.add(p);
+      order.push(p);
+    }
 
     const isEnabled = (p: ProviderName) => {
       switch (p) {
