@@ -10,6 +10,12 @@ const SYSTEM_PROMPT =
 
 type ProviderName = "openai" | "groq" | "ollama" | "xai";
 
+const hasOpenAi = () => Boolean((process.env.OPENAI_API_KEY ?? "").trim());
+const hasGroq = () => Boolean((process.env.GROQ_API_KEY ?? "").trim());
+const hasXai = () => Boolean((process.env.XAI_API_KEY ?? "").trim());
+// Para Ollama funcionar na Vercel, precisa de um host remoto; 127.0.0.1 não serve.
+const hasOllama = () => Boolean((process.env.OLLAMA_BASE_URL ?? "").trim());
+
 const pickProvider = (): ProviderName => {
   const forced = (process.env.CHAT_PROVIDER ?? "").trim().toLowerCase();
   if (forced === "ollama") return "ollama";
@@ -18,14 +24,10 @@ const pickProvider = (): ProviderName => {
   if (forced === "openai") return "openai";
 
   // Auto: prefer Ollama (local), then Groq, then xAI, then OpenAI.
-  const hasOllama = Boolean((process.env.OLLAMA_BASE_URL ?? "").trim());
-  const hasGroq = Boolean((process.env.GROQ_API_KEY ?? "").trim());
-  const hasXai = Boolean((process.env.XAI_API_KEY ?? "").trim());
-  const hasOpenAi = Boolean((process.env.OPENAI_API_KEY ?? "").trim());
-  if (hasOllama) return "ollama";
-  if (hasGroq) return "groq";
-  if (hasXai) return "xai";
-  if (hasOpenAi) return "openai";
+  if (hasOllama()) return "ollama";
+  if (hasGroq()) return "groq";
+  if (hasXai()) return "xai";
+  if (hasOpenAi()) return "openai";
   return "openai";
 };
 
@@ -113,19 +115,28 @@ async function callGroq(messages: Array<{ role: string; content: string }>) {
   const model = (process.env.GROQ_MODEL ?? "").trim() || "llama-3.1-8b-instant";
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    signal: controller.signal,
-    body: JSON.stringify({
-      model,
-      temperature: 0.6,
-      messages,
-    }),
-  }).finally(() => clearTimeout(timeoutId));
+  let response: Response;
+  try {
+    response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model,
+        temperature: 0.6,
+        messages,
+      }),
+    }).finally(() => clearTimeout(timeoutId));
+  } catch (err) {
+    const hint =
+      err instanceof DOMException && err.name === "AbortError"
+        ? "Timeout a contactar Groq."
+        : "Falha de rede a contactar Groq.";
+    return { ok: false as const, status: 502, error: `${hint} Confirma ` + "`GROQ_API_KEY`" + " e tenta novamente." };
+  }
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
@@ -165,19 +176,28 @@ async function callXai(messages: Array<{ role: string; content: string }>) {
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
-  const response = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    signal: controller.signal,
-    body: JSON.stringify({
-      model,
-      temperature: 0.6,
-      messages,
-    }),
-  }).finally(() => clearTimeout(timeoutId));
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model,
+        temperature: 0.6,
+        messages,
+      }),
+    }).finally(() => clearTimeout(timeoutId));
+  } catch (err) {
+    const hint =
+      err instanceof DOMException && err.name === "AbortError"
+        ? "Timeout a contactar xAI."
+        : "Falha de rede a contactar xAI.";
+    return { ok: false as const, status: 502, error: `${hint} Confirma ` + "`XAI_API_KEY`" + " e tenta novamente." };
+  }
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
@@ -206,19 +226,35 @@ async function callOllama(messages: Array<{ role: string; content: string }>) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 20000);
 
-  const response = await fetch(`${baseUrl.replace(/\/$/, "")}/api/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    signal: controller.signal,
-    body: JSON.stringify({
-      model,
-      stream: false,
-      messages: messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      })),
-    }),
-  }).finally(() => clearTimeout(timeoutId));
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl.replace(/\/$/, "")}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model,
+        stream: false,
+        messages: messages.map((m) => ({
+          role: m.role,
+          content: m.content,
+        })),
+      }),
+    }).finally(() => clearTimeout(timeoutId));
+  } catch (err) {
+    const hint =
+      err instanceof DOMException && err.name === "AbortError"
+        ? "Timeout a contactar Ollama."
+        : "Falha de rede a contactar Ollama.";
+    return {
+      ok: false as const,
+      status: 502,
+      error:
+        `${hint} Para usar Ollama na Vercel, tens de apontar ` +
+        "`OLLAMA_BASE_URL`" +
+        " para um servidor Ollama remoto (não `127.0.0.1`).",
+    };
+  }
 
   if (!response.ok) {
     const text = await response.text().catch(() => "");
@@ -260,63 +296,51 @@ export async function POST(request: Request) {
       | { ok: true; reply: string }
       | { ok: false; status: number; error: string };
 
-    if (provider === "ollama") result = await callOllama(messages);
-    else if (provider === "groq") result = await callGroq(messages);
-    else if (provider === "xai") result = await callXai(messages);
-    else result = await callOpenAi(messages);
+    const order: ProviderName[] = [
+      provider,
+      "groq",
+      "xai",
+      "openai",
+      "ollama",
+    ].filter((p, idx, arr) => arr.indexOf(p) === idx);
 
-    // Auto fallback: if chosen provider is missing config, try next ones.
-    if (!result.ok && provider !== "ollama") {
-      // no-op
+    const isEnabled = (p: ProviderName) => {
+      switch (p) {
+        case "groq":
+          return hasGroq();
+        case "xai":
+          return hasXai();
+        case "ollama":
+          return hasOllama();
+        case "openai":
+          return hasOpenAi();
+        default:
+          return false;
+      }
+    };
+
+    const candidates = order.filter(isEnabled);
+    if (candidates.length === 0) {
+      return NextResponse.json(
+        {
+          error:
+            "Nenhum provider configurado. Define `GROQ_API_KEY` (recomendado/free tier) ou `OPENAI_API_KEY`, ou `XAI_API_KEY`, ou `OLLAMA_BASE_URL`.",
+        },
+        { status: 500 }
+      );
     }
-    if (!result.ok && provider === "openai") {
-      // If OpenAI failed, try Groq then xAI then Ollama.
-      const groqTry = await callGroq(messages);
-      if (groqTry.ok) result = groqTry;
-      else {
-        const xaiTry = await callXai(messages);
-        if (xaiTry.ok) result = xaiTry;
-        else {
-          const ollamaTry = await callOllama(messages);
-          if (ollamaTry.ok) result = ollamaTry;
-        }
-      }
-    } else if (!result.ok && provider === "groq") {
-      // If Groq failed, try xAI then Ollama then OpenAI.
-      const xaiTry = await callXai(messages);
-      if (xaiTry.ok) result = xaiTry;
-      else {
-      const ollamaTry = await callOllama(messages);
-      if (ollamaTry.ok) result = ollamaTry;
-      else {
-        const openAiTry = await callOpenAi(messages);
-        if (openAiTry.ok) result = openAiTry;
-      }
-      }
-    } else if (!result.ok && provider === "xai") {
-      // If xAI failed, try Groq then Ollama then OpenAI.
-      const groqTry = await callGroq(messages);
-      if (groqTry.ok) result = groqTry;
-      else {
-        const ollamaTry = await callOllama(messages);
-        if (ollamaTry.ok) result = ollamaTry;
-        else {
-          const openAiTry = await callOpenAi(messages);
-          if (openAiTry.ok) result = openAiTry;
-        }
-      }
-    } else if (!result.ok && provider === "ollama") {
-      // If Ollama failed, try Groq then xAI then OpenAI.
-      const groqTry = await callGroq(messages);
-      if (groqTry.ok) result = groqTry;
-      else {
-        const xaiTry = await callXai(messages);
-        if (xaiTry.ok) result = xaiTry;
-        else {
-          const openAiTry = await callOpenAi(messages);
-          if (openAiTry.ok) result = openAiTry;
-        }
-      }
+
+    const callProvider = async (p: ProviderName) => {
+      if (p === "groq") return callGroq(messages);
+      if (p === "xai") return callXai(messages);
+      if (p === "ollama") return callOllama(messages);
+      return callOpenAi(messages);
+    };
+
+    // tenta por ordem até um responder
+    result = await callProvider(candidates[0]!);
+    for (let i = 1; i < candidates.length && !result.ok; i += 1) {
+      result = await callProvider(candidates[i]!);
     }
 
     if (!result.ok) {
