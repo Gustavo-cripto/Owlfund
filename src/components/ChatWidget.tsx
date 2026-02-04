@@ -38,6 +38,7 @@ import { useState } from "react";
    const [isLoading, setIsLoading] = useState(false);
    const [error, setError] = useState<string | null>(null);
   const [provider, setProvider] = useState<string | null>(null);
+  const [debug, setDebug] = useState<string | null>(null);
  
    const handleSend = async () => {
      const trimmed = input.trim();
@@ -65,9 +66,34 @@ import { useState } from "react";
  
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as
-          | { error?: string; provider?: string }
+          | {
+              error?: string;
+              provider?: string;
+              hasGroqKey?: boolean;
+              hasOpenAiKey?: boolean;
+              hasXaiKey?: boolean;
+              hasOllamaBaseUrl?: boolean;
+              attempts?: Array<{ provider?: string; ok?: boolean; status?: number; error?: string }>;
+            }
           | null;
         if (payload?.provider) setProvider(payload.provider);
+        if (payload) {
+          const bits: string[] = [];
+          if (typeof payload.hasGroqKey === "boolean") bits.push(`hasGroqKey=${payload.hasGroqKey}`);
+          if (typeof payload.hasOpenAiKey === "boolean") bits.push(`hasOpenAiKey=${payload.hasOpenAiKey}`);
+          if (typeof payload.hasXaiKey === "boolean") bits.push(`hasXaiKey=${payload.hasXaiKey}`);
+          if (typeof payload.hasOllamaBaseUrl === "boolean")
+            bits.push(`hasOllamaBaseUrl=${payload.hasOllamaBaseUrl}`);
+          if (payload.attempts?.length) {
+            const attempts = payload.attempts
+              .map((a) => `${a.provider ?? "?"}:${a.ok ? "ok" : a.status ?? "err"}`)
+              .join(" → ");
+            bits.push(`attempts=${attempts}`);
+          }
+          setDebug(bits.length ? bits.join(" | ") : null);
+        } else {
+          setDebug(null);
+        }
         throw new Error(payload?.error ?? "Falha ao conectar com a IA.");
       }
  
@@ -79,6 +105,7 @@ import { useState } from "react";
       if (typeof data.provider === "string" && data.provider) {
         setProvider(data.provider);
       }
+      setDebug(null);
  
        setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
      } catch (err) {
@@ -134,6 +161,7 @@ import { useState } from "react";
         </div>
 
         {error ? <p className="text-sm text-rose-300">{error}</p> : null}
+        {debug ? <p className="text-xs text-slate-500">{debug}</p> : null}
 
         <div className="flex flex-col gap-2 sm:flex-row">
           <input

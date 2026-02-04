@@ -16,12 +16,23 @@ const hasXai = () => Boolean((process.env.XAI_API_KEY ?? "").trim());
 // Para Ollama funcionar na Vercel, precisa de um host remoto; 127.0.0.1 não serve.
 const hasOllama = () => Boolean((process.env.OLLAMA_BASE_URL ?? "").trim());
 
-const pickProvider = (): ProviderName => {
+const parseProvider = (value: string): ProviderName | null => {
+  const v = value.trim().toLowerCase();
+  if (v === "ollama") return "ollama";
+  if (v === "groq") return "groq";
+  if (v === "xai") return "xai";
+  if (v === "openai") return "openai";
+  return null;
+};
+
+const getForcedProvider = (): ProviderName | null => {
   const forced = (process.env.CHAT_PROVIDER ?? "").trim().toLowerCase();
-  if (forced === "ollama") return "ollama";
-  if (forced === "groq") return "groq";
-  if (forced === "xai") return "xai";
-  if (forced === "openai") return "openai";
+  return parseProvider(forced);
+};
+
+const pickProvider = (): ProviderName => {
+  const forced = getForcedProvider();
+  if (forced) return forced;
 
   // Auto: prefer Ollama (local), then Groq, then xAI, then OpenAI.
   if (hasOllama()) return "ollama";
@@ -142,6 +153,14 @@ async function callGroq(messages: Array<{ role: string; content: string }>) {
     const payload = await response.json().catch(() => null);
     const msg = payload?.error?.message as unknown;
     const message = typeof msg === "string" ? msg : "";
+    if (response.status === 401) {
+      return {
+        ok: false as const,
+        status: 401,
+        error:
+          "Chave Groq inválida. Confirma se a `GROQ_API_KEY` é mesmo da Groq (começa por `gsk_...`) e faz Redeploy.",
+      };
+    }
     return {
       ok: false as const,
       status: response.status,
@@ -291,19 +310,11 @@ export async function POST(request: Request) {
   try {
     const messages = toChatMessages(recentMessages);
     const provider = pickProvider();
+    const forcedProvider = getForcedProvider();
 
     let result:
       | { ok: true; reply: string }
       | { ok: false; status: number; error: string };
-
-    const baseOrder: ProviderName[] = [provider, "groq", "xai", "openai", "ollama"];
-    const order: ProviderName[] = [];
-    const seen = new Set<ProviderName>();
-    for (const p of baseOrder) {
-      if (seen.has(p)) continue;
-      seen.add(p);
-      order.push(p);
-    }
 
     const isEnabled = (p: ProviderName) => {
       switch (p) {
@@ -320,12 +331,32 @@ export async function POST(request: Request) {
       }
     };
 
-    const candidates = order.filter(isEnabled);
+    const baseOrder: ProviderName[] = [provider, "groq", "xai", "openai", "ollama"];
+    const order: ProviderName[] = [];
+    const seen = new Set<ProviderName>();
+    for (const p of baseOrder) {
+      if (seen.has(p)) continue;
+      seen.add(p);
+      order.push(p);
+    }
+
+    const candidates = forcedProvider
+      ? isEnabled(forcedProvider)
+        ? [forcedProvider]
+        : []
+      : order.filter(isEnabled);
     if (candidates.length === 0) {
       return NextResponse.json(
         {
           error:
-            "Nenhum provider configurado. Define `GROQ_API_KEY` (recomendado/free tier) ou `OPENAI_API_KEY`, ou `XAI_API_KEY`, ou `OLLAMA_BASE_URL`.",
+            forcedProvider
+              ? `O provider forçado (${forcedProvider}) não está configurado. Verifica as env vars e faz Redeploy.`
+              : "Nenhum provider configurado. Define `GROQ_API_KEY` (recomendado/free tier) ou `OPENAI_API_KEY`, ou `XAI_API_KEY`, ou `OLLAMA_BASE_URL`.",
+          provider: forcedProvider ?? provider,
+          hasGroqKey: hasGroq(),
+          hasXaiKey: hasXai(),
+          hasOpenAiKey: hasOpenAi(),
+          hasOllamaBaseUrl: hasOllama(),
         },
         { status: 500 }
       );
@@ -338,12 +369,24 @@ export async function POST(request: Request) {
       return callOpenAi(messages);
     };
 
+    const attempts: Array<{ provider: ProviderName; ok: boolean; status?: number; error?: string }> = [];
+
     // tenta por ordem até um responder
     let usedProvider = candidates[0]!;
     result = await callProvider(usedProvider);
+    attempts.push(
+      result.ok
+        ? { provider: usedProvider, ok: true }
+        : { provider: usedProvider, ok: false, status: result.status, error: result.error }
+    );
     for (let i = 1; i < candidates.length && !result.ok; i += 1) {
       usedProvider = candidates[i]!;
       result = await callProvider(usedProvider);
+      attempts.push(
+        result.ok
+          ? { provider: usedProvider, ok: true }
+          : { provider: usedProvider, ok: false, status: result.status, error: result.error }
+      );
     }
 
     if (!result.ok) {
@@ -351,6 +394,7 @@ export async function POST(request: Request) {
         {
           error: result.error,
           provider: usedProvider,
+          attempts,
           hasGroqKey: hasGroq(),
           hasXaiKey: hasXai(),
           hasOpenAiKey: hasOpenAi(),
