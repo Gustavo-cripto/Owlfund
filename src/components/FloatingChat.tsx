@@ -81,11 +81,13 @@ export default function FloatingChat() {
           </div>
 
           <div className="relative p-5">
-            <img
-              src="/chain-icon.jpg"
-              alt="Chain"
-              className="pointer-events-none absolute right-5 top-5 h-24 w-24 rounded-full border-2 border-orange-400/80 object-cover shadow-[0_0_30px_rgba(251,146,60,0.45)] ring-4 ring-orange-300/20"
-            />
+            <div className="-mt-2 mb-4 flex justify-center">
+              <img
+                src="/chain-icon.jpg"
+                alt="Chain"
+                className="h-28 w-28 rounded-full border-2 border-orange-400/80 object-cover shadow-[0_0_30px_rgba(251,146,60,0.45)] ring-4 ring-orange-300/20"
+              />
+            </div>
             <ChatWidget
               withContainer={false}
               title="Chat"
