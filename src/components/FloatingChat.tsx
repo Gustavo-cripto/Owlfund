@@ -28,7 +28,7 @@ export default function FloatingChat() {
   return (
     <div className="pointer-events-none fixed bottom-4 right-4 z-50 flex flex-col items-end gap-3 sm:bottom-6 sm:right-6">
       {isOpen ? (
-        <div className="pointer-events-auto relative w-[96vw] max-w-[640px] overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/85 shadow-2xl backdrop-blur">
+        <div className="pointer-events-auto relative w-[92vw] max-w-[520px] overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/85 shadow-2xl backdrop-blur">
           {/* background image (watermark) */}
           <div
             className="pointer-events-none absolute inset-0 opacity-[0.22]"
