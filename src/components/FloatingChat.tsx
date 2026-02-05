@@ -28,7 +28,7 @@ export default function FloatingChat() {
   return (
     <div className="pointer-events-none fixed bottom-4 right-4 z-50 flex flex-col items-end gap-3 sm:bottom-6 sm:right-6">
       {isOpen ? (
-        <div className="pointer-events-auto relative w-[92vw] max-w-[520px] overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/85 shadow-2xl backdrop-blur">
+        <div className="pointer-events-auto relative w-[90vw] max-w-[440px] overflow-hidden rounded-3xl border border-slate-800 bg-slate-950/85 shadow-2xl backdrop-blur">
           {/* background image (watermark) */}
           <div
             className="pointer-events-none absolute inset-0 opacity-[0.22]"
@@ -43,15 +43,6 @@ export default function FloatingChat() {
           />
           {/* subtle dark overlay for contrast */}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-slate-950/40 via-slate-950/60 to-slate-950/80" aria-hidden />
-
-          {/* big "CHAIN" watermark (more visible) */}
-          <div
-            className="pointer-events-none absolute left-1/2 top-1/2 select-none whitespace-nowrap text-[84px] font-extrabold tracking-[0.28em] text-white/20 opacity-100 [text-shadow:0_2px_24px_rgba(0,0,0,0.35)] sm:text-[120px]"
-            style={{ transform: "translate(-50%, -10%)" }}
-            aria-hidden
-          >
-            CHAIN
-          </div>
 
           <div className="relative flex items-center justify-between gap-3 border-b border-slate-800 px-5 py-4">
             <div className="flex min-w-0 items-center gap-3">
@@ -80,7 +71,7 @@ export default function FloatingChat() {
             </button>
           </div>
 
-          <div className="relative min-h-[520px] p-5 pb-8">
+          <div className="relative min-h-[420px] p-5 pb-6">
             <img
               src="/chain-icon.jpg"
               alt="Chain"
