@@ -123,8 +123,8 @@ import { useState } from "react";
  
   const content = (
     <>
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex items-start justify-between">
+        <div className="pt-1">
           <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">{title}</p>
           <p className="text-sm text-slate-400">{subtitle}</p>
           {provider ? (
