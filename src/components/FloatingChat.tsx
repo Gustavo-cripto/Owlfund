@@ -55,7 +55,7 @@ export default function FloatingChat() {
 
           <div className="relative flex items-center justify-between gap-3 border-b border-slate-800 px-5 py-4">
             <div className="flex min-w-0 items-center gap-3">
-              <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full border border-slate-700 bg-slate-900/40">
+              <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full border border-slate-700 bg-slate-900/40">
                 <img
                   src="/chain-icon.jpg"
                   alt="Chain"
@@ -81,6 +81,11 @@ export default function FloatingChat() {
           </div>
 
           <div className="relative min-h-[520px] p-5 pb-8">
+            <img
+              src="/chain-icon.jpg"
+              alt="Chain"
+              className="pointer-events-none absolute right-5 top-3 h-28 w-28 rounded-full border-2 border-orange-400/80 object-cover shadow-[0_0_30px_rgba(251,146,60,0.45)] ring-4 ring-orange-300/20"
+            />
             <div className="pt-8">
               <ChatWidget
                 withContainer={false}
