@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import ChatWidget from "@/components/ChatWidget";
 
 const STORAGE_KEY_OPEN = "owlfund.floatingChat.open.v1";
 
 export default function FloatingChat() {
   const [isOpen, setIsOpen] = useState(false);
+  const [isContentReady, setIsContentReady] = useState(false);
+  const [, startTransition] = useTransition();
 
   useEffect(() => {
     try {
@@ -23,6 +25,15 @@ export default function FloatingChat() {
     } catch {
       // ignore
     }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setIsContentReady(false);
+      return;
+    }
+    const timeoutId = window.setTimeout(() => setIsContentReady(true), 60);
+    return () => window.clearTimeout(timeoutId);
   }, [isOpen]);
 
   return (
@@ -62,7 +73,7 @@ export default function FloatingChat() {
             </div>
             <button
               type="button"
-              onClick={() => setIsOpen(false)}
+              onClick={() => startTransition(() => setIsOpen(false))}
               className="rounded-full border border-slate-700 bg-slate-900/40 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
               aria-label="Fechar chat"
               title="Fechar"
@@ -77,16 +88,20 @@ export default function FloatingChat() {
               alt="Chain"
               className="pointer-events-none absolute right-5 top-3 h-28 w-28 rounded-full border-2 border-orange-400/80 object-cover shadow-[0_0_30px_rgba(251,146,60,0.45)] ring-4 ring-orange-300/20"
             />
-            <div className="pt-12">
-              <ChatWidget
-                withContainer={false}
-                title="Chat"
-                subtitle="Respostas em PT, sem aconselhamento financeiro direto."
-                assistantLabel="Chain"
-                messagesMaxHeightClassName="max-h-[70vh]"
-                inputClassName="py-3 text-base"
-                buttonClassName="px-7 py-3 text-base"
-              />
+            <div className="pt-16">
+              {isContentReady ? (
+                <ChatWidget
+                  withContainer={false}
+                  title="Chat"
+                  subtitle="Respostas em PT, sem aconselhamento financeiro direto."
+                  assistantLabel="Chain"
+                  messagesMaxHeightClassName="max-h-[70vh]"
+                  inputClassName="py-3 text-base"
+                  buttonClassName="px-7 py-3 text-base"
+                />
+              ) : (
+                <div className="h-[220px]" aria-hidden />
+              )}
             </div>
           </div>
         </div>
@@ -94,7 +109,7 @@ export default function FloatingChat() {
 
       <button
         type="button"
-        onClick={() => setIsOpen(true)}
+        onClick={() => startTransition(() => setIsOpen(true))}
         className="pointer-events-auto group relative flex items-center gap-3 rounded-full border border-slate-700 bg-slate-950/85 px-6 py-4 text-sm font-semibold text-slate-100 shadow-2xl transition hover:scale-[1.02] hover:border-slate-500 hover:bg-slate-950 active:scale-[0.98]"
         aria-label="Abrir chat"
         title="Abrir chat"
