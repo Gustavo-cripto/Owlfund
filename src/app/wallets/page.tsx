@@ -1021,54 +1021,69 @@ export default function WalletsPage() {
               {visibleTraditionalAssets.map((asset) => {
                 const checked = traditionalSelection.includes(asset.id);
                 return (
-                  <label
+                  <button
                     key={asset.id}
-                    className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm transition ${
+                    type="button"
+                    onClick={() => toggleTraditional(asset.id)}
+                    aria-pressed={checked}
+                    className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm transition ${
                       checked
                         ? "border-orange-400/60 bg-orange-500/10 text-orange-100"
                         : "border-slate-800 bg-slate-950/60 text-slate-200 hover:border-slate-600"
                     }`}
                   >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => toggleTraditional(asset.id)}
-                      className="h-4 w-4 accent-orange-400"
-                    />
                     <div className="flex flex-col">
-                      <span>{asset.label}</span>
+                      <span className="font-semibold">{asset.label}</span>
                       <span className="text-xs text-slate-500">{asset.category}</span>
                     </div>
-                  </label>
+                    <span
+                      className={`grid h-6 w-6 place-items-center rounded-full border text-xs font-semibold ${
+                        checked
+                          ? "border-orange-400 bg-orange-500/20 text-orange-100"
+                          : "border-slate-700 text-slate-400"
+                      }`}
+                    >
+                      {checked ? "✓" : "+"}
+                    </span>
+                  </button>
                 );
               })}
             </div>
 
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                Selecionados
-              </p>
+            <div className="mt-6">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
+                  Selecionados
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setTraditionalSelection([])}
+                  className="rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                >
+                  Limpar seleção
+                </button>
+              </div>
               {selectedTraditionalAssets.length === 0 ? (
-                <span className="text-sm text-slate-500">Nenhum ativo selecionado.</span>
+                <span className="mt-3 block text-sm text-slate-500">
+                  Nenhum ativo selecionado.
+                </span>
               ) : (
-                <div className="flex flex-wrap gap-2">
+                <div className="mt-3 flex flex-wrap gap-2">
                   {selectedTraditionalAssets.map((asset) => (
-                    <span
+                    <button
                       key={asset.id}
-                      className="rounded-full border border-orange-400/40 bg-orange-500/10 px-3 py-1 text-xs text-orange-100"
+                      type="button"
+                      onClick={() => toggleTraditional(asset.id)}
+                      className="flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/60 px-3 py-1 text-xs text-slate-100 transition hover:border-slate-500"
                     >
-                      {asset.label}
-                    </span>
+                      <span>{asset.label}</span>
+                      <span className="grid h-5 w-5 place-items-center rounded-full border border-slate-600 text-[10px] text-slate-300">
+                        ✕
+                      </span>
+                    </button>
                   ))}
                 </div>
               )}
-              <button
-                type="button"
-                onClick={() => setTraditionalSelection([])}
-                className="ml-auto rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-              >
-                Limpar seleção
-              </button>
             </div>
 
             <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
