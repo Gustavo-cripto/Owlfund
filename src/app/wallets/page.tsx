@@ -32,23 +32,32 @@ import {
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 
 const evmNetworks: EvmNetwork[] = ["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon"];
+const traditionalCategories = [
+  "Todos",
+  "Ações",
+  "ETFs",
+  "Futuros",
+  "Dívidas",
+];
 const traditionalAssets = [
-  "Ouro",
-  "Prata",
-  "Petróleo (Brent)",
-  "Petróleo (WTI)",
-  "Gás natural",
-  "S&P 500",
-  "Nasdaq 100",
-  "Dow Jones",
-  "DAX",
-  "FTSE 100",
-  "Nikkei 225",
-  "Euro Stoxx 50",
-  "EUR/USD",
-  "GBP/USD",
-  "USD/JPY",
-  "USD/CHF",
+  { name: "S&P 500", category: "Ações" },
+  { name: "Nasdaq 100", category: "Ações" },
+  { name: "Dow Jones", category: "Ações" },
+  { name: "DAX", category: "Ações" },
+  { name: "FTSE 100", category: "Ações" },
+  { name: "Nikkei 225", category: "Ações" },
+  { name: "Euro Stoxx 50", category: "Ações" },
+  { name: "SPY", category: "ETFs" },
+  { name: "QQQ", category: "ETFs" },
+  { name: "ARKK", category: "ETFs" },
+  { name: "Ouro", category: "Futuros" },
+  { name: "Prata", category: "Futuros" },
+  { name: "Petróleo (Brent)", category: "Futuros" },
+  { name: "Petróleo (WTI)", category: "Futuros" },
+  { name: "Gás natural", category: "Futuros" },
+  { name: "Treasuries 10Y", category: "Dívidas" },
+  { name: "Treasuries 30Y", category: "Dívidas" },
+  { name: "Bund 10Y", category: "Dívidas" },
 ];
 
 export default function WalletsPage() {
@@ -56,6 +65,7 @@ export default function WalletsPage() {
   const [isClient, setIsClient] = useState(false);
   const [walletMode, setWalletMode] = useState<"web3" | "tradicional">("web3");
   const [traditionalSelection, setTraditionalSelection] = useState<string[]>([]);
+  const [traditionalCategory, setTraditionalCategory] = useState("Todos");
   const [availability, setAvailability] = useState({
     metamask: false,
     phantom: false,
@@ -155,6 +165,11 @@ export default function WalletsPage() {
       prev.includes(asset) ? prev.filter((item) => item !== asset) : [...prev, asset]
     );
   };
+
+  const visibleTraditionalAssets =
+    traditionalCategory === "Todos"
+      ? traditionalAssets
+      : traditionalAssets.filter((asset) => asset.category === traditionalCategory);
 
   const handleEthConnect = async () => {
     try {
@@ -937,12 +952,29 @@ export default function WalletsPage() {
               </p>
             </div>
 
+            <div className="mt-5 flex flex-wrap gap-2">
+              {traditionalCategories.map((category) => (
+                <button
+                  key={category}
+                  type="button"
+                  onClick={() => setTraditionalCategory(category)}
+                  className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                    traditionalCategory === category
+                      ? "border-orange-400 bg-orange-500 text-slate-950"
+                      : "border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500"
+                  }`}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              {traditionalAssets.map((asset) => {
-                const checked = traditionalSelection.includes(asset);
+              {visibleTraditionalAssets.map((asset) => {
+                const checked = traditionalSelection.includes(asset.name);
                 return (
                   <label
-                    key={asset}
+                    key={asset.name}
                     className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm transition ${
                       checked
                         ? "border-orange-400/60 bg-orange-500/10 text-orange-100"
@@ -952,10 +984,13 @@ export default function WalletsPage() {
                     <input
                       type="checkbox"
                       checked={checked}
-                      onChange={() => toggleTraditional(asset)}
+                      onChange={() => toggleTraditional(asset.name)}
                       className="h-4 w-4 accent-orange-400"
                     />
-                    <span>{asset}</span>
+                    <div className="flex flex-col">
+                      <span>{asset.name}</span>
+                      <span className="text-xs text-slate-500">{asset.category}</span>
+                    </div>
                   </label>
                 );
               })}
