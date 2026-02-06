@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import AppHeader from "@/components/AppHeader";
 import WalletCard from "@/components/wallets/WalletCard";
@@ -31,33 +31,31 @@ import {
 } from "@/lib/wallets/storage";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 
+type TraditionalQuote = {
+  symbol: string;
+  price: number | null;
+  changePercent: number | null;
+  volume: number | null;
+  updatedAt?: string;
+};
+
 const evmNetworks: EvmNetwork[] = ["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon"];
-const traditionalCategories = [
-  "Todos",
-  "Ações",
-  "ETFs",
-  "Futuros",
-  "Dívidas",
-];
+const traditionalCategories = ["Todos", "Ações", "ETFs", "Futuros", "Dívidas"];
 const traditionalAssets = [
-  { name: "S&P 500", category: "Ações" },
-  { name: "Nasdaq 100", category: "Ações" },
-  { name: "Dow Jones", category: "Ações" },
-  { name: "DAX", category: "Ações" },
-  { name: "FTSE 100", category: "Ações" },
-  { name: "Nikkei 225", category: "Ações" },
-  { name: "Euro Stoxx 50", category: "Ações" },
-  { name: "SPY", category: "ETFs" },
-  { name: "QQQ", category: "ETFs" },
-  { name: "ARKK", category: "ETFs" },
-  { name: "Ouro", category: "Futuros" },
-  { name: "Prata", category: "Futuros" },
-  { name: "Petróleo (Brent)", category: "Futuros" },
-  { name: "Petróleo (WTI)", category: "Futuros" },
-  { name: "Gás natural", category: "Futuros" },
-  { name: "Treasuries 10Y", category: "Dívidas" },
-  { name: "Treasuries 30Y", category: "Dívidas" },
-  { name: "Bund 10Y", category: "Dívidas" },
+  { id: "AAPL", label: "Apple (AAPL)", category: "Ações", alphaSymbol: "AAPL" },
+  { id: "MSFT", label: "Microsoft (MSFT)", category: "Ações", alphaSymbol: "MSFT" },
+  { id: "NVDA", label: "Nvidia (NVDA)", category: "Ações", alphaSymbol: "NVDA" },
+  { id: "TSLA", label: "Tesla (TSLA)", category: "Ações", alphaSymbol: "TSLA" },
+  { id: "SPY", label: "S&P 500 (SPY)", category: "ETFs", alphaSymbol: "SPY" },
+  { id: "QQQ", label: "Nasdaq 100 (QQQ)", category: "ETFs", alphaSymbol: "QQQ" },
+  { id: "ARKK", label: "ARK Innovation (ARKK)", category: "ETFs", alphaSymbol: "ARKK" },
+  { id: "GLD", label: "Ouro (GLD)", category: "ETFs", alphaSymbol: "GLD" },
+  { id: "SLV", label: "Prata (SLV)", category: "ETFs", alphaSymbol: "SLV" },
+  { id: "WTI", label: "Petróleo (WTI)", category: "Futuros" },
+  { id: "BRENT", label: "Petróleo (Brent)", category: "Futuros" },
+  { id: "NATGAS", label: "Gás natural", category: "Futuros" },
+  { id: "UST10Y", label: "Treasuries 10Y", category: "Dívidas" },
+  { id: "UST30Y", label: "Treasuries 30Y", category: "Dívidas" },
 ];
 
 export default function WalletsPage() {
@@ -66,6 +64,9 @@ export default function WalletsPage() {
   const [walletMode, setWalletMode] = useState<"web3" | "tradicional">("web3");
   const [traditionalSelection, setTraditionalSelection] = useState<string[]>([]);
   const [traditionalCategory, setTraditionalCategory] = useState("Todos");
+  const [traditionalQuotes, setTraditionalQuotes] = useState<Record<string, TraditionalQuote>>({});
+  const [traditionalQuotesLoading, setTraditionalQuotesLoading] = useState(false);
+  const [traditionalQuotesError, setTraditionalQuotesError] = useState<string | null>(null);
   const [availability, setAvailability] = useState({
     metamask: false,
     phantom: false,
@@ -160,9 +161,11 @@ export default function WalletsPage() {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
-  const toggleTraditional = (asset: string) => {
+  const toggleTraditional = (assetId: string) => {
     setTraditionalSelection((prev) =>
-      prev.includes(asset) ? prev.filter((item) => item !== asset) : [...prev, asset]
+      prev.includes(assetId)
+        ? prev.filter((item) => item !== assetId)
+        : [...prev, assetId]
     );
   };
 
@@ -170,6 +173,51 @@ export default function WalletsPage() {
     traditionalCategory === "Todos"
       ? traditionalAssets
       : traditionalAssets.filter((asset) => asset.category === traditionalCategory);
+
+  const selectedTraditionalAssets = useMemo(
+    () => traditionalAssets.filter((asset) => traditionalSelection.includes(asset.id)),
+    [traditionalSelection]
+  );
+
+  const selectedQuoteSymbols = useMemo(
+    () =>
+      selectedTraditionalAssets
+        .map((asset) => asset.alphaSymbol)
+        .filter((symbol): symbol is string => typeof symbol === "string" && symbol.length > 0),
+    [selectedTraditionalAssets]
+  );
+
+  useEffect(() => {
+    if (walletMode !== "tradicional") return;
+    if (selectedQuoteSymbols.length === 0) {
+      setTraditionalQuotes({});
+      setTraditionalQuotesError(null);
+      return;
+    }
+    const symbols = selectedQuoteSymbols.join(",");
+    setTraditionalQuotesLoading(true);
+    setTraditionalQuotesError(null);
+    fetch(`/api/traditional?symbols=${encodeURIComponent(symbols)}`)
+      .then(async (response) => {
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(payload?.error ?? "Falha ao obter cotações.");
+        }
+        return response.json() as Promise<{ data: TraditionalQuote[] }>;
+      })
+      .then((payload) => {
+        const next: Record<string, TraditionalQuote> = {};
+        payload.data.forEach((quote) => {
+          next[quote.symbol] = quote;
+        });
+        setTraditionalQuotes(next);
+      })
+      .catch((error) => {
+        setTraditionalQuotesError(error instanceof Error ? error.message : "Erro ao obter dados.");
+        setTraditionalQuotes({});
+      })
+      .finally(() => setTraditionalQuotesLoading(false));
+  }, [walletMode, selectedQuoteSymbols]);
 
   const handleEthConnect = async () => {
     try {
@@ -971,10 +1019,10 @@ export default function WalletsPage() {
 
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               {visibleTraditionalAssets.map((asset) => {
-                const checked = traditionalSelection.includes(asset.name);
+                const checked = traditionalSelection.includes(asset.id);
                 return (
                   <label
-                    key={asset.name}
+                    key={asset.id}
                     className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm transition ${
                       checked
                         ? "border-orange-400/60 bg-orange-500/10 text-orange-100"
@@ -984,11 +1032,11 @@ export default function WalletsPage() {
                     <input
                       type="checkbox"
                       checked={checked}
-                      onChange={() => toggleTraditional(asset.name)}
+                      onChange={() => toggleTraditional(asset.id)}
                       className="h-4 w-4 accent-orange-400"
                     />
                     <div className="flex flex-col">
-                      <span>{asset.name}</span>
+                      <span>{asset.label}</span>
                       <span className="text-xs text-slate-500">{asset.category}</span>
                     </div>
                   </label>
@@ -1000,16 +1048,16 @@ export default function WalletsPage() {
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
                 Selecionados
               </p>
-              {traditionalSelection.length === 0 ? (
+              {selectedTraditionalAssets.length === 0 ? (
                 <span className="text-sm text-slate-500">Nenhum ativo selecionado.</span>
               ) : (
                 <div className="flex flex-wrap gap-2">
-                  {traditionalSelection.map((asset) => (
+                  {selectedTraditionalAssets.map((asset) => (
                     <span
-                      key={asset}
+                      key={asset.id}
                       className="rounded-full border border-orange-400/40 bg-orange-500/10 px-3 py-1 text-xs text-orange-100"
                     >
-                      {asset}
+                      {asset.label}
                     </span>
                   ))}
                 </div>
@@ -1021,6 +1069,67 @@ export default function WalletsPage() {
               >
                 Limpar seleção
               </button>
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
+                  Dados Alpha Vantage
+                </p>
+                {traditionalQuotesLoading ? (
+                  <span className="text-xs text-slate-400">A carregar...</span>
+                ) : null}
+              </div>
+              {traditionalQuotesError ? (
+                <p className="mt-2 text-xs text-rose-300">{traditionalQuotesError}</p>
+              ) : null}
+              <div className="mt-3 space-y-2">
+                {selectedTraditionalAssets.length === 0 ? (
+                  <p className="text-sm text-slate-500">Seleciona ativos para ver cotações.</p>
+                ) : (
+                  selectedTraditionalAssets.map((asset) => {
+                    const quote = asset.alphaSymbol
+                      ? traditionalQuotes[asset.alphaSymbol]
+                      : undefined;
+                    return (
+                      <div
+                        key={asset.id}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300"
+                      >
+                        <div>
+                          <p className="font-semibold text-white">{asset.label}</p>
+                          <p className="text-slate-500">{asset.category}</p>
+                        </div>
+                        {quote ? (
+                          <div className="text-right">
+                            <p className="text-white">
+                              {quote.price != null ? quote.price.toFixed(2) : "—"}
+                            </p>
+                            <p
+                              className={
+                                quote.changePercent != null && quote.changePercent < 0
+                                  ? "text-rose-300"
+                                  : "text-emerald-300"
+                              }
+                            >
+                              {quote.changePercent != null
+                                ? `${quote.changePercent.toFixed(2)}%`
+                                : "—"}
+                            </p>
+                            <p className="text-[11px] text-slate-500">
+                              Vol: {quote.volume != null ? quote.volume.toLocaleString("pt-PT") : "—"}
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-500">
+                            Sem dados (Alpha Vantage).
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
           </div>
         )}
