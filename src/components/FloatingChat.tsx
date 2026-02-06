@@ -88,7 +88,7 @@ export default function FloatingChat() {
               alt="Chain"
               className="pointer-events-none absolute right-5 top-3 h-28 w-28 rounded-full border-2 border-orange-400/80 object-cover shadow-[0_0_30px_rgba(251,146,60,0.45)] ring-4 ring-orange-300/20"
             />
-            <div className="pt-20">
+            <div className="pt-28">
               {isContentReady ? (
                 <ChatWidget
                   withContainer={false}
