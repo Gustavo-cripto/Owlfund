@@ -32,10 +32,30 @@ import {
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 
 const evmNetworks: EvmNetwork[] = ["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon"];
+const traditionalAssets = [
+  "Ouro",
+  "Prata",
+  "Petróleo (Brent)",
+  "Petróleo (WTI)",
+  "Gás natural",
+  "S&P 500",
+  "Nasdaq 100",
+  "Dow Jones",
+  "DAX",
+  "FTSE 100",
+  "Nikkei 225",
+  "Euro Stoxx 50",
+  "EUR/USD",
+  "GBP/USD",
+  "USD/JPY",
+  "USD/CHF",
+];
 
 export default function WalletsPage() {
   useRequireAuth("/login");
   const [isClient, setIsClient] = useState(false);
+  const [walletMode, setWalletMode] = useState<"web3" | "tradicional">("web3");
+  const [traditionalSelection, setTraditionalSelection] = useState<string[]>([]);
   const [availability, setAvailability] = useState({
     metamask: false,
     phantom: false,
@@ -128,6 +148,12 @@ export default function WalletsPage() {
     if (!address) return "—";
     if (address.length <= 12) return address;
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
+
+  const toggleTraditional = (asset: string) => {
+    setTraditionalSelection((prev) =>
+      prev.includes(asset) ? prev.filter((item) => item !== asset) : [...prev, asset]
+    );
   };
 
   const handleEthConnect = async () => {
@@ -420,22 +446,46 @@ export default function WalletsPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <AppHeader variant="app" subtitle="Carteiras Web3" />
+      <AppHeader variant="app" subtitle="Carteiras" />
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-20 pt-2">
         <div className="flex flex-col gap-4">
           <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">
-            Carteiras Web3
+            Carteiras
           </p>
           <h1 className="text-3xl font-semibold text-white">
-            Leitura de saldo e endereços por rede
+            Escolhe entre Web3 ou Mercado Tradicional
           </h1>
           <p className="max-w-2xl text-sm text-slate-400">
-            Conecte as carteiras listadas e visualize apenas dados de leitura. Nenhuma
-            transação é enviada nesta etapa.
+            Alterna entre carteiras on-chain e seleção de ativos do mercado tradicional.
           </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setWalletMode("web3")}
+              className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                walletMode === "web3"
+                  ? "border-orange-400 bg-orange-500 text-slate-950"
+                  : "border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500"
+              }`}
+            >
+              Carteiras Web3
+            </button>
+            <button
+              type="button"
+              onClick={() => setWalletMode("tradicional")}
+              className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                walletMode === "tradicional"
+                  ? "border-orange-400 bg-orange-500 text-slate-950"
+                  : "border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500"
+              }`}
+            >
+              Carteiras Mercado Tradicional
+            </button>
+          </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
+        {walletMode === "web3" ? (
+          <div className="grid gap-6 md:grid-cols-2">
           <WalletCard
             title="Ethereum"
             description="MetaMask (ETH)"
@@ -873,6 +923,72 @@ export default function WalletsPage() {
             </div>
           </WalletCard>
         </div>
+        ) : (
+          <div className="rounded-3xl border border-slate-800 bg-slate-950/60 p-6">
+            <div className="flex flex-col gap-3">
+              <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">
+                Carteiras Mercado Tradicional
+              </p>
+              <h2 className="text-xl font-semibold text-white">
+                Seleciona vários ativos e mercados
+              </h2>
+              <p className="text-sm text-slate-400">
+                Escolhe ouro, prata e outros mercados que queres acompanhar.
+              </p>
+            </div>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              {traditionalAssets.map((asset) => {
+                const checked = traditionalSelection.includes(asset);
+                return (
+                  <label
+                    key={asset}
+                    className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm transition ${
+                      checked
+                        ? "border-orange-400/60 bg-orange-500/10 text-orange-100"
+                        : "border-slate-800 bg-slate-950/60 text-slate-200 hover:border-slate-600"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleTraditional(asset)}
+                      className="h-4 w-4 accent-orange-400"
+                    />
+                    <span>{asset}</span>
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
+                Selecionados
+              </p>
+              {traditionalSelection.length === 0 ? (
+                <span className="text-sm text-slate-500">Nenhum ativo selecionado.</span>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {traditionalSelection.map((asset) => (
+                    <span
+                      key={asset}
+                      className="rounded-full border border-orange-400/40 bg-orange-500/10 px-3 py-1 text-xs text-orange-100"
+                    >
+                      {asset}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setTraditionalSelection([])}
+                className="ml-auto rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+              >
+                Limpar seleção
+              </button>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
