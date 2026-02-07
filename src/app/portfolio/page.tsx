@@ -268,15 +268,18 @@ export default function PortfolioPage() {
   const pnlTotal = 0;
 
   const cryptoAllocations = useMemo(() => {
+    const manualItems = Object.entries(cryptoHoldings).map(([symbol, holding]) => ({
+      label: `${symbol} Manual`,
+      symbol: "Manual",
+      value: Number(holding.buyValue ?? 0),
+    }));
     const items = [
       ...wallets.map((wallet) => ({
         label: wallet.label,
         symbol: wallet.symbol,
         value: toNumber(wallet.balance),
       })),
-      ...(manualCryptoTotal > 0
-        ? [{ label: "Cripto manual", symbol: "Manual", value: manualCryptoTotal }]
-        : []),
+      ...manualItems.filter((item) => Number.isFinite(item.value) && item.value > 0),
       { label: "Stablecoins", symbol: "USDT/USDC", value: stablecoinTotal },
     ];
     const total = items.reduce((sum, item) => sum + item.value, 0);
@@ -284,7 +287,7 @@ export default function PortfolioPage() {
       ...item,
       percent: getPercent(item.value, total),
     }));
-  }, [wallets, stablecoinTotal, manualCryptoTotal]);
+  }, [wallets, stablecoinTotal, cryptoHoldings]);
 
   const traditionalAllocations = useMemo(() => {
     const byCategory: Record<string, number> = {};

@@ -500,6 +500,9 @@ export default function MercadoPage() {
   const [selectedTraditional, setSelectedTraditional] = useState<TraditionalAsset | null>(null);
   const [traditionalHoldings, setTraditionalHoldings] = useState<TraditionalHoldings>({});
   const [cryptoHoldings, setCryptoHoldings] = useState<CryptoHoldings>({});
+  const [cryptoPnlRange, setCryptoPnlRange] = useState<
+    Record<string, "1d" | "30d" | "60d" | "1y">
+  >({});
 
   const closeTradingViewOverlay = () => {
     // Best-effort: closes TradingView popovers/panels (e.g., Markets/Favorites/Trending).
@@ -765,6 +768,14 @@ export default function MercadoPage() {
       return Number.isFinite(value) ? sum + value : sum;
     }, 0);
   }, [cryptoHoldings]);
+
+  const getCryptoPnl = (symbol: string, change24h: number) => {
+    const range = cryptoPnlRange[symbol] ?? "1d";
+    if (range === "1d") {
+      return { label: "1D", value: change24h };
+    }
+    return { label: range.toUpperCase(), value: null };
+  };
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(filteredSortedRows.length / pageSize)),
@@ -1424,6 +1435,40 @@ export default function MercadoPage() {
                               {formatCurrency(asset.priceUsd, asset.priceUsd < 1 ? 6 : 2)}
                             </span>
                           </span>
+                          <div className="flex items-center gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
+                            <select
+                              value={cryptoPnlRange[asset.symbol] ?? "1d"}
+                              onChange={(event) =>
+                                setCryptoPnlRange((prev) => ({
+                                  ...prev,
+                                  [asset.symbol]: event.target.value as "1d" | "30d" | "60d" | "1y",
+                                }))
+                              }
+                              className="bg-transparent text-xs text-slate-200 outline-none"
+                            >
+                              <option value="1d">Diário</option>
+                              <option value="30d">30 dias</option>
+                              <option value="60d">60 dias</option>
+                              <option value="1y">Anual</option>
+                            </select>
+                            {(() => {
+                              const pnl = getCryptoPnl(asset.symbol, asset.change24h);
+                              const value = pnl.value;
+                              return (
+                                <span
+                                  className={
+                                    value == null
+                                      ? "text-slate-400"
+                                      : value >= 0
+                                        ? "text-emerald-300"
+                                        : "text-rose-300"
+                                  }
+                                >
+                                  {value == null ? "—" : formatPercent(value)}
+                                </span>
+                              );
+                            })()}
+                          </div>
                           <button
                             type="button"
                             onClick={() => toggleCryptoHolding(asset.symbol)}
