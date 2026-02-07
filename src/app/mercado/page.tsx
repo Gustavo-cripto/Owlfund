@@ -14,6 +14,11 @@ import {
   saveTraditionalHoldings,
   type TraditionalHoldings,
 } from "@/lib/traditional/storage";
+import {
+  loadCryptoHoldings,
+  saveCryptoHoldings,
+  type CryptoHoldings,
+} from "@/lib/crypto/storage";
 
 type MarketRow = {
   market: string;
@@ -494,6 +499,7 @@ export default function MercadoPage() {
   );
   const [selectedTraditional, setSelectedTraditional] = useState<TraditionalAsset | null>(null);
   const [traditionalHoldings, setTraditionalHoldings] = useState<TraditionalHoldings>({});
+  const [cryptoHoldings, setCryptoHoldings] = useState<CryptoHoldings>({});
 
   const closeTradingViewOverlay = () => {
     // Best-effort: closes TradingView popovers/panels (e.g., Markets/Favorites/Trending).
@@ -585,12 +591,46 @@ export default function MercadoPage() {
     });
   };
 
+  const toggleCryptoHolding = (symbol: string) => {
+    setCryptoHoldings((prev) => {
+      const next = { ...prev };
+      if (next[symbol]) {
+        delete next[symbol];
+      } else {
+        next[symbol] = {};
+      }
+      saveCryptoHoldings(next);
+      return next;
+    });
+  };
+
+  const updateCryptoHolding = (
+    symbol: string,
+    next: { buyValue?: number; buyDate?: string }
+  ) => {
+    setCryptoHoldings((prev) => {
+      const nextHoldings = {
+        ...prev,
+        [symbol]: {
+          ...prev[symbol],
+          ...next,
+        },
+      };
+      saveCryptoHoldings(nextHoldings);
+      return nextHoldings;
+    });
+  };
+
   useEffect(() => {
     setFavorites(loadFavorites());
   }, []);
 
   useEffect(() => {
     setTraditionalHoldings(loadTraditionalHoldings());
+  }, []);
+
+  useEffect(() => {
+    setCryptoHoldings(loadCryptoHoldings());
   }, []);
 
   useEffect(() => {
@@ -713,6 +753,18 @@ export default function MercadoPage() {
       return Number.isFinite(value) ? sum + value : sum;
     }, 0);
   }, [selectedTraditionalAssets, traditionalHoldings]);
+
+  const selectedCryptoAssets = useMemo(() => {
+    const symbols = Object.keys(cryptoHoldings);
+    return rows.filter((row) => symbols.includes(row.symbol));
+  }, [rows, cryptoHoldings]);
+
+  const cryptoManualTotal = useMemo(() => {
+    return Object.values(cryptoHoldings).reduce((sum, holding) => {
+      const value = Number(holding.buyValue ?? 0);
+      return Number.isFinite(value) ? sum + value : sum;
+    }, 0);
+  }, [cryptoHoldings]);
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(filteredSortedRows.length / pageSize)),
@@ -1205,6 +1257,7 @@ export default function MercadoPage() {
                         <th className="px-4 py-3">Variação 24h</th>
                         <th className="px-4 py-3">Valor de Mercado (USD)</th>
                         <th className="px-4 py-3">Volume 24h (USD)</th>
+                        <th className="px-4 py-3">Carteira</th>
                         <th className="px-4 py-3">Tendência</th>
                       </tr>
                     </thead>
@@ -1214,6 +1267,7 @@ export default function MercadoPage() {
                           setSelected(row);
                           chartRef.current?.scrollIntoView({ behavior: "smooth" });
                         };
+                        const inPortfolio = !!cryptoHoldings[row.symbol];
                         return (
                         <tr
                           key={row.market}
@@ -1273,6 +1327,22 @@ export default function MercadoPage() {
                           <td className="px-4 py-4 text-slate-300">
                             {formatCompact(row.volume24hUsd)}
                           </td>
+                          <td className="px-4 py-4">
+                            <button
+                              type="button"
+                              className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                                inPortfolio
+                                  ? "border-emerald-400/50 text-emerald-200 hover:border-emerald-400"
+                                  : "border-slate-700 text-slate-200 hover:border-slate-500 hover:text-white"
+                              }`}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                toggleCryptoHolding(row.symbol);
+                              }}
+                            >
+                              {inPortfolio ? "Na carteira" : "Adicionar"}
+                            </button>
+                          </td>
                           <td className="px-4 py-4" onClick={selectRow}>
                             <TrendSparkline
                               change={row.change24h}
@@ -1288,6 +1358,85 @@ export default function MercadoPage() {
                   </div>
                 </div>
               )}
+            </section>
+            <section className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold text-white">Carteira Cripto</h2>
+                  <p className="text-sm text-slate-400">
+                    Define o valor de compra e a data por ativo selecionado.
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Total</p>
+                  <p className="text-lg font-semibold text-white">
+                    €{" "}
+                    {cryptoManualTotal.toLocaleString("pt-PT", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {selectedCryptoAssets.length === 0 ? (
+                  <p className="text-sm text-slate-500">Nenhum ativo selecionado.</p>
+                ) : (
+                  selectedCryptoAssets.map((asset) => {
+                    const holding = cryptoHoldings[asset.symbol] ?? {};
+                    return (
+                      <div
+                        key={asset.symbol}
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-xs text-slate-100"
+                      >
+                        <div>
+                          <p className="font-semibold text-white">{asset.symbol}</p>
+                          <p className="text-slate-500">{asset.name}</p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            min="0"
+                            step="0.01"
+                            placeholder="Valor de compra"
+                            value={holding.buyValue ?? ""}
+                            onChange={(event) => {
+                              const value = event.target.value;
+                              updateCryptoHolding(asset.symbol, {
+                                buyValue: value === "" ? undefined : Number(value),
+                              });
+                            }}
+                            className="w-40 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
+                          />
+                          <input
+                            type="date"
+                            value={holding.buyDate ?? ""}
+                            onChange={(event) =>
+                              updateCryptoHolding(asset.symbol, { buyDate: event.target.value })
+                            }
+                            className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
+                          />
+                          <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
+                            Preço atual:{" "}
+                            <span className="font-semibold text-white">
+                              {formatCurrency(asset.priceUsd, asset.priceUsd < 1 ? 6 : 2)}
+                            </span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => toggleCryptoHolding(asset.symbol)}
+                            className="rounded-full border border-slate-700 px-3 py-2 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                          >
+                            Remover
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </section>
           </div>
         </div>

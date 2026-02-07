@@ -9,6 +9,7 @@ import { loadWalletSnapshot, type StoredWalletEntry, type WalletSnapshot } from 
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { traditionalAssets } from "@/lib/traditional/assets";
 import { loadTraditionalHoldings, type TraditionalHoldings } from "@/lib/traditional/storage";
+import { loadCryptoHoldings, type CryptoHoldings } from "@/lib/crypto/storage";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ""
@@ -106,6 +107,7 @@ export default function PortfolioPage() {
   useRequireAuth("/login");
   const [wallets, setWallets] = useState<WalletBalance[]>([]);
   const [traditionalHoldings, setTraditionalHoldings] = useState<TraditionalHoldings>({});
+  const [cryptoHoldings, setCryptoHoldings] = useState<CryptoHoldings>({});
   const [snapshots, setSnapshots] = useState<SnapshotRow[]>([]);
   const [isSnapshotsLoading, setIsSnapshotsLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -123,6 +125,10 @@ export default function PortfolioPage() {
 
   useEffect(() => {
     setTraditionalHoldings(loadTraditionalHoldings());
+  }, []);
+
+  useEffect(() => {
+    setCryptoHoldings(loadCryptoHoldings());
   }, []);
 
   useEffect(() => {
@@ -243,7 +249,14 @@ export default function PortfolioPage() {
     setSaveMessage(`Snapshot de ${new Date(row.created_at).toLocaleString("pt-BR")} carregado.`);
   };
 
-  const cryptoTotal = useMemo(() => sumCrypto(wallets), [wallets]);
+  const manualCryptoTotal = useMemo(() => {
+    return Object.values(cryptoHoldings).reduce((sum, holding) => {
+      const value = Number(holding.buyValue ?? 0);
+      return Number.isFinite(value) ? sum + value : sum;
+    }, 0);
+  }, [cryptoHoldings]);
+
+  const cryptoTotal = useMemo(() => sumCrypto(wallets) + manualCryptoTotal, [wallets, manualCryptoTotal]);
   const stablecoinTotal = 0;
   const traditionalTotal = useMemo(() => {
     return Object.values(traditionalHoldings).reduce((sum, holding) => {
@@ -261,6 +274,9 @@ export default function PortfolioPage() {
         symbol: wallet.symbol,
         value: toNumber(wallet.balance),
       })),
+      ...(manualCryptoTotal > 0
+        ? [{ label: "Cripto manual", symbol: "Manual", value: manualCryptoTotal }]
+        : []),
       { label: "Stablecoins", symbol: "USDT/USDC", value: stablecoinTotal },
     ];
     const total = items.reduce((sum, item) => sum + item.value, 0);
@@ -268,7 +284,7 @@ export default function PortfolioPage() {
       ...item,
       percent: getPercent(item.value, total),
     }));
-  }, [wallets, stablecoinTotal]);
+  }, [wallets, stablecoinTotal, manualCryptoTotal]);
 
   const traditionalAllocations = useMemo(() => {
     const byCategory: Record<string, number> = {};
