@@ -684,6 +684,7 @@ export default function WalletsPage() {
         </div>
 
         {walletMode === "web3" ? (
+        <>
         <div className="grid gap-6 md:grid-cols-2">
           <WalletCard
             title="Ethereum"
@@ -1216,6 +1217,7 @@ export default function WalletsPage() {
             <p className="mt-3 text-xs text-slate-500">A atualizar preços...</p>
           ) : null}
         </section>
+        </>
         ) : (
           <div className="rounded-3xl border border-slate-800 bg-slate-950/60 p-6">
             <div className="flex flex-col gap-3">
