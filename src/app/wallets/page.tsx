@@ -67,6 +67,9 @@ export default function WalletsPage() {
   const [traditionalQuotes, setTraditionalQuotes] = useState<Record<string, TraditionalQuote>>({});
   const [traditionalQuotesLoading, setTraditionalQuotesLoading] = useState(false);
   const [traditionalQuotesError, setTraditionalQuotesError] = useState<string | null>(null);
+  const [traditionalBuys, setTraditionalBuys] = useState<
+    Record<string, { price?: string; date?: string }>
+  >({});
   const [availability, setAvailability] = useState({
     metamask: false,
     phantom: false,
@@ -167,6 +170,16 @@ export default function WalletsPage() {
         ? prev.filter((item) => item !== assetId)
         : [...prev, assetId]
     );
+  };
+
+  const updateTraditionalBuy = (assetId: string, next: { price?: string; date?: string }) => {
+    setTraditionalBuys((prev) => ({
+      ...prev,
+      [assetId]: {
+        ...prev[assetId],
+        ...next,
+      },
+    }));
   };
 
   const visibleTraditionalAssets =
@@ -1068,20 +1081,51 @@ export default function WalletsPage() {
                   Nenhum ativo selecionado.
                 </span>
               ) : (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {selectedTraditionalAssets.map((asset) => (
-                    <button
-                      key={asset.id}
-                      type="button"
-                      onClick={() => toggleTraditional(asset.id)}
-                      className="flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/60 px-3 py-1 text-xs text-slate-100 transition hover:border-slate-500"
-                    >
-                      <span>{asset.label}</span>
-                      <span className="grid h-5 w-5 place-items-center rounded-full border border-slate-600 text-[10px] text-slate-300">
-                        ✕
-                      </span>
-                    </button>
-                  ))}
+                <div className="mt-3 grid gap-3">
+                  {selectedTraditionalAssets.map((asset) => {
+                    const buy = traditionalBuys[asset.id] ?? {};
+                    return (
+                      <div
+                        key={asset.id}
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-xs text-slate-100"
+                      >
+                        <div>
+                          <p className="font-semibold text-white">{asset.label}</p>
+                          <p className="text-slate-500">{asset.category}</p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            min="0"
+                            step="0.01"
+                            placeholder="Valor de compra"
+                            value={buy.price ?? ""}
+                            onChange={(event) =>
+                              updateTraditionalBuy(asset.id, { price: event.target.value })
+                            }
+                            className="w-40 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
+                          />
+                          <input
+                            type="date"
+                            value={buy.date ?? ""}
+                            onChange={(event) =>
+                              updateTraditionalBuy(asset.id, { date: event.target.value })
+                            }
+                            className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => toggleTraditional(asset.id)}
+                            className="rounded-full border border-slate-700 px-3 py-2 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                            title="Remover"
+                          >
+                            Remover
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
