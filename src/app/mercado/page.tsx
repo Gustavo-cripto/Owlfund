@@ -15,6 +15,22 @@ type MarketRow = {
   volume24hUsd: number;
 };
 
+type TraditionalAsset = {
+  id: string;
+  label: string;
+  category: string;
+  alphaSymbol?: string;
+  tvSymbol?: string;
+};
+
+type TraditionalQuote = {
+  symbol: string;
+  price: number | null;
+  changePercent: number | null;
+  volume: number | null;
+  updatedAt?: string;
+};
+
 type SortKey = "marketCapUsd" | "priceUsd" | "change24h" | "volume24hUsd" | "symbol";
 type SortDir = "desc" | "asc";
 
@@ -107,6 +123,93 @@ const formatDateShort = (timestampSec: number) => {
     return "";
   }
 };
+
+const traditionalCategories = ["Todos", "Ações", "ETFs", "Futuros", "Dívidas"];
+const traditionalAssets: TraditionalAsset[] = [
+  {
+    id: "AAPL",
+    label: "Apple (AAPL)",
+    category: "Ações",
+    alphaSymbol: "AAPL",
+    tvSymbol: "NASDAQ:AAPL",
+  },
+  {
+    id: "MSFT",
+    label: "Microsoft (MSFT)",
+    category: "Ações",
+    alphaSymbol: "MSFT",
+    tvSymbol: "NASDAQ:MSFT",
+  },
+  {
+    id: "NVDA",
+    label: "Nvidia (NVDA)",
+    category: "Ações",
+    alphaSymbol: "NVDA",
+    tvSymbol: "NASDAQ:NVDA",
+  },
+  {
+    id: "TSLA",
+    label: "Tesla (TSLA)",
+    category: "Ações",
+    alphaSymbol: "TSLA",
+    tvSymbol: "NASDAQ:TSLA",
+  },
+  {
+    id: "SPY",
+    label: "S&P 500 (SPY)",
+    category: "ETFs",
+    alphaSymbol: "SPY",
+    tvSymbol: "AMEX:SPY",
+  },
+  {
+    id: "QQQ",
+    label: "Nasdaq 100 (QQQ)",
+    category: "ETFs",
+    alphaSymbol: "QQQ",
+    tvSymbol: "NASDAQ:QQQ",
+  },
+  {
+    id: "ARKK",
+    label: "ARK Innovation (ARKK)",
+    category: "ETFs",
+    alphaSymbol: "ARKK",
+    tvSymbol: "AMEX:ARKK",
+  },
+  {
+    id: "GLD",
+    label: "Ouro (GLD)",
+    category: "ETFs",
+    alphaSymbol: "GLD",
+    tvSymbol: "AMEX:GLD",
+  },
+  {
+    id: "SLV",
+    label: "Prata (SLV)",
+    category: "ETFs",
+    alphaSymbol: "SLV",
+    tvSymbol: "AMEX:SLV",
+  },
+  {
+    id: "WTI",
+    label: "Petróleo (WTI)",
+    category: "Futuros",
+    tvSymbol: "NYMEX:CL1!",
+  },
+  {
+    id: "BRENT",
+    label: "Petróleo (Brent)",
+    category: "Futuros",
+    tvSymbol: "ICEEUR:BRN1!",
+  },
+  {
+    id: "NATGAS",
+    label: "Gás natural",
+    category: "Futuros",
+    tvSymbol: "NYMEX:NG1!",
+  },
+  { id: "UST10Y", label: "Treasuries 10Y", category: "Dívidas", tvSymbol: "TVC:US10Y" },
+  { id: "UST30Y", label: "Treasuries 30Y", category: "Dívidas", tvSymbol: "TVC:US30Y" },
+];
 
 const mapClassificationPt = (value: string) => {
   switch (value) {
@@ -444,6 +547,7 @@ function TradingViewWidget({
 
 export default function MercadoPage() {
   useRequireAuth("/login");
+  const [marketMode, setMarketMode] = useState<"crypto" | "tradicional">("crypto");
   const [rows, setRows] = useState<MarketRow[]>([]);
   const [selected, setSelected] = useState<MarketRow | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -466,6 +570,13 @@ export default function MercadoPage() {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [showFavorites, setShowFavorites] = useState(false);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [traditionalCategory, setTraditionalCategory] = useState("Todos");
+  const [traditionalQuotes, setTraditionalQuotes] = useState<Record<string, TraditionalQuote>>({});
+  const [traditionalQuotesError, setTraditionalQuotesError] = useState<string | null>(null);
+  const [traditionalQuoteLoading, setTraditionalQuoteLoading] = useState<Record<string, boolean>>(
+    {}
+  );
+  const [selectedTraditional, setSelectedTraditional] = useState<TraditionalAsset | null>(null);
 
   const closeTradingViewOverlay = () => {
     // Best-effort: closes TradingView popovers/panels (e.g., Markets/Favorites/Trending).
@@ -505,6 +616,27 @@ export default function MercadoPage() {
     };
     load();
   }, []);
+
+  const refreshTraditionalQuote = async (symbol?: string) => {
+    if (!symbol) return;
+    setTraditionalQuoteLoading((prev) => ({ ...prev, [symbol]: true }));
+    try {
+      const response = await fetch(`/api/traditional?symbols=${encodeURIComponent(symbol)}`);
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(payload?.error ?? "Falha ao obter cotações.");
+      }
+      const payload = (await response.json()) as { data: TraditionalQuote[] };
+      const quote = payload.data?.[0];
+      if (quote) {
+        setTraditionalQuotes((prev) => ({ ...prev, [quote.symbol]: quote }));
+      }
+    } catch (err) {
+      setTraditionalQuotesError(err instanceof Error ? err.message : "Erro ao obter dados.");
+    } finally {
+      setTraditionalQuoteLoading((prev) => ({ ...prev, [symbol]: false }));
+    }
+  };
 
   useEffect(() => {
     setFavorites(loadFavorites());
@@ -574,6 +706,7 @@ export default function MercadoPage() {
   }, [selected]);
 
   const tradingViewInterval = "D";
+  const traditionalTradingViewInterval = "D";
 
   const toggleFavorite = (symbol: string) => {
     setFavorites((prev) => {
@@ -613,6 +746,11 @@ export default function MercadoPage() {
     return sorted;
   }, [rows, query, sortKey, sortDir, showFavorites, favorites]);
 
+  const visibleTraditionalAssets = useMemo(() => {
+    if (traditionalCategory === "Todos") return traditionalAssets;
+    return traditionalAssets.filter((asset) => asset.category === traditionalCategory);
+  }, [traditionalCategory]);
+
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(filteredSortedRows.length / pageSize)),
     [filteredSortedRows.length]
@@ -637,12 +775,38 @@ export default function MercadoPage() {
         <div className="flex flex-col gap-4">
           <h1 className="text-3xl font-semibold text-white">Mercado</h1>
           <p className="max-w-2xl text-sm text-slate-400">
-            Dados em tempo real da CoinEx com comparação entre ativos. Clique em um
-            ativo para abrir o gráfico do TradingView.
+            {marketMode === "crypto"
+              ? "Dados em tempo real da CoinEx com comparação entre ativos. Clique em um ativo para abrir o gráfico do TradingView."
+              : "Ativos do mercado tradicional com cotações via Alpha Vantage."}
           </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setMarketMode("crypto")}
+              className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                marketMode === "crypto"
+                  ? "border-orange-400 bg-orange-500 text-slate-950"
+                  : "border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500"
+              }`}
+            >
+              Mercado Crypto
+            </button>
+            <button
+              type="button"
+              onClick={() => setMarketMode("tradicional")}
+              className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                marketMode === "tradicional"
+                  ? "border-orange-400 bg-orange-500 text-slate-950"
+                  : "border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500"
+              }`}
+            >
+              Mercado Tradicional
+            </button>
+          </div>
         </div>
 
-        <section className="mx-auto w-full max-w-6xl rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+        {marketMode === "crypto" ? (
+          <section className="mx-auto w-full max-w-6xl rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h2 className="text-lg font-semibold text-white">Gráfico do ativo</h2>
@@ -734,7 +898,119 @@ export default function MercadoPage() {
             )}
           </div>
         </section>
+        ) : (
+          <section className="mx-auto w-full max-w-6xl rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-white">Mercado Tradicional</h2>
+                <p className="text-sm text-slate-400">
+                  Seleciona a categoria e atualiza o preço atual por ativo.
+                </p>
+              </div>
+              {traditionalQuotesError ? (
+                <p className="text-xs text-rose-300">{traditionalQuotesError}</p>
+              ) : null}
+            </div>
 
+            <div className="mt-5 flex flex-wrap gap-2">
+              {traditionalCategories.map((category) => (
+                <button
+                  key={category}
+                  type="button"
+                  onClick={() => setTraditionalCategory(category)}
+                  className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                    traditionalCategory === category
+                      ? "border-orange-400 bg-orange-500 text-slate-950"
+                      : "border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500"
+                  }`}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              {visibleTraditionalAssets.map((asset) => {
+                const quote = asset.alphaSymbol ? traditionalQuotes[asset.alphaSymbol] : undefined;
+                const isQuoteLoading = asset.alphaSymbol
+                  ? !!traditionalQuoteLoading[asset.alphaSymbol]
+                  : false;
+                const isSelected = selectedTraditional?.id === asset.id;
+                return (
+                  <div
+                    key={asset.id}
+                    className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm text-slate-100 transition ${
+                      isSelected
+                        ? "border-orange-400/60 bg-orange-500/10"
+                        : "border-slate-800 bg-slate-950/60 hover:border-slate-600"
+                    }`}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setSelectedTraditional(asset)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setSelectedTraditional(asset);
+                      }
+                    }}
+                  >
+                    <div>
+                      <p className="font-semibold text-white">{asset.label}</p>
+                      <p className="text-xs text-slate-500">{asset.category}</p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
+                        Preço:{" "}
+                        <span className="font-semibold text-white">
+                          {quote?.price != null ? quote.price.toFixed(2) : "—"}
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          refreshTraditionalQuote(asset.alphaSymbol);
+                        }}
+                        disabled={!asset.alphaSymbol || isQuoteLoading}
+                        className="rounded-full border border-orange-400/40 px-3 py-2 text-[11px] font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isQuoteLoading ? "A atualizar..." : "Atualizar preço"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Gráfico</p>
+                  <p className="text-sm text-slate-400">
+                    {selectedTraditional
+                      ? selectedTraditional.label
+                      : "Selecione um ativo para ver o gráfico"}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 h-[420px] rounded-xl border border-slate-800 bg-slate-950/50 p-2">
+                {selectedTraditional?.tvSymbol ? (
+                  <TradingViewWidget
+                    key={`${selectedTraditional.tvSymbol}-${traditionalTradingViewInterval}`}
+                    symbol={selectedTraditional.tvSymbol}
+                    interval={traditionalTradingViewInterval}
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-sm text-slate-500">
+                    Sem símbolo disponível para este ativo.
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {marketMode === "crypto" ? (
         <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[420px_1fr]">
           <aside className="order-2 lg:order-1">
             <FearGreedWidget
@@ -943,6 +1219,7 @@ export default function MercadoPage() {
             </section>
           </div>
         </div>
+        ) : null}
       </main>
     </div>
   );
