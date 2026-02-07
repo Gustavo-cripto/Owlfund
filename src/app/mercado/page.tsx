@@ -503,6 +503,9 @@ export default function MercadoPage() {
   const [cryptoPnlRange, setCryptoPnlRange] = useState<
     Record<string, "1d" | "30d" | "60d" | "1y">
   >({});
+  const [traditionalPnlRange, setTraditionalPnlRange] = useState<
+    Record<string, "1d" | "30d" | "60d" | "1y">
+  >({});
 
   const closeTradingViewOverlay = () => {
     // Best-effort: closes TradingView popovers/panels (e.g., Markets/Favorites/Trending).
@@ -773,6 +776,14 @@ export default function MercadoPage() {
     const range = cryptoPnlRange[symbol] ?? "1d";
     if (range === "1d") {
       return { label: "1D", value: change24h };
+    }
+    return { label: range.toUpperCase(), value: null };
+  };
+
+  const getTraditionalPnl = (symbol: string, changePercent?: number | null) => {
+    const range = traditionalPnlRange[symbol] ?? "1d";
+    if (range === "1d") {
+      return { label: "1D", value: changePercent ?? null };
     }
     return { label: range.toUpperCase(), value: null };
   };
@@ -1094,6 +1105,40 @@ export default function MercadoPage() {
                               {quote?.price != null ? quote.price.toFixed(2) : "—"}
                             </span>
                           </span>
+                          <div className="flex items-center gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
+                            <select
+                              value={traditionalPnlRange[asset.id] ?? "1d"}
+                              onChange={(event) =>
+                                setTraditionalPnlRange((prev) => ({
+                                  ...prev,
+                                  [asset.id]: event.target.value as "1d" | "30d" | "60d" | "1y",
+                                }))
+                              }
+                              className="bg-transparent text-xs text-slate-200 outline-none"
+                            >
+                              <option value="1d">Diário</option>
+                              <option value="30d">30 dias</option>
+                              <option value="60d">60 dias</option>
+                              <option value="1y">Anual</option>
+                            </select>
+                            {(() => {
+                              const pnl = getTraditionalPnl(asset.id, quote?.changePercent ?? null);
+                              const value = pnl.value;
+                              return (
+                                <span
+                                  className={
+                                    value == null
+                                      ? "text-slate-400"
+                                      : value >= 0
+                                        ? "text-emerald-300"
+                                        : "text-rose-300"
+                                  }
+                                >
+                                  {value == null ? "—" : formatPercent(value)}
+                                </span>
+                              );
+                            })()}
+                          </div>
                           <button
                             type="button"
                             onClick={() => refreshTraditionalQuote(asset.alphaSymbol)}

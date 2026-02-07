@@ -36,6 +36,11 @@ import {
   saveTraditionalHoldings,
   type TraditionalHoldings,
 } from "@/lib/traditional/storage";
+import {
+  loadCryptoHoldings,
+  saveCryptoHoldings,
+  type CryptoHoldings,
+} from "@/lib/crypto/storage";
 
 type TraditionalQuote = {
   symbol: string;
@@ -43,6 +48,12 @@ type TraditionalQuote = {
   changePercent: number | null;
   volume: number | null;
   updatedAt?: string;
+};
+
+type MarketRow = {
+  symbol: string;
+  name: string;
+  priceUsd: number;
 };
 
 const evmNetworks: EvmNetwork[] = ["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon"];
@@ -59,6 +70,13 @@ export default function WalletsPage() {
     {}
   );
   const [traditionalHoldings, setTraditionalHoldings] = useState<TraditionalHoldings>({});
+  const [traditionalPnlRange, setTraditionalPnlRange] = useState<
+    Record<string, "1d" | "30d" | "60d" | "1y">
+  >({});
+  const [cryptoHoldings, setCryptoHoldings] = useState<CryptoHoldings>({});
+  const [cryptoPrices, setCryptoPrices] = useState<Record<string, MarketRow>>({});
+  const [cryptoPricesLoading, setCryptoPricesLoading] = useState(false);
+  const [cryptoPricesError, setCryptoPricesError] = useState<string | null>(null);
   const [availability, setAvailability] = useState({
     metamask: false,
     phantom: false,
@@ -84,6 +102,41 @@ export default function WalletsPage() {
   useEffect(() => {
     setTraditionalHoldings(loadTraditionalHoldings());
   }, []);
+
+  useEffect(() => {
+    setCryptoHoldings(loadCryptoHoldings());
+  }, []);
+
+  useEffect(() => {
+    if (walletMode !== "web3") return;
+    const symbols = Object.keys(cryptoHoldings);
+    if (symbols.length === 0) {
+      setCryptoPrices({});
+      setCryptoPricesError(null);
+      return;
+    }
+    setCryptoPricesLoading(true);
+    setCryptoPricesError(null);
+    fetch("/api/markets")
+      .then(async (response) => {
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(payload?.error ?? "Falha ao obter preços.");
+        }
+        return response.json() as Promise<{ data?: MarketRow[] }>;
+      })
+      .then((payload) => {
+        const map: Record<string, MarketRow> = {};
+        (payload.data ?? []).forEach((row) => {
+          map[row.symbol] = row;
+        });
+        setCryptoPrices(map);
+      })
+      .catch((error) => {
+        setCryptoPricesError(error instanceof Error ? error.message : "Erro ao obter preços.");
+      })
+      .finally(() => setCryptoPricesLoading(false));
+  }, [walletMode, cryptoHoldings]);
   const [ethAddress, setEthAddress] = useState<string>();
   const [ethBalance, setEthBalance] = useState<string>();
   const [ethError, setEthError] = useState<string | null>(null);
@@ -184,6 +237,44 @@ export default function WalletsPage() {
     });
   };
 
+  const getTraditionalPnl = (assetId: string, changePercent?: number | null) => {
+    const range = traditionalPnlRange[assetId] ?? "1d";
+    if (range === "1d") {
+      return { label: "1D", value: changePercent ?? null };
+    }
+    return { label: range.toUpperCase(), value: null };
+  };
+
+  const toggleCryptoHolding = (symbol: string) => {
+    setCryptoHoldings((prev) => {
+      const next = { ...prev };
+      if (next[symbol]) {
+        delete next[symbol];
+      } else {
+        next[symbol] = {};
+      }
+      saveCryptoHoldings(next);
+      return next;
+    });
+  };
+
+  const updateCryptoHolding = (
+    symbol: string,
+    next: { buyValue?: number; buyDate?: string }
+  ) => {
+    setCryptoHoldings((prev) => {
+      const nextHoldings = {
+        ...prev,
+        [symbol]: {
+          ...prev[symbol],
+          ...next,
+        },
+      };
+      saveCryptoHoldings(nextHoldings);
+      return nextHoldings;
+    });
+  };
+
   const visibleTraditionalAssets =
     traditionalCategory === "Todos"
       ? traditionalAssets
@@ -193,6 +284,15 @@ export default function WalletsPage() {
     () => traditionalAssets.filter((asset) => !!traditionalHoldings[asset.id]),
     [traditionalHoldings]
   );
+
+  const selectedCryptoSymbols = useMemo(() => Object.keys(cryptoHoldings), [cryptoHoldings]);
+
+  const cryptoManualTotal = useMemo(() => {
+    return Object.values(cryptoHoldings).reduce((sum, holding) => {
+      const value = Number(holding.buyValue ?? 0);
+      return Number.isFinite(value) ? sum + value : sum;
+    }, 0);
+  }, [cryptoHoldings]);
 
   const selectedQuoteSymbols = useMemo(
     () =>
@@ -584,7 +684,7 @@ export default function WalletsPage() {
         </div>
 
         {walletMode === "web3" ? (
-          <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2">
           <WalletCard
             title="Ethereum"
             description="MetaMask (ETH)"
@@ -1022,6 +1122,100 @@ export default function WalletsPage() {
             </div>
           </WalletCard>
         </div>
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-white">Carteira Cripto</h2>
+              <p className="text-sm text-slate-400">
+                Define o valor de compra e a data por ativo selecionado.
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Total</p>
+              <p className="text-lg font-semibold text-white">
+                €{" "}
+                {cryptoManualTotal.toLocaleString("pt-PT", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </p>
+            </div>
+          </div>
+
+          {cryptoPricesError ? (
+            <p className="mt-3 text-xs text-rose-300">{cryptoPricesError}</p>
+          ) : null}
+
+          <div className="mt-4 space-y-3">
+            {selectedCryptoSymbols.length === 0 ? (
+              <p className="text-sm text-slate-500">Nenhum ativo selecionado.</p>
+            ) : (
+              selectedCryptoSymbols.map((symbol) => {
+                const holding = cryptoHoldings[symbol] ?? {};
+                const market = cryptoPrices[symbol];
+                return (
+                  <div
+                    key={symbol}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-xs text-slate-100"
+                  >
+                    <div>
+                      <p className="font-semibold text-white">{symbol}</p>
+                      <p className="text-slate-500">{market?.name ?? "—"}</p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min="0"
+                        step="0.01"
+                        placeholder="Valor de compra"
+                        value={holding.buyValue ?? ""}
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          updateCryptoHolding(symbol, {
+                            buyValue: value === "" ? undefined : Number(value),
+                          });
+                        }}
+                        className="w-40 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
+                      />
+                      <input
+                        type="date"
+                        value={holding.buyDate ?? ""}
+                        onChange={(event) =>
+                          updateCryptoHolding(symbol, { buyDate: event.target.value })
+                        }
+                        className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
+                      />
+                      <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
+                        Preço atual:{" "}
+                        <span className="font-semibold text-white">
+                          {market
+                            ? market.priceUsd.toLocaleString("en-US", {
+                                style: "currency",
+                                currency: "USD",
+                                minimumFractionDigits: market.priceUsd < 1 ? 6 : 2,
+                                maximumFractionDigits: market.priceUsd < 1 ? 6 : 2,
+                              })
+                            : "—"}
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => toggleCryptoHolding(symbol)}
+                        className="rounded-full border border-slate-700 px-3 py-2 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+          {cryptoPricesLoading ? (
+            <p className="mt-3 text-xs text-slate-500">A atualizar preços...</p>
+          ) : null}
+        </section>
         ) : (
           <div className="rounded-3xl border border-slate-800 bg-slate-950/60 p-6">
             <div className="flex flex-col gap-3">
@@ -1155,6 +1349,40 @@ export default function WalletsPage() {
                               {quote?.price != null ? quote.price.toFixed(2) : "—"}
                             </span>
                           </span>
+                          <div className="flex items-center gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
+                            <select
+                              value={traditionalPnlRange[asset.id] ?? "1d"}
+                              onChange={(event) =>
+                                setTraditionalPnlRange((prev) => ({
+                                  ...prev,
+                                  [asset.id]: event.target.value as "1d" | "30d" | "60d" | "1y",
+                                }))
+                              }
+                              className="bg-transparent text-xs text-slate-200 outline-none"
+                            >
+                              <option value="1d">Diário</option>
+                              <option value="30d">30 dias</option>
+                              <option value="60d">60 dias</option>
+                              <option value="1y">Anual</option>
+                            </select>
+                            {(() => {
+                              const pnl = getTraditionalPnl(asset.id, quote?.changePercent ?? null);
+                              const value = pnl.value;
+                              return (
+                                <span
+                                  className={
+                                    value == null
+                                      ? "text-slate-400"
+                                      : value >= 0
+                                        ? "text-emerald-300"
+                                        : "text-rose-300"
+                                  }
+                                >
+                                  {value == null ? "—" : `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`}
+                                </span>
+                              );
+                            })()}
+                          </div>
                           <button
                             type="button"
                             onClick={() => refreshTraditionalQuote(asset.alphaSymbol)}
