@@ -1084,6 +1084,9 @@ export default function WalletsPage() {
                 <div className="mt-3 grid gap-3">
                   {selectedTraditionalAssets.map((asset) => {
                     const buy = traditionalBuys[asset.id] ?? {};
+                    const quote = asset.alphaSymbol
+                      ? traditionalQuotes[asset.alphaSymbol]
+                      : undefined;
                     return (
                       <div
                         key={asset.id}
@@ -1114,6 +1117,12 @@ export default function WalletsPage() {
                             }
                             className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
                           />
+                          <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
+                            Preço atual:{" "}
+                            <span className="font-semibold text-white">
+                              {quote?.price != null ? quote.price.toFixed(2) : "—"}
+                            </span>
+                          </span>
                           <button
                             type="button"
                             onClick={() => toggleTraditional(asset.id)}
