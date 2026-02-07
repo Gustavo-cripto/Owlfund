@@ -67,6 +67,9 @@ export default function WalletsPage() {
   const [traditionalQuotes, setTraditionalQuotes] = useState<Record<string, TraditionalQuote>>({});
   const [traditionalQuotesLoading, setTraditionalQuotesLoading] = useState(false);
   const [traditionalQuotesError, setTraditionalQuotesError] = useState<string | null>(null);
+  const [traditionalQuoteLoading, setTraditionalQuoteLoading] = useState<Record<string, boolean>>(
+    {}
+  );
   const [traditionalBuys, setTraditionalBuys] = useState<
     Record<string, { price?: string; date?: string }>
   >({});
@@ -231,6 +234,27 @@ export default function WalletsPage() {
       })
       .finally(() => setTraditionalQuotesLoading(false));
   }, [walletMode, selectedQuoteSymbols]);
+
+  const refreshTraditionalQuote = async (symbol?: string) => {
+    if (!symbol) return;
+    setTraditionalQuoteLoading((prev) => ({ ...prev, [symbol]: true }));
+    try {
+      const response = await fetch(`/api/traditional?symbols=${encodeURIComponent(symbol)}`);
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(payload?.error ?? "Falha ao obter cotações.");
+      }
+      const payload = (await response.json()) as { data: TraditionalQuote[] };
+      const quote = payload.data?.[0];
+      if (quote) {
+        setTraditionalQuotes((prev) => ({ ...prev, [quote.symbol]: quote }));
+      }
+    } catch (error) {
+      setTraditionalQuotesError(error instanceof Error ? error.message : "Erro ao obter dados.");
+    } finally {
+      setTraditionalQuoteLoading((prev) => ({ ...prev, [symbol]: false }));
+    }
+  };
 
   const handleEthConnect = async () => {
     try {
@@ -1087,6 +1111,9 @@ export default function WalletsPage() {
                     const quote = asset.alphaSymbol
                       ? traditionalQuotes[asset.alphaSymbol]
                       : undefined;
+                    const isQuoteLoading = asset.alphaSymbol
+                      ? !!traditionalQuoteLoading[asset.alphaSymbol]
+                      : false;
                     return (
                       <div
                         key={asset.id}
@@ -1123,6 +1150,14 @@ export default function WalletsPage() {
                               {quote?.price != null ? quote.price.toFixed(2) : "—"}
                             </span>
                           </span>
+                          <button
+                            type="button"
+                            onClick={() => refreshTraditionalQuote(asset.alphaSymbol)}
+                            disabled={!asset.alphaSymbol || isQuoteLoading}
+                            className="rounded-full border border-orange-400/40 px-3 py-2 text-[11px] font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {isQuoteLoading ? "A atualizar..." : "Atualizar preço"}
+                          </button>
                           <button
                             type="button"
                             onClick={() => toggleTraditional(asset.id)}
