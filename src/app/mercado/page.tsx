@@ -506,6 +506,10 @@ export default function MercadoPage() {
   const [traditionalPnlRange, setTraditionalPnlRange] = useState<
     Record<string, "1d" | "30d" | "60d" | "1y">
   >({});
+  const [cryptoSortKey, setCryptoSortKey] = useState<"date" | "marketCap">("date");
+  const [cryptoSortDir, setCryptoSortDir] = useState<"asc" | "desc">("desc");
+  const [traditionalSortKey, setTraditionalSortKey] = useState<"date" | "marketCap">("date");
+  const [traditionalSortDir, setTraditionalSortDir] = useState<"asc" | "desc">("desc");
 
   const closeTradingViewOverlay = () => {
     // Best-effort: closes TradingView popovers/panels (e.g., Markets/Favorites/Trending).
@@ -771,6 +775,40 @@ export default function MercadoPage() {
       return Number.isFinite(value) ? sum + value : sum;
     }, 0);
   }, [cryptoHoldings]);
+
+  const sortedSelectedCrypto = useMemo(() => {
+    const dir = cryptoSortDir === "asc" ? 1 : -1;
+    return [...selectedCryptoAssets].sort((a, b) => {
+      if (cryptoSortKey === "date") {
+        const ad = cryptoHoldings[a.symbol]?.buyDate ?? "";
+        const bd = cryptoHoldings[b.symbol]?.buyDate ?? "";
+        return ad.localeCompare(bd) * dir;
+      }
+      return (a.marketCapUsd - b.marketCapUsd) * dir;
+    });
+  }, [selectedCryptoAssets, cryptoSortDir, cryptoSortKey, cryptoHoldings]);
+
+  const sortedSelectedTraditional = useMemo(() => {
+    const dir = traditionalSortDir === "asc" ? 1 : -1;
+    return [...selectedTraditionalAssets].sort((a, b) => {
+      if (traditionalSortKey === "date") {
+        const ad = traditionalHoldings[a.id]?.buyDate ?? "";
+        const bd = traditionalHoldings[b.id]?.buyDate ?? "";
+        return ad.localeCompare(bd) * dir;
+      }
+      const aq = a.alphaSymbol ? traditionalQuotes[a.alphaSymbol] : undefined;
+      const bq = b.alphaSymbol ? traditionalQuotes[b.alphaSymbol] : undefined;
+      const aCap = (aq?.price ?? 0) * (aq?.volume ?? 0);
+      const bCap = (bq?.price ?? 0) * (bq?.volume ?? 0);
+      return (aCap - bCap) * dir;
+    });
+  }, [
+    selectedTraditionalAssets,
+    traditionalSortDir,
+    traditionalSortKey,
+    traditionalHoldings,
+    traditionalQuotes,
+  ]);
 
   const getCryptoPnl = (symbol: string, change24h: number) => {
     const range = cryptoPnlRange[symbol] ?? "1d";
@@ -1054,11 +1092,33 @@ export default function MercadoPage() {
                 </div>
               </div>
 
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <select
+                  value={traditionalSortKey}
+                  onChange={(event) =>
+                    setTraditionalSortKey(event.target.value as "date" | "marketCap")
+                  }
+                  className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 outline-none"
+                >
+                  <option value="date">Data de compra</option>
+                  <option value="marketCap">Market cap</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setTraditionalSortDir((prev) => (prev === "asc" ? "desc" : "asc"))
+                  }
+                  className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                >
+                  {traditionalSortDir === "asc" ? "Asc" : "Desc"}
+                </button>
+              </div>
+
               <div className="mt-4 space-y-3">
-                {selectedTraditionalAssets.length === 0 ? (
+                {sortedSelectedTraditional.length === 0 ? (
                   <p className="text-sm text-slate-500">Nenhum ativo selecionado.</p>
                 ) : (
-                  selectedTraditionalAssets.map((asset) => {
+                  sortedSelectedTraditional.map((asset) => {
                     const holding = traditionalHoldings[asset.id] ?? {};
                     const quote = asset.alphaSymbol
                       ? traditionalQuotes[asset.alphaSymbol]
@@ -1435,11 +1495,31 @@ export default function MercadoPage() {
                 </div>
               </div>
 
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <select
+                  value={cryptoSortKey}
+                  onChange={(event) => setCryptoSortKey(event.target.value as "date" | "marketCap")}
+                  className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 outline-none"
+                >
+                  <option value="date">Data de compra</option>
+                  <option value="marketCap">Market cap</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCryptoSortDir((prev) => (prev === "asc" ? "desc" : "asc"))
+                  }
+                  className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                >
+                  {cryptoSortDir === "asc" ? "Asc" : "Desc"}
+                </button>
+              </div>
+
               <div className="mt-4 space-y-3">
-                {selectedCryptoAssets.length === 0 ? (
+                {sortedSelectedCrypto.length === 0 ? (
                   <p className="text-sm text-slate-500">Nenhum ativo selecionado.</p>
                 ) : (
-                  selectedCryptoAssets.map((asset) => {
+                  sortedSelectedCrypto.map((asset) => {
                     const holding = cryptoHoldings[asset.symbol] ?? {};
                     return (
                       <div

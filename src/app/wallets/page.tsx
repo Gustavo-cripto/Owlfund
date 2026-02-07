@@ -77,6 +77,10 @@ export default function WalletsPage() {
   const [cryptoPrices, setCryptoPrices] = useState<Record<string, MarketRow>>({});
   const [cryptoPricesLoading, setCryptoPricesLoading] = useState(false);
   const [cryptoPricesError, setCryptoPricesError] = useState<string | null>(null);
+  const [cryptoSortKey, setCryptoSortKey] = useState<"date" | "marketCap">("date");
+  const [cryptoSortDir, setCryptoSortDir] = useState<"asc" | "desc">("desc");
+  const [traditionalSortKey, setTraditionalSortKey] = useState<"date" | "marketCap">("date");
+  const [traditionalSortDir, setTraditionalSortDir] = useState<"asc" | "desc">("desc");
   const [availability, setAvailability] = useState({
     metamask: false,
     phantom: false,
@@ -293,6 +297,42 @@ export default function WalletsPage() {
       return Number.isFinite(value) ? sum + value : sum;
     }, 0);
   }, [cryptoHoldings]);
+
+  const sortedCryptoSymbols = useMemo(() => {
+    const dir = cryptoSortDir === "asc" ? 1 : -1;
+    return [...selectedCryptoSymbols].sort((a, b) => {
+      if (cryptoSortKey === "date") {
+        const ad = cryptoHoldings[a]?.buyDate ?? "";
+        const bd = cryptoHoldings[b]?.buyDate ?? "";
+        return ad.localeCompare(bd) * dir;
+      }
+      const acap = cryptoPrices[a]?.marketCapUsd ?? 0;
+      const bcap = cryptoPrices[b]?.marketCapUsd ?? 0;
+      return (acap - bcap) * dir;
+    });
+  }, [selectedCryptoSymbols, cryptoSortDir, cryptoSortKey, cryptoHoldings, cryptoPrices]);
+
+  const sortedTraditionalAssets = useMemo(() => {
+    const dir = traditionalSortDir === "asc" ? 1 : -1;
+    return [...selectedTraditionalAssets].sort((a, b) => {
+      if (traditionalSortKey === "date") {
+        const ad = traditionalHoldings[a.id]?.buyDate ?? "";
+        const bd = traditionalHoldings[b.id]?.buyDate ?? "";
+        return ad.localeCompare(bd) * dir;
+      }
+      const aq = a.alphaSymbol ? traditionalQuotes[a.alphaSymbol] : undefined;
+      const bq = b.alphaSymbol ? traditionalQuotes[b.alphaSymbol] : undefined;
+      const aCap = (aq?.price ?? 0) * (aq?.volume ?? 0);
+      const bCap = (bq?.price ?? 0) * (bq?.volume ?? 0);
+      return (aCap - bCap) * dir;
+    });
+  }, [
+    selectedTraditionalAssets,
+    traditionalSortDir,
+    traditionalSortKey,
+    traditionalHoldings,
+    traditionalQuotes,
+  ]);
 
   const selectedQuoteSymbols = useMemo(
     () =>
@@ -1147,11 +1187,29 @@ export default function WalletsPage() {
             <p className="mt-3 text-xs text-rose-300">{cryptoPricesError}</p>
           ) : null}
 
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <select
+              value={cryptoSortKey}
+              onChange={(event) => setCryptoSortKey(event.target.value as "date" | "marketCap")}
+              className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 outline-none"
+            >
+              <option value="date">Data de compra</option>
+              <option value="marketCap">Market cap</option>
+            </select>
+            <button
+              type="button"
+              onClick={() => setCryptoSortDir((prev) => (prev === "asc" ? "desc" : "asc"))}
+              className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+            >
+              {cryptoSortDir === "asc" ? "Asc" : "Desc"}
+            </button>
+          </div>
+
           <div className="mt-4 space-y-3">
-            {selectedCryptoSymbols.length === 0 ? (
+            {sortedCryptoSymbols.length === 0 ? (
               <p className="text-sm text-slate-500">Nenhum ativo selecionado.</p>
             ) : (
-              selectedCryptoSymbols.map((symbol) => {
+              sortedCryptoSymbols.map((symbol) => {
                 const holding = cryptoHoldings[symbol] ?? {};
                 const market = cryptoPrices[symbol];
                 return (
@@ -1298,13 +1356,35 @@ export default function WalletsPage() {
                   Limpar seleção
                 </button>
               </div>
-              {selectedTraditionalAssets.length === 0 ? (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <select
+                  value={traditionalSortKey}
+                  onChange={(event) =>
+                    setTraditionalSortKey(event.target.value as "date" | "marketCap")
+                  }
+                  className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 outline-none"
+                >
+                  <option value="date">Data de compra</option>
+                  <option value="marketCap">Market cap</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setTraditionalSortDir((prev) => (prev === "asc" ? "desc" : "asc"))
+                  }
+                  className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                >
+                  {traditionalSortDir === "asc" ? "Asc" : "Desc"}
+                </button>
+              </div>
+
+              {sortedTraditionalAssets.length === 0 ? (
                 <span className="mt-3 block text-sm text-slate-500">
                   Nenhum ativo selecionado.
                 </span>
               ) : (
                 <div className="mt-3 grid gap-3">
-                  {selectedTraditionalAssets.map((asset) => {
+                  {sortedTraditionalAssets.map((asset) => {
                     const buy = traditionalHoldings[asset.id] ?? {};
                     const quote = asset.alphaSymbol
                       ? traditionalQuotes[asset.alphaSymbol]
