@@ -7,6 +7,8 @@ import AppHeader from "@/components/AppHeader";
 import { createClient } from "@/lib/supabase/client";
 import { loadWalletSnapshot, type StoredWalletEntry, type WalletSnapshot } from "@/lib/wallets/storage";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
+import { traditionalAssets } from "@/lib/traditional/assets";
+import { loadTraditionalHoldings, type TraditionalHoldings } from "@/lib/traditional/storage";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ""
@@ -103,6 +105,7 @@ export default function PortfolioPage() {
   const supabase = createClient();
   useRequireAuth("/login");
   const [wallets, setWallets] = useState<WalletBalance[]>([]);
+  const [traditionalHoldings, setTraditionalHoldings] = useState<TraditionalHoldings>({});
   const [snapshots, setSnapshots] = useState<SnapshotRow[]>([]);
   const [isSnapshotsLoading, setIsSnapshotsLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -116,6 +119,10 @@ export default function PortfolioPage() {
   useEffect(() => {
     const snapshot = loadWalletSnapshot();
     setWallets(snapshotToWallets(snapshot as WalletSnapshot));
+  }, []);
+
+  useEffect(() => {
+    setTraditionalHoldings(loadTraditionalHoldings());
   }, []);
 
   useEffect(() => {
@@ -238,7 +245,12 @@ export default function PortfolioPage() {
 
   const cryptoTotal = useMemo(() => sumCrypto(wallets), [wallets]);
   const stablecoinTotal = 0;
-  const traditionalTotal = 0;
+  const traditionalTotal = useMemo(() => {
+    return Object.values(traditionalHoldings).reduce((sum, holding) => {
+      const value = Number(holding.buyValue ?? 0);
+      return Number.isFinite(value) ? sum + value : sum;
+    }, 0);
+  }, [traditionalHoldings]);
   const portfolioTotal = cryptoTotal + stablecoinTotal + traditionalTotal;
   const pnlTotal = 0;
 
@@ -259,26 +271,31 @@ export default function PortfolioPage() {
   }, [wallets, stablecoinTotal]);
 
   const traditionalAllocations = useMemo(() => {
-    const items = [
-      { label: "Ações EUA", value: 0 },
-      { label: "Ações Europa", value: 0 },
-      { label: "Ações Emergentes", value: 0 },
-      { label: "ETFs", value: 0 },
-      { label: "Renda fixa", value: 0 },
-      { label: "Imobiliário", value: 0 },
-      { label: "Commodities", value: 0 },
-      { label: "Ouro", value: 0 },
-      { label: "Prata", value: 0 },
-      { label: "Energia", value: 0 },
-      { label: "Caixa", value: 0 },
-      { label: "Outros", value: 0 },
-    ];
-    const total = items.reduce((sum, item) => sum + item.value, 0);
-    return items.map((item) => ({
-      ...item,
-      percent: getPercent(item.value, total),
+    const byCategory: Record<string, number> = {};
+    const byAsset: Array<{ label: string; value: number; category: string }> = [];
+
+    traditionalAssets.forEach((asset) => {
+      const holding = traditionalHoldings[asset.id];
+      if (!holding) return;
+      const value = Number(holding.buyValue ?? 0);
+      if (!Number.isFinite(value) || value <= 0) return;
+      byCategory[asset.category] = (byCategory[asset.category] ?? 0) + value;
+      byAsset.push({ label: asset.label, value, category: asset.category });
+    });
+
+    const items = Object.entries(byCategory).map(([category, value]) => ({
+      label: category,
+      value,
     }));
-  }, []);
+    const total = items.reduce((sum, item) => sum + item.value, 0);
+    return {
+      categories: items.map((item) => ({
+        ...item,
+        percent: getPercent(item.value, total),
+      })),
+      assets: byAsset,
+    };
+  }, [traditionalHoldings]);
 
   const portfolioSplit = useMemo(() => {
     const total = cryptoTotal + traditionalTotal;
@@ -412,23 +429,39 @@ export default function PortfolioPage() {
               Ativos totais: € {formatValue(traditionalTotal)}
             </p>
             <div className="mt-6 space-y-4">
-              {traditionalAllocations.map((item) => (
-                <div key={item.label} className="space-y-2">
-                  <div className="flex items-center justify-between text-sm text-slate-300">
-                    <span>{item.label}</span>
-                    <span>{item.percent}%</span>
+              {traditionalAllocations.categories.length === 0 ? (
+                <p className="text-xs text-slate-500">
+                  Ainda não tens ativos tradicionais na carteira.
+                </p>
+              ) : (
+                traditionalAllocations.categories.map((item) => (
+                  <div key={item.label} className="space-y-2">
+                    <div className="flex items-center justify-between text-sm text-slate-300">
+                      <span>{item.label}</span>
+                      <span>{item.percent}%</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+                      <div
+                        className="h-full rounded-full bg-slate-400"
+                        style={{ width: `${item.percent}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+                ))
+              )}
+              {traditionalAllocations.assets.length ? (
+                <div className="mt-4 space-y-2">
+                  {traditionalAllocations.assets.map((item) => (
                     <div
-                      className="h-full rounded-full bg-slate-400"
-                      style={{ width: `${item.percent}%` }}
-                    />
-                  </div>
+                      key={item.label}
+                      className="flex items-center justify-between text-xs text-slate-400"
+                    >
+                      <span>{item.label}</span>
+                      <span>€ {formatValue(item.value)}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-              <p className="text-xs text-slate-500">
-                Em breve: ações, ETFs, renda fixa e outros ativos tradicionais.
-              </p>
+              ) : null}
             </div>
           </div>
         </section>

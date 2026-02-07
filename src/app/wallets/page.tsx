@@ -30,6 +30,12 @@ import {
   type StoredWalletEntry,
 } from "@/lib/wallets/storage";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
+import { traditionalAssets, traditionalCategories } from "@/lib/traditional/assets";
+import {
+  loadTraditionalHoldings,
+  saveTraditionalHoldings,
+  type TraditionalHoldings,
+} from "@/lib/traditional/storage";
 
 type TraditionalQuote = {
   symbol: string;
@@ -40,29 +46,11 @@ type TraditionalQuote = {
 };
 
 const evmNetworks: EvmNetwork[] = ["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon"];
-const traditionalCategories = ["Todos", "Ações", "ETFs", "Futuros", "Dívidas"];
-const traditionalAssets = [
-  { id: "AAPL", label: "Apple (AAPL)", category: "Ações", alphaSymbol: "AAPL" },
-  { id: "MSFT", label: "Microsoft (MSFT)", category: "Ações", alphaSymbol: "MSFT" },
-  { id: "NVDA", label: "Nvidia (NVDA)", category: "Ações", alphaSymbol: "NVDA" },
-  { id: "TSLA", label: "Tesla (TSLA)", category: "Ações", alphaSymbol: "TSLA" },
-  { id: "SPY", label: "S&P 500 (SPY)", category: "ETFs", alphaSymbol: "SPY" },
-  { id: "QQQ", label: "Nasdaq 100 (QQQ)", category: "ETFs", alphaSymbol: "QQQ" },
-  { id: "ARKK", label: "ARK Innovation (ARKK)", category: "ETFs", alphaSymbol: "ARKK" },
-  { id: "GLD", label: "Ouro (GLD)", category: "ETFs", alphaSymbol: "GLD" },
-  { id: "SLV", label: "Prata (SLV)", category: "ETFs", alphaSymbol: "SLV" },
-  { id: "WTI", label: "Petróleo (WTI)", category: "Futuros" },
-  { id: "BRENT", label: "Petróleo (Brent)", category: "Futuros" },
-  { id: "NATGAS", label: "Gás natural", category: "Futuros" },
-  { id: "UST10Y", label: "Treasuries 10Y", category: "Dívidas" },
-  { id: "UST30Y", label: "Treasuries 30Y", category: "Dívidas" },
-];
 
 export default function WalletsPage() {
   useRequireAuth("/login");
   const [isClient, setIsClient] = useState(false);
   const [walletMode, setWalletMode] = useState<"web3" | "tradicional">("web3");
-  const [traditionalSelection, setTraditionalSelection] = useState<string[]>([]);
   const [traditionalCategory, setTraditionalCategory] = useState("Todos");
   const [traditionalQuotes, setTraditionalQuotes] = useState<Record<string, TraditionalQuote>>({});
   const [traditionalQuotesLoading, setTraditionalQuotesLoading] = useState(false);
@@ -70,9 +58,7 @@ export default function WalletsPage() {
   const [traditionalQuoteLoading, setTraditionalQuoteLoading] = useState<Record<string, boolean>>(
     {}
   );
-  const [traditionalBuys, setTraditionalBuys] = useState<
-    Record<string, { price?: string; date?: string }>
-  >({});
+  const [traditionalHoldings, setTraditionalHoldings] = useState<TraditionalHoldings>({});
   const [availability, setAvailability] = useState({
     metamask: false,
     phantom: false,
@@ -93,6 +79,10 @@ export default function WalletsPage() {
     setSolWallets(snapshot.sol ?? []);
     setBtcWallets(snapshot.btc ?? []);
     setAdaWallets(snapshot.ada ?? []);
+  }, []);
+
+  useEffect(() => {
+    setTraditionalHoldings(loadTraditionalHoldings());
   }, []);
   const [ethAddress, setEthAddress] = useState<string>();
   const [ethBalance, setEthBalance] = useState<string>();
@@ -168,21 +158,30 @@ export default function WalletsPage() {
   };
 
   const toggleTraditional = (assetId: string) => {
-    setTraditionalSelection((prev) =>
-      prev.includes(assetId)
-        ? prev.filter((item) => item !== assetId)
-        : [...prev, assetId]
-    );
+    setTraditionalHoldings((prev) => {
+      const next = { ...prev };
+      if (next[assetId]) {
+        delete next[assetId];
+      } else {
+        next[assetId] = {};
+      }
+      saveTraditionalHoldings(next);
+      return next;
+    });
   };
 
-  const updateTraditionalBuy = (assetId: string, next: { price?: string; date?: string }) => {
-    setTraditionalBuys((prev) => ({
-      ...prev,
-      [assetId]: {
-        ...prev[assetId],
-        ...next,
-      },
-    }));
+  const updateTraditionalBuy = (assetId: string, next: { buyValue?: number; buyDate?: string }) => {
+    setTraditionalHoldings((prev) => {
+      const nextHoldings = {
+        ...prev,
+        [assetId]: {
+          ...prev[assetId],
+          ...next,
+        },
+      };
+      saveTraditionalHoldings(nextHoldings);
+      return nextHoldings;
+    });
   };
 
   const visibleTraditionalAssets =
@@ -191,8 +190,8 @@ export default function WalletsPage() {
       : traditionalAssets.filter((asset) => asset.category === traditionalCategory);
 
   const selectedTraditionalAssets = useMemo(
-    () => traditionalAssets.filter((asset) => traditionalSelection.includes(asset.id)),
-    [traditionalSelection]
+    () => traditionalAssets.filter((asset) => !!traditionalHoldings[asset.id]),
+    [traditionalHoldings]
   );
 
   const selectedQuoteSymbols = useMemo(
@@ -1056,7 +1055,7 @@ export default function WalletsPage() {
 
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               {visibleTraditionalAssets.map((asset) => {
-                const checked = traditionalSelection.includes(asset.id);
+                const checked = !!traditionalHoldings[asset.id];
                 return (
                   <button
                     key={asset.id}
@@ -1094,7 +1093,10 @@ export default function WalletsPage() {
                 </p>
                 <button
                   type="button"
-                  onClick={() => setTraditionalSelection([])}
+                  onClick={() => {
+                    setTraditionalHoldings({});
+                    saveTraditionalHoldings({});
+                  }}
                   className="rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
                 >
                   Limpar seleção
@@ -1107,7 +1109,7 @@ export default function WalletsPage() {
               ) : (
                 <div className="mt-3 grid gap-3">
                   {selectedTraditionalAssets.map((asset) => {
-                    const buy = traditionalBuys[asset.id] ?? {};
+                    const buy = traditionalHoldings[asset.id] ?? {};
                     const quote = asset.alphaSymbol
                       ? traditionalQuotes[asset.alphaSymbol]
                       : undefined;
@@ -1130,17 +1132,20 @@ export default function WalletsPage() {
                             min="0"
                             step="0.01"
                             placeholder="Valor de compra"
-                            value={buy.price ?? ""}
-                            onChange={(event) =>
-                              updateTraditionalBuy(asset.id, { price: event.target.value })
-                            }
+                            value={buy.buyValue ?? ""}
+                            onChange={(event) => {
+                              const value = event.target.value;
+                              updateTraditionalBuy(asset.id, {
+                                buyValue: value === "" ? undefined : Number(value),
+                              });
+                            }}
                             className="w-40 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
                           />
                           <input
                             type="date"
-                            value={buy.date ?? ""}
+                            value={buy.buyDate ?? ""}
                             onChange={(event) =>
-                              updateTraditionalBuy(asset.id, { date: event.target.value })
+                              updateTraditionalBuy(asset.id, { buyDate: event.target.value })
                             }
                             className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
                           />

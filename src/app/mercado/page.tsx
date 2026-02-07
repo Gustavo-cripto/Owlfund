@@ -4,6 +4,16 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import AppHeader from "@/components/AppHeader";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
+import {
+  traditionalAssets,
+  traditionalCategories,
+  type TraditionalAsset,
+} from "@/lib/traditional/assets";
+import {
+  loadTraditionalHoldings,
+  saveTraditionalHoldings,
+  type TraditionalHoldings,
+} from "@/lib/traditional/storage";
 
 type MarketRow = {
   market: string;
@@ -13,14 +23,6 @@ type MarketRow = {
   change24h: number;
   marketCapUsd: number | null;
   volume24hUsd: number;
-};
-
-type TraditionalAsset = {
-  id: string;
-  label: string;
-  category: string;
-  alphaSymbol?: string;
-  tvSymbol?: string;
 };
 
 type TraditionalQuote = {
@@ -124,92 +126,6 @@ const formatDateShort = (timestampSec: number) => {
   }
 };
 
-const traditionalCategories = ["Todos", "Ações", "ETFs", "Futuros", "Dívidas"];
-const traditionalAssets: TraditionalAsset[] = [
-  {
-    id: "AAPL",
-    label: "Apple (AAPL)",
-    category: "Ações",
-    alphaSymbol: "AAPL",
-    tvSymbol: "NASDAQ:AAPL",
-  },
-  {
-    id: "MSFT",
-    label: "Microsoft (MSFT)",
-    category: "Ações",
-    alphaSymbol: "MSFT",
-    tvSymbol: "NASDAQ:MSFT",
-  },
-  {
-    id: "NVDA",
-    label: "Nvidia (NVDA)",
-    category: "Ações",
-    alphaSymbol: "NVDA",
-    tvSymbol: "NASDAQ:NVDA",
-  },
-  {
-    id: "TSLA",
-    label: "Tesla (TSLA)",
-    category: "Ações",
-    alphaSymbol: "TSLA",
-    tvSymbol: "NASDAQ:TSLA",
-  },
-  {
-    id: "SPY",
-    label: "S&P 500 (SPY)",
-    category: "ETFs",
-    alphaSymbol: "SPY",
-    tvSymbol: "AMEX:SPY",
-  },
-  {
-    id: "QQQ",
-    label: "Nasdaq 100 (QQQ)",
-    category: "ETFs",
-    alphaSymbol: "QQQ",
-    tvSymbol: "NASDAQ:QQQ",
-  },
-  {
-    id: "ARKK",
-    label: "ARK Innovation (ARKK)",
-    category: "ETFs",
-    alphaSymbol: "ARKK",
-    tvSymbol: "AMEX:ARKK",
-  },
-  {
-    id: "GLD",
-    label: "Ouro (GLD)",
-    category: "ETFs",
-    alphaSymbol: "GLD",
-    tvSymbol: "AMEX:GLD",
-  },
-  {
-    id: "SLV",
-    label: "Prata (SLV)",
-    category: "ETFs",
-    alphaSymbol: "SLV",
-    tvSymbol: "AMEX:SLV",
-  },
-  {
-    id: "WTI",
-    label: "Petróleo (WTI)",
-    category: "Futuros",
-    tvSymbol: "NYMEX:CL1!",
-  },
-  {
-    id: "BRENT",
-    label: "Petróleo (Brent)",
-    category: "Futuros",
-    tvSymbol: "ICEEUR:BRN1!",
-  },
-  {
-    id: "NATGAS",
-    label: "Gás natural",
-    category: "Futuros",
-    tvSymbol: "NYMEX:NG1!",
-  },
-  { id: "UST10Y", label: "Treasuries 10Y", category: "Dívidas", tvSymbol: "TVC:US10Y" },
-  { id: "UST30Y", label: "Treasuries 30Y", category: "Dívidas", tvSymbol: "TVC:US30Y" },
-];
 
 const mapClassificationPt = (value: string) => {
   switch (value) {
@@ -577,6 +493,7 @@ export default function MercadoPage() {
     {}
   );
   const [selectedTraditional, setSelectedTraditional] = useState<TraditionalAsset | null>(null);
+  const [traditionalHoldings, setTraditionalHoldings] = useState<TraditionalHoldings>({});
 
   const closeTradingViewOverlay = () => {
     // Best-effort: closes TradingView popovers/panels (e.g., Markets/Favorites/Trending).
@@ -638,8 +555,42 @@ export default function MercadoPage() {
     }
   };
 
+  const toggleTraditionalHolding = (assetId: string) => {
+    setTraditionalHoldings((prev) => {
+      const next = { ...prev };
+      if (next[assetId]) {
+        delete next[assetId];
+      } else {
+        next[assetId] = {};
+      }
+      saveTraditionalHoldings(next);
+      return next;
+    });
+  };
+
+  const updateTraditionalHolding = (
+    assetId: string,
+    next: { buyValue?: number; buyDate?: string }
+  ) => {
+    setTraditionalHoldings((prev) => {
+      const nextHoldings = {
+        ...prev,
+        [assetId]: {
+          ...prev[assetId],
+          ...next,
+        },
+      };
+      saveTraditionalHoldings(nextHoldings);
+      return nextHoldings;
+    });
+  };
+
   useEffect(() => {
     setFavorites(loadFavorites());
+  }, []);
+
+  useEffect(() => {
+    setTraditionalHoldings(loadTraditionalHoldings());
   }, []);
 
   useEffect(() => {
@@ -750,6 +701,18 @@ export default function MercadoPage() {
     if (traditionalCategory === "Todos") return traditionalAssets;
     return traditionalAssets.filter((asset) => asset.category === traditionalCategory);
   }, [traditionalCategory]);
+
+  const selectedTraditionalAssets = useMemo(
+    () => traditionalAssets.filter((asset) => !!traditionalHoldings[asset.id]),
+    [traditionalHoldings]
+  );
+
+  const traditionalTotal = useMemo(() => {
+    return selectedTraditionalAssets.reduce((sum, asset) => {
+      const value = Number(traditionalHoldings[asset.id]?.buyValue ?? 0);
+      return Number.isFinite(value) ? sum + value : sum;
+    }, 0);
+  }, [selectedTraditionalAssets, traditionalHoldings]);
 
   const totalPages = useMemo(
     () => Math.max(1, Math.ceil(filteredSortedRows.length / pageSize)),
@@ -936,6 +899,7 @@ export default function MercadoPage() {
                   ? !!traditionalQuoteLoading[asset.alphaSymbol]
                   : false;
                 const isSelected = selectedTraditional?.id === asset.id;
+                const isInPortfolio = !!traditionalHoldings[asset.id];
                 return (
                   <div
                     key={asset.id}
@@ -959,6 +923,20 @@ export default function MercadoPage() {
                       <p className="text-xs text-slate-500">{asset.category}</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          toggleTraditionalHolding(asset.id);
+                        }}
+                        className={`rounded-full border px-3 py-2 text-[11px] font-semibold transition ${
+                          isInPortfolio
+                            ? "border-emerald-400/50 text-emerald-200 hover:border-emerald-400"
+                            : "border-slate-700 text-slate-200 hover:border-slate-500 hover:text-white"
+                        }`}
+                      >
+                        {isInPortfolio ? "Na carteira" : "Adicionar"}
+                      </button>
                       <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
                         Preço:{" "}
                         <span className="font-semibold text-white">
@@ -980,6 +958,100 @@ export default function MercadoPage() {
                   </div>
                 );
               })}
+            </div>
+
+            <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
+                    Carteira Tradicional
+                  </p>
+                  <p className="text-sm text-slate-400">
+                    {selectedTraditionalAssets.length
+                      ? "Define o valor de compra e a data por ativo."
+                      : "Seleciona ativos para criar a carteira tradicional."}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Total</p>
+                  <p className="text-lg font-semibold text-white">
+                    € {traditionalTotal.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {selectedTraditionalAssets.length === 0 ? (
+                  <p className="text-sm text-slate-500">Nenhum ativo selecionado.</p>
+                ) : (
+                  selectedTraditionalAssets.map((asset) => {
+                    const holding = traditionalHoldings[asset.id] ?? {};
+                    const quote = asset.alphaSymbol
+                      ? traditionalQuotes[asset.alphaSymbol]
+                      : undefined;
+                    const isQuoteLoading = asset.alphaSymbol
+                      ? !!traditionalQuoteLoading[asset.alphaSymbol]
+                      : false;
+                    return (
+                      <div
+                        key={asset.id}
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-xs text-slate-100"
+                      >
+                        <div>
+                          <p className="font-semibold text-white">{asset.label}</p>
+                          <p className="text-slate-500">{asset.category}</p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            min="0"
+                            step="0.01"
+                            placeholder="Valor de compra"
+                            value={holding.buyValue ?? ""}
+                            onChange={(event) => {
+                              const value = event.target.value;
+                              updateTraditionalHolding(asset.id, {
+                                buyValue: value === "" ? undefined : Number(value),
+                              });
+                            }}
+                            className="w-40 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
+                          />
+                          <input
+                            type="date"
+                            value={holding.buyDate ?? ""}
+                            onChange={(event) =>
+                              updateTraditionalHolding(asset.id, { buyDate: event.target.value })
+                            }
+                            className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
+                          />
+                          <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
+                            Preço atual:{" "}
+                            <span className="font-semibold text-white">
+                              {quote?.price != null ? quote.price.toFixed(2) : "—"}
+                            </span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => refreshTraditionalQuote(asset.alphaSymbol)}
+                            disabled={!asset.alphaSymbol || isQuoteLoading}
+                            className="rounded-full border border-orange-400/40 px-3 py-2 text-[11px] font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {isQuoteLoading ? "A atualizar..." : "Atualizar preço"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => toggleTraditionalHolding(asset.id)}
+                            className="rounded-full border border-slate-700 px-3 py-2 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                          >
+                            Remover
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
 
             <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
