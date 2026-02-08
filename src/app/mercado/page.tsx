@@ -652,6 +652,14 @@ export default function MercadoPage() {
     });
   };
 
+  const selectedTraditionalQuoteSymbols = useMemo(
+    () =>
+      selectedTraditionalAssets
+        .map((asset) => asset.alphaSymbol)
+        .filter((symbol): symbol is string => typeof symbol === "string" && symbol.length > 0),
+    [selectedTraditionalAssets]
+  );
+
   useEffect(() => {
     setFavorites(loadFavorites());
   }, []);
@@ -787,14 +795,6 @@ export default function MercadoPage() {
   const selectedTraditionalAssets = useMemo(
     () => traditionalAssets.filter((asset) => !!traditionalHoldings[asset.id]),
     [traditionalHoldings]
-  );
-
-  const selectedTraditionalQuoteSymbols = useMemo(
-    () =>
-      selectedTraditionalAssets
-        .map((asset) => asset.alphaSymbol)
-        .filter((symbol): symbol is string => typeof symbol === "string" && symbol.length > 0),
-    [selectedTraditionalAssets]
   );
 
   const traditionalTotal = useMemo(() => {
