@@ -65,7 +65,7 @@ import { createClient } from "@/lib/supabase/client";
   return (
     <div className="relative min-h-screen bg-slate-950 text-slate-100">
       <div
-        className="pointer-events-none absolute inset-0 opacity-20"
+        className="pointer-events-none absolute inset-0 opacity-45"
         style={{
           backgroundImage:
             "url(/hwvtot_2f4227d5a6869b1ae946ecac3e2712c2a84b9f59.jpeg)",
@@ -75,7 +75,7 @@ import { createClient } from "@/lib/supabase/client";
         }}
         aria-hidden
       />
-      <div className="pointer-events-none absolute inset-0 bg-slate-950/70" aria-hidden />
+      <div className="pointer-events-none absolute inset-0 bg-slate-950/45" aria-hidden />
 
       <div className="relative z-10">
         <AppHeader variant="app" subtitle="Conta" />
