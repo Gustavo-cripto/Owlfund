@@ -571,6 +571,27 @@ export default function MercadoPage() {
     }
   };
 
+  const refreshTraditionalQuotesBatch = async (symbols: string[]) => {
+    if (symbols.length === 0) return;
+    try {
+      const response = await fetch(
+        `/api/traditional?symbols=${encodeURIComponent(symbols.join(","))}`
+      );
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(payload?.error ?? "Falha ao obter cotações.");
+      }
+      const payload = (await response.json()) as { data: TraditionalQuote[] };
+      const next: Record<string, TraditionalQuote> = {};
+      payload.data.forEach((quote) => {
+        next[quote.symbol] = quote;
+      });
+      setTraditionalQuotes(next);
+    } catch (err) {
+      setTraditionalQuotesError(err instanceof Error ? err.message : "Erro ao obter dados.");
+    }
+  };
+
   const toggleTraditionalHolding = (assetId: string) => {
     setTraditionalHoldings((prev) => {
       const next = { ...prev };
@@ -638,6 +659,17 @@ export default function MercadoPage() {
   useEffect(() => {
     setTraditionalHoldings(loadTraditionalHoldings());
   }, []);
+
+  useEffect(() => {
+    if (marketMode !== "tradicional") return;
+    if (selectedTraditionalQuoteSymbols.length === 0) return;
+    refreshTraditionalQuotesBatch(selectedTraditionalQuoteSymbols);
+    const id = window.setInterval(
+      () => refreshTraditionalQuotesBatch(selectedTraditionalQuoteSymbols),
+      60000
+    );
+    return () => window.clearInterval(id);
+  }, [marketMode, selectedTraditionalQuoteSymbols]);
 
   useEffect(() => {
     setCryptoHoldings(loadCryptoHoldings());
@@ -755,6 +787,14 @@ export default function MercadoPage() {
   const selectedTraditionalAssets = useMemo(
     () => traditionalAssets.filter((asset) => !!traditionalHoldings[asset.id]),
     [traditionalHoldings]
+  );
+
+  const selectedTraditionalQuoteSymbols = useMemo(
+    () =>
+      selectedTraditionalAssets
+        .map((asset) => asset.alphaSymbol)
+        .filter((symbol): symbol is string => typeof symbol === "string" && symbol.length > 0),
+    [selectedTraditionalAssets]
   );
 
   const traditionalTotal = useMemo(() => {

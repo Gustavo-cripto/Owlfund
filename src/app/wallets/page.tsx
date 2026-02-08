@@ -342,6 +342,32 @@ export default function WalletsPage() {
     [selectedTraditionalAssets]
   );
 
+  const refreshTraditionalQuotes = async (symbols: string[]) => {
+    if (symbols.length === 0) return;
+    setTraditionalQuotesLoading(true);
+    setTraditionalQuotesError(null);
+    try {
+      const response = await fetch(
+        `/api/traditional?symbols=${encodeURIComponent(symbols.join(","))}`
+      );
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(payload?.error ?? "Falha ao obter cotações.");
+      }
+      const payload = (await response.json()) as { data: TraditionalQuote[] };
+      const next: Record<string, TraditionalQuote> = {};
+      payload.data.forEach((quote) => {
+        next[quote.symbol] = quote;
+      });
+      setTraditionalQuotes(next);
+    } catch (error) {
+      setTraditionalQuotesError(error instanceof Error ? error.message : "Erro ao obter dados.");
+      setTraditionalQuotes({});
+    } finally {
+      setTraditionalQuotesLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (walletMode !== "tradicional") return;
     if (selectedQuoteSymbols.length === 0) {
@@ -349,29 +375,9 @@ export default function WalletsPage() {
       setTraditionalQuotesError(null);
       return;
     }
-    const symbols = selectedQuoteSymbols.join(",");
-    setTraditionalQuotesLoading(true);
-    setTraditionalQuotesError(null);
-    fetch(`/api/traditional?symbols=${encodeURIComponent(symbols)}`)
-      .then(async (response) => {
-        if (!response.ok) {
-          const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-          throw new Error(payload?.error ?? "Falha ao obter cotações.");
-        }
-        return response.json() as Promise<{ data: TraditionalQuote[] }>;
-      })
-      .then((payload) => {
-        const next: Record<string, TraditionalQuote> = {};
-        payload.data.forEach((quote) => {
-          next[quote.symbol] = quote;
-        });
-        setTraditionalQuotes(next);
-      })
-      .catch((error) => {
-        setTraditionalQuotesError(error instanceof Error ? error.message : "Erro ao obter dados.");
-        setTraditionalQuotes({});
-      })
-      .finally(() => setTraditionalQuotesLoading(false));
+    refreshTraditionalQuotes(selectedQuoteSymbols);
+    const id = window.setInterval(() => refreshTraditionalQuotes(selectedQuoteSymbols), 60000);
+    return () => window.clearInterval(id);
   }, [walletMode, selectedQuoteSymbols]);
 
   const refreshTraditionalQuote = async (symbol?: string) => {
@@ -666,6 +672,24 @@ export default function WalletsPage() {
       setAdaLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (walletMode !== "web3") return;
+    if (!ethAddress && !solAddress && !btcAddress && !adaApi) return;
+
+    const refreshAll = async () => {
+      await Promise.all([
+        ethAddress ? handleEthRefresh() : Promise.resolve(),
+        solAddress ? handleSolRefresh() : Promise.resolve(),
+        btcAddress ? handleBtcRefresh() : Promise.resolve(),
+        adaApi ? handleAdaRefresh() : Promise.resolve(),
+      ]);
+    };
+
+    refreshAll();
+    const id = window.setInterval(refreshAll, 60000);
+    return () => window.clearInterval(id);
+  }, [walletMode, ethAddress, solAddress, btcAddress, adaApi]);
 
   const handleAddAdaWallet = () => {
     if (!adaNewAddress.trim()) {
@@ -1203,6 +1227,28 @@ export default function WalletsPage() {
             >
               {cryptoSortDir === "asc" ? "Asc" : "Desc"}
             </button>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <select
+              value=""
+              onChange={(event) => {
+                const symbol = event.target.value;
+                if (!symbol) return;
+                toggleCryptoHolding(symbol);
+              }}
+              className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 outline-none"
+            >
+              <option value="">Adicionar ativo</option>
+              {rows
+                .filter((row) => !cryptoHoldings[row.symbol])
+                .slice(0, 50)
+                .map((row) => (
+                  <option key={row.symbol} value={row.symbol}>
+                    {row.symbol} · {row.name}
+                  </option>
+                ))}
+            </select>
           </div>
 
           <div className="mt-4 space-y-3">
