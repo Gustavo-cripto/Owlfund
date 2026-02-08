@@ -1413,7 +1413,6 @@ export default function MercadoPage() {
                         <th className="px-4 py-3">Variação 24h</th>
                         <th className="px-4 py-3">Valor de Mercado (USD)</th>
                         <th className="px-4 py-3">Volume 24h (USD)</th>
-                        <th className="px-4 py-3">Carteira</th>
                         <th className="px-4 py-3">Tendência</th>
                       </tr>
                     </thead>
@@ -1423,7 +1422,6 @@ export default function MercadoPage() {
                           setSelected(row);
                           chartRef.current?.scrollIntoView({ behavior: "smooth" });
                         };
-                        const inPortfolio = !!cryptoHoldings[row.symbol];
                         return (
                         <tr
                           key={row.market}
@@ -1483,22 +1481,6 @@ export default function MercadoPage() {
                           <td className="px-4 py-4 text-slate-300">
                             {formatCompact(row.volume24hUsd)}
                           </td>
-                          <td className="px-4 py-4">
-                            <button
-                              type="button"
-                              className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                                inPortfolio
-                                  ? "border-emerald-400/50 text-emerald-200 hover:border-emerald-400"
-                                  : "border-slate-700 text-slate-200 hover:border-slate-500 hover:text-white"
-                              }`}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                toggleCryptoHolding(row.symbol);
-                              }}
-                            >
-                              {inPortfolio ? "Na carteira" : "Adicionar"}
-                            </button>
-                          </td>
                           <td className="px-4 py-4" onClick={selectRow}>
                             <TrendSparkline
                               change={row.change24h}
@@ -1514,139 +1496,6 @@ export default function MercadoPage() {
                   </div>
                 </div>
               )}
-            </section>
-            <section className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold text-white">Carteira Cripto</h2>
-                  <p className="text-sm text-slate-400">
-                    Define o valor de compra e a data por ativo selecionado.
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Total</p>
-                  <p className="text-lg font-semibold text-white">
-                    €{" "}
-                    {cryptoManualTotal.toLocaleString("pt-PT", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <select
-                  value={cryptoSortKey}
-                  onChange={(event) => setCryptoSortKey(event.target.value as "date" | "marketCap")}
-                  className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 outline-none"
-                >
-                  <option value="date">Data de compra</option>
-                  <option value="marketCap">Market cap</option>
-                </select>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setCryptoSortDir((prev) => (prev === "asc" ? "desc" : "asc"))
-                  }
-                  className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                >
-                  {cryptoSortDir === "asc" ? "Asc" : "Desc"}
-                </button>
-              </div>
-
-              <div className="mt-4 space-y-3">
-                {sortedSelectedCrypto.length === 0 ? (
-                  <p className="text-sm text-slate-500">Nenhum ativo selecionado.</p>
-                ) : (
-                  sortedSelectedCrypto.map((asset) => {
-                    const holding = cryptoHoldings[asset.symbol] ?? {};
-                    return (
-                      <div
-                        key={asset.symbol}
-                        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-xs text-slate-100"
-                      >
-                        <div>
-                          <p className="font-semibold text-white">{asset.symbol}</p>
-                          <p className="text-slate-500">{asset.name}</p>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <input
-                            type="number"
-                            inputMode="decimal"
-                            min="0"
-                            step="0.01"
-                            placeholder="Valor de compra"
-                            value={holding.buyValue ?? ""}
-                            onChange={(event) => {
-                              const value = event.target.value;
-                              updateCryptoHolding(asset.symbol, {
-                                buyValue: value === "" ? undefined : Number(value),
-                              });
-                            }}
-                            className="w-40 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
-                          />
-                          <input
-                            type="date"
-                            value={holding.buyDate ?? ""}
-                            onChange={(event) =>
-                              updateCryptoHolding(asset.symbol, { buyDate: event.target.value })
-                            }
-                            className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
-                          />
-                          <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
-                            Preço atual:{" "}
-                            <span className="font-semibold text-white">
-                              {formatCurrency(asset.priceUsd, asset.priceUsd < 1 ? 6 : 2)}
-                            </span>
-                          </span>
-                          <div className="flex items-center gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
-                            <select
-                              value={cryptoPnlRange[asset.symbol] ?? "1d"}
-                              onChange={(event) =>
-                                setCryptoPnlRange((prev) => ({
-                                  ...prev,
-                                  [asset.symbol]: event.target.value as "1d" | "30d" | "60d" | "1y",
-                                }))
-                              }
-                              className="bg-transparent text-xs text-slate-200 outline-none"
-                            >
-                              <option value="1d">Diário</option>
-                              <option value="30d">30 dias</option>
-                              <option value="60d">60 dias</option>
-                              <option value="1y">Anual</option>
-                            </select>
-                            {(() => {
-                              const pnl = getCryptoPnl(asset.symbol, asset.change24h);
-                              const value = pnl.value;
-                              return (
-                                <span
-                                  className={
-                                    value == null
-                                      ? "text-slate-400"
-                                      : value >= 0
-                                        ? "text-emerald-300"
-                                        : "text-rose-300"
-                                  }
-                                >
-                                  {value == null ? "—" : formatPercent(value)}
-                                </span>
-                              );
-                            })()}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => toggleCryptoHolding(asset.symbol)}
-                            className="rounded-full border border-slate-700 px-3 py-2 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                          >
-                            Remover
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
             </section>
           </div>
         </div>

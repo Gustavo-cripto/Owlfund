@@ -113,8 +113,7 @@ export default function WalletsPage() {
     setCryptoHoldings(loadCryptoHoldings());
   }, []);
 
-  useEffect(() => {
-    if (walletMode !== "web3") return;
+  const refreshCryptoPrices = async () => {
     const symbols = Object.keys(cryptoHoldings);
     if (symbols.length === 0) {
       setCryptoPrices({});
@@ -123,26 +122,31 @@ export default function WalletsPage() {
     }
     setCryptoPricesLoading(true);
     setCryptoPricesError(null);
-    fetch("/api/markets")
-      .then(async (response) => {
-        if (!response.ok) {
-          const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-          throw new Error(payload?.error ?? "Falha ao obter preços.");
-        }
-        return response.json() as Promise<{ data?: MarketRow[] }>;
-      })
-      .then((payload) => {
-        setMarketRows(payload.data ?? []);
-        const map: Record<string, MarketRow> = {};
-        (payload.data ?? []).forEach((row) => {
-          map[row.symbol] = row;
-        });
-        setCryptoPrices(map);
-      })
-      .catch((error) => {
-        setCryptoPricesError(error instanceof Error ? error.message : "Erro ao obter preços.");
-      })
-      .finally(() => setCryptoPricesLoading(false));
+    try {
+      const response = await fetch("/api/markets");
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(payload?.error ?? "Falha ao obter preços.");
+      }
+      const payload = (await response.json()) as { data?: MarketRow[] };
+      setMarketRows(payload.data ?? []);
+      const map: Record<string, MarketRow> = {};
+      (payload.data ?? []).forEach((row) => {
+        map[row.symbol] = row;
+      });
+      setCryptoPrices(map);
+    } catch (error) {
+      setCryptoPricesError(error instanceof Error ? error.message : "Erro ao obter preços.");
+    } finally {
+      setCryptoPricesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (walletMode !== "web3") return;
+    refreshCryptoPrices();
+    const id = window.setInterval(refreshCryptoPrices, 60000);
+    return () => window.clearInterval(id);
   }, [walletMode, cryptoHoldings]);
   const [ethAddress, setEthAddress] = useState<string>();
   const [ethBalance, setEthBalance] = useState<string>();
