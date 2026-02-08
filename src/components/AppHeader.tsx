@@ -71,8 +71,8 @@ export default function AppHeader({
 
   const logoClassName =
     variant === "public"
-      ? "mt-6 h-28 w-28 rounded-full object-cover shadow-lg [transform:scaleX(-1)]"
-      : "mt-6 h-28 w-28 rounded-full object-cover shadow-lg [transform:scaleX(-1)]";
+      ? "mt-10 h-28 w-28 rounded-full object-cover shadow-lg [transform:scaleX(-1)]"
+      : "mt-10 h-28 w-28 rounded-full object-cover shadow-lg [transform:scaleX(-1)]";
 
   const computedSubtitle = useMemo(() => {
     if (subtitle) return subtitle;
@@ -125,10 +125,10 @@ export default function AppHeader({
       <div className="flex items-center gap-3">
         <img src="/owlfund-owl.png" alt="Owlfund" className={logoClassName} />
         <div>
-          <p className="brand-accent text-sm font-semibold uppercase tracking-[0.3em] text-orange-300/80">
+          <p className="brand-accent text-base font-semibold uppercase tracking-[0.32em] text-orange-300/80">
             {title}
           </p>
-          <p className="text-sm text-slate-400">{computedSubtitle}</p>
+          <p className="text-base text-slate-400">{computedSubtitle}</p>
         </div>
       </div>
 
