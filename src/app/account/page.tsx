@@ -62,10 +62,24 @@ import { createClient } from "@/lib/supabase/client";
      }
    };
  
-   return (
-     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <AppHeader variant="app" subtitle="Conta" />
-      <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 pb-20 pt-2">
+  return (
+    <div className="relative min-h-screen bg-slate-950 text-slate-100">
+      <div
+        className="pointer-events-none absolute inset-0 opacity-20"
+        style={{
+          backgroundImage:
+            "url(/hwvtot_2f4227d5a6869b1ae946ecac3e2712c2a84b9f59.jpeg)",
+          backgroundRepeat: "no-repeat",
+          backgroundPosition: "center",
+          backgroundSize: "cover",
+        }}
+        aria-hidden
+      />
+      <div className="pointer-events-none absolute inset-0 bg-slate-950/70" aria-hidden />
+
+      <div className="relative z-10">
+        <AppHeader variant="app" subtitle="Conta" />
+        <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 pb-20 pt-2">
          <div className="space-y-2">
            <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">
              Conta
@@ -129,7 +143,8 @@ import { createClient } from "@/lib/supabase/client";
              </button>
            </div>
          </div>
-       </main>
+        </main>
+      </div>
      </div>
    );
  }

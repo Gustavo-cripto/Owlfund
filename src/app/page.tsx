@@ -72,15 +72,29 @@ export default function Home() {
   const showAppView = isReady && isLoggedIn;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <AppHeader
-        variant={showAppView ? "app" : "public"}
-        title="Portfólio Owlfund"
-        subtitle={showAppView ? "Área do utilizador" : undefined}
+    <div className="relative min-h-screen bg-slate-950 text-slate-100">
+      <div
+        className="pointer-events-none absolute inset-0 opacity-20"
+        style={{
+          backgroundImage:
+            "url(/hwvtot_2f4227d5a6869b1ae946ecac3e2712c2a84b9f59.jpeg)",
+          backgroundRepeat: "no-repeat",
+          backgroundPosition: "center",
+          backgroundSize: "cover",
+        }}
+        aria-hidden
       />
+      <div className="pointer-events-none absolute inset-0 bg-slate-950/70" aria-hidden />
 
-      {showAppView ? (
-        <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-24 pt-4">
+      <div className="relative z-10">
+        <AppHeader
+          variant={showAppView ? "app" : "public"}
+          title="Portfólio Owlfund"
+          subtitle={showAppView ? "Área do utilizador" : undefined}
+        />
+
+        {showAppView ? (
+          <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-24 pt-4">
           <section className="grid gap-6 md:grid-cols-[1.1fr_0.9fr] md:items-start">
             <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">
@@ -135,9 +149,9 @@ export default function Home() {
             </div>
           </section>
         </main>
-      ) : (
-        <>
-          <main className="mx-auto flex w-full max-w-6xl flex-col gap-16 px-6 pb-24 pt-8">
+        ) : (
+          <>
+            <main className="mx-auto flex w-full max-w-6xl flex-col gap-16 px-6 pb-24 pt-8">
             <section className="grid gap-10 md:grid-cols-[1.2fr_0.8fr] md:items-center">
               <div className="space-y-6">
                 <p className="text-sm font-semibold uppercase tracking-[0.3em] text-orange-300/80">
@@ -212,27 +226,28 @@ export default function Home() {
             </section>
           </main>
 
-          <footer
-            id="contato"
-            className="border-t border-slate-900 bg-slate-950/60 py-12"
-          >
-            <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="text-sm font-semibold text-white">Vamos conversar?</p>
-                <p className="text-sm text-slate-400">
-                  Envie uma mensagem para receber o acesso beta e o kit de marca.
-                </p>
+            <footer
+              id="contato"
+              className="border-t border-slate-900 bg-slate-950/60 py-12"
+            >
+              <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-white">Vamos conversar?</p>
+                  <p className="text-sm text-slate-400">
+                    Envie uma mensagem para receber o acesso beta e o kit de marca.
+                  </p>
+                </div>
+                <a
+                  className="rounded-full bg-orange-500 px-6 py-3 text-center text-sm font-semibold text-slate-950 transition hover:bg-orange-400"
+                  href="mailto:contato@portfolioinsight.com"
+                >
+                  contato@portfolioinsight.com
+                </a>
               </div>
-              <a
-                className="rounded-full bg-orange-500 px-6 py-3 text-center text-sm font-semibold text-slate-950 transition hover:bg-orange-400"
-                href="mailto:contato@portfolioinsight.com"
-              >
-                contato@portfolioinsight.com
-              </a>
-            </div>
-          </footer>
-        </>
-      )}
+            </footer>
+          </>
+        )}
+      </div>
     </div>
   );
 }
