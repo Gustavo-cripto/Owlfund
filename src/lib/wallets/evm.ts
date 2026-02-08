@@ -16,15 +16,18 @@ const chainMap = {
 
 export type EvmNetwork = keyof typeof chainMap;
 
+const isMetaMaskProvider = (provider?: typeof window.ethereum) =>
+  !!provider && !!provider.isMetaMask && !("isPhantom" in provider);
+
 const getMetaMaskProvider = () => {
   if (typeof window === "undefined") return null;
   const ethereum = window.ethereum as
     | (typeof window.ethereum & { providers?: Array<typeof window.ethereum> })
     | undefined;
   if (!ethereum) return null;
-  if (ethereum.isMetaMask) return ethereum;
+  if (isMetaMaskProvider(ethereum)) return ethereum;
   const providers = Array.isArray(ethereum.providers) ? ethereum.providers : [];
-  return providers.find((provider) => provider?.isMetaMask) ?? null;
+  return providers.find((provider) => isMetaMaskProvider(provider)) ?? null;
 };
 
 export const isMetaMaskAvailable = () => !!getMetaMaskProvider();
