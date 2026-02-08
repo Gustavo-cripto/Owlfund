@@ -99,6 +99,8 @@ export default function WalletsPage() {
   const [cryptoPricesLoading, setCryptoPricesLoading] = useState(false);
   const [cryptoPricesError, setCryptoPricesError] = useState<string | null>(null);
   const [marketRows, setMarketRows] = useState<MarketRow[]>([]);
+  const [web3Prices, setWeb3Prices] = useState<Record<string, MarketRow>>({});
+  const [web3PricesLoading, setWeb3PricesLoading] = useState(false);
   const [cryptoSortKey, setCryptoSortKey] = useState<"date" | "marketCap">("date");
   const [cryptoSortDir, setCryptoSortDir] = useState<"asc" | "desc">("desc");
   const [traditionalSortKey, setTraditionalSortKey] = useState<"date" | "marketCap">("date");
@@ -341,6 +343,40 @@ export default function WalletsPage() {
     const id = window.setInterval(refreshCryptoPrices, 60000);
     return () => window.clearInterval(id);
   }, [walletMode, cryptoHoldings]);
+
+  const refreshWeb3Prices = async () => {
+    setWeb3PricesLoading(true);
+    try {
+      const response = await fetch("/api/markets");
+      if (!response.ok) {
+        throw new Error("Falha ao obter preços.");
+      }
+      const payload = (await response.json()) as { data?: MarketRow[] };
+      const map: Record<string, MarketRow> = {};
+      (payload.data ?? []).forEach((row) => {
+        map[row.symbol] = row;
+      });
+      setWeb3Prices(map);
+    } catch {
+      setWeb3Prices({});
+    } finally {
+      setWeb3PricesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (walletMode !== "web3") return;
+    refreshWeb3Prices();
+    const id = window.setInterval(refreshWeb3Prices, 60000);
+    return () => window.clearInterval(id);
+  }, [walletMode]);
+
+  const getFiatValue = (symbol: string, balanceValue?: string | number | null) => {
+    const price = web3Prices[symbol]?.priceUsd ?? null;
+    const amount = Number(balanceValue ?? 0);
+    if (!Number.isFinite(amount) || price == null || !Number.isFinite(price)) return null;
+    return amount * price;
+  };
 
   const ethIsAvailable = isClient && (availability.metamask || ethWallets.length > 0);
   const solIsAvailable = isClient && (availability.phantom || solWallets.length > 0);
@@ -925,6 +961,7 @@ export default function WalletsPage() {
             addressDisplay={ethShowMain ? ethAddress : formatAddress(ethAddress)}
             balance={ethBalance}
             balanceUnit="ETH"
+            fiatValueUsd={getFiatValue("ETH", ethBalance)}
             defiBalanceUsd={ethAddress ? defiTotals[ethAddress] ?? null : null}
             defiLoading={ethAddress ? !!defiLoading[ethAddress] : false}
             defiError={ethAddress ? defiErrors[ethAddress] ?? null : null}
@@ -1058,6 +1095,7 @@ export default function WalletsPage() {
             addressDisplay={solShowMain ? solAddress : formatAddress(solAddress)}
             balance={solBalance}
             balanceUnit="SOL"
+            fiatValueUsd={getFiatValue("SOL", solBalance)}
             isConnected={!!solAddress}
             isAvailable={solIsAvailable}
             isLoading={solLoading}
@@ -1167,6 +1205,7 @@ export default function WalletsPage() {
             addressDisplay={btcShowMain ? btcAddress : formatAddress(btcAddress)}
             balance={btcBalance !== null ? btcBalance.toFixed(8) : null}
             balanceUnit="BTC"
+            fiatValueUsd={getFiatValue("BTC", btcBalance)}
             isConnected={!!btcAddress}
             isAvailable={btcIsAvailable}
             isLoading={btcLoading}
@@ -1277,6 +1316,7 @@ export default function WalletsPage() {
             addressDisplay={adaShowMain ? adaAddress : formatAddress(adaAddress)}
             balance={adaBalance}
             balanceUnit="ADA"
+            fiatValueUsd={getFiatValue("ADA", adaBalance)}
             isConnected={!!adaAddress}
             isAvailable={adaIsAvailable}
             isLoading={adaLoading}

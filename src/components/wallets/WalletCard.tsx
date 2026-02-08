@@ -5,6 +5,7 @@ type WalletCardProps = {
   addressDisplay?: string;
   balance?: string | number | null;
   balanceUnit?: string;
+  fiatValueUsd?: number | null;
   defiBalanceUsd?: number | null;
   defiLoading?: boolean;
   defiError?: string | null;
@@ -33,6 +34,7 @@ export default function WalletCard({
   addressDisplay,
   balance,
   balanceUnit,
+  fiatValueUsd,
   defiBalanceUsd,
   defiLoading,
   defiError,
@@ -88,6 +90,10 @@ export default function WalletCard({
           {balance !== undefined && balance !== null
             ? `${balance} ${balanceUnit ?? ""}`.trim()
             : "—"}
+        </div>
+        <div>
+          <span className="text-slate-500">Valor:</span>{" "}
+          {fiatValueUsd != null ? `$${fiatValueUsd.toFixed(2)}` : "—"}
         </div>
         <div>
           <span className="text-slate-500">DeFi:</span>{" "}
