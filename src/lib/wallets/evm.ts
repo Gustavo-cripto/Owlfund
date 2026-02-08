@@ -36,7 +36,13 @@ export const connectMetaMask = async () => {
   }
   if (typeof window !== "undefined") {
     try {
-      (window as Window & { ethereum?: typeof window.ethereum }).ethereum = provider;
+      const current = window as Window & {
+        ethereum?: typeof window.ethereum & { providers?: Array<typeof window.ethereum> };
+      };
+      current.ethereum = provider;
+      if (current.ethereum?.providers && Array.isArray(current.ethereum.providers)) {
+        current.ethereum.providers = [provider];
+      }
     } catch {
       // ignore
     }
