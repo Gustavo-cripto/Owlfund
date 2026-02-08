@@ -19,10 +19,23 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <AppHeader variant="app" subtitle="Dashboard do utilizador" />
+    <div className="relative min-h-screen bg-slate-950 text-slate-100">
+      <div
+        className="pointer-events-none absolute inset-0 opacity-70"
+        style={{
+          backgroundImage: "url(/dashboard-bg.pdf)",
+          backgroundRepeat: "no-repeat",
+          backgroundPosition: "center",
+          backgroundSize: "contain",
+        }}
+        aria-hidden
+      />
+      <div className="pointer-events-none absolute inset-0 bg-slate-950/25" aria-hidden />
 
-      <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-24 pt-2">
+      <div className="relative z-10">
+        <AppHeader variant="app" subtitle="Dashboard do utilizador" />
+
+        <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-24 pt-2">
         <section className="grid gap-6 md:grid-cols-[1.1fr_0.9fr] md:items-start">
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">
@@ -76,7 +89,8 @@ export default function DashboardPage() {
             />
           </div>
         </section>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
