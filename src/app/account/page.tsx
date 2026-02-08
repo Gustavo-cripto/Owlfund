@@ -68,7 +68,7 @@ import { createClient } from "@/lib/supabase/client";
         className="pointer-events-none absolute inset-0 opacity-70"
         style={{
           backgroundImage:
-            "url(/hwvtot_2f4227d5a6869b1ae946ecac3e2712c2a84b9f59.jpeg)",
+            "url(/account-bg.png)",
           backgroundRepeat: "no-repeat",
           backgroundPosition: "center",
           backgroundSize: "contain",
