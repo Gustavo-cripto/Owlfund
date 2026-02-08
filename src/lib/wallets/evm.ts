@@ -16,15 +16,26 @@ const chainMap = {
 
 export type EvmNetwork = keyof typeof chainMap;
 
-export const isMetaMaskAvailable = () =>
-  typeof window !== "undefined" && !!window.ethereum?.isMetaMask;
+const getMetaMaskProvider = () => {
+  if (typeof window === "undefined") return null;
+  const ethereum = window.ethereum as
+    | (typeof window.ethereum & { providers?: Array<typeof window.ethereum> })
+    | undefined;
+  if (!ethereum) return null;
+  if (ethereum.isMetaMask) return ethereum;
+  const providers = Array.isArray(ethereum.providers) ? ethereum.providers : [];
+  return providers.find((provider) => provider?.isMetaMask) ?? null;
+};
+
+export const isMetaMaskAvailable = () => !!getMetaMaskProvider();
 
 export const connectMetaMask = async () => {
-  if (!window.ethereum) {
+  const provider = getMetaMaskProvider();
+  if (!provider) {
     throw new Error("MetaMask não está disponível.");
   }
 
-  const accounts = (await window.ethereum.request({
+  const accounts = (await provider.request({
     method: "eth_requestAccounts",
   })) as string[];
 
