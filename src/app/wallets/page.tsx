@@ -78,6 +78,7 @@ export default function WalletsPage() {
   const [cryptoPrices, setCryptoPrices] = useState<Record<string, MarketRow>>({});
   const [cryptoPricesLoading, setCryptoPricesLoading] = useState(false);
   const [cryptoPricesError, setCryptoPricesError] = useState<string | null>(null);
+  const [marketRows, setMarketRows] = useState<MarketRow[]>([]);
   const [cryptoSortKey, setCryptoSortKey] = useState<"date" | "marketCap">("date");
   const [cryptoSortDir, setCryptoSortDir] = useState<"asc" | "desc">("desc");
   const [traditionalSortKey, setTraditionalSortKey] = useState<"date" | "marketCap">("date");
@@ -131,6 +132,7 @@ export default function WalletsPage() {
         return response.json() as Promise<{ data?: MarketRow[] }>;
       })
       .then((payload) => {
+        setMarketRows(payload.data ?? []);
         const map: Record<string, MarketRow> = {};
         (payload.data ?? []).forEach((row) => {
           map[row.symbol] = row;
@@ -1241,7 +1243,7 @@ export default function WalletsPage() {
               className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 outline-none"
             >
               <option value="">Adicionar ativo</option>
-              {rows
+              {marketRows
                 .filter((row) => !cryptoHoldings[row.symbol])
                 .slice(0, 50)
                 .map((row) => (
