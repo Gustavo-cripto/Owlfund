@@ -383,7 +383,7 @@ export default function PortfolioPage() {
                 </div>
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-800">
                   <div
-                    className="h-full rounded-full bg-slate-400"
+                    className="h-full rounded-full bg-sky-500"
                     style={{ width: `${portfolioSplit.traditional}%` }}
                   />
                 </div>
@@ -461,7 +461,7 @@ export default function PortfolioPage() {
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-slate-800">
                       <div
-                        className="h-full rounded-full bg-slate-400"
+                        className="h-full rounded-full bg-sky-500"
                         style={{ width: `${item.percent}%` }}
                       />
                     </div>
