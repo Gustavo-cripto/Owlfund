@@ -71,7 +71,7 @@ import { createClient } from "@/lib/supabase/client";
             "url(/account-bg.jpeg)",
           backgroundRepeat: "no-repeat",
           backgroundPosition: "center",
-          backgroundSize: "contain",
+          backgroundSize: "100% 100%",
         }}
         aria-hidden
       />
