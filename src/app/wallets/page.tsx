@@ -107,6 +107,50 @@ export default function WalletsPage() {
     xverse: false,
     eternl: false,
   });
+  const [ethAddress, setEthAddress] = useState<string>();
+  const [ethBalance, setEthBalance] = useState<string>();
+  const [ethError, setEthError] = useState<string | null>(null);
+  const [ethLoading, setEthLoading] = useState(false);
+  const [ethWallets, setEthWallets] = useState<StoredWalletEntry[]>([]);
+  const [ethNewAddress, setEthNewAddress] = useState("");
+  const [ethNewNetwork, setEthNewNetwork] = useState<EvmNetwork>("Ethereum");
+  const [ethNewError, setEthNewError] = useState<string | null>(null);
+  const [ethNewLoading, setEthNewLoading] = useState(false);
+  const [ethShowMain, setEthShowMain] = useState(false);
+  const [ethShown, setEthShown] = useState<Record<string, boolean>>({});
+
+  const [solAddress, setSolAddress] = useState<string>();
+  const [solBalance, setSolBalance] = useState<string>();
+  const [solError, setSolError] = useState<string | null>(null);
+  const [solLoading, setSolLoading] = useState(false);
+  const [solWallets, setSolWallets] = useState<StoredWalletEntry[]>([]);
+  const [solNewAddress, setSolNewAddress] = useState("");
+  const [solNewError, setSolNewError] = useState<string | null>(null);
+  const [solNewLoading, setSolNewLoading] = useState(false);
+  const [solShowMain, setSolShowMain] = useState(false);
+  const [solShown, setSolShown] = useState<Record<string, boolean>>({});
+
+  const [btcAddress, setBtcAddress] = useState<string>();
+  const [btcBalance, setBtcBalance] = useState<number | null>(null);
+  const [btcError, setBtcError] = useState<string | null>(null);
+  const [btcLoading, setBtcLoading] = useState(false);
+  const [btcWallets, setBtcWallets] = useState<StoredWalletEntry[]>([]);
+  const [btcNewAddress, setBtcNewAddress] = useState("");
+  const [btcNewError, setBtcNewError] = useState<string | null>(null);
+  const [btcNewLoading, setBtcNewLoading] = useState(false);
+  const [btcShowMain, setBtcShowMain] = useState(false);
+  const [btcShown, setBtcShown] = useState<Record<string, boolean>>({});
+
+  const [adaAddress, setAdaAddress] = useState<string>();
+  const [adaBalance, setAdaBalance] = useState<string>();
+  const [adaError, setAdaError] = useState<string | null>(null);
+  const [adaLoading, setAdaLoading] = useState(false);
+  const [adaApi, setAdaApi] = useState<EternlApi | null>(null);
+  const [adaWallets, setAdaWallets] = useState<StoredWalletEntry[]>([]);
+  const [adaNewAddress, setAdaNewAddress] = useState("");
+  const [adaNewError, setAdaNewError] = useState<string | null>(null);
+  const [adaShowMain, setAdaShowMain] = useState(false);
+  const [adaShown, setAdaShown] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     setIsClient(true);
@@ -256,50 +300,6 @@ export default function WalletsPage() {
     const id = window.setInterval(refreshCryptoPrices, 60000);
     return () => window.clearInterval(id);
   }, [walletMode, cryptoHoldings]);
-  const [ethAddress, setEthAddress] = useState<string>();
-  const [ethBalance, setEthBalance] = useState<string>();
-  const [ethError, setEthError] = useState<string | null>(null);
-  const [ethLoading, setEthLoading] = useState(false);
-  const [ethWallets, setEthWallets] = useState<StoredWalletEntry[]>([]);
-  const [ethNewAddress, setEthNewAddress] = useState("");
-  const [ethNewNetwork, setEthNewNetwork] = useState<EvmNetwork>("Ethereum");
-  const [ethNewError, setEthNewError] = useState<string | null>(null);
-  const [ethNewLoading, setEthNewLoading] = useState(false);
-  const [ethShowMain, setEthShowMain] = useState(false);
-  const [ethShown, setEthShown] = useState<Record<string, boolean>>({});
-
-  const [solAddress, setSolAddress] = useState<string>();
-  const [solBalance, setSolBalance] = useState<string>();
-  const [solError, setSolError] = useState<string | null>(null);
-  const [solLoading, setSolLoading] = useState(false);
-  const [solWallets, setSolWallets] = useState<StoredWalletEntry[]>([]);
-  const [solNewAddress, setSolNewAddress] = useState("");
-  const [solNewError, setSolNewError] = useState<string | null>(null);
-  const [solNewLoading, setSolNewLoading] = useState(false);
-  const [solShowMain, setSolShowMain] = useState(false);
-  const [solShown, setSolShown] = useState<Record<string, boolean>>({});
-
-  const [btcAddress, setBtcAddress] = useState<string>();
-  const [btcBalance, setBtcBalance] = useState<number | null>(null);
-  const [btcError, setBtcError] = useState<string | null>(null);
-  const [btcLoading, setBtcLoading] = useState(false);
-  const [btcWallets, setBtcWallets] = useState<StoredWalletEntry[]>([]);
-  const [btcNewAddress, setBtcNewAddress] = useState("");
-  const [btcNewError, setBtcNewError] = useState<string | null>(null);
-  const [btcNewLoading, setBtcNewLoading] = useState(false);
-  const [btcShowMain, setBtcShowMain] = useState(false);
-  const [btcShown, setBtcShown] = useState<Record<string, boolean>>({});
-
-  const [adaAddress, setAdaAddress] = useState<string>();
-  const [adaBalance, setAdaBalance] = useState<string>();
-  const [adaError, setAdaError] = useState<string | null>(null);
-  const [adaLoading, setAdaLoading] = useState(false);
-  const [adaApi, setAdaApi] = useState<EternlApi | null>(null);
-  const [adaWallets, setAdaWallets] = useState<StoredWalletEntry[]>([]);
-  const [adaNewAddress, setAdaNewAddress] = useState("");
-  const [adaNewError, setAdaNewError] = useState<string | null>(null);
-  const [adaShowMain, setAdaShowMain] = useState(false);
-  const [adaShown, setAdaShown] = useState<Record<string, boolean>>({});
 
   const ethIsAvailable = isClient && (availability.metamask || ethWallets.length > 0);
   const solIsAvailable = isClient && (availability.phantom || solWallets.length > 0);
