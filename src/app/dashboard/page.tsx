@@ -2,6 +2,7 @@
 
 import ChatWidget from "@/components/ChatWidget";
 import AppHeader from "@/components/AppHeader";
+import PnlSummaryCard from "@/components/PnlSummaryCard";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 
 export default function DashboardPage() {
@@ -56,7 +57,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-6">
             <div className="space-y-2 text-sm text-slate-300">
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">
                 Chat Mercado
@@ -66,6 +67,7 @@ export default function DashboardPage() {
               </p>
             </div>
             <ChatWidget />
+            <PnlSummaryCard position={2150} today={120} daily7d={-35} className="mt-4" />
           </div>
         </section>
       </main>

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 
 import AppHeader from "@/components/AppHeader";
+import PnlSummaryCard from "@/components/PnlSummaryCard";
 import { createClient } from "@/lib/supabase/client";
 import { loadWalletSnapshot, type StoredWalletEntry, type WalletSnapshot } from "@/lib/wallets/storage";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
@@ -457,27 +458,36 @@ export default function PortfolioPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-              Distribuição total
-            </p>
-            <p className="mt-2 text-sm text-slate-400">
-              Percentual do total entre Blockchain e Tradicional.
-            </p>
-            <div className="mt-6 space-y-3">
-              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-                <p className="text-sm font-semibold text-white">Carteiras Blockchain</p>
-                <p className="text-xs text-slate-500">
-                  € {formatValue(cryptoTotal)} · {portfolioSplit.crypto}%
-                </p>
-              </div>
-              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-                <p className="text-sm font-semibold text-white">Carteiras Tradicional</p>
-                <p className="text-xs text-slate-500">
-                  € {formatValue(traditionalTotal)} · {portfolioSplit.traditional}%
-                </p>
+          <div className="flex flex-col gap-6">
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
+                Distribuição total
+              </p>
+              <p className="mt-2 text-sm text-slate-400">
+                Percentual do total entre Blockchain e Tradicional.
+              </p>
+              <div className="mt-6 space-y-3">
+                <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+                  <p className="text-sm font-semibold text-white">Carteiras Blockchain</p>
+                  <p className="text-xs text-slate-500">
+                    € {formatValue(cryptoTotal)} · {portfolioSplit.crypto}%
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+                  <p className="text-sm font-semibold text-white">Carteiras Tradicional</p>
+                  <p className="text-xs text-slate-500">
+                    € {formatValue(traditionalTotal)} · {portfolioSplit.traditional}%
+                  </p>
+                </div>
               </div>
             </div>
+
+            <PnlSummaryCard
+              position={pnlSummary.position}
+              today={pnlSummary.today}
+              daily7d={pnlSummary.daily7d}
+              className="mt-2"
+            />
           </div>
         </section>
 

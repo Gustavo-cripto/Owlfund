@@ -3,18 +3,13 @@
 import { useEffect, useState } from "react";
 
 import AppHeader from "@/components/AppHeader";
+import PnlSummaryCard from "@/components/PnlSummaryCard";
 import { createClient } from "@/lib/supabase/client";
 
 export default function Home() {
   const supabase = createClient();
   const [isReady, setIsReady] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  const metrics = [
-    { label: "Ativos monitorados", value: "120+" },
-    { label: "Categorias personalizadas", value: "15" },
-    { label: "Atualizações ao vivo", value: "1 min" },
-  ];
 
   const features = [
     {
@@ -160,38 +155,12 @@ export default function Home() {
                 </p>
               </div>
 
-              <div className="rounded-3xl border border-orange-500/20 bg-gradient-to-br from-orange-500/20 via-slate-900 to-slate-950 p-6">
-                <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                    Resumo
-                  </p>
-                  <div className="mt-4 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-slate-400">PNL da posição</p>
-                      <p className="text-lg font-semibold text-emerald-400">+ € 2.150</p>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-slate-400">PNL de hoje</p>
-                      <p className="text-lg font-semibold text-orange-300">+ € 120</p>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-slate-400">PNL diário (7 dias)</p>
-                      <p className="text-lg font-semibold text-rose-300">- € 35</p>
-                    </div>
-                  </div>
-                  <div className="mt-6 grid grid-cols-3 gap-3">
-                    {metrics.map((metric) => (
-                      <div
-                        key={metric.label}
-                        className="rounded-xl border border-slate-800 bg-slate-900/70 p-3 text-center"
-                      >
-                        <p className="text-lg font-semibold text-white">{metric.value}</p>
-                        <p className="text-[11px] text-slate-400">{metric.label}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <PnlSummaryCard
+                position={2150}
+                today={120}
+                daily7d={-35}
+                className="mt-6 md:mt-10"
+              />
             </section>
 
             <section id="recursos" className="space-y-8">

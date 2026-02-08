@@ -86,7 +86,7 @@ export default function FloatingChat() {
             <img
               src="/chain-icon.jpg"
               alt="Chain"
-              className="pointer-events-none absolute right-5 top-3 h-[84px] w-[84px] rounded-full border-2 border-orange-400/80 object-cover shadow-[0_0_30px_rgba(251,146,60,0.45)] ring-4 ring-orange-300/20"
+              className="pointer-events-none absolute right-5 top-3 h-[120px] w-[120px] rounded-full border-2 border-orange-400/80 object-cover shadow-[0_0_30px_rgba(251,146,60,0.45)] ring-4 ring-orange-300/20"
             />
             <div className="pt-36">
               {isContentReady ? (
@@ -115,7 +115,7 @@ export default function FloatingChat() {
         title="Abrir chat"
       >
         <span className="pointer-events-none absolute -inset-1 rounded-full bg-orange-500/10 opacity-0 blur transition group-hover:opacity-100" />
-        <span className="relative grid h-12 w-12 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-orange-400 to-amber-500 text-slate-950 shadow-lg ring-1 ring-orange-200/20 transition group-hover:brightness-110">
+        <span className="relative grid h-16 w-16 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-orange-400 to-amber-500 text-slate-950 shadow-lg ring-1 ring-orange-200/20 transition group-hover:brightness-110">
           <img
             src="/chain-icon.jpg"
             alt=""
