@@ -5,6 +5,9 @@ type WalletCardProps = {
   addressDisplay?: string;
   balance?: string | number | null;
   balanceUnit?: string;
+  defiBalanceUsd?: number | null;
+  defiLoading?: boolean;
+  defiError?: string | null;
   isLoading?: boolean;
   error?: string | null;
   isConnected: boolean;
@@ -30,6 +33,9 @@ export default function WalletCard({
   addressDisplay,
   balance,
   balanceUnit,
+  defiBalanceUsd,
+  defiLoading,
+  defiError,
   isLoading,
   error,
   isConnected,
@@ -83,7 +89,16 @@ export default function WalletCard({
             ? `${balance} ${balanceUnit ?? ""}`.trim()
             : "—"}
         </div>
+        <div>
+          <span className="text-slate-500">DeFi:</span>{" "}
+          {defiLoading
+            ? "A carregar..."
+            : defiBalanceUsd != null
+              ? `$${defiBalanceUsd.toFixed(2)}`
+              : "—"}
+        </div>
         {error ? <p className="text-xs text-rose-300">{error}</p> : null}
+        {defiError ? <p className="text-xs text-rose-300">{defiError}</p> : null}
       </div>
 
       <div className="mt-5 flex flex-wrap gap-3">

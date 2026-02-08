@@ -70,6 +70,8 @@ type SnapshotRow = {
   data: WalletSnapshot;
 };
 
+const isEvmAddress = (address?: string) => /^0x[a-fA-F0-9]{40}$/.test(address ?? "");
+
 const evmNetworks: EvmNetwork[] = ["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon"];
 
 export default function WalletsPage() {
@@ -151,6 +153,9 @@ export default function WalletsPage() {
   const [adaNewError, setAdaNewError] = useState<string | null>(null);
   const [adaShowMain, setAdaShowMain] = useState(false);
   const [adaShown, setAdaShown] = useState<Record<string, boolean>>({});
+  const [defiTotals, setDefiTotals] = useState<Record<string, number | null>>({});
+  const [defiLoading, setDefiLoading] = useState<Record<string, boolean>>({});
+  const [defiErrors, setDefiErrors] = useState<Record<string, string | null>>({});
 
   useEffect(() => {
     setIsClient(true);
@@ -264,6 +269,42 @@ export default function WalletsPage() {
 
     return () => window.clearTimeout(timeoutId);
   }, [ethWallets, solWallets, btcWallets, adaWallets, userId, isPro, isLoadingAuth, supabase]);
+
+  const fetchDefiTotal = async (address: string) => {
+    if (!isEvmAddress(address)) {
+      setDefiTotals((prev) => ({ ...prev, [address]: null }));
+      return;
+    }
+    setDefiLoading((prev) => ({ ...prev, [address]: true }));
+    setDefiErrors((prev) => ({ ...prev, [address]: null }));
+    try {
+      const response = await fetch(
+        `https://openapi.debank.com/v1/user/protocol_list?id=${address}`
+      );
+      if (!response.ok) {
+        throw new Error("Falha ao consultar DeFi.");
+      }
+      const payload = (await response.json()) as Array<{ net_usd_value?: number }>;
+      const total = (payload ?? []).reduce((sum, item) => {
+        const value = Number(item?.net_usd_value ?? 0);
+        return Number.isFinite(value) ? sum + value : sum;
+      }, 0);
+      setDefiTotals((prev) => ({ ...prev, [address]: total }));
+    } catch (error) {
+      setDefiErrors((prev) => ({
+        ...prev,
+        [address]: error instanceof Error ? error.message : "Erro ao carregar DeFi.",
+      }));
+      setDefiTotals((prev) => ({ ...prev, [address]: null }));
+    } finally {
+      setDefiLoading((prev) => ({ ...prev, [address]: false }));
+    }
+  };
+
+  useEffect(() => {
+    if (!ethAddress) return;
+    fetchDefiTotal(ethAddress);
+  }, [ethAddress]);
 
   const refreshCryptoPrices = async () => {
     const symbols = Object.keys(cryptoHoldings);
@@ -884,6 +925,9 @@ export default function WalletsPage() {
             addressDisplay={ethShowMain ? ethAddress : formatAddress(ethAddress)}
             balance={ethBalance}
             balanceUnit="ETH"
+            defiBalanceUsd={ethAddress ? defiTotals[ethAddress] ?? null : null}
+            defiLoading={ethAddress ? !!defiLoading[ethAddress] : false}
+            defiError={ethAddress ? defiErrors[ethAddress] ?? null : null}
             isConnected={!!ethAddress}
             isAvailable={ethIsAvailable}
             isLoading={ethLoading}
