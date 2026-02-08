@@ -101,6 +101,17 @@ import { createClient } from "@/lib/supabase/client";
             </ul>
           </div>
 
+          <div className="mt-4 rounded-2xl border border-orange-500/20 bg-slate-950/70 p-4">
+            <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">
+              Plano Pro
+            </p>
+            <ul className="mt-3 space-y-2 text-sm text-slate-200">
+              <li>Sincronização automática de carteiras entre dispositivos.</li>
+              <li>Snapshots na nuvem para histórico do portfólio.</li>
+              <li>Prioridade nas atualizações e suporte.</li>
+            </ul>
+          </div>
+
            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
              <button
               className="accent-button rounded-full border border-orange-400/40 px-6 py-3 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
