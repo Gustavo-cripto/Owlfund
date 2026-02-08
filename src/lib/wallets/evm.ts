@@ -34,6 +34,13 @@ export const connectMetaMask = async () => {
   if (!provider) {
     throw new Error("MetaMask não está disponível.");
   }
+  if (typeof window !== "undefined") {
+    try {
+      (window as Window & { ethereum?: typeof window.ethereum }).ethereum = provider;
+    } catch {
+      // ignore
+    }
+  }
 
   const accounts = (await provider.request({
     method: "eth_requestAccounts",
