@@ -3,6 +3,7 @@ type Metric = { label: string; value: string };
 type PnlSummaryCardProps = {
   position: number;
   today: number;
+  days30?: number;
   daily7d: number;
   metrics?: Metric[];
   className?: string;
@@ -25,6 +26,7 @@ const defaultMetrics: Metric[] = [
 export default function PnlSummaryCard({
   position,
   today,
+  days30,
   daily7d,
   metrics = defaultMetrics,
   className = "",
@@ -44,6 +46,12 @@ export default function PnlSummaryCard({
             <p className="text-sm text-slate-400">PNL de hoje</p>
             <p className="text-lg font-semibold text-orange-300">{formatSigned(today)}</p>
           </div>
+          {typeof days30 === "number" ? (
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-slate-400">PNL 30 dias</p>
+              <p className="text-lg font-semibold text-emerald-300">{formatSigned(days30)}</p>
+            </div>
+          ) : null}
           <div className="flex items-center justify-between">
             <p className="text-sm text-slate-400">PNL diário (7 dias)</p>
             <p className="text-lg font-semibold text-rose-300">{formatSigned(daily7d)}</p>

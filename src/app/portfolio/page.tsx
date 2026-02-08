@@ -285,7 +285,7 @@ export default function PortfolioPage() {
 
   const pnlSummary = useMemo(() => {
     if (snapshotTotals.length === 0) {
-      return { position: 0, today: 0, daily7d: 0 };
+      return { position: 0, today: 0, days30: 0, daily7d: 0 };
     }
 
     const now = Date.now();
@@ -295,13 +295,15 @@ export default function PortfolioPage() {
 
     const dayMs = 24 * 60 * 60 * 1000;
     const snapshotToday = snapshotTotals.find((row) => row.createdAt <= now - dayMs);
+    const snapshot30d = snapshotTotals.find((row) => row.createdAt <= now - 30 * dayMs);
     const snapshot7d = snapshotTotals.find((row) => row.createdAt <= now - 7 * dayMs);
 
     const position = currentTotal - baseTotal;
     const today = snapshotToday ? currentTotal - snapshotToday.total : 0;
+    const days30 = snapshot30d ? currentTotal - snapshot30d.total : 0;
     const daily7d = snapshot7d ? (currentTotal - snapshot7d.total) / 7 : 0;
 
-    return { position, today, daily7d };
+    return { position, today, days30, daily7d };
   }, [snapshotTotals, portfolioTotal]);
 
   const pnlTotal = pnlSummary.position;
@@ -418,6 +420,14 @@ export default function PortfolioPage() {
                 </span>
               </div>
               <div className="flex items-center justify-between text-sm text-slate-300">
+                <span>PNL 30 dias</span>
+                <span
+                  className={pnlSummary.days30 >= 0 ? "text-emerald-300" : "text-rose-300"}
+                >
+                  {formatSignedCurrency(pnlSummary.days30)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm text-slate-300">
                 <span>PNL diário (7 dias)</span>
                 <span className={pnlSummary.daily7d >= 0 ? "text-emerald-300" : "text-rose-300"}>
                   {formatSignedCurrency(pnlSummary.daily7d)}
@@ -485,6 +495,7 @@ export default function PortfolioPage() {
             <PnlSummaryCard
               position={pnlSummary.position}
               today={pnlSummary.today}
+              days30={pnlSummary.days30}
               daily7d={pnlSummary.daily7d}
               className="mt-2"
             />

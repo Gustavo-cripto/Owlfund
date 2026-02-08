@@ -67,7 +67,13 @@ export default function DashboardPage() {
               </p>
             </div>
             <ChatWidget />
-            <PnlSummaryCard position={2150} today={120} daily7d={-35} className="mt-4" />
+            <PnlSummaryCard
+              position={2150}
+              today={120}
+              days30={480}
+              daily7d={-35}
+              className="mt-4"
+            />
           </div>
         </section>
       </main>

@@ -158,6 +158,7 @@ export default function Home() {
               <PnlSummaryCard
                 position={2150}
                 today={120}
+                days30={480}
                 daily7d={-35}
                 className="mt-6 md:mt-10"
               />
