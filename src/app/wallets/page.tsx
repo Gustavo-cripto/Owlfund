@@ -54,6 +54,7 @@ type MarketRow = {
   symbol: string;
   name: string;
   priceUsd: number;
+  marketCapUsd?: number | null;
 };
 
 const evmNetworks: EvmNetwork[] = ["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon"];
