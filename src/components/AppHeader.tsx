@@ -71,7 +71,7 @@ export default function AppHeader({
 
   const logoClassName =
     variant === "public"
-      ? "mt-6 h-20 w-20 rounded-full object-cover shadow-lg [transform:scaleX(-1)]"
+      ? "mt-6 h-28 w-28 rounded-full object-cover shadow-lg [transform:scaleX(-1)]"
       : "h-12 w-12 rounded-full object-cover shadow-lg [transform:scaleX(-1)]";
 
   const computedSubtitle = useMemo(() => {

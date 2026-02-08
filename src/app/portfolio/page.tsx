@@ -97,6 +97,11 @@ const formatValue = (value: number) => {
   });
 };
 
+const formatSignedCurrency = (value: number) => {
+  const sign = value >= 0 ? "+" : "-";
+  return `${sign} € ${formatValue(Math.abs(value))}`;
+};
+
 const getPercent = (value: number, total: number) => {
   if (!total || total <= 0) return 0;
   return Math.round((value / total) * 100);
@@ -265,7 +270,40 @@ export default function PortfolioPage() {
     }, 0);
   }, [traditionalHoldings]);
   const portfolioTotal = cryptoTotal + stablecoinTotal + traditionalTotal;
-  const pnlTotal = 0;
+  const manualTotals = manualCryptoTotal + traditionalTotal + stablecoinTotal;
+
+  const snapshotTotals = useMemo(() => {
+    return snapshots
+      .map((row) => ({
+        id: row.id,
+        createdAt: new Date(row.created_at).getTime(),
+        total: snapshotTotal(row.data) + manualTotals,
+      }))
+      .sort((a, b) => b.createdAt - a.createdAt);
+  }, [snapshots, manualTotals]);
+
+  const pnlSummary = useMemo(() => {
+    if (snapshotTotals.length === 0) {
+      return { position: 0, today: 0, daily7d: 0 };
+    }
+
+    const now = Date.now();
+    const currentTotal = portfolioTotal;
+    const oldest = snapshotTotals[snapshotTotals.length - 1];
+    const baseTotal = oldest?.total ?? currentTotal;
+
+    const dayMs = 24 * 60 * 60 * 1000;
+    const snapshotToday = snapshotTotals.find((row) => row.createdAt <= now - dayMs);
+    const snapshot7d = snapshotTotals.find((row) => row.createdAt <= now - 7 * dayMs);
+
+    const position = currentTotal - baseTotal;
+    const today = snapshotToday ? currentTotal - snapshotToday.total : 0;
+    const daily7d = snapshot7d ? (currentTotal - snapshot7d.total) / 7 : 0;
+
+    return { position, today, daily7d };
+  }, [snapshotTotals, portfolioTotal]);
+
+  const pnlTotal = pnlSummary.position;
 
   const cryptoAllocations = useMemo(() => {
     const manualItems = Object.entries(cryptoHoldings).map(([symbol, holding]) => ({
@@ -358,9 +396,37 @@ export default function PortfolioPage() {
                     pnlTotal >= 0 ? "text-emerald-300" : "text-rose-300"
                   }`}
                 >
-                  {pnlTotal >= 0 ? "+" : "-"} € {formatValue(Math.abs(pnlTotal))}
+                  {formatSignedCurrency(pnlTotal)}
                 </p>
               </div>
+            </div>
+
+            <div className="mt-6 space-y-3">
+              <div className="flex items-center justify-between text-sm text-slate-300">
+                <span>PNL da posição</span>
+                <span
+                  className={pnlSummary.position >= 0 ? "text-emerald-300" : "text-rose-300"}
+                >
+                  {formatSignedCurrency(pnlSummary.position)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm text-slate-300">
+                <span>PNL de hoje</span>
+                <span className={pnlSummary.today >= 0 ? "text-emerald-300" : "text-rose-300"}>
+                  {formatSignedCurrency(pnlSummary.today)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm text-slate-300">
+                <span>PNL diário (7 dias)</span>
+                <span className={pnlSummary.daily7d >= 0 ? "text-emerald-300" : "text-rose-300"}>
+                  {formatSignedCurrency(pnlSummary.daily7d)}
+                </span>
+              </div>
+              {snapshotTotals.length === 0 ? (
+                <p className="text-xs text-slate-500">
+                  Salva um snapshot para começar a ver o PNL histórico.
+                </p>
+              ) : null}
             </div>
 
             <div className="mt-6 space-y-4">
