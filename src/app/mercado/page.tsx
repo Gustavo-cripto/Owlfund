@@ -784,7 +784,7 @@ export default function MercadoPage() {
         const bd = cryptoHoldings[b.symbol]?.buyDate ?? "";
         return ad.localeCompare(bd) * dir;
       }
-      return (a.marketCapUsd - b.marketCapUsd) * dir;
+      return ((a.marketCapUsd ?? 0) - (b.marketCapUsd ?? 0)) * dir;
     });
   }, [selectedCryptoAssets, cryptoSortDir, cryptoSortKey, cryptoHoldings]);
 
