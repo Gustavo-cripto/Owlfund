@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import AppHeader from "@/components/AppHeader";
 import WalletCard from "@/components/wallets/WalletCard";
+import { createClient } from "@/lib/supabase/client";
 import {
   connectMetaMask,
   getEthBalance,
@@ -28,6 +29,7 @@ import {
   loadWalletSnapshot,
   updateWalletSnapshot,
   type StoredWalletEntry,
+  type WalletSnapshot,
 } from "@/lib/wallets/storage";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { traditionalAssets, traditionalCategories } from "@/lib/traditional/assets";
@@ -57,11 +59,27 @@ type MarketRow = {
   marketCapUsd?: number | null;
 };
 
+type SubscriptionStatus = {
+  status: string;
+  current_period_end: string | null;
+};
+
+type SnapshotRow = {
+  id: number;
+  created_at: string;
+  data: WalletSnapshot;
+};
+
 const evmNetworks: EvmNetwork[] = ["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon"];
 
 export default function WalletsPage() {
+  const supabase = createClient();
   useRequireAuth("/login");
   const [isClient, setIsClient] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isPro, setIsPro] = useState(false);
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  const [cloudSyncError, setCloudSyncError] = useState<string | null>(null);
   const [walletMode, setWalletMode] = useState<"web3" | "tradicional">("web3");
   const [traditionalCategory, setTraditionalCategory] = useState("Todos");
   const [traditionalQuotes, setTraditionalQuotes] = useState<Record<string, TraditionalQuote>>({});
@@ -106,12 +124,102 @@ export default function WalletsPage() {
   }, []);
 
   useEffect(() => {
+    const loadAuth = async () => {
+      const { data } = await supabase.auth.getUser();
+      const user = data.user;
+      if (!user) {
+        setIsLoadingAuth(false);
+        return;
+      }
+
+      setUserId(user.id);
+
+      const { data: subscription } = await supabase
+        .from("subscriptions")
+        .select("status, current_period_end")
+        .eq("user_id", user.id)
+        .order("current_period_end", { ascending: false })
+        .limit(1)
+        .maybeSingle<SubscriptionStatus>();
+
+      const isActive =
+        subscription?.status === "active" || subscription?.status === "trialing";
+      const periodEnd = subscription?.current_period_end
+        ? new Date(subscription.current_period_end).getTime()
+        : null;
+
+      const pro = isActive && (!periodEnd || periodEnd > Date.now());
+      setIsPro(pro);
+      setIsLoadingAuth(false);
+    };
+
+    loadAuth();
+  }, [supabase]);
+
+  useEffect(() => {
     setTraditionalHoldings(loadTraditionalHoldings());
   }, []);
 
   useEffect(() => {
     setCryptoHoldings(loadCryptoHoldings());
   }, []);
+
+  useEffect(() => {
+    if (!userId || !isPro) return;
+    const loadCloudSnapshot = async () => {
+      const { data: rows } = await supabase
+        .from("portfolio_snapshots")
+        .select("id, created_at, data")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      const latest = (rows ?? [])[0] as SnapshotRow | undefined;
+      if (!latest?.data) return;
+
+      const localSnapshot = loadWalletSnapshot();
+      const localCount =
+        (localSnapshot.eth?.length ?? 0) +
+        (localSnapshot.sol?.length ?? 0) +
+        (localSnapshot.btc?.length ?? 0) +
+        (localSnapshot.ada?.length ?? 0);
+
+      if (localCount > 0) return;
+
+      updateWalletSnapshot(latest.data);
+      setEthWallets(latest.data.eth ?? []);
+      setSolWallets(latest.data.sol ?? []);
+      setBtcWallets(latest.data.btc ?? []);
+      setAdaWallets(latest.data.ada ?? []);
+    };
+
+    loadCloudSnapshot();
+  }, [userId, isPro, supabase]);
+
+  useEffect(() => {
+    if (!userId || !isPro) return;
+    if (isLoadingAuth) return;
+    const timeoutId = window.setTimeout(async () => {
+      const snapshot: WalletSnapshot = {
+        eth: ethWallets,
+        sol: solWallets,
+        btc: btcWallets,
+        ada: adaWallets,
+      };
+
+      const { error } = await supabase
+        .from("portfolio_snapshots")
+        .insert({ user_id: userId, data: snapshot });
+
+      if (error) {
+        setCloudSyncError("Não foi possível sincronizar a carteira na nuvem.");
+        return;
+      }
+      setCloudSyncError(null);
+    }, 1200);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [ethWallets, solWallets, btcWallets, adaWallets, userId, isPro, isLoadingAuth, supabase]);
 
   const refreshCryptoPrices = async () => {
     const symbols = Object.keys(cryptoHoldings);
@@ -728,6 +836,18 @@ export default function WalletsPage() {
           <p className="max-w-2xl text-sm text-slate-400">
             Alterna entre carteiras on-chain e seleção de ativos do mercado tradicional.
           </p>
+          {isLoadingAuth ? null : isPro ? (
+            <p className="text-xs text-emerald-300">
+              Sincronização automática ativa (Plano Pro).
+            </p>
+          ) : (
+            <p className="text-xs text-slate-500">
+              Sincronização entre dispositivos disponível apenas no Plano Pro.
+            </p>
+          )}
+          {cloudSyncError ? (
+            <p className="text-xs text-rose-300">{cloudSyncError}</p>
+          ) : null}
           <div className="flex flex-wrap gap-2">
             <button
               type="button"

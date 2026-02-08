@@ -120,6 +120,12 @@ export default function AppHeader({
     }`;
   };
 
+  const gradientFrameClass =
+    "rounded-full bg-gradient-to-r from-orange-500/40 via-slate-700/40 to-slate-900/40 p-[1px]";
+
+  const framedButtonClass =
+    "rounded-full border border-slate-800 bg-slate-900/40 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white";
+
   return (
     <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-6">
       <div className="flex items-center gap-3">
@@ -135,33 +141,58 @@ export default function AppHeader({
       <nav className="hidden items-center md:flex">
         {variant === "public" ? (
           <div className="flex items-center gap-1 rounded-full border border-slate-800 bg-slate-900/40 p-1.5 backdrop-blur">
-            <a className="app-nav-link rounded-full px-4 py-2 text-base font-semibold transition hover:bg-slate-950/60 hover:text-white" href="#recursos">
-              Recursos
-            </a>
-            <a className="app-nav-link rounded-full px-4 py-2 text-base font-semibold transition hover:bg-slate-950/60 hover:text-white" href="#fluxo">
-              Fluxo
-            </a>
-            <a className="app-nav-link rounded-full px-4 py-2 text-base font-semibold transition hover:bg-slate-950/60 hover:text-white" href="#contato">
-              Contato
-            </a>
+            <span className={gradientFrameClass}>
+              <a
+                className="app-nav-link rounded-full px-4 py-2 text-base font-semibold transition hover:bg-slate-950/60 hover:text-white"
+                href="#recursos"
+              >
+                Recursos
+              </a>
+            </span>
+            <span className={gradientFrameClass}>
+              <a
+                className="app-nav-link rounded-full px-4 py-2 text-base font-semibold transition hover:bg-slate-950/60 hover:text-white"
+                href="#fluxo"
+              >
+                Fluxo
+              </a>
+            </span>
+            <span className={gradientFrameClass}>
+              <a
+                className="app-nav-link rounded-full px-4 py-2 text-base font-semibold transition hover:bg-slate-950/60 hover:text-white"
+                href="#contato"
+              >
+                Contato
+              </a>
+            </span>
           </div>
         ) : (
           <div className="flex items-center gap-1 rounded-full border border-slate-800 bg-slate-900/40 p-1.5 backdrop-blur">
-            <a className={navLinkClass("/dashboard")} href="/dashboard">
-              Dashboard
-            </a>
-            <a className={navLinkClass("/portfolio")} href="/portfolio">
-              Portfolio
-            </a>
-            <a className={navLinkClass("/wallets")} href="/wallets">
-              Carteiras
-            </a>
-            <a className={navLinkClass("/mercado")} href="/mercado">
-              Mercado
-            </a>
-            <a className={navLinkClass("/account")} href="/account">
-              Conta
-            </a>
+            <span className={gradientFrameClass}>
+              <a className={navLinkClass("/dashboard")} href="/dashboard">
+                Dashboard
+              </a>
+            </span>
+            <span className={gradientFrameClass}>
+              <a className={navLinkClass("/portfolio")} href="/portfolio">
+                Portfolio
+              </a>
+            </span>
+            <span className={gradientFrameClass}>
+              <a className={navLinkClass("/wallets")} href="/wallets">
+                Carteiras
+              </a>
+            </span>
+            <span className={gradientFrameClass}>
+              <a className={navLinkClass("/mercado")} href="/mercado">
+                Mercado
+              </a>
+            </span>
+            <span className={gradientFrameClass}>
+              <a className={navLinkClass("/account")} href="/account">
+                Conta
+              </a>
+            </span>
           </div>
         )}
       </nav>
@@ -193,56 +224,52 @@ export default function AppHeader({
             <button
               type="button"
               onClick={handleToggleTheme}
-              className="rounded-full border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+              className={`${framedButtonClass} px-3 py-2 text-xs`}
               aria-label={theme === "dark" ? "Modo escuro" : "Modo claro"}
               title={theme === "dark" ? "Modo escuro" : "Modo claro"}
             >
               {theme === "dark" ? "🌙" : "☀️"}
             </button>
 
-            <a
-              className="rounded-full border border-orange-400/40 px-4 py-2 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
-              href="#contato"
-            >
-              Solicitar demo
-            </a>
+            <span className={gradientFrameClass}>
+              <a className={framedButtonClass} href="#contato">
+                Solicitar demo
+              </a>
+            </span>
           </>
         ) : (
           <>
             <span className="hidden text-sm text-slate-400 md:inline">
               {isReady && email ? email : ""}
             </span>
-            <button
-              type="button"
-              onClick={handleBack}
-              className="rounded-full border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-            >
-              Voltar
-            </button>
-            <button
-              type="button"
-              onClick={handleToggleTheme}
-              className="rounded-full border border-slate-700 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-              aria-label={theme === "dark" ? "Modo escuro" : "Modo claro"}
-              title={theme === "dark" ? "Modo escuro" : "Modo claro"}
-            >
-              {theme === "dark" ? "🌙" : "☀️"}
-            </button>
-            {isReady && isLoggedIn ? (
+            <span className={gradientFrameClass}>
+              <button type="button" onClick={handleBack} className={framedButtonClass}>
+                Voltar
+              </button>
+            </span>
+            <span className={gradientFrameClass}>
               <button
                 type="button"
-                onClick={handleLogout}
-                className="rounded-full border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                onClick={handleToggleTheme}
+                className={`${framedButtonClass} px-3 py-2 text-xs`}
+                aria-label={theme === "dark" ? "Modo escuro" : "Modo claro"}
+                title={theme === "dark" ? "Modo escuro" : "Modo claro"}
               >
-                Sair
+                {theme === "dark" ? "🌙" : "☀️"}
               </button>
+            </span>
+            {isReady && isLoggedIn ? (
+              <span className={gradientFrameClass}>
+                <button type="button" onClick={handleLogout} className={framedButtonClass}>
+                  Sair
+                </button>
+              </span>
             ) : (
-              <a
-                className="rounded-full border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                href="/login"
-              >
-                Entrar
-              </a>
+              <span className={gradientFrameClass}>
+                <a className={framedButtonClass} href="/login">
+                  Entrar
+                </a>
+              </span>
             )}
           </>
         )}

@@ -153,6 +153,9 @@ export default function Home() {
                 <p className="text-sm text-slate-400">
                   Para acessar Portfolio, Carteiras e Mercado, entra na tua conta.
                 </p>
+                <div className="rounded-2xl border border-orange-500/20 bg-slate-950/70 p-4 text-sm text-slate-300">
+                  Sincronização entre dispositivos fica disponível apenas no Plano Pro.
+                </div>
               </div>
 
               <PnlSummaryCard

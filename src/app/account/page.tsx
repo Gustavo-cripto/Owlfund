@@ -89,6 +89,18 @@ import { createClient } from "@/lib/supabase/client";
              </p>
            </div>
  
+          <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+            <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
+              Plano Free
+            </p>
+            <ul className="mt-3 space-y-2 text-sm text-slate-300">
+              <li>Gestão básica de carteiras e portfólio no dispositivo.</li>
+              <li>Mercado cripto e tradicional com dados em tempo real.</li>
+              <li>Chat de apoio e visão geral do portfólio.</li>
+              <li>Sem sincronização automática entre dispositivos.</li>
+            </ul>
+          </div>
+
            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
              <button
               className="accent-button rounded-full border border-orange-400/40 px-6 py-3 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
