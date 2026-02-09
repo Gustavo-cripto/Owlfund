@@ -698,6 +698,19 @@ export default function WalletsPage() {
     }
   };
 
+  const handleEthDisconnect = () => {
+    if (!ethAddress) return;
+    const nextWallets = removeWallet(
+      ethWallets,
+      (item) => item.address === ethAddress && item.network === "Ethereum"
+    );
+    setEthWallets(nextWallets);
+    setEthAddress(undefined);
+    setEthBalance(undefined);
+    setEthError(null);
+    updateWalletSnapshot({ eth: nextWallets });
+  };
+
   const handleAddEthWalletInternal = async () => {
     if (!ethNewAddress.trim()) {
       setEthNewError("Insere um endereço.");
@@ -792,6 +805,16 @@ export default function WalletsPage() {
     } finally {
       setSolLoading(false);
     }
+  };
+
+  const handleSolDisconnect = () => {
+    if (!solAddress) return;
+    const nextWallets = removeWallet(solWallets, (item) => item.address === solAddress);
+    setSolWallets(nextWallets);
+    setSolAddress(undefined);
+    setSolBalance(undefined);
+    setSolError(null);
+    updateWalletSnapshot({ sol: nextWallets });
   };
 
   const handleAddSolWalletInternal = async () => {
@@ -911,6 +934,16 @@ export default function WalletsPage() {
     }
   };
 
+  const handleBtcDisconnect = () => {
+    if (!btcAddress) return;
+    const nextWallets = removeWallet(btcWallets, (item) => item.address === btcAddress);
+    setBtcWallets(nextWallets);
+    setBtcAddress(undefined);
+    setBtcBalance(null);
+    setBtcError(null);
+    updateWalletSnapshot({ btc: nextWallets });
+  };
+
   const handleAddBtcWalletInternal = async () => {
     if (!btcNewAddress.trim()) {
       setBtcNewError("Insere um endereço.");
@@ -1005,6 +1038,17 @@ export default function WalletsPage() {
     } finally {
       setAdaLoading(false);
     }
+  };
+
+  const handleAdaDisconnect = () => {
+    if (!adaAddress) return;
+    const nextWallets = removeWallet(adaWallets, (item) => item.address === adaAddress);
+    setAdaWallets(nextWallets);
+    setAdaAddress(undefined);
+    setAdaBalance(undefined);
+    setAdaError(null);
+    setAdaApi(null);
+    updateWalletSnapshot({ ada: nextWallets });
   };
 
   useEffect(() => {
@@ -1162,6 +1206,7 @@ export default function WalletsPage() {
             isLoading={ethLoading}
             error={ethError}
             onConnect={handleEthConnect}
+            onDisconnect={handleEthDisconnect}
             onRefresh={handleEthRefresh}
             onToggleAddress={() => setEthShowMain((prev) => !prev)}
             isAddressVisible={ethShowMain}
@@ -1293,6 +1338,7 @@ export default function WalletsPage() {
             isLoading={solLoading}
             error={solError}
             onConnect={handleSolConnect}
+            onDisconnect={handleSolDisconnect}
             onRefresh={handleSolRefresh}
             onToggleAddress={() => setSolShowMain((prev) => !prev)}
             isAddressVisible={solShowMain}
@@ -1403,6 +1449,7 @@ export default function WalletsPage() {
             isLoading={btcLoading}
             error={btcError}
             onConnect={handleBtcConnect}
+            onDisconnect={handleBtcDisconnect}
             onRefresh={handleBtcRefresh}
             allowConnectWhenUnavailable
             onToggleAddress={() => setBtcShowMain((prev) => !prev)}
@@ -1514,6 +1561,7 @@ export default function WalletsPage() {
             isLoading={adaLoading}
             error={adaError}
             onConnect={handleAdaConnect}
+            onDisconnect={handleAdaDisconnect}
             onRefresh={handleAdaRefresh}
             onToggleAddress={() => setAdaShowMain((prev) => !prev)}
             isAddressVisible={adaShowMain}
