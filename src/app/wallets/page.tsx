@@ -178,6 +178,7 @@ export default function WalletsPage() {
     []
   );
   const [selectedEvmProvider, setSelectedEvmProvider] = useState<EvmProviderId>("metamask");
+  const [showEthNetworks, setShowEthNetworks] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const confirmRef = useRef<{
@@ -1247,6 +1248,30 @@ export default function WalletsPage() {
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
                 Carteiras adicionais / L2
               </p>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowEthNetworks((prev) => !prev)}
+                  className="rounded-full border border-slate-700 px-3 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                >
+                  Carteiras ETH
+                </button>
+                {showEthNetworks ? (
+                  <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                    {evmNetworks.map((network) => (
+                      <span
+                        key={network}
+                        className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1 text-slate-200"
+                      >
+                        {network}{" "}
+                        <span className="ml-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
+                          Disponível
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
               <div className="grid gap-3 sm:grid-cols-[1.2fr_0.8fr_auto]">
                 <input
                   className="w-full rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
