@@ -26,7 +26,7 @@ const isMetaMaskProvider = (provider?: EvmProvider) =>
 const getProviderId = (provider?: EvmProvider): EvmProviderId => {
   if (!provider) return "unknown";
   if (provider.isMetaMask) return "metamask";
-  if (provider.isCoinbaseWallet) return "coinbase";
+  if ("isCoinbaseWallet" in provider) return "coinbase";
   if ("isTrust" in provider || "isTrustWallet" in provider) return "trust";
   if ("isLedgerLive" in provider || "isLedger" in provider) return "ledger";
   if ("isBinanceChain" in provider || "isBinance" in provider) return "binance";
