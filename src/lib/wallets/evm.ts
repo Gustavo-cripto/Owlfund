@@ -116,7 +116,10 @@ export const connectMetaMask = async () => {
   return address as `0x${string}`;
 };
 
-export const connectEvmProvider = async (provider: EvmProvider) => {
+export const connectEvmProvider = async (provider?: EvmProvider) => {
+  if (!provider) {
+    throw new Error("Carteira não encontrada.");
+  }
   const accounts = (await provider.request({
     method: "eth_requestAccounts",
   })) as string[];
