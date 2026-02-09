@@ -637,7 +637,7 @@ export default function WalletsPage() {
     }
   };
 
-  const handleAddEthWallet = async () => {
+  const handleAddEthWalletInternal = async () => {
     if (!ethNewAddress.trim()) {
       setEthNewError("Insere um endereço.");
       return;
@@ -662,6 +662,12 @@ export default function WalletsPage() {
     } finally {
       setEthNewLoading(false);
     }
+  };
+
+  const handleAddEthWallet = () => {
+    window.setTimeout(() => {
+      void handleAddEthWalletInternal();
+    }, 0);
   };
 
   const handleSolConnect = async () => {
@@ -706,7 +712,7 @@ export default function WalletsPage() {
     }
   };
 
-  const handleAddSolWallet = async () => {
+  const handleAddSolWalletInternal = async () => {
     if (!solNewAddress.trim()) {
       setSolNewError("Insere um endereço.");
       return;
@@ -728,6 +734,12 @@ export default function WalletsPage() {
     } finally {
       setSolNewLoading(false);
     }
+  };
+
+  const handleAddSolWallet = () => {
+    window.setTimeout(() => {
+      void handleAddSolWalletInternal();
+    }, 0);
   };
 
   const handleBtcConnect = async () => {
@@ -796,7 +808,7 @@ export default function WalletsPage() {
     }
   };
 
-  const handleAddBtcWallet = async () => {
+  const handleAddBtcWalletInternal = async () => {
     if (!btcNewAddress.trim()) {
       setBtcNewError("Insere um endereço.");
       return;
@@ -818,6 +830,12 @@ export default function WalletsPage() {
     } finally {
       setBtcNewLoading(false);
     }
+  };
+
+  const handleAddBtcWallet = () => {
+    window.setTimeout(() => {
+      void handleAddBtcWalletInternal();
+    }, 0);
   };
 
   const handleAdaConnect = async () => {
@@ -883,7 +901,7 @@ export default function WalletsPage() {
     return () => window.clearInterval(id);
   }, [walletMode, ethAddress, solAddress, btcAddress, adaApi]);
 
-  const handleAddAdaWallet = () => {
+  const handleAddAdaWalletInternal = () => {
     if (!adaNewAddress.trim()) {
       setAdaNewError("Insere um endereço.");
       return;
@@ -897,6 +915,12 @@ export default function WalletsPage() {
     updateWalletSnapshot({ ada: nextWallets });
     setAdaNewAddress("");
     setAdaNewError("Saldo só disponível via carteira conectada.");
+  };
+
+  const handleAddAdaWallet = () => {
+    window.setTimeout(() => {
+      handleAddAdaWalletInternal();
+    }, 0);
   };
 
   return (

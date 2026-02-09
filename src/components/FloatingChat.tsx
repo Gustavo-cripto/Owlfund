@@ -109,10 +109,10 @@ export default function FloatingChat() {
 
       <button
         type="button"
-        onClick={() => startTransition(() => setIsOpen(true))}
+        onClick={() => startTransition(() => setIsOpen((prev) => !prev))}
         className="pointer-events-auto group relative flex items-center gap-3 rounded-full border border-slate-700 bg-slate-950/85 px-6 py-4 text-sm font-semibold text-slate-100 shadow-2xl transition hover:scale-[1.02] hover:border-slate-500 hover:bg-slate-950 active:scale-[0.98]"
-        aria-label="Abrir chat"
-        title="Abrir chat"
+        aria-label={isOpen ? "Minimizar chat" : "Abrir chat"}
+        title={isOpen ? "Minimizar chat" : "Abrir chat"}
       >
         <span className="pointer-events-none absolute -inset-1 rounded-full bg-orange-500/10 opacity-0 blur transition group-hover:opacity-100" />
         <span className="relative grid h-16 w-16 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-orange-400 to-amber-500 text-slate-950 shadow-lg ring-1 ring-orange-200/20 transition group-hover:brightness-110">

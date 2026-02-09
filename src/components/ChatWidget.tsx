@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
  
  type ChatMessage = {
    role: "user" | "assistant";
@@ -22,6 +22,8 @@ import { useState } from "react";
   buttonClassName?: string;
   placeholder?: string;
  };
+
+const STORAGE_KEY_MESSAGES = "owlfund.chat.messages.v1";
  
  export default function ChatWidget({
    withContainer = true,
@@ -33,12 +35,40 @@ import { useState } from "react";
   buttonClassName = "",
   placeholder = "Escreve a tua pergunta...",
  }: ChatWidgetProps) {
-   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
    const [input, setInput] = useState("");
    const [isLoading, setIsLoading] = useState(false);
    const [error, setError] = useState<string | null>(null);
   const [provider, setProvider] = useState<string | null>(null);
   const [debug, setDebug] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_MESSAGES);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as ChatMessage[];
+      if (Array.isArray(parsed)) {
+        setMessages(
+          parsed.filter(
+            (item) =>
+              item &&
+              (item.role === "user" || item.role === "assistant") &&
+              typeof item.content === "string"
+          )
+        );
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify(messages));
+    } catch {
+      // ignore
+    }
+  }, [messages]);
  
    const handleSend = async () => {
      const trimmed = input.trim();
