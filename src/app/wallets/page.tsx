@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import AppHeader from "@/components/AppHeader";
 import WalletCard from "@/components/wallets/WalletCard";
@@ -71,6 +71,17 @@ type SnapshotRow = {
 };
 
 const isEvmAddress = (address?: string) => /^0x[a-fA-F0-9]{40}$/.test(address ?? "");
+const isSolAddress = (address?: string) =>
+  typeof address === "string" && address.length >= 32 && address.length <= 44;
+const isBtcAddress = (address?: string) =>
+  typeof address === "string" && /^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,}$/.test(address);
+const isAdaAddress = (address?: string) =>
+  typeof address === "string" && /^(addr1|stake1)[0-9a-z]+$/i.test(address);
+const getAllowedHosts = () =>
+  (process.env.NEXT_PUBLIC_ALLOWED_HOSTS ?? "")
+    .split(",")
+    .map((host) => host.trim())
+    .filter(Boolean);
 
 const evmNetworks: EvmNetwork[] = ["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon"];
 
@@ -158,6 +169,13 @@ export default function WalletsPage() {
   const [defiTotals, setDefiTotals] = useState<Record<string, number | null>>({});
   const [defiLoading, setDefiLoading] = useState<Record<string, boolean>>({});
   const [defiErrors, setDefiErrors] = useState<Record<string, string | null>>({});
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const confirmRef = useRef<{
+    title: string;
+    description: string;
+    onConfirm: () => Promise<void> | void;
+  } | null>(null);
 
   useEffect(() => {
     setIsClient(true);
@@ -334,6 +352,40 @@ export default function WalletsPage() {
       setCryptoPricesError(error instanceof Error ? error.message : "Erro ao obter preços.");
     } finally {
       setCryptoPricesLoading(false);
+    }
+  };
+
+  const requestConfirm = (payload: {
+    title: string;
+    description: string;
+    onConfirm: () => Promise<void> | void;
+  }) => {
+    const host = typeof window !== "undefined" ? window.location.hostname : "";
+    const allowed = getAllowedHosts();
+    if (allowed.length && !allowed.includes(host)) {
+      confirmRef.current = {
+        title: "Domínio não autorizado",
+        description: `Este domínio (${host || "atual"}) não está autorizado para ligação.`,
+        onConfirm: () => {},
+      };
+      setConfirmError("Ligação bloqueada por segurança.");
+      setConfirmOpen(true);
+      return;
+    }
+    confirmRef.current = payload;
+    setConfirmError(null);
+    setConfirmOpen(true);
+  };
+
+  const handleConfirm = async () => {
+    const current = confirmRef.current;
+    if (!current) return;
+    try {
+      await current.onConfirm();
+      setConfirmOpen(false);
+      confirmRef.current = null;
+    } catch (error) {
+      setConfirmError(error instanceof Error ? error.message : "Erro ao confirmar.");
     }
   };
 
@@ -593,7 +645,7 @@ export default function WalletsPage() {
     }
   };
 
-  const handleEthConnect = async () => {
+  const handleEthConnectInternal = async () => {
     try {
       setEthLoading(true);
       setEthError(null);
@@ -614,6 +666,15 @@ export default function WalletsPage() {
     } finally {
       setEthLoading(false);
     }
+  };
+
+  const handleEthConnect = () => {
+    const host = typeof window !== "undefined" ? window.location.hostname : "";
+    requestConfirm({
+      title: "Conectar carteira Ethereum",
+      description: `Vai ligar a carteira ao domínio ${host || "atual"} em modo leitura.`,
+      onConfirm: handleEthConnectInternal,
+    });
   };
 
   const handleEthRefresh = async () => {
@@ -642,6 +703,10 @@ export default function WalletsPage() {
       setEthNewError("Insere um endereço.");
       return;
     }
+    if (!isEvmAddress(ethNewAddress.trim())) {
+      setEthNewError("Endereço Ethereum inválido.");
+      return;
+    }
     try {
       setEthNewLoading(true);
       setEthNewError(null);
@@ -665,12 +730,20 @@ export default function WalletsPage() {
   };
 
   const handleAddEthWallet = () => {
-    window.setTimeout(() => {
-      void handleAddEthWalletInternal();
-    }, 0);
+    const host = typeof window !== "undefined" ? window.location.hostname : "";
+    requestConfirm({
+      title: "Adicionar endereço Ethereum",
+      description: `Confirma a adição do endereço ${ethNewAddress || "indefinido"} no domínio ${host || "atual"}.`,
+      onConfirm: () =>
+        new Promise<void>((resolve) => {
+          window.setTimeout(() => {
+            void handleAddEthWalletInternal().finally(() => resolve());
+          }, 0);
+        }),
+    });
   };
 
-  const handleSolConnect = async () => {
+  const handleSolConnectInternal = async () => {
     try {
       setSolLoading(true);
       setSolError(null);
@@ -690,6 +763,15 @@ export default function WalletsPage() {
     } finally {
       setSolLoading(false);
     }
+  };
+
+  const handleSolConnect = () => {
+    const host = typeof window !== "undefined" ? window.location.hostname : "";
+    requestConfirm({
+      title: "Conectar carteira Solana",
+      description: `Vai ligar a carteira ao domínio ${host || "atual"} em modo leitura.`,
+      onConfirm: handleSolConnectInternal,
+    });
   };
 
   const handleSolRefresh = async () => {
@@ -717,6 +799,10 @@ export default function WalletsPage() {
       setSolNewError("Insere um endereço.");
       return;
     }
+    if (!isSolAddress(solNewAddress.trim())) {
+      setSolNewError("Endereço Solana inválido.");
+      return;
+    }
     try {
       setSolNewLoading(true);
       setSolNewError(null);
@@ -737,12 +823,20 @@ export default function WalletsPage() {
   };
 
   const handleAddSolWallet = () => {
-    window.setTimeout(() => {
-      void handleAddSolWalletInternal();
-    }, 0);
+    const host = typeof window !== "undefined" ? window.location.hostname : "";
+    requestConfirm({
+      title: "Adicionar endereço Solana",
+      description: `Confirma a adição do endereço ${solNewAddress || "indefinido"} no domínio ${host || "atual"}.`,
+      onConfirm: () =>
+        new Promise<void>((resolve) => {
+          window.setTimeout(() => {
+            void handleAddSolWalletInternal().finally(() => resolve());
+          }, 0);
+        }),
+    });
   };
 
-  const handleBtcConnect = async () => {
+  const handleBtcConnectInternal = async () => {
     try {
       setBtcLoading(true);
       setBtcError(null);
@@ -774,6 +868,15 @@ export default function WalletsPage() {
     } finally {
       setBtcLoading(false);
     }
+  };
+
+  const handleBtcConnect = () => {
+    const host = typeof window !== "undefined" ? window.location.hostname : "";
+    requestConfirm({
+      title: "Conectar carteira Bitcoin",
+      description: `Vai ligar a carteira ao domínio ${host || "atual"} em modo leitura.`,
+      onConfirm: handleBtcConnectInternal,
+    });
   };
 
   const handleBtcRefresh = async () => {
@@ -813,6 +916,10 @@ export default function WalletsPage() {
       setBtcNewError("Insere um endereço.");
       return;
     }
+    if (!isBtcAddress(btcNewAddress.trim())) {
+      setBtcNewError("Endereço Bitcoin inválido.");
+      return;
+    }
     try {
       setBtcNewLoading(true);
       setBtcNewError(null);
@@ -833,12 +940,20 @@ export default function WalletsPage() {
   };
 
   const handleAddBtcWallet = () => {
-    window.setTimeout(() => {
-      void handleAddBtcWalletInternal();
-    }, 0);
+    const host = typeof window !== "undefined" ? window.location.hostname : "";
+    requestConfirm({
+      title: "Adicionar endereço Bitcoin",
+      description: `Confirma a adição do endereço ${btcNewAddress || "indefinido"} no domínio ${host || "atual"}.`,
+      onConfirm: () =>
+        new Promise<void>((resolve) => {
+          window.setTimeout(() => {
+            void handleAddBtcWalletInternal().finally(() => resolve());
+          }, 0);
+        }),
+    });
   };
 
-  const handleAdaConnect = async () => {
+  const handleAdaConnectInternal = async () => {
     try {
       setAdaLoading(true);
       setAdaError(null);
@@ -859,6 +974,15 @@ export default function WalletsPage() {
     } finally {
       setAdaLoading(false);
     }
+  };
+
+  const handleAdaConnect = () => {
+    const host = typeof window !== "undefined" ? window.location.hostname : "";
+    requestConfirm({
+      title: "Conectar carteira Cardano",
+      description: `Vai ligar a carteira ao domínio ${host || "atual"} em modo leitura.`,
+      onConfirm: handleAdaConnectInternal,
+    });
   };
 
   const handleAdaRefresh = async () => {
@@ -906,6 +1030,10 @@ export default function WalletsPage() {
       setAdaNewError("Insere um endereço.");
       return;
     }
+    if (!isAdaAddress(adaNewAddress.trim())) {
+      setAdaNewError("Endereço Cardano inválido.");
+      return;
+    }
     const nextWallets = upsertWallet(
       adaWallets,
       { address: adaNewAddress, network: "Cardano" },
@@ -918,9 +1046,18 @@ export default function WalletsPage() {
   };
 
   const handleAddAdaWallet = () => {
-    window.setTimeout(() => {
-      handleAddAdaWalletInternal();
-    }, 0);
+    const host = typeof window !== "undefined" ? window.location.hostname : "";
+    requestConfirm({
+      title: "Adicionar endereço Cardano",
+      description: `Confirma a adição do endereço ${adaNewAddress || "indefinido"} no domínio ${host || "atual"}.`,
+      onConfirm: () =>
+        new Promise<void>((resolve) => {
+          window.setTimeout(() => {
+            handleAddAdaWalletInternal();
+            resolve();
+          }, 0);
+        }),
+    });
   };
 
   return (
@@ -977,6 +1114,37 @@ export default function WalletsPage() {
 
         {walletMode === "web3" ? (
         <>
+        {confirmOpen ? (
+          <div className="pointer-events-auto fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4">
+            <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-950/95 p-6 text-slate-100 shadow-2xl">
+              <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">
+                {confirmRef.current?.title ?? "Confirmar"}
+              </p>
+              <p className="mt-3 text-sm text-slate-300">
+                {confirmRef.current?.description ?? "Confirma a operação."}
+              </p>
+              {confirmError ? (
+                <p className="mt-3 text-xs text-rose-300">{confirmError}</p>
+              ) : null}
+              <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  className="rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                  onClick={() => setConfirmOpen(false)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="rounded-full bg-orange-500 px-4 py-2 text-xs font-semibold text-slate-950 transition hover:bg-orange-400"
+                  onClick={handleConfirm}
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
         <div className="grid gap-6 md:grid-cols-2">
           <WalletCard
             title="Ethereum"
