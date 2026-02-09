@@ -6,11 +6,16 @@ import AppHeader from "@/components/AppHeader";
 import WalletCard from "@/components/wallets/WalletCard";
 import { createClient } from "@/lib/supabase/client";
 import {
+  connectEvmProvider,
   connectMetaMask,
   getEthBalance,
   getEvmBalance,
+  getEvmProviderById,
+  getEvmProviderLabel,
+  getEvmProviderOptions,
   isMetaMaskAvailable,
   type EvmNetwork,
+  type EvmProviderId,
 } from "@/lib/wallets/evm";
 import { connectPhantom, getSolBalance, isPhantomAvailable } from "@/lib/wallets/solana";
 import {
@@ -169,6 +174,10 @@ export default function WalletsPage() {
   const [defiTotals, setDefiTotals] = useState<Record<string, number | null>>({});
   const [defiLoading, setDefiLoading] = useState<Record<string, boolean>>({});
   const [defiErrors, setDefiErrors] = useState<Record<string, string | null>>({});
+  const [evmProviders, setEvmProviders] = useState<Array<{ id: EvmProviderId; label: string }>>(
+    []
+  );
+  const [selectedEvmProvider, setSelectedEvmProvider] = useState<EvmProviderId>("metamask");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const confirmRef = useRef<{
@@ -185,6 +194,7 @@ export default function WalletsPage() {
       xverse: isXverseAvailable(),
       eternl: isEternlAvailable(),
     });
+    setEvmProviders(getEvmProviderOptions());
     const snapshot = loadWalletSnapshot();
     setEthWallets(snapshot.eth ?? []);
     setSolWallets(snapshot.sol ?? []);
@@ -649,14 +659,18 @@ export default function WalletsPage() {
     try {
       setEthLoading(true);
       setEthError(null);
-      const address = await connectMetaMask();
+      const selectedProvider = getEvmProviderById(selectedEvmProvider);
+      const address = selectedProvider
+        ? await connectEvmProvider(selectedProvider)
+        : await connectMetaMask();
       setEthAddress(address);
       const balance = await getEthBalance(address);
       const formatted = Number(balance).toFixed(4);
       setEthBalance(formatted);
+      const label = getEvmProviderLabel(selectedEvmProvider);
       const nextWallets = upsertWallet(
         ethWallets,
-        { address, balance: formatted, network: "Ethereum", label: "MetaMask" },
+        { address, balance: formatted, network: "Ethereum", label },
         (item) => item.address === address && item.network === "Ethereum"
       );
       setEthWallets(nextWallets);
@@ -1212,6 +1226,24 @@ export default function WalletsPage() {
             isAddressVisible={ethShowMain}
           >
             <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] uppercase tracking-[0.3em] text-slate-500">
+                  Carteira ETH
+                </span>
+                <select
+                  className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1 text-xs text-slate-200 outline-none"
+                  value={selectedEvmProvider}
+                  onChange={(event) => setSelectedEvmProvider(event.target.value as EvmProviderId)}
+                >
+                  {(evmProviders.length ? evmProviders : [{ id: "metamask", label: "MetaMask" }]).map(
+                    (option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    )
+                  )}
+                </select>
+              </div>
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
                 Carteiras adicionais / L2
               </p>

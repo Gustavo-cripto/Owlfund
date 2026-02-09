@@ -16,18 +16,71 @@ const chainMap = {
 
 export type EvmNetwork = keyof typeof chainMap;
 
-const isMetaMaskProvider = (provider?: typeof window.ethereum) =>
+export type EvmProviderId = "metamask" | "coinbase" | "trust" | "ledger" | "binance" | "unknown";
+
+type EvmProvider = typeof window.ethereum;
+
+const isMetaMaskProvider = (provider?: EvmProvider) =>
   !!provider && !!provider.isMetaMask && !("isPhantom" in provider);
 
+const getProviderId = (provider?: EvmProvider): EvmProviderId => {
+  if (!provider) return "unknown";
+  if (provider.isMetaMask) return "metamask";
+  if (provider.isCoinbaseWallet) return "coinbase";
+  if ("isTrust" in provider || "isTrustWallet" in provider) return "trust";
+  if ("isLedgerLive" in provider || "isLedger" in provider) return "ledger";
+  if ("isBinanceChain" in provider || "isBinance" in provider) return "binance";
+  return "unknown";
+};
+
+export const getEvmProviderLabel = (id: EvmProviderId) => {
+  switch (id) {
+    case "metamask":
+      return "MetaMask";
+    case "coinbase":
+      return "Coinbase Wallet";
+    case "trust":
+      return "Trust Wallet";
+    case "ledger":
+      return "Ledger Live";
+    case "binance":
+      return "Binance Chain Wallet";
+    default:
+      return "Carteira EVM";
+  }
+};
+
+const getAllProviders = (): EvmProvider[] => {
+  if (typeof window === "undefined") return [];
+  const ethereum = window.ethereum as (EvmProvider & { providers?: EvmProvider[] }) | undefined;
+  if (!ethereum) return [];
+  if (Array.isArray(ethereum.providers) && ethereum.providers.length) {
+    return ethereum.providers.filter((provider) => provider && !("isPhantom" in provider));
+  }
+  return [ethereum];
+};
+
 const getMetaMaskProvider = () => {
-  if (typeof window === "undefined") return null;
-  const ethereum = window.ethereum as
-    | (typeof window.ethereum & { providers?: Array<typeof window.ethereum> })
-    | undefined;
-  if (!ethereum) return null;
-  if (isMetaMaskProvider(ethereum)) return ethereum;
-  const providers = Array.isArray(ethereum.providers) ? ethereum.providers : [];
+  const providers = getAllProviders();
   return providers.find((provider) => isMetaMaskProvider(provider)) ?? null;
+};
+
+export const getEvmProviderOptions = () => {
+  const providers = getAllProviders();
+  const seen = new Set<EvmProviderId>();
+  const options: Array<{ id: EvmProviderId; label: string }> = [];
+  providers.forEach((provider) => {
+    const id = getProviderId(provider);
+    if (seen.has(id)) return;
+    seen.add(id);
+    options.push({ id, label: getEvmProviderLabel(id) });
+  });
+  return options;
+};
+
+export const getEvmProviderById = (id: EvmProviderId) => {
+  const providers = getAllProviders();
+  return providers.find((provider) => getProviderId(provider) === id) ?? null;
 };
 
 export const isMetaMaskAvailable = () => !!getMetaMaskProvider();
@@ -60,6 +113,17 @@ export const connectMetaMask = async () => {
     throw new Error("Nenhuma conta retornada pelo MetaMask.");
   }
 
+  return address as `0x${string}`;
+};
+
+export const connectEvmProvider = async (provider: EvmProvider) => {
+  const accounts = (await provider.request({
+    method: "eth_requestAccounts",
+  })) as string[];
+  const address = accounts?.[0];
+  if (!address) {
+    throw new Error("Nenhuma conta retornada pela carteira.");
+  }
   return address as `0x${string}`;
 };
 
