@@ -89,6 +89,7 @@ const getAllowedHosts = () =>
     .filter(Boolean);
 
 const evmNetworks: EvmNetwork[] = ["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon"];
+const solNetworks = ["Solana", "Eclipse", "Sonic", "Solayer"] as const;
 
 export default function WalletsPage() {
   const supabase = useMemo(() => createClient(), []);
@@ -147,10 +148,12 @@ export default function WalletsPage() {
   const [solLoading, setSolLoading] = useState(false);
   const [solWallets, setSolWallets] = useState<StoredWalletEntry[]>([]);
   const [solNewAddress, setSolNewAddress] = useState("");
+  const [solNewNetwork, setSolNewNetwork] = useState<(typeof solNetworks)[number]>("Solana");
   const [solNewError, setSolNewError] = useState<string | null>(null);
   const [solNewLoading, setSolNewLoading] = useState(false);
   const [solShowMain, setSolShowMain] = useState(false);
   const [solShown, setSolShown] = useState<Record<string, boolean>>({});
+  const [showSolNetworks, setShowSolNetworks] = useState(false);
 
   const [btcAddress, setBtcAddress] = useState<string>();
   const [btcBalance, setBtcBalance] = useState<number | null>(null);
@@ -794,7 +797,7 @@ export default function WalletsPage() {
       const nextWallets = upsertWallet(
         solWallets,
         { address, balance, network: "Solana" },
-        (item) => item.address === address
+        (item) => item.address === address && (item.network ?? "Solana") === "Solana"
       );
       setSolWallets(nextWallets);
       updateWalletSnapshot({ sol: nextWallets });
@@ -823,7 +826,7 @@ export default function WalletsPage() {
       const nextWallets = upsertWallet(
         solWallets,
         { address: solAddress, balance, network: "Solana" },
-        (item) => item.address === solAddress
+        (item) => item.address === solAddress && (item.network ?? "Solana") === "Solana"
       );
       setSolWallets(nextWallets);
       updateWalletSnapshot({ sol: nextWallets });
@@ -836,7 +839,10 @@ export default function WalletsPage() {
 
   const handleSolDisconnect = () => {
     if (!solAddress) return;
-    const nextWallets = removeWallet(solWallets, (item) => item.address === solAddress);
+    const nextWallets = removeWallet(
+      solWallets,
+      (item) => item.address === solAddress && (item.network ?? "Solana") === "Solana"
+    );
     setSolWallets(nextWallets);
     setSolAddress(undefined);
     setSolBalance(undefined);
@@ -859,8 +865,9 @@ export default function WalletsPage() {
       const balance = await getSolBalance(solNewAddress);
       const nextWallets = upsertWallet(
         solWallets,
-        { address: solNewAddress, balance, network: "Solana" },
-        (item) => item.address === solNewAddress
+        { address: solNewAddress, balance, network: solNewNetwork },
+        (item) =>
+          item.address === solNewAddress && (item.network ?? "Solana") === solNewNetwork
       );
       setSolWallets(nextWallets);
       updateWalletSnapshot({ sol: nextWallets });
@@ -1414,15 +1421,52 @@ export default function WalletsPage() {
           >
             <div className="space-y-3">
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                Carteiras adicionais
+                Carteiras adicionais / L2
               </p>
-              <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowSolNetworks((prev) => !prev)}
+                  className="rounded-full border border-slate-700 px-3 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                >
+                  Carteiras SOL
+                </button>
+                {showSolNetworks ? (
+                  <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                    {solNetworks.map((network) => (
+                      <span
+                        key={network}
+                        className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1 text-slate-200"
+                      >
+                        {network}{" "}
+                        <span className="ml-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
+                          Disponível
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+              <div className="grid gap-3 sm:grid-cols-[1.2fr_0.8fr_auto]">
                 <input
                   className="w-full rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
                   placeholder="Endereço Solana"
                   value={solNewAddress}
                   onChange={(event) => setSolNewAddress(event.target.value)}
                 />
+                <select
+                  className="w-full rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none"
+                  value={solNewNetwork}
+                  onChange={(event) =>
+                    setSolNewNetwork(event.target.value as (typeof solNetworks)[number])
+                  }
+                >
+                  {solNetworks.map((network) => (
+                    <option key={network} value={network}>
+                      {network}
+                    </option>
+                  ))}
+                </select>
                 <button
                   type="button"
                   className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white disabled:opacity-60"
@@ -1435,14 +1479,17 @@ export default function WalletsPage() {
               {solNewError ? <p className="text-xs text-rose-300">{solNewError}</p> : null}
               <div className="space-y-2">
                 {solWallets
-                  .filter((item) => item.address !== solAddress)
+                  .filter(
+                    (item) =>
+                      item.address !== solAddress || (item.network ?? "Solana") !== "Solana"
+                  )
                   .map((item) => (
                     <div
-                      key={item.address}
+                      key={`${item.address}-${item.network ?? "Solana"}`}
                       className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300"
                     >
                       <div className="space-y-1">
-                        <p className="font-semibold text-white">Solana</p>
+                        <p className="font-semibold text-white">{item.network ?? "Solana"}</p>
                         <div className="flex items-center gap-2">
                           <p className="text-slate-500">
                             {solShown[item.address ?? ""] ? item.address : formatAddress(item.address)}
@@ -1476,7 +1523,9 @@ export default function WalletsPage() {
                               const nextWallets = upsertWallet(
                                 solWallets,
                                 { ...item, balance },
-                                (entry) => entry.address === item.address
+                                (entry) =>
+                                  entry.address === item.address &&
+                                  (entry.network ?? "Solana") === (item.network ?? "Solana")
                               );
                               setSolWallets(nextWallets);
                               updateWalletSnapshot({ sol: nextWallets });
@@ -1490,7 +1539,9 @@ export default function WalletsPage() {
                             onClick={() => {
                               const nextWallets = removeWallet(
                                 solWallets,
-                                (entry) => entry.address === item.address
+                                (entry) =>
+                                  entry.address === item.address &&
+                                  (entry.network ?? "Solana") === (item.network ?? "Solana")
                               );
                               setSolWallets(nextWallets);
                               updateWalletSnapshot({ sol: nextWallets });
