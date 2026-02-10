@@ -90,7 +90,13 @@ const getAllowedHosts = () =>
 
 const evmNetworks: EvmNetwork[] = ["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon"];
 const solNetworks = ["Solana", "Eclipse", "Sonic", "Solayer"] as const;
-const solWalletOptions = [{ id: "phantom", label: "Phantom" }] as const;
+const solWalletOptions = [
+  { id: "phantom", label: "Phantom Wallet" },
+  { id: "backpack", label: "Backpack" },
+  { id: "solflare", label: "Solflare" },
+  { id: "glow", label: "Glow Wallet" },
+  { id: "ledger", label: "Ledger (Hardware)" },
+] as const;
 
 export default function WalletsPage() {
   const supabase = useMemo(() => createClient(), []);
