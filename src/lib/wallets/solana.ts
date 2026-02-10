@@ -1,6 +1,8 @@
-import { Connection, LAMPORTS_PER_SOL, PublicKey, clusterApiUrl } from "@solana/web3.js";
+import { Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 
-const connection = new Connection(clusterApiUrl("mainnet-beta"), "confirmed");
+const SOLANA_RPC =
+  process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? "https://rpc.ankr.com/solana";
+const connection = new Connection(SOLANA_RPC, "confirmed");
 
 export const isPhantomAvailable = () =>
   typeof window !== "undefined" && !!window.solana?.isPhantom;
