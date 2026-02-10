@@ -17,7 +17,12 @@ import {
   type EvmNetwork,
   type EvmProviderId,
 } from "@/lib/wallets/evm";
-import { connectPhantom, getSolBalance, isPhantomAvailable } from "@/lib/wallets/solana";
+import {
+  connectSolanaWallet,
+  getSolBalance,
+  isPhantomAvailable,
+  isSolanaWalletAvailable,
+} from "@/lib/wallets/solana";
 import {
   connectXverse,
   getBtcBalanceFromAddress,
@@ -469,7 +474,9 @@ export default function WalletsPage() {
   };
 
   const ethIsAvailable = isClient && (availability.metamask || ethWallets.length > 0);
-  const solIsAvailable = isClient && (availability.phantom || solWallets.length > 0);
+  const solIsAvailable =
+    isClient &&
+    (isSolanaWalletAvailable(selectedSolProvider) || solWallets.length > 0);
   const btcIsAvailable = isClient && (availability.xverse || btcWallets.length > 0);
   const adaIsAvailable = isClient && (availability.eternl || adaWallets.length > 0);
 
@@ -798,7 +805,7 @@ export default function WalletsPage() {
     try {
       setSolLoading(true);
       setSolError(null);
-      const address = await connectPhantom();
+      const address = await connectSolanaWallet(selectedSolProvider);
       setSolAddress(address);
       const balance = await getSolBalance(address);
       setSolBalance(balance);

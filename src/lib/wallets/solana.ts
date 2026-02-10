@@ -16,21 +16,95 @@ const isRpcError = (err: unknown) => {
   );
 };
 
+export type SolanaWalletId = "phantom" | "backpack" | "solflare" | "glow" | "ledger";
+
 export const isPhantomAvailable = () =>
   typeof window !== "undefined" && !!window.solana?.isPhantom;
 
-export const connectPhantom = async () => {
-  if (!window.solana?.isPhantom) {
-    throw new Error("Phantom não está disponível.");
-  }
+export const isSolflareAvailable = () =>
+  typeof window !== "undefined" && !!window.solflare;
 
+export const isBackpackAvailable = () =>
+  typeof window !== "undefined" && !!window.backpack;
+
+export const isGlowAvailable = () =>
+  typeof window !== "undefined" && !!window.glow;
+
+export const isSolanaWalletAvailable = (id: SolanaWalletId): boolean => {
+  if (typeof window === "undefined") return false;
+  switch (id) {
+    case "phantom":
+      return !!window.solana?.isPhantom;
+    case "solflare":
+      return !!window.solflare;
+    case "backpack":
+      return !!window.backpack;
+    case "glow":
+      return !!window.glow;
+    case "ledger":
+      return false;
+    default:
+      return false;
+  }
+};
+
+export const connectPhantom = async (): Promise<string> => {
+  if (!window.solana?.isPhantom) {
+    throw new Error("Phantom não está disponível. Instala a extensão Phantom.");
+  }
   const response = await window.solana.connect();
   const address = response?.publicKey?.toString();
-  if (!address) {
-    throw new Error("Nenhuma conta retornada pelo Phantom.");
-  }
-
+  if (!address) throw new Error("Nenhuma conta retornada pelo Phantom.");
   return address;
+};
+
+export const connectSolflare = async (): Promise<string> => {
+  if (!window.solflare) {
+    throw new Error("Solflare não está disponível. Instala a extensão Solflare.");
+  }
+  const response = await window.solflare.connect();
+  const address = response?.publicKey?.toString() ?? response?.address;
+  if (!address) throw new Error("Nenhuma conta retornada pela Solflare.");
+  return address;
+};
+
+export const connectBackpack = async (): Promise<string> => {
+  if (!window.backpack) {
+    throw new Error("Backpack não está disponível. Instala a extensão Backpack.");
+  }
+  const response = await window.backpack.connect();
+  const address = response?.address ?? response?.publicKey?.toString();
+  if (!address) throw new Error("Nenhuma conta retornada pela Backpack.");
+  return address;
+};
+
+export const connectGlow = async (): Promise<string> => {
+  if (!window.glow) {
+    throw new Error("Glow Wallet não está disponível. Instala a extensão Glow.");
+  }
+  const response = await window.glow.connect();
+  const address = response?.address ?? response?.publicKey?.toString();
+  if (!address) throw new Error("Nenhuma conta retornada pela Glow.");
+  return address;
+};
+
+export const connectSolanaWallet = async (providerId: SolanaWalletId): Promise<string> => {
+  switch (providerId) {
+    case "phantom":
+      return connectPhantom();
+    case "solflare":
+      return connectSolflare();
+    case "backpack":
+      return connectBackpack();
+    case "glow":
+      return connectGlow();
+    case "ledger":
+      throw new Error(
+        "Ledger é uma carteira de hardware. Conecta o Ledger através do Phantom ou Solflare (suportam Ledger) e escolhe essa carteira no dropdown."
+      );
+    default:
+      return connectPhantom();
+  }
 };
 
 export const getSolBalance = async (address: string) => {
