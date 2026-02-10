@@ -11,7 +11,7 @@ declare global {
       connect: () => Promise<{ publicKey?: { toString: () => string } }>;
     };
     solflare?: {
-      connect: () => Promise<{ publicKey?: { toString: () => string } }>;
+      connect: () => Promise<{ publicKey?: { toString: () => string }; address?: string }>;
       publicKey?: { toString: () => string } | null;
     };
     backpack?: {
