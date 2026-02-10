@@ -225,6 +225,23 @@ function FearGreedWidget({
   const selected = selectedSymbol
     ? top10.find((row) => row.symbol === selectedSymbol) ?? null
     : null;
+  const [remainingSec, setRemainingSec] = useState<number | null>(timeUntilUpdateSec);
+
+  useEffect(() => {
+    setRemainingSec(timeUntilUpdateSec);
+  }, [timeUntilUpdateSec]);
+
+  useEffect(() => {
+    if (remainingSec == null) return;
+    const id = window.setInterval(() => {
+      setRemainingSec((prev) => {
+        if (prev == null) return prev;
+        if (prev <= 1) return 0;
+        return prev - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [remainingSec]);
 
   const rows = [
     { label: "Agora", point: now },
@@ -282,7 +299,7 @@ function FearGreedWidget({
         <h3 className="text-sm font-semibold text-white">Próxima atualização</h3>
         <p className="mt-4 text-sm text-slate-400">A próxima atualização acontece em:</p>
         <p className="mt-2 text-lg font-semibold text-white">
-          {timeUntilUpdateSec == null ? "—" : formatCountdown(timeUntilUpdateSec)}
+          {remainingSec == null ? "—" : formatCountdown(remainingSec)}
         </p>
         <p className="mt-4 text-xs text-slate-500">Fonte: alternative.me</p>
       </div>
@@ -510,6 +527,9 @@ export default function MercadoPage() {
   const [cryptoSortDir, setCryptoSortDir] = useState<"asc" | "desc">("desc");
   const [traditionalSortKey, setTraditionalSortKey] = useState<"date" | "marketCap">("date");
   const [traditionalSortDir, setTraditionalSortDir] = useState<"asc" | "desc">("desc");
+  const favoritesHydratedRef = useRef(false);
+  const traditionalHydratedRef = useRef(false);
+  const cryptoHydratedRef = useRef(false);
 
   const closeTradingViewOverlay = () => {
     // Best-effort: closes TradingView popovers/panels (e.g., Markets/Favorites/Trending).
@@ -600,7 +620,6 @@ export default function MercadoPage() {
       } else {
         next[assetId] = {};
       }
-      saveTraditionalHoldings(next);
       return next;
     });
   };
@@ -617,7 +636,6 @@ export default function MercadoPage() {
           ...next,
         },
       };
-      saveTraditionalHoldings(nextHoldings);
       return nextHoldings;
     });
   };
@@ -630,7 +648,6 @@ export default function MercadoPage() {
       } else {
         next[symbol] = {};
       }
-      saveCryptoHoldings(next);
       return next;
     });
   };
@@ -647,7 +664,6 @@ export default function MercadoPage() {
           ...next,
         },
       };
-      saveCryptoHoldings(nextHoldings);
       return nextHoldings;
     });
   };
@@ -667,10 +683,12 @@ export default function MercadoPage() {
 
   useEffect(() => {
     setFavorites(loadFavorites());
+    favoritesHydratedRef.current = true;
   }, []);
 
   useEffect(() => {
     setTraditionalHoldings(loadTraditionalHoldings());
+    traditionalHydratedRef.current = true;
   }, []);
 
   useEffect(() => {
@@ -686,6 +704,7 @@ export default function MercadoPage() {
 
   useEffect(() => {
     setCryptoHoldings(loadCryptoHoldings());
+    cryptoHydratedRef.current = true;
   }, []);
 
   useEffect(() => {
@@ -714,16 +733,22 @@ export default function MercadoPage() {
   }, []);
 
   useEffect(() => {
-    if (fearGreedCountdown == null) return;
-    const id = window.setInterval(() => {
-      setFearGreedCountdown((prev) => {
-        if (prev == null) return prev;
-        if (prev <= 1) return 0;
-        return prev - 1;
-      });
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, [fearGreedCountdown]);
+    if (!favoritesHydratedRef.current) return;
+    const id = window.setTimeout(() => saveFavorites(favorites), 120);
+    return () => window.clearTimeout(id);
+  }, [favorites]);
+
+  useEffect(() => {
+    if (!traditionalHydratedRef.current) return;
+    const id = window.setTimeout(() => saveTraditionalHoldings(traditionalHoldings), 120);
+    return () => window.clearTimeout(id);
+  }, [traditionalHoldings]);
+
+  useEffect(() => {
+    if (!cryptoHydratedRef.current) return;
+    const id = window.setTimeout(() => saveCryptoHoldings(cryptoHoldings), 120);
+    return () => window.clearTimeout(id);
+  }, [cryptoHoldings]);
 
   useEffect(() => {
     const updateTheme = () =>

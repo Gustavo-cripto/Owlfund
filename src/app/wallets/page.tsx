@@ -91,7 +91,7 @@ const getAllowedHosts = () =>
 const evmNetworks: EvmNetwork[] = ["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon"];
 
 export default function WalletsPage() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   useRequireAuth("/login");
   const [isClient, setIsClient] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -121,6 +121,8 @@ export default function WalletsPage() {
   const [cryptoSortDir, setCryptoSortDir] = useState<"asc" | "desc">("desc");
   const [traditionalSortKey, setTraditionalSortKey] = useState<"date" | "marketCap">("date");
   const [traditionalSortDir, setTraditionalSortDir] = useState<"asc" | "desc">("desc");
+  const traditionalHydratedRef = useRef(false);
+  const cryptoHydratedRef = useRef(false);
   const [availability, setAvailability] = useState({
     metamask: false,
     phantom: false,
@@ -238,11 +240,25 @@ export default function WalletsPage() {
 
   useEffect(() => {
     setTraditionalHoldings(loadTraditionalHoldings());
+    traditionalHydratedRef.current = true;
   }, []);
 
   useEffect(() => {
     setCryptoHoldings(loadCryptoHoldings());
+    cryptoHydratedRef.current = true;
   }, []);
+
+  useEffect(() => {
+    if (!traditionalHydratedRef.current) return;
+    const id = window.setTimeout(() => saveTraditionalHoldings(traditionalHoldings), 120);
+    return () => window.clearTimeout(id);
+  }, [traditionalHoldings]);
+
+  useEffect(() => {
+    if (!cryptoHydratedRef.current) return;
+    const id = window.setTimeout(() => saveCryptoHoldings(cryptoHoldings), 120);
+    return () => window.clearTimeout(id);
+  }, [cryptoHoldings]);
 
   useEffect(() => {
     if (!userId || !isPro) return;
@@ -477,7 +493,6 @@ export default function WalletsPage() {
       } else {
         next[assetId] = {};
       }
-      saveTraditionalHoldings(next);
       return next;
     });
   };
@@ -491,7 +506,6 @@ export default function WalletsPage() {
           ...next,
         },
       };
-      saveTraditionalHoldings(nextHoldings);
       return nextHoldings;
     });
   };
@@ -512,7 +526,6 @@ export default function WalletsPage() {
       } else {
         next[symbol] = {};
       }
-      saveCryptoHoldings(next);
       return next;
     });
   };
@@ -529,7 +542,6 @@ export default function WalletsPage() {
           ...next,
         },
       };
-      saveCryptoHoldings(nextHoldings);
       return nextHoldings;
     });
   };
@@ -1903,7 +1915,6 @@ export default function WalletsPage() {
                   type="button"
                   onClick={() => {
                     setTraditionalHoldings({});
-                    saveTraditionalHoldings({});
                   }}
                   className="rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
                 >
