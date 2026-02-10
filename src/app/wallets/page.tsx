@@ -90,6 +90,7 @@ const getAllowedHosts = () =>
 
 const evmNetworks: EvmNetwork[] = ["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon"];
 const solNetworks = ["Solana", "Eclipse", "Sonic", "Solayer"] as const;
+const solWalletOptions = [{ id: "phantom", label: "Phantom" }] as const;
 
 export default function WalletsPage() {
   const supabase = useMemo(() => createClient(), []);
@@ -154,6 +155,7 @@ export default function WalletsPage() {
   const [solShowMain, setSolShowMain] = useState(false);
   const [solShown, setSolShown] = useState<Record<string, boolean>>({});
   const [showSolNetworks, setShowSolNetworks] = useState(false);
+  const [selectedSolProvider, setSelectedSolProvider] = useState<(typeof solWalletOptions)[number]["id"]>("phantom");
 
   const [btcAddress, setBtcAddress] = useState<string>();
   const [btcBalance, setBtcBalance] = useState<number | null>(null);
@@ -1420,6 +1422,24 @@ export default function WalletsPage() {
             isAddressVisible={solShowMain}
           >
             <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] uppercase tracking-[0.3em] text-slate-500">
+                  Carteira SOL
+                </span>
+                <select
+                  className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1 text-xs text-slate-200 outline-none"
+                  value={selectedSolProvider}
+                  onChange={(event) =>
+                    setSelectedSolProvider(event.target.value as (typeof solWalletOptions)[number]["id"])
+                  }
+                >
+                  {solWalletOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
                 Carteiras adicionais / L2
               </p>
