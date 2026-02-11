@@ -120,6 +120,19 @@ export const connectEvmProvider = async (provider?: EvmProvider) => {
   if (!provider) {
     throw new Error("Carteira não encontrada.");
   }
+  if (typeof window !== "undefined") {
+    try {
+      const current = window as Window & {
+        ethereum?: EvmProvider & { providers?: EvmProvider[] };
+      };
+      current.ethereum = provider;
+      if (current.ethereum?.providers && Array.isArray(current.ethereum.providers)) {
+        current.ethereum.providers = [provider];
+      }
+    } catch {
+      // ignore
+    }
+  }
   const accounts = (await provider.request({
     method: "eth_requestAccounts",
   })) as string[];

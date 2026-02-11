@@ -7,7 +7,6 @@ import WalletCard from "@/components/wallets/WalletCard";
 import { createClient } from "@/lib/supabase/client";
 import {
   connectEvmProvider,
-  connectMetaMask,
   getEthBalance,
   getEvmBalance,
   getEvmProviderById,
@@ -142,6 +141,7 @@ export default function WalletsPage() {
   const [traditionalSortDir, setTraditionalSortDir] = useState<"asc" | "desc">("desc");
   const traditionalHydratedRef = useRef(false);
   const cryptoHydratedRef = useRef(false);
+  const walletsHydratedRef = useRef(false);
   const [availability, setAvailability] = useState({
     metamask: false,
     phantom: false,
@@ -225,7 +225,23 @@ export default function WalletsPage() {
     setSolWallets(snapshot.sol ?? []);
     setBtcWallets(snapshot.btc ?? []);
     setAdaWallets(snapshot.ada ?? []);
+    walletsHydratedRef.current = true;
   }, []);
+
+  useEffect(() => {
+    if (!walletsHydratedRef.current) return;
+    const id = window.setTimeout(
+      () =>
+        updateWalletSnapshot({
+          eth: ethWallets,
+          sol: solWallets,
+          btc: btcWallets,
+          ada: adaWallets,
+        }),
+      150
+    );
+    return () => window.clearTimeout(id);
+  }, [ethWallets, solWallets, btcWallets, adaWallets]);
 
   useEffect(() => {
     const loadAuth = async () => {
@@ -697,9 +713,11 @@ export default function WalletsPage() {
       setEthLoading(true);
       setEthError(null);
       const selectedProvider = getEvmProviderById(selectedEvmProvider);
-      const address = selectedProvider
-        ? await connectEvmProvider(selectedProvider)
-        : await connectMetaMask();
+      if (!selectedProvider) {
+        const label = getEvmProviderLabel(selectedEvmProvider);
+        throw new Error(`${label} não está disponível. Instala a extensão.`);
+      }
+      const address = await connectEvmProvider(selectedProvider);
       setEthAddress(address);
       const balance = await getEthBalance(address);
       const formatted = Number(balance).toFixed(4);
@@ -711,7 +729,6 @@ export default function WalletsPage() {
         (item) => item.address === address && item.network === "Ethereum"
       );
       setEthWallets(nextWallets);
-      updateWalletSnapshot({ eth: nextWallets });
     } catch (error) {
       setEthError(error instanceof Error ? error.message : "Erro ao conectar.");
     } finally {
@@ -741,7 +758,6 @@ export default function WalletsPage() {
         (item) => item.address === ethAddress && item.network === "Ethereum"
       );
       setEthWallets(nextWallets);
-      updateWalletSnapshot({ eth: nextWallets });
     } catch (error) {
       setEthError(error instanceof Error ? error.message : "Erro ao atualizar saldo.");
     } finally {
@@ -759,7 +775,6 @@ export default function WalletsPage() {
     setEthAddress(undefined);
     setEthBalance(undefined);
     setEthError(null);
-    updateWalletSnapshot({ eth: nextWallets });
   };
 
   const handleAddEthWalletInternal = async () => {
@@ -782,7 +797,6 @@ export default function WalletsPage() {
         (item) => item.address === ethNewAddress && item.network === ethNewNetwork
       );
       setEthWallets(nextWallets);
-      updateWalletSnapshot({ eth: nextWallets });
       setEthNewAddress("");
     } catch (error) {
       setEthNewError(
@@ -821,7 +835,6 @@ export default function WalletsPage() {
         (item) => item.address === address && (item.network ?? "Solana") === "Solana"
       );
       setSolWallets(nextWallets);
-      updateWalletSnapshot({ sol: nextWallets });
     } catch (error) {
       setSolError(error instanceof Error ? error.message : "Erro ao conectar.");
     } finally {
@@ -850,7 +863,6 @@ export default function WalletsPage() {
         (item) => item.address === solAddress && (item.network ?? "Solana") === "Solana"
       );
       setSolWallets(nextWallets);
-      updateWalletSnapshot({ sol: nextWallets });
     } catch (error) {
       setSolError(error instanceof Error ? error.message : "Erro ao atualizar saldo.");
     } finally {
@@ -868,7 +880,6 @@ export default function WalletsPage() {
     setSolAddress(undefined);
     setSolBalance(undefined);
     setSolError(null);
-    updateWalletSnapshot({ sol: nextWallets });
   };
 
   const handleAddSolWalletInternal = async () => {
@@ -892,7 +903,6 @@ export default function WalletsPage() {
           item.address === solNewAddress && (item.network ?? "Solana") === walletLabel
       );
       setSolWallets(nextWallets);
-      updateWalletSnapshot({ sol: nextWallets });
       setSolNewAddress("");
     } catch (error) {
       setSolNewError(error instanceof Error ? error.message : "Endereço inválido.");
@@ -930,7 +940,6 @@ export default function WalletsPage() {
           (item) => item.address === address
         );
         setBtcWallets(nextWallets);
-        updateWalletSnapshot({ btc: nextWallets });
         return;
       }
       const apiBalance = await getBtcBalanceFromAddress(address);
@@ -941,7 +950,6 @@ export default function WalletsPage() {
         (item) => item.address === address
       );
       setBtcWallets(nextWallets);
-      updateWalletSnapshot({ btc: nextWallets });
     } catch (error) {
       setBtcError(error instanceof Error ? error.message : "Erro ao conectar.");
     } finally {
@@ -970,8 +978,7 @@ export default function WalletsPage() {
           { address: btcAddress, balance: walletBalance.toFixed(8), network: "Bitcoin" },
           (item) => item.address === btcAddress
         );
-        setBtcWallets(nextWallets);
-        updateWalletSnapshot({ btc: nextWallets });
+      setBtcWallets(nextWallets);
         return;
       }
       const apiBalance = await getBtcBalanceFromAddress(btcAddress);
@@ -982,7 +989,6 @@ export default function WalletsPage() {
         (item) => item.address === btcAddress
       );
       setBtcWallets(nextWallets);
-      updateWalletSnapshot({ btc: nextWallets });
     } catch (error) {
       setBtcError(error instanceof Error ? error.message : "Erro ao atualizar saldo.");
     } finally {
@@ -997,7 +1003,6 @@ export default function WalletsPage() {
     setBtcAddress(undefined);
     setBtcBalance(null);
     setBtcError(null);
-    updateWalletSnapshot({ btc: nextWallets });
   };
 
   const handleAddBtcWalletInternal = async () => {
@@ -1019,7 +1024,6 @@ export default function WalletsPage() {
         (item) => item.address === btcNewAddress
       );
       setBtcWallets(nextWallets);
-      updateWalletSnapshot({ btc: nextWallets });
       setBtcNewAddress("");
     } catch (error) {
       setBtcNewError(error instanceof Error ? error.message : "Endereço inválido.");
@@ -1057,7 +1061,6 @@ export default function WalletsPage() {
         (item) => item.address === address
       );
       setAdaWallets(nextWallets);
-      updateWalletSnapshot({ ada: nextWallets });
     } catch (error) {
       setAdaError(error instanceof Error ? error.message : "Erro ao conectar.");
     } finally {
@@ -1087,7 +1090,6 @@ export default function WalletsPage() {
           (item) => item.address === adaAddress
         );
         setAdaWallets(nextWallets);
-        updateWalletSnapshot({ ada: nextWallets });
       }
     } catch (error) {
       setAdaError(error instanceof Error ? error.message : "Erro ao atualizar saldo.");
@@ -1104,7 +1106,6 @@ export default function WalletsPage() {
     setAdaBalance(undefined);
     setAdaError(null);
     setAdaApi(null);
-    updateWalletSnapshot({ ada: nextWallets });
   };
 
   useEffect(() => {
@@ -1140,7 +1141,6 @@ export default function WalletsPage() {
       (item) => item.address === adaNewAddress
     );
     setAdaWallets(nextWallets);
-    updateWalletSnapshot({ ada: nextWallets });
     setAdaNewAddress("");
     setAdaNewError("Saldo só disponível via carteira conectada.");
   };
@@ -1393,7 +1393,6 @@ export default function WalletsPage() {
                                   entry.network === item.network
                               );
                               setEthWallets(nextWallets);
-                              updateWalletSnapshot({ eth: nextWallets });
                             }}
                           >
                             Atualizar
@@ -1409,7 +1408,6 @@ export default function WalletsPage() {
                                   entry.network === item.network
                               );
                               setEthWallets(nextWallets);
-                              updateWalletSnapshot({ eth: nextWallets });
                             }}
                           >
                             Remover
@@ -1566,7 +1564,6 @@ export default function WalletsPage() {
                                   (entry.network ?? "Solana") === (item.network ?? "Solana")
                               );
                               setSolWallets(nextWallets);
-                              updateWalletSnapshot({ sol: nextWallets });
                             }}
                           >
                             Atualizar
@@ -1582,7 +1579,6 @@ export default function WalletsPage() {
                                   (entry.network ?? "Solana") === (item.network ?? "Solana")
                               );
                               setSolWallets(nextWallets);
-                              updateWalletSnapshot({ sol: nextWallets });
                             }}
                           >
                             Remover
@@ -1680,7 +1676,6 @@ export default function WalletsPage() {
                                 (entry) => entry.address === item.address
                               );
                               setBtcWallets(nextWallets);
-                              updateWalletSnapshot({ btc: nextWallets });
                             }}
                           >
                             Atualizar
@@ -1694,7 +1689,6 @@ export default function WalletsPage() {
                                 (entry) => entry.address === item.address
                               );
                               setBtcWallets(nextWallets);
-                              updateWalletSnapshot({ btc: nextWallets });
                             }}
                           >
                             Remover
@@ -1778,13 +1772,12 @@ export default function WalletsPage() {
                         <button
                           className="mt-1 rounded-full border border-rose-400/40 px-3 py-1 text-[11px] font-semibold text-rose-200 transition hover:border-rose-400 hover:text-white"
                           type="button"
-                          onClick={() => {
+                            onClick={() => {
                             const nextWallets = removeWallet(
                               adaWallets,
                               (entry) => entry.address === item.address
                             );
                             setAdaWallets(nextWallets);
-                            updateWalletSnapshot({ ada: nextWallets });
                           }}
                         >
                           Remover
