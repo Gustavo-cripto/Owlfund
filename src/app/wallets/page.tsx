@@ -94,6 +94,13 @@ const getAllowedHosts = () =>
     .filter(Boolean);
 
 const evmNetworks: EvmNetwork[] = ["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon"];
+const ethWalletOptions: Array<{ id: EvmProviderId; label: string }> = [
+  { id: "metamask", label: "MetaMask" },
+  { id: "coinbase", label: "Coinbase Wallet" },
+  { id: "trust", label: "Trust Wallet" },
+  { id: "ledger", label: "Ledger (Hardware)" },
+  { id: "binance", label: "Binance Chain Wallet" },
+];
 const solWalletOptions = [
   { id: "phantom", label: "Phantom Wallet" },
   { id: "backpack", label: "Backpack" },
@@ -1270,13 +1277,11 @@ export default function WalletsPage() {
                   value={selectedEvmProvider}
                   onChange={(event) => setSelectedEvmProvider(event.target.value as EvmProviderId)}
                 >
-                  {(evmProviders.length ? evmProviders : [{ id: "metamask", label: "MetaMask" }]).map(
-                    (option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
-                    )
-                  )}
+                  {ethWalletOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
@@ -1292,12 +1297,12 @@ export default function WalletsPage() {
                 </button>
                 {showEthNetworks ? (
                   <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-                    {evmNetworks.map((network) => (
+                    {ethWalletOptions.map((option) => (
                       <span
-                        key={network}
+                        key={option.id}
                         className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1 text-slate-200"
                       >
-                        {network}{" "}
+                        {option.label}{" "}
                         <span className="ml-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
                           Disponível
                         </span>
