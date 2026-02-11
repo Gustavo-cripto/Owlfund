@@ -264,6 +264,7 @@ export default function WalletsPage() {
   const [showEthNetworks, setShowEthNetworks] = useState(false);
   const [selectedBtcProvider, setSelectedBtcProvider] = useState<BtcWalletId>("xverse");
   const [showBtcWalletsList, setShowBtcWalletsList] = useState(false);
+  const [showSolWalletsList, setShowSolWalletsList] = useState(false);
   const [manualAddNetwork, setManualAddNetwork] = useState<"eth" | "sol" | "btc" | "ada">("sol");
   const [manualAddAddress, setManualAddAddress] = useState("");
   const [manualAddLabel, setManualAddLabel] = useState("");
@@ -479,11 +480,6 @@ export default function WalletsPage() {
 
   const refreshCryptoPrices = async () => {
     const symbols = Object.keys(cryptoHoldings);
-    if (symbols.length === 0) {
-      setCryptoPrices({});
-      setCryptoPricesError(null);
-      return;
-    }
     setCryptoPricesLoading(true);
     setCryptoPricesError(null);
     try {
@@ -498,11 +494,15 @@ export default function WalletsPage() {
       };
       setMarketRows(payload.data ?? []);
       setCryptoSelectList(payload.selectList ?? []);
-      const map: Record<string, MarketRow> = {};
-      (payload.data ?? []).forEach((row) => {
-        map[row.symbol] = row;
-      });
-      setCryptoPrices(map);
+      if (symbols.length === 0) {
+        setCryptoPrices({});
+      } else {
+        const map: Record<string, MarketRow> = {};
+        (payload.data ?? []).forEach((row) => {
+          map[row.symbol] = row;
+        });
+        setCryptoPrices(map);
+      }
     } catch (error) {
       setCryptoPricesError(error instanceof Error ? error.message : "Erro ao obter preços.");
     } finally {
@@ -1747,14 +1747,24 @@ export default function WalletsPage() {
                     onKeyDown={(e) => e.stopPropagation()}
                   />
                   <div className="max-h-[280px] overflow-y-auto py-1">
-                    {(cryptoSelectList.length > 0 ? cryptoSelectList : marketRows.map((r) => ({ symbol: r.symbol, name: r.name })))
-                      .filter(
+                    {cryptoPricesLoading && cryptoSelectList.length === 0 && marketRows.length === 0 ? (
+                      <p className="px-3 py-4 text-center text-xs text-slate-500">A carregar lista da API...</p>
+                    ) : (() => {
+                      const list = cryptoSelectList.length > 0 ? cryptoSelectList : marketRows.map((r) => ({ symbol: r.symbol, name: r.name }));
+                      const filtered = list.filter(
                         (row) =>
                           !manualCryptoFilter.trim() ||
                           row.symbol.toLowerCase().includes(manualCryptoFilter.trim().toLowerCase()) ||
                           (row.name && row.name.toLowerCase().includes(manualCryptoFilter.trim().toLowerCase()))
-                      )
-                      .map((row) => (
+                      );
+                      if (filtered.length === 0) {
+                        return (
+                          <p className="px-3 py-4 text-center text-xs text-slate-500">
+                            {list.length === 0 ? "A carregar lista da API..." : "Nenhum ativo encontrado"}
+                          </p>
+                        );
+                      }
+                      return filtered.map((row) => (
                         <button
                           key={row.symbol}
                           type="button"
@@ -1768,7 +1778,8 @@ export default function WalletsPage() {
                           <span className="font-medium">{row.symbol}</span>
                           {row.name ? <span className="text-slate-500">{row.name}</span> : null}
                         </button>
-                      ))}
+                      ));
+                    })()}
                   </div>
                 </div>
               ) : null}
@@ -2066,6 +2077,39 @@ export default function WalletsPage() {
                     </option>
                   ))}
                 </select>
+              </div>
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
+                Carteiras adicionais / L2
+              </p>
+              <div>
+                <button
+                  type="button"
+                  className="rounded-full border border-slate-700 px-3 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                  onClick={() => setShowSolWalletsList((prev) => !prev)}
+                >
+                  Carteiras Solana
+                </button>
+                {showSolWalletsList ? (
+                  <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                    {solWalletOptions.map((option) => (
+                      <span
+                        key={option.id}
+                        className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1 text-slate-200"
+                      >
+                        {option.label}{" "}
+                        {isClient && isSolanaWalletAvailable(option.id) ? (
+                          <span className="ml-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
+                            Disponível
+                          </span>
+                        ) : (
+                          <span className="ml-1 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
+                            Não instalada
+                          </span>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
               </div>
               <p className="text-xs text-slate-500">
                 Conecta uma carteira e/ou adiciona endereços. O saldo total junta todas.
