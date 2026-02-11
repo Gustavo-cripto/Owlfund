@@ -121,6 +121,12 @@ const adaWalletOptions: Array<{ id: CardanoWalletId; label: string }> = [
   { id: "ledger", label: "Ledger Live" },
 ];
 
+/** Opções para etiqueta ao adicionar por endereço (inclui "Outro" para qualquer endereço Cardano/L2). */
+const adaLabelOptions: Array<{ id: CardanoWalletId | "outro"; label: string }> = [
+  ...adaWalletOptions,
+  { id: "outro", label: "Outro (qualquer endereço Cardano/L2)" },
+];
+
 export default function WalletsPage() {
   const supabase = useMemo(() => createClient(), []);
   useRequireAuth("/login");
@@ -210,7 +216,8 @@ export default function WalletsPage() {
   const [adaShown, setAdaShown] = useState<Record<string, boolean>>({});
   const [selectedAdaProvider, setSelectedAdaProvider] = useState<CardanoWalletId>("eternl");
   const [showAdaNetworks, setShowAdaNetworks] = useState(false);
-  const [adaNewWalletId, setAdaNewWalletId] = useState<CardanoWalletId>("eternl");
+  const [adaNewWalletId, setAdaNewWalletId] = useState<CardanoWalletId | "outro">("eternl");
+  const [adaNewCustomLabel, setAdaNewCustomLabel] = useState("");
   const [adaBalancesByAddress, setAdaBalancesByAddress] = useState<Record<string, string>>({});
   const [adaBalancesLoading, setAdaBalancesLoading] = useState<Record<string, boolean>>({});
   const [adaBalanceErrors, setAdaBalanceErrors] = useState<Record<string, string | null>>({});
@@ -1196,7 +1203,9 @@ export default function WalletsPage() {
     }
     const trimmed = adaNewAddress.trim();
     const walletLabel =
-      adaWalletOptions.find((o) => o.id === adaNewWalletId)?.label ?? "Eternl";
+      adaNewWalletId === "outro"
+        ? (adaNewCustomLabel.trim() || "Cardano")
+        : (adaWalletOptions.find((o) => o.id === adaNewWalletId)?.label ?? "Eternl");
     const nextWallets = upsertWallet(
       adaWallets,
       { address: trimmed, network: walletLabel },
@@ -1204,6 +1213,7 @@ export default function WalletsPage() {
     );
     setAdaWallets(nextWallets);
     setAdaNewAddress("");
+    setAdaNewCustomLabel("");
     setAdaNewError(null);
     void fetchAdaBalanceForAddress(trimmed);
   };
@@ -1846,10 +1856,10 @@ export default function WalletsPage() {
                   className="w-full rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none"
                   value={adaNewWalletId}
                   onChange={(e) =>
-                    setAdaNewWalletId(e.target.value as CardanoWalletId)
+                    setAdaNewWalletId(e.target.value as CardanoWalletId | "outro")
                   }
                 >
-                  {adaWalletOptions.map((option) => (
+                  {adaLabelOptions.map((option) => (
                     <option key={option.id} value={option.id}>
                       {option.label}
                     </option>
@@ -1863,6 +1873,14 @@ export default function WalletsPage() {
                   Adicionar
                 </button>
               </div>
+              {adaNewWalletId === "outro" ? (
+                <input
+                  className="w-full max-w-xs rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
+                  placeholder="Nome (opcional, ex: Exchange, L2)"
+                  value={adaNewCustomLabel}
+                  onChange={(e) => setAdaNewCustomLabel(e.target.value)}
+                />
+              ) : null}
               {adaNewError ? <p className="text-xs text-rose-300">{adaNewError}</p> : null}
               <p className="text-xs text-slate-500">
                 Conecta uma carteira e/ou adiciona endereços. O saldo total junta todas.
