@@ -1,8 +1,21 @@
 import Wallet, { AddressPurpose, getSupportedWallets } from "sats-connect";
 
+export const getBtcWalletProviders = () => {
+  if (typeof window === "undefined") return [];
+  return getSupportedWallets();
+};
+
 export const isXverseAvailable = () => {
   if (typeof window === "undefined") return false;
   return getSupportedWallets().some((wallet) => wallet.id === "xverse" && wallet.isInstalled);
+};
+
+/** Verifica se uma carteira BTC (por id) está instalada, ou se alguma está disponível se id for omitido. */
+export const isBtcWalletAvailable = (providerId?: string): boolean => {
+  if (typeof window === "undefined") return false;
+  const list = getSupportedWallets();
+  if (providerId) return list.some((w) => w.id === providerId && w.isInstalled);
+  return list.some((w) => w.isInstalled);
 };
 
 export const connectXverse = async () => {

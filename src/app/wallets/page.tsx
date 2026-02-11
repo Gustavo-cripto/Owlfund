@@ -26,6 +26,7 @@ import {
   connectXverse,
   getBtcBalanceFromAddress,
   getBtcBalanceFromWallet,
+  isBtcWalletAvailable,
   isXverseAvailable,
 } from "@/lib/wallets/bitcoin";
 import {
@@ -136,6 +137,14 @@ const adaLabelOptions: Array<{ id: CardanoWalletId | "outro"; label: string }> =
   ...adaWalletOptions,
   { id: "outro", label: "Outro (qualquer endereço Cardano/L2)" },
 ];
+
+const btcWalletOptions = [
+  { id: "xverse", label: "Xverse" },
+  { id: "electrum", label: "Electrum" },
+  { id: "coinbase", label: "Coinbase Wallet" },
+  { id: "exodus", label: "Exodus" },
+] as const;
+type BtcWalletId = (typeof btcWalletOptions)[number]["id"];
 
 export default function WalletsPage() {
   const supabase = useMemo(() => createClient(), []);
@@ -252,6 +261,8 @@ export default function WalletsPage() {
   );
   const [selectedEvmProvider, setSelectedEvmProvider] = useState<EvmProviderId>("metamask");
   const [showEthNetworks, setShowEthNetworks] = useState(false);
+  const [selectedBtcProvider, setSelectedBtcProvider] = useState<BtcWalletId>("xverse");
+  const [showBtcWalletsList, setShowBtcWalletsList] = useState(false);
   const [manualAddNetwork, setManualAddNetwork] = useState<"eth" | "sol" | "btc" | "ada">("sol");
   const [manualAddAddress, setManualAddAddress] = useState("");
   const [manualAddLabel, setManualAddLabel] = useState("");
@@ -555,7 +566,8 @@ export default function WalletsPage() {
   const solIsAvailable =
     isClient &&
     (isSolanaWalletAvailable(selectedSolProvider) || solWallets.length > 0);
-  const btcIsAvailable = isClient && (availability.xverse || btcWallets.length > 0);
+  const btcIsAvailable =
+    isClient && (isBtcWalletAvailable(selectedBtcProvider) || btcWallets.length > 0);
   const adaIsAvailable = isClient && isCardanoWalletAvailable(selectedAdaProvider);
 
   const ethBalanceKey = (addr: string, net: string) => `${addr}-${net}`;
@@ -2074,7 +2086,7 @@ export default function WalletsPage() {
             description={
               btcWallets.length > 0
                 ? `${btcWallets.length} carteira(s) · Saldo total BTC`
-                : "Xverse (BTC)"
+                : `${btcWalletOptions.find((o) => o.id === selectedBtcProvider)?.label ?? "Xverse"} (BTC)`
             }
             address={btcAddress ?? btcWallets[0]?.address}
             addressDisplay={
@@ -2097,6 +2109,55 @@ export default function WalletsPage() {
             isAddressVisible={btcShowMain}
           >
             <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] uppercase tracking-[0.3em] text-slate-500">
+                  Carteira BTC
+                </span>
+                <select
+                  className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1 text-xs text-slate-200 outline-none"
+                  value={selectedBtcProvider}
+                  onChange={(e) => setSelectedBtcProvider(e.target.value as BtcWalletId)}
+                >
+                  {btcWalletOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
+                Carteiras adicionais / L2
+              </p>
+              <div>
+                <button
+                  type="button"
+                  className="rounded-full border border-slate-700 px-3 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                  onClick={() => setShowBtcWalletsList((prev) => !prev)}
+                >
+                  Carteiras BTC
+                </button>
+                {showBtcWalletsList ? (
+                  <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                    {btcWalletOptions.map((option) => (
+                      <span
+                        key={option.id}
+                        className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1 text-slate-200"
+                      >
+                        {option.label}{" "}
+                        {isBtcWalletAvailable(option.id) ? (
+                          <span className="ml-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
+                            Disponível
+                          </span>
+                        ) : (
+                          <span className="ml-1 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
+                            Não instalada
+                          </span>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
               <p className="text-xs text-slate-500">
                 Conecta uma carteira e/ou adiciona endereços. O saldo total junta todas.
               </p>
