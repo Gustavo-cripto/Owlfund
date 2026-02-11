@@ -213,6 +213,7 @@ export default function WalletsPage() {
   const [adaNewWalletId, setAdaNewWalletId] = useState<CardanoWalletId>("eternl");
   const [adaBalancesByAddress, setAdaBalancesByAddress] = useState<Record<string, string>>({});
   const [adaBalancesLoading, setAdaBalancesLoading] = useState<Record<string, boolean>>({});
+  const [adaBalanceErrors, setAdaBalanceErrors] = useState<Record<string, string | null>>({});
   const [defiTotals, setDefiTotals] = useState<Record<string, number | null>>({});
   const [defiLoading, setDefiLoading] = useState<Record<string, boolean>>({});
   const [defiErrors, setDefiErrors] = useState<Record<string, string | null>>({});
@@ -1163,10 +1164,14 @@ export default function WalletsPage() {
   const fetchAdaBalanceForAddress = useCallback(async (address: string) => {
     if (!address || address === adaAddress) return;
     setAdaBalancesLoading((prev) => ({ ...prev, [address]: true }));
+    setAdaBalanceErrors((prev) => ({ ...prev, [address]: null }));
     try {
       const balance = await getAdaBalanceByAddress(address);
       setAdaBalancesByAddress((prev) => ({ ...prev, [address]: balance }));
-    } catch {
+      setAdaBalanceErrors((prev) => ({ ...prev, [address]: null }));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erro ao obter saldo.";
+      setAdaBalanceErrors((prev) => ({ ...prev, [address]: message }));
       setAdaBalancesByAddress((prev) => ({ ...prev, [address]: "—" }));
     } finally {
       setAdaBalancesLoading((prev) => ({ ...prev, [address]: false }));
@@ -1865,12 +1870,17 @@ export default function WalletsPage() {
               <div className="space-y-2">
                 {adaWallets.map((item) => {
                   const isConnected = item.address === adaAddress;
+                  const addr = item.address ?? "";
+                  const loading = adaBalancesLoading[addr];
+                  const error = adaBalanceErrors[addr];
                   const balanceDisplay =
                     isConnected
                       ? adaBalance ?? "—"
-                      : adaBalancesLoading[item.address ?? ""]
+                      : loading
                         ? "A carregar..."
-                        : adaBalancesByAddress[item.address ?? ""] ?? "—";
+                        : error
+                          ? null
+                          : adaBalancesByAddress[addr] ?? "—";
                   return (
                     <div
                       key={`${item.address}-${item.network ?? "Cardano"}`}
@@ -1887,48 +1897,74 @@ export default function WalletsPage() {
                         </p>
                         <div className="flex items-center gap-2">
                           <p className="text-slate-500">
-                            {adaShown[item.address ?? ""] ? item.address : formatAddress(item.address)}
+                            {adaShown[addr] ? item.address : formatAddress(item.address)}
                           </p>
                           <button
                             type="button"
                             onClick={() =>
-                              setAdaShown((prev) => ({
-                                ...prev,
-                                [item.address ?? ""]: !prev[item.address ?? ""],
-                              }))
+                              setAdaShown((prev) => ({ ...prev, [addr]: !prev[addr] }))
                             }
                             className="rounded-full border border-slate-700 px-2 py-1 text-[10px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                            title={adaShown[item.address ?? ""] ? "Ocultar" : "Mostrar"}
+                            title={adaShown[addr] ? "Ocultar" : "Mostrar"}
                           >
-                            {adaShown[item.address ?? ""] ? "🙈" : "👁️"}
+                            {adaShown[addr] ? "🙈" : "👁️"}
                           </button>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p>{balanceDisplay} {balanceDisplay !== "A carregar..." && balanceDisplay !== "—" ? "ADA" : ""}</p>
-                        <button
-                          className="mt-1 rounded-full border border-rose-400/40 px-3 py-1 text-[11px] font-semibold text-rose-200 transition hover:border-rose-400 hover:text-white"
-                          type="button"
-                          onClick={() => {
-                            const nextWallets = removeWallet(
-                              adaWallets,
-                              (entry) => entry.address === item.address
-                            );
-                            setAdaWallets(nextWallets);
-                            if (item.address === adaAddress) {
-                              setAdaAddress(undefined);
-                              setAdaBalance(undefined);
-                              setAdaApi(null);
-                            }
-                            setAdaBalancesByAddress((prev) => {
-                              const next = { ...prev };
-                              delete next[item.address ?? ""];
-                              return next;
-                            });
-                          }}
-                        >
-                          Remover
-                        </button>
+                        {balanceDisplay != null && (
+                          <p>
+                            {balanceDisplay}{" "}
+                            {balanceDisplay !== "A carregar..." && balanceDisplay !== "—"
+                              ? "ADA"
+                              : ""}
+                          </p>
+                        )}
+                        {error ? (
+                          <p className="text-rose-300" title={error}>
+                            {error.length > 40 ? `${error.slice(0, 40)}…` : error}
+                          </p>
+                        ) : null}
+                        <div className="mt-1 flex flex-wrap justify-end gap-1">
+                          {!isConnected && (error || balanceDisplay === "—") ? (
+                            <button
+                              type="button"
+                              className="rounded-full border border-slate-600 px-3 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white disabled:opacity-50"
+                              onClick={() => void fetchAdaBalanceForAddress(addr)}
+                              disabled={loading}
+                            >
+                              {loading ? "A carregar…" : "Tentar novamente"}
+                            </button>
+                          ) : null}
+                          <button
+                            className="rounded-full border border-rose-400/40 px-3 py-1 text-[11px] font-semibold text-rose-200 transition hover:border-rose-400 hover:text-white"
+                            type="button"
+                            onClick={() => {
+                              const nextWallets = removeWallet(
+                                adaWallets,
+                                (entry) => entry.address === item.address
+                              );
+                              setAdaWallets(nextWallets);
+                              if (item.address === adaAddress) {
+                                setAdaAddress(undefined);
+                                setAdaBalance(undefined);
+                                setAdaApi(null);
+                              }
+                              setAdaBalancesByAddress((prev) => {
+                                const next = { ...prev };
+                                delete next[addr];
+                                return next;
+                              });
+                              setAdaBalanceErrors((prev) => {
+                                const next = { ...prev };
+                                delete next[addr];
+                                return next;
+                              });
+                            }}
+                          >
+                            Remover
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
