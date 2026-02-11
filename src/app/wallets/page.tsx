@@ -422,7 +422,11 @@ export default function WalletsPage() {
       );
       const data = (await response.json()) as { total?: number; error?: string };
       if (!response.ok) {
-        throw new Error(data?.error ?? "Falha ao consultar DeFi.");
+        const msg = data?.error ?? "Falha ao consultar DeFi.";
+        const needsKey = msg.includes("DEBANK_ACCESS_KEY");
+        setDefiTotals((prev) => ({ ...prev, [address]: null }));
+        setDefiErrors((prev) => ({ ...prev, [address]: needsKey ? null : msg }));
+        return;
       }
       const total = typeof data?.total === "number" && Number.isFinite(data.total) ? data.total : 0;
       setDefiTotals((prev) => ({ ...prev, [address]: total }));
