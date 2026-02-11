@@ -13,6 +13,20 @@ const BTC_PROVIDER_ID_MAP: Record<string, string[]> = {
   exodus: ["exodus", "ExodusBitcoinProvider"],
 };
 
+/** Exodus não está na lista da sats-connect; detetamos pela extensão/app (window.ExodusBitcoinProvider ou window.exodus ou btc_providers). */
+function isExodusInjected(): boolean {
+  if (typeof window === "undefined") return false;
+  if ((window as unknown as { ExodusBitcoinProvider?: unknown }).ExodusBitcoinProvider) return true;
+  if ((window as unknown as { exodus?: unknown }).exodus) return true;
+  const btcProviders = (window as unknown as { btc_providers?: Array<{ id?: string; name?: string }> }).btc_providers;
+  if (Array.isArray(btcProviders)) {
+    const lower = (s: string) => s.toLowerCase();
+    if (btcProviders.some((p) => lower(String(p?.id ?? "")).includes("exodus") || lower(String(p?.name ?? "")).includes("exodus")))
+      return true;
+  }
+  return false;
+}
+
 export const isXverseAvailable = () => {
   if (typeof window === "undefined") return false;
   const ids = BTC_PROVIDER_ID_MAP.xverse;
@@ -24,12 +38,13 @@ export const isXverseAvailable = () => {
 /** Verifica se uma carteira BTC (por id da UI) está instalada, ou se alguma está disponível se id for omitido. */
 export const isBtcWalletAvailable = (providerId?: string): boolean => {
   if (typeof window === "undefined") return false;
+  if (providerId === "exodus") return isExodusInjected();
   const list = getSupportedWallets();
   if (providerId) {
     const idsToCheck = BTC_PROVIDER_ID_MAP[providerId] ?? [providerId];
     return list.some((w) => idsToCheck.includes(w.id) && w.isInstalled);
   }
-  return list.some((w) => w.isInstalled);
+  return list.some((w) => w.isInstalled) || isExodusInjected();
 };
 
 export const connectXverse = async () => {

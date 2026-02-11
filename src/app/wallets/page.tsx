@@ -267,6 +267,10 @@ export default function WalletsPage() {
   const [manualAddAddress, setManualAddAddress] = useState("");
   const [manualAddLabel, setManualAddLabel] = useState("");
   const [manualAddError, setManualAddError] = useState<string | null>(null);
+  const [manualCryptoAssetSymbol, setManualCryptoAssetSymbol] = useState("");
+  const [manualCryptoAssetDate, setManualCryptoAssetDate] = useState("");
+  const [manualCryptoAssetAmountUsd, setManualCryptoAssetAmountUsd] = useState("");
+  const [manualCryptoAssetError, setManualCryptoAssetError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const confirmRef = useRef<{
@@ -1335,6 +1339,28 @@ export default function WalletsPage() {
     setManualAddLabel("");
   };
 
+  const handleManualAddCryptoAsset = () => {
+    setManualCryptoAssetError(null);
+    const symbol = manualCryptoAssetSymbol.trim();
+    const amountStr = manualCryptoAssetAmountUsd.trim();
+    const amount = amountStr === "" ? NaN : Number(amountStr);
+    if (!symbol) {
+      setManualCryptoAssetError("Escolhe um ativo.");
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setManualCryptoAssetError("Insere uma quantidade em USD válida.");
+      return;
+    }
+    updateCryptoHolding(symbol, {
+      buyDate: manualCryptoAssetDate || undefined,
+      buyValue: amount,
+    });
+    setManualCryptoAssetSymbol("");
+    setManualCryptoAssetDate("");
+    setManualCryptoAssetAmountUsd("");
+  };
+
   useEffect(() => {
     if (walletMode !== "web3") return;
     if (!ethAddress && !solAddress && !btcAddress && !adaApi) return;
@@ -1668,138 +1694,49 @@ export default function WalletsPage() {
             <p className="mt-2 text-xs text-rose-300">{manualAddError}</p>
           ) : null}
         </section>
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold text-white">Carteira Cripto</h2>
-              <p className="text-sm text-slate-400">
-                Define o valor de compra e a data por ativo selecionado.
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Total</p>
-              <p className="text-lg font-semibold text-white">
-                €{" "}
-                {cryptoManualTotal.toLocaleString("pt-PT", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </p>
-            </div>
-          </div>
-
-          {cryptoPricesError ? (
-            <p className="mt-3 text-xs text-rose-300">{cryptoPricesError}</p>
-          ) : null}
-
-          <div className="mt-4 flex flex-wrap items-center gap-2">
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+          <h3 className="text-sm font-semibold text-white">Por ativos cripto manual</h3>
+          <p className="mt-1 text-xs text-slate-500">
+            Escolhe o ativo, data de compra e quantidade em USD. O ativo aparece na Carteira Cripto em baixo.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             <select
-              value={cryptoSortKey}
-              onChange={(event) => setCryptoSortKey(event.target.value as "date" | "marketCap")}
-              className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 outline-none"
+              className="min-w-[180px] rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
+              value={manualCryptoAssetSymbol}
+              onChange={(e) => setManualCryptoAssetSymbol(e.target.value)}
             >
-              <option value="date">Data de compra</option>
-              <option value="marketCap">Market cap</option>
+              <option value="">Selecionar cripto</option>
+              {marketRows.map((row) => (
+                <option key={row.symbol} value={row.symbol}>
+                  {row.symbol} {row.name ? `(${row.name})` : ""}
+                </option>
+              ))}
             </select>
+            <input
+              type="date"
+              className="rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
+              value={manualCryptoAssetDate}
+              onChange={(e) => setManualCryptoAssetDate(e.target.value)}
+            />
+            <input
+              type="number"
+              min={0}
+              step={0.01}
+              className="w-32 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none placeholder:text-slate-500 transition focus:border-orange-400"
+              placeholder="Quantidade (USD)"
+              value={manualCryptoAssetAmountUsd}
+              onChange={(e) => setManualCryptoAssetAmountUsd(e.target.value)}
+            />
             <button
               type="button"
-              onClick={() => setCryptoSortDir((prev) => (prev === "asc" ? "desc" : "asc"))}
-              className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+              className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
+              onClick={handleManualAddCryptoAsset}
             >
-              {cryptoSortDir === "asc" ? "Asc" : "Desc"}
+              Adicionar
             </button>
           </div>
-
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <select
-              value=""
-              onChange={(event) => {
-                const symbol = event.target.value;
-                if (!symbol) return;
-                toggleCryptoHolding(symbol);
-              }}
-              className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 outline-none"
-            >
-              <option value="">Adicionar ativo</option>
-              {marketRows
-                .filter((row) => !cryptoHoldings[row.symbol])
-                .slice(0, 50)
-                .map((row) => (
-                  <option key={row.symbol} value={row.symbol}>
-                    {row.symbol} · {row.name}
-                  </option>
-                ))}
-            </select>
-          </div>
-
-          <div className="mt-4 space-y-3">
-            {sortedCryptoSymbols.length === 0 ? (
-              <p className="text-sm text-slate-500">Nenhum ativo selecionado.</p>
-            ) : (
-              sortedCryptoSymbols.map((symbol) => {
-                const holding = cryptoHoldings[symbol] ?? {};
-                const market = cryptoPrices[symbol];
-                return (
-                  <div
-                    key={symbol}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-xs text-slate-100"
-                  >
-                    <div>
-                      <p className="font-semibold text-white">{symbol}</p>
-                      <p className="text-slate-500">{market?.name ?? "—"}</p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <input
-                        type="number"
-                        inputMode="decimal"
-                        min="0"
-                        step="0.01"
-                        placeholder="Valor de compra"
-                        value={holding.buyValue ?? ""}
-                        onChange={(event) => {
-                          const value = event.target.value;
-                          updateCryptoHolding(symbol, {
-                            buyValue: value === "" ? undefined : Number(value),
-                          });
-                        }}
-                        className="w-40 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
-                      />
-                      <input
-                        type="date"
-                        value={holding.buyDate ?? ""}
-                        onChange={(event) =>
-                          updateCryptoHolding(symbol, { buyDate: event.target.value })
-                        }
-                        className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
-                      />
-                      <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
-                        Preço atual:{" "}
-                        <span className="font-semibold text-white">
-                          {market
-                            ? market.priceUsd.toLocaleString("en-US", {
-                                style: "currency",
-                                currency: "USD",
-                                minimumFractionDigits: market.priceUsd < 1 ? 6 : 2,
-                                maximumFractionDigits: market.priceUsd < 1 ? 6 : 2,
-                              })
-                            : "—"}
-                        </span>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => toggleCryptoHolding(symbol)}
-                        className="rounded-full border border-slate-700 px-3 py-2 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                      >
-                        Remover
-                      </button>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-          {cryptoPricesLoading ? (
-            <p className="mt-3 text-xs text-slate-500">A atualizar preços...</p>
+          {manualCryptoAssetError ? (
+            <p className="mt-2 text-xs text-rose-300">{manualCryptoAssetError}</p>
           ) : null}
         </section>
         <div className="grid gap-6 md:grid-cols-2">
@@ -2658,6 +2595,140 @@ export default function WalletsPage() {
             </div>
           </WalletCard>
         </div>
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-white">Carteira Cripto</h2>
+              <p className="text-sm text-slate-400">
+                Define o valor de compra e a data por ativo selecionado.
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Total</p>
+              <p className="text-lg font-semibold text-white">
+                €{" "}
+                {cryptoManualTotal.toLocaleString("pt-PT", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </p>
+            </div>
+          </div>
+
+          {cryptoPricesError ? (
+            <p className="mt-3 text-xs text-rose-300">{cryptoPricesError}</p>
+          ) : null}
+
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <select
+              value={cryptoSortKey}
+              onChange={(event) => setCryptoSortKey(event.target.value as "date" | "marketCap")}
+              className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 outline-none"
+            >
+              <option value="date">Data de compra</option>
+              <option value="marketCap">Market cap</option>
+            </select>
+            <button
+              type="button"
+              onClick={() => setCryptoSortDir((prev) => (prev === "asc" ? "desc" : "asc"))}
+              className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+            >
+              {cryptoSortDir === "asc" ? "Asc" : "Desc"}
+            </button>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <select
+              value=""
+              onChange={(event) => {
+                const symbol = event.target.value;
+                if (!symbol) return;
+                toggleCryptoHolding(symbol);
+              }}
+              className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 outline-none"
+            >
+              <option value="">Adicionar ativo</option>
+              {marketRows
+                .filter((row) => !cryptoHoldings[row.symbol])
+                .slice(0, 50)
+                .map((row) => (
+                  <option key={row.symbol} value={row.symbol}>
+                    {row.symbol} · {row.name}
+                  </option>
+                ))}
+            </select>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {sortedCryptoSymbols.length === 0 ? (
+              <p className="text-sm text-slate-500">Nenhum ativo selecionado.</p>
+            ) : (
+              sortedCryptoSymbols.map((symbol) => {
+                const holding = cryptoHoldings[symbol] ?? {};
+                const market = cryptoPrices[symbol];
+                return (
+                  <div
+                    key={symbol}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-xs text-slate-100"
+                  >
+                    <div>
+                      <p className="font-semibold text-white">{symbol}</p>
+                      <p className="text-slate-500">{market?.name ?? "—"}</p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min="0"
+                        step="0.01"
+                        placeholder="Valor de compra"
+                        value={holding.buyValue ?? ""}
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          updateCryptoHolding(symbol, {
+                            buyValue: value === "" ? undefined : Number(value),
+                          });
+                        }}
+                        className="w-40 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
+                      />
+                      <input
+                        type="date"
+                        value={holding.buyDate ?? ""}
+                        onChange={(event) =>
+                          updateCryptoHolding(symbol, { buyDate: event.target.value })
+                        }
+                        className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
+                      />
+                      <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
+                        Preço atual:{" "}
+                        <span className="font-semibold text-white">
+                          {market
+                            ? market.priceUsd.toLocaleString("en-US", {
+                                style: "currency",
+                                currency: "USD",
+                                minimumFractionDigits: market.priceUsd < 1 ? 6 : 2,
+                                maximumFractionDigits: market.priceUsd < 1 ? 6 : 2,
+                              })
+                            : "—"}
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => toggleCryptoHolding(symbol)}
+                        className="rounded-full border border-slate-700 px-3 py-2 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+          {cryptoPricesLoading ? (
+            <p className="mt-3 text-xs text-slate-500">A atualizar preços...</p>
+          ) : null}
+        </section>
         </>
         ) : (
           <div className="rounded-3xl border border-slate-800 bg-slate-950/60 p-6">
