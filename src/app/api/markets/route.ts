@@ -185,7 +185,16 @@ export async function GET() {
       .filter((row) => rows.some((marketRow) => marketRow.symbol === row.symbol))
       .slice(0, 10);
 
-    return NextResponse.json({ data: rows, sentimentTop10 });
+    // Lista completa para dropdown "Por ativos cripto manual" (~200 criptos, sem estáveis)
+    const selectList = coingeckoPayload
+      .filter((row) => row.symbol && !STABLE_SYMBOLS.has(row.symbol.toUpperCase()))
+      .slice(0, 250)
+      .map((row) => ({
+        symbol: row.symbol.toUpperCase(),
+        name: row.name ?? row.symbol,
+      }));
+
+    return NextResponse.json({ data: rows, sentimentTop10, selectList });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Erro inesperado." },

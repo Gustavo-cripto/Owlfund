@@ -171,6 +171,7 @@ export default function WalletsPage() {
   const [cryptoPricesLoading, setCryptoPricesLoading] = useState(false);
   const [cryptoPricesError, setCryptoPricesError] = useState<string | null>(null);
   const [marketRows, setMarketRows] = useState<MarketRow[]>([]);
+  const [cryptoSelectList, setCryptoSelectList] = useState<Array<{ symbol: string; name: string }>>([]);
   const [web3Prices, setWeb3Prices] = useState<Record<string, MarketRow>>({});
   const [web3PricesLoading, setWeb3PricesLoading] = useState(false);
   const [cryptoSortKey, setCryptoSortKey] = useState<"date" | "marketCap">("date");
@@ -477,8 +478,12 @@ export default function WalletsPage() {
         const payload = (await response.json().catch(() => null)) as { error?: string } | null;
         throw new Error(payload?.error ?? "Falha ao obter preços.");
       }
-      const payload = (await response.json()) as { data?: MarketRow[] };
+      const payload = (await response.json()) as {
+        data?: MarketRow[];
+        selectList?: Array<{ symbol: string; name: string }>;
+      };
       setMarketRows(payload.data ?? []);
+      setCryptoSelectList(payload.selectList ?? []);
       const map: Record<string, MarketRow> = {};
       (payload.data ?? []).forEach((row) => {
         map[row.symbol] = row;
@@ -1701,16 +1706,18 @@ export default function WalletsPage() {
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <select
-              className="min-w-[180px] rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
+              className="min-w-[200px] rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
               value={manualCryptoAssetSymbol}
               onChange={(e) => setManualCryptoAssetSymbol(e.target.value)}
             >
               <option value="">Selecionar cripto</option>
-              {marketRows.map((row) => (
-                <option key={row.symbol} value={row.symbol}>
-                  {row.symbol} {row.name ? `(${row.name})` : ""}
-                </option>
-              ))}
+              {(cryptoSelectList.length > 0 ? cryptoSelectList : marketRows.map((r) => ({ symbol: r.symbol, name: r.name }))).map(
+                (row) => (
+                  <option key={row.symbol} value={row.symbol}>
+                    {row.symbol} {row.name ? ` · ${row.name}` : ""}
+                  </option>
+                )
+              )}
             </select>
             <input
               type="date"
