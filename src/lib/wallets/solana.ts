@@ -16,7 +16,7 @@ const isRpcError = (err: unknown) => {
   );
 };
 
-export type SolanaWalletId = "phantom" | "backpack" | "solflare" | "glow" | "ledger";
+export type SolanaWalletId = "phantom" | "backpack" | "solflare" | "glow" | "flint" | "ledger";
 
 export const isPhantomAvailable = () =>
   typeof window !== "undefined" && !!window.solana?.isPhantom;
@@ -30,6 +30,9 @@ export const isBackpackAvailable = () =>
 export const isGlowAvailable = () =>
   typeof window !== "undefined" && !!window.glow;
 
+export const isFlintAvailable = () =>
+  typeof window !== "undefined" && !!window.flint;
+
 export const isSolanaWalletAvailable = (id: SolanaWalletId): boolean => {
   if (typeof window === "undefined") return false;
   switch (id) {
@@ -41,6 +44,8 @@ export const isSolanaWalletAvailable = (id: SolanaWalletId): boolean => {
       return !!window.backpack;
     case "glow":
       return !!window.glow;
+    case "flint":
+      return !!window.flint;
     case "ledger":
       return false;
     default:
@@ -91,6 +96,19 @@ export const connectGlow = async (): Promise<string> => {
   return address;
 };
 
+export const connectFlint = async (): Promise<string> => {
+  if (!window.flint) {
+    throw new Error("Flint não está disponível. Instala a extensão Flint.");
+  }
+  const response = await window.flint.connect();
+  const address =
+    response?.publicKey?.toString() ??
+    response?.address ??
+    window.flint.publicKey?.toString();
+  if (!address) throw new Error("Nenhuma conta retornada pela Flint.");
+  return address;
+};
+
 export const connectSolanaWallet = async (providerId: SolanaWalletId): Promise<string> => {
   switch (providerId) {
     case "phantom":
@@ -101,6 +119,8 @@ export const connectSolanaWallet = async (providerId: SolanaWalletId): Promise<s
       return connectBackpack();
     case "glow":
       return connectGlow();
+    case "flint":
+      return connectFlint();
     case "ledger":
       throw new Error(
         "Ledger é uma carteira de hardware. Conecta o Ledger através do Phantom ou Solflare (suportam Ledger) e escolhe essa carteira no dropdown."

@@ -20,6 +20,10 @@ declare global {
     glow?: {
       connect: (opts?: { onlyIfTrusted?: boolean }) => Promise<{ address?: string; publicKey?: { toString: () => string } }>;
     };
+    flint?: {
+      connect: () => Promise<{ publicKey?: { toString: () => string }; address?: string }>;
+      publicKey?: { toString: () => string } | null;
+    };
     cardano?: {
       eternl?: { enable: () => Promise<unknown> };
       daedalus?: { enable: () => Promise<unknown> };

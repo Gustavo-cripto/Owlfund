@@ -113,6 +113,7 @@ const solWalletOptions = [
   { id: "backpack", label: "Backpack" },
   { id: "solflare", label: "Solflare" },
   { id: "glow", label: "Glow Wallet" },
+  { id: "flint", label: "Flint" },
   { id: "ledger", label: "Ledger (Hardware)" },
 ] as const;
 type SolanaWalletId = (typeof solWalletOptions)[number]["id"];
