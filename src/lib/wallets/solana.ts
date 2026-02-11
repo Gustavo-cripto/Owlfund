@@ -63,7 +63,10 @@ export const connectSolflare = async (): Promise<string> => {
     throw new Error("Solflare não está disponível. Instala a extensão Solflare.");
   }
   const response = await window.solflare.connect();
-  const address = response?.publicKey?.toString() ?? response?.address;
+  const address =
+    response?.publicKey?.toString() ??
+    response?.address ??
+    window.solflare.publicKey?.toString();
   if (!address) throw new Error("Nenhuma conta retornada pela Solflare.");
   return address;
 };

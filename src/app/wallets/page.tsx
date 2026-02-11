@@ -94,7 +94,6 @@ const getAllowedHosts = () =>
     .filter(Boolean);
 
 const evmNetworks: EvmNetwork[] = ["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon"];
-const solNetworks = ["Solana", "Eclipse", "Sonic", "Solayer"] as const;
 const solWalletOptions = [
   { id: "phantom", label: "Phantom Wallet" },
   { id: "backpack", label: "Backpack" },
@@ -160,7 +159,7 @@ export default function WalletsPage() {
   const [solLoading, setSolLoading] = useState(false);
   const [solWallets, setSolWallets] = useState<StoredWalletEntry[]>([]);
   const [solNewAddress, setSolNewAddress] = useState("");
-  const [solNewNetwork, setSolNewNetwork] = useState<(typeof solNetworks)[number]>("Solana");
+  const [solNewWalletId, setSolNewWalletId] = useState<(typeof solWalletOptions)[number]["id"]>("phantom");
   const [solNewError, setSolNewError] = useState<string | null>(null);
   const [solNewLoading, setSolNewLoading] = useState(false);
   const [solShowMain, setSolShowMain] = useState(false);
@@ -878,11 +877,12 @@ export default function WalletsPage() {
       setSolNewLoading(true);
       setSolNewError(null);
       const balance = await getSolBalance(solNewAddress);
+      const walletLabel = solWalletOptions.find((o) => o.id === solNewWalletId)?.label ?? "Phantom Wallet";
       const nextWallets = upsertWallet(
         solWallets,
-        { address: solNewAddress, balance, network: solNewNetwork },
+        { address: solNewAddress, balance, network: walletLabel },
         (item) =>
-          item.address === solNewAddress && (item.network ?? "Solana") === solNewNetwork
+          item.address === solNewAddress && (item.network ?? "Solana") === walletLabel
       );
       setSolWallets(nextWallets);
       updateWalletSnapshot({ sol: nextWallets });
@@ -1466,12 +1466,12 @@ export default function WalletsPage() {
                 </button>
                 {showSolNetworks ? (
                   <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-                    {solNetworks.map((network) => (
+                    {solWalletOptions.map((option) => (
                       <span
-                        key={network}
+                        key={option.id}
                         className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1 text-slate-200"
                       >
-                        {network}{" "}
+                        {option.label}{" "}
                         <span className="ml-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
                           Disponível
                         </span>
@@ -1489,14 +1489,14 @@ export default function WalletsPage() {
                 />
                 <select
                   className="w-full rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none"
-                  value={solNewNetwork}
+                  value={solNewWalletId}
                   onChange={(event) =>
-                    setSolNewNetwork(event.target.value as (typeof solNetworks)[number])
+                    setSolNewWalletId(event.target.value as (typeof solWalletOptions)[number]["id"])
                   }
                 >
-                  {solNetworks.map((network) => (
-                    <option key={network} value={network}>
-                      {network}
+                  {solWalletOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
                     </option>
                   ))}
                 </select>
