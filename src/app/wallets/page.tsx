@@ -272,6 +272,9 @@ export default function WalletsPage() {
   const [manualCryptoAssetDate, setManualCryptoAssetDate] = useState("");
   const [manualCryptoAssetAmountUsd, setManualCryptoAssetAmountUsd] = useState("");
   const [manualCryptoAssetError, setManualCryptoAssetError] = useState<string | null>(null);
+  const [manualCryptoSelectOpen, setManualCryptoSelectOpen] = useState(false);
+  const [manualCryptoFilter, setManualCryptoFilter] = useState("");
+  const manualCryptoSelectRef = useRef<HTMLDivElement>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const confirmRef = useRef<{
@@ -279,6 +282,17 @@ export default function WalletsPage() {
     description: string;
     onConfirm: () => Promise<void> | void;
   } | null>(null);
+
+  useEffect(() => {
+    if (!manualCryptoSelectOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (manualCryptoSelectRef.current && !manualCryptoSelectRef.current.contains(e.target as Node)) {
+        setManualCryptoSelectOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [manualCryptoSelectOpen]);
 
   useEffect(() => {
     setIsClient(true);
@@ -1705,20 +1719,60 @@ export default function WalletsPage() {
             Escolhe o ativo, data de compra e quantidade em USD. O ativo aparece na Carteira Cripto em baixo.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <select
-              className="min-w-[200px] rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
-              value={manualCryptoAssetSymbol}
-              onChange={(e) => setManualCryptoAssetSymbol(e.target.value)}
-            >
-              <option value="">Selecionar cripto</option>
-              {(cryptoSelectList.length > 0 ? cryptoSelectList : marketRows.map((r) => ({ symbol: r.symbol, name: r.name }))).map(
-                (row) => (
-                  <option key={row.symbol} value={row.symbol}>
-                    {row.symbol} {row.name ? ` · ${row.name}` : ""}
-                  </option>
-                )
-              )}
-            </select>
+            <div className="relative min-w-[220px]" ref={manualCryptoSelectRef}>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-left text-xs text-slate-200 outline-none transition focus:border-orange-400"
+                onClick={() => setManualCryptoSelectOpen((o) => !o)}
+              >
+                <span className="truncate">
+                  {manualCryptoAssetSymbol
+                    ? (() => {
+                        const list = cryptoSelectList.length > 0 ? cryptoSelectList : marketRows.map((r) => ({ symbol: r.symbol, name: r.name }));
+                        const name = list.find((r) => r.symbol === manualCryptoAssetSymbol)?.name;
+                        return name ? `${manualCryptoAssetSymbol} · ${name}` : manualCryptoAssetSymbol;
+                      })()
+                    : "Selecionar cripto"}
+                </span>
+                <span className="text-slate-500">{manualCryptoSelectOpen ? "▲" : "▼"}</span>
+              </button>
+              {manualCryptoSelectOpen ? (
+                <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[280px] rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
+                  <input
+                    type="text"
+                    className="w-full border-b border-slate-700 bg-slate-900/80 px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none"
+                    placeholder="Pesquisar (símbolo ou nome)..."
+                    value={manualCryptoFilter}
+                    onChange={(e) => setManualCryptoFilter(e.target.value)}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  />
+                  <div className="max-h-[280px] overflow-y-auto py-1">
+                    {(cryptoSelectList.length > 0 ? cryptoSelectList : marketRows.map((r) => ({ symbol: r.symbol, name: r.name })))
+                      .filter(
+                        (row) =>
+                          !manualCryptoFilter.trim() ||
+                          row.symbol.toLowerCase().includes(manualCryptoFilter.trim().toLowerCase()) ||
+                          (row.name && row.name.toLowerCase().includes(manualCryptoFilter.trim().toLowerCase()))
+                      )
+                      .map((row) => (
+                        <button
+                          key={row.symbol}
+                          type="button"
+                          className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-xs text-slate-200 hover:bg-slate-800"
+                          onClick={() => {
+                            setManualCryptoAssetSymbol(row.symbol);
+                            setManualCryptoSelectOpen(false);
+                            setManualCryptoFilter("");
+                          }}
+                        >
+                          <span className="font-medium">{row.symbol}</span>
+                          {row.name ? <span className="text-slate-500">{row.name}</span> : null}
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
             <input
               type="date"
               className="rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
