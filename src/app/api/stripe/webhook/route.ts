@@ -1,0 +1,95 @@
+import { NextResponse } from "next/server";
+import type Stripe from "stripe";
+
+import { getStripe } from "@/lib/stripe";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
+
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET ?? "";
+
+// Stripe SDK muda bastante a tipagem entre versões; aqui preferimos ser permissivos
+// para não bloquear o build da Vercel.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const upsertSubscription = async (subscription: any) => {
+  const supabaseAdmin = getSupabaseAdmin();
+  const customerId =
+    typeof subscription.customer === "string"
+      ? subscription.customer
+      : subscription.customer.id;
+
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("id")
+    .eq("stripe_customer_id", customerId)
+    .maybeSingle();
+
+  if (!profile?.id) return;
+
+  const priceId = subscription.items?.data?.[0]?.price?.id ?? null;
+  const currentPeriodEndUnix = subscription.current_period_end as number | undefined;
+  const currentPeriodEnd = currentPeriodEndUnix
+    ? new Date(currentPeriodEndUnix * 1000).toISOString()
+    : null;
+
+  await supabaseAdmin.from("subscriptions").upsert({
+    user_id: profile.id,
+    status: subscription.status,
+    price_id: priceId,
+    current_period_end: currentPeriodEnd,
+    cancel_at_period_end: subscription.cancel_at_period_end ?? false,
+  });
+};
+
+export async function POST(request: Request) {
+  if (!webhookSecret) {
+    return NextResponse.json(
+      { error: "STRIPE_WEBHOOK_SECRET não configurada." },
+      { status: 500 }
+    );
+  }
+
+  const stripe = getStripe();
+
+  const signature = request.headers.get("stripe-signature");
+  if (!signature) {
+    return NextResponse.json({ error: "Assinatura ausente." }, { status: 400 });
+  }
+
+  const body = await request.text();
+  let event: Stripe.Event;
+
+  try {
+    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Webhook inválido." },
+      { status: 400 }
+    );
+  }
+
+  try {
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object as Stripe.Checkout.Session;
+      if (session.subscription) {
+        const subscription = await stripe.subscriptions.retrieve(
+          session.subscription as string
+        );
+        await upsertSubscription(subscription);
+      }
+    }
+
+    if (
+      event.type === "customer.subscription.updated" ||
+      event.type === "customer.subscription.deleted"
+    ) {
+      const subscription = event.data.object as Stripe.Subscription;
+      await upsertSubscription(subscription);
+    }
+
+    return NextResponse.json({ received: true });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Erro no webhook." },
+      { status: 500 }
+    );
+  }
+}
