@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import AppHeader from "@/components/AppHeader";
 import WalletCard from "@/components/wallets/WalletCard";
@@ -32,6 +32,7 @@ import {
   connectEternl,
   connectCardanoWallet,
   getAdaBalance,
+  getAdaBalanceByAddress,
   isCardanoWalletAvailable,
   isEternlAvailable,
   type CardanoWalletId,
@@ -210,6 +211,8 @@ export default function WalletsPage() {
   const [selectedAdaProvider, setSelectedAdaProvider] = useState<CardanoWalletId>("eternl");
   const [showAdaNetworks, setShowAdaNetworks] = useState(false);
   const [adaNewWalletId, setAdaNewWalletId] = useState<CardanoWalletId>("eternl");
+  const [adaBalancesByAddress, setAdaBalancesByAddress] = useState<Record<string, string>>({});
+  const [adaBalancesLoading, setAdaBalancesLoading] = useState<Record<string, boolean>>({});
   const [defiTotals, setDefiTotals] = useState<Record<string, number | null>>({});
   const [defiLoading, setDefiLoading] = useState<Record<string, boolean>>({});
   const [defiErrors, setDefiErrors] = useState<Record<string, string | null>>({});
@@ -516,6 +519,17 @@ export default function WalletsPage() {
     (isSolanaWalletAvailable(selectedSolProvider) || solWallets.length > 0);
   const btcIsAvailable = isClient && (availability.xverse || btcWallets.length > 0);
   const adaIsAvailable = isClient && isCardanoWalletAvailable(selectedAdaProvider);
+
+  const totalAdaBalance = useMemo(() => {
+    let sum = parseFloat(adaBalance ?? "") || 0;
+    adaWallets.forEach((w) => {
+      if (w.address && w.address !== adaAddress) {
+        const b = adaBalancesByAddress[w.address];
+        sum += typeof b === "string" && b !== "—" ? parseFloat(b) || 0 : 0;
+      }
+    });
+    return sum.toFixed(6);
+  }, [adaBalance, adaWallets, adaAddress, adaBalancesByAddress]);
 
   const upsertWallet = (
     list: StoredWalletEntry[],
@@ -1093,12 +1107,12 @@ export default function WalletsPage() {
   };
 
   const handleAdaRefresh = async () => {
-    if (!adaApi) return;
     try {
       setAdaLoading(true);
-      const balance = await getAdaBalance(adaApi);
-      setAdaBalance(balance);
-      if (adaAddress) {
+      setAdaError(null);
+      if (adaApi && adaAddress) {
+        const balance = await getAdaBalance(adaApi);
+        setAdaBalance(balance);
         const nextWallets = upsertWallet(
           adaWallets,
           { address: adaAddress, balance, network: "Cardano" },
@@ -1106,6 +1120,11 @@ export default function WalletsPage() {
         );
         setAdaWallets(nextWallets);
       }
+      await Promise.all(
+        adaWallets
+          .filter((w) => w.address && w.address !== adaAddress)
+          .map((w) => fetchAdaBalanceForAddress(w.address!))
+      );
     } catch (error) {
       setAdaError(error instanceof Error ? error.message : "Erro ao atualizar saldo.");
     } finally {
@@ -1141,6 +1160,26 @@ export default function WalletsPage() {
     return () => window.clearInterval(id);
   }, [walletMode, ethAddress, solAddress, btcAddress, adaApi]);
 
+  const fetchAdaBalanceForAddress = useCallback(async (address: string) => {
+    if (!address || address === adaAddress) return;
+    setAdaBalancesLoading((prev) => ({ ...prev, [address]: true }));
+    try {
+      const balance = await getAdaBalanceByAddress(address);
+      setAdaBalancesByAddress((prev) => ({ ...prev, [address]: balance }));
+    } catch {
+      setAdaBalancesByAddress((prev) => ({ ...prev, [address]: "—" }));
+    } finally {
+      setAdaBalancesLoading((prev) => ({ ...prev, [address]: false }));
+    }
+  }, [adaAddress]);
+
+  useEffect(() => {
+    if (walletMode !== "web3") return;
+    adaWallets
+      .filter((w) => w.address && w.address !== adaAddress)
+      .forEach((w) => void fetchAdaBalanceForAddress(w.address!));
+  }, [walletMode, adaWallets, adaAddress, fetchAdaBalanceForAddress]);
+
   const handleAddAdaWalletInternal = () => {
     if (!adaNewAddress.trim()) {
       setAdaNewError("Insere um endereço.");
@@ -1150,16 +1189,18 @@ export default function WalletsPage() {
       setAdaNewError("Endereço Cardano inválido.");
       return;
     }
+    const trimmed = adaNewAddress.trim();
     const walletLabel =
       adaWalletOptions.find((o) => o.id === adaNewWalletId)?.label ?? "Eternl";
     const nextWallets = upsertWallet(
       adaWallets,
-      { address: adaNewAddress, network: walletLabel },
-      (item) => item.address === adaNewAddress && (item.network ?? "Cardano") === walletLabel
+      { address: trimmed, network: walletLabel },
+      (item) => item.address === trimmed && (item.network ?? "Cardano") === walletLabel
     );
     setAdaWallets(nextWallets);
     setAdaNewAddress("");
-    setAdaNewError("Saldo só disponível via carteira conectada.");
+    setAdaNewError(null);
+    void fetchAdaBalanceForAddress(trimmed);
   };
 
   const handleAddAdaWallet = () => {
@@ -1719,14 +1760,22 @@ export default function WalletsPage() {
           </WalletCard>
           <WalletCard
             title="Cardano"
-            description={`${adaWalletOptions.find((o) => o.id === selectedAdaProvider)?.label ?? "Eternl"} (ADA)`}
-            address={adaAddress}
-            addressDisplay={adaShowMain ? adaAddress : formatAddress(adaAddress)}
-            balance={adaBalance}
+            description={
+              adaWallets.length > 0
+                ? `${adaWallets.length} carteira(s) · Saldo total ADA`
+                : `${adaWalletOptions.find((o) => o.id === selectedAdaProvider)?.label ?? "Eternl"} (ADA)`
+            }
+            address={adaAddress ?? adaWallets[0]?.address}
+            addressDisplay={
+              adaShowMain
+                ? adaAddress ?? adaWallets[0]?.address
+                : formatAddress(adaAddress ?? adaWallets[0]?.address)
+            }
+            balance={adaWallets.length > 0 ? totalAdaBalance : adaBalance}
             balanceUnit="ADA"
-            fiatValueUsd={getFiatValue("ADA", adaBalance)}
-            isConnected={!!adaAddress}
-            isAvailable={adaIsAvailable}
+            fiatValueUsd={getFiatValue("ADA", adaWallets.length > 0 ? totalAdaBalance : adaBalance)}
+            isConnected={!!adaAddress || adaWallets.length > 0}
+            isAvailable={adaIsAvailable || adaWallets.length > 0}
             isLoading={adaLoading}
             error={adaError}
             onConnect={handleAdaConnect}
@@ -1810,20 +1859,32 @@ export default function WalletsPage() {
                 </button>
               </div>
               {adaNewError ? <p className="text-xs text-rose-300">{adaNewError}</p> : null}
+              <p className="text-xs text-slate-500">
+                Conecta uma carteira e/ou adiciona endereços. O saldo total junta todas.
+              </p>
               <div className="space-y-2">
-                {adaWallets
-                  .filter(
-                    (item) =>
-                      item.address !== adaAddress ||
-                      (item.network ?? "Cardano") !== "Cardano"
-                  )
-                  .map((item) => (
+                {adaWallets.map((item) => {
+                  const isConnected = item.address === adaAddress;
+                  const balanceDisplay =
+                    isConnected
+                      ? adaBalance ?? "—"
+                      : adaBalancesLoading[item.address ?? ""]
+                        ? "A carregar..."
+                        : adaBalancesByAddress[item.address ?? ""] ?? "—";
+                  return (
                     <div
                       key={`${item.address}-${item.network ?? "Cardano"}`}
                       className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300"
                     >
                       <div className="space-y-1">
-                        <p className="font-semibold text-white">{item.network ?? "Cardano"}</p>
+                        <p className="font-semibold text-white">
+                          {item.network ?? "Cardano"}
+                          {isConnected ? (
+                            <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
+                              Conectada
+                            </span>
+                          ) : null}
+                        </p>
                         <div className="flex items-center gap-2">
                           <p className="text-slate-500">
                             {adaShown[item.address ?? ""] ? item.address : formatAddress(item.address)}
@@ -1844,23 +1905,34 @@ export default function WalletsPage() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p>{item.balance ?? "—"} {item.balance ? "ADA" : ""}</p>
+                        <p>{balanceDisplay} {balanceDisplay !== "A carregar..." && balanceDisplay !== "—" ? "ADA" : ""}</p>
                         <button
                           className="mt-1 rounded-full border border-rose-400/40 px-3 py-1 text-[11px] font-semibold text-rose-200 transition hover:border-rose-400 hover:text-white"
                           type="button"
-                            onClick={() => {
+                          onClick={() => {
                             const nextWallets = removeWallet(
                               adaWallets,
                               (entry) => entry.address === item.address
                             );
                             setAdaWallets(nextWallets);
+                            if (item.address === adaAddress) {
+                              setAdaAddress(undefined);
+                              setAdaBalance(undefined);
+                              setAdaApi(null);
+                            }
+                            setAdaBalancesByAddress((prev) => {
+                              const next = { ...prev };
+                              delete next[item.address ?? ""];
+                              return next;
+                            });
                           }}
                         >
                           Remover
                         </button>
                       </div>
                     </div>
-                  ))}
+                  );
+                })}
               </div>
             </div>
           </WalletCard>

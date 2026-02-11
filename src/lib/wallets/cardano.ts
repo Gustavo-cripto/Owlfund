@@ -109,3 +109,16 @@ export const getAdaBalance = async (api: EternlApi) => {
   const lovelace = value.coin().to_str();
   return (Number(lovelace) / 1_000_000).toFixed(6);
 };
+
+/** Obtém saldo ADA por endereço (via API Blockfrost no servidor). */
+export const getAdaBalanceByAddress = async (address: string): Promise<string> => {
+  const res = await fetch(
+    `${typeof window !== "undefined" ? window.location.origin : ""}/api/ada-balance?address=${encodeURIComponent(address)}`
+  );
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as { error?: string }).error ?? "Erro ao obter saldo.");
+  }
+  const data = (await res.json()) as { balance?: string };
+  return data.balance ?? "0";
+};
