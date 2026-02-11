@@ -25,7 +25,7 @@ declare global {
       daedalus?: { enable: () => Promise<unknown> };
       yoroi?: { enable: () => Promise<unknown> };
       adalite?: { enable: () => Promise<unknown> };
-      nami?: { enable: () => Promise<unknown> };
+      lace?: { enable: () => Promise<unknown> };
       ledger?: { enable: () => Promise<unknown> };
     };
   }

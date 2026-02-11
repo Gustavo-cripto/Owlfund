@@ -31,7 +31,7 @@ export type CardanoWalletId =
   | "daedalus"
   | "yoroi"
   | "adalite"
-  | "nami"
+  | "lace"
   | "ledger";
 
 const getCardanoWalletKey = (id: CardanoWalletId): keyof NonNullable<typeof window.cardano> => {
@@ -39,7 +39,7 @@ const getCardanoWalletKey = (id: CardanoWalletId): keyof NonNullable<typeof wind
   if (id === "daedalus") return "daedalus";
   if (id === "yoroi") return "yoroi";
   if (id === "adalite") return "adalite";
-  if (id === "nami") return "nami";
+  if (id === "lace") return "lace";
   if (id === "ledger") return "ledger";
   return "eternl";
 };
@@ -81,7 +81,7 @@ const connectCardanoWalletById = async (
       daedalus: "Daedalus",
       yoroi: "Yoroi",
       adalite: "Ada Lite",
-      nami: "Nami",
+      lace: "Lace",
       ledger: "Ledger Live",
     };
     throw new Error(`${labels[id]} não está disponível. Instala a extensão.`);

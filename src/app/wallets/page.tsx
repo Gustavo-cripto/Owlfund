@@ -116,7 +116,7 @@ const adaWalletOptions: Array<{ id: CardanoWalletId; label: string }> = [
   { id: "daedalus", label: "Daedalus" },
   { id: "yoroi", label: "Yoroi" },
   { id: "adalite", label: "Ada Lite" },
-  { id: "nami", label: "Nami" },
+  { id: "lace", label: "Lace" },
   { id: "ledger", label: "Ledger Live" },
 ];
 
