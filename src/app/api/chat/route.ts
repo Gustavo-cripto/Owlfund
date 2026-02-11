@@ -1,0 +1,424 @@
+import { NextResponse } from "next/server";
+
+type IncomingMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+const SYSTEM_PROMPT =
+  "Tu és o Chain: um analista de cripto/mercados com linguagem clara e direta (PT-PT). " +
+  "Quando o utilizador disser olá/oi/hello, apresenta-te com o teu nome e uma frase simpática focada em criptomoedas, por exemplo: " +
+  "\"Olá! Eu sou o Chain — vamos decifrar o mercado cripto juntos. O que queres analisar hoje (BTC, ETH, altcoins, notícias, RSI/MACD)?\" " +
+  "Não dês aconselhamento financeiro direto nem promessas. Foca em contexto, riscos, níveis técnicos, fatores macro e on-chain quando fizer sentido. " +
+  "Quando faltarem dados, faz 1-2 perguntas objetivas. Se o utilizador pedir 'o que comprar/vender', responde com cenários e gestão de risco em vez de recomendações.";
+
+type ProviderName = "openai" | "groq" | "ollama" | "xai";
+
+const hasOpenAi = () => Boolean((process.env.OPENAI_API_KEY ?? "").trim());
+const hasGroq = () => Boolean((process.env.GROQ_API_KEY ?? "").trim());
+const hasXai = () => Boolean((process.env.XAI_API_KEY ?? "").trim());
+// Para Ollama funcionar na Vercel, precisa de um host remoto; 127.0.0.1 não serve.
+const hasOllama = () => Boolean((process.env.OLLAMA_BASE_URL ?? "").trim());
+
+const parseProvider = (value: string): ProviderName | null => {
+  const v = value.trim().toLowerCase();
+  if (v === "ollama") return "ollama";
+  if (v === "groq") return "groq";
+  if (v === "xai") return "xai";
+  if (v === "openai") return "openai";
+  return null;
+};
+
+const getForcedProvider = (): ProviderName | null => {
+  const forced = (process.env.CHAT_PROVIDER ?? "").trim().toLowerCase();
+  return parseProvider(forced);
+};
+
+const pickProvider = (): ProviderName => {
+  const forced = getForcedProvider();
+  if (forced) return forced;
+
+  // Auto: prefer Ollama (local), then Groq, then xAI, then OpenAI.
+  if (hasOllama()) return "ollama";
+  if (hasGroq()) return "groq";
+  if (hasXai()) return "xai";
+  if (hasOpenAi()) return "openai";
+  return "openai";
+};
+
+const toChatMessages = (recentMessages: IncomingMessage[]) => [
+  { role: "system", content: SYSTEM_PROMPT },
+  ...recentMessages,
+];
+
+async function callOpenAi(messages: Array<{ role: string; content: string }>) {
+  const apiKey = (process.env.OPENAI_API_KEY ?? "").trim();
+  if (!apiKey) {
+    return {
+      ok: false as const,
+      status: 500,
+      error: "OPENAI_API_KEY não configurada.",
+    };
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    signal: controller.signal,
+    body: JSON.stringify({
+      model: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+      temperature: 0.6,
+      messages,
+    }),
+  }).finally(() => clearTimeout(timeoutId));
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    const msg = payload?.error?.message as unknown;
+    const message = typeof msg === "string" ? msg : "";
+
+    if (response.status === 401) {
+      return {
+        ok: false as const,
+        status: 401,
+        error:
+          "Chave OpenAI inválida. Na Vercel, confirma `OPENAI_API_KEY` (sem espaços/linhas a mais e sem aspas) e faz Redeploy.",
+      };
+    }
+
+    if (/exceeded your current quota/i.test(message)) {
+      return {
+        ok: false as const,
+        status: 402,
+        error:
+          "A tua conta OpenAI está sem créditos/quota. Se queres não pagar, usa `GROQ_API_KEY` (free tier) ou `OLLAMA_BASE_URL` (local).",
+      };
+    }
+
+    return {
+      ok: false as const,
+      status: response.status,
+      error: message || "Erro ao chamar OpenAI.",
+    };
+  }
+
+  const data = (await response.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
+  const reply = data.choices?.[0]?.message?.content?.trim() ?? "";
+  if (!reply) {
+    return { ok: false as const, status: 502, error: "Resposta vazia da IA." };
+  }
+  return { ok: true as const, reply };
+}
+
+async function callGroq(messages: Array<{ role: string; content: string }>) {
+  const apiKey = (process.env.GROQ_API_KEY ?? "").trim();
+  if (!apiKey) {
+    return {
+      ok: false as const,
+      status: 500,
+      error: "GROQ_API_KEY não configurada.",
+    };
+  }
+
+  const model = (process.env.GROQ_MODEL ?? "").trim() || "llama-3.1-8b-instant";
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  let response: Response;
+  try {
+    response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model,
+        temperature: 0.6,
+        messages,
+      }),
+    }).finally(() => clearTimeout(timeoutId));
+  } catch (err) {
+    const hint =
+      err instanceof DOMException && err.name === "AbortError"
+        ? "Timeout a contactar Groq."
+        : "Falha de rede a contactar Groq.";
+    return { ok: false as const, status: 502, error: `${hint} Confirma ` + "`GROQ_API_KEY`" + " e tenta novamente." };
+  }
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    const msg = payload?.error?.message as unknown;
+    const message = typeof msg === "string" ? msg : "";
+    if (response.status === 401) {
+      return {
+        ok: false as const,
+        status: 401,
+        error:
+          "Chave Groq inválida. Confirma se a `GROQ_API_KEY` é mesmo da Groq (começa por `gsk_...`) e faz Redeploy.",
+      };
+    }
+    return {
+      ok: false as const,
+      status: response.status,
+      error: message || "Erro ao chamar Groq.",
+    };
+  }
+
+  const data = (await response.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
+  const reply = data.choices?.[0]?.message?.content?.trim() ?? "";
+  if (!reply) {
+    return { ok: false as const, status: 502, error: "Resposta vazia da IA." };
+  }
+  return { ok: true as const, reply };
+}
+
+async function callXai(messages: Array<{ role: string; content: string }>) {
+  const apiKey = (process.env.XAI_API_KEY ?? "").trim();
+  if (!apiKey) {
+    return {
+      ok: false as const,
+      status: 500,
+      error: "XAI_API_KEY não configurada.",
+    };
+  }
+
+  // xAI é compatível com o SDK/OpenAI via base_url=https://api.x.ai/v1
+  const baseUrl = (process.env.XAI_BASE_URL ?? "").trim() || "https://api.x.ai/v1";
+  const model =
+    (process.env.XAI_MODEL ?? "").trim() || "grok-4-fast-non-reasoning";
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model,
+        temperature: 0.6,
+        messages,
+      }),
+    }).finally(() => clearTimeout(timeoutId));
+  } catch (err) {
+    const hint =
+      err instanceof DOMException && err.name === "AbortError"
+        ? "Timeout a contactar xAI."
+        : "Falha de rede a contactar xAI.";
+    return { ok: false as const, status: 502, error: `${hint} Confirma ` + "`XAI_API_KEY`" + " e tenta novamente." };
+  }
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
+    const msg = payload?.error?.message as unknown;
+    const message = typeof msg === "string" ? msg : "";
+    return {
+      ok: false as const,
+      status: response.status,
+      error: message || "Erro ao chamar xAI (Grok).",
+    };
+  }
+
+  const data = (await response.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
+  const reply = data.choices?.[0]?.message?.content?.trim() ?? "";
+  if (!reply) {
+    return { ok: false as const, status: 502, error: "Resposta vazia da IA." };
+  }
+  return { ok: true as const, reply };
+}
+
+async function callOllama(messages: Array<{ role: string; content: string }>) {
+  const baseUrl = (process.env.OLLAMA_BASE_URL ?? "").trim() || "http://127.0.0.1:11434";
+  const model = (process.env.OLLAMA_MODEL ?? "").trim() || "llama3.1:8b";
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 20000);
+
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl.replace(/\/$/, "")}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model,
+        stream: false,
+        messages: messages.map((m) => ({
+          role: m.role,
+          content: m.content,
+        })),
+      }),
+    }).finally(() => clearTimeout(timeoutId));
+  } catch (err) {
+    const hint =
+      err instanceof DOMException && err.name === "AbortError"
+        ? "Timeout a contactar Ollama."
+        : "Falha de rede a contactar Ollama.";
+    return {
+      ok: false as const,
+      status: 502,
+      error:
+        `${hint} Para usar Ollama na Vercel, tens de apontar ` +
+        "`OLLAMA_BASE_URL`" +
+        " para um servidor Ollama remoto (não `127.0.0.1`).",
+    };
+  }
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    return {
+      ok: false as const,
+      status: response.status,
+      error:
+        "Não foi possível contactar o Ollama. Confirma que está a correr e define `OLLAMA_BASE_URL` (ex: http://127.0.0.1:11434). " +
+        (text ? `Detalhes: ${text.slice(0, 200)}` : ""),
+    };
+  }
+
+  const data = (await response.json()) as {
+    message?: { content?: string };
+  };
+  const reply = data.message?.content?.trim() ?? "";
+  if (!reply) {
+    return { ok: false as const, status: 502, error: "Resposta vazia do Ollama." };
+  }
+  return { ok: true as const, reply };
+}
+
+export async function POST(request: Request) {
+  let body: { messages?: IncomingMessage[] } | null = null;
+  try {
+    body = (await request.json()) as { messages?: IncomingMessage[] };
+  } catch {
+    return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
+  }
+
+  const incoming = body?.messages ?? [];
+  const recentMessages = incoming.slice(-12);
+
+  try {
+    const messages = toChatMessages(recentMessages);
+    const provider = pickProvider();
+    const forcedProvider = getForcedProvider();
+
+    let result:
+      | { ok: true; reply: string }
+      | { ok: false; status: number; error: string };
+
+    const isEnabled = (p: ProviderName) => {
+      switch (p) {
+        case "groq":
+          return hasGroq();
+        case "xai":
+          return hasXai();
+        case "ollama":
+          return hasOllama();
+        case "openai":
+          return hasOpenAi();
+        default:
+          return false;
+      }
+    };
+
+    const baseOrder: ProviderName[] = [provider, "groq", "xai", "openai", "ollama"];
+    const order: ProviderName[] = [];
+    const seen = new Set<ProviderName>();
+    for (const p of baseOrder) {
+      if (seen.has(p)) continue;
+      seen.add(p);
+      order.push(p);
+    }
+
+    const candidates = forcedProvider
+      ? isEnabled(forcedProvider)
+        ? [forcedProvider]
+        : []
+      : order.filter(isEnabled);
+    if (candidates.length === 0) {
+      return NextResponse.json(
+        {
+          error:
+            forcedProvider
+              ? `O provider forçado (${forcedProvider}) não está configurado. Verifica as env vars e faz Redeploy.`
+              : "Nenhum provider configurado. Define `GROQ_API_KEY` (recomendado/free tier) ou `OPENAI_API_KEY`, ou `XAI_API_KEY`, ou `OLLAMA_BASE_URL`.",
+          provider: forcedProvider ?? provider,
+          hasGroqKey: hasGroq(),
+          hasXaiKey: hasXai(),
+          hasOpenAiKey: hasOpenAi(),
+          hasOllamaBaseUrl: hasOllama(),
+        },
+        { status: 500 }
+      );
+    }
+
+    const callProvider = async (p: ProviderName) => {
+      if (p === "groq") return callGroq(messages);
+      if (p === "xai") return callXai(messages);
+      if (p === "ollama") return callOllama(messages);
+      return callOpenAi(messages);
+    };
+
+    const attempts: Array<{ provider: ProviderName; ok: boolean; status?: number; error?: string }> = [];
+
+    // tenta por ordem até um responder
+    let usedProvider = candidates[0]!;
+    result = await callProvider(usedProvider);
+    attempts.push(
+      result.ok
+        ? { provider: usedProvider, ok: true }
+        : { provider: usedProvider, ok: false, status: result.status, error: result.error }
+    );
+    for (let i = 1; i < candidates.length && !result.ok; i += 1) {
+      usedProvider = candidates[i]!;
+      result = await callProvider(usedProvider);
+      attempts.push(
+        result.ok
+          ? { provider: usedProvider, ok: true }
+          : { provider: usedProvider, ok: false, status: result.status, error: result.error }
+      );
+    }
+
+    if (!result.ok) {
+      return NextResponse.json(
+        {
+          error: result.error,
+          provider: usedProvider,
+          attempts,
+          hasGroqKey: hasGroq(),
+          hasXaiKey: hasXai(),
+          hasOpenAiKey: hasOpenAi(),
+          hasOllamaBaseUrl: hasOllama(),
+        },
+        { status: result.status }
+      );
+    }
+
+    return NextResponse.json({ reply: result.reply, provider: usedProvider });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      return NextResponse.json(
+        { error: "Timeout ao contactar o provider de IA." },
+        { status: 504 }
+      );
+    }
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Erro inesperado." },
+      { status: 500 }
+    );
+  }
+}

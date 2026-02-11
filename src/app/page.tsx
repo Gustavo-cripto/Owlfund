@@ -1,0 +1,253 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+import AppHeader from "@/components/AppHeader";
+import PnlSummaryCard from "@/components/PnlSummaryCard";
+import { createClient } from "@/lib/supabase/client";
+
+export default function Home() {
+  const supabase = createClient();
+  const [isReady, setIsReady] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  const features = [
+    {
+      title: "Resumo de mercado inteligente",
+      description:
+        "Tabela com variações 1h, 24h e 7d, sparklines e volume para decisões rápidas.",
+    },
+    {
+      title: "Gestão simples de ativos",
+      description:
+        "Adicione, edite e organize investimentos por categoria sem perder o contexto.",
+    },
+    {
+      title: "PNL claro e direto",
+      description:
+        "Visualize PNL da posição, do dia e média semanal com leitura imediata.",
+    },
+    {
+      title: "Tema escuro premium",
+      description:
+        "Interface escura com destaque em laranja para foco total nos números.",
+    },
+  ];
+
+  const steps = [
+    {
+      title: "Cadastre seus ativos",
+      description: "Escolha categorias e registre o valor investido em segundos.",
+    },
+    {
+      title: "Acompanhe o desempenho",
+      description: "Veja evolução, variações e dados de mercado em um só lugar.",
+    },
+    {
+      title: "Ajuste quando quiser",
+      description: "Edite posições e mantenha seu portfólio sempre atualizado.",
+    },
+  ];
+
+  useEffect(() => {
+    let isMounted = true;
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (!isMounted) return;
+      setIsLoggedIn(!!data.session);
+      setIsReady(true);
+    });
+
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(!!session);
+      setIsReady(true);
+    });
+
+    return () => {
+      isMounted = false;
+      subscription.subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  const showAppView = isReady && isLoggedIn;
+
+  return (
+    <div className="relative min-h-screen bg-slate-950 text-slate-100">
+      <div
+        className="pointer-events-none absolute inset-0 opacity-70"
+        style={{
+          backgroundImage:
+            "url(/hwvtot_2f4227d5a6869b1ae946ecac3e2712c2a84b9f59.jpeg)",
+          backgroundRepeat: "no-repeat",
+          backgroundPosition: "center",
+          backgroundSize: "contain",
+        }}
+        aria-hidden
+      />
+      <div className="pointer-events-none absolute inset-0 bg-slate-950/25" aria-hidden />
+
+      <div className="relative z-10">
+        <AppHeader
+          variant={showAppView ? "app" : "public"}
+          title="Portfólio Owlfund"
+          subtitle={showAppView ? "Área do utilizador" : undefined}
+        />
+
+        {showAppView ? (
+          <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-24 pt-4">
+          <section className="grid gap-6 md:grid-cols-[1.1fr_0.9fr] md:items-start">
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">
+                Área logada
+              </p>
+              <h1 className="mt-3 text-3xl font-semibold text-white">
+                Atalhos rápidos do Owlfund
+              </h1>
+              <p className="mt-2 text-sm text-slate-400">
+                Acede direto ao dashboard, portfolio, carteiras e mercado.
+              </p>
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <a
+                  className="rounded-full bg-orange-500 px-6 py-3 text-center text-sm font-semibold text-slate-950 transition hover:bg-orange-400"
+                  href="/dashboard"
+                >
+                  Abrir Dashboard
+                </a>
+                <a
+                  className="rounded-full border border-orange-400/40 px-6 py-3 text-center text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
+                  href="/portfolio"
+                >
+                  Abrir Portfolio
+                </a>
+                <a
+                  className="rounded-full border border-slate-700 px-6 py-3 text-center text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                  href="/wallets"
+                >
+                  Abrir Carteiras
+                </a>
+                <a
+                  className="rounded-full border border-slate-700 px-6 py-3 text-center text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                  href="/mercado"
+                >
+                  Ver Mercado
+                </a>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Resumo</p>
+              <div className="mt-4 space-y-4 text-sm text-slate-300">
+                <p>
+                  Continua de onde paraste: o dashboard guarda as tuas carteiras, o
+                  portfolio e o histórico.
+                </p>
+                <p className="text-xs text-slate-500">
+                  Se precisares de ajuda, usa o chat do mercado no dashboard.
+                </p>
+              </div>
+            </div>
+          </section>
+        </main>
+        ) : (
+          <>
+            <main className="mx-auto flex w-full max-w-6xl flex-col gap-16 px-6 pb-24 pt-8">
+            <section className="grid gap-10 md:grid-cols-[1.2fr_0.8fr] md:items-center">
+              <div className="space-y-6">
+                <p className="text-sm font-semibold uppercase tracking-[0.3em] text-orange-300/80">
+                  Dashboard completo
+                </p>
+                <h1 className="text-3xl font-medium leading-tight text-slate-200 md:text-4xl">
+                  Domine o mercado de Blockchain e Bitcoin com dados em tempo real.
+                </h1>
+                <p className="text-base text-slate-300 md:text-lg">
+                  Acompanhe variações, tendências e resultado real das suas posições com um
+                  painel focado em clareza e velocidade.
+                </p>
+                <p className="text-sm text-slate-400">
+                  Para acessar Portfolio, Carteiras e Mercado, entra na tua conta.
+                </p>
+                <div className="rounded-2xl border border-orange-500/20 bg-slate-950/70 p-4 text-sm text-slate-300">
+                  Sincronização entre dispositivos fica disponível apenas no Plano Pro.
+                </div>
+              </div>
+
+              <PnlSummaryCard
+                position={2150}
+                today={120}
+                days30={480}
+                daily7d={-35}
+                className="mt-6 md:mt-10"
+              />
+            </section>
+
+            <section id="recursos" className="space-y-8">
+              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">
+                    Recursos principais
+                  </p>
+                  <h2 className="text-3xl font-semibold text-white">
+                    Tudo que você precisa para decisões rápidas
+                  </h2>
+                </div>
+                <p className="max-w-md text-sm text-slate-400">
+                  Inspirado na experiência da aplicação mobile para dar contexto em
+                  segundos.
+                </p>
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-2">
+                {features.map((feature) => (
+                  <div
+                    key={feature.title}
+                    className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6"
+                  >
+                    <h3 className="text-lg font-semibold text-white">{feature.title}</h3>
+                    <p className="mt-2 text-sm text-slate-400">{feature.description}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section id="fluxo" className="grid gap-6 md:grid-cols-3">
+              {steps.map((step, index) => (
+                <div
+                  key={step.title}
+                  className="rounded-2xl border border-orange-500/20 bg-gradient-to-br from-slate-900 to-slate-950 p-5"
+                >
+                  <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">
+                    Passo {index + 1}
+                  </p>
+                  <h3 className="mt-3 text-lg font-semibold text-white">{step.title}</h3>
+                  <p className="mt-2 text-sm text-slate-400">{step.description}</p>
+                </div>
+              ))}
+            </section>
+          </main>
+
+            <footer
+              id="contato"
+              className="border-t border-slate-900 bg-slate-950/60 py-12"
+            >
+              <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-white">Vamos conversar?</p>
+                  <p className="text-sm text-slate-400">
+                    Envie uma mensagem para receber o acesso beta e o kit de marca.
+                  </p>
+                </div>
+                <a
+                  className="rounded-full bg-orange-500 px-6 py-3 text-center text-sm font-semibold text-slate-950 transition hover:bg-orange-400"
+                  href="mailto:contato@portfolioinsight.com"
+                >
+                  contato@portfolioinsight.com
+                </a>
+              </div>
+            </footer>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
