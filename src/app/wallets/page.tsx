@@ -566,8 +566,7 @@ export default function WalletsPage() {
   const solIsAvailable =
     isClient &&
     (isSolanaWalletAvailable(selectedSolProvider) || solWallets.length > 0);
-  const btcIsAvailable =
-    isClient && (isBtcWalletAvailable(selectedBtcProvider) || btcWallets.length > 0);
+  const btcIsAvailable = isClient && isBtcWalletAvailable(selectedBtcProvider);
   const adaIsAvailable = isClient && isCardanoWalletAvailable(selectedAdaProvider);
 
   const ethBalanceKey = (addr: string, net: string) => `${addr}-${net}`;
@@ -2098,7 +2097,7 @@ export default function WalletsPage() {
             balanceUnit="BTC"
             fiatValueUsd={getFiatValue("BTC", btcWallets.length > 0 ? totalBtcBalance : (btcBalance ?? undefined))}
             isConnected={!!btcAddress || btcWallets.length > 0}
-            isAvailable={btcIsAvailable || btcWallets.length > 0}
+            isAvailable={btcIsAvailable}
             isLoading={btcLoading}
             error={btcError}
             onConnect={handleBtcConnect}
