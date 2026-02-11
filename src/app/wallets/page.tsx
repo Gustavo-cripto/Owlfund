@@ -97,6 +97,10 @@ const getAllowedHosts = () =>
     .filter(Boolean);
 
 const evmNetworks: EvmNetwork[] = ["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon"];
+const ethNetworkLabelOptions: Array<{ id: EvmNetwork | "outro"; label: string }> = [
+  ...evmNetworks.map((n) => ({ id: n, label: n })),
+  { id: "outro", label: "Outro (qualquer rede EVM/L2)" },
+];
 const ethWalletOptions: Array<{ id: EvmProviderId; label: string }> = [
   { id: "metamask", label: "MetaMask" },
   { id: "coinbase", label: "Coinbase Wallet" },
@@ -111,6 +115,11 @@ const solWalletOptions = [
   { id: "glow", label: "Glow Wallet" },
   { id: "ledger", label: "Ledger (Hardware)" },
 ] as const;
+type SolanaWalletId = (typeof solWalletOptions)[number]["id"];
+const solLabelOptions: Array<{ id: SolanaWalletId | "outro"; label: string }> = [
+  ...solWalletOptions,
+  { id: "outro", label: "Outro (qualquer endereço Solana)" },
+];
 
 const adaWalletOptions: Array<{ id: CardanoWalletId; label: string }> = [
   { id: "eternl", label: "Eternl" },
@@ -173,11 +182,15 @@ export default function WalletsPage() {
   const [ethLoading, setEthLoading] = useState(false);
   const [ethWallets, setEthWallets] = useState<StoredWalletEntry[]>([]);
   const [ethNewAddress, setEthNewAddress] = useState("");
-  const [ethNewNetwork, setEthNewNetwork] = useState<EvmNetwork>("Ethereum");
+  const [ethNewNetwork, setEthNewNetwork] = useState<EvmNetwork | "outro">("Ethereum");
+  const [ethNewCustomLabel, setEthNewCustomLabel] = useState("");
   const [ethNewError, setEthNewError] = useState<string | null>(null);
   const [ethNewLoading, setEthNewLoading] = useState(false);
   const [ethShowMain, setEthShowMain] = useState(false);
   const [ethShown, setEthShown] = useState<Record<string, boolean>>({});
+  const [ethBalancesByKey, setEthBalancesByKey] = useState<Record<string, string>>({});
+  const [ethBalancesLoading, setEthBalancesLoading] = useState<Record<string, boolean>>({});
+  const [ethBalanceErrors, setEthBalanceErrors] = useState<Record<string, string | null>>({});
 
   const [solAddress, setSolAddress] = useState<string>();
   const [solBalance, setSolBalance] = useState<string>();
@@ -185,13 +198,17 @@ export default function WalletsPage() {
   const [solLoading, setSolLoading] = useState(false);
   const [solWallets, setSolWallets] = useState<StoredWalletEntry[]>([]);
   const [solNewAddress, setSolNewAddress] = useState("");
-  const [solNewWalletId, setSolNewWalletId] = useState<(typeof solWalletOptions)[number]["id"]>("phantom");
+  const [solNewWalletId, setSolNewWalletId] = useState<SolanaWalletId | "outro">("phantom");
+  const [solNewCustomLabel, setSolNewCustomLabel] = useState("");
   const [solNewError, setSolNewError] = useState<string | null>(null);
   const [solNewLoading, setSolNewLoading] = useState(false);
   const [solShowMain, setSolShowMain] = useState(false);
   const [solShown, setSolShown] = useState<Record<string, boolean>>({});
   const [showSolNetworks, setShowSolNetworks] = useState(false);
   const [selectedSolProvider, setSelectedSolProvider] = useState<(typeof solWalletOptions)[number]["id"]>("phantom");
+  const [solBalancesByAddress, setSolBalancesByAddress] = useState<Record<string, string>>({});
+  const [solBalancesLoading, setSolBalancesLoading] = useState<Record<string, boolean>>({});
+  const [solBalanceErrors, setSolBalanceErrors] = useState<Record<string, string | null>>({});
 
   const [btcAddress, setBtcAddress] = useState<string>();
   const [btcBalance, setBtcBalance] = useState<number | null>(null);
@@ -199,10 +216,15 @@ export default function WalletsPage() {
   const [btcLoading, setBtcLoading] = useState(false);
   const [btcWallets, setBtcWallets] = useState<StoredWalletEntry[]>([]);
   const [btcNewAddress, setBtcNewAddress] = useState("");
+  const [btcNewLabel, setBtcNewLabel] = useState<"bitcoin" | "outro">("bitcoin");
+  const [btcNewCustomLabel, setBtcNewCustomLabel] = useState("");
   const [btcNewError, setBtcNewError] = useState<string | null>(null);
   const [btcNewLoading, setBtcNewLoading] = useState(false);
   const [btcShowMain, setBtcShowMain] = useState(false);
   const [btcShown, setBtcShown] = useState<Record<string, boolean>>({});
+  const [btcBalancesByAddress, setBtcBalancesByAddress] = useState<Record<string, string>>({});
+  const [btcBalancesLoading, setBtcBalancesLoading] = useState<Record<string, boolean>>({});
+  const [btcBalanceErrors, setBtcBalanceErrors] = useState<Record<string, string | null>>({});
 
   const [adaAddress, setAdaAddress] = useState<string>();
   const [adaBalance, setAdaBalance] = useState<string>();
@@ -528,11 +550,45 @@ export default function WalletsPage() {
   const btcIsAvailable = isClient && (availability.xverse || btcWallets.length > 0);
   const adaIsAvailable = isClient && isCardanoWalletAvailable(selectedAdaProvider);
 
+  const ethBalanceKey = (addr: string, net: string) => `${addr}-${net}`;
+  const totalEthBalance = useMemo(() => {
+    let sum = parseFloat(ethBalance ?? "") || 0;
+    ethWallets.forEach((w) => {
+      if (w.address && w.network && !(w.address === ethAddress && w.network === "Ethereum")) {
+        const b = ethBalancesByKey[ethBalanceKey(w.address, w.network)] ?? w.balance;
+        sum += typeof b === "string" && b !== "—" ? parseFloat(b) || 0 : 0;
+      }
+    });
+    return sum.toFixed(4);
+  }, [ethBalance, ethWallets, ethAddress, ethBalancesByKey]);
+
+  const totalSolBalance = useMemo(() => {
+    let sum = parseFloat(solBalance ?? "") || 0;
+    solWallets.forEach((w) => {
+      if (w.address && w.address !== solAddress) {
+        const b = solBalancesByAddress[w.address] ?? w.balance;
+        sum += typeof b === "string" && b !== "—" ? parseFloat(b) || 0 : 0;
+      }
+    });
+    return sum.toFixed(4);
+  }, [solBalance, solWallets, solAddress, solBalancesByAddress]);
+
+  const totalBtcBalance = useMemo(() => {
+    let sum = btcBalance ?? 0;
+    btcWallets.forEach((w) => {
+      if (w.address && w.address !== btcAddress) {
+        const b = btcBalancesByAddress[w.address] ?? w.balance;
+        sum += typeof b === "string" && b !== "—" ? parseFloat(b) || 0 : 0;
+      }
+    });
+    return sum.toFixed(8);
+  }, [btcBalance, btcWallets, btcAddress, btcBalancesByAddress]);
+
   const totalAdaBalance = useMemo(() => {
     let sum = parseFloat(adaBalance ?? "") || 0;
     adaWallets.forEach((w) => {
       if (w.address && w.address !== adaAddress) {
-        const b = adaBalancesByAddress[w.address];
+        const b = adaBalancesByAddress[w.address] ?? w.balance;
         sum += typeof b === "string" && b !== "—" ? parseFloat(b) || 0 : 0;
       }
     });
@@ -763,7 +819,7 @@ export default function WalletsPage() {
       const nextWallets = upsertWallet(
         ethWallets,
         { address, balance: formatted, network: "Ethereum", label },
-        (item) => item.address === address && item.network === "Ethereum"
+        (item) => item.address === address
       );
       setEthWallets(nextWallets);
     } catch (error) {
@@ -783,18 +839,25 @@ export default function WalletsPage() {
   };
 
   const handleEthRefresh = async () => {
-    if (!ethAddress) return;
     try {
       setEthLoading(true);
-      const balance = await getEthBalance(ethAddress as `0x${string}`);
-      const formatted = Number(balance).toFixed(4);
-      setEthBalance(formatted);
-      const nextWallets = upsertWallet(
-        ethWallets,
-        { address: ethAddress, balance: formatted, network: "Ethereum", label: "MetaMask" },
-        (item) => item.address === ethAddress && item.network === "Ethereum"
+      setEthError(null);
+      if (ethAddress) {
+        const balance = await getEthBalance(ethAddress as `0x${string}`);
+        const formatted = Number(balance).toFixed(4);
+        setEthBalance(formatted);
+        const nextWallets = upsertWallet(
+          ethWallets,
+          { address: ethAddress, balance: formatted, network: "Ethereum", label: "MetaMask" },
+          (item) => item.address === ethAddress && item.network === "Ethereum"
+        );
+        setEthWallets(nextWallets);
+      }
+      await Promise.all(
+        ethWallets
+          .filter((w) => w.address && w.network && !(w.address === ethAddress && w.network === "Ethereum"))
+          .map((w) => fetchEthBalanceForEntry(w.address!, w.network!))
       );
-      setEthWallets(nextWallets);
     } catch (error) {
       setEthError(error instanceof Error ? error.message : "Erro ao atualizar saldo.");
     } finally {
@@ -823,18 +886,23 @@ export default function WalletsPage() {
       setEthNewError("Endereço Ethereum inválido.");
       return;
     }
+    const trimmed = ethNewAddress.trim();
+    const network =
+      ethNewNetwork === "outro" ? (ethNewCustomLabel.trim() || "Outro") : ethNewNetwork;
+    const netForFetch = ethNewNetwork === "outro" ? "Ethereum" : ethNewNetwork;
     try {
       setEthNewLoading(true);
       setEthNewError(null);
-      const balance = await getEvmBalance(ethNewAddress as `0x${string}`, ethNewNetwork);
+      const balance = await getEvmBalance(trimmed as `0x${string}`, netForFetch);
       const formatted = Number(balance).toFixed(4);
       const nextWallets = upsertWallet(
         ethWallets,
-        { address: ethNewAddress, balance: formatted, network: ethNewNetwork },
-        (item) => item.address === ethNewAddress && item.network === ethNewNetwork
+        { address: trimmed, balance: formatted, network },
+        (item) => item.address === trimmed && item.network === network
       );
       setEthWallets(nextWallets);
       setEthNewAddress("");
+      setEthNewCustomLabel("");
     } catch (error) {
       setEthNewError(
         error instanceof Error ? error.message : "Endereço inválido ou rede indisponível."
@@ -869,7 +937,7 @@ export default function WalletsPage() {
       const nextWallets = upsertWallet(
         solWallets,
         { address, balance, network: "Solana" },
-        (item) => item.address === address && (item.network ?? "Solana") === "Solana"
+        (item) => item.address === address
       );
       setSolWallets(nextWallets);
     } catch (error) {
@@ -889,17 +957,24 @@ export default function WalletsPage() {
   };
 
   const handleSolRefresh = async () => {
-    if (!solAddress) return;
     try {
       setSolLoading(true);
-      const balance = await getSolBalance(solAddress);
-      setSolBalance(balance);
-      const nextWallets = upsertWallet(
-        solWallets,
-        { address: solAddress, balance, network: "Solana" },
-        (item) => item.address === solAddress && (item.network ?? "Solana") === "Solana"
+      setSolError(null);
+      if (solAddress) {
+        const balance = await getSolBalance(solAddress);
+        setSolBalance(balance);
+        const nextWallets = upsertWallet(
+          solWallets,
+          { address: solAddress, balance, network: "Solana" },
+          (item) => item.address === solAddress && (item.network ?? "Solana") === "Solana"
+        );
+        setSolWallets(nextWallets);
+      }
+      await Promise.all(
+        solWallets
+          .filter((w) => w.address && w.address !== solAddress)
+          .map((w) => fetchSolBalanceForAddress(w.address!))
       );
-      setSolWallets(nextWallets);
     } catch (error) {
       setSolError(error instanceof Error ? error.message : "Erro ao atualizar saldo.");
     } finally {
@@ -928,19 +1003,24 @@ export default function WalletsPage() {
       setSolNewError("Endereço Solana inválido.");
       return;
     }
+    const trimmed = solNewAddress.trim();
+    const walletLabel =
+      solNewWalletId === "outro"
+        ? (solNewCustomLabel.trim() || "Solana")
+        : (solWalletOptions.find((o) => o.id === solNewWalletId)?.label ?? "Phantom Wallet");
     try {
       setSolNewLoading(true);
       setSolNewError(null);
-      const balance = await getSolBalance(solNewAddress);
-      const walletLabel = solWalletOptions.find((o) => o.id === solNewWalletId)?.label ?? "Phantom Wallet";
+      const balance = await getSolBalance(trimmed);
       const nextWallets = upsertWallet(
         solWallets,
-        { address: solNewAddress, balance, network: walletLabel },
-        (item) =>
-          item.address === solNewAddress && (item.network ?? "Solana") === walletLabel
+        { address: trimmed, balance, network: walletLabel },
+        (item) => item.address === trimmed && (item.network ?? "Solana") === walletLabel
       );
       setSolWallets(nextWallets);
       setSolNewAddress("");
+      setSolNewCustomLabel("");
+      void fetchSolBalanceForAddress(trimmed);
     } catch (error) {
       setSolNewError(error instanceof Error ? error.message : "Endereço inválido.");
     } finally {
@@ -1004,28 +1084,35 @@ export default function WalletsPage() {
   };
 
   const handleBtcRefresh = async () => {
-    if (!btcAddress) return;
     try {
       setBtcLoading(true);
-      const walletBalance = await getBtcBalanceFromWallet();
-      if (walletBalance !== null) {
-        setBtcBalance(walletBalance);
-        const nextWallets = upsertWallet(
-          btcWallets,
-          { address: btcAddress, balance: walletBalance.toFixed(8), network: "Bitcoin" },
-          (item) => item.address === btcAddress
-        );
-      setBtcWallets(nextWallets);
-        return;
+      setBtcError(null);
+      if (btcAddress) {
+        const walletBalance = await getBtcBalanceFromWallet();
+        if (walletBalance !== null) {
+          setBtcBalance(walletBalance);
+          const nextWallets = upsertWallet(
+            btcWallets,
+            { address: btcAddress, balance: walletBalance.toFixed(8), network: "Bitcoin" },
+            (item) => item.address === btcAddress
+          );
+          setBtcWallets(nextWallets);
+        } else {
+          const apiBalance = await getBtcBalanceFromAddress(btcAddress);
+          setBtcBalance(apiBalance);
+          const nextWallets = upsertWallet(
+            btcWallets,
+            { address: btcAddress, balance: apiBalance.toFixed(8), network: "Bitcoin" },
+            (item) => item.address === btcAddress
+          );
+          setBtcWallets(nextWallets);
+        }
       }
-      const apiBalance = await getBtcBalanceFromAddress(btcAddress);
-      setBtcBalance(apiBalance);
-      const nextWallets = upsertWallet(
-        btcWallets,
-        { address: btcAddress, balance: apiBalance.toFixed(8), network: "Bitcoin" },
-        (item) => item.address === btcAddress
+      await Promise.all(
+        btcWallets
+          .filter((w) => w.address && w.address !== btcAddress)
+          .map((w) => fetchBtcBalanceForAddress(w.address!))
       );
-      setBtcWallets(nextWallets);
     } catch (error) {
       setBtcError(error instanceof Error ? error.message : "Erro ao atualizar saldo.");
     } finally {
@@ -1051,17 +1138,22 @@ export default function WalletsPage() {
       setBtcNewError("Endereço Bitcoin inválido.");
       return;
     }
+    const trimmed = btcNewAddress.trim();
+    const networkLabel =
+      btcNewLabel === "outro" ? (btcNewCustomLabel.trim() || "Bitcoin") : "Bitcoin";
     try {
       setBtcNewLoading(true);
       setBtcNewError(null);
-      const balance = await getBtcBalanceFromAddress(btcNewAddress);
+      const balance = await getBtcBalanceFromAddress(trimmed);
       const nextWallets = upsertWallet(
         btcWallets,
-        { address: btcNewAddress, balance: balance.toFixed(8), network: "Bitcoin" },
-        (item) => item.address === btcNewAddress
+        { address: trimmed, balance: balance.toFixed(8), network: networkLabel },
+        (item) => item.address === trimmed
       );
       setBtcWallets(nextWallets);
       setBtcNewAddress("");
+      setBtcNewCustomLabel("");
+      void fetchBtcBalanceForAddress(trimmed);
     } catch (error) {
       setBtcNewError(error instanceof Error ? error.message : "Endereço inválido.");
     } finally {
@@ -1192,6 +1284,84 @@ export default function WalletsPage() {
       .forEach((w) => void fetchAdaBalanceForAddress(w.address!));
   }, [walletMode, adaWallets, adaAddress, fetchAdaBalanceForAddress]);
 
+  const fetchEthBalanceForEntry = useCallback(
+    async (address: string, network: string) => {
+      if (address === ethAddress && network === "Ethereum") return;
+      const key = ethBalanceKey(address, network);
+      setEthBalancesLoading((prev) => ({ ...prev, [key]: true }));
+      setEthBalanceErrors((prev) => ({ ...prev, [key]: null }));
+      try {
+        const net = evmNetworks.includes(network as EvmNetwork) ? (network as EvmNetwork) : "Ethereum";
+        const balance = await getEvmBalance(address as `0x${string}`, net);
+        const formatted = Number(balance).toFixed(4);
+        setEthBalancesByKey((prev) => ({ ...prev, [key]: formatted }));
+        setEthBalanceErrors((prev) => ({ ...prev, [key]: null }));
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Erro ao obter saldo.";
+        setEthBalanceErrors((prev) => ({ ...prev, [key]: msg }));
+        setEthBalancesByKey((prev) => ({ ...prev, [key]: "—" }));
+      } finally {
+        setEthBalancesLoading((prev) => ({ ...prev, [key]: false }));
+      }
+    },
+    [ethAddress]
+  );
+
+  useEffect(() => {
+    if (walletMode !== "web3") return;
+    ethWallets
+      .filter((w) => w.address && w.network && !(w.address === ethAddress && w.network === "Ethereum"))
+      .forEach((w) => void fetchEthBalanceForEntry(w.address!, w.network!));
+  }, [walletMode, ethWallets, ethAddress, fetchEthBalanceForEntry]);
+
+  const fetchSolBalanceForAddress = useCallback(async (address: string) => {
+    if (!address || address === solAddress) return;
+    setSolBalancesLoading((prev) => ({ ...prev, [address]: true }));
+    setSolBalanceErrors((prev) => ({ ...prev, [address]: null }));
+    try {
+      const balance = await getSolBalance(address);
+      setSolBalancesByAddress((prev) => ({ ...prev, [address]: balance }));
+      setSolBalanceErrors((prev) => ({ ...prev, [address]: null }));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao obter saldo.";
+      setSolBalanceErrors((prev) => ({ ...prev, [address]: msg }));
+      setSolBalancesByAddress((prev) => ({ ...prev, [address]: "—" }));
+    } finally {
+      setSolBalancesLoading((prev) => ({ ...prev, [address]: false }));
+    }
+  }, [solAddress]);
+
+  useEffect(() => {
+    if (walletMode !== "web3") return;
+    solWallets
+      .filter((w) => w.address && w.address !== solAddress)
+      .forEach((w) => void fetchSolBalanceForAddress(w.address!));
+  }, [walletMode, solWallets, solAddress, fetchSolBalanceForAddress]);
+
+  const fetchBtcBalanceForAddress = useCallback(async (address: string) => {
+    if (!address || address === btcAddress) return;
+    setBtcBalancesLoading((prev) => ({ ...prev, [address]: true }));
+    setBtcBalanceErrors((prev) => ({ ...prev, [address]: null }));
+    try {
+      const balance = await getBtcBalanceFromAddress(address);
+      setBtcBalancesByAddress((prev) => ({ ...prev, [address]: balance.toFixed(8) }));
+      setBtcBalanceErrors((prev) => ({ ...prev, [address]: null }));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao obter saldo.";
+      setBtcBalanceErrors((prev) => ({ ...prev, [address]: msg }));
+      setBtcBalancesByAddress((prev) => ({ ...prev, [address]: "—" }));
+    } finally {
+      setBtcBalancesLoading((prev) => ({ ...prev, [address]: false }));
+    }
+  }, [btcAddress]);
+
+  useEffect(() => {
+    if (walletMode !== "web3") return;
+    btcWallets
+      .filter((w) => w.address && w.address !== btcAddress)
+      .forEach((w) => void fetchBtcBalanceForAddress(w.address!));
+  }, [walletMode, btcWallets, btcAddress, fetchBtcBalanceForAddress]);
+
   const handleAddAdaWalletInternal = () => {
     if (!adaNewAddress.trim()) {
       setAdaNewError("Insere um endereço.");
@@ -1321,17 +1491,25 @@ export default function WalletsPage() {
         <div className="grid gap-6 md:grid-cols-2">
           <WalletCard
             title="Ethereum"
-            description="MetaMask (ETH)"
-            address={ethAddress}
-            addressDisplay={ethShowMain ? ethAddress : formatAddress(ethAddress)}
-            balance={ethBalance}
+            description={
+              ethWallets.length > 0
+                ? `${ethWallets.length} carteira(s) · Saldo total ETH`
+                : "MetaMask (ETH)"
+            }
+            address={ethAddress ?? ethWallets[0]?.address}
+            addressDisplay={
+              ethShowMain
+                ? ethAddress ?? ethWallets[0]?.address
+                : formatAddress(ethAddress ?? ethWallets[0]?.address)
+            }
+            balance={ethWallets.length > 0 ? totalEthBalance : ethBalance}
             balanceUnit="ETH"
-            fiatValueUsd={getFiatValue("ETH", ethBalance)}
+            fiatValueUsd={getFiatValue("ETH", ethWallets.length > 0 ? totalEthBalance : ethBalance)}
             defiBalanceUsd={ethAddress ? defiTotals[ethAddress] ?? null : null}
             defiLoading={ethAddress ? !!defiLoading[ethAddress] : false}
             defiError={ethAddress ? defiErrors[ethAddress] ?? null : null}
-            isConnected={!!ethAddress}
-            isAvailable={ethIsAvailable}
+            isConnected={!!ethAddress || ethWallets.length > 0}
+            isAvailable={ethIsAvailable || ethWallets.length > 0}
             isLoading={ethLoading}
             error={ethError}
             onConnect={handleEthConnect}
@@ -1384,6 +1562,9 @@ export default function WalletsPage() {
                   </div>
                 ) : null}
               </div>
+              <p className="text-xs text-slate-500">
+                Conecta uma carteira e/ou adiciona endereços. O saldo total junta todas.
+              </p>
               <div className="grid gap-3 sm:grid-cols-[1.2fr_0.8fr_auto]">
                 <input
                   className="w-full rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
@@ -1394,11 +1575,11 @@ export default function WalletsPage() {
                 <select
                   className="w-full rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none"
                   value={ethNewNetwork}
-                  onChange={(event) => setEthNewNetwork(event.target.value as EvmNetwork)}
+                  onChange={(e) => setEthNewNetwork(e.target.value as EvmNetwork | "outro")}
                 >
-                  {evmNetworks.map((network) => (
-                    <option key={network} value={network}>
-                      {network}
+                  {ethNetworkLabelOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.label}
                     </option>
                   ))}
                 </select>
@@ -1411,11 +1592,29 @@ export default function WalletsPage() {
                   {ethNewLoading ? "A adicionar..." : "Adicionar"}
                 </button>
               </div>
+              {ethNewNetwork === "outro" ? (
+                <input
+                  className="w-full max-w-xs rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
+                  placeholder="Nome (opcional, ex: L2, Exchange)"
+                  value={ethNewCustomLabel}
+                  onChange={(e) => setEthNewCustomLabel(e.target.value)}
+                />
+              ) : null}
               {ethNewError ? <p className="text-xs text-rose-300">{ethNewError}</p> : null}
               <div className="space-y-2">
-                {ethWallets
-                  .filter((item) => item.address !== ethAddress || item.network !== "Ethereum")
-                  .map((item) => (
+                {ethWallets.map((item) => {
+                  const isConnected = item.address === ethAddress && item.network === "Ethereum";
+                  const key = ethBalanceKey(item.address ?? "", item.network ?? "");
+                  const loading = ethBalancesLoading[key];
+                  const err = ethBalanceErrors[key];
+                  const balanceDisplay = isConnected
+                    ? ethBalance ?? "—"
+                    : loading
+                      ? "A carregar..."
+                      : err
+                        ? null
+                        : ethBalancesByKey[key] ?? item.balance ?? "—";
+                  return (
                     <div
                       key={`${item.address}-${item.network}`}
                       className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300"
@@ -1423,6 +1622,15 @@ export default function WalletsPage() {
                       <div className="space-y-1">
                         <p className="font-semibold text-white">
                           {item.network ?? "Ethereum"}
+                          {isConnected ? (
+                            <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
+                              Conectada
+                            </span>
+                          ) : (
+                            <span className="ml-2 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
+                              Por endereço
+                            </span>
+                          )}
                         </p>
                         <div className="flex items-center gap-2">
                           <p className="text-slate-500">
@@ -1431,10 +1639,7 @@ export default function WalletsPage() {
                           <button
                             type="button"
                             onClick={() =>
-                              setEthShown((prev) => ({
-                                ...prev,
-                                [item.address ?? ""]: !prev[item.address ?? ""],
-                              }))
+                              setEthShown((prev) => ({ ...prev, [item.address ?? ""]: !prev[item.address ?? ""] }))
                             }
                             className="rounded-full border border-slate-700 px-2 py-1 text-[10px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
                             title={ethShown[item.address ?? ""] ? "Ocultar" : "Mostrar"}
@@ -1444,43 +1649,52 @@ export default function WalletsPage() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p>
-                          {item.balance ?? "—"} {item.balance ? "ETH" : ""}
-                        </p>
-                        <div className="mt-1 flex flex-wrap gap-2">
-                          <button
-                            className="rounded-full border border-slate-700 px-3 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                            type="button"
-                            onClick={async () => {
-                              if (!item.address) return;
-                              const balance = await getEvmBalance(
-                                item.address as `0x${string}`,
-                                (item.network as EvmNetwork) ?? "Ethereum"
-                              );
-                              const formatted = Number(balance).toFixed(4);
-                              const nextWallets = upsertWallet(
-                                ethWallets,
-                                { ...item, balance: formatted },
-                                (entry) =>
-                                  entry.address === item.address &&
-                                  entry.network === item.network
-                              );
-                              setEthWallets(nextWallets);
-                            }}
-                          >
-                            Atualizar
-                          </button>
+                        {balanceDisplay != null && (
+                          <p>
+                            {balanceDisplay} {balanceDisplay !== "A carregar..." && balanceDisplay !== "—" ? "ETH" : ""}
+                          </p>
+                        )}
+                        {err ? (
+                          <p className="text-rose-300" title={err}>
+                            {err.length > 40 ? `${err.slice(0, 40)}…` : err}
+                          </p>
+                        ) : null}
+                        <div className="mt-1 flex flex-wrap justify-end gap-1">
+                          {!isConnected && (err || balanceDisplay === "—") ? (
+                            <button
+                              type="button"
+                              className="rounded-full border border-slate-600 px-3 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white disabled:opacity-50"
+                              onClick={() => void fetchEthBalanceForEntry(item.address!, item.network ?? "Ethereum")}
+                              disabled={loading}
+                            >
+                              {loading ? "A carregar…" : "Tentar novamente"}
+                            </button>
+                          ) : null}
                           <button
                             className="rounded-full border border-rose-400/40 px-3 py-1 text-[11px] font-semibold text-rose-200 transition hover:border-rose-400 hover:text-white"
                             type="button"
                             onClick={() => {
                               const nextWallets = removeWallet(
                                 ethWallets,
-                                (entry) =>
-                                  entry.address === item.address &&
-                                  entry.network === item.network
+                                (entry) => entry.address === item.address && entry.network === item.network
                               );
                               setEthWallets(nextWallets);
+                              if (item.address === ethAddress && item.network === "Ethereum") {
+                                setEthAddress(undefined);
+                                setEthBalance(undefined);
+                                setEthError(null);
+                              }
+                              const k = ethBalanceKey(item.address ?? "", item.network ?? "");
+                              setEthBalancesByKey((prev) => {
+                                const next = { ...prev };
+                                delete next[k];
+                                return next;
+                              });
+                              setEthBalanceErrors((prev) => {
+                                const next = { ...prev };
+                                delete next[k];
+                                return next;
+                              });
                             }}
                           >
                             Remover
@@ -1488,20 +1702,29 @@ export default function WalletsPage() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                  );
+                })}
               </div>
             </div>
           </WalletCard>
           <WalletCard
             title="Solana"
-            description="Phantom (SOL)"
-            address={solAddress}
-            addressDisplay={solShowMain ? solAddress : formatAddress(solAddress)}
-            balance={solBalance}
+            description={
+              solWallets.length > 0
+                ? `${solWallets.length} carteira(s) · Saldo total SOL`
+                : "Phantom (SOL)"
+            }
+            address={solAddress ?? solWallets[0]?.address}
+            addressDisplay={
+              solShowMain
+                ? solAddress ?? solWallets[0]?.address
+                : formatAddress(solAddress ?? solWallets[0]?.address)
+            }
+            balance={solWallets.length > 0 ? totalSolBalance : solBalance}
             balanceUnit="SOL"
-            fiatValueUsd={getFiatValue("SOL", solBalance)}
-            isConnected={!!solAddress}
-            isAvailable={solIsAvailable}
+            fiatValueUsd={getFiatValue("SOL", solWallets.length > 0 ? totalSolBalance : solBalance)}
+            isConnected={!!solAddress || solWallets.length > 0}
+            isAvailable={solIsAvailable || solWallets.length > 0}
             isLoading={solLoading}
             error={solError}
             onConnect={handleSolConnect}
@@ -1529,33 +1752,9 @@ export default function WalletsPage() {
                   ))}
                 </select>
               </div>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                Carteiras adicionais / L2
+              <p className="text-xs text-slate-500">
+                Conecta uma carteira e/ou adiciona endereços. O saldo total junta todas.
               </p>
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setShowSolNetworks((prev) => !prev)}
-                  className="rounded-full border border-slate-700 px-3 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                >
-                  Carteiras SOL
-                </button>
-                {showSolNetworks ? (
-                  <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-                    {solWalletOptions.map((option) => (
-                      <span
-                        key={option.id}
-                        className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1 text-slate-200"
-                      >
-                        {option.label}{" "}
-                        <span className="ml-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
-                          Disponível
-                        </span>
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
               <div className="grid gap-3 sm:grid-cols-[1.2fr_0.8fr_auto]">
                 <input
                   className="w-full rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
@@ -1566,13 +1765,11 @@ export default function WalletsPage() {
                 <select
                   className="w-full rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none"
                   value={solNewWalletId}
-                  onChange={(event) =>
-                    setSolNewWalletId(event.target.value as (typeof solWalletOptions)[number]["id"])
-                  }
+                  onChange={(e) => setSolNewWalletId(e.target.value as SolanaWalletId | "outro")}
                 >
-                  {solWalletOptions.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
+                  {solLabelOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.label}
                     </option>
                   ))}
                 </select>
@@ -1585,73 +1782,106 @@ export default function WalletsPage() {
                   {solNewLoading ? "A adicionar..." : "Adicionar"}
                 </button>
               </div>
+              {solNewWalletId === "outro" ? (
+                <input
+                  className="w-full max-w-xs rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
+                  placeholder="Nome (opcional)"
+                  value={solNewCustomLabel}
+                  onChange={(e) => setSolNewCustomLabel(e.target.value)}
+                />
+              ) : null}
               {solNewError ? <p className="text-xs text-rose-300">{solNewError}</p> : null}
               <div className="space-y-2">
-                {solWallets
-                  .filter(
-                    (item) =>
-                      item.address !== solAddress || (item.network ?? "Solana") !== "Solana"
-                  )
-                  .map((item) => (
+                {solWallets.map((item) => {
+                  const isConnected = item.address === solAddress && (item.network ?? "Solana") === "Solana";
+                  const addr = item.address ?? "";
+                  const loading = solBalancesLoading[addr];
+                  const err = solBalanceErrors[addr];
+                  const balanceDisplay = isConnected
+                    ? solBalance ?? "—"
+                    : loading
+                      ? "A carregar..."
+                      : err
+                        ? null
+                        : solBalancesByAddress[addr] ?? item.balance ?? "—";
+                  return (
                     <div
                       key={`${item.address}-${item.network ?? "Solana"}`}
                       className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300"
                     >
                       <div className="space-y-1">
-                        <p className="font-semibold text-white">{item.network ?? "Solana"}</p>
+                        <p className="font-semibold text-white">
+                          {item.network ?? "Solana"}
+                          {isConnected ? (
+                            <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
+                              Conectada
+                            </span>
+                          ) : (
+                            <span className="ml-2 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
+                              Por endereço
+                            </span>
+                          )}
+                        </p>
                         <div className="flex items-center gap-2">
                           <p className="text-slate-500">
-                            {solShown[item.address ?? ""] ? item.address : formatAddress(item.address)}
+                            {solShown[addr] ? item.address : formatAddress(item.address)}
                           </p>
                           <button
                             type="button"
-                            onClick={() =>
-                              setSolShown((prev) => ({
-                                ...prev,
-                                [item.address ?? ""]: !prev[item.address ?? ""],
-                              }))
-                            }
+                            onClick={() => setSolShown((prev) => ({ ...prev, [addr]: !prev[addr] }))}
                             className="rounded-full border border-slate-700 px-2 py-1 text-[10px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                            title={solShown[item.address ?? ""] ? "Ocultar" : "Mostrar"}
+                            title={solShown[addr] ? "Ocultar" : "Mostrar"}
                           >
-                            {solShown[item.address ?? ""] ? "🙈" : "👁️"}
+                            {solShown[addr] ? "🙈" : "👁️"}
                           </button>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p>
-                          {item.balance ?? "—"} {item.balance ? "SOL" : ""}
-                        </p>
-                        <div className="mt-1 flex flex-wrap gap-2">
-                          <button
-                            className="rounded-full border border-slate-700 px-3 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                            type="button"
-                            onClick={async () => {
-                              if (!item.address) return;
-                              const balance = await getSolBalance(item.address);
-                              const nextWallets = upsertWallet(
-                                solWallets,
-                                { ...item, balance },
-                                (entry) =>
-                                  entry.address === item.address &&
-                                  (entry.network ?? "Solana") === (item.network ?? "Solana")
-                              );
-                              setSolWallets(nextWallets);
-                            }}
-                          >
-                            Atualizar
-                          </button>
+                        {balanceDisplay != null && (
+                          <p>
+                            {balanceDisplay} {balanceDisplay !== "A carregar..." && balanceDisplay !== "—" ? "SOL" : ""}
+                          </p>
+                        )}
+                        {err ? (
+                          <p className="text-rose-300" title={err}>
+                            {err.length > 40 ? `${err.slice(0, 40)}…` : err}
+                          </p>
+                        ) : null}
+                        <div className="mt-1 flex flex-wrap justify-end gap-1">
+                          {!isConnected && (err || balanceDisplay === "—") ? (
+                            <button
+                              type="button"
+                              className="rounded-full border border-slate-600 px-3 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white disabled:opacity-50"
+                              onClick={() => void fetchSolBalanceForAddress(addr)}
+                              disabled={loading}
+                            >
+                              {loading ? "A carregar…" : "Tentar novamente"}
+                            </button>
+                          ) : null}
                           <button
                             className="rounded-full border border-rose-400/40 px-3 py-1 text-[11px] font-semibold text-rose-200 transition hover:border-rose-400 hover:text-white"
                             type="button"
                             onClick={() => {
                               const nextWallets = removeWallet(
                                 solWallets,
-                                (entry) =>
-                                  entry.address === item.address &&
-                                  (entry.network ?? "Solana") === (item.network ?? "Solana")
+                                (entry) => entry.address === item.address && (entry.network ?? "Solana") === (item.network ?? "Solana")
                               );
                               setSolWallets(nextWallets);
+                              if (item.address === solAddress) {
+                                setSolAddress(undefined);
+                                setSolBalance(undefined);
+                                setSolError(null);
+                              }
+                              setSolBalancesByAddress((prev) => {
+                                const next = { ...prev };
+                                delete next[addr];
+                                return next;
+                              });
+                              setSolBalanceErrors((prev) => {
+                                const next = { ...prev };
+                                delete next[addr];
+                                return next;
+                              });
                             }}
                           >
                             Remover
@@ -1659,20 +1889,29 @@ export default function WalletsPage() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                  );
+                })}
               </div>
             </div>
           </WalletCard>
           <WalletCard
             title="Bitcoin"
-            description="Xverse (BTC)"
-            address={btcAddress}
-            addressDisplay={btcShowMain ? btcAddress : formatAddress(btcAddress)}
-            balance={btcBalance !== null ? btcBalance.toFixed(8) : null}
+            description={
+              btcWallets.length > 0
+                ? `${btcWallets.length} carteira(s) · Saldo total BTC`
+                : "Xverse (BTC)"
+            }
+            address={btcAddress ?? btcWallets[0]?.address}
+            addressDisplay={
+              btcShowMain
+                ? btcAddress ?? btcWallets[0]?.address
+                : formatAddress(btcAddress ?? btcWallets[0]?.address)
+            }
+            balance={btcWallets.length > 0 ? totalBtcBalance : (btcBalance !== null ? btcBalance.toFixed(8) : null)}
             balanceUnit="BTC"
-            fiatValueUsd={getFiatValue("BTC", btcBalance)}
-            isConnected={!!btcAddress}
-            isAvailable={btcIsAvailable}
+            fiatValueUsd={getFiatValue("BTC", btcWallets.length > 0 ? totalBtcBalance : (btcBalance ?? undefined))}
+            isConnected={!!btcAddress || btcWallets.length > 0}
+            isAvailable={btcIsAvailable || btcWallets.length > 0}
             isLoading={btcLoading}
             error={btcError}
             onConnect={handleBtcConnect}
@@ -1683,16 +1922,24 @@ export default function WalletsPage() {
             isAddressVisible={btcShowMain}
           >
             <div className="space-y-3">
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                Carteiras adicionais
+              <p className="text-xs text-slate-500">
+                Conecta uma carteira e/ou adiciona endereços. O saldo total junta todas.
               </p>
-              <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+              <div className="grid gap-3 sm:grid-cols-[1.2fr_0.8fr_auto]">
                 <input
                   className="w-full rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
                   placeholder="Endereço BTC"
                   value={btcNewAddress}
                   onChange={(event) => setBtcNewAddress(event.target.value)}
                 />
+                <select
+                  className="w-full rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none"
+                  value={btcNewLabel}
+                  onChange={(e) => setBtcNewLabel(e.target.value as "bitcoin" | "outro")}
+                >
+                  <option value="bitcoin">Bitcoin</option>
+                  <option value="outro">Outro (qualquer endereço)</option>
+                </select>
                 <button
                   type="button"
                   className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white disabled:opacity-60"
@@ -1702,57 +1949,82 @@ export default function WalletsPage() {
                   {btcNewLoading ? "A adicionar..." : "Adicionar"}
                 </button>
               </div>
+              {btcNewLabel === "outro" ? (
+                <input
+                  className="w-full max-w-xs rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
+                  placeholder="Nome (opcional)"
+                  value={btcNewCustomLabel}
+                  onChange={(e) => setBtcNewCustomLabel(e.target.value)}
+                />
+              ) : null}
               {btcNewError ? <p className="text-xs text-rose-300">{btcNewError}</p> : null}
               <div className="space-y-2">
-                {btcWallets
-                  .filter((item) => item.address !== btcAddress)
-                  .map((item) => (
+                {btcWallets.map((item) => {
+                  const isConnected = item.address === btcAddress;
+                  const addr = item.address ?? "";
+                  const loading = btcBalancesLoading[addr];
+                  const err = btcBalanceErrors[addr];
+                  const balanceDisplay = isConnected
+                    ? (btcBalance != null ? btcBalance.toFixed(8) : "—")
+                    : loading
+                      ? "A carregar..."
+                      : err
+                        ? null
+                        : btcBalancesByAddress[addr] ?? item.balance ?? "—";
+                  return (
                     <div
                       key={item.address}
                       className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300"
                     >
                       <div className="space-y-1">
-                        <p className="font-semibold text-white">Bitcoin</p>
+                        <p className="font-semibold text-white">
+                          {item.network ?? "Bitcoin"}
+                          {isConnected ? (
+                            <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
+                              Conectada
+                            </span>
+                          ) : (
+                            <span className="ml-2 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
+                              Por endereço
+                            </span>
+                          )}
+                        </p>
                         <div className="flex items-center gap-2">
                           <p className="text-slate-500">
-                            {btcShown[item.address ?? ""] ? item.address : formatAddress(item.address)}
+                            {btcShown[addr] ? item.address : formatAddress(item.address)}
                           </p>
                           <button
                             type="button"
-                            onClick={() =>
-                              setBtcShown((prev) => ({
-                                ...prev,
-                                [item.address ?? ""]: !prev[item.address ?? ""],
-                              }))
-                            }
+                            onClick={() => setBtcShown((prev) => ({ ...prev, [addr]: !prev[addr] }))}
                             className="rounded-full border border-slate-700 px-2 py-1 text-[10px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                            title={btcShown[item.address ?? ""] ? "Ocultar" : "Mostrar"}
+                            title={btcShown[addr] ? "Ocultar" : "Mostrar"}
                           >
-                            {btcShown[item.address ?? ""] ? "🙈" : "👁️"}
+                            {btcShown[addr] ? "🙈" : "👁️"}
                           </button>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p>
-                          {item.balance ?? "—"} {item.balance ? "BTC" : ""}
-                        </p>
-                        <div className="mt-1 flex flex-wrap gap-2">
-                          <button
-                            className="rounded-full border border-slate-700 px-3 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                            type="button"
-                            onClick={async () => {
-                              if (!item.address) return;
-                              const balance = await getBtcBalanceFromAddress(item.address);
-                              const nextWallets = upsertWallet(
-                                btcWallets,
-                                { ...item, balance: balance.toFixed(8) },
-                                (entry) => entry.address === item.address
-                              );
-                              setBtcWallets(nextWallets);
-                            }}
-                          >
-                            Atualizar
-                          </button>
+                        {balanceDisplay != null && (
+                          <p>
+                            {balanceDisplay} {balanceDisplay !== "A carregar..." && balanceDisplay !== "—" ? "BTC" : ""}
+                          </p>
+                        )}
+                        {err ? (
+                          <p className="text-rose-300" title={err}>
+                            {err.length > 40 ? `${err.slice(0, 40)}…` : err}
+                          </p>
+                        ) : null}
+                        <div className="mt-1 flex flex-wrap justify-end gap-1">
+                          {!isConnected && (err || balanceDisplay === "—") ? (
+                            <button
+                              type="button"
+                              className="rounded-full border border-slate-600 px-3 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white disabled:opacity-50"
+                              onClick={() => void fetchBtcBalanceForAddress(addr)}
+                              disabled={loading}
+                            >
+                              {loading ? "A carregar…" : "Tentar novamente"}
+                            </button>
+                          ) : null}
                           <button
                             className="rounded-full border border-rose-400/40 px-3 py-1 text-[11px] font-semibold text-rose-200 transition hover:border-rose-400 hover:text-white"
                             type="button"
@@ -1762,6 +2034,21 @@ export default function WalletsPage() {
                                 (entry) => entry.address === item.address
                               );
                               setBtcWallets(nextWallets);
+                              if (item.address === btcAddress) {
+                                setBtcAddress(undefined);
+                                setBtcBalance(null);
+                                setBtcError(null);
+                              }
+                              setBtcBalancesByAddress((prev) => {
+                                const next = { ...prev };
+                                delete next[addr];
+                                return next;
+                              });
+                              setBtcBalanceErrors((prev) => {
+                                const next = { ...prev };
+                                delete next[addr];
+                                return next;
+                              });
                             }}
                           >
                             Remover
@@ -1769,7 +2056,8 @@ export default function WalletsPage() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                  );
+                })}
               </div>
             </div>
           </WalletCard>
