@@ -21,8 +21,33 @@ export const isEternlAvailable = () =>
   typeof window !== "undefined" && !!window.cardano?.eternl;
 
 export type EternlApi = {
-  getChangeAddress: () => Promise<string>;
+  getChangeAddress?: () => Promise<string>;
+  getUnusedAddresses?: () => Promise<string[]>;
   getBalance: () => Promise<string>;
+};
+
+export type CardanoWalletId =
+  | "eternl"
+  | "daedalus"
+  | "yoroi"
+  | "adalite"
+  | "nami"
+  | "ledger";
+
+const getCardanoWalletKey = (id: CardanoWalletId): keyof NonNullable<typeof window.cardano> => {
+  if (id === "eternl") return "eternl";
+  if (id === "daedalus") return "daedalus";
+  if (id === "yoroi") return "yoroi";
+  if (id === "adalite") return "adalite";
+  if (id === "nami") return "nami";
+  if (id === "ledger") return "ledger";
+  return "eternl";
+};
+
+export const isCardanoWalletAvailable = (id: CardanoWalletId): boolean => {
+  if (typeof window === "undefined" || !window.cardano) return false;
+  const key = getCardanoWalletKey(id);
+  return !!(window.cardano as Record<string, unknown>)[key];
 };
 
 export const connectEternl = async () => {
@@ -31,10 +56,50 @@ export const connectEternl = async () => {
   }
 
   const api = (await window.cardano.eternl.enable()) as EternlApi;
-  const changeAddressHex = await api.getChangeAddress();
+  const changeAddressHex = await (api.getChangeAddress?.() ?? Promise.resolve(""));
+  const unused = api.getUnusedAddresses?.();
+  let addressHex = changeAddressHex;
+  if (!addressHex && unused) {
+    const addrs = await unused;
+    addressHex = addrs?.[0] ?? "";
+  }
+  if (!addressHex) throw new Error("Nenhum endereço retornado.");
+  if (addressHex.startsWith("addr")) return { api, address: addressHex };
   const CardanoWasm = await getCardanoWasm();
-  const address = CardanoWasm.Address.from_bytes(hexToBytes(changeAddressHex)).to_bech32();
+  const address = CardanoWasm.Address.from_bytes(hexToBytes(addressHex)).to_bech32();
   return { api, address };
+};
+
+const connectCardanoWalletById = async (
+  id: CardanoWalletId
+): Promise<{ api: EternlApi; address: string }> => {
+  const key = getCardanoWalletKey(id);
+  const wallet = (window.cardano as Record<string, { enable: () => Promise<EternlApi> }>)[key];
+  if (!wallet) {
+    const labels: Record<CardanoWalletId, string> = {
+      eternl: "Eternl",
+      daedalus: "Daedalus",
+      yoroi: "Yoroi",
+      adalite: "Ada Lite",
+      nami: "Nami",
+      ledger: "Ledger Live",
+    };
+    throw new Error(`${labels[id]} não está disponível. Instala a extensão.`);
+  }
+  const api = (await wallet.enable()) as EternlApi;
+  const changeAddressHex = await api.getChangeAddress?.().catch(() => "");
+  const unused = await api.getUnusedAddresses?.().catch(() => []);
+  const addressHex = changeAddressHex || (unused?.[0] ?? "");
+  if (!addressHex) throw new Error("Nenhum endereço retornado pela carteira.");
+  if (typeof addressHex === "string" && addressHex.startsWith("addr"))
+    return { api, address: addressHex };
+  const CardanoWasm = await getCardanoWasm();
+  const address = CardanoWasm.Address.from_bytes(hexToBytes(addressHex)).to_bech32();
+  return { api, address };
+};
+
+export const connectCardanoWallet = async (id: CardanoWalletId) => {
+  return connectCardanoWalletById(id);
 };
 
 export const getAdaBalance = async (api: EternlApi) => {

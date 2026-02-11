@@ -21,9 +21,12 @@ declare global {
       connect: (opts?: { onlyIfTrusted?: boolean }) => Promise<{ address?: string; publicKey?: { toString: () => string } }>;
     };
     cardano?: {
-      eternl?: {
-        enable: () => Promise<unknown>;
-      };
+      eternl?: { enable: () => Promise<unknown> };
+      daedalus?: { enable: () => Promise<unknown> };
+      yoroi?: { enable: () => Promise<unknown> };
+      adalite?: { enable: () => Promise<unknown> };
+      nami?: { enable: () => Promise<unknown> };
+      ledger?: { enable: () => Promise<unknown> };
     };
   }
 }

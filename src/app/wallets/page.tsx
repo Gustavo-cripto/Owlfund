@@ -30,8 +30,11 @@ import {
 } from "@/lib/wallets/bitcoin";
 import {
   connectEternl,
+  connectCardanoWallet,
   getAdaBalance,
+  isCardanoWalletAvailable,
   isEternlAvailable,
+  type CardanoWalletId,
   type EternlApi,
 } from "@/lib/wallets/cardano";
 import {
@@ -107,6 +110,15 @@ const solWalletOptions = [
   { id: "glow", label: "Glow Wallet" },
   { id: "ledger", label: "Ledger (Hardware)" },
 ] as const;
+
+const adaWalletOptions: Array<{ id: CardanoWalletId; label: string }> = [
+  { id: "eternl", label: "Eternl" },
+  { id: "daedalus", label: "Daedalus" },
+  { id: "yoroi", label: "Yoroi" },
+  { id: "adalite", label: "Ada Lite" },
+  { id: "nami", label: "Nami" },
+  { id: "ledger", label: "Ledger Live" },
+];
 
 export default function WalletsPage() {
   const supabase = useMemo(() => createClient(), []);
@@ -195,6 +207,9 @@ export default function WalletsPage() {
   const [adaNewError, setAdaNewError] = useState<string | null>(null);
   const [adaShowMain, setAdaShowMain] = useState(false);
   const [adaShown, setAdaShown] = useState<Record<string, boolean>>({});
+  const [selectedAdaProvider, setSelectedAdaProvider] = useState<CardanoWalletId>("eternl");
+  const [showAdaNetworks, setShowAdaNetworks] = useState(false);
+  const [adaNewWalletId, setAdaNewWalletId] = useState<CardanoWalletId>("eternl");
   const [defiTotals, setDefiTotals] = useState<Record<string, number | null>>({});
   const [defiLoading, setDefiLoading] = useState<Record<string, boolean>>({});
   const [defiErrors, setDefiErrors] = useState<Record<string, string | null>>({});
@@ -500,7 +515,7 @@ export default function WalletsPage() {
     isClient &&
     (isSolanaWalletAvailable(selectedSolProvider) || solWallets.length > 0);
   const btcIsAvailable = isClient && (availability.xverse || btcWallets.length > 0);
-  const adaIsAvailable = isClient && (availability.eternl || adaWallets.length > 0);
+  const adaIsAvailable = isClient && isCardanoWalletAvailable(selectedAdaProvider);
 
   const upsertWallet = (
     list: StoredWalletEntry[],
@@ -1050,7 +1065,7 @@ export default function WalletsPage() {
     try {
       setAdaLoading(true);
       setAdaError(null);
-      const { api, address } = await connectEternl();
+      const { api, address } = await connectCardanoWallet(selectedAdaProvider);
       setAdaApi(api);
       setAdaAddress(address);
       const balance = await getAdaBalance(api);
@@ -1135,10 +1150,12 @@ export default function WalletsPage() {
       setAdaNewError("Endereço Cardano inválido.");
       return;
     }
+    const walletLabel =
+      adaWalletOptions.find((o) => o.id === adaNewWalletId)?.label ?? "Eternl";
     const nextWallets = upsertWallet(
       adaWallets,
-      { address: adaNewAddress, network: "Cardano" },
-      (item) => item.address === adaNewAddress
+      { address: adaNewAddress, network: walletLabel },
+      (item) => item.address === adaNewAddress && (item.network ?? "Cardano") === walletLabel
     );
     setAdaWallets(nextWallets);
     setAdaNewAddress("");
@@ -1702,7 +1719,7 @@ export default function WalletsPage() {
           </WalletCard>
           <WalletCard
             title="Cardano"
-            description="Eternl (ADA)"
+            description={`${adaWalletOptions.find((o) => o.id === selectedAdaProvider)?.label ?? "Eternl"} (ADA)`}
             address={adaAddress}
             addressDisplay={adaShowMain ? adaAddress : formatAddress(adaAddress)}
             balance={adaBalance}
@@ -1719,16 +1736,71 @@ export default function WalletsPage() {
             isAddressVisible={adaShowMain}
           >
             <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] uppercase tracking-[0.3em] text-slate-500">
+                  Carteira ADA
+                </span>
+                <select
+                  className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1 text-xs text-slate-200 outline-none"
+                  value={selectedAdaProvider}
+                  onChange={(e) =>
+                    setSelectedAdaProvider(e.target.value as CardanoWalletId)
+                  }
+                >
+                  {adaWalletOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                Carteiras adicionais
+                Carteiras adicionais / L2
               </p>
-              <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowAdaNetworks((prev) => !prev)}
+                  className="rounded-full border border-slate-700 px-3 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                >
+                  Carteiras ADA
+                </button>
+                {showAdaNetworks ? (
+                  <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                    {adaWalletOptions.map((option) => (
+                      <span
+                        key={option.id}
+                        className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1 text-slate-200"
+                      >
+                        {option.label}{" "}
+                        <span className="ml-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
+                          Disponível
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+              <div className="grid gap-3 sm:grid-cols-[1.2fr_0.8fr_auto]">
                 <input
                   className="w-full rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
                   placeholder="Endereço Cardano"
                   value={adaNewAddress}
                   onChange={(event) => setAdaNewAddress(event.target.value)}
                 />
+                <select
+                  className="w-full rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none"
+                  value={adaNewWalletId}
+                  onChange={(e) =>
+                    setAdaNewWalletId(e.target.value as CardanoWalletId)
+                  }
+                >
+                  {adaWalletOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
                 <button
                   type="button"
                   className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
@@ -1740,14 +1812,18 @@ export default function WalletsPage() {
               {adaNewError ? <p className="text-xs text-rose-300">{adaNewError}</p> : null}
               <div className="space-y-2">
                 {adaWallets
-                  .filter((item) => item.address !== adaAddress)
+                  .filter(
+                    (item) =>
+                      item.address !== adaAddress ||
+                      (item.network ?? "Cardano") !== "Cardano"
+                  )
                   .map((item) => (
                     <div
-                      key={item.address}
+                      key={`${item.address}-${item.network ?? "Cardano"}`}
                       className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300"
                     >
                       <div className="space-y-1">
-                        <p className="font-semibold text-white">Cardano</p>
+                        <p className="font-semibold text-white">{item.network ?? "Cardano"}</p>
                         <div className="flex items-center gap-2">
                           <p className="text-slate-500">
                             {adaShown[item.address ?? ""] ? item.address : formatAddress(item.address)}
