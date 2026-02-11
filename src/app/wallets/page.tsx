@@ -416,18 +416,17 @@ export default function WalletsPage() {
     setDefiLoading((prev) => ({ ...prev, [address]: true }));
     setDefiErrors((prev) => ({ ...prev, [address]: null }));
     try {
+      const base = typeof window !== "undefined" ? window.location.origin : "";
       const response = await fetch(
-        `https://openapi.debank.com/v1/user/protocol_list?id=${address}`
+        `${base}/api/defi-balance?address=${encodeURIComponent(address)}`
       );
+      const data = (await response.json()) as { total?: number; error?: string };
       if (!response.ok) {
-        throw new Error("Falha ao consultar DeFi.");
+        throw new Error(data?.error ?? "Falha ao consultar DeFi.");
       }
-      const payload = (await response.json()) as Array<{ net_usd_value?: number }>;
-      const total = (payload ?? []).reduce((sum, item) => {
-        const value = Number(item?.net_usd_value ?? 0);
-        return Number.isFinite(value) ? sum + value : sum;
-      }, 0);
+      const total = typeof data?.total === "number" && Number.isFinite(data.total) ? data.total : 0;
       setDefiTotals((prev) => ({ ...prev, [address]: total }));
+      setDefiErrors((prev) => ({ ...prev, [address]: null }));
     } catch (error) {
       setDefiErrors((prev) => ({
         ...prev,
@@ -1820,6 +1819,9 @@ export default function WalletsPage() {
                             {balanceDisplay} {balanceDisplay !== "A carregar..." && balanceDisplay !== "—" ? "ETH" : ""}
                           </p>
                         )}
+                        {balanceDisplay != null && balanceDisplay !== "A carregar..." && balanceDisplay !== "—" && getFiatValue("ETH", balanceDisplay) != null ? (
+                          <p className="text-slate-400">${getFiatValue("ETH", balanceDisplay)!.toFixed(2)}</p>
+                        ) : null}
                         {err ? (
                           <p className="text-rose-300" title={err}>
                             {err.length > 40 ? `${err.slice(0, 40)}…` : err}
@@ -2008,6 +2010,9 @@ export default function WalletsPage() {
                             {balanceDisplay} {balanceDisplay !== "A carregar..." && balanceDisplay !== "—" ? "SOL" : ""}
                           </p>
                         )}
+                        {balanceDisplay != null && balanceDisplay !== "A carregar..." && balanceDisplay !== "—" && getFiatValue("SOL", balanceDisplay) != null ? (
+                          <p className="text-slate-400">${getFiatValue("SOL", balanceDisplay)!.toFixed(2)}</p>
+                        ) : null}
                         {err ? (
                           <p className="text-rose-300" title={err}>
                             {err.length > 40 ? `${err.slice(0, 40)}…` : err}
@@ -2175,6 +2180,9 @@ export default function WalletsPage() {
                             {balanceDisplay} {balanceDisplay !== "A carregar..." && balanceDisplay !== "—" ? "BTC" : ""}
                           </p>
                         )}
+                        {balanceDisplay != null && balanceDisplay !== "A carregar..." && balanceDisplay !== "—" && getFiatValue("BTC", balanceDisplay) != null ? (
+                          <p className="text-slate-400">${getFiatValue("BTC", balanceDisplay)!.toFixed(2)}</p>
+                        ) : null}
                         {err ? (
                           <p className="text-rose-300" title={err}>
                             {err.length > 40 ? `${err.slice(0, 40)}…` : err}
@@ -2396,6 +2404,9 @@ export default function WalletsPage() {
                               : ""}
                           </p>
                         )}
+                        {balanceDisplay != null && balanceDisplay !== "A carregar..." && balanceDisplay !== "—" && getFiatValue("ADA", balanceDisplay) != null ? (
+                          <p className="text-slate-400">${getFiatValue("ADA", balanceDisplay)!.toFixed(2)}</p>
+                        ) : null}
                         {error ? (
                           <p className="text-rose-300" title={error}>
                             {error.length > 40 ? `${error.slice(0, 40)}…` : error}
