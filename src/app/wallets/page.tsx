@@ -1893,7 +1893,11 @@ export default function WalletsPage() {
                             <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
                               Conectada
                             </span>
-                          ) : null}
+                          ) : (
+                            <span className="ml-2 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
+                              Por endereço
+                            </span>
+                          )}
                         </p>
                         <div className="flex items-center gap-2">
                           <p className="text-slate-500">
