@@ -5,16 +5,30 @@ export const getBtcWalletProviders = () => {
   return getSupportedWallets();
 };
 
-export const isXverseAvailable = () => {
-  if (typeof window === "undefined") return false;
-  return getSupportedWallets().some((wallet) => wallet.id === "xverse" && wallet.isInstalled);
+/** Ids reais devolvidos por getSupportedWallets() para cada opção da UI. */
+const BTC_PROVIDER_ID_MAP: Record<string, string[]> = {
+  xverse: ["xverse", "XverseProviders.BitcoinProvider"],
+  electrum: ["electrum"],
+  coinbase: ["coinbase", "CoinbaseWalletBitcoinProvider"],
+  exodus: ["exodus", "ExodusBitcoinProvider"],
 };
 
-/** Verifica se uma carteira BTC (por id) está instalada, ou se alguma está disponível se id for omitido. */
+export const isXverseAvailable = () => {
+  if (typeof window === "undefined") return false;
+  const ids = BTC_PROVIDER_ID_MAP.xverse;
+  return getSupportedWallets().some(
+    (wallet) => ids.includes(wallet.id) && wallet.isInstalled
+  );
+};
+
+/** Verifica se uma carteira BTC (por id da UI) está instalada, ou se alguma está disponível se id for omitido. */
 export const isBtcWalletAvailable = (providerId?: string): boolean => {
   if (typeof window === "undefined") return false;
   const list = getSupportedWallets();
-  if (providerId) return list.some((w) => w.id === providerId && w.isInstalled);
+  if (providerId) {
+    const idsToCheck = BTC_PROVIDER_ID_MAP[providerId] ?? [providerId];
+    return list.some((w) => idsToCheck.includes(w.id) && w.isInstalled);
+  }
   return list.some((w) => w.isInstalled);
 };
 
