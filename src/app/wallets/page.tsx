@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from "react";
 
 import AppHeader from "@/components/AppHeader";
 import WalletCard from "@/components/wallets/WalletCard";
@@ -251,6 +251,10 @@ export default function WalletsPage() {
   );
   const [selectedEvmProvider, setSelectedEvmProvider] = useState<EvmProviderId>("metamask");
   const [showEthNetworks, setShowEthNetworks] = useState(false);
+  const [manualAddNetwork, setManualAddNetwork] = useState<"eth" | "sol" | "btc" | "ada">("sol");
+  const [manualAddAddress, setManualAddAddress] = useState("");
+  const [manualAddLabel, setManualAddLabel] = useState("");
+  const [manualAddError, setManualAddError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const confirmRef = useRef<{
@@ -822,6 +826,7 @@ export default function WalletsPage() {
         (item) => item.address === address
       );
       setEthWallets(nextWallets);
+      updateWalletSnapshot({ eth: nextWallets, sol: solWallets, btc: btcWallets, ada: adaWallets });
     } catch (error) {
       setEthError(error instanceof Error ? error.message : "Erro ao conectar.");
     } finally {
@@ -940,6 +945,7 @@ export default function WalletsPage() {
         (item) => item.address === address
       );
       setSolWallets(nextWallets);
+      updateWalletSnapshot({ eth: ethWallets, sol: nextWallets, btc: btcWallets, ada: adaWallets });
     } catch (error) {
       setSolError(error instanceof Error ? error.message : "Erro ao conectar.");
     } finally {
@@ -1057,6 +1063,7 @@ export default function WalletsPage() {
           (item) => item.address === address
         );
         setBtcWallets(nextWallets);
+        updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: nextWallets, ada: adaWallets });
         return;
       }
       const apiBalance = await getBtcBalanceFromAddress(address);
@@ -1067,6 +1074,7 @@ export default function WalletsPage() {
         (item) => item.address === address
       );
       setBtcWallets(nextWallets);
+      updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: nextWallets, ada: adaWallets });
     } catch (error) {
       setBtcError(error instanceof Error ? error.message : "Erro ao conectar.");
     } finally {
@@ -1190,6 +1198,7 @@ export default function WalletsPage() {
         (item) => item.address === address
       );
       setAdaWallets(nextWallets);
+      updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: nextWallets });
     } catch (error) {
       setAdaError(error instanceof Error ? error.message : "Erro ao conectar.");
     } finally {
@@ -1242,6 +1251,75 @@ export default function WalletsPage() {
     setAdaApi(null);
   };
 
+  const handleManualAddAddress = () => {
+    const trimmed = manualAddAddress.trim();
+    const label = manualAddLabel.trim() || undefined;
+    setManualAddError(null);
+    if (!trimmed) {
+      setManualAddError("Insere um endereço.");
+      return;
+    }
+    if (manualAddNetwork === "eth") {
+      if (!isEvmAddress(trimmed)) {
+        setManualAddError("Endereço Ethereum inválido (0x...).");
+        return;
+      }
+      const network = label ?? "Ethereum";
+      const nextWallets = upsertWallet(
+        ethWallets,
+        { address: trimmed, network },
+        (item) => item.address === trimmed && item.network === network
+      );
+      setEthWallets(nextWallets);
+      updateWalletSnapshot({ eth: nextWallets, sol: solWallets, btc: btcWallets, ada: adaWallets });
+      void fetchEthBalanceForEntry(trimmed, network);
+    } else if (manualAddNetwork === "sol") {
+      if (!isSolAddress(trimmed)) {
+        setManualAddError("Endereço Solana inválido.");
+        return;
+      }
+      const network = label ?? "Solana";
+      const nextWallets = upsertWallet(
+        solWallets,
+        { address: trimmed, network },
+        (item) => item.address === trimmed && (item.network ?? "Solana") === network
+      );
+      setSolWallets(nextWallets);
+      updateWalletSnapshot({ eth: ethWallets, sol: nextWallets, btc: btcWallets, ada: adaWallets });
+      void fetchSolBalanceForAddress(trimmed);
+    } else if (manualAddNetwork === "btc") {
+      if (!isBtcAddress(trimmed)) {
+        setManualAddError("Endereço Bitcoin inválido.");
+        return;
+      }
+      const network = label ?? "Bitcoin";
+      const nextWallets = upsertWallet(
+        btcWallets,
+        { address: trimmed, network },
+        (item) => item.address === trimmed
+      );
+      setBtcWallets(nextWallets);
+      updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: nextWallets, ada: adaWallets });
+      void fetchBtcBalanceForAddress(trimmed);
+    } else {
+      if (!isAdaAddress(trimmed)) {
+        setManualAddError("Endereço Cardano inválido (addr1... ou stake1...).");
+        return;
+      }
+      const network = label ?? "Cardano";
+      const nextWallets = upsertWallet(
+        adaWallets,
+        { address: trimmed, network },
+        (item) => item.address === trimmed && (item.network ?? "Cardano") === network
+      );
+      setAdaWallets(nextWallets);
+      updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: nextWallets });
+      void fetchAdaBalanceForAddress(trimmed);
+    }
+    setManualAddAddress("");
+    setManualAddLabel("");
+  };
+
   useEffect(() => {
     if (walletMode !== "web3") return;
     if (!ethAddress && !solAddress && !btcAddress && !adaApi) return;
@@ -1255,9 +1333,12 @@ export default function WalletsPage() {
       ]);
     };
 
-    refreshAll();
+    const startId = window.setTimeout(refreshAll, 100);
     const id = window.setInterval(refreshAll, 60000);
-    return () => window.clearInterval(id);
+    return () => {
+      window.clearTimeout(startId);
+      window.clearInterval(id);
+    };
   }, [walletMode, ethAddress, solAddress, btcAddress, adaApi]);
 
   const fetchAdaBalanceForAddress = useCallback(async (address: string) => {
@@ -1266,22 +1347,31 @@ export default function WalletsPage() {
     setAdaBalanceErrors((prev) => ({ ...prev, [address]: null }));
     try {
       const balance = await getAdaBalanceByAddress(address);
-      setAdaBalancesByAddress((prev) => ({ ...prev, [address]: balance }));
-      setAdaBalanceErrors((prev) => ({ ...prev, [address]: null }));
+      startTransition(() => {
+        setAdaBalancesByAddress((prev) => ({ ...prev, [address]: balance }));
+        setAdaBalanceErrors((prev) => ({ ...prev, [address]: null }));
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erro ao obter saldo.";
-      setAdaBalanceErrors((prev) => ({ ...prev, [address]: message }));
-      setAdaBalancesByAddress((prev) => ({ ...prev, [address]: "—" }));
+      startTransition(() => {
+        setAdaBalanceErrors((prev) => ({ ...prev, [address]: message }));
+        setAdaBalancesByAddress((prev) => ({ ...prev, [address]: "—" }));
+      });
     } finally {
-      setAdaBalancesLoading((prev) => ({ ...prev, [address]: false }));
+      startTransition(() => {
+        setAdaBalancesLoading((prev) => ({ ...prev, [address]: false }));
+      });
     }
   }, [adaAddress]);
 
   useEffect(() => {
     if (walletMode !== "web3") return;
-    adaWallets
-      .filter((w) => w.address && w.address !== adaAddress)
-      .forEach((w) => void fetchAdaBalanceForAddress(w.address!));
+    const id = window.setTimeout(() => {
+      adaWallets
+        .filter((w) => w.address && w.address !== adaAddress)
+        .forEach((w) => void fetchAdaBalanceForAddress(w.address!));
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [walletMode, adaWallets, adaAddress, fetchAdaBalanceForAddress]);
 
   const fetchEthBalanceForEntry = useCallback(
@@ -1294,14 +1384,20 @@ export default function WalletsPage() {
         const net = evmNetworks.includes(network as EvmNetwork) ? (network as EvmNetwork) : "Ethereum";
         const balance = await getEvmBalance(address as `0x${string}`, net);
         const formatted = Number(balance).toFixed(4);
-        setEthBalancesByKey((prev) => ({ ...prev, [key]: formatted }));
-        setEthBalanceErrors((prev) => ({ ...prev, [key]: null }));
+        startTransition(() => {
+          setEthBalancesByKey((prev) => ({ ...prev, [key]: formatted }));
+          setEthBalanceErrors((prev) => ({ ...prev, [key]: null }));
+        });
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Erro ao obter saldo.";
-        setEthBalanceErrors((prev) => ({ ...prev, [key]: msg }));
-        setEthBalancesByKey((prev) => ({ ...prev, [key]: "—" }));
+        startTransition(() => {
+          setEthBalanceErrors((prev) => ({ ...prev, [key]: msg }));
+          setEthBalancesByKey((prev) => ({ ...prev, [key]: "—" }));
+        });
       } finally {
-        setEthBalancesLoading((prev) => ({ ...prev, [key]: false }));
+        startTransition(() => {
+          setEthBalancesLoading((prev) => ({ ...prev, [key]: false }));
+        });
       }
     },
     [ethAddress]
@@ -1309,9 +1405,12 @@ export default function WalletsPage() {
 
   useEffect(() => {
     if (walletMode !== "web3") return;
-    ethWallets
-      .filter((w) => w.address && w.network && !(w.address === ethAddress && w.network === "Ethereum"))
-      .forEach((w) => void fetchEthBalanceForEntry(w.address!, w.network!));
+    const id = window.setTimeout(() => {
+      ethWallets
+        .filter((w) => w.address && w.network && !(w.address === ethAddress && w.network === "Ethereum"))
+        .forEach((w) => void fetchEthBalanceForEntry(w.address!, w.network!));
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [walletMode, ethWallets, ethAddress, fetchEthBalanceForEntry]);
 
   const fetchSolBalanceForAddress = useCallback(async (address: string) => {
@@ -1320,22 +1419,31 @@ export default function WalletsPage() {
     setSolBalanceErrors((prev) => ({ ...prev, [address]: null }));
     try {
       const balance = await getSolBalance(address);
-      setSolBalancesByAddress((prev) => ({ ...prev, [address]: balance }));
-      setSolBalanceErrors((prev) => ({ ...prev, [address]: null }));
+      startTransition(() => {
+        setSolBalancesByAddress((prev) => ({ ...prev, [address]: balance }));
+        setSolBalanceErrors((prev) => ({ ...prev, [address]: null }));
+      });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro ao obter saldo.";
-      setSolBalanceErrors((prev) => ({ ...prev, [address]: msg }));
-      setSolBalancesByAddress((prev) => ({ ...prev, [address]: "—" }));
+      startTransition(() => {
+        setSolBalanceErrors((prev) => ({ ...prev, [address]: msg }));
+        setSolBalancesByAddress((prev) => ({ ...prev, [address]: "—" }));
+      });
     } finally {
-      setSolBalancesLoading((prev) => ({ ...prev, [address]: false }));
+      startTransition(() => {
+        setSolBalancesLoading((prev) => ({ ...prev, [address]: false }));
+      });
     }
   }, [solAddress]);
 
   useEffect(() => {
     if (walletMode !== "web3") return;
-    solWallets
-      .filter((w) => w.address && w.address !== solAddress)
-      .forEach((w) => void fetchSolBalanceForAddress(w.address!));
+    const id = window.setTimeout(() => {
+      solWallets
+        .filter((w) => w.address && w.address !== solAddress)
+        .forEach((w) => void fetchSolBalanceForAddress(w.address!));
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [walletMode, solWallets, solAddress, fetchSolBalanceForAddress]);
 
   const fetchBtcBalanceForAddress = useCallback(async (address: string) => {
@@ -1344,22 +1452,31 @@ export default function WalletsPage() {
     setBtcBalanceErrors((prev) => ({ ...prev, [address]: null }));
     try {
       const balance = await getBtcBalanceFromAddress(address);
-      setBtcBalancesByAddress((prev) => ({ ...prev, [address]: balance.toFixed(8) }));
-      setBtcBalanceErrors((prev) => ({ ...prev, [address]: null }));
+      startTransition(() => {
+        setBtcBalancesByAddress((prev) => ({ ...prev, [address]: balance.toFixed(8) }));
+        setBtcBalanceErrors((prev) => ({ ...prev, [address]: null }));
+      });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erro ao obter saldo.";
-      setBtcBalanceErrors((prev) => ({ ...prev, [address]: msg }));
-      setBtcBalancesByAddress((prev) => ({ ...prev, [address]: "—" }));
+      startTransition(() => {
+        setBtcBalanceErrors((prev) => ({ ...prev, [address]: msg }));
+        setBtcBalancesByAddress((prev) => ({ ...prev, [address]: "—" }));
+      });
     } finally {
-      setBtcBalancesLoading((prev) => ({ ...prev, [address]: false }));
+      startTransition(() => {
+        setBtcBalancesLoading((prev) => ({ ...prev, [address]: false }));
+      });
     }
   }, [btcAddress]);
 
   useEffect(() => {
     if (walletMode !== "web3") return;
-    btcWallets
-      .filter((w) => w.address && w.address !== btcAddress)
-      .forEach((w) => void fetchBtcBalanceForAddress(w.address!));
+    const id = window.setTimeout(() => {
+      btcWallets
+        .filter((w) => w.address && w.address !== btcAddress)
+        .forEach((w) => void fetchBtcBalanceForAddress(w.address!));
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [walletMode, btcWallets, btcAddress, fetchBtcBalanceForAddress]);
 
   const handleAddAdaWalletInternal = () => {
@@ -1488,6 +1605,54 @@ export default function WalletsPage() {
             </div>
           </div>
         ) : null}
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+          <h3 className="text-sm font-semibold text-white">Adicionar endereço manual (todas as redes)</h3>
+          <p className="mt-1 text-xs text-slate-500">
+            Escolhe a rede e insere o endereço. O saldo aparece no card da respetiva rede.
+          </p>
+          <div className="mt-3 flex flex-wrap items-end gap-2">
+            <select
+              className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200 outline-none"
+              value={manualAddNetwork}
+              onChange={(e) => setManualAddNetwork(e.target.value as "eth" | "sol" | "btc" | "ada")}
+            >
+              <option value="eth">Ethereum (ETH)</option>
+              <option value="sol">Solana (SOL)</option>
+              <option value="btc">Bitcoin (BTC)</option>
+              <option value="ada">Cardano (ADA)</option>
+            </select>
+            <input
+              className="min-w-[200px] flex-1 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
+              placeholder={
+                manualAddNetwork === "eth"
+                  ? "Endereço 0x..."
+                  : manualAddNetwork === "sol"
+                    ? "Endereço Solana"
+                    : manualAddNetwork === "btc"
+                      ? "Endereço BTC"
+                      : "Endereço addr1... ou stake1..."
+              }
+              value={manualAddAddress}
+              onChange={(e) => setManualAddAddress(e.target.value)}
+            />
+            <input
+              className="w-32 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200 outline-none placeholder:text-slate-500"
+              placeholder="Nome (opcional)"
+              value={manualAddLabel}
+              onChange={(e) => setManualAddLabel(e.target.value)}
+            />
+            <button
+              type="button"
+              className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
+              onClick={handleManualAddAddress}
+            >
+              Adicionar
+            </button>
+          </div>
+          {manualAddError ? (
+            <p className="mt-2 text-xs text-rose-300">{manualAddError}</p>
+          ) : null}
+        </section>
         <div className="grid gap-6 md:grid-cols-2">
           <WalletCard
             title="Ethereum"
