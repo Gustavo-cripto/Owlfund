@@ -495,7 +495,7 @@ export default function WalletsPage() {
     return amount * price;
   };
 
-  const ethIsAvailable = isClient && (availability.metamask || ethWallets.length > 0);
+  const ethIsAvailable = isClient && !!getEvmProviderById(selectedEvmProvider);
   const solIsAvailable =
     isClient &&
     (isSolanaWalletAvailable(selectedSolProvider) || solWallets.length > 0);

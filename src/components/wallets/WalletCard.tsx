@@ -65,7 +65,7 @@ export default function WalletCard({
             isAvailable ? "bg-emerald-500/20 text-emerald-300" : "bg-rose-500/20 text-rose-300"
           }`}
         >
-          {isAvailable ? "Disponível" : "Não instalado"}
+          {isAvailable ? "Disponível" : "Indisponível"}
         </span>
       </div>
 
