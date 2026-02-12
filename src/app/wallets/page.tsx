@@ -155,10 +155,15 @@ const adaWalletOptions: Array<{ id: CardanoWalletId; label: string }> = [
   { id: "lace", label: "Lace" },
 ];
 
-/** Opções para etiqueta ao adicionar por endereço (inclui "Outro" para qualquer endereço Cardano/L2). */
-const adaLabelOptions: Array<{ id: CardanoWalletId | "outro"; label: string }> = [
-  ...adaWalletOptions,
-  { id: "outro", label: "Outro (qualquer endereço Cardano/L2)" },
+/** Redes ADA/L2 para o dropdown ao adicionar endereço no card Cardano. */
+const MANUAL_ADD_TO_ADA_NETWORK: Record<string, string> = {
+  cardano: "Cardano",
+  hydra: "Hydra",
+  midnight: "Midnight",
+  outro: "Outro (qualquer endereço Cardano/L2)",
+};
+const adaNetworkOptions: Array<{ id: string; label: string }> = [
+  ...Object.entries(MANUAL_ADD_TO_ADA_NETWORK).map(([id, label]) => ({ id, label })),
 ];
 
 const btcWalletOptions = [
@@ -319,7 +324,9 @@ export default function WalletsPage() {
   const [adaShown, setAdaShown] = useState<Record<string, boolean>>({});
   const [selectedAdaProvider, setSelectedAdaProvider] = useState<CardanoWalletId>("eternl");
   const [showAdaNetworks, setShowAdaNetworks] = useState(false);
-  const [adaNewWalletId, setAdaNewWalletId] = useState<CardanoWalletId | "outro">("eternl");
+  const [adaNewNetworkId, setAdaNewNetworkId] = useState<string>("cardano");
+  const [adaNewNetworkSelectOpen, setAdaNewNetworkSelectOpen] = useState(false);
+  const [adaNewNetworkSelectFilter, setAdaNewNetworkSelectFilter] = useState("");
   const [adaNewCustomLabel, setAdaNewCustomLabel] = useState("");
   const [adaBalancesByAddress, setAdaBalancesByAddress] = useState<Record<string, string>>({});
   const [adaBalancesLoading, setAdaBalancesLoading] = useState<Record<string, boolean>>({});
@@ -1343,7 +1350,8 @@ export default function WalletsPage() {
       btcNewLabel === "outro"
         ? (btcNewCustomLabel.trim() || "Bitcoin")
         : (btcNetworkOptions.find((o) => o.id === btcNewLabel)?.label ?? "Bitcoin");
-    const isMainnet = btcNewLabel === "bitcoin";
+    /* "Outro" = qualquer endereço Bitcoin mainnet com rótulo custom; lê saldo e Runes como "Bitcoin". */
+    const isMainnet = btcNewLabel === "bitcoin" || btcNewLabel === "outro";
     try {
       setBtcNewLoading(true);
       setBtcNewError(null);
@@ -1594,7 +1602,12 @@ export default function WalletsPage() {
     if (walletMode !== "web3") return;
     const id = window.setTimeout(() => {
       adaWallets
-        .filter((w) => w.address && w.address !== adaAddress)
+        .filter(
+          (w) =>
+            w.address &&
+            w.address !== adaAddress &&
+            !["Hydra", "Midnight"].includes(w.network ?? "")
+        )
         .forEach((w) => void fetchAdaBalanceForAddress(w.address!));
     }, 0);
     return () => window.clearTimeout(id);
@@ -1730,24 +1743,25 @@ export default function WalletsPage() {
       return;
     }
     if (!isAdaAddress(adaNewAddress.trim())) {
-      setAdaNewError("Endereço Cardano inválido.");
+      setAdaNewError("Endereço Cardano inválido (addr1... ou stake1...).");
       return;
     }
     const trimmed = adaNewAddress.trim();
-    const walletLabel =
-      adaNewWalletId === "outro"
+    const networkLabel =
+      adaNewNetworkId === "outro"
         ? (adaNewCustomLabel.trim() || "Cardano")
-        : (adaWalletOptions.find((o) => o.id === adaNewWalletId)?.label ?? "Eternl");
+        : (adaNetworkOptions.find((o) => o.id === adaNewNetworkId)?.label ?? "Cardano");
+    const isMainnet = adaNewNetworkId === "cardano" || adaNewNetworkId === "outro";
     const nextWallets = upsertWallet(
       adaWallets,
-      { address: trimmed, network: walletLabel },
-      (item) => item.address === trimmed && (item.network ?? "Cardano") === walletLabel
+      { address: trimmed, network: networkLabel },
+      (item) => item.address === trimmed && (item.network ?? "Cardano") === networkLabel
     );
     setAdaWallets(nextWallets);
     setAdaNewAddress("");
     setAdaNewCustomLabel("");
     setAdaNewError(null);
-    void fetchAdaBalanceForAddress(trimmed);
+    if (isMainnet) void fetchAdaBalanceForAddress(trimmed);
   };
 
   const handleAddAdaWallet = () => {
@@ -2857,7 +2871,7 @@ export default function WalletsPage() {
                         {balanceDisplay != null && balanceDisplay !== "A carregar..." && balanceDisplay !== "—" && getFiatValue("BTC", balanceDisplay) != null ? (
                           <p className="text-slate-400">${getFiatValue("BTC", balanceDisplay)!.toFixed(2)}</p>
                         ) : null}
-                        {(item.network === "Bitcoin" || !item.network) ? (
+                        {!(item.network && ["Liquid", "Rootstock (RSK)", "Stacks", "Lightning (em breve)"].includes(item.network)) ? (
                           <>
                             {btcRunesLoading[addr] ? (
                               <p className="mt-1 text-[10px] text-slate-500">Runes: a carregar…</p>
@@ -3062,19 +3076,51 @@ export default function WalletsPage() {
                   value={adaNewAddress}
                   onChange={(event) => setAdaNewAddress(event.target.value)}
                 />
-                <select
-                  className="w-full rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none"
-                  value={adaNewWalletId}
-                  onChange={(e) =>
-                    setAdaNewWalletId(e.target.value as CardanoWalletId | "outro")
-                  }
-                >
-                  {adaLabelOptions.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition hover:border-slate-600"
+                    onClick={() => setAdaNewNetworkSelectOpen((prev) => !prev)}
+                  >
+                    <span>{adaNetworkOptions.find((o) => o.id === adaNewNetworkId)?.label ?? "Cardano"}</span>
+                    <span className="text-slate-500 text-[10px] shrink-0">{adaNewNetworkSelectOpen ? "▲" : "▼"}</span>
+                  </button>
+                  {adaNewNetworkSelectOpen ? (
+                    <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
+                      <input
+                        type="text"
+                        className="w-full border-b border-slate-700 bg-slate-900/80 px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none"
+                        placeholder="Pesquisar rede..."
+                        value={adaNewNetworkSelectFilter}
+                        onChange={(e) => setAdaNewNetworkSelectFilter(e.target.value)}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      />
+                      <div className="max-h-[200px] overflow-y-auto py-1">
+                        {adaNetworkOptions
+                          .filter(
+                            (opt) =>
+                              !adaNewNetworkSelectFilter.trim() ||
+                              opt.label.toLowerCase().includes(adaNewNetworkSelectFilter.trim().toLowerCase()) ||
+                              opt.id.toLowerCase().includes(adaNewNetworkSelectFilter.trim().toLowerCase())
+                          )
+                          .map((opt) => (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-xs text-slate-200 hover:bg-slate-800"
+                              onClick={() => {
+                                setAdaNewNetworkId(opt.id);
+                                setAdaNewNetworkSelectOpen(false);
+                                setAdaNewNetworkSelectFilter("");
+                              }}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
                 <button
                   type="button"
                   className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
@@ -3083,10 +3129,10 @@ export default function WalletsPage() {
                   Adicionar
                 </button>
               </div>
-              {adaNewWalletId === "outro" ? (
+              {adaNewNetworkId === "outro" ? (
                 <input
                   className="w-full max-w-xs rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
-                  placeholder="Nome (opcional, ex: Exchange, L2)"
+                  placeholder="Nome (opcional, ex: Exchange)"
                   value={adaNewCustomLabel}
                   onChange={(e) => setAdaNewCustomLabel(e.target.value)}
                 />
@@ -3161,7 +3207,7 @@ export default function WalletsPage() {
                           </p>
                         ) : null}
                         <div className="mt-1 flex flex-wrap justify-end gap-1">
-                          {!isConnected && (error || balanceDisplay === "—") ? (
+                          {!isConnected && !["Hydra", "Midnight"].includes(item.network ?? "") && (error || balanceDisplay === "—") ? (
                             <button
                               type="button"
                               className="rounded-full border border-slate-600 px-3 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white disabled:opacity-50"
