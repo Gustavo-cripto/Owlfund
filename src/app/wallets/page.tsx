@@ -2674,24 +2674,23 @@ export default function WalletsPage() {
             allowConnectWhenUnavailable
             onToggleAddress={() => setBtcShowMain((prev) => !prev)}
             isAddressVisible={btcShowMain}
-            extraBalance={
-              btcAddress || btcWallets.length > 0
-                ? {
-                    label: "Runes:",
-                    content: btcRunesSummary.loading ? (
-                      <span className="text-slate-400">A carregar…</span>
-                    ) : btcRunesSummary.runes.length > 0 ? (
-                      <span className="text-amber-200/90">
-                        {btcRunesSummary.runes
-                          .map((r) => `${r.symbol}: ${Number(r.amount) >= 1e9 ? r.amount : Number(r.amount).toLocaleString("pt-PT", { maximumFractionDigits: 4 })}`)
-                          .join(" · ")}
-                      </span>
-                    ) : (
-                      <span className="text-slate-500">—</span>
-                    ),
-                  }
-                : undefined
-            }
+            extraBalance={{
+              label: "Saldo dos RUNES:",
+              content:
+                !btcAddress && btcWallets.length === 0 ? (
+                  <span className="text-slate-500">—</span>
+                ) : btcRunesSummary.loading ? (
+                  <span className="text-slate-400">A carregar…</span>
+                ) : btcRunesSummary.runes.length > 0 ? (
+                  <span className="text-amber-200/90">
+                    {btcRunesSummary.runes
+                      .map((r) => `${r.symbol}: ${Number(r.amount) >= 1e9 ? r.amount : Number(r.amount).toLocaleString("pt-PT", { maximumFractionDigits: 4 })}`)
+                      .join(" · ")}
+                  </span>
+                ) : (
+                  <span className="text-slate-500">—</span>
+                ),
+            }}
           >
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-2">
