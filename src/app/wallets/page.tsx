@@ -320,6 +320,9 @@ export default function WalletsPage() {
   const [solWalletSelectOpen, setSolWalletSelectOpen] = useState(false);
   const [solWalletSelectFilter, setSolWalletSelectFilter] = useState("");
   const solWalletSelectRef = useRef<HTMLDivElement>(null);
+  const [solNewWalletSelectOpen, setSolNewWalletSelectOpen] = useState(false);
+  const [solNewWalletSelectFilter, setSolNewWalletSelectFilter] = useState("");
+  const solNewWalletSelectRef = useRef<HTMLDivElement>(null);
   const [ethWalletSelectOpen, setEthWalletSelectOpen] = useState(false);
   const [ethWalletSelectFilter, setEthWalletSelectFilter] = useState("");
   const ethWalletSelectRef = useRef<HTMLDivElement>(null);
@@ -376,6 +379,17 @@ export default function WalletsPage() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [solWalletSelectOpen]);
+
+  useEffect(() => {
+    if (!solNewWalletSelectOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (solNewWalletSelectRef.current && !solNewWalletSelectRef.current.contains(e.target as Node)) {
+        setSolNewWalletSelectOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [solNewWalletSelectOpen]);
 
   useEffect(() => {
     if (!ethWalletSelectOpen) return;
@@ -2371,17 +2385,53 @@ export default function WalletsPage() {
                   value={solNewAddress}
                   onChange={(event) => setSolNewAddress(event.target.value)}
                 />
-                <select
-                  className="w-full rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none"
-                  value={solNewWalletId}
-                  onChange={(e) => setSolNewWalletId(e.target.value as SolanaWalletId | "outro")}
-                >
-                  {solLabelOptions.map((opt) => (
-                    <option key={opt.id} value={opt.id}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative min-w-0" ref={solNewWalletSelectRef}>
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-left text-xs text-slate-200 outline-none transition focus:border-orange-400"
+                    onClick={() => setSolNewWalletSelectOpen((o) => !o)}
+                  >
+                    <span className="truncate">
+                      {solLabelOptions.find((o) => o.id === solNewWalletId)?.label ?? solNewWalletId}
+                    </span>
+                    <span className="text-slate-500 text-[10px] shrink-0">{solNewWalletSelectOpen ? "▲" : "▼"}</span>
+                  </button>
+                  {solNewWalletSelectOpen ? (
+                    <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
+                      <input
+                        type="text"
+                        className="w-full border-b border-slate-700 bg-slate-900/80 px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none"
+                        placeholder="Pesquisar carteira..."
+                        value={solNewWalletSelectFilter}
+                        onChange={(e) => setSolNewWalletSelectFilter(e.target.value)}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      />
+                      <div className="max-h-[200px] overflow-y-auto py-1">
+                        {solLabelOptions
+                          .filter(
+                            (opt) =>
+                              !solNewWalletSelectFilter.trim() ||
+                              opt.label.toLowerCase().includes(solNewWalletSelectFilter.trim().toLowerCase()) ||
+                              opt.id.toLowerCase().includes(solNewWalletSelectFilter.trim().toLowerCase())
+                          )
+                          .map((opt) => (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-xs text-slate-200 hover:bg-slate-800"
+                              onClick={() => {
+                                setSolNewWalletId(opt.id);
+                                setSolNewWalletSelectOpen(false);
+                                setSolNewWalletSelectFilter("");
+                              }}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
                 <button
                   type="button"
                   className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white disabled:opacity-60"
