@@ -21,6 +21,8 @@ type WalletCardProps = {
   allowConnectWhenUnavailable?: boolean;
   onToggleAddress?: () => void;
   isAddressVisible?: boolean;
+  /** Ex.: para BTC: { label: "Runes:", content: "DOG: 1,234 · …" } */
+  extraBalance?: { label: string; content: React.ReactNode };
 };
 
 const formatAddress = (address?: string) => {
@@ -52,6 +54,7 @@ export default function WalletCard({
   allowConnectWhenUnavailable,
   onToggleAddress,
   isAddressVisible,
+  extraBalance,
 }: WalletCardProps) {
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
@@ -107,6 +110,12 @@ export default function WalletCard({
               ? `$${defiBalanceUsd.toFixed(2)}`
               : "—"}
         </div>
+        {extraBalance ? (
+          <div>
+            <span className="text-slate-500">{extraBalance.label}</span>{" "}
+            {extraBalance.content}
+          </div>
+        ) : null}
         {error ? <p className="text-xs text-rose-300">{error}</p> : null}
         {defiError ? <p className="text-xs text-rose-300">{defiError}</p> : null}
       </div>

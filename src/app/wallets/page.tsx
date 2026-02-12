@@ -787,6 +787,32 @@ export default function WalletsPage() {
     return sum.toFixed(8);
   }, [btcBalance, btcWallets, btcAddress, btcBalancesByAddress]);
 
+  const btcRunesSummary = useMemo(() => {
+    const l2Networks = ["Liquid", "Rootstock (RSK)", "Stacks", "Lightning (em breve)"];
+    const seen = new Set<string>();
+    const addresses: string[] = [];
+    if (btcAddress && !seen.has(btcAddress)) {
+      seen.add(btcAddress);
+      addresses.push(btcAddress);
+    }
+    btcWallets.forEach((w) => {
+      if (w.address && !l2Networks.includes(w.network ?? "") && !seen.has(w.address)) {
+        seen.add(w.address);
+        addresses.push(w.address);
+      }
+    });
+    const loading = addresses.some((addr) => btcRunesLoading[addr]);
+    const bySymbol: Record<string, number> = {};
+    addresses.forEach((addr) => {
+      (btcRunesByAddress[addr] ?? []).forEach((r) => {
+        const n = parseFloat(r.amount) || 0;
+        if (n > 0) bySymbol[r.symbol] = (bySymbol[r.symbol] ?? 0) + n;
+      });
+    });
+    const runes = Object.entries(bySymbol).map(([symbol, amount]) => ({ symbol, amount }));
+    return { loading, runes };
+  }, [btcAddress, btcWallets, btcRunesByAddress, btcRunesLoading]);
+
   const totalAdaBalance = useMemo(() => {
     let sum = parseFloat(adaBalance ?? "") || 0;
     adaWallets.forEach((w) => {
@@ -2648,6 +2674,24 @@ export default function WalletsPage() {
             allowConnectWhenUnavailable
             onToggleAddress={() => setBtcShowMain((prev) => !prev)}
             isAddressVisible={btcShowMain}
+            extraBalance={
+              btcAddress || btcWallets.length > 0
+                ? {
+                    label: "Runes:",
+                    content: btcRunesSummary.loading ? (
+                      <span className="text-slate-400">A carregar…</span>
+                    ) : btcRunesSummary.runes.length > 0 ? (
+                      <span className="text-amber-200/90">
+                        {btcRunesSummary.runes
+                          .map((r) => `${r.symbol}: ${Number(r.amount) >= 1e9 ? r.amount : Number(r.amount).toLocaleString("pt-PT", { maximumFractionDigits: 4 })}`)
+                          .join(" · ")}
+                      </span>
+                    ) : (
+                      <span className="text-slate-500">—</span>
+                    ),
+                  }
+                : undefined
+            }
           >
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-2">
