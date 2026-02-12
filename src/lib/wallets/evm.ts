@@ -1,5 +1,10 @@
-import { createPublicClient, formatEther, http } from "viem";
+import { createPublicClient, formatEther, formatUnits, http } from "viem";
 import { arbitrum, base, bsc, mainnet, optimism, polygon } from "viem/chains";
+
+const erc20Abi = [
+  { inputs: [{ name: "account", type: "address" }], name: "balanceOf", outputs: [{ type: "uint256" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "decimals", outputs: [{ type: "uint8" }], stateMutability: "view", type: "function" },
+] as const;
 
 const publicClient = createPublicClient({
   chain: mainnet,
@@ -161,4 +166,37 @@ export const getEvmBalance = async (address: `0x${string}`, network: EvmNetwork)
   });
   const balance = await client.getBalance({ address });
   return formatEther(balance);
+};
+
+/** Endereços dos contratos ERC20 (Ethereum mainnet) para stablecoins. */
+export const STABLECOIN_TOKEN_ADDRESSES: Record<string, `0x${string}`> = {
+  USDT: "0xdAC17F958D2ee523a2206206994597C13D831ec7" as `0x${string}`,
+  USDC: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" as `0x${string}`,
+  DAI: "0x6B175474E89094C44Da98b954EedeAC495271d0F" as `0x${string}`,
+  BUSD: "0x4Fabb145d64652a948d72533023f6E7A623C7C53" as `0x${string}`,
+  TUSD: "0x0000000000085d4780B73119b644AE5ecd22b376" as `0x${string}`,
+};
+
+/** Saldo de um token ERC20 por rede. Só suportado em Ethereum para as stablecoins conhecidas; outras redes devolvem "0". */
+export const getEvmTokenBalance = async (
+  ownerAddress: `0x${string}`,
+  tokenSymbol: string,
+  network: EvmNetwork
+): Promise<string> => {
+  const tokenAddress = STABLECOIN_TOKEN_ADDRESSES[tokenSymbol.toUpperCase()];
+  if (!tokenAddress || network !== "Ethereum") return "0";
+  const chain = chainMap[network];
+  const client = createPublicClient({
+    chain,
+    transport: http(chain.rpcUrls.default.http[0]),
+  });
+  try {
+    const [balance, decimals] = await Promise.all([
+      client.readContract({ address: tokenAddress, abi: erc20Abi, functionName: "balanceOf", args: [ownerAddress] }),
+      client.readContract({ address: tokenAddress, abi: erc20Abi, functionName: "decimals" }),
+    ]);
+    return formatUnits(balance, decimals);
+  } catch {
+    return "0";
+  }
 };

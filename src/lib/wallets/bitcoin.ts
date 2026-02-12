@@ -90,7 +90,7 @@ export const getBtcBalanceFromAddress = async (address: string) => {
 };
 
 /** Saldo Runes (ex.: DOG) por endereço Bitcoin. Usa API Hiro; em falha devolve []. */
-export type RunesBalanceEntry = { symbol: string; amount: string };
+export type RunesBalanceEntry = { symbol: string; displayName: string; amount: string };
 
 export const getRunesBalancesForAddress = async (
   address: string
@@ -107,7 +107,11 @@ export const getRunesBalancesForAddress = async (
     const list = data?.results ?? [];
     return list
       .filter((b) => b.rune != null && b.balance != null)
-      .map((b) => ({ symbol: String(b.rune?.name ?? b.rune?.spaced_name ?? "?"), amount: String(b.balance!) }));
+      .map((b) => ({
+        symbol: String(b.rune?.name ?? "?"),
+        displayName: String(b.rune?.spaced_name ?? b.rune?.name ?? "?"),
+        amount: String(b.balance!),
+      }));
   } catch {
     return [];
   }

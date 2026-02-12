@@ -25,3 +25,32 @@ export const saveCryptoHoldings = (holdings: CryptoHoldings) => {
     // ignore
   }
 };
+
+/** Entrada de stablecoin por endereço (saldo lido por rede). balance é atualizado ao buscar. */
+export type StablecoinEntry = {
+  id: string;
+  symbol: string;
+  network: string;
+  address: string;
+  balance?: string;
+};
+
+const STABLECOIN_STORAGE_KEY = "owlfund.stablecoin.addresses.v1";
+
+export const loadStablecoinEntries = (): StablecoinEntry[] => {
+  try {
+    const raw = localStorage.getItem(STABLECOIN_STORAGE_KEY);
+    const parsed = raw ? (JSON.parse(raw) as StablecoinEntry[]) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+export const saveStablecoinEntries = (entries: StablecoinEntry[]) => {
+  try {
+    localStorage.setItem(STABLECOIN_STORAGE_KEY, JSON.stringify(entries));
+  } catch {
+    // ignore
+  }
+};

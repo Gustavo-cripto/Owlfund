@@ -12,8 +12,10 @@ import {
   getEvmProviderById,
   getEvmProviderLabel,
   getEvmProviderOptions,
+  getEvmTokenBalance,
   isEvmWalletAvailable,
   isMetaMaskAvailable,
+  STABLECOIN_TOKEN_ADDRESSES,
   type EvmNetwork,
   type EvmProviderId,
 } from "@/lib/wallets/evm";
@@ -57,8 +59,11 @@ import {
 } from "@/lib/traditional/storage";
 import {
   loadCryptoHoldings,
+  loadStablecoinEntries,
   saveCryptoHoldings,
+  saveStablecoinEntries,
   type CryptoHoldings,
+  type StablecoinEntry,
 } from "@/lib/crypto/storage";
 
 type TraditionalQuote = {
@@ -373,6 +378,13 @@ export default function WalletsPage() {
   const [manualCryptoSelectOpen, setManualCryptoSelectOpen] = useState(false);
   const [manualCryptoFilter, setManualCryptoFilter] = useState("");
   const manualCryptoSelectRef = useRef<HTMLDivElement>(null);
+  const [stablecoinEntries, setStablecoinEntries] = useState<StablecoinEntry[]>([]);
+  const [stablecoinBalances, setStablecoinBalances] = useState<Record<string, string>>({});
+  const [stablecoinBalancesLoading, setStablecoinBalancesLoading] = useState<Record<string, boolean>>({});
+  const [stablecoinAddSymbol, setStablecoinAddSymbol] = useState<string>("USDT");
+  const [stablecoinAddNetwork, setStablecoinAddNetwork] = useState<EvmNetwork>("Ethereum");
+  const [stablecoinAddAddress, setStablecoinAddAddress] = useState("");
+  const [stablecoinAddError, setStablecoinAddError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const confirmRef = useRef<{
@@ -554,6 +566,18 @@ export default function WalletsPage() {
     setCryptoHoldings(loadCryptoHoldings());
     cryptoHydratedRef.current = true;
   }, []);
+
+  useEffect(() => {
+    const entries = loadStablecoinEntries();
+    setStablecoinEntries(entries);
+    setStablecoinBalances(
+      entries.reduce((acc, e) => ({ ...acc, [e.id]: e.balance ?? "—" }), {} as Record<string, string>)
+    );
+  }, []);
+
+  useEffect(() => {
+    saveStablecoinEntries(stablecoinEntries);
+  }, [stablecoinEntries]);
 
   useEffect(() => {
     if (!traditionalHydratedRef.current) return;
@@ -826,16 +850,24 @@ export default function WalletsPage() {
       }
     });
     const loading = addresses.some((addr) => btcRunesLoading[addr]);
-    const bySymbol: Record<string, number> = {};
+    const bySymbol: Record<string, { amount: number; displayName: string }> = {};
     addresses.forEach((addr) => {
       (btcRunesByAddress[addr] ?? []).forEach((r) => {
         const n = parseFloat(r.amount) || 0;
-        if (n > 0) bySymbol[r.symbol] = (bySymbol[r.symbol] ?? 0) + n;
+        if (n > 0) {
+          if (!bySymbol[r.symbol]) bySymbol[r.symbol] = { amount: 0, displayName: r.displayName };
+          bySymbol[r.symbol].amount += n;
+        }
       });
     });
-    const runes = Object.entries(bySymbol).map(([symbol, amount]) => ({ symbol, amount }));
+    const runes = Object.entries(bySymbol).map(([symbol, { amount, displayName }]) => ({ symbol, amount, displayName }));
     return { loading, runes };
   }, [btcAddress, btcWallets, btcRunesByAddress, btcRunesLoading]);
+
+  const formatRuneAmount = (amount: number | string) => {
+    const n = typeof amount === "string" ? parseFloat(amount) || 0 : amount;
+    return n >= 1e9 ? String(amount) : n.toLocaleString("pt-PT", { maximumFractionDigits: 4 });
+  };
 
   const totalAdaBalance = useMemo(() => {
     let sum = parseFloat(adaBalance ?? "") || 0;
@@ -1604,6 +1636,55 @@ export default function WalletsPage() {
     setManualCryptoAssetAmountUsd("");
   };
 
+  const stablecoinSymbolOptions = useMemo(() => Object.keys(STABLECOIN_TOKEN_ADDRESSES), []);
+  const handleAddStablecoinEntry = () => {
+    setStablecoinAddError(null);
+    const addr = stablecoinAddAddress.trim();
+    if (!isEvmAddress(addr)) {
+      setStablecoinAddError("Endereço EVM inválido (0x...).");
+      return;
+    }
+    const id = `stable-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    setStablecoinEntries((prev) => [
+      ...prev,
+      { id, symbol: stablecoinAddSymbol, network: stablecoinAddNetwork, address: addr },
+    ]);
+    setStablecoinAddAddress("");
+    void fetchStablecoinBalance(id, stablecoinAddSymbol, stablecoinAddNetwork, addr);
+  };
+
+  const fetchStablecoinBalance = useCallback(
+    async (entryId: string, symbol: string, network: EvmNetwork, address: string) => {
+      setStablecoinBalancesLoading((prev) => ({ ...prev, [entryId]: true }));
+      try {
+        const balance = await getEvmTokenBalance(address as `0x${string}`, symbol, network);
+        startTransition(() => {
+          setStablecoinBalances((prev) => ({ ...prev, [entryId]: balance }));
+          setStablecoinBalancesLoading((prev) => ({ ...prev, [entryId]: false }));
+          setStablecoinEntries((prev) =>
+            prev.map((e) => (e.id === entryId ? { ...e, balance } : e))
+          );
+        });
+      } catch {
+        startTransition(() => {
+          setStablecoinBalances((prev) => ({ ...prev, [entryId]: "—" }));
+          setStablecoinBalancesLoading((prev) => ({ ...prev, [entryId]: false }));
+        });
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (walletMode !== "web3") return;
+    const id = window.setTimeout(() => {
+      stablecoinEntries.forEach((e) => {
+        if (isEvmAddress(e.address)) void fetchStablecoinBalance(e.id, e.symbol, e.network as EvmNetwork, e.address);
+      });
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [walletMode, stablecoinEntries, fetchStablecoinBalance]);
+
   useEffect(() => {
     if (walletMode !== "web3") return;
     if (!ethAddress && !solAddress && !btcAddress && !adaApi) return;
@@ -2095,6 +2176,102 @@ export default function WalletsPage() {
           </div>
           {manualCryptoAssetError ? (
             <p className="mt-2 text-xs text-rose-300">{manualCryptoAssetError}</p>
+          ) : null}
+        </section>
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+          <h3 className="text-sm font-semibold text-white">Stablecoins (por endereço)</h3>
+          <p className="mt-1 text-xs text-slate-500">
+            Escolhe uma ou várias stablecoins e adiciona um endereço EVM. O saldo aparece aqui e no Portfolio. (Saldo por endereço disponível em Ethereum.)
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-[auto_auto_1fr_auto] sm:items-center">
+            <select
+              className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200 outline-none focus:border-orange-400"
+              value={stablecoinAddSymbol}
+              onChange={(e) => setStablecoinAddSymbol(e.target.value)}
+            >
+              {stablecoinSymbolOptions.map((sym) => (
+                <option key={sym} value={sym}>{sym}</option>
+              ))}
+            </select>
+            <select
+              className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200 outline-none focus:border-orange-400"
+              value={stablecoinAddNetwork}
+              onChange={(e) => setStablecoinAddNetwork(e.target.value as EvmNetwork)}
+            >
+              <option value="Ethereum">Ethereum</option>
+              <option value="Polygon">Polygon</option>
+              <option value="Arbitrum">Arbitrum</option>
+              <option value="Optimism">Optimism</option>
+              <option value="Base">Base</option>
+              <option value="BSC">BSC</option>
+            </select>
+            <input
+              type="text"
+              className="min-w-0 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-orange-400"
+              placeholder="Endereço 0x..."
+              value={stablecoinAddAddress}
+              onChange={(e) => setStablecoinAddAddress(e.target.value)}
+            />
+            <button
+              type="button"
+              className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
+              onClick={handleAddStablecoinEntry}
+            >
+              Adicionar
+            </button>
+          </div>
+          {stablecoinAddError ? (
+            <p className="mt-2 text-xs text-rose-300">{stablecoinAddError}</p>
+          ) : null}
+          {stablecoinEntries.length > 0 ? (
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full min-w-[320px] text-left text-xs text-slate-300">
+                <thead>
+                  <tr className="border-b border-slate-700 text-slate-500">
+                    <th className="py-2 pr-2 font-medium">Stablecoin</th>
+                    <th className="py-2 pr-2 font-medium">Rede</th>
+                    <th className="py-2 pr-2 font-medium">Endereço</th>
+                    <th className="py-2 pr-2 text-right font-medium">Saldo</th>
+                    <th className="w-20 py-2"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stablecoinEntries.map((e) => (
+                    <tr key={e.id} className="border-b border-slate-800/80">
+                      <td className="py-2 pr-2 font-medium text-white">{e.symbol}</td>
+                      <td className="py-2 pr-2">{e.network}</td>
+                      <td className="max-w-[140px] truncate py-2 pr-2 font-mono text-slate-400" title={e.address}>
+                        {e.address.slice(0, 6)}…{e.address.slice(-4)}
+                      </td>
+                      <td className="py-2 pr-2 text-right tabular-nums">
+                        {stablecoinBalancesLoading[e.id] ? "A carregar…" : (stablecoinBalances[e.id] ?? "—")}
+                      </td>
+                      <td className="py-2">
+                        <button
+                          type="button"
+                          className="rounded-full border border-rose-400/40 px-2 py-1 text-[11px] font-semibold text-rose-200 transition hover:border-rose-400 hover:text-white"
+                          onClick={() => {
+                            setStablecoinEntries((prev) => prev.filter((x) => x.id !== e.id));
+                            setStablecoinBalances((prev) => {
+                              const next = { ...prev };
+                              delete next[e.id];
+                              return next;
+                            });
+                            setStablecoinBalancesLoading((prev) => {
+                              const next = { ...prev };
+                              delete next[e.id];
+                              return next;
+                            });
+                          }}
+                        >
+                          Remover
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : null}
         </section>
         <div className="grid gap-6 md:grid-cols-2">
@@ -2706,11 +2883,14 @@ export default function WalletsPage() {
                 ) : btcRunesSummary.loading ? (
                   <span className="text-slate-400">A carregar…</span>
                 ) : btcRunesSummary.runes.length > 0 ? (
-                  <span className="text-amber-200/90">
-                    {btcRunesSummary.runes
-                      .map((r) => `${r.symbol}: ${Number(r.amount) >= 1e9 ? r.amount : Number(r.amount).toLocaleString("pt-PT", { maximumFractionDigits: 4 })}`)
-                      .join(" · ")}
-                  </span>
+                  <div className="mt-1 space-y-1 text-amber-200/90">
+                    {btcRunesSummary.runes.map((r) => (
+                      <div key={r.symbol} className="flex justify-between gap-3 text-xs">
+                        <span className="truncate" title={r.displayName}>{r.displayName}</span>
+                        <span className="shrink-0 tabular-nums">{formatRuneAmount(r.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
                 ) : (
                   <span className="text-slate-500">—</span>
                 ),
@@ -2943,11 +3123,12 @@ export default function WalletsPage() {
                             {btcRunesLoading[addr] ? (
                               <p className="mt-1 text-[10px] text-slate-500">Runes: a carregar…</p>
                             ) : (btcRunesByAddress[addr]?.length ?? 0) > 0 ? (
-                              <div className="mt-1 flex flex-wrap justify-end gap-x-2 gap-y-0.5 text-[10px] text-amber-200/90">
+                              <div className="mt-1 space-y-0.5 text-right text-[10px] text-amber-200/90">
                                 {btcRunesByAddress[addr]!.map((r) => (
-                                  <span key={r.symbol}>
-                                    {r.symbol}: {r.amount}
-                                  </span>
+                                  <div key={r.symbol} className="flex justify-end gap-2">
+                                    <span className="truncate max-w-[120px]" title={r.displayName}>{r.displayName}</span>
+                                    <span className="shrink-0 tabular-nums">{formatRuneAmount(r.amount)}</span>
+                                  </div>
                                 ))}
                               </div>
                             ) : null}

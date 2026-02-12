@@ -10,7 +10,7 @@ import { loadWalletSnapshot, type StoredWalletEntry, type WalletSnapshot } from 
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { traditionalAssets } from "@/lib/traditional/assets";
 import { loadTraditionalHoldings, type TraditionalHoldings } from "@/lib/traditional/storage";
-import { loadCryptoHoldings, type CryptoHoldings } from "@/lib/crypto/storage";
+import { loadCryptoHoldings, loadStablecoinEntries, type CryptoHoldings, type StablecoinEntry } from "@/lib/crypto/storage";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ""
@@ -114,6 +114,7 @@ export default function PortfolioPage() {
   const [wallets, setWallets] = useState<WalletBalance[]>([]);
   const [traditionalHoldings, setTraditionalHoldings] = useState<TraditionalHoldings>({});
   const [cryptoHoldings, setCryptoHoldings] = useState<CryptoHoldings>({});
+  const [stablecoinEntries, setStablecoinEntries] = useState<StablecoinEntry[]>([]);
   const [snapshots, setSnapshots] = useState<SnapshotRow[]>([]);
   const [isSnapshotsLoading, setIsSnapshotsLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -135,6 +136,10 @@ export default function PortfolioPage() {
 
   useEffect(() => {
     setCryptoHoldings(loadCryptoHoldings());
+  }, []);
+
+  useEffect(() => {
+    setStablecoinEntries(loadStablecoinEntries());
   }, []);
 
   useEffect(() => {
@@ -263,7 +268,9 @@ export default function PortfolioPage() {
   }, [cryptoHoldings]);
 
   const cryptoTotal = useMemo(() => sumCrypto(wallets) + manualCryptoTotal, [wallets, manualCryptoTotal]);
-  const stablecoinTotal = 0;
+  const stablecoinTotal = useMemo(() => {
+    return stablecoinEntries.reduce((sum, e) => sum + (parseFloat(e.balance ?? "0") || 0), 0);
+  }, [stablecoinEntries]);
   const traditionalTotal = useMemo(() => {
     return Object.values(traditionalHoldings).reduce((sum, holding) => {
       const value = Number(holding.buyValue ?? 0);
