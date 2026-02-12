@@ -139,6 +139,12 @@ const solLabelOptions: Array<{ id: SolanaWalletId | "outro"; label: string }> = 
   { id: "outro", label: "Outro (qualquer endereço Solana)" },
 ];
 
+/** Lista de redes para o dropdown "adicionar endereço" no card Solana. */
+const solNetworkOptions: Array<{ id: string; label: string }> = [
+  ...Object.entries(MANUAL_ADD_TO_SOL_NETWORK).map(([id, label]) => ({ id, label })),
+  { id: "outro", label: "Outro (qualquer endereço Solana)" },
+];
+
 const adaWalletOptions: Array<{ id: CardanoWalletId; label: string }> = [
   { id: "eternl", label: "Eternl" },
   { id: "daedalus", label: "Daedalus" },
@@ -254,7 +260,7 @@ export default function WalletsPage() {
   const [solLoading, setSolLoading] = useState(false);
   const [solWallets, setSolWallets] = useState<StoredWalletEntry[]>([]);
   const [solNewAddress, setSolNewAddress] = useState("");
-  const [solNewWalletId, setSolNewWalletId] = useState<SolanaWalletId | "outro">("phantom");
+  const [solNewWalletId, setSolNewWalletId] = useState<string>("sol");
   const [solNewCustomLabel, setSolNewCustomLabel] = useState("");
   const [solNewError, setSolNewError] = useState<string | null>(null);
   const [solNewLoading, setSolNewLoading] = useState(false);
@@ -1180,7 +1186,7 @@ export default function WalletsPage() {
     const walletLabel =
       solNewWalletId === "outro"
         ? (solNewCustomLabel.trim() || "Solana")
-        : (solWalletOptions.find((o) => o.id === solNewWalletId)?.label ?? "Phantom Wallet");
+        : (MANUAL_ADD_TO_SOL_NETWORK[solNewWalletId] ?? "Solana");
     try {
       setSolNewLoading(true);
       setSolNewError(null);
@@ -2392,7 +2398,7 @@ export default function WalletsPage() {
                     onClick={() => setSolNewWalletSelectOpen((o) => !o)}
                   >
                     <span className="truncate">
-                      {solLabelOptions.find((o) => o.id === solNewWalletId)?.label ?? solNewWalletId}
+                      {solNetworkOptions.find((o) => o.id === solNewWalletId)?.label ?? solNewWalletId}
                     </span>
                     <span className="text-slate-500 text-[10px] shrink-0">{solNewWalletSelectOpen ? "▲" : "▼"}</span>
                   </button>
@@ -2401,13 +2407,13 @@ export default function WalletsPage() {
                       <input
                         type="text"
                         className="w-full border-b border-slate-700 bg-slate-900/80 px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none"
-                        placeholder="Pesquisar carteira..."
+                        placeholder="Pesquisar rede..."
                         value={solNewWalletSelectFilter}
                         onChange={(e) => setSolNewWalletSelectFilter(e.target.value)}
                         onKeyDown={(e) => e.stopPropagation()}
                       />
                       <div className="max-h-[200px] overflow-y-auto py-1">
-                        {solLabelOptions
+                        {solNetworkOptions
                           .filter(
                             (opt) =>
                               !solNewWalletSelectFilter.trim() ||
