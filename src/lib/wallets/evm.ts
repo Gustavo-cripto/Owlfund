@@ -1,5 +1,5 @@
 import { createPublicClient, formatEther, http } from "viem";
-import { arbitrum, base, mainnet, optimism, polygon } from "viem/chains";
+import { arbitrum, base, bsc, mainnet, optimism, polygon } from "viem/chains";
 
 const publicClient = createPublicClient({
   chain: mainnet,
@@ -12,6 +12,7 @@ const chainMap = {
   Optimism: optimism,
   Base: base,
   Polygon: polygon,
+  BSC: bsc,
 };
 
 export type EvmNetwork = keyof typeof chainMap;

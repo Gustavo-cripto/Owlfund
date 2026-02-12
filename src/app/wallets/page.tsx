@@ -98,7 +98,24 @@ const getAllowedHosts = () =>
     .map((host) => host.trim())
     .filter(Boolean);
 
-const evmNetworks: EvmNetwork[] = ["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon"];
+const evmNetworks: EvmNetwork[] = ["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon", "BSC"];
+/** Mapeamento do id em "Adicionar endereço manual" para EvmNetwork (permite ler saldo por rede). */
+const MANUAL_ADD_TO_EVM_NETWORK: Record<string, EvmNetwork> = {
+  eth: "Ethereum",
+  optimism: "Optimism",
+  arbitrum: "Arbitrum",
+  base: "Base",
+  matic: "Polygon",
+  bsc: "BSC",
+};
+/** Redes que usam endereço Solana (base58). Permite ler saldo SOL. */
+const MANUAL_ADD_TO_SOL_NETWORK: Record<string, string> = {
+  sol: "Solana",
+  sol_l2: "Solana L2",
+  raydium: "Raydium",
+  orca: "Orca",
+  sol_dex: "Solana DEX",
+};
 const ethNetworkLabelOptions: Array<{ id: EvmNetwork | "outro"; label: string }> = [
   ...evmNetworks.map((n) => ({ id: n, label: n })),
   { id: "outro", label: "Outro (qualquer rede EVM/L2)" },
@@ -143,6 +160,36 @@ const btcWalletOptions = [
   { id: "exodus", label: "Exodus" },
 ] as const;
 type BtcWalletId = (typeof btcWalletOptions)[number]["id"];
+
+/** Redes para "Adicionar endereço manual (todas as redes)". ETH, SOL, BTC e ADA têm suporte a saldo. */
+const MANUAL_ADD_NETWORKS: Array<{ id: string; label: string }> = [
+  { id: "eth", label: "Ethereum (ETH)" },
+  { id: "optimism", label: "Optimism" },
+  { id: "arbitrum", label: "Arbitrum" },
+  { id: "base", label: "Base" },
+  { id: "matic", label: "Polygon (ex-Matic)" },
+  { id: "bsc", label: "Binance Smart Chain (BSC)" },
+  { id: "btc", label: "Bitcoin (BTC)" },
+  { id: "sol", label: "Solana (SOL)" },
+  { id: "sol_l2", label: "Solana L2" },
+  { id: "raydium", label: "Raydium" },
+  { id: "orca", label: "Orca" },
+  { id: "sol_dex", label: "Solana DEX" },
+  { id: "bnb", label: "BNB (BNB)" },
+  { id: "xrp", label: "XRP (XRP)" },
+  { id: "ada", label: "Cardano (ADA)" },
+  { id: "doge", label: "Dogecoin (DOGE)" },
+  { id: "trx", label: "TRON (TRX)" },
+  { id: "avax", label: "Avalanche (AVAX)" },
+  { id: "link", label: "Chainlink (LINK)" },
+  { id: "ltc", label: "Litecoin (LTC)" },
+  { id: "bch", label: "Bitcoin Cash (BCH)" },
+  { id: "xlm", label: "Stellar (XLM)" },
+  { id: "uni", label: "Uniswap (UNI)" },
+  { id: "xmr", label: "Monero (XMR)" },
+  { id: "etc", label: "Ethereum Classic (ETC)" },
+  { id: "hbar", label: "Hedera (HBAR)" },
+];
 
 export default function WalletsPage() {
   const supabase = useMemo(() => createClient(), []);
@@ -263,10 +310,25 @@ export default function WalletsPage() {
   const [selectedBtcProvider, setSelectedBtcProvider] = useState<BtcWalletId>("xverse");
   const [showBtcWalletsList, setShowBtcWalletsList] = useState(false);
   const [showSolWalletsList, setShowSolWalletsList] = useState(false);
-  const [manualAddNetwork, setManualAddNetwork] = useState<"eth" | "sol" | "btc" | "ada">("sol");
+  const [manualAddNetwork, setManualAddNetwork] = useState<string>("sol");
+  const [manualAddNetworkOpen, setManualAddNetworkOpen] = useState(false);
+  const [manualAddNetworkFilter, setManualAddNetworkFilter] = useState("");
+  const manualAddNetworkRef = useRef<HTMLDivElement>(null);
   const [manualAddAddress, setManualAddAddress] = useState("");
   const [manualAddLabel, setManualAddLabel] = useState("");
   const [manualAddError, setManualAddError] = useState<string | null>(null);
+  const [solWalletSelectOpen, setSolWalletSelectOpen] = useState(false);
+  const [solWalletSelectFilter, setSolWalletSelectFilter] = useState("");
+  const solWalletSelectRef = useRef<HTMLDivElement>(null);
+  const [ethWalletSelectOpen, setEthWalletSelectOpen] = useState(false);
+  const [ethWalletSelectFilter, setEthWalletSelectFilter] = useState("");
+  const ethWalletSelectRef = useRef<HTMLDivElement>(null);
+  const [btcWalletSelectOpen, setBtcWalletSelectOpen] = useState(false);
+  const [btcWalletSelectFilter, setBtcWalletSelectFilter] = useState("");
+  const btcWalletSelectRef = useRef<HTMLDivElement>(null);
+  const [adaWalletSelectOpen, setAdaWalletSelectOpen] = useState(false);
+  const [adaWalletSelectFilter, setAdaWalletSelectFilter] = useState("");
+  const adaWalletSelectRef = useRef<HTMLDivElement>(null);
   const [manualCryptoAssetSymbol, setManualCryptoAssetSymbol] = useState("");
   const [manualCryptoAssetDate, setManualCryptoAssetDate] = useState("");
   const [manualCryptoAssetAmountUsd, setManualCryptoAssetAmountUsd] = useState("");
@@ -292,6 +354,61 @@ export default function WalletsPage() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [manualCryptoSelectOpen]);
+
+  useEffect(() => {
+    if (!manualAddNetworkOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (manualAddNetworkRef.current && !manualAddNetworkRef.current.contains(e.target as Node)) {
+        setManualAddNetworkOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [manualAddNetworkOpen]);
+
+  useEffect(() => {
+    if (!solWalletSelectOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (solWalletSelectRef.current && !solWalletSelectRef.current.contains(e.target as Node)) {
+        setSolWalletSelectOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [solWalletSelectOpen]);
+
+  useEffect(() => {
+    if (!ethWalletSelectOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (ethWalletSelectRef.current && !ethWalletSelectRef.current.contains(e.target as Node)) {
+        setEthWalletSelectOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [ethWalletSelectOpen]);
+
+  useEffect(() => {
+    if (!btcWalletSelectOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (btcWalletSelectRef.current && !btcWalletSelectRef.current.contains(e.target as Node)) {
+        setBtcWalletSelectOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [btcWalletSelectOpen]);
+
+  useEffect(() => {
+    if (!adaWalletSelectOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (adaWalletSelectRef.current && !adaWalletSelectRef.current.contains(e.target as Node)) {
+        setAdaWalletSelectOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [adaWalletSelectOpen]);
 
   useEffect(() => {
     setIsClient(true);
@@ -1295,12 +1412,13 @@ export default function WalletsPage() {
       setManualAddError("Insere um endereço.");
       return;
     }
-    if (manualAddNetwork === "eth") {
+    const evmNetwork = MANUAL_ADD_TO_EVM_NETWORK[manualAddNetwork];
+    if (evmNetwork) {
       if (!isEvmAddress(trimmed)) {
-        setManualAddError("Endereço Ethereum inválido (0x...).");
+        setManualAddError("Endereço inválido (deve ser 0x... para redes EVM/L2).");
         return;
       }
-      const network = label ?? "Ethereum";
+      const network = label ?? evmNetwork;
       const nextWallets = upsertWallet(
         ethWallets,
         { address: trimmed, network },
@@ -1309,12 +1427,12 @@ export default function WalletsPage() {
       setEthWallets(nextWallets);
       updateWalletSnapshot({ eth: nextWallets, sol: solWallets, btc: btcWallets, ada: adaWallets });
       void fetchEthBalanceForEntry(trimmed, network);
-    } else if (manualAddNetwork === "sol") {
+    } else if (MANUAL_ADD_TO_SOL_NETWORK[manualAddNetwork]) {
       if (!isSolAddress(trimmed)) {
-        setManualAddError("Endereço Solana inválido.");
+        setManualAddError("Endereço Solana inválido (base58, 32–44 caracteres).");
         return;
       }
-      const network = label ?? "Solana";
+      const network = label ?? MANUAL_ADD_TO_SOL_NETWORK[manualAddNetwork];
       const nextWallets = upsertWallet(
         solWallets,
         { address: trimmed, network },
@@ -1337,7 +1455,7 @@ export default function WalletsPage() {
       setBtcWallets(nextWallets);
       updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: nextWallets, ada: adaWallets });
       void fetchBtcBalanceForAddress(trimmed);
-    } else {
+    } else if (manualAddNetwork === "ada") {
       if (!isAdaAddress(trimmed)) {
         setManualAddError("Endereço Cardano inválido (addr1... ou stake1...).");
         return;
@@ -1351,6 +1469,9 @@ export default function WalletsPage() {
       setAdaWallets(nextWallets);
       updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: nextWallets });
       void fetchAdaBalanceForAddress(trimmed);
+    } else {
+      setManualAddError("Suporte para esta rede em breve. Por agora usa ETH, SOL, BTC ou ADA.");
+      return;
     }
     setManualAddAddress("");
     setManualAddLabel("");
@@ -1669,26 +1790,63 @@ export default function WalletsPage() {
             Escolhe a rede e insere o endereço. O saldo aparece no card da respetiva rede.
           </p>
           <div className="mt-3 flex flex-wrap items-end gap-2">
-            <select
-              className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200 outline-none"
-              value={manualAddNetwork}
-              onChange={(e) => setManualAddNetwork(e.target.value as "eth" | "sol" | "btc" | "ada")}
-            >
-              <option value="eth">Ethereum (ETH)</option>
-              <option value="sol">Solana (SOL)</option>
-              <option value="btc">Bitcoin (BTC)</option>
-              <option value="ada">Cardano (ADA)</option>
-            </select>
+            <div className="relative min-w-[200px]" ref={manualAddNetworkRef}>
+              <button
+                type="button"
+                className="flex w-full min-w-[200px] items-center justify-between gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-left text-xs text-slate-200 outline-none transition focus:border-orange-400"
+                onClick={() => setManualAddNetworkOpen((o) => !o)}
+              >
+                <span className="truncate">
+                  {MANUAL_ADD_NETWORKS.find((n) => n.id === manualAddNetwork)?.label ?? manualAddNetwork}
+                </span>
+                <span className="text-slate-500">{manualAddNetworkOpen ? "▲" : "▼"}</span>
+              </button>
+              {manualAddNetworkOpen ? (
+                <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[260px] rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
+                  <input
+                    type="text"
+                    className="w-full border-b border-slate-700 bg-slate-900/80 px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none"
+                    placeholder="Pesquisar rede..."
+                    value={manualAddNetworkFilter}
+                    onChange={(e) => setManualAddNetworkFilter(e.target.value)}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  />
+                  <div className="max-h-[240px] overflow-y-auto py-1">
+                    {MANUAL_ADD_NETWORKS.filter(
+                      (net) =>
+                        !manualAddNetworkFilter.trim() ||
+                        net.label.toLowerCase().includes(manualAddNetworkFilter.trim().toLowerCase()) ||
+                        net.id.toLowerCase().includes(manualAddNetworkFilter.trim().toLowerCase())
+                    ).map((net) => (
+                      <button
+                        key={net.id}
+                        type="button"
+                        className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-xs text-slate-200 hover:bg-slate-800"
+                        onClick={() => {
+                          setManualAddNetwork(net.id);
+                          setManualAddNetworkOpen(false);
+                          setManualAddNetworkFilter("");
+                        }}
+                      >
+                        {net.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
             <input
               className="min-w-[200px] flex-1 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
               placeholder={
-                manualAddNetwork === "eth"
-                  ? "Endereço 0x..."
-                  : manualAddNetwork === "sol"
-                    ? "Endereço Solana"
+                MANUAL_ADD_TO_EVM_NETWORK[manualAddNetwork]
+                  ? "Endereço 0x... (EVM/L2)"
+                  : MANUAL_ADD_TO_SOL_NETWORK[manualAddNetwork]
+                    ? "Endereço Solana (base58)"
                     : manualAddNetwork === "btc"
                       ? "Endereço BTC"
-                      : "Endereço addr1... ou stake1..."
+                      : manualAddNetwork === "ada"
+                        ? "Endereço addr1... ou stake1..."
+                        : "Endereço (suporte em breve)"
               }
               value={manualAddAddress}
               onChange={(e) => setManualAddAddress(e.target.value)}
@@ -1844,17 +2002,62 @@ export default function WalletsPage() {
                 <span className="text-[11px] uppercase tracking-[0.3em] text-slate-500">
                   Carteira ETH
                 </span>
-                <select
-                  className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1 text-xs text-slate-200 outline-none"
-                  value={selectedEvmProvider}
-                  onChange={(event) => setSelectedEvmProvider(event.target.value as EvmProviderId)}
-                >
-                  {ethWalletOptions.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative min-w-[140px]" ref={ethWalletSelectRef}>
+                  <button
+                    type="button"
+                    className="flex min-w-[140px] items-center justify-between gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1.5 text-left text-xs text-slate-200 outline-none transition focus:border-orange-400"
+                    onClick={() => setEthWalletSelectOpen((o) => !o)}
+                  >
+                    <span className="truncate">
+                      {ethWalletOptions.find((o) => o.id === selectedEvmProvider)?.label ?? selectedEvmProvider}
+                    </span>
+                    <span className="text-slate-500 text-[10px]">{ethWalletSelectOpen ? "▲" : "▼"}</span>
+                  </button>
+                  {ethWalletSelectOpen ? (
+                    <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[200px] rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
+                      <input
+                        type="text"
+                        className="w-full border-b border-slate-700 bg-slate-900/80 px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none"
+                        placeholder="Pesquisar carteira..."
+                        value={ethWalletSelectFilter}
+                        onChange={(e) => setEthWalletSelectFilter(e.target.value)}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      />
+                      <div className="max-h-[180px] overflow-y-auto py-1">
+                        {ethWalletOptions
+                          .filter(
+                            (opt) =>
+                              !ethWalletSelectFilter.trim() ||
+                              opt.label.toLowerCase().includes(ethWalletSelectFilter.trim().toLowerCase()) ||
+                              opt.id.toLowerCase().includes(ethWalletSelectFilter.trim().toLowerCase())
+                          )
+                          .map((option) => (
+                            <button
+                              key={option.id}
+                              type="button"
+                              className="flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left text-xs text-slate-200 hover:bg-slate-800"
+                              onClick={() => {
+                                setSelectedEvmProvider(option.id);
+                                setEthWalletSelectOpen(false);
+                                setEthWalletSelectFilter("");
+                              }}
+                            >
+                              <span>{option.label}</span>
+                              {isClient && isEvmWalletAvailable(option.id) ? (
+                                <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
+                                  Disponível
+                                </span>
+                              ) : (
+                                <span className="rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
+                                  Não instalada
+                                </span>
+                              )}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
               </div>
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
                 Carteiras adicionais / L2
@@ -2068,19 +2271,62 @@ export default function WalletsPage() {
                 <span className="text-[11px] uppercase tracking-[0.3em] text-slate-500">
                   Carteira SOL
                 </span>
-                <select
-                  className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1 text-xs text-slate-200 outline-none"
-                  value={selectedSolProvider}
-                  onChange={(event) =>
-                    setSelectedSolProvider(event.target.value as (typeof solWalletOptions)[number]["id"])
-                  }
-                >
-                  {solWalletOptions.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative min-w-[160px]" ref={solWalletSelectRef}>
+                  <button
+                    type="button"
+                    className="flex min-w-[160px] items-center justify-between gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1.5 text-left text-xs text-slate-200 outline-none transition focus:border-orange-400"
+                    onClick={() => setSolWalletSelectOpen((o) => !o)}
+                  >
+                    <span className="truncate">
+                      {solWalletOptions.find((o) => o.id === selectedSolProvider)?.label ?? selectedSolProvider}
+                    </span>
+                    <span className="text-slate-500 text-[10px]">{solWalletSelectOpen ? "▲" : "▼"}</span>
+                  </button>
+                  {solWalletSelectOpen ? (
+                    <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[220px] rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
+                      <input
+                        type="text"
+                        className="w-full border-b border-slate-700 bg-slate-900/80 px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none"
+                        placeholder="Pesquisar carteira..."
+                        value={solWalletSelectFilter}
+                        onChange={(e) => setSolWalletSelectFilter(e.target.value)}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      />
+                      <div className="max-h-[200px] overflow-y-auto py-1">
+                        {solWalletOptions
+                          .filter(
+                            (opt) =>
+                              !solWalletSelectFilter.trim() ||
+                              opt.label.toLowerCase().includes(solWalletSelectFilter.trim().toLowerCase()) ||
+                              opt.id.toLowerCase().includes(solWalletSelectFilter.trim().toLowerCase())
+                          )
+                          .map((option) => (
+                            <button
+                              key={option.id}
+                              type="button"
+                              className="flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left text-xs text-slate-200 hover:bg-slate-800"
+                              onClick={() => {
+                                setSelectedSolProvider(option.id);
+                                setSolWalletSelectOpen(false);
+                                setSolWalletSelectFilter("");
+                              }}
+                            >
+                              <span>{option.label}</span>
+                              {isClient && isSolanaWalletAvailable(option.id) ? (
+                                <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
+                                  Disponível
+                                </span>
+                              ) : (
+                                <span className="rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
+                                  Não instalada
+                                </span>
+                              )}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
               </div>
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
                 Carteiras adicionais / L2
@@ -2292,17 +2538,62 @@ export default function WalletsPage() {
                 <span className="text-[11px] uppercase tracking-[0.3em] text-slate-500">
                   Carteira BTC
                 </span>
-                <select
-                  className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1 text-xs text-slate-200 outline-none"
-                  value={selectedBtcProvider}
-                  onChange={(e) => setSelectedBtcProvider(e.target.value as BtcWalletId)}
-                >
-                  {btcWalletOptions.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative min-w-[120px]" ref={btcWalletSelectRef}>
+                  <button
+                    type="button"
+                    className="flex min-w-[120px] items-center justify-between gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1.5 text-left text-xs text-slate-200 outline-none transition focus:border-orange-400"
+                    onClick={() => setBtcWalletSelectOpen((o) => !o)}
+                  >
+                    <span className="truncate">
+                      {btcWalletOptions.find((o) => o.id === selectedBtcProvider)?.label ?? selectedBtcProvider}
+                    </span>
+                    <span className="text-slate-500 text-[10px]">{btcWalletSelectOpen ? "▲" : "▼"}</span>
+                  </button>
+                  {btcWalletSelectOpen ? (
+                    <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[200px] rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
+                      <input
+                        type="text"
+                        className="w-full border-b border-slate-700 bg-slate-900/80 px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none"
+                        placeholder="Pesquisar carteira..."
+                        value={btcWalletSelectFilter}
+                        onChange={(e) => setBtcWalletSelectFilter(e.target.value)}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      />
+                      <div className="max-h-[180px] overflow-y-auto py-1">
+                        {btcWalletOptions
+                          .filter(
+                            (opt) =>
+                              !btcWalletSelectFilter.trim() ||
+                              opt.label.toLowerCase().includes(btcWalletSelectFilter.trim().toLowerCase()) ||
+                              opt.id.toLowerCase().includes(btcWalletSelectFilter.trim().toLowerCase())
+                          )
+                          .map((option) => (
+                            <button
+                              key={option.id}
+                              type="button"
+                              className="flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left text-xs text-slate-200 hover:bg-slate-800"
+                              onClick={() => {
+                                setSelectedBtcProvider(option.id);
+                                setBtcWalletSelectOpen(false);
+                                setBtcWalletSelectFilter("");
+                              }}
+                            >
+                              <span>{option.label}</span>
+                              {isClient && isBtcWalletAvailable(option.id) ? (
+                                <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
+                                  Disponível
+                                </span>
+                              ) : (
+                                <span className="rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
+                                  Não instalada
+                                </span>
+                              )}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
               </div>
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
                 Carteiras adicionais / L2
@@ -2510,19 +2801,62 @@ export default function WalletsPage() {
                 <span className="text-[11px] uppercase tracking-[0.3em] text-slate-500">
                   Carteira ADA
                 </span>
-                <select
-                  className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1 text-xs text-slate-200 outline-none"
-                  value={selectedAdaProvider}
-                  onChange={(e) =>
-                    setSelectedAdaProvider(e.target.value as CardanoWalletId)
-                  }
-                >
-                  {adaWalletOptions.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative min-w-[120px]" ref={adaWalletSelectRef}>
+                  <button
+                    type="button"
+                    className="flex min-w-[120px] items-center justify-between gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1.5 text-left text-xs text-slate-200 outline-none transition focus:border-orange-400"
+                    onClick={() => setAdaWalletSelectOpen((o) => !o)}
+                  >
+                    <span className="truncate">
+                      {adaWalletOptions.find((o) => o.id === selectedAdaProvider)?.label ?? selectedAdaProvider}
+                    </span>
+                    <span className="text-slate-500 text-[10px]">{adaWalletSelectOpen ? "▲" : "▼"}</span>
+                  </button>
+                  {adaWalletSelectOpen ? (
+                    <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[200px] rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
+                      <input
+                        type="text"
+                        className="w-full border-b border-slate-700 bg-slate-900/80 px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none"
+                        placeholder="Pesquisar carteira..."
+                        value={adaWalletSelectFilter}
+                        onChange={(e) => setAdaWalletSelectFilter(e.target.value)}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      />
+                      <div className="max-h-[180px] overflow-y-auto py-1">
+                        {adaWalletOptions
+                          .filter(
+                            (opt) =>
+                              !adaWalletSelectFilter.trim() ||
+                              opt.label.toLowerCase().includes(adaWalletSelectFilter.trim().toLowerCase()) ||
+                              opt.id.toLowerCase().includes(adaWalletSelectFilter.trim().toLowerCase())
+                          )
+                          .map((option) => (
+                            <button
+                              key={option.id}
+                              type="button"
+                              className="flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left text-xs text-slate-200 hover:bg-slate-800"
+                              onClick={() => {
+                                setSelectedAdaProvider(option.id);
+                                setAdaWalletSelectOpen(false);
+                                setAdaWalletSelectFilter("");
+                              }}
+                            >
+                              <span>{option.label}</span>
+                              {isClient && isCardanoWalletAvailable(option.id) ? (
+                                <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
+                                  Disponível
+                                </span>
+                              ) : (
+                                <span className="rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
+                                  Não instalada
+                                </span>
+                              )}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
               </div>
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
                 Carteiras adicionais / L2
