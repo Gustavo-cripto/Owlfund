@@ -83,6 +83,12 @@ export const getEvmProviderById = (id: EvmProviderId) => {
   return providers.find((provider) => getProviderId(provider) === id) ?? null;
 };
 
+/** Verifica se uma carteira ETH (por id) está instalada no browser. */
+export const isEvmWalletAvailable = (id: EvmProviderId): boolean => {
+  if (typeof window === "undefined") return false;
+  return !!getEvmProviderById(id);
+};
+
 export const isMetaMaskAvailable = () => !!getMetaMaskProvider();
 
 export const connectMetaMask = async () => {

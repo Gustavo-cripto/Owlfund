@@ -12,6 +12,7 @@ import {
   getEvmProviderById,
   getEvmProviderLabel,
   getEvmProviderOptions,
+  isEvmWalletAvailable,
   isMetaMaskAvailable,
   type EvmNetwork,
   type EvmProviderId,
@@ -1877,9 +1878,15 @@ export default function WalletsPage() {
                         className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1 text-slate-200"
                       >
                         {option.label}{" "}
-                        <span className="ml-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
-                          Disponível
-                        </span>
+                        {isClient && isEvmWalletAvailable(option.id) ? (
+                          <span className="ml-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
+                            Disponível
+                          </span>
+                        ) : (
+                          <span className="ml-1 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
+                            Não instalada
+                          </span>
+                        )}
                       </span>
                     ))}
                   </div>
