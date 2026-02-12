@@ -88,3 +88,27 @@ export const getBtcBalanceFromAddress = async (address: string) => {
   const spent = Number(data?.chain_stats?.spent_txo_sum ?? 0);
   return (funded - spent) / 1e8;
 };
+
+/** Saldo Runes (ex.: DOG) por endereço Bitcoin. Usa API Hiro; em falha devolve []. */
+export type RunesBalanceEntry = { symbol: string; amount: string };
+
+export const getRunesBalancesForAddress = async (
+  address: string
+): Promise<RunesBalanceEntry[]> => {
+  try {
+    const res = await fetch(
+      `https://api.hiro.so/runes/v1/addresses/${encodeURIComponent(address)}/balances`,
+      { headers: { Accept: "application/json" } }
+    );
+    if (!res.ok) return [];
+    const data = (await res.json()) as {
+      results?: Array<{ rune?: { id?: string; name?: string; spaced_name?: string }; balance?: string }>;
+    };
+    const list = data?.results ?? [];
+    return list
+      .filter((b) => b.rune != null && b.balance != null)
+      .map((b) => ({ symbol: String(b.rune?.name ?? b.rune?.spaced_name ?? "?"), amount: String(b.balance!) }));
+  } catch {
+    return [];
+  }
+};

@@ -27,8 +27,10 @@ import {
   connectXverse,
   getBtcBalanceFromAddress,
   getBtcBalanceFromWallet,
+  getRunesBalancesForAddress,
   isBtcWalletAvailable,
   isXverseAvailable,
+  type RunesBalanceEntry,
 } from "@/lib/wallets/bitcoin";
 import {
   connectEternl,
@@ -167,6 +169,19 @@ const btcWalletOptions = [
 ] as const;
 type BtcWalletId = (typeof btcWalletOptions)[number]["id"];
 
+/** Redes BTC/L2 para o dropdown ao adicionar endereço no card Bitcoin. */
+const MANUAL_ADD_TO_BTC_NETWORK: Record<string, string> = {
+  bitcoin: "Bitcoin",
+  liquid: "Liquid",
+  rootstock: "Rootstock (RSK)",
+  stacks: "Stacks",
+  lightning: "Lightning (em breve)",
+};
+const btcNetworkOptions: Array<{ id: string; label: string }> = [
+  ...Object.entries(MANUAL_ADD_TO_BTC_NETWORK).map(([id, label]) => ({ id, label })),
+  { id: "outro", label: "Outro (qualquer endereço)" },
+];
+
 /** Redes para "Adicionar endereço manual (todas as redes)". ETH, SOL, BTC e ADA têm suporte a saldo. */
 const MANUAL_ADD_NETWORKS: Array<{ id: string; label: string }> = [
   { id: "eth", label: "Ethereum (ETH)" },
@@ -278,7 +293,9 @@ export default function WalletsPage() {
   const [btcLoading, setBtcLoading] = useState(false);
   const [btcWallets, setBtcWallets] = useState<StoredWalletEntry[]>([]);
   const [btcNewAddress, setBtcNewAddress] = useState("");
-  const [btcNewLabel, setBtcNewLabel] = useState<"bitcoin" | "outro">("bitcoin");
+  const [btcNewLabel, setBtcNewLabel] = useState<string>("bitcoin");
+  const [btcNewNetworkSelectOpen, setBtcNewNetworkSelectOpen] = useState(false);
+  const [btcNewNetworkSelectFilter, setBtcNewNetworkSelectFilter] = useState("");
   const [btcNewCustomLabel, setBtcNewCustomLabel] = useState("");
   const [btcNewError, setBtcNewError] = useState<string | null>(null);
   const [btcNewLoading, setBtcNewLoading] = useState(false);
@@ -287,6 +304,8 @@ export default function WalletsPage() {
   const [btcBalancesByAddress, setBtcBalancesByAddress] = useState<Record<string, string>>({});
   const [btcBalancesLoading, setBtcBalancesLoading] = useState<Record<string, boolean>>({});
   const [btcBalanceErrors, setBtcBalanceErrors] = useState<Record<string, string | null>>({});
+  const [btcRunesByAddress, setBtcRunesByAddress] = useState<Record<string, RunesBalanceEntry[]>>({});
+  const [btcRunesLoading, setBtcRunesLoading] = useState<Record<string, boolean>>({});
 
   const [adaAddress, setAdaAddress] = useState<string>();
   const [adaBalance, setAdaBalance] = useState<string>();
@@ -1321,20 +1340,28 @@ export default function WalletsPage() {
     }
     const trimmed = btcNewAddress.trim();
     const networkLabel =
-      btcNewLabel === "outro" ? (btcNewCustomLabel.trim() || "Bitcoin") : "Bitcoin";
+      btcNewLabel === "outro"
+        ? (btcNewCustomLabel.trim() || "Bitcoin")
+        : (btcNetworkOptions.find((o) => o.id === btcNewLabel)?.label ?? "Bitcoin");
+    const isMainnet = btcNewLabel === "bitcoin";
     try {
       setBtcNewLoading(true);
       setBtcNewError(null);
-      const balance = await getBtcBalanceFromAddress(trimmed);
+      const balanceStr = isMainnet
+        ? (await getBtcBalanceFromAddress(trimmed)).toFixed(8)
+        : "—";
       const nextWallets = upsertWallet(
         btcWallets,
-        { address: trimmed, balance: balance.toFixed(8), network: networkLabel },
+        { address: trimmed, balance: balanceStr, network: networkLabel },
         (item) => item.address === trimmed
       );
       setBtcWallets(nextWallets);
       setBtcNewAddress("");
       setBtcNewCustomLabel("");
-      void fetchBtcBalanceForAddress(trimmed);
+      if (isMainnet) {
+        void fetchBtcBalanceForAddress(trimmed);
+        void fetchRunesForAddress(trimmed);
+      }
     } catch (error) {
       setBtcNewError(error instanceof Error ? error.message : "Endereço inválido.");
     } finally {
@@ -1668,15 +1695,34 @@ export default function WalletsPage() {
     }
   }, [btcAddress]);
 
+  const fetchRunesForAddress = useCallback(async (address: string) => {
+    if (!address) return;
+    setBtcRunesLoading((prev) => ({ ...prev, [address]: true }));
+    try {
+      const runes = await getRunesBalancesForAddress(address);
+      startTransition(() => {
+        setBtcRunesByAddress((prev) => ({ ...prev, [address]: runes }));
+        setBtcRunesLoading((prev) => ({ ...prev, [address]: false }));
+      });
+    } catch {
+      startTransition(() => {
+        setBtcRunesByAddress((prev) => ({ ...prev, [address]: [] }));
+        setBtcRunesLoading((prev) => ({ ...prev, [address]: false }));
+      });
+    }
+  }, []);
+
   useEffect(() => {
     if (walletMode !== "web3") return;
     const id = window.setTimeout(() => {
-      btcWallets
-        .filter((w) => w.address && w.address !== btcAddress)
-        .forEach((w) => void fetchBtcBalanceForAddress(w.address!));
+      btcWallets.forEach((w) => {
+        if (!w.address) return;
+        if (w.address !== btcAddress) void fetchBtcBalanceForAddress(w.address!);
+        void fetchRunesForAddress(w.address!);
+      });
     }, 0);
     return () => window.clearTimeout(id);
-  }, [walletMode, btcWallets, btcAddress, fetchBtcBalanceForAddress]);
+  }, [walletMode, btcWallets, btcAddress, fetchBtcBalanceForAddress, fetchRunesForAddress]);
 
   const handleAddAdaWalletInternal = () => {
     if (!adaNewAddress.trim()) {
@@ -2694,14 +2740,51 @@ export default function WalletsPage() {
                   value={btcNewAddress}
                   onChange={(event) => setBtcNewAddress(event.target.value)}
                 />
-                <select
-                  className="w-full rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none"
-                  value={btcNewLabel}
-                  onChange={(e) => setBtcNewLabel(e.target.value as "bitcoin" | "outro")}
-                >
-                  <option value="bitcoin">Bitcoin</option>
-                  <option value="outro">Outro (qualquer endereço)</option>
-                </select>
+                <div className="relative">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition hover:border-slate-600"
+                    onClick={() => setBtcNewNetworkSelectOpen((prev) => !prev)}
+                  >
+                    <span>{btcNetworkOptions.find((o) => o.id === btcNewLabel)?.label ?? "Bitcoin"}</span>
+                    <span className="text-slate-500 text-[10px] shrink-0">{btcNewNetworkSelectOpen ? "▲" : "▼"}</span>
+                  </button>
+                  {btcNewNetworkSelectOpen ? (
+                    <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
+                      <input
+                        type="text"
+                        className="w-full border-b border-slate-700 bg-slate-900/80 px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none"
+                        placeholder="Pesquisar rede..."
+                        value={btcNewNetworkSelectFilter}
+                        onChange={(e) => setBtcNewNetworkSelectFilter(e.target.value)}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      />
+                      <div className="max-h-[200px] overflow-y-auto py-1">
+                        {btcNetworkOptions
+                          .filter(
+                            (opt) =>
+                              !btcNewNetworkSelectFilter.trim() ||
+                              opt.label.toLowerCase().includes(btcNewNetworkSelectFilter.trim().toLowerCase()) ||
+                              opt.id.toLowerCase().includes(btcNewNetworkSelectFilter.trim().toLowerCase())
+                          )
+                          .map((opt) => (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-xs text-slate-200 hover:bg-slate-800"
+                              onClick={() => {
+                                setBtcNewLabel(opt.id);
+                                setBtcNewNetworkSelectOpen(false);
+                                setBtcNewNetworkSelectFilter("");
+                              }}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
                 <button
                   type="button"
                   className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white disabled:opacity-60"
@@ -2774,6 +2857,21 @@ export default function WalletsPage() {
                         {balanceDisplay != null && balanceDisplay !== "A carregar..." && balanceDisplay !== "—" && getFiatValue("BTC", balanceDisplay) != null ? (
                           <p className="text-slate-400">${getFiatValue("BTC", balanceDisplay)!.toFixed(2)}</p>
                         ) : null}
+                        {(item.network === "Bitcoin" || !item.network) ? (
+                          <>
+                            {btcRunesLoading[addr] ? (
+                              <p className="mt-1 text-[10px] text-slate-500">Runes: a carregar…</p>
+                            ) : (btcRunesByAddress[addr]?.length ?? 0) > 0 ? (
+                              <div className="mt-1 flex flex-wrap justify-end gap-x-2 gap-y-0.5 text-[10px] text-amber-200/90">
+                                {btcRunesByAddress[addr]!.map((r) => (
+                                  <span key={r.symbol}>
+                                    {r.symbol}: {r.amount}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : null}
+                          </>
+                        ) : null}
                         {err ? (
                           <p className="text-rose-300" title={err}>
                             {err.length > 40 ? `${err.slice(0, 40)}…` : err}
@@ -2810,6 +2908,16 @@ export default function WalletsPage() {
                                 return next;
                               });
                               setBtcBalanceErrors((prev) => {
+                                const next = { ...prev };
+                                delete next[addr];
+                                return next;
+                              });
+                              setBtcRunesByAddress((prev) => {
+                                const next = { ...prev };
+                                delete next[addr];
+                                return next;
+                              });
+                              setBtcRunesLoading((prev) => {
                                 const next = { ...prev };
                                 delete next[addr];
                                 return next;
