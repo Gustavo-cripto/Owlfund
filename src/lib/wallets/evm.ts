@@ -16,7 +16,7 @@ const chainMap = {
 
 export type EvmNetwork = keyof typeof chainMap;
 
-export type EvmProviderId = "metamask" | "coinbase" | "trust" | "ledger" | "binance" | "unknown";
+export type EvmProviderId = "metamask" | "coinbase" | "trust" | "binance" | "unknown";
 
 type EvmProvider = typeof window.ethereum;
 
@@ -28,7 +28,7 @@ const getProviderId = (provider?: EvmProvider): EvmProviderId => {
   if (provider.isMetaMask) return "metamask";
   if ("isCoinbaseWallet" in provider) return "coinbase";
   if ("isTrust" in provider || "isTrustWallet" in provider) return "trust";
-  if ("isLedgerLive" in provider || "isLedger" in provider) return "ledger";
+  if ("isLedgerLive" in provider || "isLedger" in provider) return "unknown";
   if ("isBinanceChain" in provider || "isBinance" in provider) return "binance";
   return "unknown";
 };
@@ -41,8 +41,6 @@ export const getEvmProviderLabel = (id: EvmProviderId) => {
       return "Coinbase Wallet";
     case "trust":
       return "Trust Wallet";
-    case "ledger":
-      return "Ledger Live";
     case "binance":
       return "Binance Chain Wallet";
     default:

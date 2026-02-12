@@ -16,7 +16,7 @@ const isRpcError = (err: unknown) => {
   );
 };
 
-export type SolanaWalletId = "phantom" | "backpack" | "solflare" | "glow" | "flint" | "ledger";
+export type SolanaWalletId = "phantom" | "backpack" | "solflare" | "glow" | "flint";
 
 export const isPhantomAvailable = () =>
   typeof window !== "undefined" && !!window.solana?.isPhantom;
@@ -46,8 +46,6 @@ export const isSolanaWalletAvailable = (id: SolanaWalletId): boolean => {
       return !!window.glow;
     case "flint":
       return !!window.flint;
-    case "ledger":
-      return false;
     default:
       return false;
   }
@@ -121,10 +119,6 @@ export const connectSolanaWallet = async (providerId: SolanaWalletId): Promise<s
       return connectGlow();
     case "flint":
       return connectFlint();
-    case "ledger":
-      throw new Error(
-        "Ledger é uma carteira de hardware. Conecta o Ledger através do Phantom ou Solflare (suportam Ledger) e escolhe essa carteira no dropdown."
-      );
     default:
       return connectPhantom();
   }

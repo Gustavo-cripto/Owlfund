@@ -26,13 +26,7 @@ export type EternlApi = {
   getBalance: () => Promise<string>;
 };
 
-export type CardanoWalletId =
-  | "eternl"
-  | "daedalus"
-  | "yoroi"
-  | "adalite"
-  | "lace"
-  | "ledger";
+export type CardanoWalletId = "eternl" | "daedalus" | "yoroi" | "adalite" | "lace";
 
 const getCardanoWalletKey = (id: CardanoWalletId): keyof NonNullable<typeof window.cardano> => {
   if (id === "eternl") return "eternl";
@@ -40,7 +34,6 @@ const getCardanoWalletKey = (id: CardanoWalletId): keyof NonNullable<typeof wind
   if (id === "yoroi") return "yoroi";
   if (id === "adalite") return "adalite";
   if (id === "lace") return "lace";
-  if (id === "ledger") return "ledger";
   return "eternl";
 };
 
@@ -82,7 +75,6 @@ const connectCardanoWalletById = async (
       yoroi: "Yoroi",
       adalite: "Ada Lite",
       lace: "Lace",
-      ledger: "Ledger Live",
     };
     throw new Error(`${labels[id]} não está disponível. Instala a extensão.`);
   }

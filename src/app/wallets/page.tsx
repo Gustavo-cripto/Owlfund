@@ -107,7 +107,6 @@ const ethWalletOptions: Array<{ id: EvmProviderId; label: string }> = [
   { id: "metamask", label: "MetaMask" },
   { id: "coinbase", label: "Coinbase Wallet" },
   { id: "trust", label: "Trust Wallet" },
-  { id: "ledger", label: "Ledger (Hardware)" },
   { id: "binance", label: "Binance Chain Wallet" },
 ];
 const solWalletOptions = [
@@ -116,7 +115,6 @@ const solWalletOptions = [
   { id: "solflare", label: "Solflare" },
   { id: "glow", label: "Glow Wallet" },
   { id: "flint", label: "Flint" },
-  { id: "ledger", label: "Ledger (Hardware)" },
 ] as const;
 type SolanaWalletId = (typeof solWalletOptions)[number]["id"];
 const solLabelOptions: Array<{ id: SolanaWalletId | "outro"; label: string }> = [
@@ -130,7 +128,6 @@ const adaWalletOptions: Array<{ id: CardanoWalletId; label: string }> = [
   { id: "yoroi", label: "Yoroi" },
   { id: "adalite", label: "Ada Lite" },
   { id: "lace", label: "Lace" },
-  { id: "ledger", label: "Ledger Live" },
 ];
 
 /** Opções para etiqueta ao adicionar por endereço (inclui "Outro" para qualquer endereço Cardano/L2). */
