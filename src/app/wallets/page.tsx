@@ -364,6 +364,8 @@ export default function WalletsPage() {
   const [adaWalletSelectOpen, setAdaWalletSelectOpen] = useState(false);
   const [adaWalletSelectFilter, setAdaWalletSelectFilter] = useState("");
   const adaWalletSelectRef = useRef<HTMLDivElement>(null);
+  const btcNewNetworkSelectRef = useRef<HTMLDivElement>(null);
+  const adaNewNetworkSelectRef = useRef<HTMLDivElement>(null);
   const [manualCryptoAssetSymbol, setManualCryptoAssetSymbol] = useState("");
   const [manualCryptoAssetDate, setManualCryptoAssetDate] = useState("");
   const [manualCryptoAssetAmountUsd, setManualCryptoAssetAmountUsd] = useState("");
@@ -455,6 +457,28 @@ export default function WalletsPage() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [adaWalletSelectOpen]);
+
+  useEffect(() => {
+    if (!btcNewNetworkSelectOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (btcNewNetworkSelectRef.current && !btcNewNetworkSelectRef.current.contains(e.target as Node)) {
+        setBtcNewNetworkSelectOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [btcNewNetworkSelectOpen]);
+
+  useEffect(() => {
+    if (!adaNewNetworkSelectOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (adaNewNetworkSelectRef.current && !adaNewNetworkSelectRef.current.contains(e.target as Node)) {
+        setAdaNewNetworkSelectOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [adaNewNetworkSelectOpen]);
 
   useEffect(() => {
     setIsClient(true);
@@ -2797,7 +2821,7 @@ export default function WalletsPage() {
                   value={btcNewAddress}
                   onChange={(event) => setBtcNewAddress(event.target.value)}
                 />
-                <div className="relative">
+                <div className="relative" ref={btcNewNetworkSelectRef}>
                   <button
                     type="button"
                     className="flex w-full items-center justify-between rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition hover:border-slate-600"
@@ -3119,7 +3143,7 @@ export default function WalletsPage() {
                   value={adaNewAddress}
                   onChange={(event) => setAdaNewAddress(event.target.value)}
                 />
-                <div className="relative">
+                <div className="relative" ref={adaNewNetworkSelectRef}>
                   <button
                     type="button"
                     className="flex w-full items-center justify-between rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition hover:border-slate-600"
