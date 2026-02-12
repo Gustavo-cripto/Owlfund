@@ -382,7 +382,6 @@ export default function WalletsPage() {
   const [stablecoinBalances, setStablecoinBalances] = useState<Record<string, string>>({});
   const [stablecoinBalancesLoading, setStablecoinBalancesLoading] = useState<Record<string, boolean>>({});
   const [stablecoinAddSymbol, setStablecoinAddSymbol] = useState<string>("USDT");
-  const [stablecoinAddNetwork, setStablecoinAddNetwork] = useState<EvmNetwork>("Ethereum");
   const [stablecoinAddAddress, setStablecoinAddAddress] = useState("");
   const [stablecoinAddError, setStablecoinAddError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -1647,10 +1646,10 @@ export default function WalletsPage() {
     const id = `stable-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     setStablecoinEntries((prev) => [
       ...prev,
-      { id, symbol: stablecoinAddSymbol, network: stablecoinAddNetwork, address: addr },
+      { id, symbol: stablecoinAddSymbol, network: "Ethereum", address: addr },
     ]);
     setStablecoinAddAddress("");
-    void fetchStablecoinBalance(id, stablecoinAddSymbol, stablecoinAddNetwork, addr);
+    void fetchStablecoinBalance(id, stablecoinAddSymbol, "Ethereum", addr);
   };
 
   const fetchStablecoinBalance = useCallback(
@@ -2183,7 +2182,7 @@ export default function WalletsPage() {
           <p className="mt-1 text-xs text-slate-500">
             Escolhe uma ou várias stablecoins e adiciona um endereço EVM. O saldo aparece aqui e no Portfolio. (Saldo por endereço disponível em Ethereum.)
           </p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-[auto_auto_1fr_auto] sm:items-center">
+          <div className="mt-3 grid gap-2 sm:grid-cols-[auto_1fr_auto] sm:items-center">
             <select
               className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200 outline-none focus:border-orange-400"
               value={stablecoinAddSymbol}
@@ -2193,22 +2192,10 @@ export default function WalletsPage() {
                 <option key={sym} value={sym}>{sym}</option>
               ))}
             </select>
-            <select
-              className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200 outline-none focus:border-orange-400"
-              value={stablecoinAddNetwork}
-              onChange={(e) => setStablecoinAddNetwork(e.target.value as EvmNetwork)}
-            >
-              <option value="Ethereum">Ethereum</option>
-              <option value="Polygon">Polygon</option>
-              <option value="Arbitrum">Arbitrum</option>
-              <option value="Optimism">Optimism</option>
-              <option value="Base">Base</option>
-              <option value="BSC">BSC</option>
-            </select>
             <input
               type="text"
               className="min-w-0 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-orange-400"
-              placeholder="Endereço 0x..."
+              placeholder={`Endereço de ${stablecoinAddSymbol} (0x...)`}
               value={stablecoinAddAddress}
               onChange={(e) => setStablecoinAddAddress(e.target.value)}
             />
@@ -2229,7 +2216,6 @@ export default function WalletsPage() {
                 <thead>
                   <tr className="border-b border-slate-700 text-slate-500">
                     <th className="py-2 pr-2 font-medium">Stablecoin</th>
-                    <th className="py-2 pr-2 font-medium">Rede</th>
                     <th className="py-2 pr-2 font-medium">Endereço</th>
                     <th className="py-2 pr-2 text-right font-medium">Saldo</th>
                     <th className="w-20 py-2"></th>
@@ -2239,7 +2225,6 @@ export default function WalletsPage() {
                   {stablecoinEntries.map((e) => (
                     <tr key={e.id} className="border-b border-slate-800/80">
                       <td className="py-2 pr-2 font-medium text-white">{e.symbol}</td>
-                      <td className="py-2 pr-2">{e.network}</td>
                       <td className="max-w-[140px] truncate py-2 pr-2 font-mono text-slate-400" title={e.address}>
                         {e.address.slice(0, 6)}…{e.address.slice(-4)}
                       </td>
