@@ -189,8 +189,12 @@ export async function GET(request: Request) {
           }
           // Se Jupiter retornou 0 para Solana, tentar fallback: saldo da carteira (SOL + SPL) via RPC + Jupiter Price
           if (chain === "sol" && total === 0 && jupiterKey) {
-            const rpcUrl =
-              (process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "").trim() || "https://solana.publicnode.com";
+            const rpcUrls = [
+              (process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "").trim(),
+              "https://rpc.ankr.com/solana",
+              "https://solana.publicnode.com",
+            ].filter((u): u is string => !!u && u.startsWith("http"));
+            const rpcUrl = rpcUrls[0] || "https://rpc.ankr.com/solana";
             try {
               const [balanceRes, tokenRes] = await Promise.all([
                 fetch(rpcUrl, {
@@ -202,7 +206,7 @@ export async function GET(request: Request) {
                     method: "getBalance",
                     params: [address.trim()],
                   }),
-                  next: { revalidate: 60 },
+                  cache: "no-store",
                 }),
                 fetch(rpcUrl, {
                   method: "POST",
@@ -217,7 +221,7 @@ export async function GET(request: Request) {
                       { encoding: "jsonParsed" },
                     ],
                   }),
-                  next: { revalidate: 60 },
+                  cache: "no-store",
                 }),
               ]);
               const balanceData = (await balanceRes.json()) as { result?: { value?: number } };
@@ -241,24 +245,34 @@ export async function GET(request: Request) {
               }
               const ids = [...mints.keys()];
               if (ids.length > 0) {
+                let walletTotal = 0;
                 const priceRes = await fetch(
                   `https://api.jup.ag/price/v3?ids=${ids.slice(0, 50).join(",")}`,
-                  { headers: { "x-api-key": jupiterKey }, next: { revalidate: 60 } }
+                  { headers: { "x-api-key": jupiterKey }, cache: "no-store" }
                 );
                 if (priceRes.ok) {
                   const priceData = (await priceRes.json()) as { data?: Record<string, { price?: number | string }> };
-                  let walletTotal = 0;
                   for (const [mint, amount] of mints) {
                     const pRaw = priceData?.data?.[mint]?.price;
                     const p = typeof pRaw === "number" ? pRaw : parseFloat(String(pRaw ?? 0)) || 0;
                     walletTotal += amount * p;
                   }
-                  if (walletTotal > 0)
-                    return NextResponse.json({
-                      total: walletTotal,
-                      positions: [{ name: "Carteira", usd: walletTotal }],
-                    });
                 }
+                if (walletTotal <= 0 && solAmount > 0) {
+                  const cgRes = await fetch(
+                    "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd",
+                    { cache: "no-store" }
+                  );
+                  if (cgRes.ok) {
+                    const cg = (await cgRes.json()) as { solana?: { usd?: number } };
+                    walletTotal = solAmount * (cg?.solana?.usd ?? 0);
+                  }
+                }
+                if (walletTotal > 0)
+                  return NextResponse.json({
+                    total: walletTotal,
+                    positions: [{ name: "Carteira", usd: walletTotal }],
+                  });
               }
             } catch {
               // ignorar fallback
