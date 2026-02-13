@@ -97,10 +97,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ total, positions });
   }
 
-  // Para Solana: Jupiter Portfolio (gratuito em portal.jup.ag) → DeBank → Moralis
+  // Para Solana: Jupiter Portfolio (Meteora, Raydium, Orca, etc.) ou DeBank. Só posições em protocolos, não saldo da carteira.
   const jupiterKey = process.env.JUPITER_API_KEY;
   const urls: { url: string; headers: HeadersInit }[] = [];
   if (chain === "sol" && isSolAddress(address) && jupiterKey) {
+    // platforms vazio = todas (Meteora, Raydium, Orca, Jupiter, etc.)
     urls.push({
       url: `https://api.jup.ag/portfolio/v1/positions/${encodeURIComponent(address.trim())}`,
       headers: { Accept: "application/json", "x-api-key": jupiterKey },
@@ -118,13 +119,7 @@ export async function GET(request: Request) {
       headers: { Accept: "application/json", "X-API-Key": moralisKey },
     });
   }
-  // DeBank falhou ou sem chave: Moralis portfolio (tokens + SOL) como fallback para Solana
-  if (moralisKey && chain === "sol" && isSolAddress(address)) {
-    urls.push({
-      url: `${MORALIS_SOLANA}/${address}/portfolio?nftMetadata=false&excludeSpam=true`,
-      headers: { Accept: "application/json", "X-API-Key": moralisKey },
-    });
-  }
+  // Solana DeFi: só Jupiter e DeBank (posições em protocolos). Moralis portfolio = tokens na carteira, não DeFi.
 
   let lastError: string | null = null;
 
@@ -229,10 +224,7 @@ export async function GET(request: Request) {
             data.protocols
               ?.filter((p) => Number(p.total_usd_value ?? 0) > 0)
               .map((p) => ({ name: "Protocol", usd: Number(p.total_usd_value ?? 0) })) ?? [];
-          const finalTotal = Math.max(0, total);
-          if (finalTotal > 0 || chain !== "sol")
-            return NextResponse.json({ total: finalTotal, positions });
-          continue;
+          return NextResponse.json({ total: Math.max(0, total), positions });
         } catch {
           continue;
         }
@@ -261,46 +253,10 @@ export async function GET(request: Request) {
     }
   }
 
-  // Fallback Solana: RPC + CoinGecko para mostrar pelo menos valor do SOL
-  if (chain === "sol" && isSolAddress(address)) {
-    try {
-      const [rpcRes, priceRes] = await Promise.all([
-        fetch("https://api.mainnet-beta.solana.com", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            jsonrpc: "2.0",
-            id: 1,
-            method: "getBalance",
-            params: [address.trim()],
-          }),
-          next: { revalidate: 60 },
-        }),
-        fetch("https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd", {
-          next: { revalidate: 120 },
-        }),
-      ]);
-      const rpcData = rpcRes.ok ? (await rpcRes.json()) : null;
-      const lamports = rpcData?.result?.value ?? 0;
-      const solPrice = priceRes.ok
-        ? ((await priceRes.json()) as { solana?: { usd?: number } })?.solana?.usd ?? 0
-        : 0;
-      const solAmount = lamports / 1e9;
-      const total = solAmount * (solPrice || 0);
-      if (total > 0)
-        return NextResponse.json({
-          total,
-          positions: [{ name: "SOL", usd: total }],
-        });
-    } catch {
-      // ignore
-    }
-  }
-
   const hasAnyKey = accessKey || moralisKey || jupiterKey;
   let fallbackMsg = hasAnyKey
     ? lastError ?? "Falha ao consultar DeFi."
-    : "Para DeFi Solana (Meteora): JUPITER_API_KEY (gratuito em portal.jup.ag). Para ETH: MORALIS_API_KEY.";
+    : "Para DeFi Solana (Meteora, Raydium, Orca): JUPITER_API_KEY (gratuito em portal.jup.ag). Para ETH: MORALIS_API_KEY.";
   if (chain === "sol" && jupiterKey && lastError?.includes("Jupiter"))
     fallbackMsg += " Chaves novas demoram 2-5 min a ativar. Verifica .env.local (local) ou variáveis do deploy.";
 
