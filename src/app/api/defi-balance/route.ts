@@ -175,8 +175,7 @@ export async function GET(request: Request) {
               positions.push({ name: label, usd: elTotal });
             }
           }
-          if (total > 0) return NextResponse.json({ total, positions });
-          continue;
+          return NextResponse.json({ total, positions });
         } catch {
           continue;
         }
