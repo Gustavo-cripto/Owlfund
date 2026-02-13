@@ -647,44 +647,60 @@ export default function WalletsPage() {
     return () => window.clearTimeout(timeoutId);
   }, [ethWallets, solWallets, btcWallets, adaWallets, userId, isPro, isLoadingAuth, supabase]);
 
-  const fetchDefiTotal = async (address: string) => {
-    if (!isEvmAddress(address)) {
-      setDefiTotals((prev) => ({ ...prev, [address]: null }));
-      return;
-    }
-    setDefiLoading((prev) => ({ ...prev, [address]: true }));
-    setDefiErrors((prev) => ({ ...prev, [address]: null }));
+  type DefiChain = "eth" | "sol" | "btc" | "ada";
+  const defiKey = (address: string, chain: DefiChain) => `${address}:${chain}`;
+
+  const fetchDefiTotal = async (address: string, chain: DefiChain) => {
+    const key = defiKey(address, chain);
+    setDefiLoading((prev) => ({ ...prev, [key]: true }));
+    setDefiErrors((prev) => ({ ...prev, [key]: null }));
     try {
       const base = typeof window !== "undefined" ? window.location.origin : "";
       const response = await fetch(
-        `${base}/api/defi-balance?address=${encodeURIComponent(address)}`
+        `${base}/api/defi-balance?address=${encodeURIComponent(address)}&chain=${chain}`
       );
       const data = (await response.json()) as { total?: number; error?: string };
       if (!response.ok) {
         const msg = data?.error ?? "Falha ao consultar DeFi.";
-        const needsKey = msg.includes("DEBANK_ACCESS_KEY");
-        setDefiTotals((prev) => ({ ...prev, [address]: null }));
-        setDefiErrors((prev) => ({ ...prev, [address]: needsKey ? null : msg }));
+        setDefiTotals((prev) => ({ ...prev, [key]: null }));
+        setDefiErrors((prev) => ({ ...prev, [key]: msg }));
         return;
       }
       const total = typeof data?.total === "number" && Number.isFinite(data.total) ? data.total : 0;
-      setDefiTotals((prev) => ({ ...prev, [address]: total }));
-      setDefiErrors((prev) => ({ ...prev, [address]: null }));
+      setDefiTotals((prev) => ({ ...prev, [key]: total }));
+      setDefiErrors((prev) => ({ ...prev, [key]: null }));
     } catch (error) {
       setDefiErrors((prev) => ({
         ...prev,
-        [address]: error instanceof Error ? error.message : "Erro ao carregar DeFi.",
+        [key]: error instanceof Error ? error.message : "Erro ao carregar DeFi.",
       }));
-      setDefiTotals((prev) => ({ ...prev, [address]: null }));
+      setDefiTotals((prev) => ({ ...prev, [key]: null }));
     } finally {
-      setDefiLoading((prev) => ({ ...prev, [address]: false }));
+      setDefiLoading((prev) => ({ ...prev, [key]: false }));
     }
   };
 
+  const ethMainAddress = ethAddress ?? ethWallets[0]?.address;
+  const solMainAddress = solAddress ?? solWallets[0]?.address;
+  const btcMainAddress = btcAddress ?? btcWallets[0]?.address;
+  const adaMainAddress = adaAddress ?? adaWallets[0]?.address;
+
   useEffect(() => {
-    if (!ethAddress) return;
-    fetchDefiTotal(ethAddress);
-  }, [ethAddress]);
+    if (!ethMainAddress) return;
+    fetchDefiTotal(ethMainAddress, "eth");
+  }, [ethMainAddress]);
+  useEffect(() => {
+    if (!solMainAddress) return;
+    fetchDefiTotal(solMainAddress, "sol");
+  }, [solMainAddress]);
+  useEffect(() => {
+    if (!btcMainAddress) return;
+    fetchDefiTotal(btcMainAddress, "btc");
+  }, [btcMainAddress]);
+  useEffect(() => {
+    if (!adaMainAddress) return;
+    fetchDefiTotal(adaMainAddress, "ada");
+  }, [adaMainAddress]);
 
   const refreshCryptoPrices = async () => {
     const symbols = Object.keys(cryptoHoldings);
@@ -1143,6 +1159,7 @@ export default function WalletsPage() {
           .filter((w) => w.address && w.network && !(w.address === ethAddress && w.network === "Ethereum"))
           .map((w) => fetchEthBalanceForEntry(w.address!, w.network!))
       );
+      if (ethMainAddress) void fetchDefiTotal(ethMainAddress, "eth");
     } catch (error) {
       setEthError(error instanceof Error ? error.message : "Erro ao atualizar saldo.");
     } finally {
@@ -1261,6 +1278,7 @@ export default function WalletsPage() {
           .filter((w) => w.address && w.address !== solAddress)
           .map((w) => fetchSolBalanceForAddress(w.address!))
       );
+      if (solMainAddress) void fetchDefiTotal(solMainAddress, "sol");
     } catch (error) {
       setSolError(error instanceof Error ? error.message : "Erro ao atualizar saldo.");
     } finally {
@@ -1401,6 +1419,7 @@ export default function WalletsPage() {
           .filter((w) => w.address && w.address !== btcAddress)
           .map((w) => fetchBtcBalanceForAddress(w.address!))
       );
+      if (btcMainAddress) void fetchDefiTotal(btcMainAddress, "btc");
     } catch (error) {
       setBtcError(error instanceof Error ? error.message : "Erro ao atualizar saldo.");
     } finally {
@@ -1523,6 +1542,7 @@ export default function WalletsPage() {
           .filter((w) => w.address && w.address !== adaAddress)
           .map((w) => fetchAdaBalanceForAddress(w.address!))
       );
+      if (adaMainAddress) void fetchDefiTotal(adaMainAddress, "ada");
     } catch (error) {
       setAdaError(error instanceof Error ? error.message : "Erro ao atualizar saldo.");
     } finally {
@@ -2276,9 +2296,9 @@ export default function WalletsPage() {
             balance={ethWallets.length > 0 ? totalEthBalance : ethBalance}
             balanceUnit="ETH"
             fiatValueUsd={getFiatValue("ETH", ethWallets.length > 0 ? totalEthBalance : ethBalance)}
-            defiBalanceUsd={ethAddress ? defiTotals[ethAddress] ?? null : null}
-            defiLoading={ethAddress ? !!defiLoading[ethAddress] : false}
-            defiError={ethAddress ? defiErrors[ethAddress] ?? null : null}
+            defiBalanceUsd={ethMainAddress ? defiTotals[defiKey(ethMainAddress, "eth")] ?? null : null}
+            defiLoading={ethMainAddress ? !!defiLoading[defiKey(ethMainAddress, "eth")] : false}
+            defiError={ethMainAddress ? defiErrors[defiKey(ethMainAddress, "eth")] ?? null : null}
             isConnected={!!ethAddress || ethWallets.length > 0}
             isAvailable={ethIsAvailable || ethWallets.length > 0}
             isLoading={ethLoading}
@@ -2548,6 +2568,9 @@ export default function WalletsPage() {
             balance={solWallets.length > 0 ? totalSolBalance : solBalance}
             balanceUnit="SOL"
             fiatValueUsd={getFiatValue("SOL", solWallets.length > 0 ? totalSolBalance : solBalance)}
+            defiBalanceUsd={solMainAddress ? defiTotals[defiKey(solMainAddress, "sol")] ?? null : null}
+            defiLoading={solMainAddress ? !!defiLoading[defiKey(solMainAddress, "sol")] : false}
+            defiError={solMainAddress ? defiErrors[defiKey(solMainAddress, "sol")] ?? null : null}
             isConnected={!!solAddress || solWallets.length > 0}
             isAvailable={solIsAvailable || solWallets.length > 0}
             isLoading={solLoading}
@@ -2850,6 +2873,9 @@ export default function WalletsPage() {
             balance={btcWallets.length > 0 ? totalBtcBalance : (btcBalance !== null ? btcBalance.toFixed(8) : null)}
             balanceUnit="BTC"
             fiatValueUsd={getFiatValue("BTC", btcWallets.length > 0 ? totalBtcBalance : (btcBalance ?? undefined))}
+            defiBalanceUsd={btcMainAddress ? defiTotals[defiKey(btcMainAddress, "btc")] ?? null : null}
+            defiLoading={btcMainAddress ? !!defiLoading[defiKey(btcMainAddress, "btc")] : false}
+            defiError={btcMainAddress ? defiErrors[defiKey(btcMainAddress, "btc")] ?? null : null}
             isConnected={!!btcAddress || btcWallets.length > 0}
             isAvailable={btcIsAvailable}
             isLoading={btcLoading}
@@ -3197,6 +3223,9 @@ export default function WalletsPage() {
             balance={adaWallets.length > 0 ? totalAdaBalance : adaBalance}
             balanceUnit="ADA"
             fiatValueUsd={getFiatValue("ADA", adaWallets.length > 0 ? totalAdaBalance : adaBalance)}
+            defiBalanceUsd={adaMainAddress ? defiTotals[defiKey(adaMainAddress, "ada")] ?? null : null}
+            defiLoading={adaMainAddress ? !!defiLoading[defiKey(adaMainAddress, "ada")] : false}
+            defiError={adaMainAddress ? defiErrors[defiKey(adaMainAddress, "ada")] ?? null : null}
             isConnected={!!adaAddress || adaWallets.length > 0}
             isAvailable={adaIsAvailable || adaWallets.length > 0}
             isLoading={adaLoading}
