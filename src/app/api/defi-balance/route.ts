@@ -258,6 +258,42 @@ export async function GET(request: Request) {
     }
   }
 
+  // Fallback Solana: RPC + CoinGecko para mostrar pelo menos valor do SOL
+  if (chain === "sol" && isSolAddress(address)) {
+    try {
+      const [rpcRes, priceRes] = await Promise.all([
+        fetch("https://api.mainnet-beta.solana.com", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "getBalance",
+            params: [address.trim()],
+          }),
+          next: { revalidate: 60 },
+        }),
+        fetch("https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd", {
+          next: { revalidate: 120 },
+        }),
+      ]);
+      const rpcData = rpcRes.ok ? (await rpcRes.json()) : null;
+      const lamports = rpcData?.result?.value ?? 0;
+      const solPrice = priceRes.ok
+        ? ((await priceRes.json()) as { solana?: { usd?: number } })?.solana?.usd ?? 0
+        : 0;
+      const solAmount = lamports / 1e9;
+      const total = solAmount * (solPrice || 0);
+      if (total > 0)
+        return NextResponse.json({
+          total,
+          positions: [{ name: "SOL", usd: total }],
+        });
+    } catch {
+      // ignore
+    }
+  }
+
   const hasAnyKey = accessKey || moralisKey || jupiterKey;
   let fallbackMsg = hasAnyKey
     ? lastError ?? "Falha ao consultar DeFi."
