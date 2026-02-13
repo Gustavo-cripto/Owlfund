@@ -190,7 +190,7 @@ export async function GET(request: Request) {
           // Se Jupiter retornou 0 para Solana, tentar fallback: saldo da carteira (SOL + SPL) via RPC + Jupiter Price
           if (chain === "sol" && total === 0 && jupiterKey) {
             const rpcUrl =
-              process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? "https://solana.publicnode.com";
+              (process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "").trim() || "https://solana.publicnode.com";
             try {
               const [balanceRes, tokenRes] = await Promise.all([
                 fetch(rpcUrl, {
