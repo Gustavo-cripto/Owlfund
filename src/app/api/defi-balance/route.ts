@@ -99,6 +99,10 @@ export async function GET(request: Request) {
       url: `https://api.jup.ag/portfolio/v1/positions/${encodeURIComponent(address.trim())}`,
       headers: { Accept: "application/json", "x-api-key": jupiterKey },
     });
+    urls.push({
+      url: `https://api.jup.ag/portfolio/v1/positions/${encodeURIComponent(address.trim())}?platforms=meteora-dlmm,meteora,raydium,orca,jupiter-exchange`,
+      headers: { Accept: "application/json", "x-api-key": jupiterKey },
+    });
   }
   if (moralisKey && chain === "eth") {
     urls.push({
@@ -109,6 +113,7 @@ export async function GET(request: Request) {
   // Solana DeFi: só Jupiter (Meteora, Raydium, Orca, etc.). ETH: Moralis.
 
   let lastError: string | null = null;
+  let jupiterTriedAndZero = false;
 
   for (const { url, headers } of urls) {
     try {
@@ -155,10 +160,13 @@ export async function GET(request: Request) {
                 value?: number | string;
                 valueUsd?: number | string;
                 totalValue?: number | string;
+                poolValue?: number | string;
+                positionValue?: number | string;
                 assets?: Array<{
                   value?: number | string;
                   data?: { price?: number | string; amount?: number | string };
                 }>;
+                reserves?: Array<{ value?: number | string; amount?: number | string; price?: number | string }>;
               };
             }>;
           };
@@ -171,114 +179,39 @@ export async function GET(request: Request) {
           let total = 0;
           const positions: { name: string; usd: number }[] = [];
           for (const el of data.elements ?? []) {
-            const val = toNum(el.value ?? el.data?.value ?? el.data?.valueUsd ?? el.data?.totalValue ?? 0);
+            const val = toNum(
+              el.value ??
+                el.data?.value ??
+                el.data?.valueUsd ??
+                el.data?.totalValue ??
+                el.data?.poolValue ??
+                el.data?.positionValue ??
+                0
+            );
             const assets = el.data?.assets ?? [];
-            const sum = assets.reduce((s, a) => {
+            const reserves = el.data?.reserves ?? [];
+            const sumAssets = assets.reduce((s, a) => {
               const v = toNum(a.value);
               if (v > 0) return s + v;
               const price = toNum(a.data?.price);
               const amount = toNum(a.data?.amount);
               return s + (price * amount || 0);
             }, 0);
-            const elTotal = val > 0 ? val : sum;
+            const sumReserves = reserves.reduce((s, r) => {
+              const v = toNum(r.value);
+              if (v > 0) return s + v;
+              return s + (toNum(r.price) * toNum(r.amount) || 0);
+            }, 0);
+            const elTotal = val > 0 ? val : sumAssets || sumReserves;
             if (elTotal > 0) {
               total += elTotal;
               const label = el.name ?? el.platformId ?? "DeFi";
               positions.push({ name: label, usd: elTotal });
             }
           }
-          // Se Jupiter retornou 0 para Solana, tentar fallback: saldo da carteira (SOL + SPL) via RPC + Jupiter Price
-          if (chain === "sol" && total === 0 && jupiterKey) {
-            const rpcUrls = [
-              (process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "").trim(),
-              "https://rpc.ankr.com/solana",
-              "https://solana.publicnode.com",
-            ].filter((u): u is string => !!u && u.startsWith("http"));
-            const rpcUrl = rpcUrls[0] || "https://rpc.ankr.com/solana";
-            try {
-              const [balanceRes, tokenRes] = await Promise.all([
-                fetch(rpcUrl, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    jsonrpc: "2.0",
-                    id: 1,
-                    method: "getBalance",
-                    params: [address.trim()],
-                  }),
-                  cache: "no-store",
-                }),
-                fetch(rpcUrl, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    jsonrpc: "2.0",
-                    id: 2,
-                    method: "getTokenAccountsByOwner",
-                    params: [
-                      address.trim(),
-                      { programId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
-                      { encoding: "jsonParsed" },
-                    ],
-                  }),
-                  cache: "no-store",
-                }),
-              ]);
-              const balanceData = (await balanceRes.json()) as { result?: { value?: number } };
-              const tokenData = (await tokenRes.json()) as {
-                result?: { value?: Array<{
-                  account?: { data?: { parsed?: { info?: { mint?: string; tokenAmount?: { amount: string; decimals: number } } } } };
-                }> };
-              };
-              const lamports = balanceData?.result?.value ?? 0;
-              const solAmount = lamports / 1e9;
-              const mints = new Map<string, number>();
-              mints.set("So11111111111111111111111111111111111111112", solAmount);
-              for (const acc of tokenData?.result?.value ?? []) {
-                const info = acc?.account?.data?.parsed?.info;
-                const mint = info?.mint;
-                const ta = info?.tokenAmount;
-                if (mint && ta && Number(ta.amount) > 0) {
-                  const human = Number(ta.amount) / Math.pow(10, ta.decimals);
-                  mints.set(mint, (mints.get(mint) ?? 0) + human);
-                }
-              }
-              const ids = [...mints.keys()];
-              if (ids.length > 0) {
-                let walletTotal = 0;
-                const priceRes = await fetch(
-                  `https://api.jup.ag/price/v3?ids=${ids.slice(0, 50).join(",")}`,
-                  { headers: { "x-api-key": jupiterKey }, cache: "no-store" }
-                );
-                if (priceRes.ok) {
-                  const priceData = (await priceRes.json()) as { data?: Record<string, { price?: number | string }> };
-                  for (const [mint, amount] of mints) {
-                    const pRaw = priceData?.data?.[mint]?.price;
-                    const p = typeof pRaw === "number" ? pRaw : parseFloat(String(pRaw ?? 0)) || 0;
-                    walletTotal += amount * p;
-                  }
-                }
-                if (walletTotal <= 0 && solAmount > 0) {
-                  const cgRes = await fetch(
-                    "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd",
-                    { cache: "no-store" }
-                  );
-                  if (cgRes.ok) {
-                    const cg = (await cgRes.json()) as { solana?: { usd?: number } };
-                    walletTotal = solAmount * (cg?.solana?.usd ?? 0);
-                  }
-                }
-                if (walletTotal > 0)
-                  return NextResponse.json({
-                    total: walletTotal,
-                    positions: [{ name: "Carteira", usd: walletTotal }],
-                  });
-              }
-            } catch {
-              // ignorar fallback
-            }
-          }
-          return NextResponse.json({ total, positions });
+          if (total > 0) return NextResponse.json({ total, positions });
+          jupiterTriedAndZero = true;
+          continue;
         } catch {
           continue;
         }
@@ -322,6 +255,98 @@ export async function GET(request: Request) {
       continue;
     } catch {
       continue;
+    }
+  }
+
+  // Fallback Solana: quando Jupiter retornou 0, tentar saldo carteira via RPC + preços
+  if (chain === "sol" && jupiterTriedAndZero && jupiterKey) {
+    const rpcUrls = [
+      (process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "").trim(),
+      "https://rpc.ankr.com/solana",
+      "https://solana.publicnode.com",
+    ].filter((u): u is string => !!u && u.startsWith("http"));
+    const rpcUrl = rpcUrls[0] || "https://rpc.ankr.com/solana";
+    try {
+      const [balanceRes, tokenRes] = await Promise.all([
+        fetch(rpcUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "getBalance",
+            params: [address.trim()],
+          }),
+          cache: "no-store",
+        }),
+        fetch(rpcUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 2,
+            method: "getTokenAccountsByOwner",
+            params: [
+              address.trim(),
+              { programId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
+              { encoding: "jsonParsed" },
+            ],
+          }),
+          cache: "no-store",
+        }),
+      ]);
+      const balanceData = (await balanceRes.json()) as { result?: { value?: number } };
+      const tokenData = (await tokenRes.json()) as {
+        result?: { value?: Array<{
+          account?: { data?: { parsed?: { info?: { mint?: string; tokenAmount?: { amount: string; decimals: number } } } } };
+        }> };
+      };
+      const lamports = balanceData?.result?.value ?? 0;
+      const solAmount = lamports / 1e9;
+      const mints = new Map<string, number>();
+      mints.set("So11111111111111111111111111111111111111112", solAmount);
+      for (const acc of tokenData?.result?.value ?? []) {
+        const info = acc?.account?.data?.parsed?.info;
+        const mint = info?.mint;
+        const ta = info?.tokenAmount;
+        if (mint && ta && Number(ta.amount) > 0) {
+          const human = Number(ta.amount) / Math.pow(10, ta.decimals);
+          mints.set(mint, (mints.get(mint) ?? 0) + human);
+        }
+      }
+      const ids = [...mints.keys()];
+      if (ids.length > 0) {
+        let walletTotal = 0;
+        const priceRes = await fetch(
+          `https://api.jup.ag/price/v3?ids=${ids.slice(0, 50).join(",")}`,
+          { headers: { "x-api-key": jupiterKey }, cache: "no-store" }
+        );
+        if (priceRes.ok) {
+          const priceData = (await priceRes.json()) as { data?: Record<string, { price?: number | string }> };
+          for (const [mint, amount] of mints) {
+            const pRaw = priceData?.data?.[mint]?.price;
+            const p = typeof pRaw === "number" ? pRaw : parseFloat(String(pRaw ?? 0)) || 0;
+            walletTotal += amount * p;
+          }
+        }
+        if (walletTotal <= 0 && solAmount > 0) {
+          const cgRes = await fetch(
+            "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd",
+            { cache: "no-store" }
+          );
+          if (cgRes.ok) {
+            const cg = (await cgRes.json()) as { solana?: { usd?: number } };
+            walletTotal = solAmount * (cg?.solana?.usd ?? 0);
+          }
+        }
+        if (walletTotal > 0)
+          return NextResponse.json({
+            total: walletTotal,
+            positions: [{ name: "Carteira", usd: walletTotal }],
+          });
+      }
+    } catch {
+      // ignorar fallback
     }
   }
 
