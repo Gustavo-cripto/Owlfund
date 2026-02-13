@@ -708,7 +708,6 @@ export default function WalletsPage() {
 
   const fetchNftBalance = async (address: string, chain: DefiChain) => {
     const key = defiKey(address, chain);
-    if (chain === "btc" || chain === "ada") return;
     setNftLoading((prev) => ({ ...prev, [key]: true }));
     setNftErrors((prev) => ({ ...prev, [key]: null }));
     try {
@@ -745,6 +744,14 @@ export default function WalletsPage() {
     if (!solMainAddress) return;
     fetchNftBalance(solMainAddress, "sol");
   }, [solMainAddress]);
+  useEffect(() => {
+    if (!btcMainAddress) return;
+    fetchNftBalance(btcMainAddress, "btc");
+  }, [btcMainAddress]);
+  useEffect(() => {
+    if (!adaMainAddress) return;
+    fetchNftBalance(adaMainAddress, "ada");
+  }, [adaMainAddress]);
 
   const refreshCryptoPrices = async () => {
     const symbols = Object.keys(cryptoHoldings);
@@ -1469,7 +1476,10 @@ export default function WalletsPage() {
           .filter((w) => w.address && w.address !== btcAddress)
           .map((w) => fetchBtcBalanceForAddress(w.address!))
       );
-      if (btcMainAddress) void fetchDefiTotal(btcMainAddress, "btc");
+      if (btcMainAddress) {
+        void fetchDefiTotal(btcMainAddress, "btc");
+        void fetchNftBalance(btcMainAddress, "btc");
+      }
     } catch (error) {
       setBtcError(error instanceof Error ? error.message : "Erro ao atualizar saldo.");
     } finally {
@@ -1592,7 +1602,10 @@ export default function WalletsPage() {
           .filter((w) => w.address && w.address !== adaAddress)
           .map((w) => fetchAdaBalanceForAddress(w.address!))
       );
-      if (adaMainAddress) void fetchDefiTotal(adaMainAddress, "ada");
+      if (adaMainAddress) {
+        void fetchDefiTotal(adaMainAddress, "ada");
+        void fetchNftBalance(adaMainAddress, "ada");
+      }
     } catch (error) {
       setAdaError(error instanceof Error ? error.message : "Erro ao atualizar saldo.");
     } finally {
@@ -2934,6 +2947,10 @@ export default function WalletsPage() {
             defiBalanceUsd={btcMainAddress ? defiTotals[defiKey(btcMainAddress, "btc")] ?? null : null}
             defiLoading={btcMainAddress ? !!defiLoading[defiKey(btcMainAddress, "btc")] : false}
             defiError={btcMainAddress ? defiErrors[defiKey(btcMainAddress, "btc")] ?? null : null}
+            nftCount={btcMainAddress ? nftCounts[defiKey(btcMainAddress, "btc")] ?? null : null}
+            nftLoading={btcMainAddress ? !!nftLoading[defiKey(btcMainAddress, "btc")] : false}
+            nftError={btcMainAddress ? nftErrors[defiKey(btcMainAddress, "btc")] ?? null : null}
+            nfts={btcMainAddress ? nftsByKey[defiKey(btcMainAddress, "btc")] ?? [] : []}
             isConnected={!!btcAddress || btcWallets.length > 0}
             isAvailable={btcIsAvailable}
             isLoading={btcLoading}
@@ -3284,6 +3301,10 @@ export default function WalletsPage() {
             defiBalanceUsd={adaMainAddress ? defiTotals[defiKey(adaMainAddress, "ada")] ?? null : null}
             defiLoading={adaMainAddress ? !!defiLoading[defiKey(adaMainAddress, "ada")] : false}
             defiError={adaMainAddress ? defiErrors[defiKey(adaMainAddress, "ada")] ?? null : null}
+            nftCount={adaMainAddress ? nftCounts[defiKey(adaMainAddress, "ada")] ?? null : null}
+            nftLoading={adaMainAddress ? !!nftLoading[defiKey(adaMainAddress, "ada")] : false}
+            nftError={adaMainAddress ? nftErrors[defiKey(adaMainAddress, "ada")] ?? null : null}
+            nfts={adaMainAddress ? nftsByKey[defiKey(adaMainAddress, "ada")] ?? [] : []}
             isConnected={!!adaAddress || adaWallets.length > 0}
             isAvailable={adaIsAvailable || adaWallets.length > 0}
             isLoading={adaLoading}

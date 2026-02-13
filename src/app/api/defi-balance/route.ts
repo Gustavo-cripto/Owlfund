@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 const DEBANK_PRO = "https://pro-openapi.debank.com/v1/user/all_simple_protocol_list";
 const MORALIS_DEFI = "https://deep-index.moralis.io/api/v2.2/wallets";
+const MORALIS_SOLANA = "https://solana-gateway.moralis.io/account/mainnet";
 
 type ChainId = "eth" | "sol" | "btc" | "ada";
 
@@ -59,7 +60,7 @@ export async function GET(request: Request) {
     );
   }
 
-  // DeBank/Moralis não suportam Bitcoin nem Cardano para DeFi
+  // Moralis não suporta Bitcoin nem Cardano
   if (chain === "btc" || chain === "ada") {
     return NextResponse.json({ total: 0, positions: [] });
   }
@@ -96,6 +97,34 @@ export async function GET(request: Request) {
       return NextResponse.json({ total, positions });
   }
 
+  // Moralis Solana: portfolio (tokens + nativos)
+  if (moralisKey && chain === "sol" && isSolAddress(address)) {
+    try {
+      const res = await fetch(
+        `${MORALIS_SOLANA}/${address}/portfolio?nftMetadata=false&excludeSpam=true`,
+        { headers: { Accept: "application/json", "X-API-Key": moralisKey }, next: { revalidate: 120 } }
+      );
+      if (res.ok) {
+        const data = (await res.json()) as {
+          total_usd_value?: string | number;
+          native_balance?: { usd_value?: string | number };
+          tokens?: Array<{ usd_value?: string | number; amount?: string }>;
+        };
+        let total = Number(data.total_usd_value ?? 0) || 0;
+        if (total <= 0 && data.native_balance?.usd_value)
+          total += Number(data.native_balance.usd_value) || 0;
+        if (total <= 0 && data.tokens?.length)
+          total = (data.tokens as Array<{ usd_value?: string | number }>).reduce(
+            (s, t) => s + (Number(t.usd_value ?? 0) || 0),
+            0
+          );
+        return NextResponse.json({ total: Math.max(0, total), positions: [] });
+      }
+    } catch {
+      // fall through
+    }
+  }
+
   const urls: { url: string; headers: HeadersInit }[] = [];
   if (accessKey) {
     urls.push({
@@ -126,12 +155,18 @@ export async function GET(request: Request) {
           // ignore
         }
         const isMoralis = url.includes("moralis.io");
+        // Para Solana: DeBank não suporta bem; 403 = sem créditos. Retornar 0 em vez de erro.
+        if (chain === "sol" && res.status === 403) {
+          return NextResponse.json({ total: 0, positions: [] });
+        }
         if (res.status === 401)
           lastError = isMoralis
             ? "Chave Moralis inválida. Verifica em admin.moralis.io."
             : "Chave DeBank inválida ou expirada. Verifica em cloud.debank.com.";
         else if (res.status === 403)
-          lastError = "Limite de créditos Moralis excedido. Tenta novamente mais tarde.";
+          lastError = isMoralis
+            ? "Limite de créditos Moralis excedido. Tenta novamente mais tarde."
+            : "Limite de créditos DeBank excedido.";
         else if (res.status === 429) lastError = "Muitos pedidos. Espera um momento e tenta novamente.";
         else if (errMsg) lastError = errMsg;
         continue;

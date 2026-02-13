@@ -66,16 +66,131 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: `Endereço inválido para ${chain}.` }, { status: 400 });
   }
 
+  if (chain === "ada" && address.trim().startsWith("addr1")) {
+    const projectId = process.env.BLOCKFROST_PROJECT_ID;
+    if (!projectId) {
+      return NextResponse.json(
+        { error: "Configura BLOCKFROST_PROJECT_ID para ver NFTs Cardano.", count: 0, nfts: [] },
+        { status: 503 }
+      );
+    }
+    try {
+      const res = await fetch(
+        `https://cardano-mainnet.blockfrost.io/api/v0/addresses/${encodeURIComponent(address.trim())}/extended`,
+        { headers: { project_id: projectId }, next: { revalidate: 120 } }
+      );
+      if (!res.ok) {
+        if (res.status === 404) return NextResponse.json({ count: 0, nfts: [] });
+        const err = (await res.json().catch(() => ({}))) as { message?: string };
+        return NextResponse.json(
+          { error: err?.message ?? "Falha ao consultar NFTs Cardano.", count: 0, nfts: [] },
+          { status: res.status >= 500 ? 503 : res.status }
+        );
+      }
+      const data = (await res.json()) as { amount?: Array<{ unit: string; quantity: string }> };
+      const nftUnits = (data.amount ?? []).filter(
+        (a) => a.unit !== "lovelace" && a.quantity === "1"
+      );
+      const nfts: Array<{ id: string; name: string; image?: string; tokenAddress?: string; tokenId?: string }> = [];
+      for (let i = 0; i < Math.min(nftUnits.length, 30); i++) {
+        try {
+          const ar = await fetch(
+            `https://cardano-mainnet.blockfrost.io/api/v0/assets/${encodeURIComponent(nftUnits[i].unit)}`,
+            { headers: { project_id: projectId }, next: { revalidate: 300 } }
+          );
+          if (!ar.ok) continue;
+          const asset = (await ar.json()) as {
+            asset_name?: string;
+            onchain_metadata?: { name?: string; image?: string };
+          };
+          const name =
+            asset.onchain_metadata?.name ??
+            (asset.asset_name ? Buffer.from(asset.asset_name, "hex").toString("utf8") || undefined) ??
+            "NFT";
+          let image: string | undefined;
+          const img = asset.onchain_metadata?.image;
+          if (typeof img === "string") {
+            if (img.startsWith("http")) image = img;
+            else if (img.startsWith("ipfs://")) image = `https://ipfs.io/ipfs/${img.slice(7)}`;
+            else if (img.startsWith("/ipfs/")) image = `https://ipfs.io${img}`;
+            else if (img.startsWith("/")) image = `https://cardano-mainnet.blockfrost.io/api/v0/ipfs/gateway${img}`;
+          }
+          nfts.push({
+            id: nftUnits[i].unit,
+            name: name || "NFT",
+            image,
+            tokenAddress: nftUnits[i].unit,
+          });
+        } catch {
+          nfts.push({ id: nftUnits[i].unit, name: "NFT", tokenAddress: nftUnits[i].unit });
+        }
+      }
+      return NextResponse.json({ count: nftUnits.length, nfts });
+    } catch (e) {
+      console.error("[nft-balance] Cardano:", e);
+      return NextResponse.json(
+        { error: "Falha ao consultar NFTs Cardano.", count: 0, nfts: [] },
+        { status: 503 }
+      );
+    }
+  }
+
+  if (chain === "btc" && isBtcAddress(address)) {
+    const unisatKey = process.env.UNISAT_API_KEY;
+    if (!unisatKey) {
+      return NextResponse.json({ count: 0, nfts: [] });
+    }
+    try {
+      const res = await fetch(
+        `https://open-api.unisat.io/v1/indexer/address/${encodeURIComponent(address.trim())}/inscriptions?start=0&limit=50`,
+        {
+          headers: { Accept: "application/json", Authorization: `Bearer ${unisatKey}` },
+          next: { revalidate: 120 },
+        }
+      );
+      if (!res.ok) {
+        return NextResponse.json(
+          { error: "Falha ao consultar Ordinals.", count: 0, nfts: [] },
+          { status: res.status >= 500 ? 503 : res.status }
+        );
+      }
+      const data = (await res.json()) as {
+        data?: { total?: number; list?: Array<{ inscriptionId?: string; content?: string; contentType?: string }> };
+      };
+      const list = data.data?.list ?? [];
+      const total = data.data?.total ?? list.length;
+      const nfts: Array<{ id: string; name: string; image?: string; tokenAddress?: string; tokenId?: string }> = list.map(
+        (item, i) => {
+          const id = item.inscriptionId ?? `btc-${i}`;
+          let image: string | undefined;
+          if (item.contentType?.startsWith("image/") && typeof item.content === "string" && item.content.startsWith("http")) {
+            image = item.content;
+          }
+          return {
+            id,
+            name: `Ordinal #${i + 1}`,
+            image,
+            tokenAddress: item.inscriptionId,
+            tokenId: item.inscriptionId,
+          };
+        }
+      );
+      return NextResponse.json({ count: total, nfts });
+    } catch (e) {
+      console.error("[nft-balance] Bitcoin:", e);
+      return NextResponse.json(
+        { error: "Falha ao consultar Ordinals.", count: 0, nfts: [] },
+        { status: 503 }
+      );
+    }
+  }
+
   const moralisKey = process.env.MORALIS_API_KEY;
   if (!moralisKey) {
     return NextResponse.json(
       { error: "Configura MORALIS_API_KEY para ver NFTs.", count: 0, nfts: [] },
       { status: 503 }
     );
-  }
-
-  if (chain === "btc" || chain === "ada") {
-    return NextResponse.json({ count: 0, nfts: [] });
   }
 
   const getImage = (item: EvmNftItem): string | undefined => {
