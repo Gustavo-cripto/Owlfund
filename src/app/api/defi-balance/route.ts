@@ -168,7 +168,10 @@ export async function GET(request: Request) {
               type?: string;
               name?: string;
               platformId?: string;
-              data?: { assets?: Array<{ value?: number }>; value?: number };
+              data?: {
+                assets?: Array<{ value?: number; data?: { price?: number; amount?: number } }>;
+                value?: number;
+              };
             }>;
           };
           let total = 0;
@@ -176,7 +179,13 @@ export async function GET(request: Request) {
           for (const el of data.elements ?? []) {
             const val = Number(el.data?.value ?? 0);
             const assets = el.data?.assets ?? [];
-            const sum = assets.reduce((s, a) => s + (Number(a.value ?? 0) || 0), 0);
+            const sum = assets.reduce((s, a) => {
+              const v = Number(a.value ?? 0);
+              if (v > 0) return s + v;
+              const price = Number(a.data?.price ?? 0);
+              const amount = Number(a.data?.amount ?? 0);
+              return s + (price * amount || 0);
+            }, 0);
             const elTotal = val > 0 ? val : sum;
             if (elTotal > 0) {
               total += elTotal;
@@ -184,8 +193,8 @@ export async function GET(request: Request) {
               positions.push({ name: label, usd: elTotal });
             }
           }
-          if (total > 0 || (data.elements?.length ?? 0) > 0)
-            return NextResponse.json({ total: Math.max(0, total), positions });
+          if (total > 0) return NextResponse.json({ total, positions });
+          continue;
         } catch {
           continue;
         }
@@ -195,17 +204,27 @@ export async function GET(request: Request) {
       if (isMoralisUrl) {
         try {
           const data = JSON.parse(raw) as MoralisDefiSummary & {
-            native_balance?: { usd_value?: string | number };
-            tokens?: Array<{ usd_value?: string | number }>;
+            native_balance?: { usd_value?: string | number; solana?: string };
+            tokens?: Array<{ usd_value?: string | number; value?: number; amount?: string; price?: number }>;
           };
           let total = Math.max(0, Number(data.total_usd_value ?? 0) || 0);
           if (total <= 0 && data.native_balance?.usd_value)
             total += Number(data.native_balance.usd_value) || 0;
-          if (total <= 0 && data.tokens?.length)
-            total = (data.tokens as Array<{ usd_value?: string | number }>).reduce(
-              (s, t) => s + (Number(t.usd_value ?? 0) || 0),
-              0
-            );
+          if (total <= 0 && data.tokens?.length) {
+            const tokenSum = (data.tokens as Array<{
+              usd_value?: string | number;
+              value?: number;
+              amount?: string;
+              price?: number;
+            }>).reduce((s, t) => {
+              const v = Number(t.usd_value ?? t.value ?? 0);
+              if (v > 0) return s + v;
+              const amt = Number(t.amount ?? 0);
+              const pr = Number(t.price ?? 0);
+              return s + (amt * pr || 0);
+            }, 0);
+            total += tokenSum;
+          }
           const positions =
             data.protocols
               ?.filter((p) => Number(p.total_usd_value ?? 0) > 0)
@@ -240,9 +259,11 @@ export async function GET(request: Request) {
   }
 
   const hasAnyKey = accessKey || moralisKey || jupiterKey;
-  const fallbackMsg = hasAnyKey
+  let fallbackMsg = hasAnyKey
     ? lastError ?? "Falha ao consultar DeFi."
     : "Para DeFi Solana (Meteora): JUPITER_API_KEY (gratuito em portal.jup.ag). Para ETH: MORALIS_API_KEY.";
+  if (chain === "sol" && jupiterKey && lastError?.includes("Jupiter"))
+    fallbackMsg += " Chaves novas demoram 2-5 min a ativar. Verifica .env.local (local) ou variáveis do deploy.";
 
   return NextResponse.json(
     { error: fallbackMsg, total: null, positions: [] },
