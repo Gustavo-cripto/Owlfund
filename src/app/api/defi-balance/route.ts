@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 
-const DEBANK_PRO = "https://pro-openapi.debank.com/v1/user/all_simple_protocol_list";
 const MORALIS_DEFI = "https://deep-index.moralis.io/api/v2.2/wallets";
-const MORALIS_SOLANA = "https://solana-gateway.moralis.io/account/mainnet";
 
 type ChainId = "eth" | "sol" | "btc" | "ada";
 
@@ -34,7 +32,6 @@ function validateAddressForChain(address: string, chain: ChainId): boolean {
   }
 }
 
-type ProtocolItem = { net_usd_value?: number; name?: string; id?: string };
 type MoralisDefiSummary = {
   total_usd_value?: string;
   protocols?: Array<{ total_usd_value?: string; positions?: string }>;
@@ -65,10 +62,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ total: 0, positions: [] });
   }
 
-  const accessKey = process.env.DEBANK_ACCESS_KEY;
   const moralisKey = process.env.MORALIS_API_KEY;
-  const chainIds = chain === "eth" ? undefined : chain === "sol" ? "sol" : undefined;
-  const chainParam = chainIds ? `&chain_ids=${chainIds}` : "";
 
   // Moralis: DeFi em chains EVM (reduzido para evitar limite de créditos)
   if (moralisKey && chain === "eth" && isEvmAddress(address)) {
@@ -97,20 +91,13 @@ export async function GET(request: Request) {
       return NextResponse.json({ total, positions });
   }
 
-  // Para Solana: Jupiter Portfolio (Meteora, Raydium, Orca, etc.) ou DeBank. Só posições em protocolos, não saldo da carteira.
+  // Para Solana: Jupiter Portfolio (Meteora, Raydium, Orca, etc.). Só posições em protocolos, não saldo da carteira.
   const jupiterKey = process.env.JUPITER_API_KEY;
   const urls: { url: string; headers: HeadersInit }[] = [];
   if (chain === "sol" && isSolAddress(address) && jupiterKey) {
-    // platforms vazio = todas (Meteora, Raydium, Orca, Jupiter, etc.)
     urls.push({
       url: `https://api.jup.ag/portfolio/v1/positions/${encodeURIComponent(address.trim())}`,
       headers: { Accept: "application/json", "x-api-key": jupiterKey },
-    });
-  }
-  if (accessKey) {
-    urls.push({
-      url: `${DEBANK_PRO}?id=${encodeURIComponent(address)}${chainParam}`,
-      headers: { Accept: "application/json", AccessKey: accessKey },
     });
   }
   if (moralisKey && chain === "eth") {
@@ -119,7 +106,7 @@ export async function GET(request: Request) {
       headers: { Accept: "application/json", "X-API-Key": moralisKey },
     });
   }
-  // Solana DeFi: só Jupiter e DeBank (posições em protocolos). Moralis portfolio = tokens na carteira, não DeFi.
+  // Solana DeFi: só Jupiter (Meteora, Raydium, Orca, etc.). ETH: Moralis.
 
   let lastError: string | null = null;
 
@@ -143,13 +130,13 @@ export async function GET(request: Request) {
             ? "Chave Moralis inválida. Verifica em admin.moralis.io."
             : isJupiter
               ? "Chave Jupiter inválida. Verifica em portal.jup.ag."
-              : "Chave DeBank inválida ou expirada. Verifica em cloud.debank.com.";
+              : lastError;
         else if (res.status === 403)
           lastError = isMoralis
             ? "Limite de créditos Moralis excedido. Tenta novamente mais tarde."
             : isJupiter
               ? "Limite de créditos Jupiter excedido."
-              : "Limite de créditos DeBank excedido.";
+              : lastError;
         else if (res.status === 429) lastError = "Muitos pedidos. Espera um momento e tenta novamente.";
         else if (errMsg) lastError = errMsg;
         continue;
@@ -230,30 +217,13 @@ export async function GET(request: Request) {
         }
       }
 
-      let payload: ProtocolItem[] = [];
-      try {
-        payload = JSON.parse(raw) as ProtocolItem[];
-      } catch {
-        continue;
-      }
-
-      const list = Array.isArray(payload) ? payload : [];
-      const total = list.reduce((sum, item) => {
-        const value = Number(item?.net_usd_value ?? 0);
-        return Number.isFinite(value) && value > 0 ? sum + value : sum;
-      }, 0);
-
-      const positions = list
-        .filter((p) => Number(p?.net_usd_value ?? 0) > 0)
-        .map((p) => ({ name: p.name ?? p.id ?? "—", usd: Number(p.net_usd_value ?? 0) }));
-
-      return NextResponse.json({ total, positions });
+      continue;
     } catch {
       continue;
     }
   }
 
-  const hasAnyKey = accessKey || moralisKey || jupiterKey;
+  const hasAnyKey = moralisKey || jupiterKey;
   let fallbackMsg = hasAnyKey
     ? lastError ?? "Falha ao consultar DeFi."
     : "Para DeFi Solana (Meteora, Raydium, Orca): JUPITER_API_KEY (gratuito em portal.jup.ag). Para ETH: MORALIS_API_KEY.";
