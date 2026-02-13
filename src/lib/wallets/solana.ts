@@ -1,7 +1,8 @@
 import { Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 
+const _rpc = (process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "").trim();
 const RPC_PRIMARY =
-  (process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "").trim() || "https://solana.publicnode.com";
+  _rpc.startsWith("http://") || _rpc.startsWith("https://") ? _rpc : "https://solana.publicnode.com";
 const RPC_FALLBACK = "https://rpc.ankr.com/solana";
 const connectionPrimary = new Connection(RPC_PRIMARY, "confirmed");
 const connectionFallback = new Connection(RPC_FALLBACK, "confirmed");
