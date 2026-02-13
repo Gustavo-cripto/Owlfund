@@ -97,35 +97,15 @@ export async function GET(request: Request) {
       return NextResponse.json({ total, positions });
   }
 
-  // Moralis Solana: portfolio (tokens + nativos)
-  if (moralisKey && chain === "sol" && isSolAddress(address)) {
-    try {
-      const res = await fetch(
-        `${MORALIS_SOLANA}/${address}/portfolio?nftMetadata=false&excludeSpam=true`,
-        { headers: { Accept: "application/json", "X-API-Key": moralisKey }, next: { revalidate: 120 } }
-      );
-      if (res.ok) {
-        const data = (await res.json()) as {
-          total_usd_value?: string | number;
-          native_balance?: { usd_value?: string | number };
-          tokens?: Array<{ usd_value?: string | number; amount?: string }>;
-        };
-        let total = Number(data.total_usd_value ?? 0) || 0;
-        if (total <= 0 && data.native_balance?.usd_value)
-          total += Number(data.native_balance.usd_value) || 0;
-        if (total <= 0 && data.tokens?.length)
-          total = (data.tokens as Array<{ usd_value?: string | number }>).reduce(
-            (s, t) => s + (Number(t.usd_value ?? 0) || 0),
-            0
-          );
-        return NextResponse.json({ total: Math.max(0, total), positions: [] });
-      }
-    } catch {
-      // fall through
-    }
-  }
-
+  // Para Solana: Jupiter Portfolio (gratuito em portal.jup.ag) → DeBank → Moralis
+  const jupiterKey = process.env.JUPITER_API_KEY;
   const urls: { url: string; headers: HeadersInit }[] = [];
+  if (chain === "sol" && isSolAddress(address) && jupiterKey) {
+    urls.push({
+      url: `https://api.jup.ag/portfolio/v1/positions/${encodeURIComponent(address.trim())}`,
+      headers: { Accept: "application/json", "x-api-key": jupiterKey },
+    });
+  }
   if (accessKey) {
     urls.push({
       url: `${DEBANK_PRO}?id=${encodeURIComponent(address)}${chainParam}`,
@@ -135,6 +115,13 @@ export async function GET(request: Request) {
   if (moralisKey && chain === "eth") {
     urls.push({
       url: `${MORALIS_DEFI}/${address}/defi/summary?chain=eth`,
+      headers: { Accept: "application/json", "X-API-Key": moralisKey },
+    });
+  }
+  // DeBank falhou ou sem chave: Moralis portfolio (tokens + SOL) como fallback para Solana
+  if (moralisKey && chain === "sol" && isSolAddress(address)) {
+    urls.push({
+      url: `${MORALIS_SOLANA}/${address}/portfolio?nftMetadata=false&excludeSpam=true`,
       headers: { Accept: "application/json", "X-API-Key": moralisKey },
     });
   }
@@ -155,33 +142,75 @@ export async function GET(request: Request) {
           // ignore
         }
         const isMoralis = url.includes("moralis.io");
-        // Para Solana: DeBank não suporta bem; 403 = sem créditos. Retornar 0 em vez de erro.
-        if (chain === "sol" && res.status === 403) {
-          return NextResponse.json({ total: 0, positions: [] });
-        }
+        const isJupiter = url.includes("jup.ag");
         if (res.status === 401)
           lastError = isMoralis
             ? "Chave Moralis inválida. Verifica em admin.moralis.io."
-            : "Chave DeBank inválida ou expirada. Verifica em cloud.debank.com.";
+            : isJupiter
+              ? "Chave Jupiter inválida. Verifica em portal.jup.ag."
+              : "Chave DeBank inválida ou expirada. Verifica em cloud.debank.com.";
         else if (res.status === 403)
           lastError = isMoralis
             ? "Limite de créditos Moralis excedido. Tenta novamente mais tarde."
-            : "Limite de créditos DeBank excedido.";
+            : isJupiter
+              ? "Limite de créditos Jupiter excedido."
+              : "Limite de créditos DeBank excedido.";
         else if (res.status === 429) lastError = "Muitos pedidos. Espera um momento e tenta novamente.";
         else if (errMsg) lastError = errMsg;
         continue;
       }
 
+      const isJupiterUrl = url.includes("jup.ag");
+      if (isJupiterUrl) {
+        try {
+          const data = JSON.parse(raw) as {
+            elements?: Array<{
+              type?: string;
+              name?: string;
+              platformId?: string;
+              data?: { assets?: Array<{ value?: number }>; value?: number };
+            }>;
+          };
+          let total = 0;
+          const positions: { name: string; usd: number }[] = [];
+          for (const el of data.elements ?? []) {
+            const val = Number(el.data?.value ?? 0);
+            const assets = el.data?.assets ?? [];
+            const sum = assets.reduce((s, a) => s + (Number(a.value ?? 0) || 0), 0);
+            const elTotal = val > 0 ? val : sum;
+            if (elTotal > 0) {
+              total += elTotal;
+              const label = el.name ?? el.platformId ?? "DeFi";
+              positions.push({ name: label, usd: elTotal });
+            }
+          }
+          if (total > 0 || (data.elements?.length ?? 0) > 0)
+            return NextResponse.json({ total: Math.max(0, total), positions });
+        } catch {
+          continue;
+        }
+      }
+
       const isMoralisUrl = url.includes("moralis.io");
       if (isMoralisUrl) {
         try {
-          const data = JSON.parse(raw) as MoralisDefiSummary;
-          const total = Math.max(0, Number(data.total_usd_value ?? 0) || 0);
+          const data = JSON.parse(raw) as MoralisDefiSummary & {
+            native_balance?: { usd_value?: string | number };
+            tokens?: Array<{ usd_value?: string | number }>;
+          };
+          let total = Math.max(0, Number(data.total_usd_value ?? 0) || 0);
+          if (total <= 0 && data.native_balance?.usd_value)
+            total += Number(data.native_balance.usd_value) || 0;
+          if (total <= 0 && data.tokens?.length)
+            total = (data.tokens as Array<{ usd_value?: string | number }>).reduce(
+              (s, t) => s + (Number(t.usd_value ?? 0) || 0),
+              0
+            );
           const positions =
             data.protocols
               ?.filter((p) => Number(p.total_usd_value ?? 0) > 0)
               .map((p) => ({ name: "Protocol", usd: Number(p.total_usd_value ?? 0) })) ?? [];
-          return NextResponse.json({ total, positions });
+          return NextResponse.json({ total: Math.max(0, total), positions });
         } catch {
           continue;
         }
@@ -210,10 +239,10 @@ export async function GET(request: Request) {
     }
   }
 
-  const hasAnyKey = accessKey || moralisKey;
+  const hasAnyKey = accessKey || moralisKey || jupiterKey;
   const fallbackMsg = hasAnyKey
     ? lastError ?? "Falha ao consultar DeFi."
-    : "Configura MORALIS_API_KEY (gratuito em moralis.io) ou DEBANK_ACCESS_KEY para ver posições DeFi.";
+    : "Para DeFi Solana (Meteora): JUPITER_API_KEY (gratuito em portal.jup.ag). Para ETH: MORALIS_API_KEY.";
 
   return NextResponse.json(
     { error: fallbackMsg, total: null, positions: [] },
