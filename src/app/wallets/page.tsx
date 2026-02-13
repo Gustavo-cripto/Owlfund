@@ -339,6 +339,10 @@ export default function WalletsPage() {
   const [defiTotals, setDefiTotals] = useState<Record<string, number | null>>({});
   const [defiLoading, setDefiLoading] = useState<Record<string, boolean>>({});
   const [defiErrors, setDefiErrors] = useState<Record<string, string | null>>({});
+  const [nftCounts, setNftCounts] = useState<Record<string, number>>({});
+  const [nftLoading, setNftLoading] = useState<Record<string, boolean>>({});
+  const [nftErrors, setNftErrors] = useState<Record<string, string | null>>({});
+  const [nftsByKey, setNftsByKey] = useState<Record<string, Array<{ id: string; name: string; image?: string; tokenAddress?: string; tokenId?: string }>>>({});
   const [evmProviders, setEvmProviders] = useState<Array<{ id: EvmProviderId; label: string }>>(
     []
   );
@@ -701,6 +705,46 @@ export default function WalletsPage() {
     if (!adaMainAddress) return;
     fetchDefiTotal(adaMainAddress, "ada");
   }, [adaMainAddress]);
+
+  const fetchNftBalance = async (address: string, chain: DefiChain) => {
+    const key = defiKey(address, chain);
+    if (chain === "btc" || chain === "ada") return;
+    setNftLoading((prev) => ({ ...prev, [key]: true }));
+    setNftErrors((prev) => ({ ...prev, [key]: null }));
+    try {
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const response = await fetch(
+        `${base}/api/nft-balance?address=${encodeURIComponent(address)}&chain=${chain}`
+      );
+      const data = (await response.json()) as { count?: number; nfts?: Array<{ id: string; name: string; image?: string; tokenAddress?: string; tokenId?: string }>; error?: string };
+      if (!response.ok) {
+        setNftCounts((prev) => ({ ...prev, [key]: 0 }));
+        setNftErrors((prev) => ({ ...prev, [key]: data?.error ?? "Falha ao consultar NFTs." }));
+        setNftsByKey((prev) => ({ ...prev, [key]: [] }));
+        return;
+      }
+      const count = typeof data?.count === "number" ? data.count : 0;
+      const nfts = Array.isArray(data?.nfts) ? data.nfts : [];
+      setNftCounts((prev) => ({ ...prev, [key]: count }));
+      setNftErrors((prev) => ({ ...prev, [key]: null }));
+      setNftsByKey((prev) => ({ ...prev, [key]: nfts }));
+    } catch (error) {
+      setNftErrors((prev) => ({ ...prev, [key]: error instanceof Error ? error.message : "Erro ao carregar NFTs." }));
+      setNftCounts((prev) => ({ ...prev, [key]: 0 }));
+      setNftsByKey((prev) => ({ ...prev, [key]: [] }));
+    } finally {
+      setNftLoading((prev) => ({ ...prev, [key]: false }));
+    }
+  };
+
+  useEffect(() => {
+    if (!ethMainAddress) return;
+    fetchNftBalance(ethMainAddress, "eth");
+  }, [ethMainAddress]);
+  useEffect(() => {
+    if (!solMainAddress) return;
+    fetchNftBalance(solMainAddress, "sol");
+  }, [solMainAddress]);
 
   const refreshCryptoPrices = async () => {
     const symbols = Object.keys(cryptoHoldings);
@@ -1159,7 +1203,10 @@ export default function WalletsPage() {
           .filter((w) => w.address && w.network && !(w.address === ethAddress && w.network === "Ethereum"))
           .map((w) => fetchEthBalanceForEntry(w.address!, w.network!))
       );
-      if (ethMainAddress) void fetchDefiTotal(ethMainAddress, "eth");
+      if (ethMainAddress) {
+        void fetchDefiTotal(ethMainAddress, "eth");
+        void fetchNftBalance(ethMainAddress, "eth");
+      }
     } catch (error) {
       setEthError(error instanceof Error ? error.message : "Erro ao atualizar saldo.");
     } finally {
@@ -1278,7 +1325,10 @@ export default function WalletsPage() {
           .filter((w) => w.address && w.address !== solAddress)
           .map((w) => fetchSolBalanceForAddress(w.address!))
       );
-      if (solMainAddress) void fetchDefiTotal(solMainAddress, "sol");
+      if (solMainAddress) {
+        void fetchDefiTotal(solMainAddress, "sol");
+        void fetchNftBalance(solMainAddress, "sol");
+      }
     } catch (error) {
       setSolError(error instanceof Error ? error.message : "Erro ao atualizar saldo.");
     } finally {
@@ -2299,6 +2349,10 @@ export default function WalletsPage() {
             defiBalanceUsd={ethMainAddress ? defiTotals[defiKey(ethMainAddress, "eth")] ?? null : null}
             defiLoading={ethMainAddress ? !!defiLoading[defiKey(ethMainAddress, "eth")] : false}
             defiError={ethMainAddress ? defiErrors[defiKey(ethMainAddress, "eth")] ?? null : null}
+            nftCount={ethMainAddress ? nftCounts[defiKey(ethMainAddress, "eth")] ?? null : null}
+            nftLoading={ethMainAddress ? !!nftLoading[defiKey(ethMainAddress, "eth")] : false}
+            nftError={ethMainAddress ? nftErrors[defiKey(ethMainAddress, "eth")] ?? null : null}
+            nfts={ethMainAddress ? nftsByKey[defiKey(ethMainAddress, "eth")] ?? [] : []}
             isConnected={!!ethAddress || ethWallets.length > 0}
             isAvailable={ethIsAvailable || ethWallets.length > 0}
             isLoading={ethLoading}
@@ -2571,6 +2625,10 @@ export default function WalletsPage() {
             defiBalanceUsd={solMainAddress ? defiTotals[defiKey(solMainAddress, "sol")] ?? null : null}
             defiLoading={solMainAddress ? !!defiLoading[defiKey(solMainAddress, "sol")] : false}
             defiError={solMainAddress ? defiErrors[defiKey(solMainAddress, "sol")] ?? null : null}
+            nftCount={solMainAddress ? nftCounts[defiKey(solMainAddress, "sol")] ?? null : null}
+            nftLoading={solMainAddress ? !!nftLoading[defiKey(solMainAddress, "sol")] : false}
+            nftError={solMainAddress ? nftErrors[defiKey(solMainAddress, "sol")] ?? null : null}
+            nfts={solMainAddress ? nftsByKey[defiKey(solMainAddress, "sol")] ?? [] : []}
             isConnected={!!solAddress || solWallets.length > 0}
             isAvailable={solIsAvailable || solWallets.length > 0}
             isLoading={solLoading}

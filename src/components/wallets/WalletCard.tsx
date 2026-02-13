@@ -1,3 +1,15 @@
+"use client";
+
+import { useState } from "react";
+
+export type NftPreview = {
+  id: string;
+  name: string;
+  image?: string;
+  tokenAddress?: string;
+  tokenId?: string;
+};
+
 type WalletCardProps = {
   title: string;
   description: string;
@@ -9,6 +21,10 @@ type WalletCardProps = {
   defiBalanceUsd?: number | null;
   defiLoading?: boolean;
   defiError?: string | null;
+  nftCount?: number | null;
+  nftLoading?: boolean;
+  nftError?: string | null;
+  nfts?: NftPreview[];
   isLoading?: boolean;
   error?: string | null;
   isConnected: boolean;
@@ -42,6 +58,10 @@ export default function WalletCard({
   defiBalanceUsd,
   defiLoading,
   defiError,
+  nftCount,
+  nftLoading,
+  nftError,
+  nfts,
   isLoading,
   error,
   isConnected,
@@ -56,6 +76,7 @@ export default function WalletCard({
   isAddressVisible,
   extraBalance,
 }: WalletCardProps) {
+  const [showNfts, setShowNfts] = useState(false);
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
       <div className="flex items-start justify-between gap-4">
@@ -110,6 +131,69 @@ export default function WalletCard({
               ? `$${defiBalanceUsd.toFixed(2)}`
               : "—"}
         </div>
+        <div>
+          <span className="text-slate-500">NFT:</span>{" "}
+          {nftLoading ? (
+            "A carregar..."
+          ) : nftCount != null ? (
+            <span className="inline-flex items-center gap-2">
+              {nftCount} {nftCount === 1 ? "item" : "itens"}
+              {nfts && nfts.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setShowNfts((v) => !v)}
+                  className="rounded-full border border-slate-600 px-2 py-0.5 text-[11px] font-semibold text-slate-300 transition hover:border-slate-500 hover:text-white"
+                >
+                  {showNfts ? "Ocultar" : "Ver"}
+                </button>
+              ) : null}
+            </span>
+          ) : (
+            "—"
+          )}
+        </div>
+        {showNfts && nfts && nfts.length > 0 ? (
+          <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-3">
+            <p className="mb-2 text-xs font-semibold text-slate-400">Coleção</p>
+            <div className="grid max-h-48 grid-cols-4 gap-2 overflow-y-auto sm:grid-cols-5">
+              {nfts.slice(0, 20).map((nft) => (
+                <a
+                  key={nft.id}
+                  href={
+                    nft.tokenAddress && nft.tokenId
+                      ? `https://opensea.io/assets/ethereum/${nft.tokenAddress}/${nft.tokenId}`
+                      : nft.tokenAddress
+                        ? `https://magiceden.io/item-details/${nft.tokenAddress}`
+                        : "#"
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex flex-col overflow-hidden rounded-lg border border-slate-700 transition hover:border-slate-500"
+                >
+                  <div className="aspect-square bg-slate-800">
+                    {nft.image ? (
+                      <img
+                        src={nft.image}
+                        alt={nft.name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">
+                        —
+                      </div>
+                    )}
+                  </div>
+                  <p className="truncate px-1 py-0.5 text-[10px] text-slate-400 group-hover:text-slate-200" title={nft.name}>
+                    {nft.name || "NFT"}
+                  </p>
+                </a>
+              ))}
+            </div>
+            {nfts.length > 20 ? (
+              <p className="mt-2 text-[10px] text-slate-500">Mostrando 20 de {nfts.length}</p>
+            ) : null}
+          </div>
+        ) : null}
         {extraBalance ? (
           <div>
             <span className="text-slate-500">{extraBalance.label}</span>{" "}
@@ -118,6 +202,7 @@ export default function WalletCard({
         ) : null}
         {error ? <p className="text-xs text-rose-300">{error}</p> : null}
         {defiError ? <p className="text-xs text-rose-300">{defiError}</p> : null}
+        {nftError ? <p className="text-xs text-rose-300">{nftError}</p> : null}
       </div>
 
       <div className="mt-5 flex flex-wrap gap-3">

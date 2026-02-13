@@ -69,6 +69,33 @@ export async function GET(request: Request) {
   const chainIds = chain === "eth" ? undefined : chain === "sol" ? "sol" : undefined;
   const chainParam = chainIds ? `&chain_ids=${chainIds}` : "";
 
+  // Moralis: DeFi em chains EVM (reduzido para evitar limite de créditos)
+  if (moralisKey && chain === "eth" && isEvmAddress(address)) {
+    const evmChains = ["eth", "polygon", "arbitrum"] as const;
+    const results = await Promise.allSettled(
+      evmChains.map((c) =>
+        fetch(`${MORALIS_DEFI}/${address}/defi/summary?chain=${c}`, {
+          headers: { Accept: "application/json", "X-API-Key": moralisKey },
+          next: { revalidate: 120 },
+        }).then((r) => (r.ok ? r.json() : null))
+      )
+    );
+    let total = 0;
+    const positions: { name: string; usd: number }[] = [];
+    for (const r of results) {
+      if (r.status === "fulfilled" && r.value) {
+        const data = r.value as MoralisDefiSummary;
+        const v = Math.max(0, Number(data.total_usd_value ?? 0) || 0);
+        total += v;
+        (data.protocols ?? [])
+          .filter((p) => Number(p.total_usd_value ?? 0) > 0)
+          .forEach((p) => positions.push({ name: "Protocol", usd: Number(p.total_usd_value ?? 0) }));
+      }
+    }
+    if (total > 0 || results.some((r) => r.status === "fulfilled" && r.value))
+      return NextResponse.json({ total, positions });
+  }
+
   const urls: { url: string; headers: HeadersInit }[] = [];
   if (accessKey) {
     urls.push({
@@ -76,7 +103,6 @@ export async function GET(request: Request) {
       headers: { Accept: "application/json", AccessKey: accessKey },
     });
   }
-  // Moralis: gratuito, só EVM (eth)
   if (moralisKey && chain === "eth") {
     urls.push({
       url: `${MORALIS_DEFI}/${address}/defi/summary?chain=eth`,
@@ -105,7 +131,7 @@ export async function GET(request: Request) {
             ? "Chave Moralis inválida. Verifica em admin.moralis.io."
             : "Chave DeBank inválida ou expirada. Verifica em cloud.debank.com.";
         else if (res.status === 403)
-          lastError = "Limite de créditos excedido.";
+          lastError = "Limite de créditos Moralis excedido. Tenta novamente mais tarde.";
         else if (res.status === 429) lastError = "Muitos pedidos. Espera um momento e tenta novamente.";
         else if (errMsg) lastError = errMsg;
         continue;
