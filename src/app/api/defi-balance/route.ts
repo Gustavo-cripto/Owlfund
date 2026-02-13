@@ -229,7 +229,10 @@ export async function GET(request: Request) {
             data.protocols
               ?.filter((p) => Number(p.total_usd_value ?? 0) > 0)
               .map((p) => ({ name: "Protocol", usd: Number(p.total_usd_value ?? 0) })) ?? [];
-          return NextResponse.json({ total: Math.max(0, total), positions });
+          const finalTotal = Math.max(0, total);
+          if (finalTotal > 0 || chain !== "sol")
+            return NextResponse.json({ total: finalTotal, positions });
+          continue;
         } catch {
           continue;
         }
