@@ -150,22 +150,34 @@ export async function GET(request: Request) {
               type?: string;
               name?: string;
               platformId?: string;
+              value?: number | string;
               data?: {
-                assets?: Array<{ value?: number; data?: { price?: number; amount?: number } }>;
-                value?: number;
+                value?: number | string;
+                valueUsd?: number | string;
+                totalValue?: number | string;
+                assets?: Array<{
+                  value?: number | string;
+                  data?: { price?: number | string; amount?: number | string };
+                }>;
               };
             }>;
+          };
+          const toNum = (x: unknown): number => {
+            if (x == null) return 0;
+            if (typeof x === "number" && Number.isFinite(x)) return x;
+            if (typeof x === "string") return parseFloat(x) || 0;
+            return 0;
           };
           let total = 0;
           const positions: { name: string; usd: number }[] = [];
           for (const el of data.elements ?? []) {
-            const val = Number(el.data?.value ?? 0);
+            const val = toNum(el.value ?? el.data?.value ?? el.data?.valueUsd ?? el.data?.totalValue ?? 0);
             const assets = el.data?.assets ?? [];
             const sum = assets.reduce((s, a) => {
-              const v = Number(a.value ?? 0);
+              const v = toNum(a.value);
               if (v > 0) return s + v;
-              const price = Number(a.data?.price ?? 0);
-              const amount = Number(a.data?.amount ?? 0);
+              const price = toNum(a.data?.price);
+              const amount = toNum(a.data?.amount);
               return s + (price * amount || 0);
             }, 0);
             const elTotal = val > 0 ? val : sum;
@@ -173,6 +185,83 @@ export async function GET(request: Request) {
               total += elTotal;
               const label = el.name ?? el.platformId ?? "DeFi";
               positions.push({ name: label, usd: elTotal });
+            }
+          }
+          // Se Jupiter retornou 0 para Solana, tentar fallback: saldo da carteira (SOL + SPL) via RPC + Jupiter Price
+          if (chain === "sol" && total === 0 && jupiterKey) {
+            const rpcUrl =
+              process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? "https://solana.publicnode.com";
+            try {
+              const [balanceRes, tokenRes] = await Promise.all([
+                fetch(rpcUrl, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    jsonrpc: "2.0",
+                    id: 1,
+                    method: "getBalance",
+                    params: [address.trim()],
+                  }),
+                  next: { revalidate: 60 },
+                }),
+                fetch(rpcUrl, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    jsonrpc: "2.0",
+                    id: 2,
+                    method: "getTokenAccountsByOwner",
+                    params: [
+                      address.trim(),
+                      { programId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
+                      { encoding: "jsonParsed" },
+                    ],
+                  }),
+                  next: { revalidate: 60 },
+                }),
+              ]);
+              const balanceData = (await balanceRes.json()) as { result?: { value?: number } };
+              const tokenData = (await tokenRes.json()) as {
+                result?: { value?: Array<{
+                  account?: { data?: { parsed?: { info?: { mint?: string; tokenAmount?: { amount: string; decimals: number } } } } };
+                }> };
+              };
+              const lamports = balanceData?.result?.value ?? 0;
+              const solAmount = lamports / 1e9;
+              const mints = new Map<string, number>();
+              mints.set("So11111111111111111111111111111111111111112", solAmount);
+              for (const acc of tokenData?.result?.value ?? []) {
+                const info = acc?.account?.data?.parsed?.info;
+                const mint = info?.mint;
+                const ta = info?.tokenAmount;
+                if (mint && ta && Number(ta.amount) > 0) {
+                  const human = Number(ta.amount) / Math.pow(10, ta.decimals);
+                  mints.set(mint, (mints.get(mint) ?? 0) + human);
+                }
+              }
+              const ids = [...mints.keys()];
+              if (ids.length > 0) {
+                const priceRes = await fetch(
+                  `https://api.jup.ag/price/v3?ids=${ids.slice(0, 50).join(",")}`,
+                  { headers: { "x-api-key": jupiterKey }, next: { revalidate: 60 } }
+                );
+                if (priceRes.ok) {
+                  const priceData = (await priceRes.json()) as { data?: Record<string, { price?: number | string }> };
+                  let walletTotal = 0;
+                  for (const [mint, amount] of mints) {
+                    const pRaw = priceData?.data?.[mint]?.price;
+                    const p = typeof pRaw === "number" ? pRaw : parseFloat(String(pRaw ?? 0)) || 0;
+                    walletTotal += amount * p;
+                  }
+                  if (walletTotal > 0)
+                    return NextResponse.json({
+                      total: walletTotal,
+                      positions: [{ name: "Carteira", usd: walletTotal }],
+                    });
+                }
+              }
+            } catch {
+              // ignorar fallback
             }
           }
           return NextResponse.json({ total, positions });
