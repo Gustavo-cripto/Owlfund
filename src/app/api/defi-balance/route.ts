@@ -113,7 +113,6 @@ export async function GET(request: Request) {
   // Solana DeFi: só Jupiter (Meteora, Raydium, Orca, etc.). ETH: Moralis.
 
   let lastError: string | null = null;
-  let jupiterTriedAndZero = false;
 
   for (const { url, headers } of urls) {
     try {
@@ -210,7 +209,6 @@ export async function GET(request: Request) {
             }
           }
           if (total > 0) return NextResponse.json({ total, positions });
-          jupiterTriedAndZero = true;
           continue;
         } catch {
           continue;
@@ -258,8 +256,8 @@ export async function GET(request: Request) {
     }
   }
 
-  // Fallback Solana: quando Jupiter retornou 0, tentar saldo carteira via RPC + preços
-  if (chain === "sol" && jupiterTriedAndZero && jupiterKey) {
+  // Fallback Solana: quando Jupiter falhou ou retornou 0, tentar saldo carteira via RPC + preços
+  if (chain === "sol" && isSolAddress(address) && jupiterKey) {
     const rpcUrls = [
       (process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "").trim(),
       "https://rpc.ankr.com/solana",
