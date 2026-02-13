@@ -105,7 +105,7 @@ export async function GET(request: Request) {
           };
           const name =
             asset.onchain_metadata?.name ??
-            (asset.asset_name ? Buffer.from(asset.asset_name, "hex").toString("utf8") || undefined) ??
+            (asset.asset_name ? (Buffer.from(asset.asset_name, "hex").toString("utf8") || undefined) : undefined) ??
             "NFT";
           let image: string | undefined;
           const img = asset.onchain_metadata?.image;
