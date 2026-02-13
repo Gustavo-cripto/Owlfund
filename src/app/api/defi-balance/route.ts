@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
-const DEBANK_OPEN = "https://openapi.debank.com/v1/user/all_simple_protocol_list";
 const DEBANK_PRO = "https://pro-openapi.debank.com/v1/user/all_simple_protocol_list";
+const MORALIS_DEFI = "https://deep-index.moralis.io/api/v2.2/wallets";
 
 type ChainId = "eth" | "sol" | "btc" | "ada";
 
@@ -34,6 +34,10 @@ function validateAddressForChain(address: string, chain: ChainId): boolean {
 }
 
 type ProtocolItem = { net_usd_value?: number; name?: string; id?: string };
+type MoralisDefiSummary = {
+  total_usd_value?: string;
+  protocols?: Array<{ total_usd_value?: string; positions?: string }>;
+};
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -55,14 +59,16 @@ export async function GET(request: Request) {
     );
   }
 
-  // DeBank não suporta Bitcoin nem Cardano
+  // DeBank/Moralis não suportam Bitcoin nem Cardano para DeFi
   if (chain === "btc" || chain === "ada") {
     return NextResponse.json({ total: 0, positions: [] });
   }
 
   const accessKey = process.env.DEBANK_ACCESS_KEY;
+  const moralisKey = process.env.MORALIS_API_KEY;
   const chainIds = chain === "eth" ? undefined : chain === "sol" ? "sol" : undefined;
   const chainParam = chainIds ? `&chain_ids=${chainIds}` : "";
+
   const urls: { url: string; headers: HeadersInit }[] = [];
   if (accessKey) {
     urls.push({
@@ -70,22 +76,55 @@ export async function GET(request: Request) {
       headers: { Accept: "application/json", AccessKey: accessKey },
     });
   }
-  urls.push(
-    {
-      url: `${DEBANK_OPEN}?id=${encodeURIComponent(address)}${chainParam}`,
-      headers: { Accept: "application/json" },
-    },
-    {
-      url: `https://openapi.debank.com/v1/user/protocol_list?id=${encodeURIComponent(address)}`,
-      headers: { Accept: "application/json" },
-    }
-  );
+  // Moralis: gratuito, só EVM (eth)
+  if (moralisKey && chain === "eth") {
+    urls.push({
+      url: `${MORALIS_DEFI}/${address}/defi/summary?chain=eth`,
+      headers: { Accept: "application/json", "X-API-Key": moralisKey },
+    });
+  }
+
+  let lastError: string | null = null;
 
   for (const { url, headers } of urls) {
     try {
       const res = await fetch(url, { headers, next: { revalidate: 120 } });
       const raw = await res.text();
-      if (!res.ok) continue;
+
+      if (!res.ok) {
+        let errMsg: string | null = null;
+        try {
+          const parsed = JSON.parse(raw) as { error?: string; message?: string };
+          errMsg = parsed?.error ?? parsed?.message ?? null;
+        } catch {
+          // ignore
+        }
+        const isMoralis = url.includes("moralis.io");
+        if (res.status === 401)
+          lastError = isMoralis
+            ? "Chave Moralis inválida. Verifica em admin.moralis.io."
+            : "Chave DeBank inválida ou expirada. Verifica em cloud.debank.com.";
+        else if (res.status === 403)
+          lastError = "Limite de créditos excedido.";
+        else if (res.status === 429) lastError = "Muitos pedidos. Espera um momento e tenta novamente.";
+        else if (errMsg) lastError = errMsg;
+        continue;
+      }
+
+      const isMoralisUrl = url.includes("moralis.io");
+      if (isMoralisUrl) {
+        try {
+          const data = JSON.parse(raw) as MoralisDefiSummary;
+          const total = Math.max(0, Number(data.total_usd_value ?? 0) || 0);
+          const positions =
+            data.protocols
+              ?.filter((p) => Number(p.total_usd_value ?? 0) > 0)
+              .map((p) => ({ name: "Protocol", usd: Number(p.total_usd_value ?? 0) })) ?? [];
+          return NextResponse.json({ total, positions });
+        } catch {
+          continue;
+        }
+      }
 
       let payload: ProtocolItem[] = [];
       try {
@@ -110,14 +149,13 @@ export async function GET(request: Request) {
     }
   }
 
+  const hasAnyKey = accessKey || moralisKey;
+  const fallbackMsg = hasAnyKey
+    ? lastError ?? "Falha ao consultar DeFi."
+    : "Configura MORALIS_API_KEY (gratuito em moralis.io) ou DEBANK_ACCESS_KEY para ver posições DeFi.";
+
   return NextResponse.json(
-    {
-      error: accessKey
-        ? "Falha ao consultar DeFi."
-        : "Configura DEBANK_ACCESS_KEY para ver posições DeFi (cloud.debank.com).",
-      total: null,
-      positions: [],
-    },
+    { error: fallbackMsg, total: null, positions: [] },
     { status: 503 }
   );
 }
