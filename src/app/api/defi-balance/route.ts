@@ -37,6 +37,52 @@ type MoralisDefiSummary = {
   protocols?: Array<{ total_usd_value?: string; positions?: string }>;
 };
 
+const SHYFT_GRAPHQL = "https://programs.shyft.to/v0/graphql/accounts";
+const METEORA_API = "https://dlmm-api.meteora.ag";
+
+async function fetchMeteoraPositionsViaShyft(
+  wallet: string,
+  shyftKey: string,
+  jupiterKey?: string
+): Promise<{ total: number; positions: { name: string; usd: number }[] }> {
+  const query = `query { meteora_dlmm_Position(where:{owner:{_eq:"${wallet}"}}){pubkey id lbPair} meteora_dlmm_PositionV2(where:{owner:{_eq:"${wallet}"}}){pubkey id lbPair} }`;
+  const res = await fetch(
+    `${SHYFT_GRAPHQL}?api_key=${encodeURIComponent(shyftKey)}&network=mainnet-beta`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query }), cache: "no-store" }
+  );
+  if (!res.ok) return { total: 0, positions: [] };
+  const json = (await res.json()) as { data?: { meteora_dlmm_Position?: Array<{ pubkey?: string; id?: string; lbPair?: string }>; meteora_dlmm_PositionV2?: Array<{ pubkey?: string; id?: string; lbPair?: string }> }; errors?: unknown[] };
+  if (json.errors?.length || !json.data) return { total: 0, positions: [] };
+  const positions: Array<{ pubkey: string; lbPair: string }> = [];
+  for (const p of [...(json.data.meteora_dlmm_Position ?? []), ...(json.data.meteora_dlmm_PositionV2 ?? [])]) {
+    const addr = p.pubkey ?? p.id ?? "";
+    if (addr && p.lbPair) positions.push({ pubkey: addr, lbPair: p.lbPair });
+  }
+  if (positions.length === 0) return { total: 0, positions: [] };
+  let totalUsd = 0;
+  for (const pos of positions) {
+    try {
+      const [depRes, wdRes] = await Promise.all([
+        fetch(`${METEORA_API}/position/${pos.pubkey}/deposits`, { cache: "no-store" }),
+        fetch(`${METEORA_API}/position/${pos.pubkey}/withdraws`, { cache: "no-store" }),
+      ]);
+      if (!depRes.ok || !wdRes.ok) continue;
+      const depJson = (await depRes.json()) as unknown;
+      const wdJson = (await wdRes.json()) as unknown;
+      const isErr = (x: unknown) => x != null && typeof x === "object" && ("error" in x || "message" in x);
+      const deposits = isErr(depJson) ? [] : Array.isArray(depJson) ? depJson : [];
+      const withdraws = isErr(wdJson) ? [] : Array.isArray(wdJson) ? wdJson : [];
+      const depUsd = deposits.reduce((s: number, d: { token_x_usd_amount?: number; token_y_usd_amount?: number }) => s + (d.token_x_usd_amount ?? 0) + (d.token_y_usd_amount ?? 0), 0);
+      const wdUsd = withdraws.reduce((s: number, w: { token_x_usd_amount?: number; token_y_usd_amount?: number }) => s + (w.token_x_usd_amount ?? 0) + (w.token_y_usd_amount ?? 0), 0);
+      const net = depUsd - wdUsd;
+      if (net > 0) totalUsd += net;
+    } catch {
+      /* skip */
+    }
+  }
+  return totalUsd > 0 ? { total: totalUsd, positions: [{ name: "Meteora", usd: totalUsd }] } : { total: 0, positions: [] };
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const address = searchParams.get("address");
@@ -91,8 +137,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ total, positions });
   }
 
-  // Para Solana: Jupiter Portfolio (Meteora, Raydium, Orca, etc.). Só posições em protocolos, não saldo da carteira.
+  // Para Solana: Jupiter Portfolio (Meteora, Raydium, Orca, etc.). Shyft fallback para Meteora.
   const jupiterKey = process.env.JUPITER_API_KEY;
+  const shyftKey = process.env.SHYFT_API_KEY;
   const urls: { url: string; headers: HeadersInit }[] = [];
   if (chain === "sol" && isSolAddress(address) && jupiterKey) {
     urls.push({
@@ -256,104 +303,29 @@ export async function GET(request: Request) {
     }
   }
 
-  // Fallback Solana: quando Jupiter falhou ou retornou 0, tentar saldo carteira via RPC + preços
-  if (chain === "sol" && isSolAddress(address) && jupiterKey) {
-    const rpcUrls = [
-      (process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "").trim(),
-      "https://rpc.ankr.com/solana",
-      "https://solana.publicnode.com",
-    ].filter((u): u is string => !!u && u.startsWith("http"));
-    const rpcUrl = rpcUrls[0] || "https://rpc.ankr.com/solana";
+  // Fallback Solana DeFi: Shyft + Meteora (posições LP) quando Jupiter falhou ou retornou 0
+  if (chain === "sol" && isSolAddress(address) && shyftKey) {
     try {
-      const [balanceRes, tokenRes] = await Promise.all([
-        fetch(rpcUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            jsonrpc: "2.0",
-            id: 1,
-            method: "getBalance",
-            params: [address.trim()],
-          }),
-          cache: "no-store",
-        }),
-        fetch(rpcUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            jsonrpc: "2.0",
-            id: 2,
-            method: "getTokenAccountsByOwner",
-            params: [
-              address.trim(),
-              { programId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
-              { encoding: "jsonParsed" },
-            ],
-          }),
-          cache: "no-store",
-        }),
-      ]);
-      const balanceData = (await balanceRes.json()) as { result?: { value?: number } };
-      const tokenData = (await tokenRes.json()) as {
-        result?: { value?: Array<{
-          account?: { data?: { parsed?: { info?: { mint?: string; tokenAmount?: { amount: string; decimals: number } } } } };
-        }> };
-      };
-      const lamports = balanceData?.result?.value ?? 0;
-      const solAmount = lamports / 1e9;
-      const mints = new Map<string, number>();
-      mints.set("So11111111111111111111111111111111111111112", solAmount);
-      for (const acc of tokenData?.result?.value ?? []) {
-        const info = acc?.account?.data?.parsed?.info;
-        const mint = info?.mint;
-        const ta = info?.tokenAmount;
-        if (mint && ta && Number(ta.amount) > 0) {
-          const human = Number(ta.amount) / Math.pow(10, ta.decimals);
-          mints.set(mint, (mints.get(mint) ?? 0) + human);
-        }
-      }
-      const ids = [...mints.keys()];
-      if (ids.length > 0) {
-        let walletTotal = 0;
-        const priceRes = await fetch(
-          `https://api.jup.ag/price/v3?ids=${ids.slice(0, 50).join(",")}`,
-          { headers: { "x-api-key": jupiterKey }, cache: "no-store" }
-        );
-        if (priceRes.ok) {
-          const priceData = (await priceRes.json()) as { data?: Record<string, { price?: number | string }> };
-          for (const [mint, amount] of mints) {
-            const pRaw = priceData?.data?.[mint]?.price;
-            const p = typeof pRaw === "number" ? pRaw : parseFloat(String(pRaw ?? 0)) || 0;
-            walletTotal += amount * p;
-          }
-        }
-        if (walletTotal <= 0 && solAmount > 0) {
-          const cgRes = await fetch(
-            "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd",
-            { cache: "no-store" }
-          );
-          if (cgRes.ok) {
-            const cg = (await cgRes.json()) as { solana?: { usd?: number } };
-            walletTotal = solAmount * (cg?.solana?.usd ?? 0);
-          }
-        }
-        if (walletTotal > 0)
-          return NextResponse.json({
-            total: walletTotal,
-            positions: [{ name: "Carteira", usd: walletTotal }],
-          });
+      const meteoraResult = await fetchMeteoraPositionsViaShyft(address.trim(), shyftKey, jupiterKey);
+      if (meteoraResult.total > 0) {
+        return NextResponse.json({ total: meteoraResult.total, positions: meteoraResult.positions });
       }
     } catch {
-      // ignorar fallback
+      // continua para fallback carteira
     }
   }
 
-  const hasAnyKey = moralisKey || jupiterKey;
+  // Sem posições DeFi: retorna 0 (o saldo da carteira vai em "Saldo", não em DeFi)
+  if (chain === "sol" && isSolAddress(address)) {
+    return NextResponse.json({ total: 0, positions: [] });
+  }
+
+  const hasAnyKey = moralisKey || jupiterKey || shyftKey;
   let fallbackMsg = hasAnyKey
     ? lastError ?? "Falha ao consultar DeFi."
-    : "Para DeFi Solana (Meteora, Raydium, Orca): JUPITER_API_KEY (gratuito em portal.jup.ag). Para ETH: MORALIS_API_KEY.";
-  if (chain === "sol" && jupiterKey && lastError?.includes("Jupiter"))
-    fallbackMsg += " Chaves novas demoram 2-5 min a ativar. Verifica .env.local (local) ou variáveis do deploy.";
+    : "Para DeFi Solana: JUPITER_API_KEY (portal.jup.ag) e/ou SHYFT_API_KEY (shyft.to/get-api-key). Para ETH: MORALIS_API_KEY.";
+  if (chain === "sol" && (jupiterKey || shyftKey) && lastError?.includes("Jupiter"))
+    fallbackMsg += " Chaves novas demoram 2-5 min a ativar. Verifica .env.local ou variáveis do deploy.";
 
   return NextResponse.json(
     { error: fallbackMsg, total: null, positions: [] },
