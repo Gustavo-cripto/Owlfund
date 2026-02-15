@@ -62,18 +62,31 @@ async function fetchMeteoraPositionsViaShyft(
   let totalUsd = 0;
   for (const pos of positions) {
     try {
-      const [depRes, wdRes] = await Promise.all([
+      const [posRes, depRes, wdRes] = await Promise.all([
+        fetch(`${METEORA_API}/position/${pos.pubkey}`, { cache: "no-store" }),
         fetch(`${METEORA_API}/position/${pos.pubkey}/deposits`, { cache: "no-store" }),
         fetch(`${METEORA_API}/position/${pos.pubkey}/withdraws`, { cache: "no-store" }),
       ]);
+      let posVal = 0;
+      if (posRes.ok) {
+        const posJson = (await posRes.json()) as Record<string, unknown>;
+        posVal = Number((posJson as { liquidity_usd?: number }).liquidity_usd ?? (posJson as { liquidityUsd?: number }).liquidityUsd ?? 0) || 0;
+      }
+      if (posVal > 0) {
+        totalUsd += posVal;
+        continue;
+      }
       if (!depRes.ok || !wdRes.ok) continue;
       const depJson = (await depRes.json()) as unknown;
       const wdJson = (await wdRes.json()) as unknown;
       const isErr = (x: unknown) => x != null && typeof x === "object" && ("error" in x || "message" in x);
       const deposits = isErr(depJson) ? [] : Array.isArray(depJson) ? depJson : [];
       const withdraws = isErr(wdJson) ? [] : Array.isArray(wdJson) ? wdJson : [];
-      const depUsd = deposits.reduce((s: number, d: { token_x_usd_amount?: number; token_y_usd_amount?: number }) => s + (d.token_x_usd_amount ?? 0) + (d.token_y_usd_amount ?? 0), 0);
-      const wdUsd = withdraws.reduce((s: number, w: { token_x_usd_amount?: number; token_y_usd_amount?: number }) => s + (w.token_x_usd_amount ?? 0) + (w.token_y_usd_amount ?? 0), 0);
+      const usdFrom = (d: Record<string, unknown>) =>
+        (Number((d as { token_x_usd_amount?: number }).token_x_usd_amount ?? (d as { tokenXUsdAmount?: number }).tokenXUsdAmount ?? 0) || 0) +
+        (Number((d as { token_y_usd_amount?: number }).token_y_usd_amount ?? (d as { tokenYUsdAmount?: number }).tokenYUsdAmount ?? 0) || 0);
+      const depUsd = deposits.reduce((s: number, d) => s + usdFrom(d as Record<string, unknown>), 0);
+      const wdUsd = withdraws.reduce((s: number, w) => s + usdFrom(w as Record<string, unknown>), 0);
       const net = depUsd - wdUsd;
       if (net > 0) totalUsd += net;
     } catch {
@@ -154,14 +167,16 @@ export async function GET(request: Request) {
   }
 
   const urls: { url: string; headers: HeadersInit }[] = [];
-  if (chain === "sol" && isSolAddress(address) && jupiterKey) {
+  if (chain === "sol" && isSolAddress(address)) {
+    const jupHeaders: HeadersInit = { Accept: "application/json" };
+    if (jupiterKey) (jupHeaders as Record<string, string>)["x-api-key"] = jupiterKey;
     urls.push({
       url: `https://api.jup.ag/portfolio/v1/positions/${encodeURIComponent(address.trim())}`,
-      headers: { Accept: "application/json", "x-api-key": jupiterKey },
+      headers: jupHeaders,
     });
     urls.push({
       url: `https://api.jup.ag/portfolio/v1/positions/${encodeURIComponent(address.trim())}?platforms=meteora-dlmm,meteora,raydium,orca,jupiter-exchange`,
-      headers: { Accept: "application/json", "x-api-key": jupiterKey },
+      headers: jupHeaders,
     });
   }
   if (moralisKey && chain === "eth") {
@@ -235,9 +250,14 @@ export async function GET(request: Request) {
             if (typeof x === "string") return parseFloat(x) || 0;
             return 0;
           };
+          const excludePlatforms = new Set(["native-stake"]);
           let total = 0;
           const positions: { name: string; usd: number }[] = [];
           for (const el of data.elements ?? []) {
+            const label = (el.label ?? el.name ?? "") as string;
+            const platformId = (el.platformId ?? "") as string;
+            if (label === "Wallet" || excludePlatforms.has(platformId)) continue;
+            if (label === "Staked" && platformId === "native-stake") continue;
             const val = toNum(
               el.value ??
                 el.data?.value ??
