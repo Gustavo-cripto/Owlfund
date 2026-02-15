@@ -162,9 +162,22 @@ export async function GET(request: Request) {
       return NextResponse.json({ total, positions });
   }
 
-  // Para Solana: Jupiter Portfolio (Meteora, Raydium, Orca, etc.). Shyft fallback para Meteora.
+  // Para Solana: Shyft em PRIMEIRO (posições Meteora DLMM), depois Jupiter como fallback.
   const jupiterKey = process.env.JUPITER_API_KEY;
   const shyftKey = process.env.SHYFT_API_KEY;
+
+  // Solana: Shyft como fonte principal para posições DeFi
+  if (chain === "sol" && isSolAddress(address) && shyftKey) {
+    try {
+      const meteoraResult = await fetchMeteoraPositionsViaShyft(address.trim(), shyftKey, jupiterKey);
+      if (meteoraResult.total > 0) {
+        return NextResponse.json({ total: meteoraResult.total, positions: meteoraResult.positions });
+      }
+    } catch {
+      /* continua para Jupiter */
+    }
+  }
+
   const urls: { url: string; headers: HeadersInit }[] = [];
   if (chain === "sol" && isSolAddress(address) && jupiterKey) {
     urls.push({
@@ -328,19 +341,7 @@ export async function GET(request: Request) {
     }
   }
 
-  // Fallback Solana DeFi: Shyft + Meteora (posições LP) quando Jupiter falhou ou retornou 0
-  if (chain === "sol" && isSolAddress(address) && shyftKey) {
-    try {
-      const meteoraResult = await fetchMeteoraPositionsViaShyft(address.trim(), shyftKey, jupiterKey);
-      if (meteoraResult.total > 0) {
-        return NextResponse.json({ total: meteoraResult.total, positions: meteoraResult.positions });
-      }
-    } catch {
-      // continua para fallback carteira
-    }
-  }
-
-  // Fallback Solana: quando não há posições DeFi, usa saldo da carteira em USD
+  // Fallback Solana: quando não há posições DeFi (Shyft e Jupiter retornaram 0), usa saldo da carteira em USD
   if (chain === "sol" && isSolAddress(address)) {
     const walletUsd = await fetchSolWalletBalanceUsd(address.trim());
     if (walletUsd > 0) {
@@ -355,8 +356,8 @@ export async function GET(request: Request) {
   const hasAnyKey = moralisKey || jupiterKey || shyftKey;
   let fallbackMsg = hasAnyKey
     ? lastError ?? "Falha ao consultar DeFi."
-    : "Para DeFi Solana: JUPITER_API_KEY (portal.jup.ag) e/ou SHYFT_API_KEY (shyft.to/get-api-key). Para ETH: MORALIS_API_KEY.";
-  if (chain === "sol" && (jupiterKey || shyftKey) && lastError?.includes("Jupiter"))
+    : "Para DeFi Solana: SHYFT_API_KEY (shyft.to/get-api-key) em principal, JUPITER_API_KEY (portal.jup.ag) como fallback. Para ETH: MORALIS_API_KEY.";
+  if (chain === "sol" && (shyftKey || jupiterKey) && lastError?.includes("Jupiter"))
     fallbackMsg += " Chaves novas demoram 2-5 min a ativar. Verifica .env.local ou variáveis do deploy.";
 
   return NextResponse.json(
