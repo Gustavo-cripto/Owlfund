@@ -228,6 +228,7 @@ export async function GET(request: Request) {
             elements?: Array<{
               type?: string;
               name?: string;
+              label?: string;
               platformId?: string;
               value?: number | string;
               data?: {

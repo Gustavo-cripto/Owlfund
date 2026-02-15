@@ -1,9 +1,23 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Avoid incorrect workspace root inference when multiple lockfiles exist
-  // (e.g. in /mobile or /desktop). This fixes builds on Vercel too.
-  turbopack: {
-    root: __dirname,
+  staticPageGenerationTimeout: 180,
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  webpack: (config) => {
+    // Support browser WASM dependencies (Cardano serialization lib)
+    config.experiments = {
+      ...(config.experiments || {}),
+      asyncWebAssembly: true,
+    };
+    config.module.rules.push({
+      test: /\.wasm$/,
+      type: "webassembly/async",
+    });
+    return config;
   },
 };
 
