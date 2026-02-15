@@ -1,0 +1,45 @@
+{
+  "name": "portfolio-desktop",
+  "version": "0.1.5",
+  "author": "Gustavo",
+  "private": true,
+  "description": "Desktop wrapper for the portfolio app",
+  "main": "main.js",
+  "scripts": {
+    "prepare-web": "node scripts/prepare-web.js",
+    "start": "electron .",
+    "build:mac": "npm run prepare-web && electron-builder --mac"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.0"
+  },
+  "devDependencies": {
+    "electron": "^31.3.1",
+    "electron-builder": "^24.13.3",
+    "electron-notarize": "^1.2.2"
+  },
+  "build": {
+    "appId": "com.gustavo.portfolio",
+    "productName": "Portfolio",
+    "files": [
+      "main.js",
+      "preload.js",
+      "app/**"
+    ],
+    "afterSign": "scripts/notarize.js",
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://example.com/portfolio"
+      }
+    ],
+    "mac": {
+      "target": ["dmg"],
+      "icon": "assets/app-icon.icns",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "assets/entitlements.mac.plist",
+      "entitlementsInherit": "assets/entitlements.mac.plist"
+    }
+  }
+}
