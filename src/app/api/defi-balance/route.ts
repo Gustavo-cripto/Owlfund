@@ -1,6 +1,11 @@
+import { Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { NextResponse } from "next/server";
 
 const MORALIS_DEFI = "https://deep-index.moralis.io/api/v2.2/wallets";
+const RPC_SOL =
+  (process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "").trim().startsWith("http")
+    ? process.env.NEXT_PUBLIC_SOLANA_RPC_URL!
+    : "https://solana.publicnode.com";
 
 type ChainId = "eth" | "sol" | "btc" | "ada";
 
@@ -81,6 +86,26 @@ async function fetchMeteoraPositionsViaShyft(
     }
   }
   return totalUsd > 0 ? { total: totalUsd, positions: [{ name: "Meteora", usd: totalUsd }] } : { total: 0, positions: [] };
+}
+
+async function fetchSolWalletBalanceUsd(address: string): Promise<number> {
+  try {
+    const conn = new Connection(RPC_SOL, "confirmed");
+    const pubkey = new PublicKey(address);
+    const lamports = await conn.getBalance(pubkey);
+    const solBalance = lamports / LAMPORTS_PER_SOL;
+    if (solBalance <= 0) return 0;
+    const priceRes = await fetch(
+      "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd",
+      { cache: "no-store" }
+    );
+    if (!priceRes.ok) return 0;
+    const priceData = (await priceRes.json()) as { solana?: { usd?: number } };
+    const price = priceData?.solana?.usd ?? 0;
+    return solBalance * price;
+  } catch {
+    return 0;
+  }
 }
 
 export async function GET(request: Request) {
@@ -315,8 +340,15 @@ export async function GET(request: Request) {
     }
   }
 
-  // Sem posições DeFi: retorna 0 (o saldo da carteira vai em "Saldo", não em DeFi)
+  // Fallback Solana: quando não há posições DeFi, usa saldo da carteira em USD
   if (chain === "sol" && isSolAddress(address)) {
+    const walletUsd = await fetchSolWalletBalanceUsd(address.trim());
+    if (walletUsd > 0) {
+      return NextResponse.json({
+        total: walletUsd,
+        positions: [{ name: "Carteira", usd: walletUsd }],
+      });
+    }
     return NextResponse.json({ total: 0, positions: [] });
   }
 
