@@ -1,0 +1,234 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+import { createClient } from "@/lib/supabase/client";
+
+const ALLOWED_NEXT_PATHS = ["/dashboard", "/wallets", "/portfolio", "/market"];
+
+function getRedirectUrl(nextParam: string | null): string {
+  if (!nextParam) return "/dashboard";
+  const path = nextParam.startsWith("/") ? nextParam : `/${nextParam}`;
+  const allowed = ALLOWED_NEXT_PATHS.some(
+    (p) => path === p || path.startsWith(`${p}/`)
+  );
+  return allowed ? path : "/dashboard";
+}
+
+export type LoginFormProps = { nextParam: string | null };
+
+export default function LoginForm({ nextParam }: LoginFormProps) {
+  const supabase = createClient();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [mode, setMode] = useState<"login" | "signup">("login");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (!isMounted) return;
+      if (data.session) {
+        window.location.href = getRedirectUrl(nextParam);
+        return;
+      }
+      setIsCheckingSession(false);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [supabase, nextParam]);
+
+  const validateCredentials = () => {
+    const nextEmail = email.trim();
+    const nextPassword = password.trim();
+
+    if (!nextEmail || !nextPassword) {
+      setMessage("Preenche email e senha.");
+      return null;
+    }
+
+    if (nextPassword.length < 6) {
+      setMessage("A senha deve ter pelo menos 6 caracteres.");
+      return null;
+    }
+
+    return { email: nextEmail, password: nextPassword };
+  };
+
+  const handleEmailLogin = async () => {
+    setMode("login");
+    setLoading(true);
+    setMessage(null);
+
+    const creds = validateCredentials();
+    if (!creds) {
+      setLoading(false);
+      return;
+    }
+
+    const { error } = await supabase.auth.signInWithPassword(creds);
+    if (error) {
+      setMessage(error.message || "Não foi possível entrar. Verifica os dados.");
+    } else {
+      setMessage("Login realizado. Redirecionando...");
+      window.location.href = getRedirectUrl(nextParam);
+    }
+
+    setLoading(false);
+  };
+
+  const handleSignUp = async () => {
+    setMode("signup");
+    setLoading(true);
+    setMessage(null);
+
+    const origin = window.location.origin;
+    const creds = validateCredentials();
+    if (!creds) {
+      setLoading(false);
+      return;
+    }
+
+    const nextConfirm = confirmPassword.trim();
+    if (!nextConfirm) {
+      setMessage("Confirma a senha.");
+      setLoading(false);
+      return;
+    }
+
+    if (creds.password !== nextConfirm) {
+      setMessage("As senhas não coincidem.");
+      setLoading(false);
+      return;
+    }
+
+    const { error } = await supabase.auth.signUp({
+      ...creds,
+      options: {
+        emailRedirectTo: `${origin}/api/auth/callback`,
+      },
+    });
+    if (error) {
+      setMessage(error.message || "Não foi possível criar a conta.");
+    } else {
+      setMessage("Conta criada. Verifica o email para confirmar.");
+    }
+
+    setLoading(false);
+  };
+
+  const handleGoogle = async () => {
+    setLoading(true);
+    setMessage(null);
+
+    const origin = window.location.origin;
+    const state = nextParam ? `next:${nextParam.startsWith("/") ? nextParam : `/${nextParam}`}` : undefined;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${origin}/api/auth/callback`,
+        ...(state && { state }),
+      },
+    });
+
+    if (error) {
+      setMessage(error.message || "Não foi possível iniciar com Google.");
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100">
+      <main className="mx-auto flex w-full max-w-md flex-col gap-6 px-6 pb-20 pt-12">
+        <a
+          className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 transition hover:text-slate-200"
+          href="/"
+        >
+          Voltar para início
+        </a>
+        <div className="space-y-2">
+          <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">
+            Acesso
+          </p>
+          <h1 className="text-3xl font-semibold text-white">
+            {mode === "signup" ? "Criar conta na Owlfund" : "Entrar na Owlfund"}
+          </h1>
+          <p className="text-sm text-slate-400">
+            Use email e senha ou faça login com Google.
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+          <div className="space-y-4">
+            <input
+              className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-orange-400"
+              placeholder="Email"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+            <input
+              className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-orange-400"
+              placeholder="Senha"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+            {mode === "signup" ? (
+              <input
+                className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-orange-400"
+                placeholder="Confirmar senha"
+                type="password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+              />
+            ) : null}
+          </div>
+
+          {message ? <p className="mt-4 text-sm text-orange-200">{message}</p> : null}
+
+          <div className="mt-6 flex flex-col gap-3">
+            <button
+              className={
+                mode === "login"
+                  ? "rounded-full bg-orange-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-70"
+                  : "rounded-full border border-slate-700 px-6 py-3 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
+              }
+              onClick={handleEmailLogin}
+              disabled={loading || isCheckingSession}
+              type="button"
+            >
+              Entrar
+            </button>
+            <button
+              className={
+                mode === "signup"
+                  ? "rounded-full bg-orange-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-70"
+                  : "rounded-full border border-slate-700 px-6 py-3 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
+              }
+              onClick={handleSignUp}
+              disabled={loading || isCheckingSession}
+              type="button"
+            >
+              Criar conta
+            </button>
+            <button
+              className="rounded-full border border-orange-400/40 px-6 py-3 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
+              onClick={handleGoogle}
+              disabled={loading || isCheckingSession}
+              type="button"
+            >
+              Entrar com Google
+            </button>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}

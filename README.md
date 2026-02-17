@@ -9,6 +9,12 @@ Cria um `.env.local` com base em `.env.example` e define as chaves necessárias:
 - `BLOCKFROST_PROJECT_ID`: usado para Cardano.
 - `UNISAT_API_KEY`: usado para Ordinals em Bitcoin.
 
+**Acesso (login):**
+
+- Define `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` (projeto em [supabase.com](https://supabase.com)).
+- O middleware renova a sessão em cada pedido; as rotas `/dashboard`, `/wallets`, `/portfolio` e `/market` exigem login e redirecionam para `/login?next=...`.
+- Após login (email/senha ou Google), o utilizador é redirecionado para a página indicada em `next` ou para o dashboard.
+
 Notas:
 
 - O DeFi de Solana está configurado em modo **SHYFT-only**.
