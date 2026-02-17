@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 const MORALIS_EVM = "https://deep-index.moralis.io/api/v2.2";
 const MORALIS_SOLANA = "https://solana-gateway.moralis.io/account/mainnet";
+const SOLANA_TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 
 type ChainId = "eth" | "sol" | "btc" | "ada";
 
@@ -48,6 +49,27 @@ type SolanaNftItem = {
   image?: string;
   metadata?: { image?: string };
 };
+
+type SolanaRpcParsedToken = {
+  account?: {
+    data?: {
+      parsed?: {
+        info?: {
+          mint?: string;
+          tokenAmount?: { amount?: string; decimals?: number; uiAmount?: number };
+        };
+      };
+    };
+  };
+};
+
+function fallbackSolanaRpcUrl(): string {
+  return (
+    process.env.SOLANA_RPC_URL ??
+    process.env.NEXT_PUBLIC_SOLANA_RPC_URL ??
+    "https://api.mainnet-beta.solana.com"
+  );
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -186,12 +208,6 @@ export async function GET(request: Request) {
   }
 
   const moralisKey = process.env.MORALIS_API_KEY;
-  if (!moralisKey) {
-    return NextResponse.json(
-      { error: "Configura MORALIS_API_KEY para ver NFTs.", count: 0, nfts: [] },
-      { status: 503 }
-    );
-  }
 
   const getImage = (item: EvmNftItem): string | undefined => {
     const nm = item.normalized_metadata;
@@ -209,6 +225,12 @@ export async function GET(request: Request) {
   };
 
   if (chain === "eth" && isEvmAddress(address)) {
+    if (!moralisKey) {
+      return NextResponse.json(
+        { error: "Configura MORALIS_API_KEY para ver NFTs EVM.", count: 0, nfts: [] },
+        { status: 503 }
+      );
+    }
     const evmChains = ["eth", "polygon"] as const;
     const allNfts: Array<{ id: string; name: string; image?: string; tokenAddress?: string; tokenId?: string }> = [];
     for (const c of evmChains) {
@@ -237,28 +259,83 @@ export async function GET(request: Request) {
   }
 
   if (chain === "sol" && isSolAddress(address)) {
+    if (moralisKey) {
+      try {
+        const res = await fetch(
+          `${MORALIS_SOLANA}/${address}/nft?nftMetadata=true&mediaItems=true&excludeSpam=true`,
+          { headers: { Accept: "application/json", "X-API-Key": moralisKey }, next: { revalidate: 120 } }
+        );
+        if (res.ok) {
+          const data = (await res.json()) as { nfts?: SolanaNftItem[] } | SolanaNftItem[];
+          const list = Array.isArray(data) ? data : (data as { nfts?: SolanaNftItem[] }).nfts ?? [];
+          if (list.length > 0) {
+            const nfts: Array<{ id: string; name: string; image?: string; tokenAddress?: string; tokenId?: string }> = list.map((item, i) => ({
+              id: item.mint ?? `sol-${i}`,
+              name: item.name ?? "NFT",
+              image: item.image ?? item.metadata?.image,
+              tokenAddress: item.mint,
+            }));
+            return NextResponse.json({ count: nfts.length, nfts });
+          }
+        }
+      } catch {
+        // fallback para RPC abaixo
+      }
+    }
+
+    // Fallback sem Moralis: conta NFTs SPL (amount=1 e decimals=0) via RPC.
     try {
+      const rpcUrl = fallbackSolanaRpcUrl();
       const res = await fetch(
-        `${MORALIS_SOLANA}/${address}/nft?nftMetadata=true&mediaItems=true&excludeSpam=true`,
-        { headers: { Accept: "application/json", "X-API-Key": moralisKey }, next: { revalidate: 120 } }
+        rpcUrl,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "getParsedTokenAccountsByOwner",
+            params: [
+              address.trim(),
+              { programId: SOLANA_TOKEN_PROGRAM },
+              { encoding: "jsonParsed", commitment: "confirmed" },
+            ],
+          }),
+          next: { revalidate: 120 },
+        }
       );
       if (!res.ok) {
-        const raw = await res.text();
         return NextResponse.json(
-          { error: "Falha ao consultar NFTs Solana.", count: 0, nfts: [] },
+          { error: "Falha ao consultar NFTs Solana via RPC.", count: 0, nfts: [] },
           { status: res.status }
         );
       }
-      const data = (await res.json()) as { nfts?: SolanaNftItem[] } | SolanaNftItem[];
-      const list = Array.isArray(data) ? data : (data as { nfts?: SolanaNftItem[] }).nfts ?? [];
-      const nfts: Array<{ id: string; name: string; image?: string; tokenAddress?: string; tokenId?: string }> = list.map((item, i) => ({
-        id: item.mint ?? `sol-${i}`,
-        name: item.name ?? "NFT",
-        image: item.image ?? item.metadata?.image,
-        tokenAddress: item.mint,
-      }));
-      return NextResponse.json({ count: nfts.length, nfts });
-    } catch (e) {
+      const data = (await res.json()) as {
+        result?: { value?: SolanaRpcParsedToken[] };
+      };
+      const values = data.result?.value ?? [];
+      const seen = new Set<string>();
+      const nfts: Array<{ id: string; name: string; image?: string; tokenAddress?: string; tokenId?: string }> = [];
+
+      for (const row of values) {
+        const info = row.account?.data?.parsed?.info;
+        const mint = info?.mint;
+        const amount = info?.tokenAmount?.amount;
+        const decimals = info?.tokenAmount?.decimals;
+        const uiAmount = info?.tokenAmount?.uiAmount;
+        if (!mint || seen.has(mint)) continue;
+        if (decimals !== 0) continue;
+        if (!(amount === "1" || uiAmount === 1)) continue;
+        seen.add(mint);
+        nfts.push({
+          id: mint,
+          name: `NFT ${mint.slice(0, 4)}...${mint.slice(-4)}`,
+          tokenAddress: mint,
+        });
+      }
+
+      return NextResponse.json({ count: seen.size, nfts: nfts.slice(0, 30) });
+    } catch {
       return NextResponse.json(
         { error: "Falha ao consultar NFTs.", count: 0, nfts: [] },
         { status: 503 }

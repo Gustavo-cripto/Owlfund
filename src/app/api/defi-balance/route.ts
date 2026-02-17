@@ -40,10 +40,24 @@ type MoralisDefiSummary = {
 const SHYFT_GRAPHQL = "https://programs.shyft.to/v0/graphql/accounts";
 const METEORA_API = "https://dlmm-api.meteora.ag";
 
+function toNum(x: unknown): number {
+  if (x == null) return 0;
+  if (typeof x === "number" && Number.isFinite(x)) return x;
+  if (typeof x === "string") return parseFloat(x) || 0;
+  return 0;
+}
+
+function firstPositive(obj: Record<string, unknown>, keys: string[]): number {
+  for (const key of keys) {
+    const v = toNum(obj[key]);
+    if (v > 0) return v;
+  }
+  return 0;
+}
+
 async function fetchMeteoraPositionsViaShyft(
   wallet: string,
-  shyftKey: string,
-  jupiterKey?: string
+  shyftKey: string
 ): Promise<{ total: number; positions: { name: string; usd: number }[] }> {
   const query = `query { meteora_dlmm_Position(where:{owner:{_eq:"${wallet}"}}){pubkey id lbPair} meteora_dlmm_PositionV2(where:{owner:{_eq:"${wallet}"}}){pubkey id lbPair} }`;
   const res = await fetch(
@@ -53,24 +67,41 @@ async function fetchMeteoraPositionsViaShyft(
   if (!res.ok) return { total: 0, positions: [] };
   const json = (await res.json()) as { data?: { meteora_dlmm_Position?: Array<{ pubkey?: string; id?: string; lbPair?: string }>; meteora_dlmm_PositionV2?: Array<{ pubkey?: string; id?: string; lbPair?: string }> }; errors?: unknown[] };
   if (json.errors?.length || !json.data) return { total: 0, positions: [] };
-  const positions: Array<{ pubkey: string; lbPair: string }> = [];
+  const positions: string[] = [];
   for (const p of [...(json.data.meteora_dlmm_Position ?? []), ...(json.data.meteora_dlmm_PositionV2 ?? [])]) {
     const addr = p.pubkey ?? p.id ?? "";
-    if (addr && p.lbPair) positions.push({ pubkey: addr, lbPair: p.lbPair });
+    if (addr) positions.push(addr);
   }
   if (positions.length === 0) return { total: 0, positions: [] };
   let totalUsd = 0;
-  for (const pos of positions) {
+  for (const pubkey of positions) {
     try {
       const [posRes, depRes, wdRes] = await Promise.all([
-        fetch(`${METEORA_API}/position/${pos.pubkey}`, { cache: "no-store" }),
-        fetch(`${METEORA_API}/position/${pos.pubkey}/deposits`, { cache: "no-store" }),
-        fetch(`${METEORA_API}/position/${pos.pubkey}/withdraws`, { cache: "no-store" }),
+        fetch(`${METEORA_API}/position/${pubkey}`, { cache: "no-store" }),
+        fetch(`${METEORA_API}/position/${pubkey}/deposits`, { cache: "no-store" }),
+        fetch(`${METEORA_API}/position/${pubkey}/withdraws`, { cache: "no-store" }),
       ]);
       let posVal = 0;
       if (posRes.ok) {
         const posJson = (await posRes.json()) as Record<string, unknown>;
-        posVal = Number((posJson as { liquidity_usd?: number }).liquidity_usd ?? (posJson as { liquidityUsd?: number }).liquidityUsd ?? 0) || 0;
+        const nested = (posJson.data as Record<string, unknown> | undefined) ?? {};
+        posVal =
+          firstPositive(posJson, [
+            "liquidity_usd",
+            "liquidityUsd",
+            "position_value_usd",
+            "positionValueUsd",
+            "total_value_usd",
+            "totalValueUsd",
+          ]) ||
+          firstPositive(nested, [
+            "liquidity_usd",
+            "liquidityUsd",
+            "position_value_usd",
+            "positionValueUsd",
+            "total_value_usd",
+            "totalValueUsd",
+          ]);
       }
       if (posVal > 0) {
         totalUsd += posVal;
@@ -83,8 +114,22 @@ async function fetchMeteoraPositionsViaShyft(
       const deposits = isErr(depJson) ? [] : Array.isArray(depJson) ? depJson : [];
       const withdraws = isErr(wdJson) ? [] : Array.isArray(wdJson) ? wdJson : [];
       const usdFrom = (d: Record<string, unknown>) =>
-        (Number((d as { token_x_usd_amount?: number }).token_x_usd_amount ?? (d as { tokenXUsdAmount?: number }).tokenXUsdAmount ?? 0) || 0) +
-        (Number((d as { token_y_usd_amount?: number }).token_y_usd_amount ?? (d as { tokenYUsdAmount?: number }).tokenYUsdAmount ?? 0) || 0);
+        firstPositive(d, [
+          "token_x_usd_amount",
+          "tokenXUsdAmount",
+          "token_x_value_usd",
+          "tokenXValueUsd",
+          "token_x_usd",
+          "tokenXUsd",
+        ]) +
+        firstPositive(d, [
+          "token_y_usd_amount",
+          "tokenYUsdAmount",
+          "token_y_value_usd",
+          "tokenYValueUsd",
+          "token_y_usd",
+          "tokenYUsd",
+        ]);
       const depUsd = deposits.reduce((s: number, d) => s + usdFrom(d as Record<string, unknown>), 0);
       const wdUsd = withdraws.reduce((s: number, w) => s + usdFrom(w as Record<string, unknown>), 0);
       const net = depUsd - wdUsd;
@@ -150,42 +195,35 @@ export async function GET(request: Request) {
       return NextResponse.json({ total, positions });
   }
 
-  // Para Solana: Shyft em PRIMEIRO (posições Meteora DLMM), depois Jupiter como fallback.
-  const jupiterKey = process.env.JUPITER_API_KEY;
   const shyftKey = process.env.SHYFT_API_KEY;
 
-  // Solana: Shyft como fonte principal para posições DeFi
-  if (chain === "sol" && isSolAddress(address) && shyftKey) {
+  // Solana: fonte única de DeFi = SHYFT (Meteora DLMM)
+  if (chain === "sol" && isSolAddress(address)) {
+    if (!shyftKey) {
+      return NextResponse.json(
+        { error: "Configura SHYFT_API_KEY para consultar DeFi Solana (Meteora).", total: null, positions: [] },
+        { status: 503 }
+      );
+    }
     try {
-      const meteoraResult = await fetchMeteoraPositionsViaShyft(address.trim(), shyftKey, jupiterKey);
-      if (meteoraResult.total > 0) {
-        return NextResponse.json({ total: meteoraResult.total, positions: meteoraResult.positions });
-      }
+      const meteoraResult = await fetchMeteoraPositionsViaShyft(address.trim(), shyftKey);
+      return NextResponse.json({ total: meteoraResult.total, positions: meteoraResult.positions });
     } catch {
-      /* continua para Jupiter */
+      return NextResponse.json(
+        { error: "Falha ao consultar SHYFT/Meteora.", total: null, positions: [] },
+        { status: 503 }
+      );
     }
   }
 
   const urls: { url: string; headers: HeadersInit }[] = [];
-  if (chain === "sol" && isSolAddress(address)) {
-    const jupHeaders: HeadersInit = { Accept: "application/json" };
-    if (jupiterKey) (jupHeaders as Record<string, string>)["x-api-key"] = jupiterKey;
-    urls.push({
-      url: `https://api.jup.ag/portfolio/v1/positions/${encodeURIComponent(address.trim())}`,
-      headers: jupHeaders,
-    });
-    urls.push({
-      url: `https://api.jup.ag/portfolio/v1/positions/${encodeURIComponent(address.trim())}?platforms=meteora-dlmm,meteora,raydium,orca,jupiter-exchange`,
-      headers: jupHeaders,
-    });
-  }
   if (moralisKey && chain === "eth") {
     urls.push({
       url: `${MORALIS_DEFI}/${address}/defi/summary?chain=eth`,
       headers: { Accept: "application/json", "X-API-Key": moralisKey },
     });
   }
-  // Solana DeFi: só Jupiter (Meteora, Raydium, Orca, etc.). ETH: Moralis.
+  // ETH DeFi: Moralis.
 
   let lastError: string | null = null;
 
@@ -203,97 +241,17 @@ export async function GET(request: Request) {
           // ignore
         }
         const isMoralis = url.includes("moralis.io");
-        const isJupiter = url.includes("jup.ag");
         if (res.status === 401)
           lastError = isMoralis
             ? "Chave Moralis inválida. Verifica em admin.moralis.io."
-            : isJupiter
-              ? "Chave Jupiter inválida. Verifica em portal.jup.ag."
-              : lastError;
+            : lastError;
         else if (res.status === 403)
           lastError = isMoralis
             ? "Limite de créditos Moralis excedido. Tenta novamente mais tarde."
-            : isJupiter
-              ? "Limite de créditos Jupiter excedido."
-              : lastError;
+            : lastError;
         else if (res.status === 429) lastError = "Muitos pedidos. Espera um momento e tenta novamente.";
         else if (errMsg) lastError = errMsg;
         continue;
-      }
-
-      const isJupiterUrl = url.includes("jup.ag");
-      if (isJupiterUrl) {
-        try {
-          const data = JSON.parse(raw) as {
-            elements?: Array<{
-              type?: string;
-              name?: string;
-              label?: string;
-              platformId?: string;
-              value?: number | string;
-              data?: {
-                value?: number | string;
-                valueUsd?: number | string;
-                totalValue?: number | string;
-                poolValue?: number | string;
-                positionValue?: number | string;
-                assets?: Array<{
-                  value?: number | string;
-                  data?: { price?: number | string; amount?: number | string };
-                }>;
-                reserves?: Array<{ value?: number | string; amount?: number | string; price?: number | string }>;
-              };
-            }>;
-          };
-          const toNum = (x: unknown): number => {
-            if (x == null) return 0;
-            if (typeof x === "number" && Number.isFinite(x)) return x;
-            if (typeof x === "string") return parseFloat(x) || 0;
-            return 0;
-          };
-          const excludePlatforms = new Set(["native-stake"]);
-          let total = 0;
-          const positions: { name: string; usd: number }[] = [];
-          for (const el of data.elements ?? []) {
-            const label = (el.label ?? el.name ?? "") as string;
-            const platformId = (el.platformId ?? "") as string;
-            if (label === "Wallet" || excludePlatforms.has(platformId)) continue;
-            if (label === "Staked" && platformId === "native-stake") continue;
-            const val = toNum(
-              el.value ??
-                el.data?.value ??
-                el.data?.valueUsd ??
-                el.data?.totalValue ??
-                el.data?.poolValue ??
-                el.data?.positionValue ??
-                0
-            );
-            const assets = el.data?.assets ?? [];
-            const reserves = el.data?.reserves ?? [];
-            const sumAssets = assets.reduce((s, a) => {
-              const v = toNum(a.value);
-              if (v > 0) return s + v;
-              const price = toNum(a.data?.price);
-              const amount = toNum(a.data?.amount);
-              return s + (price * amount || 0);
-            }, 0);
-            const sumReserves = reserves.reduce((s, r) => {
-              const v = toNum(r.value);
-              if (v > 0) return s + v;
-              return s + (toNum(r.price) * toNum(r.amount) || 0);
-            }, 0);
-            const elTotal = val > 0 ? val : sumAssets || sumReserves;
-            if (elTotal > 0) {
-              total += elTotal;
-              const label = el.name ?? el.platformId ?? "DeFi";
-              positions.push({ name: label, usd: elTotal });
-            }
-          }
-          if (total > 0) return NextResponse.json({ total, positions });
-          continue;
-        } catch {
-          continue;
-        }
       }
 
       const isMoralisUrl = url.includes("moralis.io");
@@ -342,12 +300,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ total: 0, positions: [] });
   }
 
-  const hasAnyKey = moralisKey || jupiterKey || shyftKey;
+  const hasAnyKey = moralisKey || shyftKey;
   let fallbackMsg = hasAnyKey
     ? lastError ?? "Falha ao consultar DeFi."
-    : "Para DeFi Solana: SHYFT_API_KEY (shyft.to/get-api-key) em principal, JUPITER_API_KEY (portal.jup.ag) como fallback. Para ETH: MORALIS_API_KEY.";
-  if (chain === "sol" && (shyftKey || jupiterKey) && lastError?.includes("Jupiter"))
-    fallbackMsg += " Chaves novas demoram 2-5 min a ativar. Verifica .env.local ou variáveis do deploy.";
+    : "Para DeFi Solana: SHYFT_API_KEY (shyft.to/get-api-key). Para ETH: MORALIS_API_KEY.";
 
   return NextResponse.json(
     { error: fallbackMsg, total: null, positions: [] },
