@@ -295,6 +295,44 @@ export async function GET(request: Request) {
       }
     }
 
+    const shyftKey = process.env.SHYFT_API_KEY;
+    if (shyftKey) {
+      try {
+        const shyftRes = await fetch(
+          `https://api.shyft.to/sol/v2/nft/read_all?network=mainnet-beta&address=${encodeURIComponent(address.trim())}&page=1&size=50`,
+          {
+            headers: { Accept: "application/json", "x-api-key": shyftKey },
+            cache: "no-store",
+          }
+        );
+        if (shyftRes.ok) {
+          const payload = (await shyftRes.json()) as {
+            success?: boolean;
+            result?: {
+              nfts?: Array<{
+                mint?: string;
+                name?: string;
+                image_uri?: string;
+                cached_image_uri?: string;
+              }>;
+            };
+          };
+          const list = payload.result?.nfts ?? [];
+          if (list.length > 0) {
+            const nfts = list.map((item, i) => ({
+              id: item.mint ?? `sol-shyft-${i}`,
+              name: item.name ?? "NFT",
+              image: item.cached_image_uri ?? item.image_uri,
+              tokenAddress: item.mint,
+            }));
+            return NextResponse.json({ count: nfts.length, nfts });
+          }
+        }
+      } catch {
+        // fallback RPC abaixo
+      }
+    }
+
     // Fallback sem Moralis: conta NFTs SPL (amount=1 e decimals=0) via RPC.
     try {
       const seen = new Set<string>();

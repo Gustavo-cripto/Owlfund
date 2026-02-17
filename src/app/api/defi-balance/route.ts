@@ -67,14 +67,14 @@ async function fetchMeteoraPositionsViaShyft(
   if (!res.ok) return { total: 0, positions: [] };
   const json = (await res.json()) as { data?: { meteora_dlmm_Position?: Array<{ pubkey?: string; id?: string; lbPair?: string }>; meteora_dlmm_PositionV2?: Array<{ pubkey?: string; id?: string; lbPair?: string }> }; errors?: unknown[] };
   if (json.errors?.length || !json.data) return { total: 0, positions: [] };
-  const positions: Array<{ pubkey: string; version: "v1" | "v2" }> = [];
+  const positions: Array<{ pubkey: string; version: "v1" | "v2"; lbPair?: string }> = [];
   for (const p of json.data.meteora_dlmm_Position ?? []) {
     const addr = p.pubkey ?? p.id ?? "";
-    if (addr) positions.push({ pubkey: addr, version: "v1" });
+    if (addr) positions.push({ pubkey: addr, version: "v1", lbPair: p.lbPair });
   }
   for (const p of json.data.meteora_dlmm_PositionV2 ?? []) {
     const addr = p.pubkey ?? p.id ?? "";
-    if (addr) positions.push({ pubkey: addr, version: "v2" });
+    if (addr) positions.push({ pubkey: addr, version: "v2", lbPair: p.lbPair });
   }
   if (positions.length === 0) return { total: 0, positions: [] };
   let totalUsd = 0;
@@ -153,6 +153,30 @@ async function fetchMeteoraPositionsViaShyft(
     } catch {
       /* skip */
     }
+  }
+  if (totalUsd <= 0) {
+    // Fallback final: soma fees/rewards já reclamados por par da Meteora.
+    const pairs = [...new Set(positions.map((p) => p.lbPair).filter((x): x is string => !!x))];
+    let earnedUsd = 0;
+    for (const pair of pairs) {
+      try {
+        const res = await fetch(
+          `${METEORA_API}/wallet/${encodeURIComponent(wallet)}/${encodeURIComponent(pair)}/earning`,
+          { cache: "no-store" }
+        );
+        if (!res.ok) continue;
+        const data = (await res.json()) as Array<Record<string, unknown>> | Record<string, unknown>;
+        const rows = Array.isArray(data) ? data : [data];
+        for (const row of rows) {
+          earnedUsd +=
+            firstPositive(row, ["total_fee_usd_claimed", "totalFeeUsdClaimed"]) +
+            firstPositive(row, ["total_reward_usd_claimed", "totalRewardUsdClaimed"]);
+        }
+      } catch {
+        continue;
+      }
+    }
+    if (earnedUsd > 0) totalUsd = earnedUsd;
   }
   return totalUsd > 0 ? { total: totalUsd, positions: [{ name: "Meteora", usd: totalUsd }] } : { total: 0, positions: [] };
 }
