@@ -67,19 +67,25 @@ async function fetchMeteoraPositionsViaShyft(
   if (!res.ok) return { total: 0, positions: [] };
   const json = (await res.json()) as { data?: { meteora_dlmm_Position?: Array<{ pubkey?: string; id?: string; lbPair?: string }>; meteora_dlmm_PositionV2?: Array<{ pubkey?: string; id?: string; lbPair?: string }> }; errors?: unknown[] };
   if (json.errors?.length || !json.data) return { total: 0, positions: [] };
-  const positions: string[] = [];
-  for (const p of [...(json.data.meteora_dlmm_Position ?? []), ...(json.data.meteora_dlmm_PositionV2 ?? [])]) {
+  const positions: Array<{ pubkey: string; version: "v1" | "v2" }> = [];
+  for (const p of json.data.meteora_dlmm_Position ?? []) {
     const addr = p.pubkey ?? p.id ?? "";
-    if (addr) positions.push(addr);
+    if (addr) positions.push({ pubkey: addr, version: "v1" });
+  }
+  for (const p of json.data.meteora_dlmm_PositionV2 ?? []) {
+    const addr = p.pubkey ?? p.id ?? "";
+    if (addr) positions.push({ pubkey: addr, version: "v2" });
   }
   if (positions.length === 0) return { total: 0, positions: [] };
   let totalUsd = 0;
-  for (const pubkey of positions) {
+  for (const pos of positions) {
     try {
+      const primary = pos.version === "v2" ? "position_v2" : "position";
+      const secondary = pos.version === "v2" ? "position" : "position_v2";
       const [posRes, depRes, wdRes] = await Promise.all([
-        fetch(`${METEORA_API}/position/${pubkey}`, { cache: "no-store" }),
-        fetch(`${METEORA_API}/position/${pubkey}/deposits`, { cache: "no-store" }),
-        fetch(`${METEORA_API}/position/${pubkey}/withdraws`, { cache: "no-store" }),
+        fetch(`${METEORA_API}/${primary}/${pos.pubkey}`, { cache: "no-store" }),
+        fetch(`${METEORA_API}/${primary}/${pos.pubkey}/deposits`, { cache: "no-store" }),
+        fetch(`${METEORA_API}/${primary}/${pos.pubkey}/withdraws`, { cache: "no-store" }),
       ]);
       let posVal = 0;
       if (posRes.ok) {
@@ -103,13 +109,22 @@ async function fetchMeteoraPositionsViaShyft(
             "totalValueUsd",
           ]);
       }
-      if (posVal > 0) {
-        totalUsd += posVal;
-        continue;
+      let depJson: unknown = [];
+      let wdJson: unknown = [];
+      if (depRes.ok && wdRes.ok) {
+        depJson = await depRes.json();
+        wdJson = await wdRes.json();
+      } else {
+        // Algumas posições retornam dados apenas no endpoint alternativo (v1/v2).
+        const [depAltRes, wdAltRes] = await Promise.all([
+          fetch(`${METEORA_API}/${secondary}/${pos.pubkey}/deposits`, { cache: "no-store" }),
+          fetch(`${METEORA_API}/${secondary}/${pos.pubkey}/withdraws`, { cache: "no-store" }),
+        ]);
+        if (depAltRes.ok && wdAltRes.ok) {
+          depJson = await depAltRes.json();
+          wdJson = await wdAltRes.json();
+        }
       }
-      if (!depRes.ok || !wdRes.ok) continue;
-      const depJson = (await depRes.json()) as unknown;
-      const wdJson = (await wdRes.json()) as unknown;
       const isErr = (x: unknown) => x != null && typeof x === "object" && ("error" in x || "message" in x);
       const deposits = isErr(depJson) ? [] : Array.isArray(depJson) ? depJson : [];
       const withdraws = isErr(wdJson) ? [] : Array.isArray(wdJson) ? wdJson : [];
@@ -133,7 +148,8 @@ async function fetchMeteoraPositionsViaShyft(
       const depUsd = deposits.reduce((s: number, d) => s + usdFrom(d as Record<string, unknown>), 0);
       const wdUsd = withdraws.reduce((s: number, w) => s + usdFrom(w as Record<string, unknown>), 0);
       const net = depUsd - wdUsd;
-      if (net > 0) totalUsd += net;
+      const final = posVal > 0 ? posVal : net;
+      if (final > 0) totalUsd += final;
     } catch {
       /* skip */
     }

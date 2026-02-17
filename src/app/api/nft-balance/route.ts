@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 const MORALIS_EVM = "https://deep-index.moralis.io/api/v2.2";
 const MORALIS_SOLANA = "https://solana-gateway.moralis.io/account/mainnet";
 const SOLANA_TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+const SOLANA_TOKEN_2022_PROGRAM = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 
 type ChainId = "eth" | "sol" | "btc" | "ada";
 
@@ -69,6 +70,17 @@ function fallbackSolanaRpcUrl(): string {
     process.env.NEXT_PUBLIC_SOLANA_RPC_URL ??
     "https://api.mainnet-beta.solana.com"
   );
+}
+
+function getSolanaRpcCandidates(): string[] {
+  const fromEnv = fallbackSolanaRpcUrl();
+  const candidates = [
+    fromEnv,
+    "https://api.mainnet-beta.solana.com",
+    "https://solana-rpc.publicnode.com",
+    "https://rpc.ankr.com/solana",
+  ];
+  return [...new Set(candidates.filter(Boolean))];
 }
 
 export async function GET(request: Request) {
@@ -285,56 +297,74 @@ export async function GET(request: Request) {
 
     // Fallback sem Moralis: conta NFTs SPL (amount=1 e decimals=0) via RPC.
     try {
-      const rpcUrl = fallbackSolanaRpcUrl();
-      const res = await fetch(
-        rpcUrl,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            jsonrpc: "2.0",
-            id: 1,
-            method: "getParsedTokenAccountsByOwner",
-            params: [
-              address.trim(),
-              { programId: SOLANA_TOKEN_PROGRAM },
-              { encoding: "jsonParsed", commitment: "confirmed" },
-            ],
-          }),
-          next: { revalidate: 120 },
-        }
-      );
-      if (!res.ok) {
-        return NextResponse.json(
-          { error: "Falha ao consultar NFTs Solana via RPC.", count: 0, nfts: [] },
-          { status: res.status }
-        );
-      }
-      const data = (await res.json()) as {
-        result?: { value?: SolanaRpcParsedToken[] };
-      };
-      const values = data.result?.value ?? [];
       const seen = new Set<string>();
       const nfts: Array<{ id: string; name: string; image?: string; tokenAddress?: string; tokenId?: string }> = [];
+      const rpcUrls = getSolanaRpcCandidates();
+      const programs = [SOLANA_TOKEN_PROGRAM, SOLANA_TOKEN_2022_PROGRAM];
+      let lastRpcError: string | null = null;
 
-      for (const row of values) {
-        const info = row.account?.data?.parsed?.info;
-        const mint = info?.mint;
-        const amount = info?.tokenAmount?.amount;
-        const decimals = info?.tokenAmount?.decimals;
-        const uiAmount = info?.tokenAmount?.uiAmount;
-        if (!mint || seen.has(mint)) continue;
-        if (decimals !== 0) continue;
-        if (!(amount === "1" || uiAmount === 1)) continue;
-        seen.add(mint);
-        nfts.push({
-          id: mint,
-          name: `NFT ${mint.slice(0, 4)}...${mint.slice(-4)}`,
-          tokenAddress: mint,
-        });
+      for (const rpcUrl of rpcUrls) {
+        try {
+          for (const programId of programs) {
+            const res = await fetch(
+              rpcUrl,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  jsonrpc: "2.0",
+                  id: 1,
+                  method: "getParsedTokenAccountsByOwner",
+                  params: [
+                    address.trim(),
+                    { programId },
+                    { encoding: "jsonParsed", commitment: "confirmed" },
+                  ],
+                }),
+                next: { revalidate: 120 },
+              }
+            );
+            if (!res.ok) {
+              lastRpcError = `RPC ${new URL(rpcUrl).hostname} respondeu ${res.status}.`;
+              continue;
+            }
+            const data = (await res.json()) as {
+              result?: { value?: SolanaRpcParsedToken[] };
+              error?: { message?: string };
+            };
+            if (data.error?.message) {
+              lastRpcError = data.error.message;
+              continue;
+            }
+            const values = data.result?.value ?? [];
+            for (const row of values) {
+              const info = row.account?.data?.parsed?.info;
+              const mint = info?.mint;
+              const amount = info?.tokenAmount?.amount;
+              const decimals = info?.tokenAmount?.decimals;
+              const uiAmount = info?.tokenAmount?.uiAmount;
+              if (!mint || seen.has(mint)) continue;
+              if (decimals !== 0) continue;
+              if (!(amount === "1" || uiAmount === 1)) continue;
+              seen.add(mint);
+              nfts.push({
+                id: mint,
+                name: `NFT ${mint.slice(0, 4)}...${mint.slice(-4)}`,
+                tokenAddress: mint,
+              });
+            }
+          }
+          // Se um RPC respondeu, já devolvemos (mesmo que 0 NFTs).
+          return NextResponse.json({ count: seen.size, nfts: nfts.slice(0, 30) });
+        } catch (rpcErr) {
+          lastRpcError = rpcErr instanceof Error ? rpcErr.message : "Falha RPC.";
+          continue;
+        }
       }
-
-      return NextResponse.json({ count: seen.size, nfts: nfts.slice(0, 30) });
+      return NextResponse.json(
+        { error: lastRpcError ?? "Falha ao consultar NFTs Solana via RPC.", count: 0, nfts: [] },
+        { status: 503 }
+      );
     } catch {
       return NextResponse.json(
         { error: "Falha ao consultar NFTs.", count: 0, nfts: [] },
