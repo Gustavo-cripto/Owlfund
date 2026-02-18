@@ -689,22 +689,36 @@ export default function WalletsPage() {
   const btcMainAddress = btcAddress ?? btcWallets[0]?.address;
   const adaMainAddress = adaAddress ?? adaWallets[0]?.address;
 
+  /** Todos os endereços por chain (principal + carteiras adicionadas) para DeFi e NFTs. */
+  const ethAddresses = useMemo(
+    () => Array.from(new Set([ethAddress, ...ethWallets.map((w) => w.address)].filter(Boolean) as string[])),
+    [ethAddress, ethWallets]
+  );
+  const solAddresses = useMemo(
+    () => Array.from(new Set([solAddress, ...solWallets.map((w) => w.address)].filter(Boolean) as string[])),
+    [solAddress, solWallets]
+  );
+  const btcAddresses = useMemo(
+    () => Array.from(new Set([btcAddress, ...btcWallets.map((w) => w.address)].filter(Boolean) as string[])),
+    [btcAddress, btcWallets]
+  );
+  const adaAddresses = useMemo(
+    () => Array.from(new Set([adaAddress, ...adaWallets.map((w) => w.address)].filter(Boolean) as string[])),
+    [adaAddress, adaWallets]
+  );
+
   useEffect(() => {
-    if (!ethMainAddress) return;
-    fetchDefiTotal(ethMainAddress, "eth");
-  }, [ethMainAddress]);
+    ethAddresses.forEach((addr) => fetchDefiTotal(addr, "eth"));
+  }, [ethAddresses.join(",")]);
   useEffect(() => {
-    if (!solMainAddress) return;
-    fetchDefiTotal(solMainAddress, "sol");
-  }, [solMainAddress]);
+    solAddresses.forEach((addr) => fetchDefiTotal(addr, "sol"));
+  }, [solAddresses.join(",")]);
   useEffect(() => {
-    if (!btcMainAddress) return;
-    fetchDefiTotal(btcMainAddress, "btc");
-  }, [btcMainAddress]);
+    btcAddresses.forEach((addr) => fetchDefiTotal(addr, "btc"));
+  }, [btcAddresses.join(",")]);
   useEffect(() => {
-    if (!adaMainAddress) return;
-    fetchDefiTotal(adaMainAddress, "ada");
-  }, [adaMainAddress]);
+    adaAddresses.forEach((addr) => fetchDefiTotal(addr, "ada"));
+  }, [adaAddresses.join(",")]);
 
   const fetchNftBalance = async (address: string, chain: DefiChain) => {
     const key = defiKey(address, chain);
@@ -737,21 +751,17 @@ export default function WalletsPage() {
   };
 
   useEffect(() => {
-    if (!ethMainAddress) return;
-    fetchNftBalance(ethMainAddress, "eth");
-  }, [ethMainAddress]);
+    ethAddresses.forEach((addr) => fetchNftBalance(addr, "eth"));
+  }, [ethAddresses.join(",")]);
   useEffect(() => {
-    if (!solMainAddress) return;
-    fetchNftBalance(solMainAddress, "sol");
-  }, [solMainAddress]);
+    solAddresses.forEach((addr) => fetchNftBalance(addr, "sol"));
+  }, [solAddresses.join(",")]);
   useEffect(() => {
-    if (!btcMainAddress) return;
-    fetchNftBalance(btcMainAddress, "btc");
-  }, [btcMainAddress]);
+    btcAddresses.forEach((addr) => fetchNftBalance(addr, "btc"));
+  }, [btcAddresses.join(",")]);
   useEffect(() => {
-    if (!adaMainAddress) return;
-    fetchNftBalance(adaMainAddress, "ada");
-  }, [adaMainAddress]);
+    adaAddresses.forEach((addr) => fetchNftBalance(addr, "ada"));
+  }, [adaAddresses.join(",")]);
 
   const refreshCryptoPrices = async () => {
     const symbols = Object.keys(cryptoHoldings);
@@ -1048,6 +1058,25 @@ export default function WalletsPage() {
       return Number.isFinite(value) ? sum + value : sum;
     }, 0);
   }, [cryptoHoldings]);
+
+  const walletsTotalUsd = useMemo(() => {
+    const eth = getFiatValue("ETH", totalEthBalance) ?? 0;
+    const sol = getFiatValue("SOL", totalSolBalance) ?? 0;
+    const btc = getFiatValue("BTC", totalBtcBalance) ?? 0;
+    const ada = getFiatValue("ADA", totalAdaBalance) ?? 0;
+    return eth + sol + btc + ada;
+  }, [totalEthBalance, totalSolBalance, totalBtcBalance, totalAdaBalance, web3Prices]);
+
+  const totalNftCount = useMemo(() => {
+    return Object.values(nftCounts).reduce((sum, n) => sum + (typeof n === "number" ? n : 0), 0);
+  }, [nftCounts]);
+
+  const totalDefiUsd = useMemo(() => {
+    return Object.values(defiTotals).reduce(
+      (sum, v) => sum + (typeof v === "number" && Number.isFinite(v) ? v : 0),
+      0
+    );
+  }, [defiTotals]);
 
   const sortedCryptoSymbols = useMemo(() => {
     const dir = cryptoSortDir === "asc" ? 1 : -1;
@@ -3604,14 +3633,68 @@ export default function WalletsPage() {
               </p>
             </div>
             <div className="text-right">
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Total</p>
+              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
+                Total (carteiras + DeFi + manuais)
+              </p>
               <p className="text-lg font-semibold text-white">
                 €{" "}
-                {cryptoManualTotal.toLocaleString("pt-PT", {
+                {(walletsTotalUsd + totalDefiUsd + cryptoManualTotal).toLocaleString("pt-PT", {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}
               </p>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-xl border border-slate-700/80 bg-slate-950/50 p-4">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Saldos das carteiras e NFTs
+            </p>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-300">
+              <span>
+                <span className="text-slate-500">ETH:</span>{" "}
+                {getFiatValue("ETH", totalEthBalance) != null
+                  ? `€ ${(getFiatValue("ETH", totalEthBalance) ?? 0).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  : "—"}
+              </span>
+              <span>
+                <span className="text-slate-500">SOL:</span>{" "}
+                {getFiatValue("SOL", totalSolBalance) != null
+                  ? `€ ${(getFiatValue("SOL", totalSolBalance) ?? 0).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  : "—"}
+              </span>
+              <span>
+                <span className="text-slate-500">BTC:</span>{" "}
+                {getFiatValue("BTC", totalBtcBalance) != null
+                  ? `€ ${(getFiatValue("BTC", totalBtcBalance) ?? 0).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  : "—"}
+              </span>
+              <span>
+                <span className="text-slate-500">ADA:</span>{" "}
+                {getFiatValue("ADA", totalAdaBalance) != null
+                  ? `€ ${(getFiatValue("ADA", totalAdaBalance) ?? 0).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  : "—"}
+              </span>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
+              <span>
+                <span className="text-slate-500">Total carteiras:</span>{" "}
+                <span className="font-semibold text-white">
+                  € {walletsTotalUsd.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </span>
+              <span>
+                <span className="text-slate-500">DeFi:</span>{" "}
+                <span className="font-semibold text-white">
+                  $ {totalDefiUsd.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </span>
+              <span>
+                <span className="text-slate-500">NFTs:</span>{" "}
+                <span className="font-semibold text-white">
+                  {totalNftCount} {totalNftCount === 1 ? "item" : "itens"}
+                </span>
+              </span>
             </div>
           </div>
 
