@@ -2,6 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { loadStripe } from "@stripe/stripe-js";
+import {
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
+} from "recharts";
 
 import AppHeader from "@/components/AppHeader";
 import PnlSummaryCard from "@/components/PnlSummaryCard";
@@ -574,6 +578,117 @@ export default function PortfolioPage() {
                 },
               ]}
             />
+          </div>
+        </section>
+
+        {/* ── GRÁFICOS ── */}
+        <section className="grid gap-6 md:grid-cols-2">
+          {/* Gráfico PNL histórico */}
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Histórico</p>
+                <h2 className="text-base font-bold text-white mt-0.5">Evolução do portfólio</h2>
+              </div>
+              <span className={`text-sm font-bold ${pnlSummary.position >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                {pnlSummary.position >= 0 ? "+" : ""}€{formatValue(pnlSummary.position)}
+              </span>
+            </div>
+            {snapshotTotals.length >= 2 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <AreaChart data={[...snapshotTotals].reverse().map(s => ({
+                  data: new Date(s.createdAt).toLocaleDateString("pt-PT", { day: "2-digit", month: "short" }),
+                  valor: parseFloat(s.total.toFixed(2)),
+                }))}>
+                  <defs>
+                    <linearGradient id="colorValor" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                  <XAxis dataKey="data" tick={{ fill: "#64748b", fontSize: 11 }} />
+                  <YAxis tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={v => `€${v}`} width={60} />
+                  <Tooltip
+                    contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
+                    labelStyle={{ color: "#94a3b8" }}
+                    formatter={(v: number) => [`€ ${formatValue(v)}`, "Valor"]}
+                  />
+                  <Area type="monotone" dataKey="valor" stroke="#f97316" strokeWidth={2} fill="url(#colorValor)" dot={{ fill: "#f97316", r: 3 }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-[200px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-700">
+                <p className="text-2xl">📸</p>
+                <p className="text-sm text-slate-400 text-center">Precisas de pelo menos 2 snapshots<br/>para ver a evolução.</p>
+                <p className="text-xs text-slate-500">{snapshotTotals.length}/2 snapshots guardados</p>
+              </div>
+            )}
+          </div>
+
+          {/* Gráfico distribuição por ativo */}
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+            <div className="mb-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Distribuição</p>
+              <h2 className="text-base font-bold text-white mt-0.5">Alocação por ativo</h2>
+            </div>
+            {(() => {
+              const COLORS = ["#f97316","#fb923c","#fdba74","#0ea5e9","#38bdf8","#7dd3fc","#a78bfa","#c4b5fd"];
+              const pieData = [
+                ...wallets.filter(w => Number(w.balance) > 0).map(w => ({ name: w.symbol, value: Number(w.balance) })),
+                ...Object.entries(cryptoHoldings).filter(([,h]) => Number(h.buyValue) > 0).map(([k,h]) => ({ name: k, value: Number(h.buyValue) })),
+                ...(stablecoinTotal > 0 ? [{ name: "Stable", value: stablecoinTotal }] : []),
+                ...(traditionalTotal > 0 ? [{ name: "Trad.", value: traditionalTotal }] : []),
+              ].filter(d => d.value > 0);
+              if (!pieData.length) return (
+                <div className="flex h-[200px] items-center justify-center">
+                  <p className="text-sm text-slate-500">Sem ativos para mostrar.</p>
+                </div>
+              );
+              return (
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={3} dataKey="value">
+                      {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
+                      formatter={(v: number) => [`€ ${formatValue(v)}`, ""]}
+                    />
+                    <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{ color: "#94a3b8", fontSize: 11 }}>{v}</span>} />
+                  </PieChart>
+                </ResponsiveContainer>
+              );
+            })()}
+          </div>
+
+          {/* Gráfico PNL por período */}
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 md:col-span-2">
+            <div className="mb-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Performance</p>
+              <h2 className="text-base font-bold text-white mt-0.5">PNL por período</h2>
+            </div>
+            <ResponsiveContainer width="100%" height={160}>
+              <BarChart data={[
+                { periodo: "Posição", pnl: parseFloat(pnlSummary.position.toFixed(2)) },
+                { periodo: "Hoje", pnl: parseFloat(pnlSummary.today.toFixed(2)) },
+                { periodo: "30 dias", pnl: parseFloat((pnlSummary.days30 ?? 0).toFixed(2)) },
+                { periodo: "7 dias (média)", pnl: parseFloat(pnlSummary.daily7d.toFixed(2)) },
+              ]} barSize={36}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                <XAxis dataKey="periodo" tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={v => `€${v}`} width={55} axisLine={false} tickLine={false} />
+                <Tooltip
+                  contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
+                  formatter={(v: number) => [`€ ${formatValue(Math.abs(v))}`, v >= 0 ? "Lucro" : "Perda"]}
+                />
+                <Bar dataKey="pnl" radius={[6, 6, 0, 0]}>
+                  {[pnlSummary.position, pnlSummary.today, pnlSummary.days30 ?? 0, pnlSummary.daily7d].map((v, i) => (
+                    <Cell key={i} fill={v >= 0 ? "#10b981" : "#ef4444"} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </section>
 
