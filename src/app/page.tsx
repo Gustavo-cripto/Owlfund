@@ -1,252 +1,246 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
 import AppHeader from "@/components/AppHeader";
 import PnlSummaryCard from "@/components/PnlSummaryCard";
 import { createClient } from "@/lib/supabase/client";
+
+const TICKER_DATA = [
+  { symbol: "BTC", price: "€ 91.240", change: "+2,4%", up: true },
+  { symbol: "ETH", price: "€ 3.180", change: "+1,8%", up: true },
+  { symbol: "SOL", price: "€ 148", change: "-0,6%", up: false },
+  { symbol: "ADA", price: "€ 0,42", change: "+3,1%", up: true },
+  { symbol: "BNB", price: "€ 548", change: "+0,9%", up: true },
+  { symbol: "AAPL", price: "€ 211", change: "+0,4%", up: true },
+  { symbol: "NVDA", price: "€ 876", change: "+1,2%", up: true },
+  { symbol: "S&P 500", price: "€ 5.248", change: "-0,2%", up: false },
+];
+
+const FEATURES = [
+  { icon: "📊", title: "Portfolio unificado", description: "Cripto e mercado tradicional num só painel. Vê o valor total em segundos." },
+  { icon: "🔗", title: "Carteiras Blockchain", description: "Conecta Bitcoin, Ethereum, Solana e Cardano. DeFi e NFTs incluídos." },
+  { icon: "📈", title: "PNL em tempo real", description: "Lucro/perda da posição, do dia e dos últimos 30 dias sempre visíveis." },
+  { icon: "🌍", title: "Mercado global", description: "Tabela com variações 1h, 24h, 7d e sparklines para decisões rápidas." },
+  { icon: "🔒", title: "100% seguro", description: "Leitura apenas — nunca pedimos chaves privadas ou permissões de transação." },
+  { icon: "🌙", title: "Interface premium", description: "Tema escuro com destaque laranja. Rápido, limpo e focado nos números." },
+];
+
+const STEPS = [
+  { num: "01", title: "Cria a tua conta", desc: "Registo gratuito em 30 segundos com email ou Google." },
+  { num: "02", title: "Adiciona os teus ativos", desc: "Conecta carteiras blockchain ou adiciona ativos tradicionais manualmente." },
+  { num: "03", title: "Acompanha em tempo real", desc: "Dashboard, PNL, mercado e distribuição do portfólio sempre atualizados." },
+];
+
+const STATS = [
+  { value: "15+", label: "Blockchains suportadas" },
+  { value: "€0", label: "Custo para começar" },
+  { value: "24/7", label: "Dados de mercado" },
+  { value: "100%", label: "Leitura segura" },
+];
 
 export default function Home() {
   const supabase = createClient();
   const [isReady, setIsReady] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  const features = [
-    {
-      title: "Resumo de mercado inteligente",
-      description:
-        "Tabela com variações 1h, 24h e 7d, sparklines e volume para decisões rápidas.",
-    },
-    {
-      title: "Gestão simples de ativos",
-      description:
-        "Adicione, edite e organize investimentos por categoria sem perder o contexto.",
-    },
-    {
-      title: "PNL claro e direto",
-      description:
-        "Visualize PNL da posição, do dia e média semanal com leitura imediata.",
-    },
-    {
-      title: "Tema escuro premium",
-      description:
-        "Interface escura com destaque em laranja para foco total nos números.",
-    },
-  ];
-
-  const steps = [
-    {
-      title: "Cadastre seus ativos",
-      description: "Escolha categorias e registre o valor investido em segundos.",
-    },
-    {
-      title: "Acompanhe o desempenho",
-      description: "Veja evolução, variações e dados de mercado em um só lugar.",
-    },
-    {
-      title: "Ajuste quando quiser",
-      description: "Edite posições e mantenha seu portfólio sempre atualizado.",
-    },
-  ];
+  const [tickerOffset, setTickerOffset] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
-
     supabase.auth.getSession().then(({ data }) => {
       if (!isMounted) return;
       setIsLoggedIn(!!data.session);
       setIsReady(true);
     });
-
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
       setIsLoggedIn(!!session);
       setIsReady(true);
     });
-
-    return () => {
-      isMounted = false;
-      subscription.subscription.unsubscribe();
-    };
+    return () => { isMounted = false; subscription.subscription.unsubscribe(); };
   }, [supabase]);
+
+  useEffect(() => {
+    const interval = setInterval(() => setTickerOffset(p => p - 1), 30);
+    return () => clearInterval(interval);
+  }, []);
 
   const showAppView = isReady && isLoggedIn;
 
-  return (
-    <div className="relative min-h-screen bg-slate-950 text-slate-100">
-      <div
-        className="pointer-events-none absolute inset-0 opacity-70"
-        style={{
-          backgroundImage:
-            "url(/hwvtot_2f4227d5a6869b1ae946ecac3e2712c2a84b9f59.jpeg)",
-          backgroundRepeat: "no-repeat",
-          backgroundPosition: "center",
-          backgroundSize: "contain",
-        }}
-        aria-hidden
-      />
-      <div className="pointer-events-none absolute inset-0 bg-slate-950/25" aria-hidden />
-
-      <div className="relative z-10">
-        <AppHeader
-          variant={showAppView ? "app" : "public"}
-          title="Portfólio Owlfund"
-          subtitle={showAppView ? "Área do utilizador" : undefined}
-        />
-
-        {showAppView ? (
+  if (showAppView) {
+    return (
+      <div className="relative min-h-screen bg-slate-950 text-slate-100">
+        <div className="pointer-events-none absolute inset-0 opacity-70" style={{ backgroundImage: "url(/hwvtot_2f4227d5a6869b1ae946ecac3e2712c2a84b9f59.jpeg)", backgroundRepeat: "no-repeat", backgroundPosition: "center", backgroundSize: "contain" }} aria-hidden />
+        <div className="pointer-events-none absolute inset-0 bg-slate-950/25" aria-hidden />
+        <div className="relative z-10">
+          <AppHeader variant="app" title="Portfólio Owlfund" subtitle="Área do utilizador" />
           <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-24 pt-4">
-          <section className="grid gap-6 md:grid-cols-[1.1fr_0.9fr] md:items-start">
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">
-                Área logada
-              </p>
-              <h1 className="mt-3 text-3xl font-semibold text-white">
-                Atalhos rápidos do Owlfund
-              </h1>
-              <p className="mt-2 text-sm text-slate-400">
-                Acede direto ao dashboard, portfolio, carteiras e mercado.
-              </p>
-
-              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                <a
-                  className="rounded-full bg-orange-500 px-6 py-3 text-center text-sm font-semibold text-slate-950 transition hover:bg-orange-400"
-                  href="/dashboard"
-                >
-                  Abrir Dashboard
-                </a>
-                <a
-                  className="rounded-full border border-orange-400/40 px-6 py-3 text-center text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
-                  href="/portfolio"
-                >
-                  Abrir Portfolio
-                </a>
-                <a
-                  className="rounded-full border border-slate-700 px-6 py-3 text-center text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                  href="/wallets"
-                >
-                  Abrir Carteiras
-                </a>
-                <a
-                  className="rounded-full border border-slate-700 px-6 py-3 text-center text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                  href="/mercado"
-                >
-                  Ver Mercado
-                </a>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Resumo</p>
-              <div className="mt-4 space-y-4 text-sm text-slate-300">
-                <p>
-                  Continua de onde paraste: o dashboard guarda as tuas carteiras, o
-                  portfolio e o histórico.
-                </p>
-                <p className="text-xs text-slate-500">
-                  Se precisares de ajuda, usa o chat do mercado no dashboard.
-                </p>
-              </div>
-            </div>
-          </section>
-        </main>
-        ) : (
-          <>
-            <main className="mx-auto flex w-full max-w-6xl flex-col gap-16 px-6 pb-24 pt-8">
-            <section className="grid gap-10 md:grid-cols-[1.2fr_0.8fr] md:items-center">
-              <div className="space-y-6">
-                <p className="text-sm font-semibold uppercase tracking-[0.3em] text-orange-300/80">
-                  Dashboard completo
-                </p>
-                <h1 className="text-3xl font-medium leading-tight text-slate-200 md:text-4xl">
-                  Domine o mercado de Blockchain e Bitcoin com dados em tempo real.
-                </h1>
-                <p className="text-base text-slate-300 md:text-lg">
-                  Acompanhe variações, tendências e resultado real das suas posições com um
-                  painel focado em clareza e velocidade.
-                </p>
-                <p className="text-sm text-slate-400">
-                  Para acessar Portfolio, Carteiras e Mercado, entra na tua conta.
-                </p>
-                <div className="rounded-2xl border border-orange-500/20 bg-slate-950/70 p-4 text-sm text-slate-300">
-                  Sincronização entre dispositivos fica disponível apenas no Plano Pro.
+            <section className="grid gap-6 md:grid-cols-[1.1fr_0.9fr] md:items-start">
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">Área logada</p>
+                <h1 className="mt-3 text-3xl font-semibold text-white">Atalhos rápidos do Owlfund</h1>
+                <p className="mt-2 text-sm text-slate-400">Acede direto ao dashboard, portfolio, carteiras e mercado.</p>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  {([["Abrir Dashboard","/dashboard","bg-orange-500 text-slate-950 hover:bg-orange-400"],["Portfolio","/portfolio","border border-orange-400/40 text-orange-200 hover:border-orange-400"],["Carteiras","/wallets","border border-slate-700 text-slate-200 hover:border-slate-500"],["Mercado","/mercado","border border-slate-700 text-slate-200 hover:border-slate-500"]] as [string,string,string][]).map(([label, href, cls]) => (
+                    <a key={href} className={`rounded-full px-6 py-3 text-center text-sm font-semibold transition ${cls}`} href={href}>{label}</a>
+                  ))}
                 </div>
               </div>
-
-              <PnlSummaryCard
-                position={2150}
-                today={120}
-                days30={480}
-                daily7d={-35}
-                className="mt-6 md:mt-10"
-              />
-            </section>
-
-            <section id="recursos" className="space-y-8">
-              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">
-                    Recursos principais
-                  </p>
-                  <h2 className="text-3xl font-semibold text-white">
-                    Tudo que você precisa para decisões rápidas
-                  </h2>
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+                <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Resumo</p>
+                <div className="mt-4 space-y-3 text-sm text-slate-300">
+                  <p>Continua de onde paraste: o dashboard guarda as tuas carteiras, o portfolio e o histórico.</p>
+                  <p className="text-xs text-slate-500">Se precisares de ajuda, usa o chat no dashboard.</p>
                 </div>
-                <p className="max-w-md text-sm text-slate-400">
-                  Inspirado na experiência da aplicação mobile para dar contexto em
-                  segundos.
-                </p>
               </div>
-
-              <div className="grid gap-6 md:grid-cols-2">
-                {features.map((feature) => (
-                  <div
-                    key={feature.title}
-                    className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6"
-                  >
-                    <h3 className="text-lg font-semibold text-white">{feature.title}</h3>
-                    <p className="mt-2 text-sm text-slate-400">{feature.description}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section id="fluxo" className="grid gap-6 md:grid-cols-3">
-              {steps.map((step, index) => (
-                <div
-                  key={step.title}
-                  className="rounded-2xl border border-orange-500/20 bg-gradient-to-br from-slate-900 to-slate-950 p-5"
-                >
-                  <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">
-                    Passo {index + 1}
-                  </p>
-                  <h3 className="mt-3 text-lg font-semibold text-white">{step.title}</h3>
-                  <p className="mt-2 text-sm text-slate-400">{step.description}</p>
-                </div>
-              ))}
             </section>
           </main>
+        </div>
+      </div>
+    );
+  }
 
-            <footer
-              id="contato"
-              className="border-t border-slate-900 bg-slate-950/60 py-12"
-            >
-              <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-white">Vamos conversar?</p>
-                  <p className="text-sm text-slate-400">
-                    Envie uma mensagem para receber o acesso beta e o kit de marca.
-                  </p>
-                </div>
-                <a
-                  className="rounded-full bg-orange-500 px-6 py-3 text-center text-sm font-semibold text-slate-950 transition hover:bg-orange-400"
-                  href="mailto:contato@portfolioinsight.com"
-                >
-                  contato@portfolioinsight.com
-                </a>
+  return (
+    <div className="relative min-h-screen bg-slate-950 text-slate-100 overflow-x-hidden">
+
+      {/* Background glows */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[800px] h-[500px] rounded-full bg-orange-500/8 blur-[120px]" />
+        <div className="absolute top-1/2 -left-40 w-[400px] h-[400px] rounded-full bg-orange-600/5 blur-[100px]" />
+        <div className="absolute bottom-0 right-0 w-[500px] h-[400px] rounded-full bg-slate-700/20 blur-[100px]" />
+      </div>
+
+      <div className="relative z-10">
+        <AppHeader variant="public" title="Portfólio Owlfund" />
+
+        {/* Live price ticker */}
+        <div className="border-b border-slate-800/60 bg-slate-900/50 py-2 overflow-hidden">
+          <div
+            className="flex gap-10 whitespace-nowrap"
+            style={{ transform: `translateX(${tickerOffset % (TICKER_DATA.length * 200)}px)` }}
+          >
+            {[...TICKER_DATA, ...TICKER_DATA, ...TICKER_DATA, ...TICKER_DATA].map((t, i) => (
+              <span key={i} className="inline-flex items-center gap-2 text-xs font-mono">
+                <span className="font-bold text-white">{t.symbol}</span>
+                <span className="text-slate-400">{t.price}</span>
+                <span className={t.up ? "text-emerald-400" : "text-red-400"}>{t.change}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* HERO */}
+        <section className="mx-auto flex w-full max-w-6xl flex-col items-center gap-12 px-6 pb-16 pt-16 md:flex-row md:pt-24">
+          <div className="flex-1 space-y-7">
+            <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-4 py-1.5 text-xs font-bold text-orange-300 uppercase tracking-widest">
+              🦉 Plataforma gratuita · Beta aberto
+            </div>
+            <h1 className="text-4xl font-bold leading-tight text-white md:text-5xl lg:text-6xl">
+              O teu portfólio<br />
+              <span className="text-orange-400">cripto e tradicional</span><br />
+              num só lugar
+            </h1>
+            <p className="max-w-lg text-lg text-slate-300">
+              Conecta carteiras blockchain, acompanha ações e vê o teu PNL em tempo real. Simples, rápido e seguro.
+            </p>
+            <div className="flex flex-wrap gap-4">
+              <a href="/login" className="rounded-full bg-orange-500 px-8 py-3.5 text-base font-bold text-slate-950 shadow-lg shadow-orange-500/25 transition hover:bg-orange-400 hover:shadow-orange-400/30">
+                Começar grátis →
+              </a>
+              <a href="#como-funciona" className="rounded-full border border-slate-700 px-8 py-3.5 text-base font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white">
+                Como funciona
+              </a>
+            </div>
+            <p className="text-xs text-slate-500">Sem cartão de crédito · Sem chaves privadas · 100% gratuito</p>
+          </div>
+          <div className="w-full max-w-sm flex-shrink-0">
+            <PnlSummaryCard position={2150} today={120} days30={480} daily7d={-35} />
+          </div>
+        </section>
+
+        {/* STATS */}
+        <section className="border-y border-slate-800/50 bg-slate-900/30 py-10">
+          <div className="mx-auto grid w-full max-w-4xl grid-cols-2 gap-6 px-6 md:grid-cols-4">
+            {STATS.map((s) => (
+              <div key={s.label} className="text-center">
+                <div className="text-3xl font-bold text-orange-400">{s.value}</div>
+                <div className="mt-1 text-sm text-slate-400">{s.label}</div>
               </div>
-            </footer>
-          </>
-        )}
+            ))}
+          </div>
+        </section>
+
+        {/* FEATURES */}
+        <section id="recursos" className="mx-auto w-full max-w-6xl px-6 py-20">
+          <div className="mb-12 text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">Funcionalidades</p>
+            <h2 className="mt-3 text-3xl font-bold text-white md:text-4xl">Tudo o que precisas para investir melhor</h2>
+            <p className="mt-3 text-slate-400">Numa única plataforma, sem dispersão.</p>
+          </div>
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {FEATURES.map((f) => (
+              <div key={f.title} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 transition hover:border-orange-500/40 hover:bg-slate-900">
+                <div className="mb-4 text-3xl">{f.icon}</div>
+                <h3 className="text-lg font-semibold text-white">{f.title}</h3>
+                <p className="mt-2 text-sm text-slate-400">{f.description}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* HOW IT WORKS */}
+        <section id="como-funciona" className="bg-slate-900/40 py-20">
+          <div className="mx-auto w-full max-w-4xl px-6">
+            <div className="mb-12 text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">Como funciona</p>
+              <h2 className="mt-3 text-3xl font-bold text-white">Em 3 passos simples</h2>
+            </div>
+            <div className="grid gap-6 md:grid-cols-3">
+              {STEPS.map((s) => (
+                <div key={s.num} className="rounded-2xl border border-orange-500/20 bg-gradient-to-br from-slate-900 to-slate-950 p-6">
+                  <div className="mb-4 text-5xl font-black text-orange-500/20">{s.num}</div>
+                  <h3 className="text-lg font-semibold text-white">{s.title}</h3>
+                  <p className="mt-2 text-sm text-slate-400">{s.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* CTA FINAL */}
+        <section className="mx-auto w-full max-w-3xl px-6 py-24 text-center">
+          <div className="rounded-3xl border border-orange-500/20 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 p-10 shadow-2xl">
+            <div className="mb-4 text-4xl">🦉</div>
+            <h2 className="text-3xl font-bold text-white md:text-4xl">Pronto para ter controlo total?</h2>
+            <p className="mt-4 text-slate-400">Junta-te à comunidade Owlfund. Grátis para sempre no plano base.</p>
+            <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+              <a href="/login" className="w-full rounded-full bg-orange-500 px-10 py-4 text-base font-bold text-slate-950 shadow-lg shadow-orange-500/25 transition hover:bg-orange-400 sm:w-auto">
+                Criar conta grátis
+              </a>
+              <a href="/login" className="w-full rounded-full border border-slate-700 px-10 py-4 text-base font-semibold text-slate-200 transition hover:border-slate-500 sm:w-auto">
+                Já tenho conta →
+              </a>
+            </div>
+            <p className="mt-4 text-xs text-slate-600">Sem cartão de crédito · Cancela quando quiseres</p>
+          </div>
+        </section>
+
+        {/* FOOTER */}
+        <footer className="border-t border-slate-900 bg-slate-950/80 py-10">
+          <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-6 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🦉</span>
+              <div>
+                <p className="font-bold text-white">OWLFUND</p>
+                <p className="text-xs text-slate-500">Controlo inteligente de investimentos</p>
+              </div>
+            </div>
+            <div className="flex gap-6 text-sm text-slate-500">
+              <a href="#recursos" className="transition hover:text-slate-300">Funcionalidades</a>
+              <a href="#como-funciona" className="transition hover:text-slate-300">Como funciona</a>
+              <a href="/login" className="transition hover:text-slate-300">Entrar</a>
+            </div>
+            <p className="text-xs text-slate-600">© 2025 Owlfund · Todos os direitos reservados</p>
+          </div>
+        </footer>
       </div>
     </div>
   );
