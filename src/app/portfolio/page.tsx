@@ -69,11 +69,11 @@ const sumEntries = (entries?: StoredWalletEntry[]) =>
     return Number.isFinite(value) ? sum + value : sum;
   }, 0);
 
-const snapshotTotal = (snapshot: WalletSnapshot) =>
-  sumEntries(snapshot.eth) +
-  sumEntries(snapshot.sol) +
-  sumEntries(snapshot.btc) +
-  sumEntries(snapshot.ada);
+const snapshotTotal = (snapshot: WalletSnapshot, prices: TokenPrices = {}) =>
+  sumEntries(snapshot.eth) * (prices.ETH ?? 0) +
+  sumEntries(snapshot.sol) * (prices.SOL ?? 0) +
+  sumEntries(snapshot.btc) * (prices.BTC ?? 0) +
+  sumEntries(snapshot.ada) * (prices.ADA ?? 0);
 
 const snapshotToWallets = (snapshot: WalletSnapshot, prices: TokenPrices = {}): WalletBalance[] => [
   {
@@ -318,10 +318,10 @@ export default function PortfolioPage() {
       .map((row) => ({
         id: row.id,
         createdAt: new Date(row.created_at).getTime(),
-        total: snapshotTotal(row.data) + manualTotals,
+        total: snapshotTotal(row.data, tokenPrices) + manualTotals,
       }))
       .sort((a, b) => b.createdAt - a.createdAt);
-  }, [snapshots, manualTotals]);
+  }, [snapshots, manualTotals, tokenPrices]);
 
   const pnlSummary = useMemo(() => {
     if (snapshotTotals.length === 0) {
@@ -474,10 +474,17 @@ export default function PortfolioPage() {
                 </span>
               </div>
               {snapshotTotals.length === 0 ? (
+                <div className="mt-3 rounded-xl border border-orange-500/20 bg-orange-500/5 px-4 py-3">
+                  <p className="text-xs font-semibold text-orange-300">📸 Como ativar o PNL histórico</p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Guarda o teu primeiro snapshot para que o sistema comece a calcular lucro/perda ao longo do tempo. Clica em <strong className="text-white">"Salvar snapshot"</strong> abaixo.
+                  </p>
+                </div>
+              ) : (
                 <p className="text-xs text-slate-500">
-                  Salva um snapshot para começar a ver o PNL histórico.
+                  {snapshotTotals.length} snapshot{snapshotTotals.length > 1 ? "s" : ""} guardado{snapshotTotals.length > 1 ? "s" : ""}. PNL calculado desde o primeiro.
                 </p>
-              ) : null}
+              )}
             </div>
 
             <div className="mt-6 space-y-4">
@@ -538,6 +545,22 @@ export default function PortfolioPage() {
               days30={pnlSummary.days30}
               daily7d={pnlSummary.daily7d}
               className="mt-2"
+              metrics={[
+                {
+                  label: "Ativos conectados",
+                  value: String(wallets.filter(w => Number(w.balance) > 0).length + Object.keys(cryptoHoldings).length + Object.keys(traditionalHoldings).length),
+                },
+                {
+                  label: "Snapshots guardados",
+                  value: String(snapshots.length),
+                },
+                {
+                  label: "Última atualização",
+                  value: snapshots[0]
+                    ? new Date(snapshots[0].created_at).toLocaleDateString("pt-PT", { day: "2-digit", month: "short" })
+                    : "—",
+                },
+              ]}
             />
           </div>
         </section>
