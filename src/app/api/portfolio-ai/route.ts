@@ -1,0 +1,150 @@
+import { NextResponse } from "next/server";
+
+type PortfolioContext = {
+  totalEur: number;
+  pnlPosition: number;
+  pnlToday: number;
+  pnl30d: number;
+  roi?: number;
+  cagr?: number;
+  sharpe?: number;
+  maxDrawdown?: number;
+  volatility?: number;
+  days?: number;
+  allocations: Array<{ label: string; symbol: string; valueEur: number; percent: string }>;
+};
+
+type Body = {
+  question: string;
+  context: PortfolioContext;
+};
+
+function buildSystemPrompt(ctx: PortfolioContext): string {
+  const fmt = (n: number) =>
+    n.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const sign = (n: number) => (n >= 0 ? `+€ ${fmt(n)}` : `-€ ${fmt(Math.abs(n))}`);
+
+  const allocLines = ctx.allocations
+    .filter((a) => a.valueEur > 0)
+    .map((a) => `  • ${a.label} (${a.symbol}): € ${fmt(a.valueEur)} · ${a.percent}`)
+    .join("\n");
+
+  const metrics = [
+    ctx.roi !== undefined ? `ROI: ${ctx.roi.toFixed(2)}%` : null,
+    ctx.cagr !== undefined ? `CAGR: ${ctx.cagr.toFixed(2)}%` : null,
+    ctx.sharpe !== undefined ? `Sharpe Ratio: ${ctx.sharpe.toFixed(2)}` : null,
+    ctx.maxDrawdown !== undefined ? `Max Drawdown: ${ctx.maxDrawdown.toFixed(2)}%` : null,
+    ctx.volatility !== undefined ? `Volatilidade anualizada: ${ctx.volatility.toFixed(2)}%` : null,
+    ctx.days !== undefined ? `Período analisado: ${ctx.days} dias` : null,
+  ]
+    .filter(Boolean)
+    .join("\n  ");
+
+  return `Tu és o Owl — analista financeiro pessoal do utilizador no Owlfund. Tens acesso em tempo real aos dados do portfólio dele:
+
+PORTFÓLIO ATUAL:
+  Total: € ${fmt(ctx.totalEur)}
+  PNL posição: ${sign(ctx.pnlPosition)}
+  PNL hoje: ${sign(ctx.pnlToday)}
+  PNL 30 dias: ${sign(ctx.pnl30d)}
+
+MÉTRICAS AVANÇADAS:
+  ${metrics || "Não disponíveis (poucos snapshots)"}
+
+DISTRIBUIÇÃO DE ATIVOS:
+${allocLines || "  Sem ativos registados"}
+
+INSTRUÇÕES:
+- Responde em PT-PT, de forma clara e objetiva.
+- Usa os dados reais acima para fundamentar as tuas respostas.
+- Quando perguntarem "porque caiu/subiu", analisa os ativos com maior peso.
+- Não dês recomendações diretas de compra/venda — apresenta cenários e riscos.
+- Se faltarem dados, diz o que precisas.
+- Máximo 3 parágrafos curtos por resposta.`;
+}
+
+async function callAI(system: string, question: string): Promise<string> {
+  const messages = [
+    { role: "system", content: system },
+    { role: "user", content: question },
+  ];
+
+  // Tenta Groq primeiro (free tier)
+  const groqKey = (process.env.GROQ_API_KEY ?? "").trim();
+  if (groqKey) {
+    const model = (process.env.GROQ_MODEL ?? "").trim() || "llama-3.1-8b-instant";
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${groqKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model, temperature: 0.5, max_tokens: 500, messages }),
+      signal: AbortSignal.timeout(12000),
+    });
+    if (res.ok) {
+      const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+      const reply = data.choices?.[0]?.message?.content?.trim();
+      if (reply) return reply;
+    }
+  }
+
+  // Fallback OpenAI
+  const openaiKey = (process.env.OPENAI_API_KEY ?? "").trim();
+  if (openaiKey) {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${openaiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "gpt-4o-mini", temperature: 0.5, max_tokens: 500, messages }),
+      signal: AbortSignal.timeout(15000),
+    });
+    if (res.ok) {
+      const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+      const reply = data.choices?.[0]?.message?.content?.trim();
+      if (reply) return reply;
+    }
+  }
+
+  // Fallback xAI
+  const xaiKey = (process.env.XAI_API_KEY ?? "").trim();
+  if (xaiKey) {
+    const res = await fetch("https://api.x.ai/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${xaiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "grok-4-fast-non-reasoning", temperature: 0.5, max_tokens: 500, messages }),
+      signal: AbortSignal.timeout(15000),
+    });
+    if (res.ok) {
+      const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+      const reply = data.choices?.[0]?.message?.content?.trim();
+      if (reply) return reply;
+    }
+  }
+
+  throw new Error("Nenhum provider de IA disponível. Configura GROQ_API_KEY, OPENAI_API_KEY ou XAI_API_KEY.");
+}
+
+export async function POST(request: Request) {
+  let body: Body | null = null;
+  try {
+    body = (await request.json()) as Body;
+  } catch {
+    return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
+  }
+
+  const { question, context } = body ?? {};
+  if (!question?.trim()) {
+    return NextResponse.json({ error: "Pergunta obrigatória." }, { status: 400 });
+  }
+  if (!context) {
+    return NextResponse.json({ error: "Contexto obrigatório." }, { status: 400 });
+  }
+
+  try {
+    const system = buildSystemPrompt(context);
+    const reply = await callAI(system, question.trim());
+    return NextResponse.json({ reply });
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Erro na IA." },
+      { status: 503 }
+    );
+  }
+}

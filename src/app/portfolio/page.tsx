@@ -159,6 +159,12 @@ export default function PortfolioPage() {
   const [billingError, setBillingError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
+  // IA contextual
+  const [aiQuestion, setAiQuestion] = useState("");
+  const [aiReply, setAiReply] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
   // Buscar preços EUR ao carregar
   useEffect(() => {
     fetchTokenPricesEur().then((prices) => {
@@ -363,6 +369,66 @@ export default function PortfolioPage() {
   }, [snapshotTotals, portfolioTotal]);
 
   const pnlTotal = pnlSummary.position;
+
+  // ── Métricas avançadas calculadas a partir dos snapshots ──
+  const advancedMetrics = useMemo(() => {
+    const sorted = [...snapshotTotals].reverse(); // cronológico
+    if (sorted.length < 2) return null;
+
+    const oldest = sorted[0];
+    const current = portfolioTotal;
+    const base = oldest.total;
+    if (base <= 0) return null;
+
+    const days = (Date.now() - oldest.createdAt) / (1000 * 60 * 60 * 24);
+
+    // ROI
+    const roi = ((current - base) / base) * 100;
+
+    // CAGR (só faz sentido com >= 30 dias)
+    const cagr = days >= 30 ? (Math.pow(current / base, 365 / days) - 1) * 100 : null;
+
+    // Retornos diários entre snapshots consecutivos
+    const dailyReturns: number[] = [];
+    for (let i = 1; i < sorted.length; i++) {
+      const prev = sorted[i - 1].total;
+      const cur = sorted[i].total;
+      if (prev > 0) dailyReturns.push((cur - prev) / prev);
+    }
+
+    // Sharpe Ratio (benchmark risk-free ≈ 0)
+    let sharpe: number | null = null;
+    if (dailyReturns.length >= 5) {
+      const mean = dailyReturns.reduce((s, r) => s + r, 0) / dailyReturns.length;
+      const variance =
+        dailyReturns.reduce((s, r) => s + Math.pow(r - mean, 2), 0) / dailyReturns.length;
+      const stdDev = Math.sqrt(variance);
+      if (stdDev > 0) sharpe = (mean / stdDev) * Math.sqrt(252);
+    }
+
+    // Max Drawdown
+    let peak = sorted[0].total;
+    let maxDrawdown = 0;
+    for (const s of sorted) {
+      if (s.total > peak) peak = s.total;
+      const dd = (s.total - peak) / peak;
+      if (dd < maxDrawdown) maxDrawdown = dd;
+    }
+    // vs current
+    const curDd = (current - peak) / peak;
+    if (curDd < maxDrawdown) maxDrawdown = curDd;
+
+    // Volatilidade anualizada
+    let volatility: number | null = null;
+    if (dailyReturns.length >= 5) {
+      const mean = dailyReturns.reduce((s, r) => s + r, 0) / dailyReturns.length;
+      const variance =
+        dailyReturns.reduce((s, r) => s + Math.pow(r - mean, 2), 0) / dailyReturns.length;
+      volatility = Math.sqrt(variance) * Math.sqrt(252) * 100;
+    }
+
+    return { roi, cagr, sharpe, maxDrawdown: maxDrawdown * 100, volatility, days: Math.round(days) };
+  }, [snapshotTotals, portfolioTotal]);
 
   const cryptoAllocations = useMemo(() => {
     const manualItems = Object.entries(cryptoHoldings).map(([symbol, holding]) => ({
@@ -692,6 +758,133 @@ export default function PortfolioPage() {
           </div>
         </section>
 
+        {/* ── PNL AVANÇADO + PDF ── */}
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Análise</p>
+              <h2 className="text-base font-bold text-white mt-0.5">Métricas avançadas</h2>
+            </div>
+            <button
+              id="btn-export-pdf"
+              onClick={async () => {
+                const { default: jsPDF } = await import("jspdf");
+                const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+                const now = new Date().toLocaleDateString("pt-PT", { day: "2-digit", month: "long", year: "numeric" });
+                let y = 20;
+                const line = (text: string, size = 11, bold = false) => {
+                  doc.setFontSize(size);
+                  doc.setFont("helvetica", bold ? "bold" : "normal");
+                  doc.text(text, 15, y);
+                  y += size * 0.5 + 2;
+                };
+                const spacer = (n = 4) => { y += n; };
+
+                doc.setFillColor(15, 23, 42);
+                doc.rect(0, 0, 210, 297, "F");
+                doc.setTextColor(255, 255, 255);
+
+                line("OWLFUND", 22, true);
+                line(`Relatório de Portfólio — ${now}`, 10);
+                spacer(6);
+                doc.setDrawColor(249, 115, 22);
+                doc.setLineWidth(0.5);
+                doc.line(15, y, 195, y);
+                spacer(6);
+
+                line("Resumo", 14, true);
+                spacer(2);
+                line(`Total do portfólio: € ${formatValue(portfolioTotal)}`);
+                line(`Cripto: € ${formatValue(cryptoTotal)} · Tradicional: € ${formatValue(traditionalTotal)}`);
+                spacer(4);
+
+                line("PNL", 14, true);
+                spacer(2);
+                line(`Posição: € ${formatValue(pnlSummary.position >= 0 ? pnlSummary.position : -pnlSummary.position)} ${pnlSummary.position >= 0 ? "(ganho)" : "(perda)"}`);
+                line(`Hoje: € ${formatValue(Math.abs(pnlSummary.today))}`);
+                line(`30 dias: € ${formatValue(Math.abs(pnlSummary.days30 ?? 0))}`);
+                spacer(4);
+
+                if (advancedMetrics) {
+                  line("Métricas avançadas", 14, true);
+                  spacer(2);
+                  line(`ROI: ${advancedMetrics.roi.toFixed(2)}%`);
+                  if (advancedMetrics.cagr !== null) line(`CAGR: ${advancedMetrics.cagr.toFixed(2)}%`);
+                  if (advancedMetrics.sharpe !== null) line(`Sharpe Ratio: ${advancedMetrics.sharpe.toFixed(2)}`);
+                  line(`Max Drawdown: ${advancedMetrics.maxDrawdown.toFixed(2)}%`);
+                  if (advancedMetrics.volatility !== null) line(`Volatilidade: ${advancedMetrics.volatility.toFixed(2)}%`);
+                  line(`Período: ${advancedMetrics.days} dias`);
+                  spacer(4);
+                }
+
+                line("Distribuição", 14, true);
+                spacer(2);
+                cryptoAllocations.filter(a => a.value > 0).forEach(a => {
+                  line(`${a.label} (${a.symbol}): € ${formatValue(a.value)} · ${a.percent}`);
+                });
+                spacer(6);
+
+                doc.setFontSize(8);
+                doc.setTextColor(100, 116, 139);
+                doc.text(`Gerado por Owlfund em ${now}. Apenas para referência pessoal.`, 15, 287);
+
+                doc.save(`owlfund-portfolio-${new Date().toISOString().slice(0, 10)}.pdf`);
+              }}
+              className="flex items-center gap-2 rounded-xl border border-orange-500/40 px-4 py-2 text-sm font-semibold text-orange-300 hover:bg-orange-500/10 transition"
+            >
+              ↓ Exportar PDF
+            </button>
+          </div>
+
+          {!advancedMetrics ? (
+            <div className="rounded-xl border border-dashed border-slate-700 p-6 text-center">
+              <p className="text-sm text-slate-400">Precisas de pelo menos <strong className="text-white">2 snapshots</strong> para calcular métricas avançadas.</p>
+              <p className="text-xs text-slate-500 mt-1">Guarda snapshots periodicamente na secção abaixo.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              {[
+                {
+                  label: "ROI",
+                  value: `${advancedMetrics.roi >= 0 ? "+" : ""}${advancedMetrics.roi.toFixed(2)}%`,
+                  color: advancedMetrics.roi >= 0 ? "text-emerald-400" : "text-rose-400",
+                  hint: `Desde ${advancedMetrics.days}d atrás`,
+                },
+                ...(advancedMetrics.cagr !== null ? [{
+                  label: "CAGR",
+                  value: `${advancedMetrics.cagr >= 0 ? "+" : ""}${advancedMetrics.cagr.toFixed(2)}%`,
+                  color: advancedMetrics.cagr >= 0 ? "text-emerald-400" : "text-rose-400",
+                  hint: "Retorno anual",
+                }] : []),
+                ...(advancedMetrics.sharpe !== null ? [{
+                  label: "Sharpe",
+                  value: advancedMetrics.sharpe.toFixed(2),
+                  color: advancedMetrics.sharpe >= 1 ? "text-emerald-400" : advancedMetrics.sharpe >= 0 ? "text-orange-300" : "text-rose-400",
+                  hint: ">1 = bom",
+                }] : []),
+                {
+                  label: "Max Drawdown",
+                  value: `${advancedMetrics.maxDrawdown.toFixed(2)}%`,
+                  color: "text-rose-400",
+                  hint: "Queda máxima",
+                },
+                ...(advancedMetrics.volatility !== null ? [{
+                  label: "Volatilidade",
+                  value: `${advancedMetrics.volatility.toFixed(2)}%`,
+                  color: "text-orange-300",
+                  hint: "Anualizada",
+                }] : []),
+              ].map((m) => (
+                <div key={m.label} className="rounded-xl border border-slate-700 bg-slate-900/80 p-4 text-center">
+                  <p className="text-xs text-slate-500 mb-1">{m.label}</p>
+                  <p className={`text-xl font-bold ${m.color}`}>{m.value}</p>
+                  <p className="text-[10px] text-slate-600 mt-1">{m.hint}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
         <section className="grid gap-6 md:grid-cols-2">
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
             <h2 className="text-lg font-semibold text-white">Carteiras Blockchain</h2>
@@ -870,6 +1063,135 @@ export default function PortfolioPage() {
             </div>
           )}
         </section>
+        {/* ── IA CONTEXTUAL ── */}
+        <section className="rounded-2xl border border-orange-500/20 bg-gradient-to-br from-orange-500/10 via-slate-900 to-slate-950 p-6">
+          <div className="mb-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-orange-300/80">Inteligência Artificial</p>
+            <h2 className="mt-1 text-base font-bold text-white">Analisa o teu portfólio</h2>
+            <p className="mt-0.5 text-xs text-slate-400">
+              A IA tem acesso aos teus dados reais — totais, PNL, distribuição e métricas avançadas.
+            </p>
+          </div>
+
+          {/* Sugestões rápidas */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            {[
+              "Porque caiu o meu portfólio esta semana?",
+              "O meu portfólio está bem diversificado?",
+              "Como interpretar o meu Sharpe Ratio?",
+              "Quais os principais riscos do meu portfólio?",
+            ].map((q) => (
+              <button
+                key={q}
+                onClick={() => setAiQuestion(q)}
+                className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:border-orange-400/40 hover:text-orange-200 transition"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={aiQuestion}
+              onChange={(e) => setAiQuestion(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !aiLoading) {
+                  e.preventDefault();
+                  void (async () => {
+                    if (!aiQuestion.trim()) return;
+                    setAiLoading(true);
+                    setAiReply(null);
+                    setAiError(null);
+                    try {
+                      const context = {
+                        totalEur: portfolioTotal,
+                        pnlPosition: pnlSummary.position,
+                        pnlToday: pnlSummary.today,
+                        pnl30d: pnlSummary.days30 ?? 0,
+                        ...(advancedMetrics ?? {}),
+                        allocations: cryptoAllocations.map((a) => ({
+                          label: a.label,
+                          symbol: a.symbol,
+                          valueEur: a.value,
+                          percent: a.percent,
+                        })),
+                      };
+                      const res = await fetch("/api/portfolio-ai", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ question: aiQuestion.trim(), context }),
+                      });
+                      const data = (await res.json()) as { reply?: string; error?: string };
+                      if (!res.ok || data.error) { setAiError(data.error ?? "Erro."); return; }
+                      setAiReply(data.reply ?? "");
+                    } catch (err) {
+                      setAiError(err instanceof Error ? err.message : "Erro.");
+                    } finally {
+                      setAiLoading(false);
+                    }
+                  })();
+                }
+              }}
+              placeholder="Pergunta sobre o teu portfólio… (Enter para enviar)"
+              className="flex-1 rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500"
+            />
+            <button
+              disabled={aiLoading || !aiQuestion.trim()}
+              onClick={async () => {
+                if (!aiQuestion.trim()) return;
+                setAiLoading(true);
+                setAiReply(null);
+                setAiError(null);
+                try {
+                  const context = {
+                    totalEur: portfolioTotal,
+                    pnlPosition: pnlSummary.position,
+                    pnlToday: pnlSummary.today,
+                    pnl30d: pnlSummary.days30 ?? 0,
+                    ...(advancedMetrics ?? {}),
+                    allocations: cryptoAllocations.map((a) => ({
+                      label: a.label,
+                      symbol: a.symbol,
+                      valueEur: a.value,
+                      percent: a.percent,
+                    })),
+                  };
+                  const res = await fetch("/api/portfolio-ai", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ question: aiQuestion.trim(), context }),
+                  });
+                  const data = (await res.json()) as { reply?: string; error?: string };
+                  if (!res.ok || data.error) { setAiError(data.error ?? "Erro."); return; }
+                  setAiReply(data.reply ?? "");
+                } catch (err) {
+                  setAiError(err instanceof Error ? err.message : "Erro.");
+                } finally {
+                  setAiLoading(false);
+                }
+              }}
+              className="rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-slate-950 hover:bg-orange-400 disabled:opacity-50 transition"
+            >
+              {aiLoading ? "…" : "Perguntar"}
+            </button>
+          </div>
+
+          {aiLoading && (
+            <p className="mt-3 text-xs text-slate-400 animate-pulse">A analisar o teu portfólio…</p>
+          )}
+          {aiError && (
+            <p className="mt-3 text-xs text-rose-400">{aiError}</p>
+          )}
+          {aiReply && (
+            <div className="mt-4 rounded-xl border border-slate-700 bg-slate-900/80 p-4">
+              <p className="text-xs text-orange-300/80 font-semibold mb-2">🦉 Owl</p>
+              <p className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">{aiReply}</p>
+            </div>
+          )}
+        </section>
+
       </main>
     </div>
   );
