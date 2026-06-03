@@ -172,50 +172,46 @@ export async function GET(request: Request) {
   if (chain === "btc" && isBtcAddress(address)) {
     const unisatKey = process.env.UNISAT_API_KEY;
     if (!unisatKey) {
+      // Sem chave: mostrar 0 sem erro
       return NextResponse.json({ count: 0, nfts: [] });
     }
     try {
       const res = await fetch(
-        `https://open-api.unisat.io/v1/indexer/address/${encodeURIComponent(address.trim())}/inscriptions?start=0&limit=50`,
+        `https://open-api.unisat.io/v1/indexer/address/${encodeURIComponent(address.trim())}/inscription-utxo-data?cursor=0&size=50`,
         {
           headers: { Accept: "application/json", Authorization: `Bearer ${unisatKey}` },
           next: { revalidate: 120 },
         }
       );
       if (!res.ok) {
-        return NextResponse.json(
-          { error: "Falha ao consultar Ordinals.", count: 0, nfts: [] },
-          { status: res.status >= 500 ? 503 : res.status }
-        );
+        // API falhou — mostrar 0 sem erro visível ao utilizador
+        console.warn("[nft-balance] UniSat returned", res.status);
+        return NextResponse.json({ count: 0, nfts: [] });
       }
       const data = (await res.json()) as {
-        data?: { total?: number; list?: Array<{ inscriptionId?: string; content?: string; contentType?: string }> };
+        data?: { total?: number; utxo?: Array<{ inscriptions?: Array<{ inscriptionId?: string; contentType?: string }> }> };
       };
-      const list = data.data?.list ?? [];
-      const total = data.data?.total ?? list.length;
-      const nfts: Array<{ id: string; name: string; image?: string; tokenAddress?: string; tokenId?: string }> = list.map(
-        (item, i) => {
-          const id = item.inscriptionId ?? `btc-${i}`;
-          let image: string | undefined;
-          if (item.contentType?.startsWith("image/") && typeof item.content === "string" && item.content.startsWith("http")) {
-            image = item.content;
-          }
-          return {
+      const utxos = data.data?.utxo ?? [];
+      const total = data.data?.total ?? 0;
+      const nfts: Array<{ id: string; name: string; image?: string; tokenAddress?: string; tokenId?: string }> = [];
+      let i = 0;
+      for (const utxo of utxos) {
+        for (const insc of utxo.inscriptions ?? []) {
+          const id = insc.inscriptionId ?? `btc-${i}`;
+          nfts.push({
             id,
             name: `Ordinal #${i + 1}`,
-            image,
-            tokenAddress: item.inscriptionId,
-            tokenId: item.inscriptionId,
-          };
+            tokenAddress: insc.inscriptionId,
+            tokenId: insc.inscriptionId,
+          });
+          i++;
         }
-      );
+      }
       return NextResponse.json({ count: total, nfts });
     } catch (e) {
       console.error("[nft-balance] Bitcoin:", e);
-      return NextResponse.json(
-        { error: "Falha ao consultar Ordinals.", count: 0, nfts: [] },
-        { status: 503 }
-      );
+      // Falha silenciosa — não mostrar erro ao utilizador
+      return NextResponse.json({ count: 0, nfts: [] });
     }
   }
 
