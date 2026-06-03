@@ -1,9 +1,52 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import ChatWidget from "@/components/ChatWidget";
 import AppHeader from "@/components/AppHeader";
 import PnlSummaryCard from "@/components/PnlSummaryCard";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
+import { loadWalletSnapshot, type WalletSnapshot } from "@/lib/wallets/storage";
+import { createClient } from "@/lib/supabase/client";
+
+// CoinGecko IDs para preços EUR
+const COINGECKO_IDS: Record<string, string> = {
+  ETH: "ethereum",
+  SOL: "solana",
+  BTC: "bitcoin",
+  ADA: "cardano",
+};
+
+type TokenPrices = Record<string, number>;
+
+async function fetchPrices(): Promise<TokenPrices> {
+  try {
+    const ids = Object.values(COINGECKO_IDS).join(",");
+    const res = await fetch(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=eur`,
+      { cache: "no-store" }
+    );
+    if (!res.ok) return {};
+    const data = await res.json();
+    const prices: TokenPrices = {};
+    for (const [symbol, id] of Object.entries(COINGECKO_IDS)) {
+      prices[symbol] = data[id]?.eur ?? 0;
+    }
+    return prices;
+  } catch {
+    return {};
+  }
+}
+
+const sumEntries = (entries?: WalletSnapshot["eth"]) =>
+  (entries ?? []).reduce((s, e) => s + (Number(e.balance ?? 0) || 0), 0);
+
+const calcTotal = (snapshot: WalletSnapshot, prices: TokenPrices) =>
+  sumEntries(snapshot.eth) * (prices.ETH ?? 0) +
+  sumEntries(snapshot.sol) * (prices.SOL ?? 0) +
+  sumEntries(snapshot.btc) * (prices.BTC ?? 0) +
+  sumEntries(snapshot.ada) * (prices.ADA ?? 0);
+
+type SnapshotRow = { id: number; created_at: string; data: WalletSnapshot };
 
 const GUIDE = [
   {
@@ -39,6 +82,14 @@ const GUIDE = [
     color: "border-slate-700 bg-slate-900/60",
   },
   {
+    icon: "🕵️",
+    title: "Smart Money",
+    subtitle: "/smart-money",
+    description: "Acompanha carteiras de baleias e traders profissionais. Vê os seus holdings, movimentos recentes e estratégias em tempo real.",
+    href: "/smart-money",
+    color: "border-slate-700 bg-slate-900/60",
+  },
+  {
     icon: "⚙️",
     title: "Conta",
     subtitle: "/account",
@@ -57,6 +108,90 @@ const TIPS = [
 
 export default function DashboardPage() {
   const { isLoading } = useRequireAuth("/login");
+  const supabase = createClient();
+
+  const [pnlPosition, setPnlPosition] = useState(0);
+  const [pnlToday, setPnlToday] = useState(0);
+  const [pnl30d, setPnl30d] = useState(0);
+  const [pnlDaily7d, setPnlDaily7d] = useState(0);
+  const [hasWallets, setHasWallets] = useState(false);
+  const [currentTotal, setCurrentTotal] = useState(0);
+  const [isPnlLoading, setIsPnlLoading] = useState(true);
+
+  useEffect(() => {
+    const loadPnl = async () => {
+      setIsPnlLoading(true);
+      try {
+        const snapshot = loadWalletSnapshot();
+        const hasAny =
+          (snapshot.eth?.length ?? 0) +
+          (snapshot.sol?.length ?? 0) +
+          (snapshot.btc?.length ?? 0) +
+          (snapshot.ada?.length ?? 0) > 0;
+        setHasWallets(hasAny);
+        if (!hasAny) { setIsPnlLoading(false); return; }
+
+        const prices = await fetchPrices();
+        const total = calcTotal(snapshot, prices);
+        setCurrentTotal(total);
+
+        // Buscar snapshots históricos do Supabase
+        const { data: authData } = await supabase.auth.getUser();
+        const userId = authData.user?.id;
+        if (!userId) { setIsPnlLoading(false); return; }
+
+        const { data: rows } = await supabase
+          .from("portfolio_snapshots")
+          .select("id, created_at, data")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(30);
+
+        const snapshots = (rows ?? []) as SnapshotRow[];
+        const now = Date.now();
+
+        // PNL de hoje: snapshot mais próximo de 24h atrás
+        const snap24h = snapshots.find(
+          (s) => now - new Date(s.created_at).getTime() >= 20 * 3600 * 1000
+        );
+        if (snap24h) {
+          const prev = calcTotal(snap24h.data, prices);
+          setPnlToday(total - prev);
+        }
+
+        // PNL 30 dias: snapshot mais próximo de 30 dias atrás
+        const snap30d = snapshots.find(
+          (s) => now - new Date(s.created_at).getTime() >= 28 * 24 * 3600 * 1000
+        );
+        if (snap30d) {
+          const prev = calcTotal(snap30d.data, prices);
+          setPnl30d(total - prev);
+        }
+
+        // PNL 7 dias: diferença média diária
+        const snap7d = snapshots.find(
+          (s) => now - new Date(s.created_at).getTime() >= 6 * 24 * 3600 * 1000
+        );
+        if (snap7d) {
+          const prev = calcTotal(snap7d.data, prices);
+          setPnlDaily7d((total - prev) / 7);
+        }
+
+        // PNL posição: vs snapshot mais antigo disponível
+        const oldest = snapshots[snapshots.length - 1];
+        if (oldest) {
+          const prev = calcTotal(oldest.data, prices);
+          setPnlPosition(total - prev);
+        }
+      } catch {
+        // silencioso
+      } finally {
+        setIsPnlLoading(false);
+      }
+    };
+
+    loadPnl();
+  }, [supabase]);
 
   if (isLoading) {
     return (
@@ -65,6 +200,14 @@ export default function DashboardPage() {
       </div>
     );
   }
+
+  const pnlMetrics = hasWallets
+    ? [
+        { label: "Total portfólio", value: `€ ${currentTotal.toLocaleString("pt-PT", { maximumFractionDigits: 0 })}` },
+        { label: "Carteiras ligadas", value: "✓" },
+        { label: "Atualização", value: "ao vivo" },
+      ]
+    : undefined;
 
   return (
     <div className="relative min-h-screen bg-slate-950 text-slate-100">
@@ -90,6 +233,9 @@ export default function DashboardPage() {
                 <a href="/wallets" className="rounded-full border border-orange-400/40 px-5 py-2.5 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white">
                   🔗 Carteiras
                 </a>
+                <a href="/smart-money" className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-orange-400/40 hover:text-orange-200">
+                  🕵️ Smart Money
+                </a>
                 <a href="/mercado" className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white">
                   🌍 Mercado
                 </a>
@@ -98,7 +244,29 @@ export default function DashboardPage() {
                 </a>
               </div>
             </div>
-            <PnlSummaryCard position={2150} today={120} days30={480} daily7d={-35} />
+
+            {isPnlLoading ? (
+              <div className="rounded-3xl border border-orange-500/20 bg-gradient-to-br from-orange-500/20 via-slate-900 to-slate-950 p-6 flex items-center justify-center min-h-[200px]">
+                <p className="text-sm text-slate-400 animate-pulse">A calcular PNL...</p>
+              </div>
+            ) : !hasWallets ? (
+              <div className="rounded-3xl border border-slate-700 bg-slate-900/60 p-6 flex flex-col items-center justify-center gap-3 min-h-[200px] text-center">
+                <span className="text-3xl">🔗</span>
+                <p className="text-sm font-semibold text-white">Adiciona carteiras para ver o PNL</p>
+                <p className="text-xs text-slate-400">Vai a Carteiras e adiciona os teus endereços blockchain.</p>
+                <a href="/wallets" className="mt-2 rounded-full bg-orange-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-orange-400">
+                  Adicionar carteiras →
+                </a>
+              </div>
+            ) : (
+              <PnlSummaryCard
+                position={pnlPosition}
+                today={pnlToday}
+                days30={pnl30d}
+                daily7d={pnlDaily7d}
+                metrics={pnlMetrics}
+              />
+            )}
           </section>
 
           {/* How it works guide */}

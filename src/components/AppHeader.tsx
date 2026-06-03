@@ -184,6 +184,11 @@ export default function AppHeader({
               </a>
             </span>
             <span className={gradientFrameClass}>
+              <a className={navLinkClass("/smart-money")} href="/smart-money">
+                Smart Money
+              </a>
+            </span>
+            <span className={gradientFrameClass}>
               <a className={navLinkClass("/mercado")} href="/mercado">
                 Mercado
               </a>
