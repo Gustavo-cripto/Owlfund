@@ -84,13 +84,18 @@ export default function WalletCard({
           <h3 className="text-lg font-semibold text-white">{title}</h3>
           <p className="mt-1 text-sm text-slate-400">{description}</p>
         </div>
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-semibold ${
-            isAvailable ? "bg-emerald-500/20 text-emerald-300" : "bg-rose-500/20 text-rose-300"
-          }`}
-        >
-          {isAvailable ? "Disponível" : "Indisponível"}
-        </span>
+        <div className="flex flex-col items-end gap-1.5">
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+              isAvailable ? "bg-emerald-500/20 text-emerald-300" : "bg-rose-500/20 text-rose-300"
+            }`}
+          >
+            {isAvailable ? "Disponível" : "Indisponível"}
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold text-sky-300">
+            🔒 Só leitura · Sem acesso a fundos
+          </span>
+        </div>
       </div>
 
       <div className="mt-5 space-y-3 text-sm text-slate-300">

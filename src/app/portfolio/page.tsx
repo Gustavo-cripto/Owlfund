@@ -34,6 +34,35 @@ type SnapshotRow = {
   data: WalletSnapshot;
 };
 
+// Preços em EUR por símbolo (CoinGecko IDs)
+const COINGECKO_IDS: Record<string, string> = {
+  ETH: "ethereum",
+  SOL: "solana",
+  BTC: "bitcoin",
+  ADA: "cardano",
+};
+
+type TokenPrices = Record<string, number>; // symbol → EUR price
+
+async function fetchTokenPricesEur(): Promise<TokenPrices> {
+  try {
+    const ids = Object.values(COINGECKO_IDS).join(",");
+    const res = await fetch(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=eur`,
+      { cache: "no-store" }
+    );
+    if (!res.ok) return {};
+    const data = await res.json();
+    const prices: TokenPrices = {};
+    for (const [symbol, id] of Object.entries(COINGECKO_IDS)) {
+      prices[symbol] = data[id]?.eur ?? 0;
+    }
+    return prices;
+  } catch {
+    return {};
+  }
+}
+
 const sumEntries = (entries?: StoredWalletEntry[]) =>
   (entries ?? []).reduce((sum, entry) => {
     const value = Number(entry.balance ?? 0);
@@ -46,29 +75,29 @@ const snapshotTotal = (snapshot: WalletSnapshot) =>
   sumEntries(snapshot.btc) +
   sumEntries(snapshot.ada);
 
-const snapshotToWallets = (snapshot: WalletSnapshot): WalletBalance[] => [
+const snapshotToWallets = (snapshot: WalletSnapshot, prices: TokenPrices = {}): WalletBalance[] => [
   {
     label: "Ethereum",
     symbol: "ETH",
-    balance: sumEntries(snapshot.eth).toFixed(4),
+    balance: (sumEntries(snapshot.eth) * (prices.ETH ?? 0)).toFixed(2),
     address: snapshot.eth?.[0]?.address,
   },
   {
     label: "Solana",
     symbol: "SOL",
-    balance: sumEntries(snapshot.sol).toFixed(4),
+    balance: (sumEntries(snapshot.sol) * (prices.SOL ?? 0)).toFixed(2),
     address: snapshot.sol?.[0]?.address,
   },
   {
     label: "Bitcoin",
     symbol: "BTC",
-    balance: sumEntries(snapshot.btc).toFixed(4),
+    balance: (sumEntries(snapshot.btc) * (prices.BTC ?? 0)).toFixed(2),
     address: snapshot.btc?.[0]?.address,
   },
   {
     label: "Cardano",
     symbol: "ADA",
-    balance: sumEntries(snapshot.ada).toFixed(4),
+    balance: (sumEntries(snapshot.ada) * (prices.ADA ?? 0)).toFixed(2),
     address: snapshot.ada?.[0]?.address,
   },
 ];
@@ -112,6 +141,7 @@ export default function PortfolioPage() {
   const supabase = createClient();
   useRequireAuth("/login");
   const [wallets, setWallets] = useState<WalletBalance[]>([]);
+  const [tokenPrices, setTokenPrices] = useState<TokenPrices>({});
   const [traditionalHoldings, setTraditionalHoldings] = useState<TraditionalHoldings>({});
   const [cryptoHoldings, setCryptoHoldings] = useState<CryptoHoldings>({});
   const [stablecoinEntries, setStablecoinEntries] = useState<StablecoinEntry[]>([]);
@@ -125,9 +155,13 @@ export default function PortfolioPage() {
   const [billingError, setBillingError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
+  // Buscar preços EUR ao carregar
   useEffect(() => {
-    const snapshot = loadWalletSnapshot();
-    setWallets(snapshotToWallets(snapshot as WalletSnapshot));
+    fetchTokenPricesEur().then((prices) => {
+      setTokenPrices(prices);
+      const snapshot = loadWalletSnapshot();
+      setWallets(snapshotToWallets(snapshot as WalletSnapshot, prices));
+    });
   }, []);
 
   useEffect(() => {
@@ -189,8 +223,7 @@ export default function PortfolioPage() {
         const latestTotal = snapshotTotal(latest.data);
         const localTotal = snapshotTotal(localSnapshot);
         if (latestTotal > 0 || localTotal === 0) {
-          // Se existir algo salvo na nuvem, mostramos isso (é sempre privado do user).
-          setWallets(snapshotToWallets(latest.data));
+          setWallets(snapshotToWallets(latest.data, tokenPrices));
         }
       }
 
