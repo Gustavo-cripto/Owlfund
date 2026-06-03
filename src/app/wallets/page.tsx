@@ -1251,15 +1251,11 @@ export default function WalletsPage() {
   };
 
   const handleEthDisconnect = () => {
-    if (!ethAddress) return;
-    const nextWallets = removeWallet(
-      ethWallets,
-      (item) => item.address === ethAddress && item.network === "Ethereum"
-    );
-    setEthWallets(nextWallets);
+    setEthWallets([]);
     setEthAddress(undefined);
     setEthBalance(undefined);
     setEthError(null);
+    updateWalletSnapshot({ eth: [], sol: solWallets, btc: btcWallets, ada: adaWallets });
   };
 
   const handleAddEthWalletInternal = async () => {
@@ -1373,15 +1369,11 @@ export default function WalletsPage() {
   };
 
   const handleSolDisconnect = () => {
-    if (!solAddress) return;
-    const nextWallets = removeWallet(
-      solWallets,
-      (item) => item.address === solAddress && (item.network ?? "Solana") === "Solana"
-    );
-    setSolWallets(nextWallets);
+    setSolWallets([]);
     setSolAddress(undefined);
     setSolBalance(undefined);
     setSolError(null);
+    updateWalletSnapshot({ eth: ethWallets, sol: [], btc: btcWallets, ada: adaWallets });
   };
 
   const handleAddSolWalletInternal = async () => {
@@ -1517,12 +1509,11 @@ export default function WalletsPage() {
   };
 
   const handleBtcDisconnect = () => {
-    if (!btcAddress) return;
-    const nextWallets = removeWallet(btcWallets, (item) => item.address === btcAddress);
-    setBtcWallets(nextWallets);
+    setBtcWallets([]);
     setBtcAddress(undefined);
     setBtcBalance(null);
     setBtcError(null);
+    updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: [], ada: adaWallets });
   };
 
   const handleAddBtcWalletInternal = async () => {
@@ -1650,13 +1641,12 @@ export default function WalletsPage() {
   };
 
   const handleAdaDisconnect = () => {
-    if (!adaAddress) return;
-    const nextWallets = removeWallet(adaWallets, (item) => item.address === adaAddress);
-    setAdaWallets(nextWallets);
+    setAdaWallets([]);
     setAdaAddress(undefined);
     setAdaBalance(undefined);
     setAdaError(null);
     setAdaApi(null);
+    updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: [] });
   };
 
   const handleManualAddAddress = () => {
