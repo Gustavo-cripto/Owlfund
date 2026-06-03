@@ -262,9 +262,9 @@ export default function PortfolioPage() {
     }
   };
 
-  const handleSaveSnapshot = async () => {
+  const handleSaveSnapshot = async (silent = false) => {
     if (!userId) return;
-    setSaveMessage(null);
+    if (!silent) setSaveMessage(null);
 
     const snapshot = loadWalletSnapshot();
     const { error } = await supabase
@@ -272,11 +272,11 @@ export default function PortfolioPage() {
       .insert({ user_id: userId, data: snapshot });
 
     if (error) {
-      setSaveMessage("Não foi possível salvar o portfólio.");
+      if (!silent) setSaveMessage("Não foi possível salvar o portfólio.");
       return;
     }
 
-    setSaveMessage("Portfólio salvo com sucesso.");
+    if (!silent) setSaveMessage("Portfólio salvo com sucesso.");
 
     const { data: snapshotRows } = await supabase
       .from("portfolio_snapshots")
@@ -287,6 +287,18 @@ export default function PortfolioPage() {
 
     setSnapshots((snapshotRows ?? []) as SnapshotRow[]);
   };
+
+  // Auto-snapshot: guardar automaticamente se passaram mais de 24h desde o último
+  useEffect(() => {
+    if (!userId || isLoadingAuth) return;
+    const latest = snapshots[0];
+    const lastSaved = latest ? new Date(latest.created_at).getTime() : 0;
+    const hoursSince = (Date.now() - lastSaved) / (1000 * 60 * 60);
+    if (hoursSince >= 24) {
+      handleSaveSnapshot(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, isLoadingAuth]);
 
   const handleRestoreSnapshot = (row: SnapshotRow) => {
     setWallets(snapshotToWallets(row.data));
@@ -636,38 +648,40 @@ export default function PortfolioPage() {
         </section>
 
         <section className="rounded-2xl border border-orange-500/20 bg-slate-900/60 p-6">
-          <h2 className="text-lg font-semibold text-white">Plano Owlfund</h2>
+          <h2 className="text-lg font-semibold text-white">Snapshots e Plano</h2>
           {isLoadingAuth ? (
             <p className="mt-2 text-sm text-slate-400">A carregar acesso...</p>
           ) : userId ? (
             <div className="mt-4 space-y-3">
               <p className="text-sm text-slate-300">
                 {isPro
-                  ? "Plano ativo. Pode salvar e consultar o portfólio na nuvem."
-                  : "Plano Free. Assina para desbloquear portfólio cloud e alertas."}
+                  ? "Plano Pro ativo. Snapshots automáticos a cada 24h."
+                  : "Plano Free — snapshots manuais e automáticos disponíveis gratuitamente."}
               </p>
+              {saveMessage ? (
+                <p className={`text-sm ${saveMessage.includes("sucesso") ? "text-emerald-400" : "text-rose-300"}`}>{saveMessage}</p>
+              ) : null}
               {billingError ? (
                 <p className="text-sm text-rose-300">{billingError}</p>
               ) : null}
               <div className="flex flex-col gap-3 sm:flex-row">
-                {isPro ? (
+                <button
+                  className="rounded-full bg-orange-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-orange-400"
+                  onClick={() => handleSaveSnapshot(false)}
+                  type="button"
+                >
+                  📸 Salvar snapshot agora
+                </button>
+                {!isPro ? (
                   <button
-                    className="rounded-full border border-orange-400/40 px-6 py-3 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
-                    onClick={handleSaveSnapshot}
-                    type="button"
-                  >
-                    Salvar portfólio na nuvem
-                  </button>
-                ) : (
-                  <button
-                    className="rounded-full bg-orange-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-70"
+                    className="rounded-full border border-orange-400/40 px-6 py-3 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
                     onClick={handleCheckout}
                     type="button"
                     disabled={isBillingLoading}
                   >
-                    {isBillingLoading ? "A iniciar..." : "Ativar plano Pro"}
+                    {isBillingLoading ? "A iniciar..." : "✨ Ativar plano Pro"}
                   </button>
-                )}
+                ) : null}
                 <a
                   className="rounded-full border border-slate-700 px-6 py-3 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
                   href="/account"
