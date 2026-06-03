@@ -10,12 +10,14 @@ type EvmToken = {
   symbol?: string;
   name?: string;
   logo?: string;
+  thumbnail?: string;
   decimals?: string | number;
   balance?: string;
+  balance_formatted?: string;
   usd_value?: string | number;
   usd_price?: number;
-  percentage_relative_to_total_supply?: number;
   possible_spam?: boolean;
+  verified_contract?: boolean;
 };
 
 type SolToken = {
@@ -47,131 +49,172 @@ function isSolAddress(a: string) {
   return typeof a === "string" && a.length >= 32 && a.length <= 44;
 }
 
+// CoinGecko IDs para símbolos comuns — fallback de preços quando Moralis não devolve usd_price
+const COINGECKO_SYMBOLS: Record<string, string> = {
+  ETH: "ethereum", WETH: "weth", BTC: "bitcoin", WBTC: "wrapped-bitcoin",
+  SOL: "solana", WSOL: "wrapped-solana", BNB: "binancecoin", MATIC: "matic-network",
+  POL: "matic-network", USDT: "tether", USDC: "usd-coin", DAI: "dai",
+  LINK: "chainlink", UNI: "uniswap", AAVE: "aave", MKR: "maker",
+  SNX: "synthetix-network-token", CRV: "curve-dao-token", LDO: "lido-dao",
+  ARB: "arbitrum", OP: "optimism", SHIB: "shiba-inu", PEPE: "pepe",
+};
+
+async function fetchCoinGeckoPrices(symbols: string[]): Promise<Record<string, number>> {
+  const ids = [...new Set(symbols.map(s => COINGECKO_SYMBOLS[s.toUpperCase()]).filter(Boolean))];
+  if (ids.length === 0) return {};
+  try {
+    const res = await fetch(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${ids.join(",")}&vs_currencies=usd`,
+      { next: { revalidate: 300 } }
+    );
+    if (!res.ok) return {};
+    const data = await res.json() as Record<string, { usd?: number }>;
+    const prices: Record<string, number> = {};
+    for (const [sym, id] of Object.entries(COINGECKO_SYMBOLS)) {
+      if (data[id]?.usd) prices[sym] = data[id].usd!;
+    }
+    return prices;
+  } catch { return {}; }
+}
+
+function parseBalance(token: EvmToken): number {
+  if (token.balance_formatted) return parseFloat(token.balance_formatted) || 0;
+  if (!token.balance) return 0;
+  const decimals = Number(token.decimals ?? 18);
+  return Number(token.balance) / Math.pow(10, decimals);
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const address = (searchParams.get("address") ?? "").trim();
   const chain = (searchParams.get("chain") ?? "eth") as ChainId;
 
-  if (!address) {
-    return NextResponse.json({ error: "Endereço obrigatório." }, { status: 400 });
-  }
+  if (!address) return NextResponse.json({ error: "Endereço obrigatório.", tokens: [] }, { status: 400 });
 
   const moralisKey = process.env.MORALIS_API_KEY;
-  if (!moralisKey) {
-    return NextResponse.json({ error: "MORALIS_API_KEY não configurada.", tokens: [] }, { status: 503 });
-  }
+  if (!moralisKey) return NextResponse.json({ error: "MORALIS_API_KEY não configurada.", tokens: [] }, { status: 503 });
 
-  // EVM tokens (Ethereum, Polygon, etc.)
+  // ── EVM tokens ──
   if (chain === "eth" && isEvmAddress(address)) {
     const evmChains = ["eth", "polygon", "arbitrum", "base"] as const;
-    const allTokens: TokenBalance[] = [];
+    const rawTokens: EvmToken[] = [];
 
-    await Promise.allSettled(
-      evmChains.map(async (c) => {
-        try {
-          const res = await fetch(
-            `${MORALIS_EVM}/${address}/erc20?chain=${c}&exclude_spam=true&exclude_unverified_contracts=true`,
-            {
-              headers: { Accept: "application/json", "X-API-Key": moralisKey },
-              next: { revalidate: 120 },
-            }
-          );
-          if (!res.ok) return;
-          const data = (await res.json()) as EvmToken[] | { result?: EvmToken[] };
-          const list: EvmToken[] = Array.isArray(data) ? data : (data as { result?: EvmToken[] }).result ?? [];
+    await Promise.allSettled(evmChains.map(async (c) => {
+      try {
+        const res = await fetch(
+          `${MORALIS_EVM}/${address}/erc20?chain=${c}&exclude_spam=true&limit=50`,
+          { headers: { Accept: "application/json", "X-API-Key": moralisKey }, next: { revalidate: 120 } }
+        );
+        if (!res.ok) return;
+        const data = await res.json() as EvmToken[] | { result?: EvmToken[] };
+        const list = Array.isArray(data) ? data : (data as { result?: EvmToken[] }).result ?? [];
+        rawTokens.push(...list.filter(t => !t.possible_spam));
+      } catch { /* skip */ }
+    }));
 
-          for (const token of list) {
-            if (token.possible_spam) continue;
-            const usdValue = Number(token.usd_value ?? 0);
-            if (usdValue < 0.01) continue; // skip dust
-            allTokens.push({
-              address: token.token_address ?? "",
-              symbol: token.symbol ?? "?",
-              name: token.name ?? token.symbol ?? "Token",
-              logo: token.logo,
-              balance: token.balance ?? "0",
-              usdValue,
-              usdPrice: token.usd_price ?? 0,
-              chain: "eth",
-            });
-          }
-        } catch {
-          // skip chain
-        }
-      })
-    );
-
-    // Also fetch native ETH balance with USD value
+    // Fetch native ETH
+    let nativeToken: TokenBalance | null = null;
     try {
       const res = await fetch(
         `${MORALIS_EVM}/${address}/balance?chain=eth`,
-        {
-          headers: { Accept: "application/json", "X-API-Key": moralisKey },
-          next: { revalidate: 120 },
-        }
+        { headers: { Accept: "application/json", "X-API-Key": moralisKey }, next: { revalidate: 120 } }
       );
       if (res.ok) {
-        const data = (await res.json()) as { balance?: string; usd_value?: number };
-        const usdValue = Number(data.usd_value ?? 0);
-        if (usdValue >= 0.01) {
-          const ethBalance = (Number(data.balance ?? "0") / 1e18).toFixed(6);
-          allTokens.unshift({
-            address: "native",
-            symbol: "ETH",
-            name: "Ethereum",
-            balance: ethBalance,
-            usdValue,
-            usdPrice: usdValue / Number(ethBalance || 1),
+        const data = await res.json() as { balance?: string; usd_value?: number };
+        const balEth = Number(data.balance ?? "0") / 1e18;
+        if (balEth > 0.0001) {
+          nativeToken = {
+            address: "native", symbol: "ETH", name: "Ethereum",
+            balance: balEth.toFixed(6),
+            usdValue: Number(data.usd_value ?? 0),
+            usdPrice: Number(data.usd_value ?? 0) / balEth || 0,
             chain: "eth",
-          });
+          };
         }
       }
-    } catch {
-      // skip native
+    } catch { /* skip */ }
+
+    // Get CoinGecko prices as fallback
+    const symbols = rawTokens.map(t => t.symbol ?? "");
+    const cgPrices = await fetchCoinGeckoPrices(["ETH", ...symbols]);
+
+    // Fill native ETH price from CoinGecko if missing
+    if (nativeToken && nativeToken.usdPrice === 0 && cgPrices["ETH"]) {
+      const bal = parseFloat(nativeToken.balance);
+      nativeToken.usdPrice = cgPrices["ETH"];
+      nativeToken.usdValue = bal * cgPrices["ETH"];
     }
 
-    // Sort by USD value descending
-    allTokens.sort((a, b) => b.usdValue - a.usdValue);
+    const allTokens: TokenBalance[] = [];
+    if (nativeToken) allTokens.push(nativeToken);
+
+    for (const token of rawTokens) {
+      const sym = (token.symbol ?? "?").toUpperCase();
+      const balAmount = parseBalance(token);
+      if (balAmount === 0) continue;
+
+      let usdPrice = Number(token.usd_price ?? 0);
+      let usdValue = Number(token.usd_value ?? 0);
+
+      // Fallback to CoinGecko price
+      if (usdPrice === 0 && cgPrices[sym]) {
+        usdPrice = cgPrices[sym];
+        usdValue = balAmount * usdPrice;
+      }
+
+      // Include even without price — show balance
+      allTokens.push({
+        address: token.token_address ?? "",
+        symbol: sym,
+        name: token.name ?? sym,
+        logo: token.logo ?? token.thumbnail,
+        balance: balAmount.toFixed(4),
+        usdValue,
+        usdPrice,
+        chain: "eth",
+      });
+    }
+
+    // Sort: tokens with USD value first, then by value desc
+    allTokens.sort((a, b) => {
+      if (a.usdValue > 0 && b.usdValue === 0) return -1;
+      if (a.usdValue === 0 && b.usdValue > 0) return 1;
+      return b.usdValue - a.usdValue;
+    });
 
     const totalUsd = allTokens.reduce((s, t) => s + t.usdValue, 0);
-    return NextResponse.json({ tokens: allTokens, totalUsd });
+    return NextResponse.json({ tokens: allTokens.slice(0, 30), totalUsd });
   }
 
-  // Solana tokens
+  // ── Solana tokens ──
   if (chain === "sol" && isSolAddress(address)) {
     try {
       const res = await fetch(
         `${MORALIS_SOL}/${address}/tokens`,
-        {
-          headers: { Accept: "application/json", "X-API-Key": moralisKey },
-          next: { revalidate: 120 },
-        }
+        { headers: { Accept: "application/json", "X-API-Key": moralisKey }, next: { revalidate: 120 } }
       );
+      if (!res.ok) return NextResponse.json({ error: "Falha Moralis Solana.", tokens: [] }, { status: 503 });
 
-      if (!res.ok) {
-        return NextResponse.json({ error: "Falha Moralis Solana.", tokens: [] }, { status: 503 });
-      }
-
-      const data = (await res.json()) as SolToken[] | { result?: SolToken[] };
+      const data = await res.json() as SolToken[] | { result?: SolToken[] };
       const list: SolToken[] = Array.isArray(data) ? data : (data as { result?: SolToken[] }).result ?? [];
 
+      const cgPrices = await fetchCoinGeckoPrices(["SOL", ...list.map(t => t.symbol ?? "")]);
+
       const tokens: TokenBalance[] = list
-        .filter((t) => !t.possible_spam)
-        .map((t) => ({
-          address: t.mint ?? "",
-          symbol: t.symbol ?? "?",
-          name: t.name ?? t.symbol ?? "Token",
-          logo: t.logo,
-          balance: String(t.amount ?? "0"),
-          usdValue: Number(t.usd_value ?? 0),
-          usdPrice: t.usd_price ?? 0,
-          chain: "sol",
-        }))
-        .filter((t) => t.usdValue >= 0.01)
+        .filter(t => !t.possible_spam)
+        .map(t => {
+          const sym = (t.symbol ?? "?").toUpperCase();
+          const balAmount = Number(t.amount ?? 0);
+          let usdPrice = Number(t.usd_price ?? 0);
+          let usdValue = Number(t.usd_value ?? 0);
+          if (usdPrice === 0 && cgPrices[sym]) { usdPrice = cgPrices[sym]; usdValue = balAmount * usdPrice; }
+          return { address: t.mint ?? "", symbol: sym, name: t.symbol ?? sym, logo: t.logo, balance: String(balAmount), usdValue, usdPrice, chain: "sol" as const };
+        })
+        .filter(t => Number(t.balance) > 0)
         .sort((a, b) => b.usdValue - a.usdValue);
 
       const totalUsd = tokens.reduce((s, t) => s + t.usdValue, 0);
-      return NextResponse.json({ tokens, totalUsd });
+      return NextResponse.json({ tokens: tokens.slice(0, 30), totalUsd });
     } catch {
       return NextResponse.json({ error: "Falha ao consultar tokens Solana.", tokens: [] }, { status: 503 });
     }
