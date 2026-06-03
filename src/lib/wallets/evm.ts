@@ -1,4 +1,4 @@
-import { createPublicClient, formatEther, formatUnits, http } from "viem";
+import { createPublicClient, fallback, formatEther, formatUnits, http } from "viem";
 import { arbitrum, base, bsc, mainnet, optimism, polygon } from "viem/chains";
 
 const erc20Abi = [
@@ -6,9 +6,29 @@ const erc20Abi = [
   { inputs: [], name: "decimals", outputs: [{ type: "uint8" }], stateMutability: "view", type: "function" },
 ] as const;
 
+// RPCs públicos fiáveis com fallback automático
+const ETH_RPCS = [
+  "https://ethereum.publicnode.com",
+  "https://cloudflare-eth.com",
+  "https://rpc.ankr.com/eth",
+  "https://eth.drpc.org",
+];
+
+const chainRpcs: Record<string, string[]> = {
+  Ethereum:  ETH_RPCS,
+  Arbitrum:  ["https://arbitrum.publicnode.com", "https://rpc.ankr.com/arbitrum", "https://arbitrum.drpc.org"],
+  Optimism:  ["https://optimism.publicnode.com", "https://rpc.ankr.com/optimism", "https://optimism.drpc.org"],
+  Base:      ["https://base.publicnode.com", "https://rpc.ankr.com/base", "https://base.drpc.org"],
+  Polygon:   ["https://polygon-bor.publicnode.com", "https://rpc.ankr.com/polygon", "https://polygon.drpc.org"],
+  BSC:       ["https://bsc.publicnode.com", "https://rpc.ankr.com/bsc", "https://bsc.drpc.org"],
+};
+
+const makeTransport = (urls: string[]) =>
+  fallback(urls.map((url) => http(url, { timeout: 8_000 })));
+
 const publicClient = createPublicClient({
   chain: mainnet,
-  transport: http(mainnet.rpcUrls.default.http[0]),
+  transport: makeTransport(ETH_RPCS),
 });
 
 const chainMap = {
@@ -160,9 +180,10 @@ export const getEthBalance = async (address: `0x${string}`) => {
 
 export const getEvmBalance = async (address: `0x${string}`, network: EvmNetwork) => {
   const chain = chainMap[network];
+  const rpcs = chainRpcs[network] ?? [chain.rpcUrls.default.http[0]];
   const client = createPublicClient({
     chain,
-    transport: http(chain.rpcUrls.default.http[0]),
+    transport: makeTransport(rpcs),
   });
   const balance = await client.getBalance({ address });
   return formatEther(balance);
@@ -188,7 +209,7 @@ export const getEvmTokenBalance = async (
   const chain = chainMap[network];
   const client = createPublicClient({
     chain,
-    transport: http(chain.rpcUrls.default.http[0]),
+    transport: makeTransport(chainRpcs[network] ?? [chain.rpcUrls.default.http[0]]),
   });
   try {
     const [balance, decimals] = await Promise.all([
