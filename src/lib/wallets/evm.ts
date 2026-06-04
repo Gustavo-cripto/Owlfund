@@ -198,6 +198,29 @@ export const STABLECOIN_TOKEN_ADDRESSES: Record<string, `0x${string}`> = {
   TUSD: "0x0000000000085d4780B73119b644AE5ecd22b376" as `0x${string}`,
 };
 
+/** Conecta via WalletConnect v2 (QR code — funciona com qualquer carteira mobile). */
+export const connectWalletConnect = async (): Promise<`0x${string}`> => {
+  const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
+  if (!projectId) throw new Error("NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID não configurado.");
+  const { EthereumProvider } = await import("@walletconnect/ethereum-provider");
+  const provider = await EthereumProvider.init({
+    projectId,
+    chains: [1],
+    optionalChains: [137, 42161, 10, 8453, 56],
+    showQrModal: true,
+    metadata: {
+      name: "Fundo Coruja",
+      description: "Gestor de portfólio multi-chain",
+      url: typeof window !== "undefined" ? window.location.origin : "https://owlfund.app",
+      icons: ["/owlfund-owl.png"],
+    },
+  });
+  await provider.connect();
+  const accounts = provider.accounts;
+  if (!accounts?.[0]) throw new Error("Nenhuma conta retornada pelo WalletConnect.");
+  return accounts[0] as `0x${string}`;
+};
+
 /** Saldo de um token ERC20 por rede. Só suportado em Ethereum para as stablecoins conhecidas; outras redes devolvem "0". */
 export const getEvmTokenBalance = async (
   ownerAddress: `0x${string}`,

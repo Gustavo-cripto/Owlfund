@@ -7,6 +7,7 @@ import WalletCard from "@/components/wallets/WalletCard";
 import { createClient } from "@/lib/supabase/client";
 import {
   connectEvmProvider,
+  connectWalletConnect,
   getEthBalance,
   getEvmBalance,
   getEvmProviderById,
@@ -1216,6 +1217,43 @@ export default function WalletsPage() {
       title: "Conectar carteira Ethereum",
       description: `Vai ligar a carteira ao domínio ${host || "atual"} em modo leitura.`,
       onConfirm: handleEthConnectInternal,
+    });
+  };
+
+  const handleWalletConnectInternal = async () => {
+    try {
+      setEthLoading(true);
+      setEthError(null);
+      const address = await connectWalletConnect();
+      setEthAddress(address);
+      const balance = await getEthBalance(address);
+      const formatted = Number(balance).toFixed(4);
+      setEthBalance(formatted);
+      const nextWallets = upsertWallet(
+        ethWallets,
+        { address, balance: formatted, network: "Ethereum", label: "WalletConnect" },
+        (item) => item.address === address
+      );
+      setEthWallets(nextWallets);
+      updateWalletSnapshot({ eth: nextWallets, sol: solWallets, btc: btcWallets, ada: adaWallets });
+    } catch (error) {
+      setEthError(error instanceof Error ? error.message : "Erro ao conectar via WalletConnect.");
+    } finally {
+      setEthLoading(false);
+    }
+  };
+
+  const handleWalletConnect = () => {
+    const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
+    if (!projectId) {
+      setEthError("WalletConnect não configurado. Adiciona NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ao .env.");
+      return;
+    }
+    const host = typeof window !== "undefined" ? window.location.hostname : "";
+    requestConfirm({
+      title: "Conectar via WalletConnect",
+      description: `Vai abrir um QR code para ligares qualquer carteira mobile ao domínio ${host || "atual"}.`,
+      onConfirm: handleWalletConnectInternal,
     });
   };
 
@@ -2500,6 +2538,17 @@ export default function WalletsPage() {
               <p className="text-xs text-slate-500">
                 Conecta uma carteira e/ou adiciona endereços. O saldo total junta todas.
               </p>
+              <button
+                type="button"
+                className="flex items-center gap-2 rounded-full border border-blue-500/40 bg-blue-950/30 px-4 py-2 text-xs font-semibold text-blue-300 transition hover:border-blue-400 hover:text-white disabled:opacity-60"
+                onClick={handleWalletConnect}
+                disabled={ethLoading}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 300 185" fill="currentColor">
+                  <path d="M61.4 36.3c48.9-47.9 128.3-47.9 177.2 0l5.9 5.8c2.4 2.4 2.4 6.2 0 8.6l-20.2 19.8c-1.2 1.2-3.2 1.2-4.4 0l-8.1-7.9c-34.1-33.4-89.4-33.4-123.5 0l-8.7 8.5c-1.2 1.2-3.2 1.2-4.4 0L54.9 51.3c-2.4-2.4-2.4-6.2 0-8.6l6.5-6.4zm218.8 40.8l18 17.6c2.4 2.4 2.4 6.2 0 8.6l-81.2 79.5c-2.4 2.4-6.4 2.4-8.8 0l-57.6-56.4c-.6-.6-1.6-.6-2.2 0l-57.6 56.4c-2.4 2.4-6.4 2.4-8.8 0L.8 103.3c-2.4-2.4-2.4-6.2 0-8.6l18-17.6c2.4-2.4 6.4-2.4 8.8 0l57.6 56.4c.6.6 1.6.6 2.2 0l57.6-56.4c2.4-2.4 6.4-2.4 8.8 0l57.6 56.4c.6.6 1.6.6 2.2 0l57.6-56.4c2.4-2.5 6.4-2.5 8.8-.1z"/>
+                </svg>
+                WalletConnect (QR)
+              </button>
               <div className="grid gap-3 sm:grid-cols-[1.2fr_0.8fr_auto]">
                 <input
                   className="w-full rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
