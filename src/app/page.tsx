@@ -6,14 +6,18 @@ import PnlSummaryCard from "@/components/PnlSummaryCard";
 import { createClient } from "@/lib/supabase/client";
 
 const TICKER_DATA = [
-  { symbol: "BTC", price: "€ 91.240", change: "+2,4%", up: true },
-  { symbol: "ETH", price: "€ 3.180", change: "+1,8%", up: true },
-  { symbol: "SOL", price: "€ 148", change: "-0,6%", up: false },
-  { symbol: "ADA", price: "€ 0,42", change: "+3,1%", up: true },
-  { symbol: "BNB", price: "€ 548", change: "+0,9%", up: true },
-  { symbol: "AAPL", price: "€ 211", change: "+0,4%", up: true },
-  { symbol: "NVDA", price: "€ 876", change: "+1,2%", up: true },
-  { symbol: "S&P 500", price: "€ 5.248", change: "-0,2%", up: false },
+  { symbol: "BTC",   price: "€ 91.240", change: "+2,4%", up: true  },
+  { symbol: "ETH",   price: "€ 3.180",  change: "+1,8%", up: true  },
+  { symbol: "SOL",   price: "€ 148",    change: "-0,6%", up: false },
+  { symbol: "ADA",   price: "€ 0,42",   change: "+3,1%", up: true  },
+  { symbol: "BNB",   price: "€ 548",    change: "+0,9%", up: true  },
+  { symbol: "AAPL",  price: "€ 211",    change: "+0,4%", up: true  },
+  { symbol: "NVDA",  price: "€ 876",    change: "+1,2%", up: true  },
+  { symbol: "S&P 500", price: "€ 5.248",change: "-0,2%", up: false },
+  { symbol: "DOGE",  price: "€ 0,138",  change: "+5,2%", up: true  },
+  { symbol: "LINK",  price: "€ 13,40",  change: "+1,1%", up: true  },
+  { symbol: "TSLA",  price: "€ 248",    change: "-1,3%", up: false },
+  { symbol: "GOLD",  price: "€ 2.890",  change: "+0,3%", up: true  },
 ];
 
 const FEATURES = [
@@ -42,26 +46,20 @@ export default function Home() {
   const supabase = createClient();
   const [isReady, setIsReady] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [tickerOffset, setTickerOffset] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(({ data }: { data: { session: unknown } }) => {
       if (!isMounted) return;
       setIsLoggedIn(!!data.session);
       setIsReady(true);
     });
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event: unknown, session: unknown) => {
       setIsLoggedIn(!!session);
       setIsReady(true);
     });
     return () => { isMounted = false; subscription.subscription.unsubscribe(); };
   }, [supabase]);
-
-  useEffect(() => {
-    const interval = setInterval(() => setTickerOffset(p => p - 1), 30);
-    return () => clearInterval(interval);
-  }, []);
 
   const showAppView = isReady && isLoggedIn;
 
@@ -111,17 +109,15 @@ export default function Home() {
       <div className="relative z-10">
         <AppHeader variant="public" title="Portfólio Owlfund" />
 
-        {/* Live price ticker */}
-        <div className="border-b border-slate-800/60 bg-slate-900/50 py-2 overflow-hidden">
-          <div
-            className="flex gap-10 whitespace-nowrap"
-            style={{ transform: `translateX(${tickerOffset % (TICKER_DATA.length * 200)}px)` }}
-          >
-            {[...TICKER_DATA, ...TICKER_DATA, ...TICKER_DATA, ...TICKER_DATA].map((t, i) => (
-              <span key={i} className="inline-flex items-center gap-2 text-xs font-mono">
-                <span className="font-bold text-white">{t.symbol}</span>
+        {/* Live price ticker — CSS animation, sem JS */}
+        <div className="border-b border-slate-800/60 bg-slate-900/50 py-2.5 overflow-hidden select-none">
+          <div className="flex animate-ticker" style={{ width: "max-content" }}>
+            {[...TICKER_DATA, ...TICKER_DATA].map((t, i) => (
+              <span key={i} className="inline-flex items-center gap-2 mx-8 text-xs font-mono whitespace-nowrap">
+                <span className="font-bold text-slate-300 tracking-wide">{t.symbol}</span>
                 <span className="text-slate-400">{t.price}</span>
-                <span className={t.up ? "text-emerald-400" : "text-red-400"}>{t.change}</span>
+                <span className={`font-semibold ${t.up ? "text-emerald-400" : "text-rose-400"}`}>{t.change}</span>
+                <span className="text-slate-700">·</span>
               </span>
             ))}
           </div>
@@ -130,39 +126,39 @@ export default function Home() {
         {/* HERO */}
         <section className="mx-auto flex w-full max-w-6xl flex-col items-center gap-12 px-6 pb-16 pt-16 md:flex-row md:pt-24">
           <div className="flex-1 space-y-7">
-            <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-4 py-1.5 text-xs font-bold text-orange-300 uppercase tracking-widest">
+            <div className="animate-fade-in-up inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-4 py-1.5 text-xs font-bold text-orange-300 uppercase tracking-widest">
               🦉 Plataforma gratuita · Beta aberto
             </div>
-            <h1 className="text-4xl font-bold leading-tight text-white md:text-5xl lg:text-6xl">
+            <h1 className="animate-fade-in-up delay-100 text-4xl font-bold leading-tight text-white md:text-5xl lg:text-6xl">
               O teu portfólio<br />
               <span className="text-orange-400">cripto e tradicional</span><br />
               num só lugar
             </h1>
-            <p className="max-w-lg text-lg text-slate-300">
+            <p className="animate-fade-in-up delay-200 max-w-lg text-lg text-slate-300">
               Conecta carteiras blockchain, acompanha ações e vê o teu PNL em tempo real. Simples, rápido e seguro.
             </p>
-            <div className="flex flex-wrap gap-4">
-              <a href="/login" className="rounded-full bg-orange-500 px-8 py-3.5 text-base font-bold text-slate-950 shadow-lg shadow-orange-500/25 transition hover:bg-orange-400 hover:shadow-orange-400/30">
+            <div className="animate-fade-in-up delay-300 flex flex-wrap gap-4">
+              <a href="/login" className="rounded-full bg-orange-500 px-8 py-3.5 text-base font-bold text-slate-950 shadow-lg shadow-orange-500/25 transition hover:bg-orange-400 hover:scale-[1.03] hover:shadow-orange-400/30 active:scale-[0.98]">
                 Começar grátis →
               </a>
-              <a href="#como-funciona" className="rounded-full border border-slate-700 px-8 py-3.5 text-base font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white">
+              <a href="#como-funciona" className="rounded-full border border-slate-700 px-8 py-3.5 text-base font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white hover:scale-[1.02] active:scale-[0.98]">
                 Como funciona
               </a>
             </div>
-            <p className="text-xs text-slate-500">Sem cartão de crédito · Sem chaves privadas · 100% gratuito</p>
+            <p className="animate-fade-in-up delay-400 text-xs text-slate-500">Sem cartão de crédito · Sem chaves privadas · 100% gratuito</p>
           </div>
-          <div className="w-full max-w-sm flex-shrink-0">
+          <div className="animate-scale-in delay-200 w-full max-w-sm flex-shrink-0">
             <PnlSummaryCard position={2150} today={120} days30={480} daily7d={-35} />
           </div>
         </section>
 
         {/* STATS */}
-        <section className="border-y border-slate-800/50 bg-slate-900/30 py-10">
-          <div className="mx-auto grid w-full max-w-4xl grid-cols-2 gap-6 px-6 md:grid-cols-4">
-            {STATS.map((s) => (
-              <div key={s.label} className="text-center">
-                <div className="text-3xl font-bold text-orange-400">{s.value}</div>
-                <div className="mt-1 text-sm text-slate-400">{s.label}</div>
+        <section className="border-y border-slate-800/50 bg-slate-900/30 py-12">
+          <div className="mx-auto grid w-full max-w-4xl grid-cols-2 gap-8 px-6 md:grid-cols-4">
+            {STATS.map((s, i) => (
+              <div key={s.label} className={`text-center animate-fade-in-up delay-${i * 100 + 100}`}>
+                <div className="metric-value text-4xl font-black text-orange-400">{s.value}</div>
+                <div className="mt-1.5 text-sm text-slate-400">{s.label}</div>
               </div>
             ))}
           </div>
@@ -170,17 +166,20 @@ export default function Home() {
 
         {/* FEATURES */}
         <section id="recursos" className="mx-auto w-full max-w-6xl px-6 py-20">
-          <div className="mb-12 text-center">
+          <div className="mb-14 text-center animate-fade-in-up">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">Funcionalidades</p>
             <h2 className="mt-3 text-3xl font-bold text-white md:text-4xl">Tudo o que precisas para investir melhor</h2>
-            <p className="mt-3 text-slate-400">Numa única plataforma, sem dispersão.</p>
+            <p className="mt-3 text-slate-400 max-w-xl mx-auto">Numa única plataforma, sem dispersão de informação.</p>
           </div>
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 transition hover:border-orange-500/40 hover:bg-slate-900">
-                <div className="mb-4 text-3xl">{f.icon}</div>
-                <h3 className="text-lg font-semibold text-white">{f.title}</h3>
-                <p className="mt-2 text-sm text-slate-400">{f.description}</p>
+            {FEATURES.map((f, i) => (
+              <div
+                key={f.title}
+                className={`card-hover rounded-2xl border border-slate-800 bg-slate-900/60 p-6 animate-fade-in-up delay-${Math.min(i * 100, 500)}`}
+              >
+                <div className="mb-4 text-3xl leading-none">{f.icon}</div>
+                <h3 className="text-base font-bold text-white">{f.title}</h3>
+                <p className="mt-2 text-sm text-slate-400 leading-relaxed">{f.description}</p>
               </div>
             ))}
           </div>
@@ -189,16 +188,16 @@ export default function Home() {
         {/* HOW IT WORKS */}
         <section id="como-funciona" className="bg-slate-900/40 py-20">
           <div className="mx-auto w-full max-w-4xl px-6">
-            <div className="mb-12 text-center">
+            <div className="mb-14 text-center animate-fade-in-up">
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">Como funciona</p>
               <h2 className="mt-3 text-3xl font-bold text-white">Em 3 passos simples</h2>
             </div>
             <div className="grid gap-6 md:grid-cols-3">
-              {STEPS.map((s) => (
-                <div key={s.num} className="rounded-2xl border border-orange-500/20 bg-gradient-to-br from-slate-900 to-slate-950 p-6">
-                  <div className="mb-4 text-5xl font-black text-orange-500/20">{s.num}</div>
-                  <h3 className="text-lg font-semibold text-white">{s.title}</h3>
-                  <p className="mt-2 text-sm text-slate-400">{s.desc}</p>
+              {STEPS.map((s, i) => (
+                <div key={s.num} className={`card-hover rounded-2xl border border-orange-500/20 bg-gradient-to-br from-slate-900 to-slate-950 p-7 animate-fade-in-up delay-${i * 150 + 100}`}>
+                  <div className="mb-5 text-6xl font-black text-orange-500/15 leading-none">{s.num}</div>
+                  <h3 className="text-base font-bold text-white">{s.title}</h3>
+                  <p className="mt-2 text-sm text-slate-400 leading-relaxed">{s.desc}</p>
                 </div>
               ))}
             </div>
@@ -207,19 +206,23 @@ export default function Home() {
 
         {/* CTA FINAL */}
         <section className="mx-auto w-full max-w-3xl px-6 py-24 text-center">
-          <div className="rounded-3xl border border-orange-500/20 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 p-10 shadow-2xl">
-            <div className="mb-4 text-4xl">🦉</div>
-            <h2 className="text-3xl font-bold text-white md:text-4xl">Pronto para ter controlo total?</h2>
-            <p className="mt-4 text-slate-400">Junta-te à comunidade Owlfund. Grátis para sempre no plano base.</p>
-            <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-              <a href="/login" className="w-full rounded-full bg-orange-500 px-10 py-4 text-base font-bold text-slate-950 shadow-lg shadow-orange-500/25 transition hover:bg-orange-400 sm:w-auto">
-                Criar conta grátis
-              </a>
-              <a href="/login" className="w-full rounded-full border border-slate-700 px-10 py-4 text-base font-semibold text-slate-200 transition hover:border-slate-500 sm:w-auto">
-                Já tenho conta →
-              </a>
+          <div className="animate-scale-in rounded-3xl border border-orange-500/20 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 p-10 shadow-2xl shadow-black/40 relative overflow-hidden">
+            {/* glow decorativo */}
+            <div className="animate-glow-pulse pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-orange-500/10 blur-[80px]" aria-hidden />
+            <div className="relative">
+              <div className="mb-5 text-5xl">🦉</div>
+              <h2 className="text-3xl font-bold text-white md:text-4xl">Pronto para ter controlo total?</h2>
+              <p className="mt-4 text-slate-400 max-w-sm mx-auto">Junta-te à comunidade Owlfund. Grátis para sempre no plano base.</p>
+              <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+                <a href="/login" className="w-full rounded-full bg-orange-500 px-10 py-4 text-base font-bold text-slate-950 shadow-lg shadow-orange-500/25 transition hover:bg-orange-400 hover:scale-[1.03] active:scale-[0.97] sm:w-auto">
+                  Criar conta grátis
+                </a>
+                <a href="/login" className="w-full rounded-full border border-slate-700 px-10 py-4 text-base font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white sm:w-auto">
+                  Já tenho conta →
+                </a>
+              </div>
+              <p className="mt-5 text-xs text-slate-600">Sem cartão de crédito · Cancela quando quiseres</p>
             </div>
-            <p className="mt-4 text-xs text-slate-600">Sem cartão de crédito · Cancela quando quiseres</p>
           </div>
         </section>
 

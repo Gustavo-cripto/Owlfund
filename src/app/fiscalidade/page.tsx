@@ -186,13 +186,13 @@ export default function FiscalidadePage() {
                 <option value="venda">Venda</option>
               </select>
               <input placeholder="Ativo (BTC, ETH...)" value={newTrade.asset}
-                onChange={e => setNewTrade(t => ({ ...t, asset: e.target.value.toUpperCase() }))}
+                onChange={e => setNewTrade(t => ({ ...t, asset: e.target.value.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10) }))}
                 className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
-              <input type="number" placeholder="Quantidade" value={newTrade.amount || ""}
-                onChange={e => setNewTrade(t => ({ ...t, amount: Number(e.target.value) }))}
+              <input type="number" placeholder="Quantidade" value={newTrade.amount || ""} min="0" max="999999999" step="any"
+                onChange={e => { const v = Number(e.target.value); if (Number.isFinite(v) && v >= 0) setNewTrade(t => ({ ...t, amount: v })); }}
                 className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
-              <input type="number" placeholder="Preço EUR" value={newTrade.price || ""}
-                onChange={e => setNewTrade(t => ({ ...t, price: Number(e.target.value) }))}
+              <input type="number" placeholder="Preço EUR" value={newTrade.price || ""} min="0" max="999999999" step="any"
+                onChange={e => { const v = Number(e.target.value); if (Number.isFinite(v) && v >= 0) setNewTrade(t => ({ ...t, price: v })); }}
                 className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
               <input type="date" value={newTrade.date}
                 onChange={e => setNewTrade(t => ({ ...t, date: e.target.value }))}

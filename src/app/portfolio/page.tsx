@@ -559,34 +559,33 @@ export default function PortfolioPage() {
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <AppHeader variant="app" subtitle="Portfolio" />
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-20 pt-2">
-        <div className="flex flex-col gap-4">
-          <h1 className="text-3xl font-semibold text-white">Portfolio</h1>
+        <div className="animate-fade-in-up flex flex-col gap-2">
+          <h1 className="text-3xl font-bold text-white">Portfolio</h1>
           <p className="max-w-2xl text-sm text-slate-400">
-            Visão consolidada de cripto e tradicional. Os saldos de cripto são
-            sincronizados a partir da página de carteiras.
+            Visão consolidada de cripto e tradicional. Saldos sincronizados a partir das carteiras.
           </p>
         </div>
 
         <section className="grid gap-6 md:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+          <div className="animate-fade-in-up rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
             <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">
               Visão geral
             </p>
-            <h2 className="mt-3 text-2xl font-semibold text-white">Total do portfólio</h2>
-            <div className="mt-4 flex flex-wrap items-end gap-4">
+            <h2 className="mt-2 text-xl font-bold text-white">Total do portfólio</h2>
+            <div className="mt-4 flex flex-wrap items-end gap-6">
               <div>
                 <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
                   Valor total
                 </p>
-                <p className="mt-2 text-3xl font-semibold text-white">
+                <p className="metric-value mt-2 text-4xl font-black text-white">
                   € {formatValue(portfolioTotal)}
                 </p>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-slate-500">PNL</p>
+                <p className="text-xs uppercase tracking-[0.3em] text-slate-500">PNL posição</p>
                 <p
-                  className={`mt-2 text-lg font-semibold ${
-                    pnlTotal >= 0 ? "text-emerald-300" : "text-rose-300"
+                  className={`metric-value mt-2 text-xl font-bold ${
+                    pnlTotal >= 0 ? "text-emerald-400" : "text-rose-400"
                   }`}
                 >
                   {formatSignedCurrency(pnlTotal)}
@@ -835,27 +834,46 @@ export default function PortfolioPage() {
             {portfolioTotal <= 0 ? (
               <div className="flex h-32 items-center justify-center text-sm text-slate-500">Adiciona ativos para ver o score.</div>
             ) : portfolioScore ? (
-              <div className="space-y-4">
-                {/* Score circular */}
+              <div className="space-y-5 animate-fade-in">
+                {/* Score circular com progress ring */}
                 <div className="flex items-center gap-5">
-                  <div className="relative flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-full border-4 border-slate-700">
-                    <div className={`text-2xl font-black ${portfolioScore.color}`}>{portfolioScore.score}</div>
-                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full bg-slate-900 px-2">
-                      <span className={`text-[10px] font-bold ${portfolioScore.color}`}>/100</span>
+                  <div className="relative flex-shrink-0">
+                    <svg width="80" height="80" viewBox="0 0 80 80" className="-rotate-90">
+                      <circle cx="40" cy="40" r="32" fill="none" stroke="rgb(30,41,59)" strokeWidth="6" />
+                      <circle
+                        cx="40" cy="40" r="32" fill="none"
+                        stroke={portfolioScore.score >= 80 ? "#34d399" : portfolioScore.score >= 60 ? "#fb923c" : portfolioScore.score >= 40 ? "#facc15" : "#f87171"}
+                        strokeWidth="6"
+                        strokeLinecap="round"
+                        strokeDasharray={`${(portfolioScore.score / 100) * 201} 201`}
+                        style={{ transition: "stroke-dasharray 1s ease" }}
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className={`metric-value text-xl font-black leading-none ${portfolioScore.color}`}>{portfolioScore.score}</span>
+                      <span className="text-[9px] text-slate-500 font-bold">/100</span>
                     </div>
                   </div>
                   <div>
-                    <p className={`text-lg font-bold ${portfolioScore.color}`}>{portfolioScore.label}</p>
-                    <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">Score calculado com base em diversificação, risco, performance e liquidez.</p>
+                    <p className={`text-xl font-black ${portfolioScore.color}`}>{portfolioScore.label}</p>
+                    <p className="text-xs text-slate-400 mt-1 leading-relaxed">Diversificação, risco, performance e liquidez.</p>
                   </div>
                 </div>
-                {/* Breakdown */}
-                <div className="space-y-2">
+                {/* Breakdown com barras */}
+                <div className="space-y-2.5">
                   {portfolioScore.reasons.map(r => (
-                    <div key={r.label} className="flex items-center gap-2">
-                      <span className={`text-sm ${r.ok ? "text-emerald-400" : "text-rose-400"}`}>{r.ok ? "✓" : "✗"}</span>
-                      <span className="text-xs text-slate-300 flex-1">{r.label}</span>
-                      <span className="text-xs font-semibold text-slate-400">{r.points}/{r.max}</span>
+                    <div key={r.label}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`text-xs ${r.ok ? "text-emerald-400" : "text-rose-400"}`}>{r.ok ? "✓" : "✗"}</span>
+                        <span className="text-xs text-slate-300 flex-1">{r.label}</span>
+                        <span className="text-[10px] font-semibold text-slate-500 tabular-nums">{r.points}/{r.max}</span>
+                      </div>
+                      <div className="h-1 w-full rounded-full bg-slate-800 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-700 ${r.ok ? "bg-emerald-500/60" : "bg-rose-500/40"}`}
+                          style={{ width: `${(r.points / r.max) * 100}%` }}
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1061,11 +1079,11 @@ export default function PortfolioPage() {
                   color: "text-orange-300",
                   hint: "Anualizada",
                 }] : []),
-              ].map((m) => (
-                <div key={m.label} className="rounded-xl border border-slate-700 bg-slate-900/80 p-4 text-center">
-                  <p className="text-xs text-slate-500 mb-1">{m.label}</p>
-                  <p className={`text-xl font-bold ${m.color}`}>{m.value}</p>
-                  <p className="text-[10px] text-slate-600 mt-1">{m.hint}</p>
+              ].map((m, i) => (
+                <div key={m.label} className={`card-hover rounded-xl border border-slate-700 bg-slate-900/80 p-4 text-center animate-count-up delay-${i * 100}`}>
+                  <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-2">{m.label}</p>
+                  <p className={`metric-value text-2xl font-black ${m.color}`}>{m.value}</p>
+                  <p className="text-[10px] text-slate-600 mt-1.5">{m.hint}</p>
                 </div>
               ))}
             </div>

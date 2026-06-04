@@ -300,7 +300,30 @@ async function callOllama(messages: Array<{ role: string; content: string }>) {
   return { ok: true as const, reply };
 }
 
+// Rate limiting simples em memória (por IP, sem dependências externas)
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT = 30;        // max requests
+const RATE_WINDOW = 60_000;   // por minuto
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_WINDOW });
+    return true;
+  }
+  if (entry.count >= RATE_LIMIT) return false;
+  entry.count++;
+  return true;
+}
+
 export async function POST(request: Request) {
+  // Rate limiting por IP
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  if (!checkRateLimit(ip)) {
+    return NextResponse.json({ error: "Demasiados pedidos. Tenta novamente em 1 minuto." }, { status: 429 });
+  }
+
   let body: { messages?: IncomingMessage[] } | null = null;
   try {
     body = (await request.json()) as { messages?: IncomingMessage[] };
@@ -309,7 +332,11 @@ export async function POST(request: Request) {
   }
 
   const incoming = body?.messages ?? [];
-  const recentMessages = incoming.slice(-12);
+  // Limitar tamanho das mensagens para prevenir abuso
+  const recentMessages = incoming.slice(-12).map(m => ({
+    role: m.role,
+    content: String(m.content ?? "").slice(0, 4000),
+  })) as IncomingMessage[];
 
   try {
     const messages = toChatMessages(recentMessages);
@@ -350,19 +377,11 @@ export async function POST(request: Request) {
         : []
       : order.filter(isEnabled);
     if (candidates.length === 0) {
+      // Não expor quais chaves estão/não estão configuradas
+      console.error("[chat] Nenhum provider disponível. forcedProvider:", forcedProvider);
       return NextResponse.json(
-        {
-          error:
-            forcedProvider
-              ? `O provider forçado (${forcedProvider}) não está configurado. Verifica as env vars e faz Redeploy.`
-              : "Nenhum provider configurado. Define `GROQ_API_KEY` (recomendado/free tier) ou `OPENAI_API_KEY`, ou `XAI_API_KEY`, ou `OLLAMA_BASE_URL`.",
-          provider: forcedProvider ?? provider,
-          hasGroqKey: hasGroq(),
-          hasXaiKey: hasXai(),
-          hasOpenAiKey: hasOpenAi(),
-          hasOllamaBaseUrl: hasOllama(),
-        },
-        { status: 500 }
+        { error: "Serviço de IA temporariamente indisponível." },
+        { status: 503 }
       );
     }
 
@@ -394,31 +413,22 @@ export async function POST(request: Request) {
     }
 
     if (!result.ok) {
-      return NextResponse.json(
-        {
-          error: result.error,
-          provider: usedProvider,
-          attempts,
-          hasGroqKey: hasGroq(),
-          hasXaiKey: hasXai(),
-          hasOpenAiKey: hasOpenAi(),
-          hasOllamaBaseUrl: hasOllama(),
-        },
-        { status: result.status }
-      );
+      // Log interno com detalhes, resposta pública sem info sensível
+      console.error("[chat] Falha providers:", attempts.map(a => `${a.provider}:${a.status}`).join(", "));
+      const publicError = result.status === 429
+        ? "Limite de pedidos à IA excedido. Tenta novamente em breve."
+        : result.status >= 500
+          ? "Serviço de IA temporariamente indisponível."
+          : result.error;
+      return NextResponse.json({ error: publicError }, { status: result.status });
     }
 
-    return NextResponse.json({ reply: result.reply, provider: usedProvider });
+    return NextResponse.json({ reply: result.reply });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
-      return NextResponse.json(
-        { error: "Timeout ao contactar o provider de IA." },
-        { status: 504 }
-      );
+      return NextResponse.json({ error: "Timeout ao contactar o serviço de IA." }, { status: 504 });
     }
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Erro inesperado." },
-      { status: 500 }
-    );
+    console.error("[chat] Erro inesperado:", error instanceof Error ? error.message : error);
+    return NextResponse.json({ error: "Erro interno." }, { status: 500 });
   }
 }

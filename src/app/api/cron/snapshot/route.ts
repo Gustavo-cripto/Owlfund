@@ -3,18 +3,51 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 // Vercel Cron Job — corre todos os dias às 00:00 UTC
 // Configurado em vercel.json: { "crons": [{ "path": "/api/cron/snapshot", "schedule": "0 0 * * *" }] }
-//
-// Segurança: a Vercel envia o header Authorization: Bearer <CRON_SECRET>
-// Configura CRON_SECRET nas env vars da Vercel (qualquer string aleatória segura).
+// CRON_SECRET deve estar definido nas env vars da Vercel. Gerar com: openssl rand -hex 32
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
+// Comparação em tempo constante para prevenir timing attacks
+async function timingSafeEqual(a: string, b: string): Promise<boolean> {
+  if (typeof crypto?.subtle?.importKey !== "function") {
+    // Fallback sem subtle crypto — ainda protege contra timing via padding
+    if (a.length !== b.length) return false;
+    let diff = 0;
+    for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    return diff === 0;
+  }
+  const enc = new TextEncoder();
+  const [ka, kb] = await Promise.all([
+    crypto.subtle.importKey("raw", enc.encode(a), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]),
+    crypto.subtle.importKey("raw", enc.encode(b), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]),
+  ]);
+  const [sa, sb] = await Promise.all([
+    crypto.subtle.sign("HMAC", ka, enc.encode("owlfund-cron")),
+    crypto.subtle.sign("HMAC", kb, enc.encode("owlfund-cron")),
+  ]);
+  const va = new Uint8Array(sa);
+  const vb = new Uint8Array(sb);
+  if (va.length !== vb.length) return false;
+  let diff = 0;
+  for (let i = 0; i < va.length; i++) diff |= va[i] ^ vb[i];
+  return diff === 0;
+}
+
 export async function GET(request: Request) {
-  // Verificar autorização (Vercel envia automaticamente o CRON_SECRET)
-  const authHeader = request.headers.get("authorization");
+  // CRON_SECRET é obrigatório — se não estiver configurado, recusa sempre
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret) {
+    console.error("[cron/snapshot] CRON_SECRET não configurado — endpoint bloqueado.");
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const authHeader = request.headers.get("authorization") ?? "";
+  const expected = `Bearer ${cronSecret}`;
+
+  const authorized = await timingSafeEqual(authHeader, expected);
+  if (!authorized) {
+    // Sem detalhe no erro para não confirmar existência do endpoint
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -22,16 +55,18 @@ export async function GET(request: Request) {
   try {
     supabase = getSupabaseAdmin();
   } catch {
-    return NextResponse.json({ error: "Supabase admin não configurado." }, { status: 500 });
+    // Não expor detalhes de configuração interna
+    return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
   }
 
-  // Buscar todos os utilizadores que tenham pelo menos uma carteira guardada
+  // Usar admin client (bypassa RLS) — justificado: cron legítimo com secret verificado
   const { data: profiles, error: profilesError } = await supabase
     .from("profiles")
     .select("id");
 
   if (profilesError) {
-    return NextResponse.json({ error: profilesError.message }, { status: 500 });
+    console.error("[cron/snapshot] DB error:", profilesError.code);
+    return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
   }
 
   if (!profiles || profiles.length === 0) {
@@ -48,7 +83,7 @@ export async function GET(request: Request) {
     // Verificar se já existe snapshot nas últimas 20h
     const { data: recent } = await supabase
       .from("portfolio_snapshots")
-      .select("id, created_at")
+      .select("id")
       .eq("user_id", userId)
       .gte("created_at", new Date(cutoff).toISOString())
       .limit(1);
@@ -58,8 +93,6 @@ export async function GET(request: Request) {
       continue;
     }
 
-    // Buscar o snapshot mais recente para reutilizar a estrutura de dados
-    // (o cron não tem acesso ao browser — usa os dados do último snapshot como base)
     const { data: lastSnapshot } = await supabase
       .from("portfolio_snapshots")
       .select("data")
@@ -68,29 +101,16 @@ export async function GET(request: Request) {
       .limit(1);
 
     if (!lastSnapshot || lastSnapshot.length === 0) {
-      // Utilizador sem snapshots — nada a guardar
       skipped++;
       continue;
     }
 
-    // Guardar novo snapshot com os dados mais recentes disponíveis
     const { error: insertError } = await supabase
       .from("portfolio_snapshots")
-      .insert({
-        user_id: userId,
-        data: lastSnapshot[0].data,
-      });
+      .insert({ user_id: userId, data: lastSnapshot[0].data });
 
-    if (!insertError) {
-      saved++;
-    }
+    if (!insertError) saved++;
   }
 
-  return NextResponse.json({
-    ok: true,
-    saved,
-    skipped,
-    total: profiles.length,
-    timestamp: new Date().toISOString(),
-  });
+  return NextResponse.json({ ok: true, saved, skipped, total: profiles.length });
 }

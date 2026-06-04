@@ -6,6 +6,9 @@ import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 
 const STORAGE_KEY = "smart-money-watchlist";
 
+const sanitizeLabel = (label: string): string =>
+  label.replace(/[<>"'`]/g, "").replace(/javascript:/gi, "").trim().slice(0, 64);
+
 type WatchEntry = {
   address: string;
   label: string;
@@ -182,7 +185,7 @@ export default function SmartMoneyPage() {
     }
     const entry: WatchEntry = {
       address: addr,
-      label: newLabel.trim() || shortAddr(addr),
+      label: newLabel.trim() ? sanitizeLabel(newLabel) : shortAddr(addr),
       chain: newChain,
       addedAt: Date.now(),
     };

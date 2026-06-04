@@ -98,6 +98,10 @@ const isSolAddress = (address?: string) =>
   typeof address === "string" && address.length >= 32 && address.length <= 44;
 const isBtcAddress = (address?: string) =>
   typeof address === "string" && /^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,}$/.test(address);
+
+// Sanitiza labels inseridos pelo utilizador — remove HTML e limita comprimento
+const sanitizeLabel = (label: string): string =>
+  label.replace(/[<>"'`]/g, "").replace(/javascript:/gi, "").trim().slice(0, 64);
 const isAdaAddress = (address?: string) =>
   typeof address === "string" && /^(addr1|stake1)[0-9a-z]+$/i.test(address);
 const getAllowedHosts = () =>
@@ -1743,7 +1747,7 @@ export default function WalletsPage() {
 
   const handleManualAddAddress = () => {
     const trimmed = manualAddAddress.trim();
-    const label = manualAddLabel.trim() || undefined;
+    const label = manualAddLabel.trim() ? sanitizeLabel(manualAddLabel) : undefined;
     setManualAddError(null);
     if (!trimmed) {
       setManualAddError("Insere um endereço.");

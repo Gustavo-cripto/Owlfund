@@ -59,10 +59,20 @@ async function fetchMeteoraPositionsViaShyft(
   wallet: string,
   shyftKey: string
 ): Promise<{ total: number; positions: { name: string; usd: number }[] }> {
-  const query = `query { meteora_dlmm_Position(where:{owner:{_eq:"${wallet}"}}){pubkey id lbPair} meteora_dlmm_PositionV2(where:{owner:{_eq:"${wallet}"}}){pubkey id lbPair} }`;
+  // Usa variáveis GraphQL para evitar injecção — nunca interpola o endereço na query
+  const query = `query GetMeteoraPositions($owner: String!) {
+    meteora_dlmm_Position(where:{owner:{_eq:$owner}}){pubkey id lbPair}
+    meteora_dlmm_PositionV2(where:{owner:{_eq:$owner}}){pubkey id lbPair}
+  }`;
   const res = await fetch(
     `${SHYFT_GRAPHQL}?api_key=${encodeURIComponent(shyftKey)}&network=mainnet-beta`,
-    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query }), cache: "no-store" }
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query, variables: { owner: wallet } }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    }
   );
   if (!res.ok) return { total: 0, positions: [] };
   const json = (await res.json()) as { data?: { meteora_dlmm_Position?: Array<{ pubkey?: string; id?: string; lbPair?: string }>; meteora_dlmm_PositionV2?: Array<{ pubkey?: string; id?: string; lbPair?: string }> }; errors?: unknown[] };

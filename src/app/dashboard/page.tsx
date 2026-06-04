@@ -238,30 +238,30 @@ export default function DashboardPage() {
 
           {/* Quick nav + PNL */}
           <section className="grid gap-6 md:grid-cols-[1.2fr_0.8fr] md:items-start">
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+            <div className="animate-fade-in-up rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">Acesso rápido</p>
               <h1 className="mt-2 text-2xl font-bold text-white">Painel Owlfund</h1>
               <p className="mt-1 text-sm text-slate-400">O teu centro de controlo de investimentos.</p>
-              <div className="mt-5 flex flex-wrap gap-3">
-                <a href="/portfolio" className="rounded-full bg-orange-500 px-5 py-2.5 text-sm font-bold text-slate-950 transition hover:bg-orange-400">
+              <div className="mt-5 flex flex-wrap gap-2.5">
+                <a href="/portfolio" className="rounded-full bg-orange-500 px-5 py-2.5 text-sm font-bold text-slate-950 transition hover:bg-orange-400 hover:scale-[1.04] active:scale-[0.97]">
                   💼 Portfolio
                 </a>
-                <a href="/wallets" className="rounded-full border border-orange-400/40 px-5 py-2.5 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white">
+                <a href="/wallets" className="rounded-full border border-orange-400/40 px-5 py-2.5 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white hover:scale-[1.03]">
                   🔗 Carteiras
                 </a>
-                <a href="/smart-money" className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-orange-400/40 hover:text-orange-200">
+                <a href="/smart-money" className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-orange-400/40 hover:text-orange-200 hover:scale-[1.03]">
                   🕵️ Smart Money
                 </a>
-                <a href="/mercado" className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white">
+                <a href="/mercado" className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white hover:scale-[1.03]">
                   🌍 Mercado
                 </a>
-                <a href="/fiscalidade" className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-orange-400/40 hover:text-orange-200">
+                <a href="/fiscalidade" className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-orange-400/40 hover:text-orange-200 hover:scale-[1.03]">
                   📋 Impostos
                 </a>
-                <a href="/fire" className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-orange-400/40 hover:text-orange-200">
+                <a href="/fire" className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-orange-400/40 hover:text-orange-200 hover:scale-[1.03]">
                   🔥 FIRE
                 </a>
-                <a href="/account" className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white">
+                <a href="/account" className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white hover:scale-[1.03]">
                   ⚙️ Conta
                 </a>
               </div>
@@ -299,22 +299,22 @@ export default function DashboardPage() {
               <p className="mt-1 text-sm text-slate-400">Cada secção tem um propósito claro. Clica para explorar.</p>
             </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {GUIDE.map((item) => {
+              {GUIDE.map((item, i) => {
                 const content = (
-                  <div className={`rounded-2xl border p-5 transition ${item.color} ${item.href ? "hover:border-orange-500/40 hover:bg-slate-900 cursor-pointer" : ""}`}>
+                  <div className={`card-hover rounded-2xl border p-5 animate-fade-in-up delay-${Math.min(i * 100, 500)} ${item.color} ${item.href ? "cursor-pointer" : ""}`}>
                     <div className="flex items-start justify-between">
                       <span className="text-2xl">{item.icon}</span>
-                      {item.href && <span className="text-xs text-slate-600 font-mono">{item.subtitle}</span>}
-                      {!item.href && <span className="rounded-full border border-orange-500/40 px-2 py-0.5 text-xs font-semibold text-orange-400">Aqui</span>}
+                      {item.href && <span className="text-[10px] text-slate-600 font-mono tracking-wider">{item.subtitle}</span>}
+                      {!item.href && <span className="rounded-full border border-orange-500/40 px-2 py-0.5 text-[10px] font-bold text-orange-400 uppercase tracking-wider">Aqui</span>}
                     </div>
-                    <h3 className="mt-3 text-base font-bold text-white">{item.title}</h3>
-                    <p className="mt-1.5 text-sm text-slate-400 leading-relaxed">{item.description}</p>
+                    <h3 className="mt-3 text-sm font-bold text-white">{item.title}</h3>
+                    <p className="mt-1.5 text-xs text-slate-400 leading-relaxed">{item.description}</p>
                     {item.href && (
-                      <span className="mt-3 inline-block text-xs font-semibold text-orange-400">Abrir →</span>
+                      <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-orange-400 group-hover:gap-2 transition-all">Abrir <span>→</span></span>
                     )}
                   </div>
                 );
-                return item.href ? <a key={item.title} href={item.href}>{content}</a> : <div key={item.title}>{content}</div>;
+                return item.href ? <a key={item.title} href={item.href} className="group">{content}</a> : <div key={item.title}>{content}</div>;
               })}
             </div>
           </section>
