@@ -25,24 +25,22 @@ export default function AppHeader({
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
   const [theme, setTheme] = useState<ThemeMode>("dark");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
-
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(({ data }: { data: { session: { user: { email?: string } } | null } }) => {
       if (!isMounted) return;
       const session = data.session ?? null;
       setIsLoggedIn(!!session);
       setEmail(session?.user?.email ?? null);
       setIsReady(true);
     });
-
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event: unknown, session: { user: { email?: string } } | null) => {
       setIsLoggedIn(!!session);
       setEmail(session?.user?.email ?? null);
       setIsReady(true);
     });
-
     return () => {
       isMounted = false;
       subscription.subscription.unsubscribe();
@@ -53,31 +51,24 @@ export default function AppHeader({
     const stored = typeof window !== "undefined" ? localStorage.getItem("theme") : null;
     if (stored === "light" || stored === "dark") {
       setTheme(stored);
-      if (typeof document !== "undefined") {
-        document.body.classList.toggle("theme-light", stored === "light");
-      }
+      document.body?.classList.toggle("theme-light", stored === "light");
       return;
     }
-
     if (typeof window !== "undefined") {
       const prefersLight = window.matchMedia("(prefers-color-scheme: light)").matches;
       const next = prefersLight ? "light" : "dark";
       setTheme(next);
-      if (typeof document !== "undefined") {
-        document.body.classList.toggle("theme-light", next === "light");
-      }
+      document.body?.classList.toggle("theme-light", next === "light");
     }
   }, []);
 
-  const logoClassName =
-    variant === "public"
-      ? "mt-10 h-28 w-28 rounded-full object-cover shadow-lg [transform:scaleX(-1)]"
-      : "mt-10 h-28 w-28 rounded-full object-cover shadow-lg [transform:scaleX(-1)]";
+  // Fechar menu mobile ao navegar
+  useEffect(() => { setMobileMenuOpen(false); }, [pathname]);
 
   const computedSubtitle = useMemo(() => {
     if (subtitle) return subtitle;
     if (variant === "public") return "Controle inteligente de investimentos";
-    return "Área do utilizador";
+    return null;
   }, [subtitle, variant]);
 
   const handleLogout = async () => {
@@ -85,24 +76,11 @@ export default function AppHeader({
     window.location.href = "/";
   };
 
-  const handleBack = () => {
-    if (typeof window === "undefined") return;
-    if (window.history.length > 1) {
-      window.history.back();
-      return;
-    }
-    window.location.href = "/dashboard";
-  };
-
   const handleToggleTheme = () => {
     const next = theme === "dark" ? "light" : "dark";
     setTheme(next);
-    if (typeof document !== "undefined") {
-      document.body.classList.toggle("theme-light", next === "light");
-    }
-    if (typeof window !== "undefined") {
-      localStorage.setItem("theme", next);
-    }
+    document.body?.classList.toggle("theme-light", next === "light");
+    localStorage.setItem("theme", next);
   };
 
   const isActiveHref = (href: string) => {
@@ -111,184 +89,139 @@ export default function AppHeader({
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
-  const navLinkClass = (href: string) => {
-    const isActive = isActiveHref(href);
-    return `app-nav-link rounded-full px-4 py-2 text-base font-semibold transition ${
-      isActive
+  const navLinkClass = (href: string) =>
+    `whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium transition ${
+      isActiveHref(href)
         ? "bg-slate-800 text-white"
-        : "text-slate-200 hover:bg-slate-950/60 hover:text-white"
+        : "text-slate-300 hover:bg-slate-800/60 hover:text-white"
     }`;
-  };
 
-  const gradientFrameClass =
-    "rounded-full bg-gradient-to-r from-orange-500/40 via-slate-700/40 to-slate-900/40 p-[1px]";
+  const gradientFrame = "rounded-full bg-gradient-to-r from-orange-500/40 via-slate-700/40 to-slate-900/40 p-[1px]";
+  const btnClass = "rounded-full border border-slate-800 bg-slate-900/40 px-3 py-1.5 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:text-white";
 
-  const framedButtonClass =
-    "rounded-full border border-slate-800 bg-slate-900/40 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white";
+  const appNavItems = [
+    { href: "/dashboard", label: "Dashboard" },
+    { href: "/portfolio", label: "Portfolio" },
+    { href: "/wallets", label: "Carteiras" },
+    { href: "/smart-money", label: "Smart Money" },
+    { href: "/mercado", label: "Mercado" },
+    { href: "/fiscalidade", label: "Impostos" },
+    { href: "/fire", label: "FIRE" },
+    { href: "/account", label: "Conta" },
+  ];
 
   return (
-    <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-6">
-      <div className="flex items-center gap-3">
-        <img src="/owlfund-owl.png" alt="Owlfund" className={logoClassName} />
-        <div>
-          <p className="brand-accent text-base font-semibold uppercase tracking-[0.32em] text-orange-300/80">
-            {title}
-          </p>
-          <p className="text-base text-slate-400">{computedSubtitle}</p>
+    <header className="mx-auto w-full max-w-7xl px-4 pb-2 pt-4">
+      {/* ── Linha principal ── */}
+      <div className="flex items-center justify-between gap-3">
+        {/* Logo + título */}
+        <a href={variant === "app" ? "/dashboard" : "/"} className="flex items-center gap-2.5 flex-shrink-0">
+          <img
+            src="/owlfund-owl.png"
+            alt="Owlfund"
+            className={variant === "public"
+              ? "h-16 w-16 rounded-full object-cover shadow-lg [transform:scaleX(-1)]"
+              : "h-10 w-10 rounded-full object-cover shadow-lg [transform:scaleX(-1)]"}
+          />
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-orange-300/90">{title}</p>
+            {computedSubtitle && (
+              <p className="text-xs text-slate-400 leading-tight">{computedSubtitle}</p>
+            )}
+          </div>
+        </a>
+
+        {/* Nav desktop */}
+        <nav className="hidden xl:flex items-center flex-1 justify-center">
+          {variant === "public" ? (
+            <div className="flex items-center gap-0.5 rounded-full border border-slate-800 bg-slate-900/40 p-1 backdrop-blur">
+              {[{ href: "#recursos", label: "Recursos" }, { href: "#fluxo", label: "Fluxo" }, { href: "#contato", label: "Contato" }].map((item) => (
+                <span key={item.href} className={gradientFrame}>
+                  <a className={navLinkClass(item.href)} href={item.href}>{item.label}</a>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center gap-0.5 rounded-full border border-slate-800 bg-slate-900/40 p-1 backdrop-blur">
+              {appNavItems.map((item) => (
+                <span key={item.href} className={gradientFrame}>
+                  <a className={navLinkClass(item.href)} href={item.href}>{item.label}</a>
+                </span>
+              ))}
+            </div>
+          )}
+        </nav>
+
+        {/* Ações direita */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {variant === "public" ? (
+            <>
+              <button type="button" onClick={handleToggleTheme} className={`${btnClass} px-2.5`} title="Tema">
+                {theme === "dark" ? "🌙" : "☀️"}
+              </button>
+              <span className={gradientFrame}>
+                {isReady && isLoggedIn
+                  ? <a className={btnClass} href="/dashboard">Dashboard</a>
+                  : <a className={btnClass} href="/login">Entrar</a>}
+              </span>
+              <span className={gradientFrame}>
+                <a className="rounded-full border border-orange-400/60 bg-orange-500/10 px-3 py-1.5 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white" href="#contato">
+                  Solicitar demo
+                </a>
+              </span>
+            </>
+          ) : (
+            <>
+              {isReady && email && (
+                <span className="hidden lg:inline text-xs text-slate-500 max-w-[160px] truncate">{email}</span>
+              )}
+              <button type="button" onClick={handleToggleTheme} className={`${btnClass} px-2.5`} title="Tema">
+                {theme === "dark" ? "🌙" : "☀️"}
+              </button>
+              <span className={gradientFrame}>
+                {isReady && isLoggedIn
+                  ? <button type="button" onClick={handleLogout} className={btnClass}>Sair</button>
+                  : <a className={btnClass} href="/login">Entrar</a>}
+              </span>
+              {/* Hamburger mobile */}
+              <button
+                type="button"
+                className="xl:hidden flex flex-col gap-[5px] p-2 rounded-lg border border-slate-800 bg-slate-900/40"
+                onClick={() => setMobileMenuOpen((o) => !o)}
+                aria-label="Menu"
+              >
+                <span className={`block h-0.5 w-5 bg-slate-300 transition-transform ${mobileMenuOpen ? "translate-y-[7px] rotate-45" : ""}`} />
+                <span className={`block h-0.5 w-5 bg-slate-300 transition-opacity ${mobileMenuOpen ? "opacity-0" : ""}`} />
+                <span className={`block h-0.5 w-5 bg-slate-300 transition-transform ${mobileMenuOpen ? "-translate-y-[7px] -rotate-45" : ""}`} />
+              </button>
+            </>
+          )}
         </div>
       </div>
 
-      <nav className="hidden items-center md:flex">
-        {variant === "public" ? (
-          <div className="flex items-center gap-1 rounded-full border border-slate-800 bg-slate-900/40 p-1.5 backdrop-blur">
-            <span className={gradientFrameClass}>
+      {/* ── Menu mobile dropdown ── */}
+      {variant === "app" && mobileMenuOpen && (
+        <nav className="xl:hidden mt-2 rounded-2xl border border-slate-800 bg-slate-900/95 p-3 backdrop-blur">
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+            {appNavItems.map((item) => (
               <a
-                className="app-nav-link rounded-full px-4 py-2 text-base font-semibold transition hover:bg-slate-950/60 hover:text-white"
-                href="#recursos"
+                key={item.href}
+                href={item.href}
+                className={`rounded-xl px-3 py-2.5 text-sm font-medium text-center transition ${
+                  isActiveHref(item.href)
+                    ? "bg-orange-500/20 text-orange-200 border border-orange-500/30"
+                    : "text-slate-300 hover:bg-slate-800 hover:text-white border border-transparent"
+                }`}
               >
-                Recursos
+                {item.label}
               </a>
-            </span>
-            <span className={gradientFrameClass}>
-              <a
-                className="app-nav-link rounded-full px-4 py-2 text-base font-semibold transition hover:bg-slate-950/60 hover:text-white"
-                href="#fluxo"
-              >
-                Fluxo
-              </a>
-            </span>
-            <span className={gradientFrameClass}>
-              <a
-                className="app-nav-link rounded-full px-4 py-2 text-base font-semibold transition hover:bg-slate-950/60 hover:text-white"
-                href="#contato"
-              >
-                Contato
-              </a>
-            </span>
+            ))}
           </div>
-        ) : (
-          <div className="flex items-center gap-1 rounded-full border border-slate-800 bg-slate-900/40 p-1.5 backdrop-blur">
-            <span className={gradientFrameClass}>
-              <a className={navLinkClass("/dashboard")} href="/dashboard">
-                Dashboard
-              </a>
-            </span>
-            <span className={gradientFrameClass}>
-              <a className={navLinkClass("/portfolio")} href="/portfolio">
-                Portfolio
-              </a>
-            </span>
-            <span className={gradientFrameClass}>
-              <a className={navLinkClass("/wallets")} href="/wallets">
-                Carteiras
-              </a>
-            </span>
-            <span className={gradientFrameClass}>
-              <a className={navLinkClass("/smart-money")} href="/smart-money">
-                Smart Money
-              </a>
-            </span>
-            <span className={gradientFrameClass}>
-              <a className={navLinkClass("/mercado")} href="/mercado">
-                Mercado
-              </a>
-            </span>
-            <span className={gradientFrameClass}>
-              <a className={navLinkClass("/fiscalidade")} href="/fiscalidade">
-                Impostos
-              </a>
-            </span>
-            <span className={gradientFrameClass}>
-              <a className={navLinkClass("/fire")} href="/fire">
-                FIRE
-              </a>
-            </span>
-            <span className={gradientFrameClass}>
-              <a className={navLinkClass("/account")} href="/account">
-                Conta
-              </a>
-            </span>
-          </div>
-        )}
-      </nav>
-
-      <div className="flex items-center gap-4">
-        {variant === "public" ? (
-          <>
-            {isReady ? (
-              isLoggedIn ? (
-                <a
-                  className="text-sm font-semibold text-slate-200 transition hover:text-white"
-                  href="/dashboard"
-                >
-                  Dashboard
-                </a>
-              ) : (
-                <a
-                  className="text-sm font-semibold text-slate-200 transition hover:text-white"
-                  href="/login"
-                >
-                  Entrar
-                </a>
-              )
-            ) : (
-              <span className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                Carregando
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={handleToggleTheme}
-              className={`${framedButtonClass} px-3 py-2 text-xs`}
-              aria-label={theme === "dark" ? "Modo escuro" : "Modo claro"}
-              title={theme === "dark" ? "Modo escuro" : "Modo claro"}
-            >
-              {theme === "dark" ? "🌙" : "☀️"}
-            </button>
-
-            <span className={gradientFrameClass}>
-              <a className={framedButtonClass} href="#contato">
-                Solicitar demo
-              </a>
-            </span>
-          </>
-        ) : (
-          <>
-            <span className="hidden text-sm text-slate-400 md:inline">
-              {isReady && email ? email : ""}
-            </span>
-            <span className={gradientFrameClass}>
-              <button type="button" onClick={handleBack} className={framedButtonClass}>
-                Voltar
-              </button>
-            </span>
-            <span className={gradientFrameClass}>
-              <button
-                type="button"
-                onClick={handleToggleTheme}
-                className={`${framedButtonClass} px-3 py-2 text-xs`}
-                aria-label={theme === "dark" ? "Modo escuro" : "Modo claro"}
-                title={theme === "dark" ? "Modo escuro" : "Modo claro"}
-              >
-                {theme === "dark" ? "🌙" : "☀️"}
-              </button>
-            </span>
-            {isReady && isLoggedIn ? (
-              <span className={gradientFrameClass}>
-                <button type="button" onClick={handleLogout} className={framedButtonClass}>
-                  Sair
-                </button>
-              </span>
-            ) : (
-              <span className={gradientFrameClass}>
-                <a className={framedButtonClass} href="/login">
-                  Entrar
-                </a>
-              </span>
-            )}
-          </>
-        )}
-      </div>
+          {isReady && email && (
+            <p className="mt-2 px-2 text-xs text-slate-600 truncate">{email}</p>
+          )}
+        </nav>
+      )}
     </header>
   );
 }
