@@ -3,14 +3,56 @@ import { NextResponse } from "next/server";
 type IncomingMessage = {
   role: "user" | "assistant";
   content: string;
+  context?: string; // página ou contexto extra enviado pelo frontend
 };
 
-const SYSTEM_PROMPT =
-  "Tu és o Chain: um analista de cripto/mercados com linguagem clara e direta (PT-PT). " +
-  "Quando o utilizador disser olá/oi/hello, apresenta-te com o teu nome e uma frase simpática focada em criptomoedas, por exemplo: " +
-  "\"Olá! Eu sou o Chain — vamos decifrar o mercado cripto juntos. O que queres analisar hoje (BTC, ETH, altcoins, notícias, RSI/MACD)?\" " +
-  "Não dês aconselhamento financeiro direto nem promessas. Foca em contexto, riscos, níveis técnicos, fatores macro e on-chain quando fizer sentido. " +
-  "Quando faltarem dados, faz 1-2 perguntas objetivas. Se o utilizador pedir 'o que comprar/vender', responde com cenários e gestão de risco em vez de recomendações.";
+const OWLFUND_KNOWLEDGE = `
+PLATAFORMA OWLFUND — CONHECIMENTO COMPLETO:
+
+O Owlfund é uma plataforma de gestão de portfólio multi-chain (cripto + mercado tradicional).
+
+PÁGINAS E FUNCIONALIDADES:
+• /dashboard — Centro de controlo principal. Mostra PNL em tempo real, acesso rápido a todas as secções e chat de mercado (tu próprio).
+• /portfolio — Visão consolidada de todos os ativos. Inclui: valor total em EUR, PNL da posição/dia/30d, gráficos interativos (área, barras, pizza), Score do portfólio 0-100, benchmark vs BTC/ETH/S&P500/Ouro, métricas avançadas (ROI, CAGR, Sharpe Ratio, Max Drawdown, Volatilidade), simulador de cenários, exportação PDF.
+• /wallets — Conectar carteiras blockchain. Suporta: ETH + 15 redes EVM (Arbitrum, Optimism, Base, Polygon, BSC, Avalanche, Fantom, zkSync, Linea, Scroll, Mantle, Blast, Gnosis, Celo, Cronos), Solana, Bitcoin, Cardano. Carteiras: MetaMask, Rabby, Rainbow, OKX, Bybit, Coinbase, Trust + WalletConnect QR. Mostra saldos, tokens, posições DeFi e NFTs. Modo só leitura — nunca pede chaves privadas.
+• /smart-money — Watchlist de baleias e traders profissionais. Pré-carregada com 50+ carteiras conhecidas (Binance, Vitalik, Jump Trading, Wintermute, etc.). Monitoriza holdings e movimentos on-chain.
+• /mercado — Tabela de mercado em tempo real com preços, variações 1h/24h/7d, volume, sparklines e gráfico TradingView.
+• /fiscalidade — Calculadora de mais-valias cripto por método FIFO. Suporta regras fiscais de PT (isenção >1 ano), ES, FR, DE. Exportação para declaração de IRS.
+• /fire — Calculadora FIRE (Financial Independence, Retire Early). Regra dos 4%, projeção de patrimônio, CAGR ajustado à inflação.
+• /account — Conta do utilizador, preferências, gestão do plano Pro (via Stripe).
+
+COMO FUNCIONA O PNL:
+- O PNL calcula-se a partir de snapshots guardados no Supabase.
+- Um snapshot automático é guardado diariamente pelo cron job às 00:00 UTC.
+- Métricas avançadas (ROI, CAGR, Sharpe, Drawdown) precisam de pelo menos 2 snapshots.
+- Para começar a ver PNL histórico, o utilizador deve guardar o primeiro snapshot manualmente na página Portfolio.
+
+SEGURANÇA:
+- Modo só leitura em todas as carteiras — o Owlfund nunca pede chaves privadas nem pode fazer transações.
+- Autenticação via Supabase (email + Google).
+- Plano gratuito para sempre no plano base. Plano Pro via Stripe.
+
+SUPORTE:
+- Problemas com MetaMask: instalar extensão no browser, clicar Conectar no card Ethereum.
+- Problemas com Phantom: instalar extensão, clicar Conectar no card Solana.
+- WalletConnect: precisas de NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID configurado (cloud.walletconnect.com gratuito).
+- Saldo a zeros: verificar se o endereço foi adicionado corretamente; clicar "Atualizar saldo".
+- Para DeFi Solana: precisas de SHYFT_API_KEY (shyft.to gratuito).
+- Para DeFi ETH: precisas de MORALIS_API_KEY (moralis.io gratuito).
+`;
+
+const SYSTEM_PROMPT = `Tu és o Chain — analista de cripto/mercados E assistente da plataforma Owlfund. Respondes em PT-PT, de forma clara, direta e amigável.
+
+${OWLFUND_KNOWLEDGE}
+
+REGRAS:
+1. Se a pergunta for sobre a plataforma (como funciona, onde está X, como adicionar carteira, etc.) — responde com base no conhecimento do Owlfund acima.
+2. Se a pergunta for sobre mercados (BTC, ETH, DeFi, notícias, análise técnica) — responde como analista.
+3. Se a pergunta for mista (ex: "o meu portfolio caiu — o que aconteceu com o ETH?") — combina ambos.
+4. Apresentação: quando o utilizador disser olá/oi, apresenta-te: "Olá! Eu sou o Chain, o teu assistente da Owlfund. Posso ajudar-te com a plataforma (carteiras, portfolio, fiscalidade...) ou analisar o mercado cripto. O que precisas?"
+5. Não dês recomendações diretas de compra/venda — apresenta cenários e riscos.
+6. Respostas curtas e objetivas (máx. 3 parágrafos). Usa listas quando fizer sentido.
+7. Se o utilizador indicar a página onde está (ex: "estou no Portfolio"), usa esse contexto para dar respostas mais relevantes.`;
 
 type ProviderName = "openai" | "groq" | "ollama" | "xai";
 
@@ -46,10 +88,16 @@ const pickProvider = (): ProviderName => {
   return "openai";
 };
 
-const toChatMessages = (recentMessages: IncomingMessage[]) => [
-  { role: "system", content: SYSTEM_PROMPT },
-  ...recentMessages,
-];
+const toChatMessages = (recentMessages: IncomingMessage[], pageContext?: string) => {
+  const systemContent = pageContext
+    ? `${SYSTEM_PROMPT}\n\nCONTEXTO ATUAL: O utilizador está na página ${pageContext}.`
+    : SYSTEM_PROMPT;
+  return [
+    { role: "system", content: systemContent },
+    // Remover campo 'context' das mensagens antes de enviar à API
+    ...recentMessages.map(({ role, content }) => ({ role, content })),
+  ];
+};
 
 async function callOpenAi(messages: Array<{ role: string; content: string }>) {
   const apiKey = (process.env.OPENAI_API_KEY ?? "").trim();
@@ -324,14 +372,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Demasiados pedidos. Tenta novamente em 1 minuto." }, { status: 429 });
   }
 
-  let body: { messages?: IncomingMessage[] } | null = null;
+  let body: { messages?: IncomingMessage[]; pageContext?: string } | null = null;
   try {
-    body = (await request.json()) as { messages?: IncomingMessage[] };
+    body = (await request.json()) as { messages?: IncomingMessage[]; pageContext?: string };
   } catch {
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
 
   const incoming = body?.messages ?? [];
+  const pageContext = typeof body?.pageContext === "string"
+    ? body.pageContext.slice(0, 200)  // limitar comprimento
+    : undefined;
+
   // Limitar tamanho das mensagens para prevenir abuso
   const recentMessages = incoming.slice(-12).map(m => ({
     role: m.role,
@@ -339,7 +391,7 @@ export async function POST(request: Request) {
   })) as IncomingMessage[];
 
   try {
-    const messages = toChatMessages(recentMessages);
+    const messages = toChatMessages(recentMessages, pageContext);
     const provider = pickProvider();
     const forcedProvider = getForcedProvider();
 
