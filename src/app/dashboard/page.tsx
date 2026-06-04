@@ -90,6 +90,22 @@ const GUIDE = [
     color: "border-slate-700 bg-slate-900/60",
   },
   {
+    icon: "📋",
+    title: "Fiscalidade",
+    subtitle: "/fiscalidade",
+    description: "Calcula mais-valias cripto por FIFO com regras fiscais de PT, ES, FR e DE. Exporta CSV para o IRS com um clique.",
+    href: "/fiscalidade",
+    color: "border-slate-700 bg-slate-900/60",
+  },
+  {
+    icon: "🔥",
+    title: "FIRE Calculator",
+    subtitle: "/fire",
+    description: "Calcula quando podes ser financeiramente livre. Projeção de patrimônio, regra dos 4%, planeamento patrimonial por categorias.",
+    href: "/fire",
+    color: "border-slate-700 bg-slate-900/60",
+  },
+  {
     icon: "⚙️",
     title: "Conta",
     subtitle: "/account",
@@ -238,6 +254,12 @@ export default function DashboardPage() {
                 </a>
                 <a href="/mercado" className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white">
                   🌍 Mercado
+                </a>
+                <a href="/fiscalidade" className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-orange-400/40 hover:text-orange-200">
+                  📋 Impostos
+                </a>
+                <a href="/fire" className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-orange-400/40 hover:text-orange-200">
+                  🔥 FIRE
                 </a>
                 <a href="/account" className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white">
                   ⚙️ Conta

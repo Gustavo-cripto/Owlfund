@@ -9,6 +9,7 @@ import {
 
 import AppHeader from "@/components/AppHeader";
 import PnlSummaryCard from "@/components/PnlSummaryCard";
+import ScenarioSimulator from "@/components/ScenarioSimulator";
 import { createClient } from "@/lib/supabase/client";
 import { loadWalletSnapshot, type StoredWalletEntry, type WalletSnapshot } from "@/lib/wallets/storage";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
@@ -164,6 +165,31 @@ export default function PortfolioPage() {
   const [aiReply, setAiReply] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+
+  // Buscar benchmark prices (BTC, ETH, S&P500, Gold via CoinGecko)
+  useEffect(() => {
+    setBenchmarkLoading(true);
+    fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,gold&vs_currencies=eur&include_24hr_change=true&include_7d_change=true&include_30d_change=true", { cache: "no-store" })
+      .then(r => r.ok ? r.json() : {})
+      .then((d: Record<string, { eur?: number; eur_24h_change?: number; eur_7d_change?: number; eur_30d_change?: number }>) => {
+        setBenchmarkPrices({
+          btc_eur: d.bitcoin?.eur ?? 0,
+          btc_24h: d.bitcoin?.eur_24h_change ?? 0,
+          btc_7d: d.bitcoin?.eur_7d_change ?? 0,
+          btc_30d: d.bitcoin?.eur_30d_change ?? 0,
+          eth_eur: d.ethereum?.eur ?? 0,
+          eth_24h: d.ethereum?.eur_24h_change ?? 0,
+          eth_7d: d.ethereum?.eur_7d_change ?? 0,
+          eth_30d: d.ethereum?.eur_30d_change ?? 0,
+          gold_eur: d.gold?.eur ?? 0,
+          gold_24h: d.gold?.eur_24h_change ?? 0,
+          gold_7d: d.gold?.eur_7d_change ?? 0,
+          gold_30d: d.gold?.eur_30d_change ?? 0,
+        });
+      })
+      .catch(() => {})
+      .finally(() => setBenchmarkLoading(false));
+  }, []);
 
   // Buscar preços EUR ao carregar
   useEffect(() => {
@@ -430,6 +456,10 @@ export default function PortfolioPage() {
     return { roi, cagr, sharpe, maxDrawdown: maxDrawdown * 100, volatility, days: Math.round(days) };
   }, [snapshotTotals, portfolioTotal]);
 
+  // ── Estado do benchmark ──
+  const [benchmarkPrices, setBenchmarkPrices] = useState<Record<string, number>>({});
+  const [benchmarkLoading, setBenchmarkLoading] = useState(false);
+
   const cryptoAllocations = useMemo(() => {
     const manualItems = Object.entries(cryptoHoldings).map(([symbol, holding]) => ({
       label: `${symbol} Manual`,
@@ -478,6 +508,44 @@ export default function PortfolioPage() {
       assets: byAsset,
     };
   }, [traditionalHoldings]);
+
+  // ── Score do portfólio (0–100) — depois de cryptoAllocations ──
+  const portfolioScore = useMemo(() => {
+    if (portfolioTotal <= 0) return null;
+    let score = 0;
+    const reasons: { label: string; points: number; max: number; ok: boolean }[] = [];
+
+    const allocValues = cryptoAllocations.filter(a => a.value > 0).map(a => a.value);
+    const maxAlloc = allocValues.length > 0 ? Math.max(...allocValues) : portfolioTotal;
+    const maxPct = portfolioTotal > 0 ? (maxAlloc / portfolioTotal) * 100 : 100;
+    const diversPts = maxPct > 80 ? 5 : maxPct > 60 ? 15 : maxPct > 40 ? 22 : 30;
+    score += diversPts;
+    reasons.push({ label: "Diversificação", points: diversPts, max: 30, ok: diversPts >= 22 });
+
+    const tradPct = portfolioTotal > 0 ? (traditionalTotal / portfolioTotal) * 100 : 0;
+    const tradPts = tradPct > 20 ? 20 : tradPct > 10 ? 15 : tradPct > 5 ? 10 : tradPct > 0 ? 5 : 0;
+    score += tradPts;
+    reasons.push({ label: "Mix Cripto/Tradicional", points: tradPts, max: 20, ok: tradPts >= 10 });
+
+    const stablePct = portfolioTotal > 0 ? (stablecoinTotal / portfolioTotal) * 100 : 0;
+    const stablePts = stablePct >= 5 && stablePct <= 30 ? 10 : stablePct > 0 ? 5 : 0;
+    score += stablePts;
+    reasons.push({ label: "Reserva Stablecoin", points: stablePts, max: 10, ok: stablePts >= 5 });
+
+    const roiPts = advancedMetrics ? (advancedMetrics.roi > 20 ? 20 : advancedMetrics.roi > 10 ? 15 : advancedMetrics.roi > 0 ? 10 : 0) : 0;
+    score += roiPts;
+    reasons.push({ label: "Performance (ROI)", points: roiPts, max: 20, ok: roiPts >= 10 });
+
+    const riskPts = advancedMetrics
+      ? (advancedMetrics.maxDrawdown > -50 ? 10 : 5) + (advancedMetrics.volatility !== null && advancedMetrics.volatility < 80 ? 10 : advancedMetrics.volatility !== null && advancedMetrics.volatility < 150 ? 5 : 0)
+      : 0;
+    score += riskPts;
+    reasons.push({ label: "Gestão de Risco", points: riskPts, max: 20, ok: riskPts >= 12 });
+
+    const label = score >= 80 ? "Excelente" : score >= 60 ? "Bom" : score >= 40 ? "Razoável" : "A melhorar";
+    const color = score >= 80 ? "text-emerald-400" : score >= 60 ? "text-orange-300" : score >= 40 ? "text-yellow-400" : "text-rose-400";
+    return { score, label, color, reasons };
+  }, [portfolioTotal, cryptoAllocations, traditionalTotal, stablecoinTotal, advancedMetrics]);
 
   const portfolioSplit = useMemo(() => {
     const total = cryptoTotal + traditionalTotal;
@@ -755,6 +823,125 @@ export default function PortfolioPage() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
+          </div>
+        </section>
+
+        {/* ── SCORE + BENCHMARK ── */}
+        <section className="grid gap-6 md:grid-cols-[1fr_1.6fr]">
+          {/* Score do portfólio */}
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Avaliação</p>
+            <h2 className="text-base font-bold text-white mt-0.5 mb-4">Score do portfólio</h2>
+            {portfolioTotal <= 0 ? (
+              <div className="flex h-32 items-center justify-center text-sm text-slate-500">Adiciona ativos para ver o score.</div>
+            ) : portfolioScore ? (
+              <div className="space-y-4">
+                {/* Score circular */}
+                <div className="flex items-center gap-5">
+                  <div className="relative flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-full border-4 border-slate-700">
+                    <div className={`text-2xl font-black ${portfolioScore.color}`}>{portfolioScore.score}</div>
+                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full bg-slate-900 px-2">
+                      <span className={`text-[10px] font-bold ${portfolioScore.color}`}>/100</span>
+                    </div>
+                  </div>
+                  <div>
+                    <p className={`text-lg font-bold ${portfolioScore.color}`}>{portfolioScore.label}</p>
+                    <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">Score calculado com base em diversificação, risco, performance e liquidez.</p>
+                  </div>
+                </div>
+                {/* Breakdown */}
+                <div className="space-y-2">
+                  {portfolioScore.reasons.map(r => (
+                    <div key={r.label} className="flex items-center gap-2">
+                      <span className={`text-sm ${r.ok ? "text-emerald-400" : "text-rose-400"}`}>{r.ok ? "✓" : "✗"}</span>
+                      <span className="text-xs text-slate-300 flex-1">{r.label}</span>
+                      <span className="text-xs font-semibold text-slate-400">{r.points}/{r.max}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          {/* Benchmark */}
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Comparação</p>
+            <h2 className="text-base font-bold text-white mt-0.5 mb-4">Benchmark</h2>
+            {benchmarkLoading ? (
+              <p className="text-xs text-slate-400 animate-pulse">A carregar benchmarks...</p>
+            ) : (
+              <div className="space-y-1">
+                {/* Header */}
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-800 text-[10px] uppercase tracking-wider text-slate-500">
+                  <span className="flex-1">Ativo</span>
+                  <span className="w-20 text-right">Preço</span>
+                  <span className="w-16 text-right">24h</span>
+                  <span className="w-16 text-right">7d</span>
+                  <span className="w-16 text-right">30d</span>
+                </div>
+                {[
+                  { label: "Bitcoin", sym: "BTC", icon: "₿", price: benchmarkPrices.btc_eur, d24: benchmarkPrices.btc_24h, d7: benchmarkPrices.btc_7d, d30: benchmarkPrices.btc_30d },
+                  { label: "Ethereum", sym: "ETH", icon: "Ξ", price: benchmarkPrices.eth_eur, d24: benchmarkPrices.eth_24h, d7: benchmarkPrices.eth_7d, d30: benchmarkPrices.eth_30d },
+                  { label: "Ouro", sym: "XAU", icon: "Au", price: benchmarkPrices.gold_eur, d24: benchmarkPrices.gold_24h, d7: benchmarkPrices.gold_7d, d30: benchmarkPrices.gold_30d },
+                ].map(b => {
+                  const fmtChg = (v?: number) => {
+                    if (!v && v !== 0) return <span className="text-slate-600">—</span>;
+                    const cls = v >= 0 ? "text-emerald-400" : "text-rose-400";
+                    return <span className={cls}>{v >= 0 ? "+" : ""}{v.toFixed(1)}%</span>;
+                  };
+                  const fmtPrice = (v?: number) => v ? `€ ${v >= 1000 ? (v/1000).toFixed(1)+"K" : v.toFixed(0)}` : "—";
+                  return (
+                    <div key={b.sym} className="flex items-center gap-2 py-2 border-b border-slate-800/40">
+                      <div className="flex items-center gap-2 flex-1">
+                        <div className="h-7 w-7 rounded-full bg-orange-500/20 flex items-center justify-center text-[10px] font-bold text-orange-400">{b.icon}</div>
+                        <div>
+                          <p className="text-sm font-semibold text-white">{b.label}</p>
+                          <p className="text-[10px] text-slate-500">{b.sym}</p>
+                        </div>
+                      </div>
+                      <span className="w-20 text-right text-xs text-slate-300">{fmtPrice(b.price)}</span>
+                      <span className="w-16 text-right text-xs">{fmtChg(b.d24)}</span>
+                      <span className="w-16 text-right text-xs">{fmtChg(b.d7)}</span>
+                      <span className="w-16 text-right text-xs">{fmtChg(b.d30)}</span>
+                    </div>
+                  );
+                })}
+                {/* Portfolio vs benchmark */}
+                {pnlSummary.position !== 0 && portfolioTotal > 0 && (
+                  <div className="flex items-center gap-2 py-2">
+                    <div className="flex items-center gap-2 flex-1">
+                      <div className="h-7 w-7 rounded-full bg-orange-500 flex items-center justify-center text-[10px] font-bold text-slate-950">🦉</div>
+                      <div>
+                        <p className="text-sm font-semibold text-white">O teu portfólio</p>
+                        <p className="text-[10px] text-slate-500">ROI total</p>
+                      </div>
+                    </div>
+                    <span className="w-20 text-right text-xs text-slate-300">€ {portfolioTotal >= 1000 ? (portfolioTotal/1000).toFixed(1)+"K" : portfolioTotal.toFixed(0)}</span>
+                    <span className="w-16 text-right text-xs">
+                      {pnlSummary.today !== 0 && portfolioTotal > 0 ? (
+                        <span className={pnlSummary.today >= 0 ? "text-emerald-400" : "text-rose-400"}>
+                          {pnlSummary.today >= 0 ? "+" : ""}{((pnlSummary.today / portfolioTotal) * 100).toFixed(1)}%
+                        </span>
+                      ) : <span className="text-slate-600">—</span>}
+                    </span>
+                    <span className="w-16 text-right text-xs">
+                      {advancedMetrics ? (
+                        <span className={advancedMetrics.roi >= 0 ? "text-emerald-400" : "text-rose-400"}>
+                          {advancedMetrics.roi >= 0 ? "+" : ""}{advancedMetrics.roi.toFixed(1)}%
+                        </span>
+                      ) : <span className="text-slate-600">—</span>}
+                    </span>
+                    <span className="w-16 text-right text-xs">
+                      {pnlSummary.days30 !== 0 && portfolioTotal > 0 ? (
+                        <span className={pnlSummary.days30 >= 0 ? "text-emerald-400" : "text-rose-400"}>
+                          {pnlSummary.days30 >= 0 ? "+" : ""}{((pnlSummary.days30 / portfolioTotal) * 100).toFixed(1)}%
+                        </span>
+                      ) : <span className="text-slate-600">—</span>}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </section>
 
@@ -1063,6 +1250,25 @@ export default function PortfolioPage() {
             </div>
           )}
         </section>
+        {/* ── SIMULADOR DE CENÁRIOS ── */}
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+          <div className="mb-5">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Simulação</p>
+            <h2 className="text-base font-bold text-white mt-0.5">Simulador de cenários</h2>
+            <p className="text-xs text-slate-400 mt-0.5">Vê o impacto de variações de preço no teu portfólio em tempo real.</p>
+          </div>
+          {portfolioTotal <= 0 ? (
+            <p className="text-sm text-slate-500">Adiciona ativos para usar o simulador.</p>
+          ) : (
+            <ScenarioSimulator
+              portfolioTotal={portfolioTotal}
+              allocations={cryptoAllocations}
+              traditionalTotal={traditionalTotal}
+              stablecoinTotal={stablecoinTotal}
+            />
+          )}
+        </section>
+
         {/* ── IA CONTEXTUAL ── */}
         <section className="rounded-2xl border border-orange-500/20 bg-gradient-to-br from-orange-500/10 via-slate-900 to-slate-950 p-6">
           <div className="mb-4">

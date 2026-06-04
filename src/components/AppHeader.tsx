@@ -194,6 +194,16 @@ export default function AppHeader({
               </a>
             </span>
             <span className={gradientFrameClass}>
+              <a className={navLinkClass("/fiscalidade")} href="/fiscalidade">
+                Impostos
+              </a>
+            </span>
+            <span className={gradientFrameClass}>
+              <a className={navLinkClass("/fire")} href="/fire">
+                FIRE
+              </a>
+            </span>
+            <span className={gradientFrameClass}>
               <a className={navLinkClass("/account")} href="/account">
                 Conta
               </a>
