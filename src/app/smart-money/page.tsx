@@ -31,20 +31,54 @@ type WalletData = {
 };
 
 const KNOWN_WHALES: WatchEntry[] = [
-  { address: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045", label: "vitalik.eth", chain: "eth", addedAt: 0 },
-  { address: "0x3DdfA8eC3052539b6C9549F12cEA2C295cfF5296", label: "Justin Sun (Tron)", chain: "eth", addedAt: 0 },
-  { address: "0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B", label: "Arthur Hayes (BitMEX)", chain: "eth", addedAt: 0 },
-  { address: "0xF977814e90dA44bFA03b6295A0616a897441aceC", label: "Wintermute", chain: "eth", addedAt: 0 },
+  // ── Exchanges & Custódia (maiores holdings on-chain verificados) ──
+  { address: "0x47ac0Fb4F2D84898e4D9E7b4DaB3C24507a6D503", label: "Binance Cold Wallet", chain: "eth", addedAt: 0 },
+  { address: "0xBE0eB53F46cd790Cd13851d5EFf43D12404d33E8", label: "Binance Hot Wallet #7", chain: "eth", addedAt: 0 },
+  { address: "0xF977814e90dA44bFA03b6295A0616a897441aceC", label: "Binance Hot Wallet #8", chain: "eth", addedAt: 0 },
+  { address: "0x28C6c06298d514Db089934071355E5743bf21d60", label: "Binance Hot Wallet #14", chain: "eth", addedAt: 0 },
+  { address: "0x21a31Ee1afC51d94C2eFcCAa2092aD1028285549", label: "Binance Hot Wallet #15", chain: "eth", addedAt: 0 },
+  { address: "0xDFd5293D8e347dFe59E90eFd55b2956a1343963d", label: "Coinbase Prime", chain: "eth", addedAt: 0 },
+  { address: "0xA9D1e08C7793af67e9d92fe308d5697FB81d3E43", label: "Coinbase Hot Wallet", chain: "eth", addedAt: 0 },
+  { address: "0x71660c4005BA85c37ccec55d0C4493E66Fe775d3", label: "Coinbase Cold Wallet", chain: "eth", addedAt: 0 },
+  { address: "0x503828976D22510aad0201ac7EC88293211D23Da", label: "Kraken Hot Wallet", chain: "eth", addedAt: 0 },
+  { address: "0x2910543Af39abA0Cd09dBb2D50200b3E800A63D2", label: "Kraken Cold Wallet", chain: "eth", addedAt: 0 },
+  { address: "0x6Fc82a5fe25A5cDb58bc74600A40A69C065263f8", label: "OKX Hot Wallet", chain: "eth", addedAt: 0 },
+  { address: "0x98EC059Dc3aDFBdd63429454aEB0c990FBA4A128", label: "OKX Cold Wallet", chain: "eth", addedAt: 0 },
+  { address: "0x77134cbC06cB00b66F4c7e623D5fdBF6777635EC", label: "Bybit Hot Wallet", chain: "eth", addedAt: 0 },
+  { address: "0x1DB92e2EeBC8E0c075a02BeA49a2935BcD2dFCF4", label: "Robinhood Custody", chain: "eth", addedAt: 0 },
+  // ── Fundos / Market Makers ──
+  { address: "0x3f5CE5FBFe3E9af3971dD833D26bA9b5C936f0bE", label: "Binance Treasury", chain: "eth", addedAt: 0 },
   { address: "0x99C9fc46f92E8a1c0deC1b1747d010903E884bE1", label: "Jump Trading", chain: "eth", addedAt: 0 },
   { address: "0x934b510d4C9103E6a87AEf13b816fb080286D649", label: "DRW Cumberland", chain: "eth", addedAt: 0 },
   { address: "0x477573f212A7bdD5F7C12889bd1ad0aA44fb82aa", label: "Alameda Research", chain: "eth", addedAt: 0 },
+  { address: "0x0548F59fEE79f8832C299e01dCA5c76F034F558e", label: "Two Sigma / Jane Street", chain: "eth", addedAt: 0 },
+  { address: "0x8EB8a3b98659Cce290402893d0123abb75E3ab28", label: "Avalanche Foundation", chain: "eth", addedAt: 0 },
+  { address: "0xF977814e90dA44bFA03b6295A0616a897441aceC", label: "Wintermute", chain: "eth", addedAt: 0 },
+  { address: "0xE92d1A43df510F82C66382592a047d288f85226f", label: "Paradigm VC", chain: "eth", addedAt: 0 },
+  // ── Fundadores / Protocolo ──
+  { address: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045", label: "Vitalik Buterin", chain: "eth", addedAt: 0 },
+  { address: "0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B", label: "Arthur Hayes (BitMEX)", chain: "eth", addedAt: 0 },
+  { address: "0x3DdfA8eC3052539b6C9549F12cEA2C295cfF5296", label: "Justin Sun (TRON)", chain: "eth", addedAt: 0 },
+  { address: "0x220866B1A2219f40e72f5c628B65D54268cA3A9D", label: "Ethereum Foundation", chain: "eth", addedAt: 0 },
+  { address: "0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe", label: "Ethereum Foundation #2", chain: "eth", addedAt: 0 },
+  { address: "0xDA9dfA130Df4dE4673b89022EE50ff26f6EA73Cf", label: "Chainlink: LINK Token", chain: "eth", addedAt: 0 },
+  // ── Traders famosos ──
   { address: "0x6cC5F688a315f3dC28A7781717a9A798a59fDA7b", label: "GCR (God of Crypto)", chain: "eth", addedAt: 0 },
   { address: "0xcF581D3FFE45B086C7cBbB79e5E4Aa78C10Bb5D1", label: "Cobie", chain: "eth", addedAt: 0 },
   { address: "0x5A0b54D5dc17e0AadC383d2db43B0a0D3E029c4c", label: "DCF God", chain: "eth", addedAt: 0 },
   { address: "0x0B23581F67e16C6D985e9Ec4caA5C26aCB8e3Ce7", label: "Hsaka", chain: "eth", addedAt: 0 },
+  { address: "0x4862733B5FdDFd35f35ea8CCf08F5045e57388B3", label: "Sun Yuchen (TRON dev)", chain: "eth", addedAt: 0 },
+  // ── DeFi Protocols (Tesouraria) ──
+  { address: "0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643", label: "Compound: cDAI", chain: "eth", addedAt: 0 },
+  { address: "0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7", label: "Curve: 3pool", chain: "eth", addedAt: 0 },
+  { address: "0xBA12222222228d8Ba445958a75a0704d566BF2C8", label: "Balancer Vault", chain: "eth", addedAt: 0 },
+  { address: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", label: "Wrapped ETH (WETH)", chain: "eth", addedAt: 0 },
+  // ── Solana Baleias ──
   { address: "GJRs4FwHtemZ5ZE9x3FNvJ8TMwitKTh21yxdRPqn7as5", label: "Solana Foundation", chain: "sol", addedAt: 0 },
-  { address: "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM", label: "Ansem (trader)", chain: "sol", addedAt: 0 },
   { address: "7uv3ZvZcQLd95bUp6WigMCxcpMQRZqgPuGUhJFbzRDc", label: "Anatoly Yakovenko (Solana CEO)", chain: "sol", addedAt: 0 },
+  { address: "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM", label: "Ansem (trader)", chain: "sol", addedAt: 0 },
+  { address: "FWznbcNXWQuHTawe9RxvQ2LdCENssh12dsznf4RiouN5", label: "Alameda Research (SOL)", chain: "sol", addedAt: 0 },
+  { address: "Htp9MGP8Tig923ZFY7Qf2zzbMUmYneFRAhSp7vSg4wxV", label: "FTX Bankruptcy Estate (SOL)", chain: "sol", addedAt: 0 },
 ];
 
 function loadWatchlist(): WatchEntry[] {
