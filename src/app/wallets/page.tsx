@@ -106,15 +106,28 @@ const getAllowedHosts = () =>
     .map((host) => host.trim())
     .filter(Boolean);
 
-const evmNetworks: EvmNetwork[] = ["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon", "BSC"];
+const evmNetworks: EvmNetwork[] = [
+  "Ethereum", "Arbitrum", "Optimism", "Base", "Polygon", "BSC",
+  "Avalanche", "Fantom", "zkSync", "Linea", "Gnosis", "Celo", "Cronos", "Scroll", "Mantle", "Blast",
+];
 /** Mapeamento do id em "Adicionar endereço manual" para EvmNetwork (permite ler saldo por rede). */
 const MANUAL_ADD_TO_EVM_NETWORK: Record<string, EvmNetwork> = {
-  eth: "Ethereum",
-  optimism: "Optimism",
-  arbitrum: "Arbitrum",
-  base: "Base",
-  matic: "Polygon",
-  bsc: "BSC",
+  eth:       "Ethereum",
+  optimism:  "Optimism",
+  arbitrum:  "Arbitrum",
+  base:      "Base",
+  matic:     "Polygon",
+  bsc:       "BSC",
+  avalanche: "Avalanche",
+  fantom:    "Fantom",
+  zksync:    "zkSync",
+  linea:     "Linea",
+  gnosis:    "Gnosis",
+  celo:      "Celo",
+  cronos:    "Cronos",
+  scroll:    "Scroll",
+  mantle:    "Mantle",
+  blast:     "Blast",
 };
 /** Redes que usam endereço Solana (base58). Permite ler saldo SOL. */
 const MANUAL_ADD_TO_SOL_NETWORK: Record<string, string> = {
@@ -124,22 +137,41 @@ const MANUAL_ADD_TO_SOL_NETWORK: Record<string, string> = {
   orca: "Orca",
   sol_dex: "Solana DEX",
 };
-const ethNetworkLabelOptions: Array<{ id: EvmNetwork | "outro"; label: string }> = [
-  ...evmNetworks.map((n) => ({ id: n, label: n })),
-  { id: "outro", label: "Outro (qualquer rede EVM/L2)" },
+const ethNetworkLabelOptions: Array<{ id: EvmNetwork | "outro"; label: string; group?: string }> = [
+  { id: "Ethereum",  label: "Ethereum",         group: "L1" },
+  { id: "BSC",       label: "BNB Smart Chain",  group: "L1" },
+  { id: "Avalanche", label: "Avalanche C-Chain", group: "L1" },
+  { id: "Fantom",    label: "Fantom",           group: "L1" },
+  { id: "Cronos",    label: "Cronos",           group: "L1" },
+  { id: "Gnosis",    label: "Gnosis",           group: "L1" },
+  { id: "Celo",      label: "Celo",             group: "L1" },
+  { id: "Arbitrum",  label: "Arbitrum One",     group: "L2" },
+  { id: "Optimism",  label: "Optimism",         group: "L2" },
+  { id: "Base",      label: "Base",             group: "L2" },
+  { id: "Polygon",   label: "Polygon",          group: "L2" },
+  { id: "zkSync",    label: "zkSync Era",       group: "L2" },
+  { id: "Linea",     label: "Linea",            group: "L2" },
+  { id: "Scroll",    label: "Scroll",           group: "L2" },
+  { id: "Mantle",    label: "Mantle",           group: "L2" },
+  { id: "Blast",     label: "Blast",            group: "L2" },
+  { id: "outro",     label: "Outro (qualquer EVM/L2)" },
 ];
 const ethWalletOptions: Array<{ id: EvmProviderId; label: string }> = [
   { id: "metamask", label: "MetaMask" },
+  { id: "rabby",    label: "Rabby Wallet" },
+  { id: "rainbow",  label: "Rainbow Wallet" },
   { id: "coinbase", label: "Coinbase Wallet" },
-  { id: "trust", label: "Trust Wallet" },
-  { id: "binance", label: "Binance Chain Wallet" },
+  { id: "okx",      label: "OKX Wallet" },
+  { id: "bybit",    label: "Bybit Wallet" },
+  { id: "trust",    label: "Trust Wallet" },
+  { id: "binance",  label: "Binance Chain Wallet" },
 ];
 const solWalletOptions = [
-  { id: "phantom", label: "Phantom Wallet" },
+  { id: "phantom",  label: "Phantom Wallet" },
   { id: "backpack", label: "Backpack" },
   { id: "solflare", label: "Solflare" },
-  { id: "glow", label: "Glow Wallet" },
-  { id: "flint", label: "Flint" },
+  { id: "glow",     label: "Glow Wallet" },
+  { id: "flint",    label: "Flint" },
 ] as const;
 type SolanaWalletId = (typeof solWalletOptions)[number]["id"];
 const solLabelOptions: Array<{ id: SolanaWalletId | "outro"; label: string }> = [
@@ -194,33 +226,55 @@ const btcNetworkOptions: Array<{ id: string; label: string }> = [
 ];
 
 /** Redes para "Adicionar endereço manual (todas as redes)". ETH, SOL, BTC e ADA têm suporte a saldo. */
-const MANUAL_ADD_NETWORKS: Array<{ id: string; label: string }> = [
-  { id: "eth", label: "Ethereum (ETH)" },
-  { id: "optimism", label: "Optimism" },
-  { id: "arbitrum", label: "Arbitrum" },
-  { id: "base", label: "Base" },
-  { id: "matic", label: "Polygon (ex-Matic)" },
-  { id: "bsc", label: "Binance Smart Chain (BSC)" },
-  { id: "btc", label: "Bitcoin (BTC)" },
-  { id: "sol", label: "Solana (SOL)" },
-  { id: "sol_l2", label: "Solana L2" },
-  { id: "raydium", label: "Raydium" },
-  { id: "orca", label: "Orca" },
-  { id: "sol_dex", label: "Solana DEX" },
-  { id: "bnb", label: "BNB (BNB)" },
-  { id: "xrp", label: "XRP (XRP)" },
-  { id: "ada", label: "Cardano (ADA)" },
-  { id: "doge", label: "Dogecoin (DOGE)" },
-  { id: "trx", label: "TRON (TRX)" },
-  { id: "avax", label: "Avalanche (AVAX)" },
-  { id: "link", label: "Chainlink (LINK)" },
-  { id: "ltc", label: "Litecoin (LTC)" },
-  { id: "bch", label: "Bitcoin Cash (BCH)" },
-  { id: "xlm", label: "Stellar (XLM)" },
-  { id: "uni", label: "Uniswap (UNI)" },
-  { id: "xmr", label: "Monero (XMR)" },
-  { id: "etc", label: "Ethereum Classic (ETC)" },
-  { id: "hbar", label: "Hedera (HBAR)" },
+const MANUAL_ADD_NETWORKS: Array<{ id: string; label: string; group?: string }> = [
+  // ── EVM Layer 1 ──
+  { id: "eth",       label: "Ethereum (ETH)",           group: "EVM L1" },
+  { id: "bsc",       label: "BNB Smart Chain (BSC)",    group: "EVM L1" },
+  { id: "avalanche", label: "Avalanche C-Chain (AVAX)", group: "EVM L1" },
+  { id: "fantom",    label: "Fantom (FTM)",             group: "EVM L1" },
+  { id: "cronos",    label: "Cronos (CRO)",             group: "EVM L1" },
+  { id: "gnosis",    label: "Gnosis Chain (xDAI)",      group: "EVM L1" },
+  { id: "celo",      label: "Celo (CELO)",              group: "EVM L1" },
+  // ── EVM Layer 2 ──
+  { id: "arbitrum",  label: "Arbitrum One",             group: "EVM L2" },
+  { id: "optimism",  label: "Optimism (OP)",            group: "EVM L2" },
+  { id: "base",      label: "Base (Coinbase)",          group: "EVM L2" },
+  { id: "matic",     label: "Polygon (POL)",            group: "EVM L2" },
+  { id: "zksync",    label: "zkSync Era",               group: "EVM L2" },
+  { id: "linea",     label: "Linea (MetaMask)",         group: "EVM L2" },
+  { id: "scroll",    label: "Scroll",                   group: "EVM L2" },
+  { id: "mantle",    label: "Mantle (MNT)",             group: "EVM L2" },
+  { id: "blast",     label: "Blast",                    group: "EVM L2" },
+  // ── Bitcoin & L2 ──
+  { id: "btc",       label: "Bitcoin (BTC)",            group: "Bitcoin" },
+  { id: "liquid",    label: "Liquid Network",           group: "Bitcoin" },
+  { id: "stacks",    label: "Stacks (STX)",             group: "Bitcoin" },
+  { id: "rootstock", label: "Rootstock (RSK)",          group: "Bitcoin" },
+  // ── Solana ──
+  { id: "sol",       label: "Solana (SOL)",             group: "Solana" },
+  { id: "sol_l2",    label: "Solana L2",                group: "Solana" },
+  { id: "raydium",   label: "Raydium",                  group: "Solana" },
+  { id: "orca",      label: "Orca",                     group: "Solana" },
+  // ── Cardano ──
+  { id: "ada",       label: "Cardano (ADA)",            group: "Cardano" },
+  { id: "hydra",     label: "Hydra",                    group: "Cardano" },
+  // ── Outros ──
+  { id: "xrp",       label: "XRP Ledger (XRP)",         group: "Outros" },
+  { id: "doge",      label: "Dogecoin (DOGE)",          group: "Outros" },
+  { id: "trx",       label: "TRON (TRX)",               group: "Outros" },
+  { id: "ltc",       label: "Litecoin (LTC)",           group: "Outros" },
+  { id: "bch",       label: "Bitcoin Cash (BCH)",       group: "Outros" },
+  { id: "xlm",       label: "Stellar (XLM)",            group: "Outros" },
+  { id: "xmr",       label: "Monero (XMR)",             group: "Outros" },
+  { id: "hbar",      label: "Hedera (HBAR)",            group: "Outros" },
+  { id: "dot",       label: "Polkadot (DOT)",           group: "Outros" },
+  { id: "atom",      label: "Cosmos (ATOM)",            group: "Outros" },
+  { id: "ton",       label: "TON (Telegram)",           group: "Outros" },
+  { id: "sui",       label: "SUI",                      group: "Outros" },
+  { id: "apt",       label: "Aptos (APT)",              group: "Outros" },
+  { id: "near",      label: "NEAR Protocol",            group: "Outros" },
+  { id: "algo",      label: "Algorand (ALGO)",          group: "Outros" },
+  { id: "icp",       label: "Internet Computer (ICP)",  group: "Outros" },
 ];
 
 export default function WalletsPage() {
@@ -2168,26 +2222,45 @@ export default function WalletsPage() {
                     onChange={(e) => setManualAddNetworkFilter(e.target.value)}
                     onKeyDown={(e) => e.stopPropagation()}
                   />
-                  <div className="max-h-[240px] overflow-y-auto py-1">
-                    {MANUAL_ADD_NETWORKS.filter(
-                      (net) =>
-                        !manualAddNetworkFilter.trim() ||
-                        net.label.toLowerCase().includes(manualAddNetworkFilter.trim().toLowerCase()) ||
-                        net.id.toLowerCase().includes(manualAddNetworkFilter.trim().toLowerCase())
-                    ).map((net) => (
-                      <button
-                        key={net.id}
-                        type="button"
-                        className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-xs text-slate-200 hover:bg-slate-800"
-                        onClick={() => {
-                          setManualAddNetwork(net.id);
-                          setManualAddNetworkOpen(false);
-                          setManualAddNetworkFilter("");
-                        }}
-                      >
-                        {net.label}
-                      </button>
-                    ))}
+                  <div className="max-h-[300px] overflow-y-auto py-1">
+                    {(() => {
+                      const filtered = MANUAL_ADD_NETWORKS.filter(
+                        (net) =>
+                          !manualAddNetworkFilter.trim() ||
+                          net.label.toLowerCase().includes(manualAddNetworkFilter.trim().toLowerCase()) ||
+                          net.id.toLowerCase().includes(manualAddNetworkFilter.trim().toLowerCase())
+                      );
+                      const groups: string[] = [];
+                      return filtered.map((net) => {
+                        const showGroup = net.group && !groups.includes(net.group) && !manualAddNetworkFilter.trim();
+                        if (showGroup && net.group) groups.push(net.group);
+                        return (
+                          <div key={net.id}>
+                            {showGroup && (
+                              <p className="px-3 pt-2 pb-1 text-[9px] font-bold uppercase tracking-widest text-slate-600">{net.group}</p>
+                            )}
+                            <button
+                              type="button"
+                              className="flex w-full cursor-pointer items-center gap-2 px-3 py-1.5 text-left text-xs text-slate-200 hover:bg-slate-800 transition-colors"
+                              onClick={() => {
+                                setManualAddNetwork(net.id);
+                                setManualAddNetworkOpen(false);
+                                setManualAddNetworkFilter("");
+                              }}
+                            >
+                              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{
+                                background: net.group === "EVM L1" ? "#f97316" :
+                                            net.group === "EVM L2" ? "#3b82f6" :
+                                            net.group === "Bitcoin" ? "#eab308" :
+                                            net.group === "Solana" ? "#a855f7" :
+                                            net.group === "Cardano" ? "#06b6d4" : "#64748b"
+                              }} />
+                              {net.label}
+                            </button>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
                 </div>
               ) : null}
@@ -2561,11 +2634,17 @@ export default function WalletsPage() {
                   value={ethNewNetwork}
                   onChange={(e) => setEthNewNetwork(e.target.value as EvmNetwork | "outro")}
                 >
-                  {ethNetworkLabelOptions.map((opt) => (
-                    <option key={opt.id} value={opt.id}>
-                      {opt.label}
-                    </option>
-                  ))}
+                  <optgroup label="── Layer 1 ──">
+                    {ethNetworkLabelOptions.filter(o => o.group === "L1").map(opt => (
+                      <option key={opt.id} value={opt.id}>{opt.label}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="── Layer 2 ──">
+                    {ethNetworkLabelOptions.filter(o => o.group === "L2").map(opt => (
+                      <option key={opt.id} value={opt.id}>{opt.label}</option>
+                    ))}
+                  </optgroup>
+                  <option value="outro">Outro (qualquer EVM/L2)</option>
                 </select>
                 <button
                   type="button"

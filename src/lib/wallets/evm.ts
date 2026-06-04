@@ -1,5 +1,5 @@
 import { createPublicClient, fallback, formatEther, formatUnits, http } from "viem";
-import { arbitrum, base, bsc, mainnet, optimism, polygon } from "viem/chains";
+import { arbitrum, avalanche, base, bsc, celo, cronos, fantom, gnosis, linea, mainnet, optimism, polygon, zkSync } from "viem/chains";
 
 const erc20Abi = [
   { inputs: [{ name: "account", type: "address" }], name: "balanceOf", outputs: [{ type: "uint256" }], stateMutability: "view", type: "function" },
@@ -15,12 +15,22 @@ const ETH_RPCS = [
 ];
 
 const chainRpcs: Record<string, string[]> = {
-  Ethereum:  ETH_RPCS,
-  Arbitrum:  ["https://arbitrum.publicnode.com", "https://rpc.ankr.com/arbitrum", "https://arbitrum.drpc.org"],
-  Optimism:  ["https://optimism.publicnode.com", "https://rpc.ankr.com/optimism", "https://optimism.drpc.org"],
-  Base:      ["https://base.publicnode.com", "https://rpc.ankr.com/base", "https://base.drpc.org"],
-  Polygon:   ["https://polygon-bor.publicnode.com", "https://rpc.ankr.com/polygon", "https://polygon.drpc.org"],
-  BSC:       ["https://bsc.publicnode.com", "https://rpc.ankr.com/bsc", "https://bsc.drpc.org"],
+  Ethereum:       ETH_RPCS,
+  Arbitrum:       ["https://arbitrum.publicnode.com", "https://rpc.ankr.com/arbitrum", "https://arbitrum.drpc.org"],
+  Optimism:       ["https://optimism.publicnode.com", "https://rpc.ankr.com/optimism", "https://optimism.drpc.org"],
+  Base:           ["https://base.publicnode.com", "https://rpc.ankr.com/base", "https://base.drpc.org"],
+  Polygon:        ["https://polygon-bor.publicnode.com", "https://rpc.ankr.com/polygon", "https://polygon.drpc.org"],
+  BSC:            ["https://bsc.publicnode.com", "https://rpc.ankr.com/bsc", "https://bsc.drpc.org"],
+  Avalanche:      ["https://avalanche-c-chain.publicnode.com", "https://rpc.ankr.com/avalanche", "https://avax.drpc.org"],
+  Fantom:         ["https://rpc.ankr.com/fantom", "https://fantom.publicnode.com", "https://fantom.drpc.org"],
+  zkSync:         ["https://mainnet.era.zksync.io", "https://zksync.drpc.org"],
+  Linea:          ["https://linea.publicnode.com", "https://rpc.linea.build", "https://linea.drpc.org"],
+  Gnosis:         ["https://gnosis.publicnode.com", "https://rpc.ankr.com/gnosis", "https://gnosis.drpc.org"],
+  Celo:           ["https://celo.publicnode.com", "https://rpc.ankr.com/celo"],
+  Cronos:         ["https://cronos.publicnode.com", "https://evm.cronos.org"],
+  Scroll:         ["https://rpc.scroll.io", "https://scroll.drpc.org"],
+  Mantle:         ["https://rpc.mantle.xyz", "https://mantle.drpc.org"],
+  Blast:          ["https://rpc.blast.io", "https://blast.drpc.org"],
 };
 
 const makeTransport = (urls: string[]) =>
@@ -31,18 +41,33 @@ const publicClient = createPublicClient({
   transport: makeTransport(ETH_RPCS),
 });
 
+// Scroll, Mantle, Blast não estão em viem/chains — definimos manualmente
+const scroll = { id: 534352, name: "Scroll", nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 }, rpcUrls: { default: { http: ["https://rpc.scroll.io"] } } } as const;
+const mantle = { id: 5000, name: "Mantle", nativeCurrency: { name: "Mantle", symbol: "MNT", decimals: 18 }, rpcUrls: { default: { http: ["https://rpc.mantle.xyz"] } } } as const;
+const blast = { id: 81457, name: "Blast", nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 }, rpcUrls: { default: { http: ["https://rpc.blast.io"] } } } as const;
+
 const chainMap = {
   Ethereum: mainnet,
   Arbitrum: arbitrum,
   Optimism: optimism,
-  Base: base,
-  Polygon: polygon,
-  BSC: bsc,
+  Base:     base,
+  Polygon:  polygon,
+  BSC:      bsc,
+  Avalanche: avalanche,
+  Fantom:   fantom,
+  zkSync:   zkSync,
+  Linea:    linea,
+  Gnosis:   gnosis,
+  Celo:     celo,
+  Cronos:   cronos,
+  Scroll:   scroll,
+  Mantle:   mantle,
+  Blast:    blast,
 };
 
 export type EvmNetwork = keyof typeof chainMap;
 
-export type EvmProviderId = "metamask" | "coinbase" | "trust" | "binance" | "unknown";
+export type EvmProviderId = "metamask" | "coinbase" | "trust" | "binance" | "rainbow" | "okx" | "bybit" | "rabby" | "unknown";
 
 type EvmProvider = typeof window.ethereum;
 
@@ -51,26 +76,28 @@ const isMetaMaskProvider = (provider?: EvmProvider) =>
 
 const getProviderId = (provider?: EvmProvider): EvmProviderId => {
   if (!provider) return "unknown";
-  if (provider.isMetaMask) return "metamask";
+  if ("isRabby" in provider) return "rabby";
+  if ("isRainbow" in provider) return "rainbow";
+  if ("isOkxWallet" in provider || "isOKExWallet" in provider) return "okx";
+  if ("isBybit" in provider || "isBitKeep" in provider) return "bybit";
   if ("isCoinbaseWallet" in provider) return "coinbase";
   if ("isTrust" in provider || "isTrustWallet" in provider) return "trust";
-  if ("isLedgerLive" in provider || "isLedger" in provider) return "unknown";
   if ("isBinanceChain" in provider || "isBinance" in provider) return "binance";
+  if (provider.isMetaMask && !("isPhantom" in provider)) return "metamask";
   return "unknown";
 };
 
 export const getEvmProviderLabel = (id: EvmProviderId) => {
   switch (id) {
-    case "metamask":
-      return "MetaMask";
-    case "coinbase":
-      return "Coinbase Wallet";
-    case "trust":
-      return "Trust Wallet";
-    case "binance":
-      return "Binance Chain Wallet";
-    default:
-      return "Carteira EVM";
+    case "metamask": return "MetaMask";
+    case "coinbase":  return "Coinbase Wallet";
+    case "trust":     return "Trust Wallet";
+    case "binance":   return "Binance Chain Wallet";
+    case "rainbow":   return "Rainbow Wallet";
+    case "okx":       return "OKX Wallet";
+    case "bybit":     return "Bybit Wallet";
+    case "rabby":     return "Rabby Wallet";
+    default:          return "Carteira EVM";
   }
 };
 
