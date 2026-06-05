@@ -113,17 +113,11 @@ export default function BtcBlocksBar() {
 
   async function fetchData() {
     try {
-      const [blocksRes, mempoolRes] = await Promise.all([
-        fetch("https://mempool.space/api/blocks", { cache: "no-store" }),
-        fetch("https://mempool.space/api/mempool/blocks", { cache: "no-store" }),
-      ]);
-      if (!blocksRes.ok || !mempoolRes.ok) throw new Error("fetch failed");
-      const [blocksData, mempoolData] = await Promise.all([
-        blocksRes.json(),
-        mempoolRes.json(),
-      ]);
-      setConfirmed((blocksData as ConfirmedBlock[]).slice(0, 8));
-      setMempool((mempoolData as MempoolBlock[]).slice(0, 3));
+      const res = await fetch("/api/btc-blocks", { cache: "no-store" });
+      if (!res.ok) throw new Error("fetch failed");
+      const data = (await res.json()) as { blocks: ConfirmedBlock[]; mempool: MempoolBlock[] };
+      setConfirmed((data.blocks ?? []).slice(0, 8));
+      setMempool((data.mempool ?? []).slice(0, 3));
       setError(false);
     } catch {
       setError(true);

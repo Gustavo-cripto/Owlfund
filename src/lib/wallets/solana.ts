@@ -2,10 +2,12 @@ import { Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 
 const _rpc = (process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "").trim();
 const RPC_PRIMARY =
-  _rpc.startsWith("http://") || _rpc.startsWith("https://") ? _rpc : "https://solana.publicnode.com";
-const RPC_FALLBACK = "https://rpc.ankr.com/solana";
+  _rpc.startsWith("http://") || _rpc.startsWith("https://") ? _rpc : "https://api.mainnet-beta.solana.com";
+const RPC_FALLBACK = "https://solana.publicnode.com";
+const RPC_FALLBACK2 = "https://solana-rpc.publicnode.com";
 const connectionPrimary = new Connection(RPC_PRIMARY, "confirmed");
 const connectionFallback = new Connection(RPC_FALLBACK, "confirmed");
+const connectionFallback2 = new Connection(RPC_FALLBACK2, "confirmed");
 
 const isRpcError = (err: unknown) => {
   const msg = err instanceof Error ? err.message : String(err);
@@ -127,12 +129,23 @@ export const connectSolanaWallet = async (providerId: SolanaWalletId): Promise<s
 
 export const getSolBalance = async (address: string) => {
   const pubkey = new PublicKey(address);
-  try {
-    const lamports = await connectionPrimary.getBalance(pubkey);
-    return (lamports / LAMPORTS_PER_SOL).toFixed(4);
-  } catch (err) {
-    if (!isRpcError(err)) throw err;
-    const lamports = await connectionFallback.getBalance(pubkey);
-    return (lamports / LAMPORTS_PER_SOL).toFixed(4);
+  const connections = [connectionPrimary, connectionFallback, connectionFallback2];
+  let lastErr: unknown;
+  for (const conn of connections) {
+    try {
+      const lamports = await conn.getBalance(pubkey);
+      return (lamports / LAMPORTS_PER_SOL).toFixed(4);
+    } catch (err) {
+      lastErr = err;
+    }
   }
+  // Last resort: proxy via API route
+  try {
+    const res = await fetch(`/api/sol-balance?address=${encodeURIComponent(address)}`);
+    if (res.ok) {
+      const data = (await res.json()) as { balance: number };
+      return data.balance.toFixed(4);
+    }
+  } catch { /* ignore */ }
+  throw lastErr;
 };
