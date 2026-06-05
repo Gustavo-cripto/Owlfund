@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 const NAV_ITEMS = [
@@ -83,30 +83,14 @@ const NAV_ITEMS = [
   },
 ];
 
-const COLLAPSED_KEY = "owlfund.sidebar.collapsed";
-
 export default function Sidebar() {
   const pathname = usePathname();
   const supabase = createClient();
   const [email, setEmail] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(COLLAPSED_KEY);
-      if (stored === "1") setCollapsed(true);
-    } catch { /* ignore */ }
-  }, []);
-
-  const toggleCollapsed = () => {
-    setCollapsed((prev) => {
-      const next = !prev;
-      try { localStorage.setItem(COLLAPSED_KEY, next ? "1" : "0"); } catch { /* ignore */ }
-      return next;
-    });
-  };
+  const [hovered, setHovered] = useState(false);
+  const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -132,6 +116,16 @@ export default function Sidebar() {
     window.location.href = "/";
   };
 
+  const handleMouseEnter = () => {
+    if (leaveTimer.current) clearTimeout(leaveTimer.current);
+    setHovered(true);
+  };
+  const handleMouseLeave = () => {
+    leaveTimer.current = setTimeout(() => setHovered(false), 200);
+  };
+
+  const expanded = hovered;
+
   return (
     <>
       {/* ── Mobile top bar ── */}
@@ -151,11 +145,10 @@ export default function Sidebar() {
           className="p-2 rounded-lg bg-white/5 border border-white/10"
           aria-label="Menu"
         >
-          {mobileOpen ? (
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-          ) : (
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
-          )}
+          {mobileOpen
+            ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
+          }
         </button>
       </header>
 
@@ -163,18 +156,12 @@ export default function Sidebar() {
       {mobileOpen && (
         <nav className="xl:hidden bg-black border-b border-white/[0.06] px-3 py-3 grid grid-cols-2 gap-1">
           {NAV_ITEMS.map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
+            <a key={item.href} href={item.href}
               className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition ${
-                isActive(item.href)
-                  ? "bg-white/10 text-white"
-                  : "text-slate-400 hover:bg-white/5 hover:text-white"
+                isActive(item.href) ? "bg-white/10 text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"
               }`}
             >
-              <span className={isActive(item.href) ? "text-orange-400" : "text-slate-500"}>
-                {item.icon}
-              </span>
+              <span className={isActive(item.href) ? "text-orange-400" : "text-slate-500"}>{item.icon}</span>
               {item.label}
             </a>
           ))}
@@ -187,62 +174,33 @@ export default function Sidebar() {
         </nav>
       )}
 
-      {/* ── Desktop sidebar ── */}
+      {/* ── Desktop sidebar (hover to expand) ── */}
       <aside
-        className={`hidden xl:flex flex-col shrink-0 min-h-screen bg-black border-r border-white/[0.06] transition-all duration-300 ease-in-out ${
-          collapsed ? "w-[72px]" : "w-64"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        className={`hidden xl:flex flex-col shrink-0 min-h-screen bg-black border-r border-white/[0.06] transition-all duration-300 ease-in-out z-40 ${
+          expanded ? "w-64 shadow-2xl shadow-black/60" : "w-[72px]"
         }`}
       >
-        {/* Brand + toggle */}
-        <div className={`relative flex items-center border-b border-white/[0.06] ${collapsed ? "justify-center px-0 py-5" : "px-5 pt-8 pb-7 gap-4"}`}>
-          {/* Owl image — sempre visível */}
+        {/* Brand */}
+        <div className={`flex items-center border-b border-white/[0.06] overflow-hidden ${expanded ? "px-5 pt-8 pb-7 gap-4" : "justify-center px-0 py-5"}`}>
           <a href="/dashboard" className="shrink-0">
-            <div className={`rounded-2xl overflow-hidden border border-white/[0.08] transition-all duration-300 ${collapsed ? "w-10 h-10 rounded-xl" : "w-16 h-16"}`}>
-              <img
-                src="/owlfund-owl.png"
-                alt="Owlfund"
-                className="w-full h-full object-cover [transform:scaleX(-1)]"
-              />
+            <div className={`overflow-hidden border border-white/[0.08] transition-all duration-300 ${expanded ? "w-16 h-16 rounded-2xl" : "w-10 h-10 rounded-xl"}`}>
+              <img src="/owlfund-owl.png" alt="Owlfund" className="w-full h-full object-cover [transform:scaleX(-1)]" />
             </div>
           </a>
-
-          {/* Título — só quando expandido */}
-          {!collapsed && (
-            <a href="/dashboard" className="min-w-0">
-              <p className="text-lg font-black text-white tracking-[0.22em] leading-none uppercase">OWLFUND</p>
-              <p className="text-xs text-slate-500 leading-tight mt-1">Portfolio Analytics</p>
+          <div className={`transition-all duration-200 overflow-hidden ${expanded ? "opacity-100 w-auto" : "opacity-0 w-0"}`}>
+            <a href="/dashboard">
+              <p className="text-lg font-black text-white tracking-[0.22em] leading-none uppercase whitespace-nowrap">OWLFUND</p>
+              <p className="text-xs text-slate-500 leading-tight mt-1 whitespace-nowrap">Portfolio Analytics</p>
             </a>
-          )}
-
-          {/* Botão toggle collapse */}
-          <button
-            type="button"
-            onClick={toggleCollapsed}
-            title={collapsed ? "Expandir menu" : "Recolher menu"}
-            className={`absolute flex items-center justify-center w-6 h-6 rounded-full bg-slate-800 border border-white/10 text-slate-400 hover:text-white hover:bg-slate-700 transition z-10 ${
-              collapsed ? "-right-3 top-1/2 -translate-y-1/2" : "-right-3 top-8"
-            }`}
-          >
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className={`transition-transform duration-300 ${collapsed ? "rotate-0" : "rotate-180"}`}
-            >
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-          </button>
+          </div>
         </div>
 
         {/* Nav */}
-        <nav className={`flex-1 py-4 ${collapsed ? "px-2" : "px-3"}`}>
-          {!collapsed && (
-            <p className="px-3 mb-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-600">
+        <nav className={`flex-1 py-4 ${expanded ? "px-3" : "px-2"}`}>
+          {expanded && (
+            <p className="px-3 mb-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-600 whitespace-nowrap">
               Navigation
             </p>
           )}
@@ -251,9 +209,9 @@ export default function Sidebar() {
               <li key={item.href}>
                 <a
                   href={item.href}
-                  title={collapsed ? item.label : undefined}
+                  title={!expanded ? item.label : undefined}
                   className={`flex items-center rounded-xl font-medium transition-all duration-150 ${
-                    collapsed ? "justify-center px-0 py-3" : "gap-3 px-3 py-3"
+                    expanded ? "gap-3 px-3 py-3" : "justify-center px-0 py-3"
                   } ${
                     isActive(item.href)
                       ? "bg-white/10 text-white"
@@ -263,9 +221,9 @@ export default function Sidebar() {
                   <span className={`shrink-0 ${isActive(item.href) ? "text-orange-400" : "text-slate-500"}`}>
                     {item.icon}
                   </span>
-                  {!collapsed && (
-                    <span className="text-[15px]">{item.label}</span>
-                  )}
+                  <span className={`transition-all duration-200 overflow-hidden whitespace-nowrap text-[15px] ${expanded ? "opacity-100 w-auto" : "opacity-0 w-0"}`}>
+                    {item.label}
+                  </span>
                 </a>
               </li>
             ))}
@@ -273,23 +231,25 @@ export default function Sidebar() {
         </nav>
 
         {/* Footer */}
-        <div className={`border-t border-white/[0.06] ${collapsed ? "px-2 py-4" : "px-4 py-4"}`}>
-          {!collapsed && email && (
-            <p className="text-[11px] text-slate-600 truncate mb-2 px-1">{email}</p>
+        <div className={`border-t border-white/[0.06] ${expanded ? "px-4 py-4" : "px-2 py-4"}`}>
+          {expanded && email && (
+            <p className="text-[11px] text-slate-600 truncate mb-2 px-1 whitespace-nowrap">{email}</p>
           )}
           {isLoggedIn && (
             <button
               type="button"
               onClick={handleLogout}
-              title={collapsed ? "Sair" : undefined}
+              title={!expanded ? "Sair" : undefined}
               className={`w-full flex items-center rounded-xl text-slate-500 hover:bg-white/5 hover:text-white transition ${
-                collapsed ? "justify-center py-3 px-0" : "gap-2.5 px-3 py-2.5"
+                expanded ? "gap-2.5 px-3 py-2.5" : "justify-center py-3 px-0"
               }`}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
               </svg>
-              {!collapsed && <span className="text-sm">Sair</span>}
+              <span className={`transition-all duration-200 overflow-hidden whitespace-nowrap text-sm ${expanded ? "opacity-100 w-auto" : "opacity-0 w-0"}`}>
+                Sair
+              </span>
             </button>
           )}
         </div>

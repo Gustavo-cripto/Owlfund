@@ -1,19 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import ChatWidget from "@/components/ChatWidget";
 import AppShell from "@/components/AppShell";
 import PnlSummaryCard from "@/components/PnlSummaryCard";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { loadWalletSnapshot, type WalletSnapshot } from "@/lib/wallets/storage";
 import { createClient } from "@/lib/supabase/client";
 
-// CoinGecko IDs para preços EUR
 const COINGECKO_IDS: Record<string, string> = {
-  ETH: "ethereum",
-  SOL: "solana",
-  BTC: "bitcoin",
-  ADA: "cardano",
+  ETH: "ethereum", SOL: "solana", BTC: "bitcoin", ADA: "cardano",
 };
 
 type TokenPrices = Record<string, number>;
@@ -32,9 +27,7 @@ async function fetchPrices(): Promise<TokenPrices> {
       prices[symbol] = data[id]?.eur ?? 0;
     }
     return prices;
-  } catch {
-    return {};
-  }
+  } catch { return {}; }
 }
 
 const sumEntries = (entries?: WalletSnapshot["eth"]) =>
@@ -48,78 +41,95 @@ const calcTotal = (snapshot: WalletSnapshot, prices: TokenPrices) =>
 
 type SnapshotRow = { id: number; created_at: string; data: WalletSnapshot };
 
-const GUIDE = [
+const FEATURES = [
   {
-    icon: "📊",
-    title: "Dashboard",
-    subtitle: "Estás aqui",
-    description: "O teu centro de controlo. Acessa rapidamente todas as secções, vê o resumo do PNL e fala com o assistente de mercado.",
-    href: null,
-    color: "border-orange-500/40 bg-orange-500/5",
-  },
-  {
-    icon: "💼",
-    title: "Portfolio",
-    subtitle: "/portfolio",
-    description: "Visão consolidada de todos os teus ativos — cripto e tradicional. Vê o total investido, PNL da posição, distribuição e evolução histórica.",
     href: "/portfolio",
-    color: "border-slate-700 bg-slate-900/60",
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2v20M2 12h20" /><circle cx="12" cy="12" r="10" />
+      </svg>
+    ),
+    label: "Portfolio",
+    desc: "Visão total dos teus ativos cripto e tradicionais com PNL em tempo real.",
+    color: "from-orange-500/20 to-orange-600/5",
+    border: "border-orange-500/20",
+    iconColor: "text-orange-400",
   },
   {
-    icon: "🔗",
-    title: "Carteiras Blockchain",
-    subtitle: "/wallets",
-    description: "Conecta as tuas carteiras Bitcoin, Ethereum, Solana e Cardano. Vê saldos, tokens, posições DeFi e NFTs — tudo sem nunca partilhar chaves privadas.",
     href: "/wallets",
-    color: "border-slate-700 bg-slate-900/60",
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" /><path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
+        <path d="M18 12a2 2 0 0 0 0 4h4v-4Z" />
+      </svg>
+    ),
+    label: "Carteiras",
+    desc: "Conecta ETH, BTC, SOL, ADA. 15+ redes EVM, DeFi e NFTs incluídos.",
+    color: "from-blue-500/20 to-blue-600/5",
+    border: "border-blue-500/20",
+    iconColor: "text-blue-400",
   },
   {
-    icon: "🌍",
-    title: "Mercado",
-    subtitle: "/mercado",
-    description: "Tabela em tempo real com preços, variações 1h/24h/7d, volume e sparklines. Acompanha as tendências e toma decisões informadas.",
-    href: "/mercado",
-    color: "border-slate-700 bg-slate-900/60",
-  },
-  {
-    icon: "🕵️",
-    title: "Smart Money",
-    subtitle: "/smart-money",
-    description: "Acompanha carteiras de baleias e traders profissionais. Vê os seus holdings, movimentos recentes e estratégias em tempo real.",
     href: "/smart-money",
-    color: "border-slate-700 bg-slate-900/60",
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" />
+      </svg>
+    ),
+    label: "Smart Money",
+    desc: "Segue carteiras de baleias e traders profissionais em tempo real.",
+    color: "from-purple-500/20 to-purple-600/5",
+    border: "border-purple-500/20",
+    iconColor: "text-purple-400",
   },
   {
-    icon: "📋",
-    title: "Fiscalidade",
-    subtitle: "/fiscalidade",
-    description: "Calcula mais-valias cripto por FIFO com regras fiscais de PT, ES, FR e DE. Exporta CSV para o IRS com um clique.",
+    href: "/mercado",
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" /><polyline points="16 7 22 7 22 13" />
+      </svg>
+    ),
+    label: "Mercado",
+    desc: "Preços ao vivo, variações 1h/24h/7d, volume e sparklines de 500+ ativos.",
+    color: "from-emerald-500/20 to-emerald-600/5",
+    border: "border-emerald-500/20",
+    iconColor: "text-emerald-400",
+  },
+  {
     href: "/fiscalidade",
-    color: "border-slate-700 bg-slate-900/60",
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
+        <line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
+      </svg>
+    ),
+    label: "Impostos",
+    desc: "Calcula mais-valias FIFO para PT, ES, FR, DE. Exporta para o IRS.",
+    color: "from-yellow-500/20 to-yellow-600/5",
+    border: "border-yellow-500/20",
+    iconColor: "text-yellow-400",
   },
   {
-    icon: "🔥",
-    title: "FIRE Calculator",
-    subtitle: "/fire",
-    description: "Calcula quando podes ser financeiramente livre. Projeção de patrimônio, regra dos 4%, planeamento patrimonial por categorias.",
     href: "/fire",
-    color: "border-slate-700 bg-slate-900/60",
-  },
-  {
-    icon: "⚙️",
-    title: "Conta",
-    subtitle: "/account",
-    description: "Gere o teu perfil, preferências de moeda e plano de subscrição. Ativa o plano Pro para sincronização entre dispositivos.",
-    href: "/account",
-    color: "border-slate-700 bg-slate-900/60",
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M8.5 14.5A2.5 2.5 0 0 0 11 17c1.4 0 2.5-1.1 2.5-2.5 0-1.8-2.5-5-2.5-5s-2.5 3.2-2.5 5Z" />
+        <path d="M12 22c-4.4 0-8-3.6-8-8 0-5 4-10 8-12 4 2 8 7 8 12 0 4.4-3.6 8-8 8Z" />
+      </svg>
+    ),
+    label: "FIRE",
+    desc: "Calcula a tua independência financeira. Regra dos 4% e projeção patrimonial.",
+    color: "from-rose-500/20 to-rose-600/5",
+    border: "border-rose-500/20",
+    iconColor: "text-rose-400",
   },
 ];
 
-const TIPS = [
-  { emoji: "🔑", text: "Nunca precisas de dar chaves privadas — as carteiras são conectadas apenas em modo leitura." },
-  { emoji: "📸", text: "Guarda um snapshot no Portfolio para começar a acompanhar o PNL histórico ao longo do tempo." },
-  { emoji: "💱", text: "Todos os valores são apresentados em EUR por defeito. Podes alterar na página Conta." },
-  { emoji: "🤖", text: "Usa o Chat de Mercado aqui no Dashboard para perguntar sobre cripto, macro e tendências." },
+const STATS_CONFIG = [
+  { label: "Blockchains", value: "15+", sub: "redes suportadas", icon: "🔗" },
+  { label: "Segurança", value: "100%", sub: "só leitura", icon: "🔒" },
+  { label: "Mercados", value: "24/7", sub: "dados ao vivo", icon: "📡" },
+  { label: "Custo", value: "€ 0", sub: "plano gratuito", icon: "✨" },
 ];
 
 export default function DashboardPage() {
@@ -133,6 +143,13 @@ export default function DashboardPage() {
   const [hasWallets, setHasWallets] = useState(false);
   const [currentTotal, setCurrentTotal] = useState(0);
   const [isPnlLoading, setIsPnlLoading] = useState(true);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUserEmail(data.user?.email ?? null);
+    });
+  }, [supabase]);
 
   useEffect(() => {
     const loadPnl = async () => {
@@ -140,10 +157,8 @@ export default function DashboardPage() {
       try {
         const snapshot = loadWalletSnapshot();
         const hasAny =
-          (snapshot.eth?.length ?? 0) +
-          (snapshot.sol?.length ?? 0) +
-          (snapshot.btc?.length ?? 0) +
-          (snapshot.ada?.length ?? 0) > 0;
+          (snapshot.eth?.length ?? 0) + (snapshot.sol?.length ?? 0) +
+          (snapshot.btc?.length ?? 0) + (snapshot.ada?.length ?? 0) > 0;
         setHasWallets(hasAny);
         if (!hasAny) { setIsPnlLoading(false); return; }
 
@@ -151,7 +166,6 @@ export default function DashboardPage() {
         const total = calcTotal(snapshot, prices);
         setCurrentTotal(total);
 
-        // Buscar snapshots históricos do Supabase
         const { data: authData } = await supabase.auth.getUser();
         const userId = authData.user?.id;
         if (!userId) { setIsPnlLoading(false); return; }
@@ -166,46 +180,20 @@ export default function DashboardPage() {
         const snapshots = (rows ?? []) as SnapshotRow[];
         const now = Date.now();
 
-        // PNL de hoje: snapshot mais próximo de 24h atrás
-        const snap24h = snapshots.find(
-          (s) => now - new Date(s.created_at).getTime() >= 20 * 3600 * 1000
-        );
-        if (snap24h) {
-          const prev = calcTotal(snap24h.data, prices);
-          setPnlToday(total - prev);
-        }
+        const snap24h = snapshots.find(s => now - new Date(s.created_at).getTime() >= 20 * 3600 * 1000);
+        if (snap24h) setPnlToday(total - calcTotal(snap24h.data, prices));
 
-        // PNL 30 dias: snapshot mais próximo de 30 dias atrás
-        const snap30d = snapshots.find(
-          (s) => now - new Date(s.created_at).getTime() >= 28 * 24 * 3600 * 1000
-        );
-        if (snap30d) {
-          const prev = calcTotal(snap30d.data, prices);
-          setPnl30d(total - prev);
-        }
+        const snap30d = snapshots.find(s => now - new Date(s.created_at).getTime() >= 28 * 24 * 3600 * 1000);
+        if (snap30d) setPnl30d(total - calcTotal(snap30d.data, prices));
 
-        // PNL 7 dias: diferença média diária
-        const snap7d = snapshots.find(
-          (s) => now - new Date(s.created_at).getTime() >= 6 * 24 * 3600 * 1000
-        );
-        if (snap7d) {
-          const prev = calcTotal(snap7d.data, prices);
-          setPnlDaily7d((total - prev) / 7);
-        }
+        const snap7d = snapshots.find(s => now - new Date(s.created_at).getTime() >= 6 * 24 * 3600 * 1000);
+        if (snap7d) setPnlDaily7d((total - calcTotal(snap7d.data, prices)) / 7);
 
-        // PNL posição: vs snapshot mais antigo disponível
         const oldest = snapshots[snapshots.length - 1];
-        if (oldest) {
-          const prev = calcTotal(oldest.data, prices);
-          setPnlPosition(total - prev);
-        }
-      } catch {
-        // silencioso
-      } finally {
-        setIsPnlLoading(false);
-      }
+        if (oldest) setPnlPosition(total - calcTotal(oldest.data, prices));
+      } catch { /* silencioso */ }
+      finally { setIsPnlLoading(false); }
     };
-
     loadPnl();
   }, [supabase]);
 
@@ -217,125 +205,128 @@ export default function DashboardPage() {
     );
   }
 
-  const pnlMetrics = hasWallets
-    ? [
-        { label: "Total portfólio", value: `€ ${currentTotal.toLocaleString("pt-PT", { maximumFractionDigits: 0 })}` },
-        { label: "Carteiras ligadas", value: "✓" },
-        { label: "Atualização", value: "ao vivo" },
-      ]
-    : undefined;
+  const greeting = () => {
+    const h = new Date().getHours();
+    if (h < 12) return "Bom dia";
+    if (h < 19) return "Boa tarde";
+    return "Boa noite";
+  };
+
+  const firstName = userEmail?.split("@")[0] ?? "Investidor";
 
   return (
     <AppShell>
     <div className="relative min-h-screen bg-slate-950 text-slate-100">
+
+      {/* Background glows */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-        <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full bg-orange-500/6 blur-[100px]" />
+        <div className="absolute -top-32 left-1/3 w-[700px] h-[400px] rounded-full bg-orange-500/6 blur-[120px]" />
+        <div className="absolute top-1/2 right-0 w-[400px] h-[400px] rounded-full bg-blue-500/4 blur-[100px]" />
       </div>
 
       <div className="relative z-10">
+        <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 pb-24 pt-8">
 
-        <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-24 pt-6">
-
-          {/* Quick nav + PNL */}
-          <section className="grid gap-6 md:grid-cols-[1.2fr_0.8fr] md:items-start">
-            <div className="animate-fade-in-up rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">Acesso rápido</p>
-              <h1 className="mt-2 text-2xl font-bold text-white">Painel Owlfund</h1>
-              <p className="mt-1 text-sm text-slate-400">O teu centro de controlo de investimentos.</p>
-              <div className="mt-5 flex flex-wrap gap-2.5">
-                <a href="/portfolio" className="rounded-full bg-orange-500 px-5 py-2.5 text-sm font-bold text-slate-950 transition hover:bg-orange-400 hover:scale-[1.04] active:scale-[0.97]">
-                  💼 Portfolio
-                </a>
-                <a href="/wallets" className="rounded-full border border-orange-400/40 px-5 py-2.5 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white hover:scale-[1.03]">
-                  🔗 Carteiras
-                </a>
-                <a href="/smart-money" className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-orange-400/40 hover:text-orange-200 hover:scale-[1.03]">
-                  🕵️ Smart Money
-                </a>
-                <a href="/mercado" className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white hover:scale-[1.03]">
-                  🌍 Mercado
-                </a>
-                <a href="/fiscalidade" className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-orange-400/40 hover:text-orange-200 hover:scale-[1.03]">
-                  📋 Impostos
-                </a>
-                <a href="/fire" className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-orange-400/40 hover:text-orange-200 hover:scale-[1.03]">
-                  🔥 FIRE
-                </a>
-                <a href="/account" className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white hover:scale-[1.03]">
-                  ⚙️ Conta
-                </a>
-              </div>
+          {/* ── Hero ── */}
+          <section className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/70 mb-1">
+                {greeting()}
+              </p>
+              <h1 className="text-3xl font-black text-white leading-tight">
+                {firstName} 👋
+              </h1>
+              <p className="mt-1 text-sm text-slate-400">
+                O teu centro de controlo de investimentos — cripto e tradicional.
+              </p>
             </div>
 
-            {isPnlLoading ? (
-              <div className="rounded-3xl border border-orange-500/20 bg-gradient-to-br from-orange-500/20 via-slate-900 to-slate-950 p-6 flex items-center justify-center min-h-[200px]">
-                <p className="text-sm text-slate-400 animate-pulse">A calcular PNL...</p>
-              </div>
-            ) : !hasWallets ? (
-              <div className="rounded-3xl border border-slate-700 bg-slate-900/60 p-6 flex flex-col items-center justify-center gap-3 min-h-[200px] text-center">
-                <span className="text-3xl">🔗</span>
-                <p className="text-sm font-semibold text-white">Adiciona carteiras para ver o PNL</p>
-                <p className="text-xs text-slate-400">Vai a Carteiras e adiciona os teus endereços blockchain.</p>
-                <a href="/wallets" className="mt-2 rounded-full bg-orange-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-orange-400">
-                  Adicionar carteiras →
-                </a>
-              </div>
-            ) : (
-              <PnlSummaryCard
-                position={pnlPosition}
-                today={pnlToday}
-                days30={pnl30d}
-                daily7d={pnlDaily7d}
-                metrics={pnlMetrics}
-              />
-            )}
+            {/* PNL card */}
+            <div className="md:w-[340px] shrink-0">
+              {isPnlLoading ? (
+                <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 flex items-center justify-center min-h-[120px]">
+                  <p className="text-sm text-slate-500 animate-pulse">A calcular PNL...</p>
+                </div>
+              ) : !hasWallets ? (
+                <div className="rounded-2xl border border-dashed border-orange-500/30 bg-orange-500/5 p-5 flex flex-col items-center gap-3 text-center">
+                  <span className="text-2xl">🔗</span>
+                  <div>
+                    <p className="text-sm font-semibold text-white">Sem carteiras ligadas</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Adiciona para ver o teu PNL em tempo real</p>
+                  </div>
+                  <a href="/wallets" className="rounded-full bg-orange-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-orange-400 transition">
+                    Ligar carteiras →
+                  </a>
+                </div>
+              ) : (
+                <PnlSummaryCard
+                  position={pnlPosition}
+                  today={pnlToday}
+                  days30={pnl30d}
+                  daily7d={pnlDaily7d}
+                  metrics={[
+                    { label: "Total", value: `€ ${currentTotal.toLocaleString("pt-PT", { maximumFractionDigits: 0 })}` },
+                    { label: "Carteiras", value: "✓ ligadas" },
+                    { label: "Live", value: "↻ ao vivo" },
+                  ]}
+                />
+              )}
+            </div>
           </section>
 
-          {/* How it works guide */}
+          {/* ── Stats ── */}
+          <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {STATS_CONFIG.map((s) => (
+              <div key={s.label} className="rounded-2xl border border-slate-800 bg-slate-900/40 px-5 py-4 flex flex-col gap-1 hover:border-orange-500/30 hover:bg-slate-900/70 transition group">
+                <span className="text-2xl">{s.icon}</span>
+                <p className="text-2xl font-black text-white mt-1">{s.value}</p>
+                <p className="text-xs text-slate-500">{s.sub}</p>
+              </div>
+            ))}
+          </section>
+
+          {/* ── Feature grid ── */}
           <section>
-            <div className="mb-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">Guia da plataforma</p>
-              <h2 className="mt-2 text-xl font-bold text-white">Como funciona o Owlfund</h2>
-              <p className="mt-1 text-sm text-slate-400">Cada secção tem um propósito claro. Clica para explorar.</p>
+            <div className="mb-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/70">Plataforma</p>
+              <h2 className="mt-1.5 text-xl font-bold text-white">Explora todas as secções</h2>
             </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {GUIDE.map((item, i) => {
-                const content = (
-                  <div className={`card-hover rounded-2xl border p-5 animate-fade-in-up delay-${Math.min(i * 100, 500)} ${item.color} ${item.href ? "cursor-pointer" : ""}`}>
-                    <div className="flex items-start justify-between">
-                      <span className="text-2xl">{item.icon}</span>
-                      {item.href && <span className="text-[10px] text-slate-600 font-mono tracking-wider">{item.subtitle}</span>}
-                      {!item.href && <span className="rounded-full border border-orange-500/40 px-2 py-0.5 text-[10px] font-bold text-orange-400 uppercase tracking-wider">Aqui</span>}
-                    </div>
-                    <h3 className="mt-3 text-sm font-bold text-white">{item.title}</h3>
-                    <p className="mt-1.5 text-xs text-slate-400 leading-relaxed">{item.description}</p>
-                    {item.href && (
-                      <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-orange-400 group-hover:gap-2 transition-all">Abrir <span>→</span></span>
-                    )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {FEATURES.map((f) => (
+                <a
+                  key={f.href}
+                  href={f.href}
+                  className={`group relative rounded-2xl border p-5 bg-gradient-to-br ${f.color} ${f.border} hover:scale-[1.02] hover:shadow-xl hover:shadow-black/30 transition-all duration-200 cursor-pointer`}
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <span className={`${f.iconColor} transition-transform group-hover:scale-110 duration-200`}>
+                      {f.icon}
+                    </span>
+                    <svg className="text-slate-600 group-hover:text-slate-400 transition" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M7 17L17 7M7 7h10v10" />
+                    </svg>
                   </div>
-                );
-                return item.href ? <a key={item.title} href={item.href} className="group">{content}</a> : <div key={item.title}>{content}</div>;
-              })}
+                  <h3 className="text-base font-bold text-white">{f.label}</h3>
+                  <p className="mt-1.5 text-xs text-slate-400 leading-relaxed">{f.desc}</p>
+                </a>
+              ))}
             </div>
           </section>
 
-          {/* Tips + Chat */}
-          <section className="grid gap-6 md:grid-cols-[1fr_1.1fr] md:items-start">
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80 mb-4">Dicas importantes</p>
-              <div className="space-y-4">
-                {TIPS.map((tip) => (
-                  <div key={tip.text} className="flex gap-3">
-                    <span className="text-lg flex-shrink-0">{tip.emoji}</span>
-                    <p className="text-sm text-slate-300 leading-relaxed">{tip.text}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">Chat de mercado</p>
-              <p className="text-sm text-slate-400">Pergunta sobre cripto, ações, macro ou tendências. A IA responde em tempo real.</p>
-              <ChatWidget />
+          {/* ── Security & tips strip ── */}
+          <section className="rounded-2xl border border-slate-800 bg-slate-900/40 px-6 py-5">
+            <div className="flex flex-wrap gap-6 items-center">
+              {[
+                { icon: "🔒", text: "Nunca pedimos chaves privadas — só leitura" },
+                { icon: "📸", text: "Guarda um snapshot para ver PNL histórico" },
+                { icon: "💬", text: "Usa o Chat (ícone no canto) para perguntas de mercado" },
+                { icon: "🌍", text: "Valores em EUR por defeito — muda na Conta" },
+              ].map((tip) => (
+                <div key={tip.text} className="flex items-center gap-2.5 min-w-0">
+                  <span className="text-base shrink-0">{tip.icon}</span>
+                  <p className="text-xs text-slate-400">{tip.text}</p>
+                </div>
+              ))}
             </div>
           </section>
 
