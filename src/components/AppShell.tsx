@@ -1,6 +1,7 @@
 "use client";
 
 import Sidebar from "./Sidebar";
+import BtcBlocksBar from "./BtcBlocksBar";
 
 const TICKER_DATA = [
   { symbol: "BTC",    price: "€ 91.240", change: "+2,4%", up: true  },
@@ -40,6 +41,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             ))}
           </div>
         </div>
+
+        {/* BTC live blocks */}
+        <BtcBlocksBar />
 
         {/* Page content */}
         <main className="flex-1 min-w-0">
