@@ -7,7 +7,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from "recharts";
 
-import AppHeader from "@/components/AppHeader";
+import AppShell from "@/components/AppShell";
 import PnlSummaryCard from "@/components/PnlSummaryCard";
 import ScenarioSimulator from "@/components/ScenarioSimulator";
 import { createClient } from "@/lib/supabase/client";
@@ -556,8 +556,8 @@ export default function PortfolioPage() {
   }, [cryptoTotal, traditionalTotal]);
 
   return (
+    <AppShell>
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <AppHeader variant="app" subtitle="Portfolio" />
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-20 pt-2">
         <div className="animate-fade-in-up flex flex-col gap-2">
           <h1 className="text-3xl font-bold text-white">Portfolio</h1>
@@ -1418,5 +1418,6 @@ export default function PortfolioPage() {
 
       </main>
     </div>
+    </AppShell>
   );
 }
