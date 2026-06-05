@@ -172,16 +172,16 @@ export default function Sidebar() {
       )}
 
       {/* Desktop sidebar */}
-      <aside className="hidden xl:flex flex-col w-56 shrink-0 min-h-screen bg-black border-r border-white/[0.06]">
+      <aside className="hidden xl:flex flex-col w-60 shrink-0 min-h-screen bg-black border-r border-white/[0.06]">
         {/* Brand */}
-        <div className="px-5 pt-6 pb-5">
-          <a href="/dashboard" className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-orange-500/20 flex items-center justify-center overflow-hidden shrink-0">
-              <img src="/owlfund-owl.png" alt="Owlfund" className="w-8 h-8 object-cover rounded-lg [transform:scaleX(-1)]" />
+        <div className="px-5 pt-7 pb-6">
+          <a href="/dashboard" className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-orange-500/10 flex items-center justify-center overflow-hidden shrink-0 border border-white/[0.08]">
+              <img src="/owlfund-owl.png" alt="Owlfund" className="w-14 h-14 object-cover rounded-2xl [transform:scaleX(-1)]" />
             </div>
             <div>
-              <p className="text-sm font-bold text-white tracking-wide leading-none">OWLFUND</p>
-              <p className="text-[11px] text-slate-500 leading-tight mt-0.5">Portfolio Analytics</p>
+              <p className="text-base font-bold text-white tracking-widest leading-none">OWLFUND</p>
+              <p className="text-xs text-slate-500 leading-tight mt-1">Portfolio Analytics</p>
             </div>
           </a>
         </div>
