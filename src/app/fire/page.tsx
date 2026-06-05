@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import AppHeader from "@/components/AppHeader";
+import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { loadWalletSnapshot } from "@/lib/wallets/storage";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
@@ -80,12 +80,12 @@ export default function FirePage() {
   const fmt = (v: number) => v >= 1_000_000 ? `€ ${(v / 1_000_000).toFixed(2)}M` : v >= 1_000 ? `€ ${(v / 1_000).toFixed(1)}K` : `€ ${Math.round(v)}`;
 
   return (
+    <AppShell>
     <div className="relative min-h-screen bg-slate-950 text-slate-100">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-[700px] h-[300px] rounded-full bg-orange-500/6 blur-[100px]" />
       </div>
       <div className="relative z-10">
-        <AppHeader variant="app" subtitle="FIRE" />
         <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-6 space-y-8">
 
           {/* Header */}
@@ -226,5 +226,6 @@ export default function FirePage() {
         </main>
       </div>
     </div>
+    </AppShell>
   );
 }

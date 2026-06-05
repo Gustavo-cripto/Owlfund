@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import AppHeader from "@/components/AppHeader";
+import AppShell from "@/components/AppShell";
 import { createClient } from "@/lib/supabase/client";
  
  type SubscriptionStatus = {
@@ -63,6 +63,7 @@ import { createClient } from "@/lib/supabase/client";
    };
  
   return (
+    <AppShell>
     <div className="relative min-h-screen bg-slate-950 text-slate-100">
       <div
         className="pointer-events-none absolute inset-0 opacity-70"
@@ -78,7 +79,6 @@ import { createClient } from "@/lib/supabase/client";
       <div className="pointer-events-none absolute inset-0 bg-slate-950/25" aria-hidden />
 
       <div className="relative z-10">
-        <AppHeader variant="app" subtitle="Conta" />
         <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 pb-20 pt-2">
          <div className="space-y-2">
            <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">
@@ -146,5 +146,6 @@ import { createClient } from "@/lib/supabase/client";
         </main>
       </div>
      </div>
+    </AppShell>
    );
  }

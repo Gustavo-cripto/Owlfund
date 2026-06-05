@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import ChatWidget from "@/components/ChatWidget";
-import AppHeader from "@/components/AppHeader";
+import AppShell from "@/components/AppShell";
 import PnlSummaryCard from "@/components/PnlSummaryCard";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { loadWalletSnapshot, type WalletSnapshot } from "@/lib/wallets/storage";
@@ -226,13 +226,13 @@ export default function DashboardPage() {
     : undefined;
 
   return (
+    <AppShell>
     <div className="relative min-h-screen bg-slate-950 text-slate-100">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full bg-orange-500/6 blur-[100px]" />
       </div>
 
       <div className="relative z-10">
-        <AppHeader variant="app" subtitle="Dashboard" />
 
         <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-24 pt-6">
 
@@ -342,5 +342,6 @@ export default function DashboardPage() {
         </main>
       </div>
     </div>
+    </AppShell>
   );
 }

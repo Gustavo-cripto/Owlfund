@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import AppHeader from "@/components/AppHeader";
+import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 
 type TradeEntry = {
@@ -134,12 +134,12 @@ export default function FiscalidadePage() {
   const fmtEur = (v: number) => `€ ${Math.abs(v).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
+    <AppShell>
     <div className="relative min-h-screen bg-slate-950 text-slate-100">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full bg-orange-500/6 blur-[100px]" />
       </div>
       <div className="relative z-10">
-        <AppHeader variant="app" subtitle="Fiscalidade" />
         <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-6 space-y-8">
 
           {/* Header */}
@@ -315,5 +315,6 @@ export default function FiscalidadePage() {
         </main>
       </div>
     </div>
+    </AppShell>
   );
 }

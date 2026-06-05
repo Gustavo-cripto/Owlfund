@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from "react";
 
-import AppHeader from "@/components/AppHeader";
+import AppShell from "@/components/AppShell";
 import WalletCard from "@/components/wallets/WalletCard";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -2115,8 +2115,8 @@ export default function WalletsPage() {
   };
 
   return (
+    <AppShell>
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <AppHeader variant="app" subtitle="Carteiras" />
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-20 pt-2">
         <div className="flex flex-col gap-4">
           <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">
@@ -4218,5 +4218,6 @@ export default function WalletsPage() {
         )}
       </main>
     </div>
+    </AppShell>
   );
 }

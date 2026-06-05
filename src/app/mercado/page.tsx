@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
-import AppHeader from "@/components/AppHeader";
+import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import {
   traditionalAssets,
@@ -909,8 +909,8 @@ export default function MercadoPage() {
   }, [currentPage, filteredSortedRows.length]);
 
   return (
+    <AppShell>
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <AppHeader variant="app" subtitle="Panorama do mercado" />
       <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 pb-20 pt-2 lg:px-8">
         <div className="flex flex-col gap-4">
           <h1 className="text-3xl font-semibold text-white">Mercado</h1>
@@ -1527,5 +1527,6 @@ export default function MercadoPage() {
         ) : null}
       </main>
     </div>
+    </AppShell>
   );
 }
