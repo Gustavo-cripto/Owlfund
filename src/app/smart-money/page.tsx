@@ -91,15 +91,27 @@ const KNOWN_WHALES: WatchEntry[] = [
   { address: "0x5A0b54D5dc17e0AadC383d2db43B0a0D3E029c4c", label: "DCF God", chain: "eth", addedAt: 0 },
   { address: "0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7", label: "Curve: 3pool", chain: "eth", addedAt: 0 },
   { address: "0xBA12222222228d8Ba445958a75a0704d566BF2C8", label: "Balancer Vault", chain: "eth", addedAt: 0 },
+  // ── Trump / World Liberty Financial (ETH) ──
+  { address: "0x94845333028B1204Fbe14E1278Fd4Adde46B22ce", label: "Donald Trump (World Liberty Fi.)", chain: "eth", addedAt: 0 },
+  { address: "0x5CE368f68A6395E604a9B6784c7012B5ca7bF4A0", label: "Eric Trump / WLF Treasury", chain: "eth", addedAt: 0 },
   { address: "GJRs4FwHtemZ5ZE9x3FNvJ8TMwitKTh21yxdRPqn7as5", label: "Solana Foundation", chain: "sol", addedAt: 0 },
   { address: "7uv3ZvZcQLd95bUp6WigMCxcpMQRZqgPuGUhJFbzRDc", label: "Anatoly Yakovenko (Solana CEO)", chain: "sol", addedAt: 0 },
   { address: "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM", label: "Ansem (trader)", chain: "sol", addedAt: 0 },
   // ── BTC Whales ──
+  // Satoshi Nakamoto — endereços dos primeiros blocos minados, nunca movidos
+  { address: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", label: "Satoshi Nakamoto (Genesis Block)", chain: "btc", addedAt: 0 },
+  { address: "12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S", label: "Satoshi Nakamoto (bloco 9)", chain: "btc", addedAt: 0 },
+  { address: "1HLoD9E4SDFFPDiYfNYnkBLQ85Y51J3Zb1", label: "Satoshi Nakamoto (bloco 78)", chain: "btc", addedAt: 0 },
+  // Michael Saylor / MicroStrategy
   { address: "1P5ZEDWTKTFGxQjZphgWPQUpe554WKDfHQ", label: "Michael Saylor / MicroStrategy", chain: "btc", addedAt: 0 },
+  // Exchanges BTC
   { address: "1FfmbHfnpaZjKFvyi1okTjJJusN455paPH", label: "Binance BTC Cold #1", chain: "btc", addedAt: 0 },
   { address: "34xp4vRoCGJym3xR7yCVPFHoCNxv4Twseo", label: "Binance BTC Cold #2", chain: "btc", addedAt: 0 },
   { address: "bc1qgdjqv0av3q56jvd82tkdjpy7gdp9ut8tlqmgrpmv24sq90ecnvqqjwvw97", label: "Bitfinex BTC Cold", chain: "btc", addedAt: 0 },
   { address: "3Cbq7aT1tY8kMxWLbitaG7yT6bPbKChq64", label: "Kraken BTC Cold", chain: "btc", addedAt: 0 },
+  // Histórico / Governo EUA
+  { address: "1F1tAaz5x1HUXrCNLbtMDqcw6o5GNn4xqX", label: "Silk Road (FBI Seizure)", chain: "btc", addedAt: 0 },
+  { address: "bc1qa5wkgaew2dkv56kfvj49j0av5nml45x9ek9hz6", label: "US Government DOJ (Bitfinex hack)", chain: "btc", addedAt: 0 },
 ];
 
 function loadWatchlist(): WatchEntry[] {
