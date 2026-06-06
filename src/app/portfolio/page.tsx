@@ -59,9 +59,14 @@ type PricesApiResponse = {
   error?: string;
 };
 
+type HistoricalPrices = {
+  "1d": Record<string, number>;
+  "7d": Record<string, number>;
+  "30d": Record<string, number>;
+};
+
 async function fetchTokenPricesEur(): Promise<TokenPrices> {
   try {
-    // Use server-side proxy to avoid CoinGecko rate limits / CORS
     const res = await fetch("/api/prices", { cache: "no-store" });
     if (!res.ok) return {};
     const data = (await res.json()) as PricesApiResponse;
@@ -78,6 +83,16 @@ async function fetchPricesWithBenchmark(): Promise<PricesApiResponse> {
     return (await res.json()) as PricesApiResponse;
   } catch {
     return {};
+  }
+}
+
+async function fetchHistoricalPrices(): Promise<HistoricalPrices> {
+  try {
+    const res = await fetch("/api/historical-prices", { cache: "no-store" });
+    if (!res.ok) return { "1d": {}, "7d": {}, "30d": {} };
+    return (await res.json()) as HistoricalPrices;
+  } catch {
+    return { "1d": {}, "7d": {}, "30d": {} };
   }
 }
 
@@ -160,6 +175,7 @@ export default function PortfolioPage() {
   useRequireAuth("/login");
   const [wallets, setWallets] = useState<WalletBalance[]>([]);
   const [tokenPrices, setTokenPrices] = useState<TokenPrices>({});
+  const [historicalPrices, setHistoricalPrices] = useState<HistoricalPrices>({ "1d": {}, "7d": {}, "30d": {} });
   // Ref keeps prices always fresh for async callbacks (avoids stale closure)
   const tokenPricesRef = useRef<TokenPrices>({});
   const [traditionalHoldings, setTraditionalHoldings] = useState<TraditionalHoldings>({});
@@ -219,7 +235,9 @@ export default function PortfolioPage() {
     };
 
     loadPrices();
-    // Refresh prices every 60s to keep portfolio value live
+    // Fetch historical prices once on mount (cached for 1h server-side)
+    fetchHistoricalPrices().then(setHistoricalPrices).catch(() => {});
+    // Refresh current prices every 60s to keep portfolio value live
     const interval = setInterval(loadPrices, 60_000);
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -449,28 +467,36 @@ export default function PortfolioPage() {
       .sort((a, b) => b.createdAt - a.createdAt);
   }, [snapshots, manualTotals, tokenPrices]);
 
+  // PNL usando preços históricos — funciona desde o 1º dia, sem depender de snapshots
   const pnlSummary = useMemo(() => {
-    if (snapshotTotals.length === 0) {
-      return { position: 0, today: 0, days30: 0, daily7d: 0 };
-    }
-
-    const now = Date.now();
     const currentTotal = portfolioTotal;
+    const snapshot = loadWalletSnapshot();
+
+    // Calcula o valor do portfolio de carteiras com preços históricos
+    const portfolioAtPrice = (prices: Record<string, number>) =>
+      sumEntries(snapshot.eth) * (prices.ETH ?? 0) +
+      sumEntries(snapshot.sol) * (prices.SOL ?? 0) +
+      sumEntries(snapshot.btc) * (prices.BTC ?? 0) +
+      sumEntries(snapshot.ada) * (prices.ADA ?? 0) +
+      manualTotals;
+
+    const total1d  = portfolioAtPrice(historicalPrices["1d"]);
+    const total7d  = portfolioAtPrice(historicalPrices["7d"]);
+    const total30d = portfolioAtPrice(historicalPrices["30d"]);
+
+    const today   = total1d  > 0 ? currentTotal - total1d  : 0;
+    const days7   = total7d  > 0 ? currentTotal - total7d  : 0;
+    const days30  = total30d > 0 ? currentTotal - total30d : 0;
+    const daily7d = days7 !== 0 ? days7 / 7 : 0;
+
+    // position: usa snapshot mais antigo do Supabase se existir, senão usa 30d
     const oldest = snapshotTotals[snapshotTotals.length - 1];
-    const baseTotal = oldest?.total ?? currentTotal;
-
-    const dayMs = 24 * 60 * 60 * 1000;
-    const snapshotToday = snapshotTotals.find((row) => row.createdAt <= now - dayMs);
-    const snapshot30d = snapshotTotals.find((row) => row.createdAt <= now - 30 * dayMs);
-    const snapshot7d = snapshotTotals.find((row) => row.createdAt <= now - 7 * dayMs);
-
-    const position = currentTotal - baseTotal;
-    const today = snapshotToday ? currentTotal - snapshotToday.total : 0;
-    const days30 = snapshot30d ? currentTotal - snapshot30d.total : 0;
-    const daily7d = snapshot7d ? (currentTotal - snapshot7d.total) / 7 : 0;
+    const position = oldest
+      ? currentTotal - oldest.total
+      : days30;
 
     return { position, today, days30, daily7d };
-  }, [snapshotTotals, portfolioTotal]);
+  }, [portfolioTotal, historicalPrices, manualTotals, snapshotTotals]);
 
   const pnlTotal = pnlSummary.position;
 
