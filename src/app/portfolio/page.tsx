@@ -137,9 +137,9 @@ const formatSignedCurrency = (value: number) => {
   return `${sign} € ${formatValue(Math.abs(value))}`;
 };
 
-const getPercent = (value: number, total: number) => {
-  if (!total || total <= 0) return 0;
-  return Math.round((value / total) * 100);
+const getPercent = (value: number, total: number): string => {
+  if (!total || total <= 0) return "0";
+  return String(Math.round((value / total) * 100));
 };
 
 export default function PortfolioPage() {
@@ -230,7 +230,7 @@ export default function PortfolioPage() {
         .eq("user_id", user.id)
         .order("current_period_end", { ascending: false })
         .limit(1)
-        .maybeSingle<SubscriptionStatus>();
+        .maybeSingle();
 
       const isActive =
         subscription?.status === "active" || subscription?.status === "trialing";
@@ -745,7 +745,8 @@ export default function PortfolioPage() {
                   <Tooltip
                     contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
                     labelStyle={{ color: "#94a3b8" }}
-                    formatter={(v: number) => [`€ ${formatValue(v)}`, "Valor"]}
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    formatter={(v: any) => [`€ ${formatValue(typeof v === "number" ? v : 0)}`, "Valor"]}
                   />
                   <Area type="monotone" dataKey="valor" stroke="#f97316" strokeWidth={2} fill="url(#colorValor)" dot={{ fill: "#f97316", r: 3 }} />
                 </AreaChart>
@@ -786,7 +787,8 @@ export default function PortfolioPage() {
                     </Pie>
                     <Tooltip
                       contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
-                      formatter={(v: number) => [`€ ${formatValue(v)}`, ""]}
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      formatter={(v: any) => [`€ ${formatValue(typeof v === "number" ? v : 0)}`, ""]}
                     />
                     <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{ color: "#94a3b8", fontSize: 11 }}>{v}</span>} />
                   </PieChart>
@@ -813,7 +815,8 @@ export default function PortfolioPage() {
                 <YAxis tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={v => `€${v}`} width={55} axisLine={false} tickLine={false} />
                 <Tooltip
                   contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
-                  formatter={(v: number) => [`€ ${formatValue(Math.abs(v))}`, v >= 0 ? "Lucro" : "Perda"]}
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  formatter={(v: any) => { const n = typeof v === "number" ? v : 0; return [`€ ${formatValue(Math.abs(n))}`, n >= 0 ? "Lucro" : "Perda"]; }}
                 />
                 <Bar dataKey="pnl" radius={[6, 6, 0, 0]}>
                   {[pnlSummary.position, pnlSummary.today, pnlSummary.days30 ?? 0, pnlSummary.daily7d].map((v, i) => (

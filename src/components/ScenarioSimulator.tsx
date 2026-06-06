@@ -11,7 +11,7 @@ type Props = {
   stablecoinTotal: number;
 };
 
-const PRESETS = [
+const PRESETS: Array<{ label: string; changes: Record<string, number> }> = [
   { label: "Bull Market Cripto +100%", changes: { crypto: 100 } },
   { label: "Bear Market Cripto -50%", changes: { crypto: -50 } },
   { label: "Crash -80% (bear extremo)", changes: { crypto: -80 } },

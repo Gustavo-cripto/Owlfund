@@ -36,7 +36,6 @@ import {
   type RunesBalanceEntry,
 } from "@/lib/wallets/bitcoin";
 import {
-  connectEternl,
   connectCardanoWallet,
   getAdaBalance,
   getAdaBalanceByAddress,
@@ -603,7 +602,7 @@ export default function WalletsPage() {
         .eq("user_id", user.id)
         .order("current_period_end", { ascending: false })
         .limit(1)
-        .maybeSingle<SubscriptionStatus>();
+        .maybeSingle();
 
       const isActive =
         subscription?.status === "active" || subscription?.status === "trialing";
@@ -1130,8 +1129,8 @@ export default function WalletsPage() {
     return Object.values(nftCounts).reduce((sum, n) => sum + (typeof n === "number" ? n : 0), 0);
   }, [nftCounts]);
 
-  const totalDefiUsd = useMemo(() => {
-    return Object.values(defiTotals).reduce(
+  const totalDefiUsd = useMemo((): number => {
+    return Object.values(defiTotals).reduce<number>(
       (sum, v) => sum + (typeof v === "number" && Number.isFinite(v) ? v : 0),
       0
     );

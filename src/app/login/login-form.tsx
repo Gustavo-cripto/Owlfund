@@ -30,7 +30,7 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
   useEffect(() => {
     let isMounted = true;
 
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(({ data }: { data: { session: unknown } }) => {
       if (!isMounted) return;
       if (data.session) {
         window.location.href = getRedirectUrl(nextParam);
