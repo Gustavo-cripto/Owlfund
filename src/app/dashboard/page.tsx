@@ -149,7 +149,7 @@ export default function DashboardPage() {
 
   const STATS = [
     { label: "Blockchains", value: "15+", sub: t("dash_networks"), icon: "🔗" },
-    { label: t("loading").includes("...") ? "Security" : "Segurança", value: "100%", sub: t("dash_security"), icon: "🔒" },
+    { label: "Security", value: "100%", sub: t("dash_security"), icon: "🔒" },
     { label: "Markets", value: "24/7", sub: t("dash_markets"), icon: "📡" },
     { label: "Cost", value: "€ 0", sub: t("dash_cost"), icon: "✨" },
   ];

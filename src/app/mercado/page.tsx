@@ -133,18 +133,6 @@ const formatDateShort = (timestampSec: number) => {
 };
 
 
-// mapClassificationPt kept for backward compat — use mapClassification(value, t) in components
-const mapClassificationPt = (value: string) => {
-  switch (value) {
-    case "Extreme Fear": return "Medo extremo";
-    case "Fear": return "Medo";
-    case "Neutral": return "Neutro";
-    case "Greed": return "Ganância";
-    case "Extreme Greed": return "Ganância extrema";
-    default: return value;
-  }
-};
-
 function useClassification() {
   const { t } = useLanguage();
   return (value: string) => {

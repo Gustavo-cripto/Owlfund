@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
-import { loadWalletSnapshot } from "@/lib/wallets/storage";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 
@@ -22,13 +21,6 @@ export default function FirePage() {
   const [currentAge, setCurrentAge] = useState(30);
   const [retirementAge, setRetirementAge] = useState(45);
 
-  // Portfólio atual: soma dos saldos armazenados (em unidades de token)
-  const currentPortfolioTokens = useMemo(() => {
-    if (typeof window === "undefined") return 0;
-    const snapshot = loadWalletSnapshot();
-    const sum = (entries?: typeof snapshot.eth) => (entries ?? []).reduce((s, e) => s + (Number(e.balance ?? 0) || 0), 0);
-    return sum(snapshot.eth) + sum(snapshot.sol) + sum(snapshot.btc) + sum(snapshot.ada);
-  }, []);
 
   const [portfolioOverride, setPortfolioOverride] = useState<string>("");
 
@@ -75,9 +67,6 @@ export default function FirePage() {
     ];
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [portfolioValue, fireTarget, monthlyExpenses, t]);
-
-  // suppress unused warning
-  void currentPortfolioTokens;
 
   if (isLoading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-400 animate-pulse">{t("loading")}</p></div>;
 
