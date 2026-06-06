@@ -11,7 +11,11 @@ import AppShell from "@/components/AppShell";
 import PnlSummaryCard from "@/components/PnlSummaryCard";
 import ScenarioSimulator from "@/components/ScenarioSimulator";
 import { createClient } from "@/lib/supabase/client";
-import { loadWalletSnapshot, type StoredWalletEntry, type WalletSnapshot } from "@/lib/wallets/storage";
+import { loadWalletSnapshot, updateWalletSnapshot, type StoredWalletEntry, type WalletSnapshot } from "@/lib/wallets/storage";
+import { getEvmBalance } from "@/lib/wallets/evm";
+import { getSolBalance } from "@/lib/wallets/solana";
+import { getBtcBalanceFromAddress } from "@/lib/wallets/bitcoin";
+import { getAdaBalanceByAddress } from "@/lib/wallets/cardano";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { traditionalAssets } from "@/lib/traditional/assets";
 import { loadTraditionalHoldings, type TraditionalHoldings } from "@/lib/traditional/storage";
@@ -191,12 +195,50 @@ export default function PortfolioPage() {
       .finally(() => setBenchmarkLoading(false));
   }, []);
 
-  // Buscar preços EUR ao carregar
+  // Buscar preços EUR ao carregar + refresh saldos das carteiras
   useEffect(() => {
-    fetchTokenPricesEur().then((prices) => {
+    fetchTokenPricesEur().then(async (prices) => {
       setTokenPrices(prices);
       const snapshot = loadWalletSnapshot();
+      // Mostrar o que existe no snapshot imediatamente
       setWallets(snapshotToWallets(snapshot as WalletSnapshot, prices));
+
+      // Re-fetch saldos frescos para cada carteira ligada
+      const patch: WalletSnapshot = {};
+      const refreshEntries = async (
+        entries: StoredWalletEntry[] | undefined,
+        fetcher: (addr: string) => Promise<string>
+      ): Promise<StoredWalletEntry[] | undefined> => {
+        if (!entries?.length) return undefined;
+        return Promise.all(
+          entries.map(async (e) => {
+            if (!e.address) return e;
+            try {
+              const balance = await fetcher(e.address);
+              return { ...e, balance };
+            } catch { return e; }
+          })
+        );
+      };
+
+      try {
+        const [eth, sol, btc, ada] = await Promise.allSettled([
+          refreshEntries(snapshot.eth, (a) => getEvmBalance(a as `0x${string}`, "Ethereum")),
+          refreshEntries(snapshot.sol, getSolBalance),
+          refreshEntries(snapshot.btc, (a) => getBtcBalanceFromAddress(a).then(String)),
+          refreshEntries(snapshot.ada, (a) => getAdaBalanceByAddress(a).then(String)),
+        ]);
+        if (eth.status === "fulfilled" && eth.value) patch.eth = eth.value;
+        if (sol.status === "fulfilled" && sol.value) patch.sol = sol.value;
+        if (btc.status === "fulfilled" && btc.value) patch.btc = btc.value;
+        if (ada.status === "fulfilled" && ada.value) patch.ada = ada.value;
+
+        if (Object.keys(patch).length > 0) {
+          updateWalletSnapshot(patch);
+          const fresh = loadWalletSnapshot();
+          setWallets(snapshotToWallets(fresh as WalletSnapshot, prices));
+        }
+      } catch { /* silencioso */ }
     });
   }, []);
 

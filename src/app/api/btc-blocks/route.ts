@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 
-export const runtime = "edge";
+export const dynamic = "force-dynamic";
 
 async function fetchJSON(url: string) {
   const res = await fetch(url, {
-    headers: { Accept: "application/json" },
-    next: { revalidate: 20 },
+    headers: {
+      Accept: "application/json",
+      "User-Agent": "Mozilla/5.0 (compatible; Owlfund/1.0)",
+    },
+    cache: "no-store",
   });
   if (!res.ok) throw new Error(`${res.status}`);
   return res.json();
