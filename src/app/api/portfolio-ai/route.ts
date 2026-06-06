@@ -30,12 +30,12 @@ function buildSystemPrompt(ctx: PortfolioContext): string {
     .join("\n");
 
   const metrics = [
-    ctx.roi !== undefined ? `ROI: ${ctx.roi.toFixed(2)}%` : null,
-    ctx.cagr !== undefined ? `CAGR: ${ctx.cagr.toFixed(2)}%` : null,
-    ctx.sharpe !== undefined ? `Sharpe Ratio: ${ctx.sharpe.toFixed(2)}` : null,
-    ctx.maxDrawdown !== undefined ? `Max Drawdown: ${ctx.maxDrawdown.toFixed(2)}%` : null,
-    ctx.volatility !== undefined ? `Volatilidade anualizada: ${ctx.volatility.toFixed(2)}%` : null,
-    ctx.days !== undefined ? `Período analisado: ${ctx.days} dias` : null,
+    typeof ctx.roi === "number" ? `ROI: ${ctx.roi.toFixed(2)}%` : null,
+    typeof ctx.cagr === "number" ? `CAGR: ${ctx.cagr.toFixed(2)}%` : null,
+    typeof ctx.sharpe === "number" ? `Sharpe Ratio: ${ctx.sharpe.toFixed(2)}` : null,
+    typeof ctx.maxDrawdown === "number" ? `Max Drawdown: ${ctx.maxDrawdown.toFixed(2)}%` : null,
+    typeof ctx.volatility === "number" ? `Volatilidade anualizada: ${ctx.volatility.toFixed(2)}%` : null,
+    typeof ctx.days === "number" ? `Período analisado: ${ctx.days} dias` : null,
   ]
     .filter(Boolean)
     .join("\n  ");
