@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -160,6 +160,8 @@ export default function PortfolioPage() {
   useRequireAuth("/login");
   const [wallets, setWallets] = useState<WalletBalance[]>([]);
   const [tokenPrices, setTokenPrices] = useState<TokenPrices>({});
+  // Ref keeps prices always fresh for async callbacks (avoids stale closure)
+  const tokenPricesRef = useRef<TokenPrices>({});
   const [traditionalHoldings, setTraditionalHoldings] = useState<TraditionalHoldings>({});
   const [cryptoHoldings, setCryptoHoldings] = useState<CryptoHoldings>({});
   const [stablecoinEntries, setStablecoinEntries] = useState<StablecoinEntry[]>([]);
@@ -181,6 +183,13 @@ export default function PortfolioPage() {
 
   // Buscar benchmark + crypto prices via proxy server-side (evita rate limits CoinGecko)
   useEffect(() => {
+    const applyPrices = (prices: TokenPrices) => {
+      tokenPricesRef.current = prices;
+      setTokenPrices(prices);
+      const snapshot = loadWalletSnapshot();
+      setWallets(snapshotToWallets(snapshot as WalletSnapshot, prices));
+    };
+
     const loadPrices = () => {
       setBenchmarkLoading(true);
       fetchPricesWithBenchmark()
@@ -201,10 +210,8 @@ export default function PortfolioPage() {
               gold_30d: data.benchmark.gold_30d ?? 0,
             });
           }
-          if (data.prices) {
-            setTokenPrices(data.prices);
-            const snapshot = loadWalletSnapshot();
-            setWallets(snapshotToWallets(snapshot as WalletSnapshot, data.prices));
+          if (data.prices && Object.keys(data.prices).length > 0) {
+            applyPrices(data.prices);
           }
         })
         .catch(() => {})
@@ -215,6 +222,7 @@ export default function PortfolioPage() {
     // Refresh prices every 60s to keep portfolio value live
     const interval = setInterval(loadPrices, 60_000);
     return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Re-fetch saldos frescos das carteiras ao carregar
@@ -252,22 +260,9 @@ export default function PortfolioPage() {
       if (Object.keys(patch).length > 0) {
         updateWalletSnapshot(patch);
         const fresh = loadWalletSnapshot();
-        setWallets((prev) => {
-          // Merge fresh balances with current prices already loaded
-          const prices: TokenPrices = {};
-          if (prev[0]) {
-            // Reconstruct prices from current wallet state
-          }
-          return snapshotToWallets(fresh as WalletSnapshot, prices);
-        });
-        // Re-apply prices after balance refresh
-        fetchTokenPricesEur().then((prices) => {
-          if (Object.keys(prices).length > 0) {
-            setTokenPrices(prices);
-            const latest = loadWalletSnapshot();
-            setWallets(snapshotToWallets(latest as WalletSnapshot, prices));
-          }
-        });
+        // Use ref to get latest prices (avoids stale closure)
+        const prices = tokenPricesRef.current;
+        setWallets(snapshotToWallets(fresh as WalletSnapshot, prices));
       }
     }).catch(() => {});
   }, []);
@@ -331,7 +326,8 @@ export default function PortfolioPage() {
         const latestTotal = snapshotTotal(latest.data);
         const localTotal = snapshotTotal(localSnapshot);
         if (latestTotal > 0 || localTotal === 0) {
-          setWallets(snapshotToWallets(latest.data, tokenPrices));
+          // Use ref to always get latest prices, avoiding race condition
+          setWallets(snapshotToWallets(latest.data, tokenPricesRef.current));
         }
       }
 
@@ -411,7 +407,7 @@ export default function PortfolioPage() {
   }, [userId, isLoadingAuth]);
 
   const handleRestoreSnapshot = (row: SnapshotRow) => {
-    setWallets(snapshotToWallets(row.data));
+    setWallets(snapshotToWallets(row.data, tokenPricesRef.current));
     setSaveMessage(`Snapshot de ${new Date(row.created_at).toLocaleString("pt-BR")} carregado.`);
   };
 
