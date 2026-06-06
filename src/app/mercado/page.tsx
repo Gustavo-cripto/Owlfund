@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import AppShell from "@/components/AppShell";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import {
   traditionalAssets,
@@ -132,22 +133,31 @@ const formatDateShort = (timestampSec: number) => {
 };
 
 
+// mapClassificationPt kept for backward compat — use mapClassification(value, t) in components
 const mapClassificationPt = (value: string) => {
   switch (value) {
-    case "Extreme Fear":
-      return "Medo extremo";
-    case "Fear":
-      return "Medo";
-    case "Neutral":
-      return "Neutro";
-    case "Greed":
-      return "Ganância";
-    case "Extreme Greed":
-      return "Ganância extrema";
-    default:
-      return value;
+    case "Extreme Fear": return "Medo extremo";
+    case "Fear": return "Medo";
+    case "Neutral": return "Neutro";
+    case "Greed": return "Ganância";
+    case "Extreme Greed": return "Ganância extrema";
+    default: return value;
   }
 };
+
+function useClassification() {
+  const { t } = useLanguage();
+  return (value: string) => {
+    switch (value) {
+      case "Extreme Fear": return t("merc_extreme_fear");
+      case "Fear": return t("merc_fear");
+      case "Neutral": return t("merc_neutral");
+      case "Greed": return t("merc_greed");
+      case "Extreme Greed": return t("merc_extreme_greed");
+      default: return value;
+    }
+  };
+}
 
 function FearGreedGauge({ value }: { value: number }) {
   const uid = useId();
@@ -218,6 +228,8 @@ function FearGreedWidget({
   onSelectSymbol: (symbol: string) => void;
   selectedSymbol: string | null;
 }) {
+  const { t } = useLanguage();
+  const mapClass = useClassification();
   const now = points[0];
   const yesterday = points[1];
   const lastWeek = points[7];
@@ -244,10 +256,10 @@ function FearGreedWidget({
   }, [remainingSec]);
 
   const rows = [
-    { label: "Agora", point: now },
-    { label: "Ontem", point: yesterday },
-    { label: "Última semana", point: lastWeek },
-    { label: "Último mês", point: lastMonth },
+    { label: t("merc_now"), point: now },
+    { label: t("merc_yesterday"), point: yesterday },
+    { label: t("merc_last_week"), point: lastWeek },
+    { label: t("merc_last_month"), point: lastMonth },
   ].filter((row) => row.point);
 
   const updatedAt = now ? formatDateShort(now.timestampSec) : "";
@@ -258,8 +270,8 @@ function FearGreedWidget({
         <div className="flex items-start gap-3">
           <div className="text-2xl leading-none">₿</div>
           <div>
-            <h2 className="text-base font-semibold text-white">Fear &amp; Greed Index</h2>
-            <p className="text-xs text-slate-500">Global (alternative.me)</p>
+            <h2 className="text-base font-semibold text-white">{t("merc_fear_greed")}</h2>
+            <p className="text-xs text-slate-500">{t("merc_fear_greed_source")}</p>
           </div>
         </div>
 
@@ -268,23 +280,23 @@ function FearGreedWidget({
         </div>
 
         <div className="mt-2">
-          <p className="text-sm text-slate-400">Agora:</p>
-          <p className="text-lg font-semibold text-white">{now ? mapClassificationPt(now.classification) : "A carregar..."}</p>
+          <p className="text-sm text-slate-400">{t("merc_now")}:</p>
+          <p className="text-lg font-semibold text-white">{now ? mapClass(now.classification) : t("loading")}</p>
           <p className="mt-2 text-xs text-slate-500">
-            {updatedAt ? `Última atualização: ${updatedAt}` : " "}
+            {updatedAt ? `${t("updated")}: ${updatedAt}` : " "}
           </p>
         </div>
       </div>
 
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-        <h3 className="text-sm font-semibold text-white">Valores históricos</h3>
+        <h3 className="text-sm font-semibold text-white">{t("merc_historical")}</h3>
         <div className="mt-4 flex flex-col gap-3">
           {rows.map((row) => (
             <div key={row.label} className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm text-slate-200">{row.label}</p>
                 <p className="text-xs text-slate-500">
-                  {mapClassificationPt(row.point!.classification)}
+                  {mapClass(row.point!.classification)}
                 </p>
               </div>
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-600/90 text-sm font-semibold text-white">
@@ -296,20 +308,20 @@ function FearGreedWidget({
       </div>
 
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-        <h3 className="text-sm font-semibold text-white">Próxima atualização</h3>
-        <p className="mt-4 text-sm text-slate-400">A próxima atualização acontece em:</p>
+        <h3 className="text-sm font-semibold text-white">{t("merc_next_update")}</h3>
+        <p className="mt-4 text-sm text-slate-400">{t("merc_next_update_desc")}</p>
         <p className="mt-2 text-lg font-semibold text-white">
           {remainingSec == null ? "—" : formatCountdown(remainingSec)}
         </p>
-        <p className="mt-4 text-xs text-slate-500">Fonte: alternative.me</p>
+        <p className="mt-4 text-xs text-slate-500">{t("merc_source")}</p>
       </div>
 
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h3 className="text-sm font-semibold text-white">Fear &amp; Greed do ativo</h3>
+            <h3 className="text-sm font-semibold text-white">{t("merc_asset_fg")}</h3>
             <p className="text-xs text-slate-500">
-              {selectedSymbol ? `${selectedSymbol} · estimativa por RSI (7d)` : "Selecione um ativo"}
+              {selectedSymbol ? `${selectedSymbol} · ${t("merc_estimated_rsi")}` : t("merc_select_asset")}
             </p>
           </div>
           {selected && (
@@ -326,8 +338,8 @@ function FearGreedWidget({
             <div className="h-[140px] w-full rounded-xl border border-slate-800 bg-slate-950/50 p-4">
               <p className="text-sm text-slate-300">
                 {selectedSymbol
-                  ? "Sem dados para este ativo (fora do Top 10)."
-                  : "Selecione um ativo para ver o indicador."}
+                  ? t("merc_no_data")
+                  : t("merc_select_to_view")}
               </p>
             </div>
           )}
@@ -339,8 +351,8 @@ function FearGreedWidget({
       </div>
 
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-        <h3 className="text-sm font-semibold text-white">Fear &amp; Greed (ETH + mais 9)</h3>
-        <p className="mt-1 text-xs text-slate-500">Estimativa por RSI (7d) · Top 10 por market cap</p>
+        <h3 className="text-sm font-semibold text-white">Fear &amp; Greed (ETH + Top 10)</h3>
+        <p className="mt-1 text-xs text-slate-500">{t("merc_top10")}</p>
         <div className="mt-4 flex flex-col gap-3">
           {top10.length ? (
             top10.map((row) => (
@@ -363,7 +375,7 @@ function FearGreedWidget({
               </button>
             ))
           ) : (
-            <p className="text-sm text-slate-400">A carregar...</p>
+            <p className="text-sm text-slate-400">{t("loading")}</p>
           )}
         </div>
       </div>
@@ -485,6 +497,7 @@ function TradingViewWidget({
 
 export default function MercadoPage() {
   useRequireAuth("/login");
+  const { t } = useLanguage();
   const [marketMode, setMarketMode] = useState<"crypto" | "tradicional">("crypto");
   const [rows, setRows] = useState<MarketRow[]>([]);
   const [selected, setSelected] = useState<MarketRow | null>(null);

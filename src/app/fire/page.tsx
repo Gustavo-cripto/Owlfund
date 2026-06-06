@@ -5,12 +5,14 @@ import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { loadWalletSnapshot } from "@/lib/wallets/storage";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 // Regra dos 4% (Trinity Study): patrimônio necessário = despesas anuais × 25
 const FIRE_MULTIPLE = 25;
 
 export default function FirePage() {
   const { isLoading } = useRequireAuth("/login");
+  const { t } = useLanguage();
 
   // Inputs do utilizador
   const [monthlyExpenses, setMonthlyExpenses] = useState(2000);
@@ -20,14 +22,12 @@ export default function FirePage() {
   const [currentAge, setCurrentAge] = useState(30);
   const [retirementAge, setRetirementAge] = useState(45);
 
-  // Portfólio atual do utilizador (localStorage)
-  const currentPortfolio = useMemo(() => {
+  // Portfólio atual: soma dos saldos armazenados (em unidades de token)
+  const currentPortfolioTokens = useMemo(() => {
     if (typeof window === "undefined") return 0;
     const snapshot = loadWalletSnapshot();
     const sum = (entries?: typeof snapshot.eth) => (entries ?? []).reduce((s, e) => s + (Number(e.balance ?? 0) || 0), 0);
-    // Retorna o total de tokens (sem preço) — usamos como aproximação
-    // Em produção, multiplicar pelos preços EUR
-    return (sum(snapshot.eth) + sum(snapshot.sol) + sum(snapshot.btc) + sum(snapshot.ada));
+    return sum(snapshot.eth) + sum(snapshot.sol) + sum(snapshot.btc) + sum(snapshot.ada);
   }, []);
 
   const [portfolioOverride, setPortfolioOverride] = useState<string>("");
@@ -63,19 +63,23 @@ export default function FirePage() {
     return data;
   }, [portfolioValue, monthlyInvestment, realReturn, fireTarget, yearsToFire, currentAge]);
 
-  // Planeamento patrimonial — categorias
+  // Planeamento patrimonial — categorias (uses t() via closure, recalculates on lang change)
   const patrimonialPlan = useMemo(() => {
     const total = portfolioValue || fireTarget;
     return [
-      { label: "Fundo de emergência", rec: "3–6 meses de despesas", value: monthlyExpenses * 6, pct: ((monthlyExpenses * 6) / total * 100).toFixed(0) },
-      { label: "Cripto (alta volatilidade)", rec: "Máx. 20–30% do portfólio", value: total * 0.25, pct: "25" },
-      { label: "Ações / ETFs (mercado)", rec: "40–60% do portfólio", value: total * 0.50, pct: "50" },
-      { label: "Obrigações / Imóveis", rec: "10–20% estabilidade", value: total * 0.15, pct: "15" },
-      { label: "Cash / Stablecoins", rec: "5–10% liquidez", value: total * 0.10, pct: "10" },
+      { label: t("fire_emergency"), rec: t("fire_emergency_desc"), value: monthlyExpenses * 6, pct: ((monthlyExpenses * 6) / total * 100).toFixed(0) },
+      { label: t("fire_crypto"), rec: t("fire_crypto_desc"), value: total * 0.25, pct: "25" },
+      { label: t("fire_stocks"), rec: t("fire_stocks_desc"), value: total * 0.50, pct: "50" },
+      { label: t("fire_bonds"), rec: t("fire_bonds_desc"), value: total * 0.15, pct: "15" },
+      { label: t("fire_cash"), rec: t("fire_cash_desc"), value: total * 0.10, pct: "10" },
     ];
-  }, [portfolioValue, fireTarget, monthlyExpenses]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [portfolioValue, fireTarget, monthlyExpenses, t]);
 
-  if (isLoading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-400 animate-pulse">A carregar...</p></div>;
+  // suppress unused warning
+  void currentPortfolioTokens;
+
+  if (isLoading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-400 animate-pulse">{t("loading")}</p></div>;
 
   const fmt = (v: number) => v >= 1_000_000 ? `€ ${(v / 1_000_000).toFixed(2)}M` : v >= 1_000 ? `€ ${(v / 1_000).toFixed(1)}K` : `€ ${Math.round(v)}`;
 
@@ -90,23 +94,21 @@ export default function FirePage() {
 
           {/* Header */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">Independência Financeira</p>
-            <h1 className="mt-2 text-2xl font-bold text-white">FIRE Calculator</h1>
-            <p className="mt-1 text-sm text-slate-400">
-              <strong className="text-slate-300">F</strong>inancial <strong className="text-slate-300">I</strong>ndependence, <strong className="text-slate-300">R</strong>etire <strong className="text-slate-300">E</strong>arly — calcula quando podes ser financeiramente livre.
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">Financial Independence</p>
+            <h1 className="mt-2 text-2xl font-bold text-white">{t("fire_title")}</h1>
+            <p className="mt-1 text-sm text-slate-400">{t("fire_subtitle")}</p>
           </div>
 
           {/* Inputs */}
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-5">Parâmetros</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-5">{t("fire_params")}</p>
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {[
-                { label: "Despesas mensais (€)", key: "monthlyExpenses", value: monthlyExpenses, set: setMonthlyExpenses, min: 500, max: 20000, step: 100 },
-                { label: "Investimento mensal (€)", key: "monthlyInvestment", value: monthlyInvestment, set: setMonthlyInvestment, min: 0, max: 10000, step: 50 },
-                { label: "Retorno anual esperado (%)", key: "annualReturn", value: annualReturn, set: setAnnualReturn, min: 1, max: 20, step: 0.5 },
-                { label: "Inflação anual (%)", key: "inflationRate", value: inflationRate, set: setInflationRate, min: 0, max: 10, step: 0.5 },
-                { label: "Idade atual", key: "currentAge", value: currentAge, set: setCurrentAge, min: 18, max: 70, step: 1 },
+                { label: t("fire_monthly_expenses"), key: "monthlyExpenses", value: monthlyExpenses, set: setMonthlyExpenses, min: 500, max: 20000, step: 100 },
+                { label: t("fire_monthly_investment"), key: "monthlyInvestment", value: monthlyInvestment, set: setMonthlyInvestment, min: 0, max: 10000, step: 50 },
+                { label: t("fire_annual_return"), key: "annualReturn", value: annualReturn, set: setAnnualReturn, min: 1, max: 20, step: 0.5 },
+                { label: t("fire_inflation"), key: "inflationRate", value: inflationRate, set: setInflationRate, min: 0, max: 10, step: 0.5 },
+                { label: t("fire_current_age"), key: "currentAge", value: currentAge, set: setCurrentAge, min: 18, max: 70, step: 1 },
               ].map(f => (
                 <div key={f.key}>
                   <div className="flex justify-between mb-1.5">
@@ -122,7 +124,7 @@ export default function FirePage() {
                 </div>
               ))}
               <div>
-                <label className="text-xs text-slate-400 block mb-1.5">Portfólio atual (€) <span className="text-slate-600">— opcional</span></label>
+                <label className="text-xs text-slate-400 block mb-1.5">{t("fire_current_portfolio")}</label>
                 <input type="number" placeholder="Ex: 50000" value={portfolioOverride}
                   onChange={e => setPortfolioOverride(e.target.value)}
                   className="w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
@@ -133,9 +135,9 @@ export default function FirePage() {
           {/* Resultado FIRE */}
           <div className="grid gap-4 sm:grid-cols-3">
             {[
-              { label: "Objetivo FIRE", value: fmt(fireTarget), sub: "Regra dos 4% (25× despesas anuais)", color: "text-orange-300" },
-              { label: yearsToFire === 0 ? "Já és FIRE! 🎉" : yearsToFire !== null ? `${yearsToFire} anos` : "Sem retorno", value: fireYear ? `${fireYear}` : "—", sub: fireAge ? `Idade: ${fireAge} anos` : "Ajusta os parâmetros", color: yearsToFire === 0 ? "text-emerald-400" : "text-white" },
-              { label: "Retorno real anual", value: `${realReturn > 0 ? "+" : ""}${(realReturn * 100).toFixed(1)}%`, sub: `${annualReturn}% retorno − ${inflationRate}% inflação`, color: realReturn > 0 ? "text-emerald-400" : "text-rose-400" },
+              { label: t("fire_target"), value: fmt(fireTarget), sub: t("fire_target_rule"), color: "text-orange-300" },
+              { label: yearsToFire === 0 ? t("fire_already_fire") : yearsToFire !== null ? `${yearsToFire} ${t("fire_years")}` : "—", value: fireYear ? `${fireYear}` : "—", sub: fireAge ? `${t("fire_retire_at")} ${fireAge}` : "—", color: yearsToFire === 0 ? "text-emerald-400" : "text-white" },
+              { label: t("fire_real_return"), value: `${realReturn > 0 ? "+" : ""}${(realReturn * 100).toFixed(1)}%`, sub: `${annualReturn}% − ${inflationRate}%`, color: realReturn > 0 ? "text-emerald-400" : "text-rose-400" },
             ].map(c => (
               <div key={c.label} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 text-center">
                 <p className="text-xs text-slate-500 mb-1">{c.label}</p>
@@ -148,8 +150,8 @@ export default function FirePage() {
           {/* Gráfico de projeção */}
           {projection.length > 1 && (
             <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500 mb-1">Projeção</p>
-              <h2 className="text-base font-bold text-white mb-4">Crescimento do patrimônio</h2>
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500 mb-1">{t("fire_projection")}</p>
+              <h2 className="text-base font-bold text-white mb-4">{t("fire_wealth_growth")}</h2>
               <ResponsiveContainer width="100%" height={220}>
                 <AreaChart data={projection}>
                   <defs>
@@ -167,7 +169,7 @@ export default function FirePage() {
                   <YAxis tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={v => v >= 1000000 ? `€${(v/1000000).toFixed(1)}M` : `€${(v/1000).toFixed(0)}K`} width={70} />
                   <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }} labelStyle={{ color: "#94a3b8" }}
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    formatter={(v: any, name: any) => [fmt(typeof v === "number" ? v : 0), name === "patrimonio" ? "Patrimônio" : "Objetivo FIRE"]} />
+                    formatter={(v: any, name: any) => [fmt(typeof v === "number" ? v : 0), name === "patrimonio" ? t("fire_patrimony") : t("fire_goal")]} />
                   <Area type="monotone" dataKey="target" stroke="#22c55e" strokeWidth={1.5} strokeDasharray="4 4" fill="url(#gTarget)" dot={false} name="target" />
                   <Area type="monotone" dataKey="patrimonio" stroke="#f97316" strokeWidth={2} fill="url(#gPat)" dot={false} name="patrimonio" />
                 </AreaChart>
@@ -177,8 +179,8 @@ export default function FirePage() {
 
           {/* Planeamento patrimonial */}
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500 mb-1">Estratégia</p>
-            <h2 className="text-base font-bold text-white mb-4">Planeamento patrimonial recomendado</h2>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500 mb-1">{t("fire_strategy")}</p>
+            <h2 className="text-base font-bold text-white mb-4">{t("fire_plan_title")}</h2>
             <div className="space-y-3">
               {patrimonialPlan.map(item => (
                 <div key={item.label} className="flex items-center gap-4">
@@ -198,19 +200,17 @@ export default function FirePage() {
                 </div>
               ))}
             </div>
-            <p className="text-[11px] text-slate-600 mt-4">
-              Estes pesos são indicativos para um perfil moderado. Ajusta conforme tolerância ao risco e horizonte temporal.
-            </p>
+            <p className="text-[11px] text-slate-600 mt-4">{t("fire_disclaimer")}</p>
           </div>
 
           {/* FIRE types */}
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500 mb-4">Variantes FIRE</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500 mb-4">{t("fire_variants")}</p>
             <div className="grid gap-3 sm:grid-cols-3">
               {[
-                { type: "Lean FIRE", multiplier: 20, desc: "Estilo de vida minimalista. Retiro com 20× as despesas anuais.", target: monthlyExpenses * 12 * 20 },
-                { type: "Regular FIRE", multiplier: 25, desc: "Regra dos 4%. O mais comum e testado historicamente.", target: monthlyExpenses * 12 * 25 },
-                { type: "Fat FIRE", multiplier: 33, desc: "Estilo de vida confortável. Retiro com 33× (taxa 3%).", target: monthlyExpenses * 12 * 33 },
+                { type: t("fire_lean"), multiplier: 20, desc: t("fire_lean_desc"), target: monthlyExpenses * 12 * 20 },
+                { type: t("fire_regular"), multiplier: 25, desc: t("fire_regular_desc"), target: monthlyExpenses * 12 * 25 },
+                { type: t("fire_fat"), multiplier: 33, desc: t("fire_fat_desc"), target: monthlyExpenses * 12 * 33 },
               ].map(f => (
                 <div key={f.type} className={`rounded-xl border p-4 ${f.multiplier === 25 ? "border-orange-500/40 bg-orange-500/5" : "border-slate-700 bg-slate-900/40"}`}>
                   <div className="flex items-center justify-between mb-2">
