@@ -14,7 +14,7 @@ const sanitizeLabel = (label: string): string =>
 type WatchEntry = {
   address: string;
   label: string;
-  chain: "eth" | "sol";
+  chain: "eth" | "sol" | "btc";
   addedAt: number;
 };
 
@@ -94,6 +94,12 @@ const KNOWN_WHALES: WatchEntry[] = [
   { address: "GJRs4FwHtemZ5ZE9x3FNvJ8TMwitKTh21yxdRPqn7as5", label: "Solana Foundation", chain: "sol", addedAt: 0 },
   { address: "7uv3ZvZcQLd95bUp6WigMCxcpMQRZqgPuGUhJFbzRDc", label: "Anatoly Yakovenko (Solana CEO)", chain: "sol", addedAt: 0 },
   { address: "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM", label: "Ansem (trader)", chain: "sol", addedAt: 0 },
+  // ── BTC Whales ──
+  { address: "1P5ZEDWTKTFGxQjZphgWPQUpe554WKDfHQ", label: "Michael Saylor / MicroStrategy", chain: "btc", addedAt: 0 },
+  { address: "1FfmbHfnpaZjKFvyi1okTjJJusN455paPH", label: "Binance BTC Cold #1", chain: "btc", addedAt: 0 },
+  { address: "34xp4vRoCGJym3xR7yCVPFHoCNxv4Twseo", label: "Binance BTC Cold #2", chain: "btc", addedAt: 0 },
+  { address: "bc1qgdjqv0av3q56jvd82tkdjpy7gdp9ut8tlqmgrpmv24sq90ecnvqqjwvw97", label: "Bitfinex BTC Cold", chain: "btc", addedAt: 0 },
+  { address: "3Cbq7aT1tY8kMxWLbitaG7yT6bPbKChq64", label: "Kraken BTC Cold", chain: "btc", addedAt: 0 },
 ];
 
 function loadWatchlist(): WatchEntry[] {
@@ -197,7 +203,7 @@ export default function SmartMoneyPage() {
   const [alerts, setAlerts] = useState<AlertEntry[]>([]);
   const [newAddress, setNewAddress] = useState("");
   const [newLabel, setNewLabel] = useState("");
-  const [newChain, setNewChain] = useState<"eth" | "sol">("eth");
+  const [newChain, setNewChain] = useState<"eth" | "sol" | "btc">("eth");
   const [addError, setAddError] = useState<string | null>(null);
   const [showKnown, setShowKnown] = useState(false);
   const [historyAddr, setHistoryAddr] = useState<string>("");
@@ -232,11 +238,11 @@ export default function SmartMoneyPage() {
   }, []);
 
   const fetchTxData = useCallback(async (entry: WatchEntry) => {
-    if (entry.chain !== "eth") return;
+    if (entry.chain === "sol") return; // Solana tx history not yet supported
     const key = entry.address;
     setTxData((prev) => ({ ...prev, [key]: { txs: [], loading: true, error: null } }));
     try {
-      const res = await fetch(`/api/whale-txs?address=${encodeURIComponent(entry.address)}`);
+      const res = await fetch(`/api/whale-txs?address=${encodeURIComponent(entry.address)}&chain=${entry.chain}`);
       const data = (await res.json()) as { txs?: WhaleTx[]; error?: string };
       if (!res.ok || data.error) {
         setTxData((prev) => ({ ...prev, [key]: { txs: [], loading: false, error: data.error ?? "Falha." } }));
@@ -291,8 +297,10 @@ export default function SmartMoneyPage() {
     if (!addr) { setAddError("Insere um endereço."); return; }
     const isEvm = /^0x[a-fA-F0-9]{40}$/.test(addr);
     const isSol = addr.length >= 32 && addr.length <= 44 && !addr.startsWith("0x");
+    const isBtc = /^(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,62}$/.test(addr);
     if (newChain === "eth" && !isEvm) { setAddError("Endereço EVM inválido (deve começar com 0x)."); return; }
     if (newChain === "sol" && !isSol) { setAddError("Endereço Solana inválido."); return; }
+    if (newChain === "btc" && !isBtc) { setAddError("Endereço Bitcoin inválido (deve começar com 1, 3 ou bc1)."); return; }
     if (watchlist.some((e) => e.address.toLowerCase() === addr.toLowerCase())) {
       setAddError("Endereço já na watchlist."); return;
     }
@@ -338,7 +346,7 @@ export default function SmartMoneyPage() {
     );
   }
 
-  const ethWatchlist = watchlist.filter((e) => e.chain === "eth");
+  const ethWatchlist = watchlist.filter((e) => e.chain === "eth" || e.chain === "btc");
   const selectedEntry = watchlist.find((e) => e.address === historyAddr);
   const selectedTx = txData[historyAddr];
   const unreadAlerts = alerts.filter((a) => Date.now() - a.seenAt < 24 * 60 * 60 * 1000).length;
@@ -405,13 +413,14 @@ export default function SmartMoneyPage() {
                 <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 space-y-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t("sm_add_wallet")}</p>
                   <div className="flex flex-wrap gap-3">
-                    <select value={newChain} onChange={(e) => setNewChain(e.target.value as "eth" | "sol")}
+                    <select value={newChain} onChange={(e) => setNewChain(e.target.value as "eth" | "sol" | "btc")}
                       className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500">
                       <option value="eth">EVM (ETH/Polygon/…)</option>
                       <option value="sol">Solana</option>
+                      <option value="btc">Bitcoin</option>
                     </select>
                     <input type="text"
-                      placeholder={newChain === "eth" ? "0x… endereço EVM" : "Endereço Solana base58"}
+                      placeholder={newChain === "eth" ? "0x… endereço EVM" : newChain === "btc" ? "1… / 3… / bc1… endereço Bitcoin" : "Endereço Solana base58"}
                       value={newAddress} onChange={(e) => setNewAddress(e.target.value)}
                       className="flex-1 min-w-[220px] rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
                     <input type="text" placeholder="Nome / etiqueta (opcional)"
