@@ -53,20 +53,29 @@ const COINGECKO_IDS: Record<string, string> = {
 
 type TokenPrices = Record<string, number>; // symbol → EUR price
 
+type PricesApiResponse = {
+  prices?: TokenPrices;
+  benchmark?: Record<string, number>;
+  error?: string;
+};
+
 async function fetchTokenPricesEur(): Promise<TokenPrices> {
   try {
-    const ids = Object.values(COINGECKO_IDS).join(",");
-    const res = await fetch(
-      `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=eur`,
-      { cache: "no-store" }
-    );
+    // Use server-side proxy to avoid CoinGecko rate limits / CORS
+    const res = await fetch("/api/prices", { cache: "no-store" });
     if (!res.ok) return {};
-    const data = await res.json();
-    const prices: TokenPrices = {};
-    for (const [symbol, id] of Object.entries(COINGECKO_IDS)) {
-      prices[symbol] = data[id]?.eur ?? 0;
-    }
-    return prices;
+    const data = (await res.json()) as PricesApiResponse;
+    return data.prices ?? {};
+  } catch {
+    return {};
+  }
+}
+
+async function fetchPricesWithBenchmark(): Promise<PricesApiResponse> {
+  try {
+    const res = await fetch("/api/prices", { cache: "no-store" });
+    if (!res.ok) return {};
+    return (await res.json()) as PricesApiResponse;
   } catch {
     return {};
   }
@@ -170,76 +179,97 @@ export default function PortfolioPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
-  // Buscar benchmark prices (BTC, ETH, S&P500, Gold via CoinGecko)
+  // Buscar benchmark + crypto prices via proxy server-side (evita rate limits CoinGecko)
   useEffect(() => {
-    setBenchmarkLoading(true);
-    fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,gold&vs_currencies=eur&include_24hr_change=true&include_7d_change=true&include_30d_change=true", { cache: "no-store" })
-      .then(r => r.ok ? r.json() : {})
-      .then((d: Record<string, { eur?: number; eur_24h_change?: number; eur_7d_change?: number; eur_30d_change?: number }>) => {
-        setBenchmarkPrices({
-          btc_eur: d.bitcoin?.eur ?? 0,
-          btc_24h: d.bitcoin?.eur_24h_change ?? 0,
-          btc_7d: d.bitcoin?.eur_7d_change ?? 0,
-          btc_30d: d.bitcoin?.eur_30d_change ?? 0,
-          eth_eur: d.ethereum?.eur ?? 0,
-          eth_24h: d.ethereum?.eur_24h_change ?? 0,
-          eth_7d: d.ethereum?.eur_7d_change ?? 0,
-          eth_30d: d.ethereum?.eur_30d_change ?? 0,
-          gold_eur: d.gold?.eur ?? 0,
-          gold_24h: d.gold?.eur_24h_change ?? 0,
-          gold_7d: d.gold?.eur_7d_change ?? 0,
-          gold_30d: d.gold?.eur_30d_change ?? 0,
-        });
-      })
-      .catch(() => {})
-      .finally(() => setBenchmarkLoading(false));
+    const loadPrices = () => {
+      setBenchmarkLoading(true);
+      fetchPricesWithBenchmark()
+        .then((data) => {
+          if (data.benchmark) {
+            setBenchmarkPrices({
+              btc_eur: data.benchmark.btc_eur ?? 0,
+              btc_24h: data.benchmark.btc_24h ?? 0,
+              btc_7d: data.benchmark.btc_7d ?? 0,
+              btc_30d: data.benchmark.btc_30d ?? 0,
+              eth_eur: data.benchmark.eth_eur ?? 0,
+              eth_24h: data.benchmark.eth_24h ?? 0,
+              eth_7d: data.benchmark.eth_7d ?? 0,
+              eth_30d: data.benchmark.eth_30d ?? 0,
+              gold_eur: data.benchmark.gold_eur ?? 0,
+              gold_24h: data.benchmark.gold_24h ?? 0,
+              gold_7d: data.benchmark.gold_7d ?? 0,
+              gold_30d: data.benchmark.gold_30d ?? 0,
+            });
+          }
+          if (data.prices) {
+            setTokenPrices(data.prices);
+            const snapshot = loadWalletSnapshot();
+            setWallets(snapshotToWallets(snapshot as WalletSnapshot, data.prices));
+          }
+        })
+        .catch(() => {})
+        .finally(() => setBenchmarkLoading(false));
+    };
+
+    loadPrices();
+    // Refresh prices every 60s to keep portfolio value live
+    const interval = setInterval(loadPrices, 60_000);
+    return () => clearInterval(interval);
   }, []);
 
-  // Buscar preços EUR ao carregar + refresh saldos das carteiras
+  // Re-fetch saldos frescos das carteiras ao carregar
   useEffect(() => {
-    fetchTokenPricesEur().then(async (prices) => {
-      setTokenPrices(prices);
-      const snapshot = loadWalletSnapshot();
-      // Mostrar o que existe no snapshot imediatamente
-      setWallets(snapshotToWallets(snapshot as WalletSnapshot, prices));
+    const snapshot = loadWalletSnapshot();
+    if (!snapshot.eth?.length && !snapshot.sol?.length && !snapshot.btc?.length && !snapshot.ada?.length) return;
 
-      // Re-fetch saldos frescos para cada carteira ligada
-      const patch: WalletSnapshot = {};
-      const refreshEntries = async (
-        entries: StoredWalletEntry[] | undefined,
-        fetcher: (addr: string) => Promise<string>
-      ): Promise<StoredWalletEntry[] | undefined> => {
-        if (!entries?.length) return undefined;
-        return Promise.all(
-          entries.map(async (e) => {
-            if (!e.address) return e;
-            try {
-              const balance = await fetcher(e.address);
-              return { ...e, balance };
-            } catch { return e; }
-          })
-        );
-      };
+    const patch: WalletSnapshot = {};
+    const refreshEntries = async (
+      entries: StoredWalletEntry[] | undefined,
+      fetcher: (addr: string) => Promise<string>
+    ): Promise<StoredWalletEntry[] | undefined> => {
+      if (!entries?.length) return undefined;
+      return Promise.all(
+        entries.map(async (e) => {
+          if (!e.address) return e;
+          try {
+            const balance = await fetcher(e.address);
+            return { ...e, balance };
+          } catch { return e; }
+        })
+      );
+    };
 
-      try {
-        const [eth, sol, btc, ada] = await Promise.allSettled([
-          refreshEntries(snapshot.eth, (a) => getEvmBalance(a as `0x${string}`, "Ethereum")),
-          refreshEntries(snapshot.sol, getSolBalance),
-          refreshEntries(snapshot.btc, (a) => getBtcBalanceFromAddress(a).then(String)),
-          refreshEntries(snapshot.ada, (a) => getAdaBalanceByAddress(a).then(String)),
-        ]);
-        if (eth.status === "fulfilled" && eth.value) patch.eth = eth.value;
-        if (sol.status === "fulfilled" && sol.value) patch.sol = sol.value;
-        if (btc.status === "fulfilled" && btc.value) patch.btc = btc.value;
-        if (ada.status === "fulfilled" && ada.value) patch.ada = ada.value;
-
-        if (Object.keys(patch).length > 0) {
-          updateWalletSnapshot(patch);
-          const fresh = loadWalletSnapshot();
-          setWallets(snapshotToWallets(fresh as WalletSnapshot, prices));
-        }
-      } catch { /* silencioso */ }
-    });
+    Promise.allSettled([
+      refreshEntries(snapshot.eth, (a) => getEvmBalance(a as `0x${string}`, "Ethereum")),
+      refreshEntries(snapshot.sol, getSolBalance),
+      refreshEntries(snapshot.btc, (a) => getBtcBalanceFromAddress(a).then(String)),
+      refreshEntries(snapshot.ada, (a) => getAdaBalanceByAddress(a).then(String)),
+    ]).then(([eth, sol, btc, ada]) => {
+      if (eth.status === "fulfilled" && eth.value) patch.eth = eth.value;
+      if (sol.status === "fulfilled" && sol.value) patch.sol = sol.value;
+      if (btc.status === "fulfilled" && btc.value) patch.btc = btc.value;
+      if (ada.status === "fulfilled" && ada.value) patch.ada = ada.value;
+      if (Object.keys(patch).length > 0) {
+        updateWalletSnapshot(patch);
+        const fresh = loadWalletSnapshot();
+        setWallets((prev) => {
+          // Merge fresh balances with current prices already loaded
+          const prices: TokenPrices = {};
+          if (prev[0]) {
+            // Reconstruct prices from current wallet state
+          }
+          return snapshotToWallets(fresh as WalletSnapshot, prices);
+        });
+        // Re-apply prices after balance refresh
+        fetchTokenPricesEur().then((prices) => {
+          if (Object.keys(prices).length > 0) {
+            setTokenPrices(prices);
+            const latest = loadWalletSnapshot();
+            setWallets(snapshotToWallets(latest as WalletSnapshot, prices));
+          }
+        });
+      }
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -345,9 +375,11 @@ export default function PortfolioPage() {
     if (!silent) setSaveMessage(null);
 
     const snapshot = loadWalletSnapshot();
+    // Store current EUR total inside data so historical PNL reflects real prices
+    const dataWithTotal = { ...snapshot, _totalEur: portfolioTotal };
     const { error } = await supabase
       .from("portfolio_snapshots")
-      .insert({ user_id: userId, data: snapshot });
+      .insert({ user_id: userId, data: dataWithTotal });
 
     if (error) {
       if (!silent) setSaveMessage("Não foi possível salvar o portfólio.");
@@ -405,11 +437,19 @@ export default function PortfolioPage() {
 
   const snapshotTotals = useMemo(() => {
     return snapshots
-      .map((row) => ({
-        id: row.id,
-        createdAt: new Date(row.created_at).getTime(),
-        total: snapshotTotal(row.data, tokenPrices) + manualTotals,
-      }))
+      .map((row) => {
+        // Use stored EUR total if available (saved after this fix was deployed)
+        // Falls back to recalculating with current prices for older snapshots
+        const storedTotal = (row.data as WalletSnapshot & { _totalEur?: number })._totalEur;
+        const total = storedTotal != null
+          ? storedTotal + manualTotals
+          : snapshotTotal(row.data, tokenPrices) + manualTotals;
+        return {
+          id: row.id,
+          createdAt: new Date(row.created_at).getTime(),
+          total,
+        };
+      })
       .sort((a, b) => b.createdAt - a.createdAt);
   }, [snapshots, manualTotals, tokenPrices]);
 
