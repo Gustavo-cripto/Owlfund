@@ -44,6 +44,214 @@ const emptyTrade = (): TradeEntry => ({
   exchange: "Binance",
 });
 
+const COUNTRY_LAW = [
+  {
+    code: "PT", flag: "🇵🇹", name: "Portugal",
+    taxShort: "28%", taxLong: "Isento",
+    threshold: "> 365 dias",
+    color: "border-green-500/30 bg-green-500/5",
+    badge: "text-green-400",
+    summary: "Mais-valias cripto com detenção superior a 365 dias são isentas de imposto (desde 2023). Abaixo disso, aplica-se uma taxa de 28% sobre o lucro. Obrigatório declarar no IRS (Anexo G).",
+    keyPoints: [
+      "Taxa 0% para holding > 365 dias",
+      "28% sobre ganhos de curto prazo",
+      "Declarar em Anexo G do IRS",
+      "FIFO obrigatório por defeito",
+      "Lei n.º 24-D/2022, art. 5.º",
+    ],
+    law: "Lei n.º 24-D/2022",
+  },
+  {
+    code: "ES", flag: "🇪🇸", name: "Espanha",
+    taxShort: "19–28%", taxLong: "19–28%",
+    threshold: "Escalonado por ganho",
+    color: "border-yellow-500/30 bg-yellow-500/5",
+    badge: "text-yellow-400",
+    summary: "A Espanha trata as criptomoedas como ativos patrimoniais. As mais-valias são tributadas de forma escalonada: 19% até €6k, 21% de €6k–€50k, 23% de €50k–€200k e 28% acima. Sem distinção entre curto e longo prazo.",
+    keyPoints: [
+      "19% até €6.000 de ganho",
+      "21% entre €6k e €50k",
+      "23% entre €50k e €200k",
+      "28% acima de €200k",
+      "Declarar na IRPF (Renda)",
+    ],
+    law: "LIRPF art. 33–35",
+  },
+  {
+    code: "FR", flag: "🇫🇷", name: "França",
+    taxShort: "30%", taxLong: "30%",
+    threshold: "Flat tax (PFU)",
+    color: "border-blue-500/30 bg-blue-500/5",
+    badge: "text-blue-400",
+    summary: "A França aplica um 'Prélèvement Forfaitaire Unique' (PFU) de 30% sobre todas as mais-valias cripto, independentemente do período de detenção. Inclui 12,8% de imposto e 17,2% de contribuições sociais.",
+    keyPoints: [
+      "Flat tax de 30% sobre todos os ganhos",
+      "12,8% IR + 17,2% contribuições sociais",
+      "Sem benefício por tempo de detenção",
+      "Declarar na déclaration 2086",
+      "Isenção se ganhos totais < €305/ano",
+    ],
+    law: "CGI art. 150 VH bis",
+  },
+  {
+    code: "DE", flag: "🇩🇪", name: "Alemanha",
+    taxShort: "Taxa marginal (até 45%)", taxLong: "Isento",
+    threshold: "> 365 dias",
+    color: "border-slate-500/30 bg-slate-500/5",
+    badge: "text-slate-400",
+    summary: "A Alemanha é dos países mais favoráveis: ganhos de ativos detidos mais de 1 ano são totalmente isentos. Para detenção inferior, aplica-se a taxa marginal de IRS pessoal (até 45%). Isenção também abaixo de €600 de ganho.",
+    keyPoints: [
+      "Taxa 0% para holding > 1 ano",
+      "Taxa marginal pessoal para < 1 ano",
+      "Isenção se ganhos anuais < €600",
+      "Declarar na Anlage SO do Einkommensteuererklärung",
+      "Regra especial para staking: < 10 anos",
+    ],
+    law: "EStG § 23",
+  },
+  {
+    code: "UK", flag: "🇬🇧", name: "Reino Unido",
+    taxShort: "10–20%", taxLong: "10–20%",
+    threshold: "Por escalão de rendimento",
+    color: "border-purple-500/30 bg-purple-500/5",
+    badge: "text-purple-400",
+    summary: "O HMRC trata cripto como ativos de capital. Taxa de 10% para contribuintes de base e 20% para contribuintes superiores. Isenção anual de £3.000 (Annual Exempt Amount 2024/25). Sem distinção temporal.",
+    keyPoints: [
+      "10% para contribuintes básicos",
+      "20% para contribuintes de taxa superior",
+      "Isenção anual de £3.000",
+      "Regras Section 104 pooling (custo médio)",
+      "Declarar via Self Assessment",
+    ],
+    law: "TCGA 1992 / HMRC CG Guidelines",
+  },
+  {
+    code: "US", flag: "🇺🇸", name: "EUA",
+    taxShort: "10–37%", taxLong: "0–20%",
+    threshold: "> 365 dias",
+    color: "border-red-500/30 bg-red-500/5",
+    badge: "text-red-400",
+    summary: "O IRS classifica cripto como 'property'. Ganhos de curto prazo (< 1 ano) são tributados à taxa marginal de rendimento ordinário (até 37%). Longo prazo: 0%, 15% ou 20% dependendo do rendimento. Obrigação adicional de reporte FBAR/FinCEN.",
+    keyPoints: [
+      "0–20% para longo prazo (>1 ano)",
+      "10–37% para curto prazo",
+      "Cada troca de cripto por cripto é evento tributável",
+      "Declarar via Form 8949 + Schedule D",
+      "Staking/mining = rendimento ordinário",
+    ],
+    law: "IRS Notice 2014-21 / Revenue Ruling 2023-14",
+  },
+  {
+    code: "CH", flag: "🇨🇭", name: "Suíça",
+    taxShort: "Isento (private)", taxLong: "Isento",
+    threshold: "Investidores privados",
+    color: "border-red-500/30 bg-red-500/5",
+    badge: "text-red-400",
+    summary: "A Suíça é considerada um paraíso cripto. Para investidores privados, os ganhos de capital são geralmente isentos de imposto federal. Trading frequente pode ser considerado atividade profissional (tributado). O imposto sobre riqueza aplica-se ao valor detido.",
+    keyPoints: [
+      "Ganhos de capital isentos para privados",
+      "Trading profissional = tributado como rendimento",
+      "Imposto sobre a fortuna (0,3–1%) sobre o valor",
+      "Declarar na declaração de impostos cantonal",
+      "Cada cantão tem regras ligeiramente diferentes",
+    ],
+    law: "DBG art. 16 / LIFD",
+  },
+  {
+    code: "AE", flag: "🇦🇪", name: "Dubai / EAU",
+    taxShort: "0%", taxLong: "0%",
+    threshold: "Sem imposto sobre ganhos",
+    color: "border-amber-500/30 bg-amber-500/5",
+    badge: "text-amber-400",
+    summary: "Os Emirados Árabes Unidos não têm imposto sobre o rendimento pessoal nem sobre mais-valias para pessoas singulares. Dubai é uma das jurisdições mais favoráveis do mundo para cripto, com regulação avançada via VARA.",
+    keyPoints: [
+      "0% de imposto sobre ganhos cripto",
+      "0% de imposto sobre rendimento pessoal",
+      "VARA regula exchanges e projetos cripto",
+      "Necessário residência fiscal nos EAU",
+      "Empresas: 9% imposto sobre lucros > AED 375k",
+    ],
+    law: "Federal Decree-Law No. 47 of 2022",
+  },
+];
+
+function LegislationSection() {
+  const [selected, setSelected] = useState<string | null>(null);
+  const selectedCountry = COUNTRY_LAW.find((c) => c.code === selected);
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">Guia</p>
+        <h2 className="mt-1 text-xl font-bold text-white">Legislação por País</h2>
+        <p className="mt-1 text-sm text-slate-400">
+          Resumo do tratamento fiscal de criptomoedas nos principais países. Clica para ver detalhes.
+        </p>
+      </div>
+
+      {/* Country grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {COUNTRY_LAW.map((c) => (
+          <button
+            key={c.code}
+            type="button"
+            onClick={() => setSelected(selected === c.code ? null : c.code)}
+            className={`rounded-2xl border p-4 text-left transition hover:brightness-110 ${c.color} ${selected === c.code ? "ring-2 ring-orange-500/40" : ""}`}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-2xl">{c.flag}</span>
+              <div>
+                <p className="text-xs font-bold text-white">{c.name}</p>
+                <p className={`text-[10px] font-medium ${c.badge}`}>{c.code}</p>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <div className="flex justify-between text-[10px]">
+                <span className="text-slate-500">Curto prazo</span>
+                <span className="text-rose-400 font-medium">{c.taxShort}</span>
+              </div>
+              <div className="flex justify-between text-[10px]">
+                <span className="text-slate-500">Longo prazo</span>
+                <span className="text-emerald-400 font-medium">{c.taxLong}</span>
+              </div>
+              <div className="flex justify-between text-[10px]">
+                <span className="text-slate-500">Limiar</span>
+                <span className="text-slate-400 font-medium text-right">{c.threshold}</span>
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* Detail panel */}
+      {selectedCountry && (
+        <div className={`rounded-2xl border p-6 space-y-4 ${selectedCountry.color}`}>
+          <div className="flex items-center gap-3">
+            <span className="text-4xl">{selectedCountry.flag}</span>
+            <div>
+              <h3 className="text-lg font-bold text-white">{selectedCountry.name}</h3>
+              <p className={`text-xs font-medium ${selectedCountry.badge}`}>{selectedCountry.law}</p>
+            </div>
+          </div>
+          <p className="text-sm text-slate-300 leading-relaxed">{selectedCountry.summary}</p>
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Pontos-chave</p>
+            <ul className="space-y-1.5">
+              {selectedCountry.keyPoints.map((point) => (
+                <li key={point} className="flex items-start gap-2 text-sm text-slate-300">
+                  <span className={`mt-0.5 shrink-0 text-xs ${selectedCountry.badge}`}>•</span>
+                  {point}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <p className="text-xs text-slate-600">⚠️ Informação de caráter geral. Consulta sempre um especialista fiscal.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function FiscalidadePage() {
   const { isLoading } = useRequireAuth("/login");
   const [trades, setTrades] = useState<TradeEntry[]>([]);
@@ -311,6 +519,9 @@ export default function FiscalidadePage() {
               <p className="text-xs text-slate-400 mt-1">Adiciona as tuas compras e vendas para calcular o imposto.</p>
             </div>
           )}
+
+          {/* Legislação por país */}
+          <LegislationSection />
 
         </main>
       </div>

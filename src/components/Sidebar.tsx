@@ -3,7 +3,29 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+import type { Lang } from "@/lib/i18n/translations";
 
+const LANGS: { code: Lang; flag: string; label: string }[] = [
+  { code: "pt", flag: "🇵🇹", label: "PT" },
+  { code: "en", flag: "🇬🇧", label: "EN" },
+  { code: "es", flag: "🇪🇸", label: "ES" },
+  { code: "fr", flag: "🇫🇷", label: "FR" },
+];
+
+const NAV_ITEMS_KEYS = [
+  { href: "/dashboard",   labelKey: "nav_dashboard" },
+  { href: "/portfolio",   labelKey: "nav_portfolio" },
+  { href: "/wallets",     labelKey: "nav_wallets" },
+  { href: "/smart-money", labelKey: "nav_smart_money" },
+  { href: "/mercado",     labelKey: "nav_mercado" },
+  { href: "/fiscalidade", labelKey: "nav_fiscalidade" },
+  { href: "/fire",        labelKey: "nav_fire" },
+  { href: "/pricing",     labelKey: "nav_pricing" },
+  { href: "/account",     labelKey: "nav_account" },
+] as const;
+
+// Keep legacy constant for icon lookup
 const NAV_ITEMS = [
   {
     href: "/dashboard",
@@ -73,6 +95,15 @@ const NAV_ITEMS = [
     ),
   },
   {
+    href: "/pricing",
+    label: "Planos",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+      </svg>
+    ),
+  },
+  {
     href: "/account",
     label: "Conta",
     icon: (
@@ -86,6 +117,7 @@ const NAV_ITEMS = [
 export default function Sidebar() {
   const pathname = usePathname();
   const supabase = createClient();
+  const { lang, setLang, t } = useLanguage();
   const [email, setEmail] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -155,20 +187,29 @@ export default function Sidebar() {
       {/* ── Mobile dropdown ── */}
       {mobileOpen && (
         <nav className="xl:hidden bg-black border-b border-white/[0.06] px-3 py-3 grid grid-cols-2 gap-1">
-          {NAV_ITEMS.map((item) => (
-            <a key={item.href} href={item.href}
-              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition ${
-                isActive(item.href) ? "bg-white/10 text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"
-              }`}
-            >
-              <span className={isActive(item.href) ? "text-orange-400" : "text-slate-500"}>{item.icon}</span>
-              {item.label}
-            </a>
-          ))}
+          {NAV_ITEMS_KEYS.map((item) => {
+            const icon = NAV_ITEMS.find((n) => n.href === item.href)?.icon;
+            return (
+              <a key={item.href} href={item.href}
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition ${
+                  isActive(item.href) ? "bg-white/10 text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"
+                }`}
+              >
+                <span className={isActive(item.href) ? "text-orange-400" : "text-slate-500"}>{icon}</span>
+                {t(item.labelKey)}
+              </a>
+            );
+          })}
           <div className="col-span-2 mt-1 pt-2 border-t border-white/[0.06] flex items-center justify-between px-2">
-            {email && <span className="text-xs text-slate-600 truncate max-w-[160px]">{email}</span>}
+            <div className="flex gap-1">
+              {LANGS.map((l) => (
+                <button key={l.code} type="button" onClick={() => setLang(l.code)}
+                  className={`text-xs px-1.5 py-0.5 rounded transition ${lang === l.code ? "text-white bg-white/10" : "text-slate-500 hover:text-white"}`}
+                >{l.flag} {l.label}</button>
+              ))}
+            </div>
             {isLoggedIn && (
-              <button type="button" onClick={handleLogout} className="text-xs text-slate-500 hover:text-white transition">Sair</button>
+              <button type="button" onClick={handleLogout} className="text-xs text-slate-500 hover:text-white transition">{t("logout")}</button>
             )}
           </div>
         </nav>
@@ -205,33 +246,50 @@ export default function Sidebar() {
             </p>
           )}
           <ul className="space-y-1">
-            {NAV_ITEMS.map((item) => (
-              <li key={item.href}>
-                <a
-                  href={item.href}
-                  title={!expanded ? item.label : undefined}
-                  className={`flex items-center rounded-xl font-medium transition-all duration-150 ${
-                    expanded ? "gap-3 px-3 py-3" : "justify-center px-0 py-3"
-                  } ${
-                    isActive(item.href)
-                      ? "bg-white/10 text-white"
-                      : "text-slate-400 hover:bg-white/5 hover:text-white"
-                  }`}
-                >
-                  <span className={`shrink-0 ${isActive(item.href) ? "text-orange-400" : "text-slate-500"}`}>
-                    {item.icon}
-                  </span>
-                  <span className={`transition-all duration-200 overflow-hidden whitespace-nowrap text-[15px] ${expanded ? "opacity-100 w-auto" : "opacity-0 w-0"}`}>
-                    {item.label}
-                  </span>
-                </a>
-              </li>
-            ))}
+            {NAV_ITEMS_KEYS.map((item) => {
+              const icon = NAV_ITEMS.find((n) => n.href === item.href)?.icon;
+              const label = t(item.labelKey);
+              return (
+                <li key={item.href}>
+                  <a
+                    href={item.href}
+                    title={!expanded ? label : undefined}
+                    className={`flex items-center rounded-xl font-medium transition-all duration-150 ${
+                      expanded ? "gap-3 px-3 py-3" : "justify-center px-0 py-3"
+                    } ${
+                      isActive(item.href)
+                        ? "bg-white/10 text-white"
+                        : "text-slate-400 hover:bg-white/5 hover:text-white"
+                    }`}
+                  >
+                    <span className={`shrink-0 ${isActive(item.href) ? "text-orange-400" : "text-slate-500"}`}>
+                      {icon}
+                    </span>
+                    <span className={`transition-all duration-200 overflow-hidden whitespace-nowrap text-[15px] ${expanded ? "opacity-100 w-auto" : "opacity-0 w-0"}`}>
+                      {label}
+                    </span>
+                  </a>
+                </li>
+              );
+            })}
           </ul>
         </nav>
 
         {/* Footer */}
         <div className={`border-t border-white/[0.06] ${expanded ? "px-4 py-4" : "px-2 py-4"}`}>
+          {/* Language picker */}
+          <div className={`flex mb-3 ${expanded ? "gap-1 px-1" : "flex-col gap-1 items-center"}`}>
+            {LANGS.map((l) => (
+              <button key={l.code} type="button" onClick={() => setLang(l.code)}
+                title={l.label}
+                className={`rounded-lg text-[11px] font-medium transition ${
+                  expanded ? "px-2 py-1" : "w-8 h-7 flex items-center justify-center"
+                } ${lang === l.code ? "bg-orange-500/20 text-orange-400" : "text-slate-600 hover:text-slate-300 hover:bg-white/5"}`}
+              >
+                {expanded ? `${l.flag} ${l.label}` : l.flag}
+              </button>
+            ))}
+          </div>
           {expanded && email && (
             <p className="text-[11px] text-slate-600 truncate mb-2 px-1 whitespace-nowrap">{email}</p>
           )}
@@ -239,7 +297,7 @@ export default function Sidebar() {
             <button
               type="button"
               onClick={handleLogout}
-              title={!expanded ? "Sair" : undefined}
+              title={!expanded ? t("logout") : undefined}
               className={`w-full flex items-center rounded-xl text-slate-500 hover:bg-white/5 hover:text-white transition ${
                 expanded ? "gap-2.5 px-3 py-2.5" : "justify-center py-3 px-0"
               }`}
@@ -248,7 +306,7 @@ export default function Sidebar() {
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
               </svg>
               <span className={`transition-all duration-200 overflow-hidden whitespace-nowrap text-sm ${expanded ? "opacity-100 w-auto" : "opacity-0 w-0"}`}>
-                Sair
+                {t("logout")}
               </span>
             </button>
           )}

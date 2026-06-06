@@ -3,6 +3,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import FloatingChat from "@/components/FloatingChat";
+import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 
 export const metadata: Metadata = {
   title: "Portfólio Owlfund",
@@ -18,8 +19,10 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body className="antialiased">
-        {children}
-        <FloatingChat />
+        <LanguageProvider>
+          {children}
+          <FloatingChat />
+        </LanguageProvider>
         <Analytics />
         <SpeedInsights />
       </body>
