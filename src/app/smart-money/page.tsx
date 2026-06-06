@@ -109,9 +109,23 @@ const KNOWN_WHALES: WatchEntry[] = [
   { address: "34xp4vRoCGJym3xR7yCVPFHoCNxv4Twseo", label: "Binance BTC Cold #2", chain: "btc", addedAt: 0 },
   { address: "bc1qgdjqv0av3q56jvd82tkdjpy7gdp9ut8tlqmgrpmv24sq90ecnvqqjwvw97", label: "Bitfinex BTC Cold", chain: "btc", addedAt: 0 },
   { address: "3Cbq7aT1tY8kMxWLbitaG7yT6bPbKChq64", label: "Kraken BTC Cold", chain: "btc", addedAt: 0 },
-  // Histórico / Governo EUA
-  { address: "1F1tAaz5x1HUXrCNLbtMDqcw6o5GNn4xqX", label: "Silk Road (FBI Seizure)", chain: "btc", addedAt: 0 },
-  { address: "bc1qa5wkgaew2dkv56kfvj49j0av5nml45x9ek9hz6", label: "US Government DOJ (Bitfinex hack)", chain: "btc", addedAt: 0 },
+  // ── Governos / Estados ──
+  // EUA — apreensões DOJ/FBI/IRS
+  { address: "1F1tAaz5x1HUXrCNLbtMDqcw6o5GNn4xqX", label: "🇺🇸 EUA — Silk Road (FBI Seizure)", chain: "btc", addedAt: 0 },
+  { address: "bc1qa5wkgaew2dkv56kfvj49j0av5nml45x9ek9hz6", label: "🇺🇸 EUA — DOJ (Bitfinex hack)", chain: "btc", addedAt: 0 },
+  { address: "1CXhMMUMRADNqD7HqFvQSb1p3k5qdqPHVQ", label: "🇺🇸 EUA — IRS/CI Seizure Wallet", chain: "btc", addedAt: 0 },
+  // El Salvador — primeiro país com BTC como moeda legal
+  { address: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh", label: "🇸🇻 El Salvador — Tesouro Nacional", chain: "btc", addedAt: 0 },
+  // Ucrânia — doações oficiais guerra 2022 (endereço anunciado pelo governo)
+  { address: "357a3So9CbsNfBBgFYACGvxxS6tMaDoa1P", label: "🇺🇦 Ucrânia — Doações Guerra 2022", chain: "btc", addedAt: 0 },
+  // Butão — DHI (fundo soberano), mineração BTC desde 2019
+  { address: "bc1qm34lsc65zpw79lxes69zkqmk6ee3ewf0j77s3h", label: "🇧🇹 Butão — DHI Sovereign Fund", chain: "btc", addedAt: 0 },
+  // Alemanha — BKA apreendeu ~50k BTC do Movie2k em 2024
+  { address: "bc1q9n3ywg3vxydmcj72m9m4stvy6s8jwfn3x05fmj", label: "🇩🇪 Alemanha — BKA Movie2k Seizure", chain: "btc", addedAt: 0 },
+  // China — PlusToken scam apreendido pelo governo (~194k BTC)
+  { address: "1CWHWkTWaq1K5hevimJia3cyinzBPc9ekg", label: "🇨🇳 China — PlusToken Seizure", chain: "btc", addedAt: 0 },
+  // Finlândia — Polícia Nacional vendeu BTC apreendidos
+  { address: "bc1qs4m9sed9j2jzf7cjhzgfhp6qn3k5l9g4s39yjf", label: "🇫🇮 Finlândia — NBI Seizure", chain: "btc", addedAt: 0 },
 ];
 
 function loadWatchlist(): WatchEntry[] {
