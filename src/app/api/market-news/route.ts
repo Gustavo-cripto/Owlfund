@@ -1,10 +1,40 @@
 import { NextResponse } from "next/server";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+const COINGECKO_IDS: Record<string, string> = {
+  BTC: "bitcoin", ETH: "ethereum", SOL: "solana",
+  BNB: "binancecoin", ADA: "cardano", XRP: "ripple",
+  DOGE: "dogecoin", AVAX: "avalanche-2", DOT: "polkadot",
+};
+
+async function fetchCryptoPrices(): Promise<Record<string, { usd: number; usd_24h_change: number }>> {
+  try {
+    const ids = Object.values(COINGECKO_IDS).join(",");
+    const res = await fetch(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`,
+      { next: { revalidate: 300 } }
+    );
+    if (!res.ok) return {};
+    return await res.json() as Record<string, { usd: number; usd_24h_change: number }>;
+  } catch {
+    return {};
+  }
+}
+
+function formatPrices(prices: Record<string, { usd: number; usd_24h_change: number }>): string {
+  const lines: string[] = [];
+  for (const [sym, id] of Object.entries(COINGECKO_IDS)) {
+    const p = prices[id];
+    if (!p) continue;
+    const sign = p.usd_24h_change >= 0 ? "+" : "";
+    lines.push(`${sym}: $${p.usd.toLocaleString("en-US", { maximumFractionDigits: 2 })} (${sign}${p.usd_24h_change.toFixed(2)}% 24h)`);
+  }
+  return lines.join("\n");
+}
 
 export async function POST(request: Request) {
-  const body = await request.json() as { mode?: "crypto" | "tradicional"; symbols?: string[] };
-  const { mode = "crypto", symbols = [] } = body;
+  const body = await request.json() as { mode?: "crypto" | "tradicional" };
+  const { mode = "crypto" } = body;
 
   const apiKey = (process.env.GROQ_API_KEY ?? "").trim();
   if (!apiKey) {
@@ -12,52 +42,73 @@ export async function POST(request: Request) {
   }
 
   const model = (process.env.GROQ_MODEL ?? "").trim() || "llama-3.3-70b-versatile";
-
   const today = new Date().toISOString().split("T")[0];
 
-  const symbolList = symbols.length > 0 ? symbols.join(", ") : (mode === "crypto" ? "BTC, ETH, SOL, BNB, ADA" : "S&P 500, NVDA, AAPL, MSFT, Ouro");
+  let priceContext = "";
+  if (mode === "crypto") {
+    const prices = await fetchCryptoPrices();
+    const formatted = formatPrices(prices);
+    if (formatted) {
+      priceContext = `\n\nPREÇOS REAIS EM TEMPO REAL (usa ESTES valores — não inventes preços):\n${formatted}\n`;
+    }
+  }
 
   const prompt = mode === "crypto"
-    ? `És um analista de criptomoedas sénior. Hoje é ${today}. Faz um briefing diário de mercado cripto em português europeu para os seguintes ativos: ${symbolList}.
+    ? `És um analista de criptomoedas sénior. A data de hoje é ${today}.${priceContext}
 
-Estrutura a resposta EXATAMENTE assim (usa estes headers):
+Com base nos preços reais acima, faz um briefing de mercado cripto em português europeu.
 
-## 📊 Resumo do Mercado
-[2-3 frases sobre o sentimento geral do mercado cripto hoje]
-
-## 🔥 Destaques
-[3-4 bullet points com os movimentos mais relevantes, trends e catalisadores]
-
-## 📈 Análise por Ativo
-[Para cada ativo principal: tendência curto prazo, nível de suporte/resistência chave, sentimento]
-
-## ⚠️ Riscos a Monitorizar
-[2-3 riscos macro ou específicos do mercado cripto]
-
-## 🎯 Perspetiva
-[1 parágrafo com outlook para as próximas 24-48h]
-
-Usa dados e contexto do teu conhecimento até à data de treino. Sê específico, profissional e conciso.`
-    : `És um analista de mercados financeiros sénior. Hoje é ${today}. Faz um briefing diário do mercado tradicional em português europeu para: ${symbolList}.
+REGRAS IMPORTANTES:
+- Usa APENAS os preços fornecidos acima — NUNCA inventes valores
+- Não menciones preços do teu conhecimento de treino
+- Foca em análise técnica, sentimento e contexto macro
+- Sê profissional e conciso
 
 Estrutura a resposta EXATAMENTE assim:
 
-## 📊 Resumo Macro
-[2-3 frases sobre sentimento geral: Fed, inflação, índices]
+## 📊 Resumo do Mercado
+[2-3 frases sobre o sentimento geral com base nos preços reais]
 
 ## 🔥 Destaques
-[3-4 bullet points com os movimentos mais relevantes do dia]
+- [movimento relevante baseado nos dados reais]
+- [outro destaque]
+- [outro destaque]
 
 ## 📈 Análise por Ativo
-[Para cada ativo: tendência, níveis técnicos chave, catalisadores]
+**BTC:** [análise com preço real fornecido]
+**ETH:** [análise]
+**SOL:** [análise]
+**BNB:** [análise]
 
-## ⚠️ Riscos Macro
-[2-3 riscos geopolíticos, económicos ou setoriais]
+## ⚠️ Riscos a Monitorizar
+- [risco macro ou cripto]
+- [outro risco]
 
 ## 🎯 Perspetiva
-[1 parágrafo com outlook para os próximos dias]
+[1 parágrafo com outlook para as próximas 24-48h baseado nos dados reais]`
+    : `És um analista de mercados financeiros sénior. A data de hoje é ${today}.
 
-Usa dados do teu conhecimento. Sê específico, profissional e conciso.`;
+Faz um briefing do mercado tradicional em português europeu. Foca em análise macro, tendências estruturais e contexto de investimento — NÃO inventes cotações específicas do dia se não tens acesso a dados em tempo real.
+
+## 📊 Resumo Macro
+[Sentimento geral: Fed, inflação, crescimento económico]
+
+## 🔥 Destaques
+- [tendência ou catalisador relevante]
+- [outro]
+- [outro]
+
+## 📈 Análise por Setor
+**Tecnologia (NVDA, AAPL, MSFT):** [tendência setorial]
+**S&P 500 / Índices:** [contexto]
+**Commodities (Ouro, Petróleo):** [análise]
+
+## ⚠️ Riscos Macro
+- [risco geopolítico ou económico]
+- [outro]
+
+## 🎯 Perspetiva
+[Outlook para os próximos dias/semanas]`;
 
   try {
     const res = await fetch(GROQ_URL, {
@@ -66,8 +117,8 @@ Usa dados do teu conhecimento. Sê específico, profissional e conciso.`;
       body: JSON.stringify({
         model,
         messages: [{ role: "user", content: prompt }],
-        max_tokens: 1200,
-        temperature: 0.4,
+        max_tokens: 1400,
+        temperature: 0.3,
       }),
     });
 
@@ -78,7 +129,7 @@ Usa dados do teu conhecimento. Sê específico, profissional e conciso.`;
 
     const data = await res.json() as { choices: { message: { content: string } }[] };
     const content = data.choices[0]?.message?.content ?? "";
-    return NextResponse.json({ content, mode, date: today });
+    return NextResponse.json({ content, mode, date: today, hasPrices: !!priceContext });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Erro" }, { status: 500 });
   }
