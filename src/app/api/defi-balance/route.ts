@@ -32,10 +32,51 @@ function validateAddressForChain(address: string, chain: ChainId): boolean {
   }
 }
 
+type MoralisProtocol = {
+  protocol_name?: string;
+  protocol_id?: string;
+  name?: string;
+  total_usd_value?: string;
+  positions?: unknown;
+};
+
 type MoralisDefiSummary = {
   total_usd_value?: string;
-  protocols?: Array<{ total_usd_value?: string; positions?: string }>;
+  protocols?: MoralisProtocol[];
 };
+
+// Map Moralis protocol slugs to friendly names
+const PROTOCOL_NAMES: Record<string, string> = {
+  "uniswap-v2": "Uniswap V2",
+  "uniswap-v3": "Uniswap V3",
+  "uniswap-v4": "Uniswap V4",
+  "aave-v2": "Aave V2",
+  "aave-v3": "Aave V3",
+  "compound-v2": "Compound V2",
+  "compound-v3": "Compound V3",
+  "curve": "Curve",
+  "curve-v2": "Curve V2",
+  "lido": "Lido",
+  "convex": "Convex",
+  "balancer-v2": "Balancer V2",
+  "1inch": "1inch",
+  "maker": "MakerDAO",
+  "sushiswap": "SushiSwap",
+  "pancakeswap-v2": "PancakeSwap V2",
+  "pancakeswap-v3": "PancakeSwap V3",
+  "yearn": "Yearn Finance",
+  "frax": "Frax",
+  "rocket-pool": "Rocket Pool",
+  "eigen-layer": "EigenLayer",
+  "pendle": "Pendle",
+  "morpho": "Morpho",
+};
+
+function resolveProtocolName(p: MoralisProtocol): string {
+  const slug = p.protocol_name ?? p.protocol_id ?? p.name ?? "";
+  const friendly = PROTOCOL_NAMES[slug.toLowerCase()] ?? slug.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+  return friendly || "DeFi Protocol";
+}
 
 const SHYFT_GRAPHQL = "https://programs.shyft.to/v0/graphql/accounts";
 const METEORA_API = "https://dlmm-api.meteora.ag";
@@ -238,7 +279,7 @@ export async function GET(request: Request) {
         total += v;
         (data.protocols ?? [])
           .filter((p) => Number(p.total_usd_value ?? 0) > 0)
-          .forEach((p) => positions.push({ name: "Protocol", usd: Number(p.total_usd_value ?? 0) }));
+          .forEach((p) => positions.push({ name: resolveProtocolName(p), usd: Number(p.total_usd_value ?? 0) }));
       }
     }
     if (total > 0 || results.some((r) => r.status === "fulfilled" && r.value))
@@ -332,7 +373,7 @@ export async function GET(request: Request) {
           const positions =
             data.protocols
               ?.filter((p) => Number(p.total_usd_value ?? 0) > 0)
-              .map((p) => ({ name: "Protocol", usd: Number(p.total_usd_value ?? 0) })) ?? [];
+              .map((p) => ({ name: resolveProtocolName(p as MoralisProtocol), usd: Number(p.total_usd_value ?? 0) })) ?? [];
           return NextResponse.json({ total: Math.max(0, total), positions });
         } catch {
           continue;
