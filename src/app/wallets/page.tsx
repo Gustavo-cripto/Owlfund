@@ -293,6 +293,9 @@ export default function WalletsPage() {
   const [cloudSyncError, setCloudSyncError] = useState<string | null>(null);
   const [walletMode, setWalletMode] = useState<"web3" | "tradicional">("web3");
   const [traditionalCategory, setTraditionalCategory] = useState("Todos");
+  const [customTickerInput, setCustomTickerInput] = useState("");
+  const [customTickerCategory, setCustomTickerCategory] = useState<"Ações" | "ETFs">("Ações");
+  const [customAssets, setCustomAssets] = useState<import("@/lib/traditional/assets").TraditionalAsset[]>([]);
   const [traditionalQuotes, setTraditionalQuotes] = useState<Record<string, TraditionalQuote>>({});
   const [traditionalQuotesLoading, setTraditionalQuotesLoading] = useState(false);
   const [traditionalQuotesError, setTraditionalQuotesError] = useState<string | null>(null);
@@ -1101,14 +1104,19 @@ export default function WalletsPage() {
     });
   };
 
+  const allTraditionalAssets = useMemo(
+    () => [...traditionalAssets, ...customAssets.filter((c) => !traditionalAssets.some((a) => a.id === c.id))],
+    [customAssets]
+  );
+
   const visibleTraditionalAssets =
     traditionalCategory === "Todos"
-      ? traditionalAssets
-      : traditionalAssets.filter((asset) => asset.category === traditionalCategory);
+      ? allTraditionalAssets
+      : allTraditionalAssets.filter((asset) => asset.category === traditionalCategory);
 
   const selectedTraditionalAssets = useMemo(
-    () => traditionalAssets.filter((asset) => !!traditionalHoldings[asset.id]),
-    [traditionalHoldings]
+    () => allTraditionalAssets.filter((asset) => !!traditionalHoldings[asset.id]),
+    [allTraditionalAssets, traditionalHoldings]
   );
 
   const selectedCryptoSymbols = useMemo(() => Object.keys(cryptoHoldings), [cryptoHoldings]);
@@ -3956,6 +3964,90 @@ export default function WalletsPage() {
               <p className="text-sm text-slate-400">
                 Escolhe ouro, prata e outros mercados que queres acompanhar.
               </p>
+            </div>
+
+            {/* Adicionar ação/ETF manual */}
+            <div className="mt-5 rounded-xl border border-slate-700 bg-slate-900/40 p-4 space-y-3">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Adicionar ação ou ETF manualmente</p>
+              <div className="flex flex-wrap gap-2">
+                {(["Ações", "ETFs"] as const).map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setCustomTickerCategory(cat)}
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                      customTickerCategory === cat
+                        ? "border-orange-400 bg-orange-500/20 text-orange-200"
+                        : "border-slate-700 text-slate-400 hover:border-slate-500"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Ticker (ex: AMZN, VTI, PLTR...)"
+                  value={customTickerInput}
+                  onChange={(e) => setCustomTickerInput(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      const ticker = customTickerInput.trim().toUpperCase();
+                      if (!ticker) return;
+                      const newAsset: import("@/lib/traditional/assets").TraditionalAsset = {
+                        id: ticker,
+                        label: `${ticker}`,
+                        category: customTickerCategory,
+                        alphaSymbol: ticker,
+                      };
+                      setCustomAssets((prev) => prev.some((a) => a.id === ticker) ? prev : [...prev, newAsset]);
+                      setCustomTickerInput("");
+                    }
+                  }}
+                  className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-orange-500 font-mono uppercase"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ticker = customTickerInput.trim().toUpperCase();
+                    if (!ticker) return;
+                    const newAsset: import("@/lib/traditional/assets").TraditionalAsset = {
+                      id: ticker,
+                      label: `${ticker}`,
+                      category: customTickerCategory,
+                      alphaSymbol: ticker,
+                    };
+                    setCustomAssets((prev) => prev.some((a) => a.id === ticker) ? prev : [...prev, newAsset]);
+                    setCustomTickerInput("");
+                  }}
+                  className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-orange-400 transition"
+                >
+                  Adicionar
+                </button>
+              </div>
+              {customAssets.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {customAssets.map((a) => (
+                    <span key={a.id} className="flex items-center gap-1 rounded-full border border-orange-500/30 bg-orange-500/10 px-3 py-1 text-xs text-orange-200">
+                      {a.id} <span className="text-slate-500">({a.category})</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomAssets((prev) => prev.filter((x) => x.id !== a.id));
+                          if (traditionalHoldings[a.id]) {
+                            const next = { ...traditionalHoldings };
+                            delete next[a.id];
+                            void saveTraditionalHoldings(next);
+                            setTraditionalHoldings(next);
+                          }
+                        }}
+                        className="ml-1 text-slate-500 hover:text-rose-400"
+                      >×</button>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="mt-5 flex flex-wrap gap-2">

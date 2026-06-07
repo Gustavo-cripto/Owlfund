@@ -486,7 +486,12 @@ function TradingViewWidget({
 export default function MercadoPage() {
   useRequireAuth("/login");
   const { t } = useLanguage();
-  const [marketMode, setMarketMode] = useState<"crypto" | "tradicional">("crypto");
+  const [marketMode, setMarketMode] = useState<"crypto" | "tradicional" | "noticias">("crypto");
+  const [newsContent, setNewsContent] = useState<string | null>(null);
+  const [newsMode, setNewsMode] = useState<"crypto" | "tradicional">("crypto");
+  const [newsLoading, setNewsLoading] = useState(false);
+  const [newsError, setNewsError] = useState<string | null>(null);
+  const [newsDate, setNewsDate] = useState<string | null>(null);
   const [rows, setRows] = useState<MarketRow[]>([]);
   const [selected, setSelected] = useState<MarketRow | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -942,6 +947,17 @@ export default function MercadoPage() {
               }`}
             >
               Mercado Tradicional
+            </button>
+            <button
+              type="button"
+              onClick={() => setMarketMode("noticias")}
+              className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                marketMode === "noticias"
+                  ? "border-orange-400 bg-orange-500 text-slate-950"
+                  : "border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500"
+              }`}
+            >
+              🦉 Notícias IA
             </button>
           </div>
         </div>
@@ -1526,6 +1542,88 @@ export default function MercadoPage() {
           </div>
         </div>
         ) : null}
+
+        {/* ── NOTÍCIAS IA ── */}
+        {marketMode === "noticias" && (
+          <div className="space-y-6">
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 space-y-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-orange-400">Briefing Diário</p>
+                <h2 className="text-lg font-bold text-white mt-1">Análise de Mercado com IA</h2>
+                <p className="text-sm text-slate-400 mt-0.5">Powered by Groq · Relatório gerado por IA com base no contexto de mercado</p>
+              </div>
+
+              {/* Tabs crypto/tradicional */}
+              <div className="flex gap-2">
+                {(["crypto", "tradicional"] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setNewsMode(m)}
+                    className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition ${
+                      newsMode === m
+                        ? "border-orange-400 bg-orange-500/20 text-orange-200"
+                        : "border-slate-700 text-slate-400 hover:border-slate-500"
+                    }`}
+                  >
+                    {m === "crypto" ? "Cripto" : "Tradicional"}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                disabled={newsLoading}
+                onClick={async () => {
+                  setNewsLoading(true);
+                  setNewsError(null);
+                  setNewsContent(null);
+                  try {
+                    const res = await fetch("/api/market-news", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ mode: newsMode }),
+                    });
+                    const data = await res.json() as { content?: string; error?: string; date?: string };
+                    if (!res.ok || data.error) { setNewsError(data.error ?? "Erro"); return; }
+                    setNewsContent(data.content ?? "");
+                    setNewsDate(data.date ?? null);
+                  } catch (err) {
+                    setNewsError(err instanceof Error ? err.message : "Erro");
+                  } finally {
+                    setNewsLoading(false);
+                  }
+                }}
+                className="rounded-xl bg-orange-500 px-6 py-2.5 text-sm font-bold text-slate-950 hover:bg-orange-400 disabled:opacity-50 transition"
+              >
+                {newsLoading ? "A gerar briefing…" : "Gerar Briefing Diário"}
+              </button>
+
+              {newsError && <p className="text-sm text-rose-400">{newsError}</p>}
+
+              {newsContent && (
+                <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-slate-500">{newsMode === "crypto" ? "Cripto" : "Mercado Tradicional"} · {newsDate}</p>
+                    <span className="text-xs text-orange-400 font-semibold">🦉 Owlfund AI</span>
+                  </div>
+                  <div className="prose prose-sm prose-invert max-w-none">
+                    {newsContent.split("\n").map((line, i) => {
+                      if (line.startsWith("## ")) {
+                        return <h3 key={i} className="text-base font-bold text-white mt-4 mb-2">{line.replace("## ", "")}</h3>;
+                      }
+                      if (line.startsWith("- ") || line.startsWith("• ")) {
+                        return <p key={i} className="text-sm text-slate-300 pl-3 border-l border-orange-500/30 my-1">{line.replace(/^[-•] /, "")}</p>;
+                      }
+                      if (line.trim() === "") return <div key={i} className="h-1" />;
+                      return <p key={i} className="text-sm text-slate-300 leading-relaxed">{line}</p>;
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </main>
     </div>
     </AppShell>
