@@ -27,7 +27,7 @@ type MempoolBlock = {
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-const fmt = (n: number, d = 0) => n.toLocaleString("pt-PT", { maximumFractionDigits: d });
+const fmtNum = (n: number) => n.toLocaleString("pt-PT");
 
 function timeAgo(ts: number) {
   const diff = Math.floor(Date.now() / 1000) - ts;
@@ -40,65 +40,129 @@ function satsToBtc(sats: number) {
   return (sats / 1e8).toFixed(3);
 }
 
-function feeLabel(range: number[] | undefined) {
-  if (!range || range.length < 2) return "–";
+function feeLabel(range: number[] | undefined, median?: number) {
+  if (!range || range.length === 0) {
+    if (median != null) return `~${Math.round(median)} sat/vB`;
+    return "–";
+  }
   const lo = Math.round(range[0]);
   const hi = Math.round(range[range.length - 1]);
-  if (lo === hi) return `~${lo} sat/vB`;
-  return `${lo} - ${hi} sat/vB`;
+  if (lo === hi || hi - lo < 2) return `~${lo} sat/vB`;
+  return `${lo} - ${fmtNum(hi)} sat/vB`;
 }
 
-function blockColor(medianFee: number | undefined) {
-  const f = medianFee ?? 1;
-  if (f < 2)  return { bg: "bg-emerald-900/60",  border: "border-emerald-500/40",  text: "text-emerald-300" };
-  if (f < 5)  return { bg: "bg-teal-900/60",     border: "border-teal-500/40",     text: "text-teal-300" };
-  if (f < 15) return { bg: "bg-sky-900/60",      border: "border-sky-500/40",      text: "text-sky-300" };
-  if (f < 30) return { bg: "bg-violet-900/60",   border: "border-violet-500/40",   text: "text-violet-300" };
-  if (f < 60) return { bg: "bg-orange-900/60",   border: "border-orange-500/40",   text: "text-orange-300" };
-  return       { bg: "bg-rose-900/60",           border: "border-rose-500/40",     text: "text-rose-300" };
+// Color by median fee (sat/vB)
+function blockGradient(fee: number) {
+  if (fee < 2)  return { from: "from-emerald-900", to: "to-emerald-950", border: "border-emerald-600/30", accent: "text-emerald-400", badge: "bg-emerald-500/20 text-emerald-300" };
+  if (fee < 5)  return { from: "from-teal-900",    to: "to-teal-950",    border: "border-teal-600/30",    accent: "text-teal-400",    badge: "bg-teal-500/20 text-teal-300" };
+  if (fee < 15) return { from: "from-sky-900",     to: "to-sky-950",     border: "border-sky-600/30",     accent: "text-sky-400",     badge: "bg-sky-500/20 text-sky-300" };
+  if (fee < 30) return { from: "from-violet-900",  to: "to-violet-950",  border: "border-violet-600/30",  accent: "text-violet-400",  badge: "bg-violet-500/20 text-violet-300" };
+  if (fee < 80) return { from: "from-orange-900",  to: "to-orange-950",  border: "border-orange-600/30",  accent: "text-orange-400",  badge: "bg-orange-500/20 text-orange-300" };
+  return         { from: "from-rose-900",          to: "to-rose-950",    border: "border-rose-600/30",    accent: "text-rose-400",    badge: "bg-rose-500/20 text-rose-300" };
 }
 
-function mempoolColor(i: number) {
-  const palette = [
-    { bg: "bg-emerald-900/50", border: "border-emerald-500/30", text: "text-emerald-300" },
-    { bg: "bg-teal-900/50",    border: "border-teal-500/30",    text: "text-teal-300" },
-    { bg: "bg-sky-900/50",     border: "border-sky-500/30",     text: "text-sky-300" },
-  ];
-  return palette[i % palette.length];
+// Pool icon (emoji fallback)
+function poolIcon(name: string) {
+  const n = name.toLowerCase();
+  if (n.includes("antpool"))    return "🐜";
+  if (n.includes("f2pool"))     return "🐟";
+  if (n.includes("mara") || n.includes("marathon")) return "Ⓜ️";
+  if (n.includes("foundry"))    return "⚒️";
+  if (n.includes("viabtc"))     return "🔷";
+  if (n.includes("luxor"))      return "💡";
+  if (n.includes("spider"))     return "🕷️";
+  if (n.includes("binance"))    return "🟡";
+  if (n.includes("poolin"))     return "🔵";
+  if (n.includes("slush") || n.includes("braiins")) return "🧊";
+  if (n.includes("bip110"))     return "⚙️";
+  return "⬡";
 }
 
-// ── Sub-components ─────────────────────────────────────────────────────────
+// ── Confirmed Block Card ────────────────────────────────────────────────────
 function ConfirmedCard({ b }: { b: ConfirmedBlock }) {
-  const col = blockColor(b.extras?.medianFee);
   const fees = b.extras?.totalFees ?? 0;
-  const pool = b.extras?.pool?.name ?? "?";
+  const median = b.extras?.medianFee ?? 1;
+  const pool = b.extras?.pool?.name ?? "Unknown";
+  const col = blockGradient(median);
+
   return (
-    <div className={`shrink-0 w-[148px] rounded-xl border ${col.border} ${col.bg} px-3 py-2.5 flex flex-col gap-1 text-[11px] select-none`}>
+    <a
+      href={`https://mempool.space/block/${b.height}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`shrink-0 w-[168px] rounded-2xl border ${col.border} bg-gradient-to-b ${col.from} ${col.to} p-3 flex flex-col gap-1.5 select-none hover:brightness-110 transition-all duration-150 cursor-pointer`}
+    >
+      {/* Block height — destaque */}
       <div className="flex items-center justify-between">
-        <span className={`font-bold text-xs ${col.text}`}>{fmt(b.height)}</span>
-        <span className="text-slate-500 text-[10px]">{timeAgo(b.timestamp)}</span>
+        <span className={`font-black text-base tracking-tight ${col.accent}`}>
+          {fmtNum(b.height)}
+        </span>
+        <span className="text-[10px] text-slate-500">{timeAgo(b.timestamp)}</span>
       </div>
-      <div className="text-slate-400 text-[10px]">{feeLabel(b.extras?.feeRange)}</div>
-      <div className="font-bold text-white text-sm leading-tight mt-0.5">{satsToBtc(fees)} BTC</div>
-      <div className="text-slate-400">{fmt(b.tx_count)} txs</div>
-      <div className="text-slate-500 text-[10px] truncate">{pool}</div>
-    </div>
+
+      {/* Fee range */}
+      <div className={`text-[11px] font-medium ${col.badge.split(" ")[1]} leading-tight`}>
+        {feeLabel(b.extras?.feeRange, median)}
+      </div>
+
+      {/* Fees BTC — destaque */}
+      <div className="font-bold text-white text-[15px] leading-none mt-0.5">
+        {satsToBtc(fees)} <span className="text-[11px] text-slate-400 font-normal">BTC</span>
+      </div>
+
+      {/* Tx count */}
+      <div className="text-[11px] text-slate-400">
+        {fmtNum(b.tx_count)} transações
+      </div>
+
+      {/* Pool */}
+      <div className="flex items-center gap-1.5 mt-auto pt-1 border-t border-white/5">
+        <span className="text-[13px]">{poolIcon(pool)}</span>
+        <span className="text-[11px] text-slate-400 truncate">{pool}</span>
+      </div>
+    </a>
   );
 }
 
-function MempoolCard({ b, i, eta }: { b: MempoolBlock; i: number; eta: number }) {
-  const col = mempoolColor(i);
-  const etaMin = Math.round(eta / 60);
+// ── Mempool Block Card ──────────────────────────────────────────────────────
+function MempoolCard({ b, i }: { b: MempoolBlock; i: number }) {
+  const median = b.medianFee ?? 1;
+  const col = blockGradient(median);
+  const etaMin = (i + 1) * 10;
+  const fill = Math.min(100, Math.round((b.blockVSize / 1_000_000) * 100));
+
   return (
-    <div className={`shrink-0 w-[148px] rounded-xl border ${col.border} ${col.bg} px-3 py-2.5 flex flex-col gap-1 text-[11px] select-none relative`}>
-      <div className="flex items-center justify-between">
-        <span className={`font-bold text-xs ${col.text}`}>Em ~{etaMin} min</span>
-        <span className="text-[10px] text-slate-500 border border-slate-700 rounded px-1 py-0.5">MEMPOOL</span>
+    <div className={`shrink-0 w-[168px] rounded-2xl border ${col.border} bg-gradient-to-b from-slate-900 to-slate-950 p-3 flex flex-col gap-1.5 select-none relative overflow-hidden`}>
+      {/* Fill indicator bar */}
+      <div className="absolute inset-x-0 bottom-0 h-0.5 bg-slate-800">
+        <div className={`h-full ${col.from.replace("from-", "bg-")} opacity-60 transition-all`} style={{ width: `${fill}%` }} />
       </div>
-      <div className="text-slate-400 text-[10px]">{feeLabel(b.feeRange)}</div>
-      <div className="font-bold text-white text-sm leading-tight mt-0.5">{satsToBtc(b.totalFees)} BTC</div>
-      <div className="text-slate-400">{fmt(b.nTx)} txs</div>
-      <div className="text-slate-500 text-[10px]">~{Math.round(b.blockVSize / 1000)} kvB</div>
+
+      {/* ETA */}
+      <div className="flex items-center justify-between">
+        <span className={`font-bold text-[11px] ${col.accent}`}>Em ~{etaMin} min</span>
+        <span className="text-[10px] text-slate-600 border border-slate-700 rounded px-1 py-0.5">PRÓXIMO</span>
+      </div>
+
+      {/* Fee range */}
+      <div className={`text-[11px] font-medium ${col.badge.split(" ")[1]} leading-tight`}>
+        {feeLabel(b.feeRange, median)}
+      </div>
+
+      {/* Fees BTC */}
+      <div className="font-bold text-white text-[15px] leading-none mt-0.5">
+        {satsToBtc(b.totalFees)} <span className="text-[11px] text-slate-400 font-normal">BTC</span>
+      </div>
+
+      {/* Tx count */}
+      <div className="text-[11px] text-slate-400">{fmtNum(b.nTx)} transações</div>
+
+      {/* Size */}
+      <div className="flex items-center gap-1.5 mt-auto pt-1 border-t border-white/5">
+        <span className="text-[11px] text-slate-500">~{Math.round(b.blockVSize / 1000)} kvB</span>
+        <span className="text-[11px] text-slate-600">·</span>
+        <span className="text-[11px] text-slate-500">{fill}% cheio</span>
+      </div>
     </div>
   );
 }
@@ -132,26 +196,25 @@ export default function BtcBlocksBar() {
     return () => clearInterval(id);
   }, []);
 
-  // Scroll left/right
   const scroll = (dir: "left" | "right") => {
     if (!scrollRef.current) return;
-    scrollRef.current.scrollBy({ left: dir === "right" ? 320 : -320, behavior: "smooth" });
+    scrollRef.current.scrollBy({ left: dir === "right" ? 380 : -380, behavior: "smooth" });
   };
 
   return (
-    <div className="border-b border-slate-800/60 bg-slate-900/30 select-none shrink-0">
+    <div className="border-b border-slate-800/60 bg-slate-950/50 select-none shrink-0">
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 pt-2 pb-1">
-        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-orange-400/80">₿ Blocos BTC</span>
+      <div className="flex items-center gap-2 px-4 pt-2.5 pb-1.5">
+        <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-orange-400/90">₿ Blocos BTC</span>
         <span className="text-[10px] text-slate-600">ao vivo · mempool.space</span>
         <span className={`ml-1 h-1.5 w-1.5 rounded-full ${error ? "bg-rose-500" : "bg-emerald-500"} animate-pulse`} />
         <div className="ml-auto flex gap-1">
           <button type="button" onClick={() => scroll("left")}
-            className="p-1 rounded text-slate-600 hover:text-slate-300 hover:bg-white/5 transition">
+            className="p-1.5 rounded-lg text-slate-600 hover:text-slate-300 hover:bg-white/5 transition">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6" /></svg>
           </button>
           <button type="button" onClick={() => scroll("right")}
-            className="p-1 rounded text-slate-600 hover:text-slate-300 hover:bg-white/5 transition">
+            className="p-1.5 rounded-lg text-slate-600 hover:text-slate-300 hover:bg-white/5 transition">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6" /></svg>
           </button>
         </div>
@@ -160,30 +223,41 @@ export default function BtcBlocksBar() {
       {/* Blocks row */}
       <div
         ref={scrollRef}
-        className="flex gap-2 px-4 pb-3 overflow-x-auto scrollbar-none"
-        style={{ scrollbarWidth: "none" }}
+        className="flex gap-2.5 px-4 pb-3.5 overflow-x-auto"
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
         {loading ? (
           Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="shrink-0 w-[148px] h-[90px] rounded-xl border border-slate-800 bg-slate-900/40 animate-pulse" />
+            <div key={i} className="shrink-0 w-[168px] h-[130px] rounded-2xl border border-slate-800 bg-slate-900/40 animate-pulse" />
           ))
         ) : error ? (
-          <p className="text-xs text-slate-500 py-4">Não foi possível carregar os blocos.</p>
+          <div className="flex items-center gap-2 py-4 text-xs text-slate-500">
+            <span className="text-rose-400">⚠</span>
+            Não foi possível carregar os blocos.
+            <button onClick={fetchData} className="text-orange-400 hover:text-orange-300 underline">Tentar novamente</button>
+          </div>
         ) : (
           <>
-            {/* Divider between mempool and confirmed */}
+            {/* Mempool blocks (próximos) */}
+            {mempool.map((b, i) => (
+              <MempoolCard key={`m-${i}`} b={b} i={i} />
+            ))}
+
+            {/* Divider */}
             {mempool.length > 0 && (
-              <>
-                {mempool.map((b, i) => (
-                  <MempoolCard key={`m-${i}`} b={b} i={i} eta={(i + 1) * 600} />
-                ))}
-                <div className="shrink-0 flex flex-col items-center justify-center gap-1 px-1">
-                  <div className="w-px h-12 bg-slate-700" />
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2"><polyline points="9 18 15 12 9 6" /></svg>
-                  <div className="w-px h-6 bg-slate-700" />
+              <div className="shrink-0 flex flex-col items-center justify-center gap-1 px-0.5 py-2">
+                <div className="w-px flex-1 bg-gradient-to-b from-transparent via-slate-700 to-transparent" />
+                <div className="flex flex-col items-center gap-0.5">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                  <span className="text-[8px] text-slate-700 rotate-90 whitespace-nowrap" style={{ writingMode: "vertical-rl" }}>CONFIRMADO</span>
                 </div>
-              </>
+                <div className="w-px flex-1 bg-gradient-to-b from-transparent via-slate-700 to-transparent" />
+              </div>
             )}
+
+            {/* Confirmed blocks */}
             {confirmed.map((b) => (
               <ConfirmedCard key={b.height} b={b} />
             ))}
