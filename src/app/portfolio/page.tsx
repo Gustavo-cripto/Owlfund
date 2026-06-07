@@ -10,6 +10,7 @@ import {
 
 import AppShell from "@/components/AppShell";
 import PnlSummaryCard from "@/components/PnlSummaryCard";
+import PortfolioChartSection from "@/components/PortfolioChartSection";
 import ScenarioSimulator from "@/components/ScenarioSimulator";
 import { createClient } from "@/lib/supabase/client";
 import { loadWalletSnapshot, updateWalletSnapshot, type StoredWalletEntry, type WalletSnapshot } from "@/lib/wallets/storage";
@@ -665,10 +666,23 @@ export default function PortfolioPage() {
     <AppShell>
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-20 pt-2">
-        <div className="animate-fade-in-up flex flex-col gap-2">
-          <h1 className="text-3xl font-bold text-white">{t("port_title")}</h1>
-          <p className="max-w-2xl text-sm text-slate-400">{t("port_subtitle")}</p>
+        {/* ── Título ── */}
+        <div className="animate-fade-in-up flex flex-col gap-1">
+          <h1 className="text-2xl font-bold text-white">{t("port_title")}</h1>
+          <p className="text-sm text-slate-400">{t("port_subtitle")}</p>
         </div>
+
+        {/* ── Portfolio Chart + Tabs ── */}
+        <PortfolioChartSection
+          portfolioTotal={portfolioTotal}
+          pnlToday={pnlSummary.today}
+          snapshotTotals={snapshotTotals}
+          historicalPrices={historicalPrices}
+          wallets={wallets}
+          tokenPrices={tokenPrices}
+          cryptoTotal={cryptoTotal}
+          traditionalTotal={traditionalTotal}
+        />
 
         <section className="grid gap-6 md:grid-cols-[1.2fr_0.8fr]">
           <div className="animate-fade-in-up rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
@@ -988,8 +1002,8 @@ export default function PortfolioPage() {
             ) : null}
           </div>
 
-          {/* Benchmark */}
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+          {/* Benchmark REMOVED */}
+          <div className="hidden">
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Comparação</p>
             <h2 className="text-base font-bold text-white mt-0.5 mb-4">Benchmark</h2>
             {benchmarkLoading ? (
