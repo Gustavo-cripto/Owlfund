@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -173,6 +174,7 @@ const getPercent = (value: number, total: number): string => {
 export default function PortfolioPage() {
   const supabase = createClient();
   useRequireAuth("/login");
+  const { t } = useLanguage();
   const [wallets, setWallets] = useState<WalletBalance[]>([]);
   const [tokenPrices, setTokenPrices] = useState<TokenPrices>({});
   const [historicalPrices, setHistoricalPrices] = useState<HistoricalPrices>({ "1d": {}, "7d": {}, "30d": {} });
@@ -664,10 +666,8 @@ export default function PortfolioPage() {
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-20 pt-2">
         <div className="animate-fade-in-up flex flex-col gap-2">
-          <h1 className="text-3xl font-bold text-white">Portfolio</h1>
-          <p className="max-w-2xl text-sm text-slate-400">
-            Visão consolidada de cripto e tradicional. Saldos sincronizados a partir das carteiras.
-          </p>
+          <h1 className="text-3xl font-bold text-white">{t("port_title")}</h1>
+          <p className="max-w-2xl text-sm text-slate-400">{t("port_subtitle")}</p>
         </div>
 
         <section className="grid gap-6 md:grid-cols-[1.2fr_0.8fr]">
@@ -675,7 +675,7 @@ export default function PortfolioPage() {
             <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">
               Visão geral
             </p>
-            <h2 className="mt-2 text-xl font-bold text-white">Total do portfólio</h2>
+            <h2 className="mt-2 text-xl font-bold text-white">{t("port_overview")}</h2>
             <div className="mt-4 flex flex-wrap items-end gap-6">
               <div>
                 <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
@@ -699,7 +699,7 @@ export default function PortfolioPage() {
 
             <div className="mt-6 space-y-3">
               <div className="flex items-center justify-between text-sm text-slate-300">
-                <span>PNL da posição</span>
+                <span>{t("port_pnl_position")}</span>
                 <span
                   className={pnlSummary.position >= 0 ? "text-emerald-300" : "text-rose-300"}
                 >
@@ -707,13 +707,13 @@ export default function PortfolioPage() {
                 </span>
               </div>
               <div className="flex items-center justify-between text-sm text-slate-300">
-                <span>PNL de hoje</span>
+                <span>{t("port_pnl_today")}</span>
                 <span className={pnlSummary.today >= 0 ? "text-emerald-300" : "text-rose-300"}>
                   {formatSignedCurrency(pnlSummary.today)}
                 </span>
               </div>
               <div className="flex items-center justify-between text-sm text-slate-300">
-                <span>PNL 30 dias</span>
+                <span>{t("port_pnl_30d")}</span>
                 <span
                   className={pnlSummary.days30 >= 0 ? "text-emerald-300" : "text-rose-300"}
                 >
@@ -721,7 +721,7 @@ export default function PortfolioPage() {
                 </span>
               </div>
               <div className="flex items-center justify-between text-sm text-slate-300">
-                <span>PNL diário (7 dias)</span>
+                <span>{t("port_pnl_7d")}</span>
                 <span className={pnlSummary.daily7d >= 0 ? "text-emerald-300" : "text-rose-300"}>
                   {formatSignedCurrency(pnlSummary.daily7d)}
                 </span>
@@ -743,7 +743,7 @@ export default function PortfolioPage() {
             <div className="mt-6 space-y-4">
               <div>
                 <div className="flex items-center justify-between text-sm text-slate-300">
-                  <span>Carteiras Blockchain</span>
+                  <span>{t("port_blockchain")}</span>
                   <span>{portfolioSplit.crypto}%</span>
                 </div>
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-800">
@@ -755,7 +755,7 @@ export default function PortfolioPage() {
               </div>
               <div>
                 <div className="flex items-center justify-between text-sm text-slate-300">
-                  <span>Carteiras Tradicional</span>
+                  <span>{t("port_traditional")}</span>
                   <span>{portfolioSplit.traditional}%</span>
                 </div>
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-800">
@@ -778,13 +778,13 @@ export default function PortfolioPage() {
               </p>
               <div className="mt-6 space-y-3">
                 <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-                  <p className="text-sm font-semibold text-white">Carteiras Blockchain</p>
+                  <p className="text-sm font-semibold text-white">{t("port_blockchain")}</p>
                   <p className="text-xs text-slate-500">
                     € {formatValue(cryptoTotal)} · {portfolioSplit.crypto}%
                   </p>
                 </div>
                 <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-                  <p className="text-sm font-semibold text-white">Carteiras Tradicional</p>
+                  <p className="text-sm font-semibold text-white">{t("port_traditional")}</p>
                   <p className="text-xs text-slate-500">
                     € {formatValue(traditionalTotal)} · {portfolioSplit.traditional}%
                   </p>
@@ -859,7 +859,7 @@ export default function PortfolioPage() {
               <div className="flex h-[200px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-700">
                 <p className="text-2xl">📸</p>
                 <p className="text-sm text-slate-400 text-center">Precisas de pelo menos 2 snapshots<br/>para ver a evolução.</p>
-                <p className="text-xs text-slate-500">{snapshotTotals.length}/2 snapshots guardados</p>
+                <p className="text-xs text-slate-500">{snapshotTotals.length}/2 {t("port_snapshots")}</p>
               </div>
             )}
           </div>
@@ -993,7 +993,7 @@ export default function PortfolioPage() {
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Comparação</p>
             <h2 className="text-base font-bold text-white mt-0.5 mb-4">Benchmark</h2>
             {benchmarkLoading ? (
-              <p className="text-xs text-slate-400 animate-pulse">A carregar benchmarks...</p>
+              <p className="text-xs text-slate-400 animate-pulse">{t("loading")}</p>
             ) : (
               <div className="space-y-1">
                 {/* Header */}
@@ -1201,7 +1201,7 @@ export default function PortfolioPage() {
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
             <h2 className="text-lg font-semibold text-white">Carteiras Blockchain</h2>
             <p className="text-sm text-slate-400">
-              Ativos totais: € {formatValue(cryptoTotal)}
+              {t("port_total_assets")}: € {formatValue(cryptoTotal)}
             </p>
 
             <div className="mt-6 space-y-4">
@@ -1270,7 +1270,7 @@ export default function PortfolioPage() {
         <section className="rounded-2xl border border-orange-500/20 bg-slate-900/60 p-6">
           <h2 className="text-lg font-semibold text-white">Snapshots e Plano</h2>
           {isLoadingAuth ? (
-            <p className="mt-2 text-sm text-slate-400">A carregar acesso...</p>
+            <p className="mt-2 text-sm text-slate-400">{t("loading")}</p>
           ) : userId ? (
             <div className="mt-4 space-y-3">
               <p className="text-sm text-slate-300">
@@ -1345,7 +1345,7 @@ export default function PortfolioPage() {
           </div>
 
           {isLoadingAuth || isSnapshotsLoading ? (
-            <p className="mt-4 text-sm text-slate-400">A carregar histórico...</p>
+            <p className="mt-4 text-sm text-slate-400">{t("loading")}</p>
           ) : snapshots.length === 0 ? (
             <p className="mt-4 text-sm text-slate-400">
               Ainda não tens snapshots salvos. Salva um para aparecer aqui.

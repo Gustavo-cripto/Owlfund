@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from "react";
 
 import AppShell from "@/components/AppShell";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 import WalletCard from "@/components/wallets/WalletCard";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -283,6 +284,7 @@ const MANUAL_ADD_NETWORKS: Array<{ id: string; label: string; group?: string }> 
 export default function WalletsPage() {
   const supabase = useMemo(() => createClient(), []);
   useRequireAuth("/login");
+  const { t } = useLanguage();
   const [isClient, setIsClient] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [isPro, setIsPro] = useState(false);
@@ -2119,10 +2121,10 @@ export default function WalletsPage() {
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-20 pt-2">
         <div className="flex flex-col gap-4">
           <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">
-            Carteiras
+            {t("nav_wallets")}
           </p>
           <h1 className="text-3xl font-semibold text-white">
-            Escolhe entre Web3 ou Mercado Tradicional
+            {t("port_blockchain")} · {t("port_traditional")}
           </h1>
           <p className="max-w-2xl text-sm text-slate-400">
             Alterna entre carteiras on-chain e seleção de ativos do mercado tradicional.
@@ -2149,7 +2151,7 @@ export default function WalletsPage() {
                   : "border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500"
               }`}
             >
-              Carteiras Web3
+              {t("port_blockchain")}
             </button>
             <button
               type="button"
@@ -2160,7 +2162,7 @@ export default function WalletsPage() {
                   : "border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500"
               }`}
             >
-              Carteiras Mercado Tradicional
+              {t("port_traditional")}
             </button>
           </div>
         </div>

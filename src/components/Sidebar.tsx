@@ -201,11 +201,14 @@ export default function Sidebar() {
             );
           })}
           <div className="col-span-2 mt-1 pt-2 border-t border-white/[0.06] flex items-center justify-between px-2">
-            <div className="flex gap-1">
+            <div className="flex gap-1.5">
               {LANGS.map((l) => (
                 <button key={l.code} type="button" onClick={() => setLang(l.code)}
-                  className={`text-xs px-1.5 py-0.5 rounded transition ${lang === l.code ? "text-white bg-white/10" : "text-slate-500 hover:text-white"}`}
-                >{l.flag} {l.label}</button>
+                  className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition ${lang === l.code ? "bg-orange-500/20 text-orange-300 ring-1 ring-orange-500/40" : "text-slate-400 hover:bg-white/8 hover:text-white"}`}
+                >
+                  <span className="text-base">{l.flag}</span>
+                  <span>{l.label}</span>
+                </button>
               ))}
             </div>
             {isLoggedIn && (
@@ -278,15 +281,21 @@ export default function Sidebar() {
         {/* Footer */}
         <div className={`border-t border-white/[0.06] ${expanded ? "px-4 py-4" : "px-2 py-4"}`}>
           {/* Language picker */}
-          <div className={`flex mb-3 ${expanded ? "gap-1 px-1" : "flex-col gap-1 items-center"}`}>
+          <div className={`mb-3 ${expanded ? "grid grid-cols-4 gap-1 px-1" : "flex flex-col gap-1.5 items-center"}`}>
             {LANGS.map((l) => (
               <button key={l.code} type="button" onClick={() => setLang(l.code)}
                 title={l.label}
-                className={`rounded-lg text-[11px] font-medium transition ${
-                  expanded ? "px-2 py-1" : "w-8 h-7 flex items-center justify-center"
-                } ${lang === l.code ? "bg-orange-500/20 text-orange-400" : "text-slate-600 hover:text-slate-300 hover:bg-white/5"}`}
+                className={`rounded-xl font-medium transition-all duration-150 ${
+                  expanded
+                    ? "flex items-center justify-center gap-1.5 py-2 px-1 text-xs"
+                    : "w-10 h-10 flex items-center justify-center text-xl"
+                } ${lang === l.code
+                    ? "bg-orange-500/25 ring-1 ring-orange-500/50 text-orange-300"
+                    : "text-slate-400 hover:bg-white/8 hover:text-white"
+                }`}
               >
-                {expanded ? `${l.flag} ${l.label}` : l.flag}
+                <span className={expanded ? "text-base" : "text-2xl"}>{l.flag}</span>
+                {expanded && <span className="text-[11px] font-bold">{l.label}</span>}
               </button>
             ))}
           </div>

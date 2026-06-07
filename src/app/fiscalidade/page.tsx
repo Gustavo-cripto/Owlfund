@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 type TradeEntry = {
   id: string;
@@ -254,6 +255,7 @@ function LegislationSection() {
 
 export default function FiscalidadePage() {
   const { isLoading } = useRequireAuth("/login");
+  const { t } = useLanguage();
   const [trades, setTrades] = useState<TradeEntry[]>([]);
   const [newTrade, setNewTrade] = useState<TradeEntry>(emptyTrade());
   const [country, setCountry] = useState<"PT" | "ES" | "FR" | "DE">("PT");
@@ -273,26 +275,26 @@ export default function FiscalidadePage() {
 
     const sorted = [...trades].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    for (const t of sorted) {
-      if (t.type === "compra") {
-        if (!pool[t.asset]) pool[t.asset] = [];
-        pool[t.asset].push({ amount: t.amount, price: t.price, date: t.date });
+    for (const tr of sorted) {
+      if (tr.type === "compra") {
+        if (!pool[tr.asset]) pool[tr.asset] = [];
+        pool[tr.asset].push({ amount: tr.amount, price: tr.price, date: tr.date });
       } else {
         // venda — FIFO
-        let remaining = t.amount;
-        while (remaining > 0 && pool[t.asset]?.length) {
-          const lot = pool[t.asset][0];
+        let remaining = tr.amount;
+        while (remaining > 0 && pool[tr.asset]?.length) {
+          const lot = pool[tr.asset][0];
           const used = Math.min(lot.amount, remaining);
-          const days = calcDays(lot.date, t.date);
+          const days = calcDays(lot.date, tr.date);
           const isLong = days >= regime.longDays && regime.longDays > 0;
           const rate = isLong ? regime.long : regime.short;
-          const gain = (t.price - lot.price) * used;
+          const gain = (tr.price - lot.price) * used;
           events.push({
-            asset: t.asset,
+            asset: tr.asset,
             buyDate: lot.date,
-            sellDate: t.date,
+            sellDate: tr.date,
             buyPrice: lot.price,
-            sellPrice: t.price,
+            sellPrice: tr.price,
             amount: used,
             gain,
             holding: isLong ? "longo" : "curto",
@@ -300,7 +302,7 @@ export default function FiscalidadePage() {
           });
           lot.amount -= used;
           remaining -= used;
-          if (lot.amount <= 0) pool[t.asset].shift();
+          if (lot.amount <= 0) pool[tr.asset].shift();
         }
       }
     }
@@ -337,7 +339,7 @@ export default function FiscalidadePage() {
     URL.revokeObjectURL(url);
   };
 
-  if (isLoading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-400 animate-pulse">A carregar...</p></div>;
+  if (isLoading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-400 animate-pulse">{t("loading")}</p></div>;
 
   const fmtEur = (v: number) => `€ ${Math.abs(v).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -353,13 +355,13 @@ export default function FiscalidadePage() {
           {/* Header */}
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">Impostos</p>
-              <h1 className="mt-2 text-2xl font-bold text-white">Fiscalidade Europeia</h1>
-              <p className="mt-1 text-sm text-slate-400">Calcula mais-valias cripto com regras fiscais do teu país (FIFO).</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">{t("nav_fiscalidade")}</p>
+              <h1 className="mt-2 text-2xl font-bold text-white">{t("fisc_title")}</h1>
+              <p className="mt-1 text-sm text-slate-400">{t("fisc_subtitle")}</p>
             </div>
             {/* País */}
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400">País:</span>
+              <span className="text-xs text-slate-400">{t("fisc_country")}:</span>
               {(["PT", "ES", "FR", "DE"] as const).map(c => (
                 <button key={c} onClick={() => setCountry(c)}
                   className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${country === c ? "bg-orange-500 text-slate-950" : "border border-slate-700 text-slate-400 hover:border-orange-400/40 hover:text-orange-200"}`}>
@@ -386,31 +388,31 @@ export default function FiscalidadePage() {
 
           {/* Adicionar transação */}
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-4">Adicionar transação</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-4">{t("fisc_add_trade")}</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-              <select value={newTrade.type} onChange={e => setNewTrade(t => ({ ...t, type: e.target.value as "compra" | "venda" }))}
+              <select value={newTrade.type} onChange={e => setNewTrade(tr => ({ ...tr, type: e.target.value as "compra" | "venda" }))}
                 className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500">
-                <option value="compra">Compra</option>
-                <option value="venda">Venda</option>
+                <option value="compra">{t("fisc_type_buy")}</option>
+                <option value="venda">{t("fisc_type_sell")}</option>
               </select>
-              <input placeholder="Ativo (BTC, ETH...)" value={newTrade.asset}
+              <input placeholder={t("fisc_asset")} value={newTrade.asset}
                 onChange={e => setNewTrade(t => ({ ...t, asset: e.target.value.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10) }))}
                 className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
-              <input type="number" placeholder="Quantidade" value={newTrade.amount || ""} min="0" max="999999999" step="any"
-                onChange={e => { const v = Number(e.target.value); if (Number.isFinite(v) && v >= 0) setNewTrade(t => ({ ...t, amount: v })); }}
+              <input type="number" placeholder={t("fisc_amount")} value={newTrade.amount || ""} min="0" max="999999999" step="any"
+                onChange={e => { const v = Number(e.target.value); if (Number.isFinite(v) && v >= 0) setNewTrade(tr => ({ ...tr, amount: v })); }}
                 className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
-              <input type="number" placeholder="Preço EUR" value={newTrade.price || ""} min="0" max="999999999" step="any"
-                onChange={e => { const v = Number(e.target.value); if (Number.isFinite(v) && v >= 0) setNewTrade(t => ({ ...t, price: v })); }}
+              <input type="number" placeholder={t("fisc_price")} value={newTrade.price || ""} min="0" max="999999999" step="any"
+                onChange={e => { const v = Number(e.target.value); if (Number.isFinite(v) && v >= 0) setNewTrade(tr => ({ ...tr, price: v })); }}
                 className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
               <input type="date" value={newTrade.date}
-                onChange={e => setNewTrade(t => ({ ...t, date: e.target.value }))}
+                onChange={e => setNewTrade(tr => ({ ...tr, date: e.target.value }))}
                 className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500" />
               <button onClick={() => {
                 if (!newTrade.asset || newTrade.amount <= 0 || newTrade.price <= 0) return;
                 setTrades(prev => [...prev, { ...newTrade, id: crypto.randomUUID() }]);
                 setNewTrade(emptyTrade());
               }} className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-orange-400 transition">
-                + Adicionar
+                + {t("add")}
               </button>
             </div>
           </div>
@@ -420,16 +422,16 @@ export default function FiscalidadePage() {
             <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-4">Transações ({trades.length})</p>
               <div className="space-y-2">
-                {[...trades].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(t => (
-                  <div key={t.id} className="flex items-center gap-3 rounded-xl border border-slate-800 px-4 py-2.5">
-                    <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${t.type === "compra" ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"}`}>
-                      {t.type.toUpperCase()}
+                {[...trades].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(trade => (
+                  <div key={trade.id} className="flex items-center gap-3 rounded-xl border border-slate-800 px-4 py-2.5">
+                    <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${trade.type === "compra" ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"}`}>
+                      {trade.type === "compra" ? t("fisc_type_buy") : t("fisc_type_sell")}
                     </span>
-                    <span className="text-sm font-semibold text-white w-12">{t.asset}</span>
-                    <span className="text-sm text-slate-300 flex-1">{t.amount} × € {t.price.toLocaleString("pt-PT")}</span>
-                    <span className="text-sm font-semibold text-slate-300">€ {(t.amount * t.price).toLocaleString("pt-PT", { maximumFractionDigits: 0 })}</span>
-                    <span className="text-xs text-slate-500">{t.date}</span>
-                    <button onClick={() => setTrades(prev => prev.filter(x => x.id !== t.id))}
+                    <span className="text-sm font-semibold text-white w-12">{trade.asset}</span>
+                    <span className="text-sm text-slate-300 flex-1">{trade.amount} × € {trade.price.toLocaleString("pt-PT")}</span>
+                    <span className="text-sm font-semibold text-slate-300">€ {(trade.amount * trade.price).toLocaleString("pt-PT", { maximumFractionDigits: 0 })}</span>
+                    <span className="text-xs text-slate-500">{trade.date}</span>
+                    <button onClick={() => setTrades(prev => prev.filter(x => x.id !== trade.id))}
                       className="text-slate-600 hover:text-rose-400 transition text-sm px-1">✕</button>
                   </div>
                 ))}
@@ -515,8 +517,8 @@ export default function FiscalidadePage() {
           {trades.length === 0 && (
             <div className="rounded-2xl border border-dashed border-slate-700 p-12 text-center">
               <p className="text-3xl mb-3">📋</p>
-              <p className="text-sm font-semibold text-white">Sem transações ainda</p>
-              <p className="text-xs text-slate-400 mt-1">Adiciona as tuas compras e vendas para calcular o imposto.</p>
+              <p className="text-sm font-semibold text-white">{t("fisc_no_trades")}</p>
+              <p className="text-xs text-slate-400 mt-1">{t("fisc_no_trades_desc")}</p>
             </div>
           )}
 
