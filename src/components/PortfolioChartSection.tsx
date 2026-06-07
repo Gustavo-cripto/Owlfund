@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 type WalletBalance = { label: string; symbol: string; balance?: string; address?: string };
@@ -20,6 +20,7 @@ type Props = {
 };
 
 type TimeFrame = "1h" | "1d" | "1s" | "1m" | "1a" | "tudo";
+type Tab = "overview" | "tokens" | "nfts" | "defi";
 
 const TIMEFRAMES: { key: TimeFrame; label: string }[] = [
   { key: "1h",   label: "1 hora" },
@@ -30,18 +31,29 @@ const TIMEFRAMES: { key: TimeFrame; label: string }[] = [
   { key: "tudo", label: "Tudo" },
 ];
 
-type Tab = "overview" | "tokens" | "nfts" | "activity";
 const TABS: { key: Tab; label: string }[] = [
-  { key: "overview",  label: "Visão geral" },
-  { key: "tokens",    label: "Tokens" },
-  { key: "nfts",      label: "NFTs" },
-  { key: "activity",  label: "Atividade" },
+  { key: "overview", label: "Visão geral" },
+  { key: "tokens",   label: "Tokens" },
+  { key: "nfts",     label: "NFTs" },
+  { key: "defi",     label: "DeFi" },
 ];
 
+// ── Symbol → chain map ──────────────────────────────────────────────────────
+const SYMBOL_CHAIN: Record<string, string> = {
+  ETH: "eth", SOL: "sol", BTC: "btc", ADA: "ada",
+};
+
+// ── Types for API responses ──────────────────────────────────────────────────
+type NftItem = { id: string; name: string; image?: string; tokenAddress?: string; tokenId?: string };
+type DefiPosition = { name: string; usd: number };
+
+type WalletNfts = { address: string; chain: string; label: string; nfts: NftItem[]; loading: boolean; error?: string };
+type WalletDefi = { address: string; chain: string; label: string; total: number; positions: DefiPosition[]; loading: boolean; error?: string };
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
 function fmtEur(v: number) {
   return v.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
-
 function fmtEurCompact(v: number) {
   if (v >= 1_000_000) return `€ ${(v / 1_000_000).toFixed(2)}M`;
   if (v >= 1_000)     return `€ ${(v / 1_000).toFixed(1)}K`;
@@ -57,9 +69,7 @@ function buildChartData(
   const now = Date.now();
   const sorted = [...snapshotTotals].sort((a, b) => a.createdAt - b.createdAt);
 
-  // For timeframes covered by historical prices (no snapshots needed)
   if (tf === "1d" && historicalPrices["1d"] && Object.keys(historicalPrices["1d"]).length > 0) {
-    // Build 24h line: from 24h ago to now using historical price deltas
     const pts: { time: string; value: number }[] = [];
     const past1d = sorted.find(s => now - s.createdAt >= 20 * 3600_000)?.total ?? portfolioTotal;
     for (let h = 24; h >= 0; h--) {
@@ -71,7 +81,6 @@ function buildChartData(
     return pts;
   }
 
-  // For longer timeframes use snapshots
   const msRange: Record<TimeFrame, number> = {
     "1h":   3_600_000,
     "1d":   86_400_000,
@@ -84,12 +93,8 @@ function buildChartData(
   const filtered = sorted.filter(s => now - s.createdAt <= range);
 
   if (filtered.length === 0) {
-    // Show flat line from a reference point
-    const ref = tf === "1h" ? portfolioTotal * 0.995 : portfolioTotal * 0.95;
-    return [
-      { time: "Início", value: ref },
-      { time: "Agora",  value: portfolioTotal },
-    ];
+    const ref = portfolioTotal * 0.97;
+    return [{ time: "Início", value: ref }, { time: "Agora", value: portfolioTotal }];
   }
 
   const pts = filtered.map(s => ({
@@ -103,11 +108,10 @@ function buildChartData(
 // ── Custom Tooltip ──────────────────────────────────────────────────────────
 function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) {
   if (!active || !payload?.length) return null;
-  const val = payload[0].value;
   return (
     <div className="rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 shadow-xl">
       <p className="text-xs text-slate-400">{label}</p>
-      <p className="text-sm font-bold text-white">€ {fmtEur(val)}</p>
+      <p className="text-sm font-bold text-white">€ {fmtEur(payload[0].value)}</p>
     </div>
   );
 }
@@ -119,31 +123,22 @@ function TokenRow({ wallet, price, pnlToday, total }: { wallet: WalletBalance; p
   if (value < 0.01) return null;
   const pnlPct = total > 0 ? (pnlToday / total) * 100 : 0;
   const pnlEur = value * (pnlPct / 100);
-
   return (
     <div className="flex items-center gap-3 py-3 border-b border-slate-800/60 last:border-0">
-      {/* Icon */}
-      <div className="h-9 w-9 rounded-full bg-slate-800 flex items-center justify-center shrink-0 text-sm font-bold text-slate-300">
-        {wallet.symbol.slice(0, 2)}
-      </div>
-      {/* Name */}
+      <div className="h-9 w-9 rounded-full bg-slate-800 flex items-center justify-center shrink-0 text-sm font-bold text-slate-300">{wallet.symbol.slice(0, 2)}</div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-white">{wallet.label}</p>
         <p className="text-xs text-slate-500">{wallet.symbol}</p>
       </div>
-      {/* Price */}
       <div className="w-24 text-right">
         <p className="text-sm text-slate-300">{price > 0 ? `€ ${price >= 1000 ? (price/1000).toFixed(2)+"K" : price.toFixed(2)}` : "—"}</p>
       </div>
-      {/* Balance */}
       <div className="w-24 text-right">
         <p className="text-sm text-slate-300">{balanceNum.toFixed(4)} {wallet.symbol}</p>
       </div>
-      {/* Value */}
       <div className="w-24 text-right">
         <p className="text-sm font-semibold text-white">€ {fmtEur(value)}</p>
       </div>
-      {/* L/P */}
       <div className="w-28 text-right">
         {pnlPct !== 0 ? (
           <>
@@ -154,9 +149,33 @@ function TokenRow({ wallet, price, pnlToday, total }: { wallet: WalletBalance; p
               {pnlPct >= 0 ? "▲" : "▼"} {Math.abs(pnlPct).toFixed(2)}%
             </p>
           </>
+        ) : <p className="text-sm text-slate-600">—</p>}
+      </div>
+    </div>
+  );
+}
+
+// ── NFT card ─────────────────────────────────────────────────────────────────
+function NftCard({ nft }: { nft: NftItem }) {
+  const [imgErr, setImgErr] = useState(false);
+  const img = nft.image;
+  const isIpfs = img?.startsWith("ipfs://") ?? false;
+  const src = isIpfs && img ? `https://ipfs.io/ipfs/${img.slice(7)}` : img;
+
+  return (
+    <div className="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden hover:border-slate-600 transition group">
+      <div className="aspect-square bg-slate-800 relative overflow-hidden">
+        {src && !imgErr ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={src} alt={nft.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            onError={() => setImgErr(true)} />
         ) : (
-          <p className="text-sm text-slate-600">—</p>
+          <div className="w-full h-full flex items-center justify-center text-3xl text-slate-600">🖼️</div>
         )}
+      </div>
+      <div className="p-2">
+        <p className="text-xs font-semibold text-white truncate">{nft.name || "NFT"}</p>
+        {nft.tokenId && <p className="text-[10px] text-slate-500">#{String(nft.tokenId).slice(0, 8)}</p>}
       </div>
     </div>
   );
@@ -164,17 +183,13 @@ function TokenRow({ wallet, price, pnlToday, total }: { wallet: WalletBalance; p
 
 // ── Main export ─────────────────────────────────────────────────────────────
 export default function PortfolioChartSection({
-  portfolioTotal,
-  pnlToday,
-  snapshotTotals,
-  historicalPrices,
-  wallets,
-  tokenPrices,
-  cryptoTotal,
-  traditionalTotal,
+  portfolioTotal, pnlToday, snapshotTotals, historicalPrices,
+  wallets, tokenPrices, cryptoTotal,
 }: Props) {
   const [tf, setTf] = useState<TimeFrame>("1d");
   const [tab, setTab] = useState<Tab>("overview");
+  const [nftData, setNftData] = useState<WalletNfts[]>([]);
+  const [defiData, setDefiData] = useState<WalletDefi[]>([]);
 
   const chartData = useMemo(
     () => buildChartData(tf, portfolioTotal, snapshotTotals, historicalPrices),
@@ -192,24 +207,99 @@ export default function PortfolioChartSection({
     ADA: tokenPrices.ADA ?? 0,
   };
 
+  // Wallets com endereço (filtradas)
+  const addressedWallets = wallets.filter(w => w.address);
+
+  // ── Fetch NFTs quando a tab NFTs é selecionada ──────────────────────────
+  useEffect(() => {
+    if (tab !== "nfts") return;
+    if (nftData.length > 0) return; // already loaded
+
+    const targets = addressedWallets.map(w => ({
+      address: w.address!,
+      chain: SYMBOL_CHAIN[w.symbol] ?? "eth",
+      label: w.label,
+    }));
+
+    if (targets.length === 0) return;
+
+    const initial: WalletNfts[] = targets.map(t => ({ ...t, nfts: [], loading: true }));
+    setNftData(initial);
+
+    targets.forEach(async (t, i) => {
+      try {
+        const res = await fetch(`/api/nft-balance?address=${encodeURIComponent(t.address)}&chain=${t.chain}`);
+        const data = (await res.json()) as { nfts?: NftItem[]; count?: number; error?: string };
+        setNftData(prev => {
+          const next = [...prev];
+          next[i] = { ...next[i], nfts: data.nfts ?? [], loading: false, error: data.error };
+          return next;
+        });
+      } catch (e) {
+        setNftData(prev => {
+          const next = [...prev];
+          next[i] = { ...next[i], loading: false, error: e instanceof Error ? e.message : "Erro" };
+          return next;
+        });
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
+  // ── Fetch DeFi quando a tab DeFi é selecionada ─────────────────────────
+  useEffect(() => {
+    if (tab !== "defi") return;
+    if (defiData.length > 0) return;
+
+    // DeFi supported chains: eth and sol
+    const targets = addressedWallets
+      .filter(w => ["ETH", "SOL"].includes(w.symbol))
+      .map(w => ({
+        address: w.address!,
+        chain: SYMBOL_CHAIN[w.symbol] ?? "eth",
+        label: w.label,
+      }));
+
+    if (targets.length === 0) return;
+
+    const initial: WalletDefi[] = targets.map(t => ({ ...t, total: 0, positions: [], loading: true }));
+    setDefiData(initial);
+
+    targets.forEach(async (t, i) => {
+      try {
+        const res = await fetch(`/api/defi-balance?address=${encodeURIComponent(t.address)}&chain=${t.chain}`);
+        const data = (await res.json()) as { total?: number; positions?: DefiPosition[]; error?: string };
+        setDefiData(prev => {
+          const next = [...prev];
+          next[i] = { ...next[i], total: data.total ?? 0, positions: data.positions ?? [], loading: false, error: data.error };
+          return next;
+        });
+      } catch (e) {
+        setDefiData(prev => {
+          const next = [...prev];
+          next[i] = { ...next[i], loading: false, error: e instanceof Error ? e.message : "Erro" };
+          return next;
+        });
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
+  const totalNfts = nftData.reduce((s, w) => s + w.nfts.length, 0);
+  const totalDefi = defiData.reduce((s, w) => s + w.total, 0);
+
   return (
     <div className="space-y-0">
       {/* ── Chart Card ── */}
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden">
         <div className="px-6 pt-6 pb-2">
-          {/* Total value */}
-          <p className="text-4xl font-black text-white tracking-tight">
-            € {fmtEur(portfolioTotal)}
-          </p>
-          {/* PNL today */}
+          <p className="text-4xl font-black text-white tracking-tight">€ {fmtEur(portfolioTotal)}</p>
           <div className="flex items-center gap-1.5 mt-1.5">
             <span className={`text-sm ${isUp ? "text-emerald-400" : "text-rose-400"}`}>
               {isUp ? "▲" : "▼"} € {Math.abs(pnlToday).toFixed(2)} ({Math.abs(pnlPct).toFixed(2)}%) hoje
             </span>
           </div>
         </div>
-
-        {/* Chart */}
         <div className="h-[200px] px-0 mt-2">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} margin={{ top: 4, right: 16, bottom: 0, left: 0 }}>
@@ -220,36 +310,20 @@ export default function PortfolioChartSection({
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-              <XAxis dataKey="time" tick={{ fill: "#64748b", fontSize: 10 }} tickLine={false} axisLine={false}
-                interval="preserveStartEnd" />
-              <YAxis
-                tick={{ fill: "#64748b", fontSize: 10 }} tickLine={false} axisLine={false}
-                tickFormatter={(v) => fmtEurCompact(v)} width={72} />
+              <XAxis dataKey="time" tick={{ fill: "#64748b", fontSize: 10 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+              <YAxis tick={{ fill: "#64748b", fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={fmtEurCompact} width={72} />
               <Tooltip content={<CustomTooltip />} />
-              <Area
-                type="monotone"
-                dataKey="value"
-                stroke={chartColor}
-                strokeWidth={2}
-                fill="url(#portGrad)"
-                dot={false}
-                activeDot={{ r: 4, fill: chartColor, stroke: "#0f172a", strokeWidth: 2 }}
-              />
+              <Area type="monotone" dataKey="value" stroke={chartColor} strokeWidth={2} fill="url(#portGrad)"
+                dot={false} activeDot={{ r: 4, fill: chartColor, stroke: "#0f172a", strokeWidth: 2 }} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
-
-        {/* Timeframe selector */}
         <div className="flex gap-1 px-4 pb-4 pt-2">
           {TIMEFRAMES.map(({ key, label }) => (
             <button key={key} type="button" onClick={() => setTf(key)}
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
-                tf === key
-                  ? "bg-slate-700 text-white"
-                  : "text-slate-500 hover:text-white hover:bg-slate-800"
-              }`}>
-              {label}
-            </button>
+                tf === key ? "bg-slate-700 text-white" : "text-slate-500 hover:text-white hover:bg-slate-800"
+              }`}>{label}</button>
           ))}
         </div>
       </div>
@@ -258,22 +332,23 @@ export default function PortfolioChartSection({
       <div className="flex gap-0 border-b border-slate-800 mt-6">
         {TABS.map(({ key, label }) => (
           <button key={key} type="button" onClick={() => setTab(key)}
-            className={`px-4 py-3 text-sm font-medium transition border-b-2 -mb-px ${
-              tab === key
-                ? "border-blue-500 text-white"
-                : "border-transparent text-slate-400 hover:text-white"
+            className={`px-4 py-3 text-sm font-medium transition border-b-2 -mb-px flex items-center gap-1.5 ${
+              tab === key ? "border-blue-500 text-white" : "border-transparent text-slate-400 hover:text-white"
             }`}>
             {label}
+            {key === "nfts" && totalNfts > 0 && (
+              <span className="text-[10px] bg-slate-700 text-slate-300 rounded-full px-1.5 py-0.5">{totalNfts}</span>
+            )}
+            {key === "defi" && totalDefi > 0 && (
+              <span className="text-[10px] bg-emerald-500/20 text-emerald-400 rounded-full px-1.5 py-0.5">€{fmtEurCompact(totalDefi).replace("€ ","")}</span>
+            )}
           </button>
         ))}
       </div>
 
-      {/* ── Tab content ── */}
-
-      {/* Tokens tab */}
+      {/* ── Tab: Tokens ── */}
       {tab === "tokens" && (
         <div className="rounded-b-2xl bg-slate-900/40 border border-t-0 border-slate-800 overflow-hidden">
-          {/* Header */}
           <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-800 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
             <span className="flex-1">Token</span>
             <span className="w-24 text-right">Preço</span>
@@ -283,12 +358,10 @@ export default function PortfolioChartSection({
           </div>
           <div className="px-4">
             {wallets.filter(w => (parseFloat(w.balance ?? "0") || 0) * (priceMap[w.symbol] ?? 0) >= 0.01).length === 0 ? (
-              <p className="text-sm text-slate-500 py-8 text-center">Nenhum token com valor encontrado.<br /><span className="text-xs">Liga uma carteira na página Carteiras.</span></p>
-            ) : (
-              wallets.map((w, i) => (
-                <TokenRow key={`${w.symbol}-${i}`} wallet={w} price={priceMap[w.symbol] ?? 0} pnlToday={pnlToday} total={portfolioTotal} />
-              ))
-            )}
+              <p className="text-sm text-slate-500 py-8 text-center">Nenhum token com valor encontrado.<br /><a href="/wallets" className="text-orange-400 underline text-xs">Liga uma carteira →</a></p>
+            ) : wallets.map((w, i) => (
+              <TokenRow key={`${w.symbol}-${i}`} wallet={w} price={priceMap[w.symbol] ?? 0} pnlToday={pnlToday} total={portfolioTotal} />
+            ))}
           </div>
           {cryptoTotal > 0 && (
             <div className="px-4 py-3 border-t border-slate-800 flex items-center justify-between">
@@ -299,33 +372,108 @@ export default function PortfolioChartSection({
         </div>
       )}
 
-      {/* NFTs tab */}
+      {/* ── Tab: NFTs ── */}
       {tab === "nfts" && (
-        <div className="rounded-b-2xl bg-slate-900/40 border border-t-0 border-slate-800 p-8 text-center">
-          <p className="text-3xl mb-3">🖼️</p>
-          <p className="text-sm font-semibold text-white">NFTs</p>
-          <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-            Os teus NFTs são visíveis na página <a href="/wallets" className="text-orange-400 underline">Carteiras</a> → aba NFTs de cada carteira EVM ligada.
-          </p>
+        <div className="rounded-b-2xl bg-slate-900/40 border border-t-0 border-slate-800 p-4">
+          {addressedWallets.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-3xl mb-2">🖼️</p>
+              <p className="text-sm font-semibold text-white">Sem carteiras ligadas</p>
+              <p className="text-xs text-slate-400 mt-1"><a href="/wallets" className="text-orange-400 underline">Liga uma carteira →</a></p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {nftData.map((wd) => (
+                <div key={wd.address}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-xs font-semibold text-slate-300">{wd.label}</span>
+                    <span className="text-[10px] text-slate-600 font-mono">{wd.address.slice(0, 6)}…{wd.address.slice(-4)}</span>
+                    <span className="text-[10px] border border-slate-700 text-slate-500 rounded px-1">{wd.chain.toUpperCase()}</span>
+                    {wd.nfts.length > 0 && <span className="text-[10px] text-slate-400 ml-auto">{wd.nfts.length} NFTs</span>}
+                  </div>
+                  {wd.loading ? (
+                    <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="aspect-square rounded-xl bg-slate-800 animate-pulse" />
+                      ))}
+                    </div>
+                  ) : wd.error ? (
+                    <p className="text-xs text-rose-400 py-2">{wd.error}</p>
+                  ) : wd.nfts.length === 0 ? (
+                    <p className="text-xs text-slate-500 py-2">Nenhum NFT encontrado nesta carteira.</p>
+                  ) : (
+                    <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+                      {wd.nfts.map((nft) => (
+                        <NftCard key={nft.id} nft={nft} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Atividade tab */}
-      {tab === "activity" && (
-        <div className="rounded-b-2xl bg-slate-900/40 border border-t-0 border-slate-800 p-8 text-center">
-          <p className="text-3xl mb-3">📋</p>
-          <p className="text-sm font-semibold text-white">Histórico de atividade</p>
-          <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-            Vê o histórico de transações das tuas carteiras em{" "}
-            <a href="/smart-money" className="text-orange-400 underline">Smart Money → Histórico</a>.
-          </p>
+      {/* ── Tab: DeFi ── */}
+      {tab === "defi" && (
+        <div className="rounded-b-2xl bg-slate-900/40 border border-t-0 border-slate-800 p-4">
+          {addressedWallets.filter(w => ["ETH", "SOL"].includes(w.symbol)).length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-3xl mb-2">⚡</p>
+              <p className="text-sm font-semibold text-white">Sem carteiras ETH/SOL ligadas</p>
+              <p className="text-xs text-slate-400 mt-1"><a href="/wallets" className="text-orange-400 underline">Liga uma carteira →</a></p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Summary */}
+              {totalDefi > 0 && (
+                <div className="flex items-center justify-between rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
+                  <span className="text-sm text-slate-300">Total DeFi</span>
+                  <span className="text-lg font-black text-emerald-400">€ {fmtEur(totalDefi)}</span>
+                </div>
+              )}
+
+              {defiData.map((wd) => (
+                <div key={wd.address} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-xs font-semibold text-slate-300">{wd.label}</span>
+                    <span className="text-[10px] text-slate-600 font-mono">{wd.address.slice(0, 6)}…{wd.address.slice(-4)}</span>
+                    <span className="text-[10px] border border-slate-700 text-slate-500 rounded px-1">{wd.chain.toUpperCase()}</span>
+                    {wd.total > 0 && (
+                      <span className="ml-auto text-sm font-bold text-emerald-400">€ {fmtEur(wd.total)}</span>
+                    )}
+                  </div>
+                  {wd.loading ? (
+                    <div className="space-y-2">
+                      {[1, 2].map(i => <div key={i} className="h-8 rounded-lg bg-slate-800 animate-pulse" />)}
+                    </div>
+                  ) : wd.error ? (
+                    <p className="text-xs text-rose-400">{wd.error}</p>
+                  ) : wd.total === 0 ? (
+                    <p className="text-xs text-slate-500">Nenhuma posição DeFi encontrada.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {wd.positions.map((pos, i) => (
+                        <div key={i} className="flex items-center justify-between py-1.5 border-b border-slate-800/50 last:border-0">
+                          <div className="flex items-center gap-2">
+                            <div className="h-6 w-6 rounded-full bg-violet-500/20 flex items-center justify-center text-xs">⚡</div>
+                            <span className="text-sm text-slate-300">{pos.name}</span>
+                          </div>
+                          <span className="text-sm font-semibold text-emerald-400">€ {fmtEur(pos.usd)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Overview tab — just a spacer (the rest of the page shows the overview) */}
-      {tab === "overview" && (
-        <div className="py-2" />
-      )}
+      {/* ── Tab: Overview spacer ── */}
+      {tab === "overview" && <div className="py-2" />}
     </div>
   );
 }
