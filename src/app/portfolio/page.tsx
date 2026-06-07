@@ -1409,11 +1409,11 @@ export default function PortfolioPage() {
         </section>
 
         {/* ── IA CONTEXTUAL ── */}
-        <section className="rounded-2xl border border-orange-500/20 bg-gradient-to-br from-orange-500/10 via-slate-900 to-slate-950 p-6">
+        <section className="rounded-2xl border border-orange-500/20 bg-orange-50 dark:bg-gradient-to-br dark:from-orange-500/10 dark:via-slate-900 dark:to-slate-950 p-6">
           <div className="mb-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-orange-300/80">Inteligência Artificial</p>
-            <h2 className="mt-1 text-base font-bold text-white">Analisa o teu portfólio</h2>
-            <p className="mt-0.5 text-xs text-slate-400">
+            <p className="text-xs uppercase tracking-[0.2em] text-orange-600 dark:text-orange-300/80">Inteligência Artificial</p>
+            <h2 className="mt-1 text-base font-bold text-slate-900 dark:text-white">Analisa o teu portfólio</h2>
+            <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
               A IA tem acesso aos teus dados reais — totais, PNL, distribuição e métricas avançadas.
             </p>
           </div>
@@ -1429,7 +1429,7 @@ export default function PortfolioPage() {
               <button
                 key={q}
                 onClick={() => setAiQuestion(q)}
-                className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:border-orange-400/40 hover:text-orange-200 transition"
+                className="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs text-slate-700 hover:border-orange-400 hover:text-orange-600 transition dark:border-slate-700 dark:bg-transparent dark:text-slate-300 dark:hover:border-orange-400/40 dark:hover:text-orange-200"
               >
                 {q}
               </button>
@@ -1480,7 +1480,7 @@ export default function PortfolioPage() {
                 }
               }}
               placeholder="Pergunta sobre o teu portfólio… (Enter para enviar)"
-              className="flex-1 rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500"
+              className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500"
             />
             <button
               disabled={aiLoading || !aiQuestion.trim()}
@@ -1524,15 +1524,15 @@ export default function PortfolioPage() {
           </div>
 
           {aiLoading && (
-            <p className="mt-3 text-xs text-slate-400 animate-pulse">A analisar o teu portfólio…</p>
+            <p className="mt-3 text-xs text-slate-500 dark:text-slate-400 animate-pulse">A analisar o teu portfólio…</p>
           )}
           {aiError && (
-            <p className="mt-3 text-xs text-rose-400">{aiError}</p>
+            <p className="mt-3 text-xs text-rose-500 dark:text-rose-400">{aiError}</p>
           )}
           {aiReply && (
-            <div className="mt-4 rounded-xl border border-slate-700 bg-slate-900/80 p-4">
-              <p className="text-xs text-orange-300/80 font-semibold mb-2">🦉 Owl</p>
-              <p className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">{aiReply}</p>
+            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/80">
+              <p className="text-xs text-orange-500 dark:text-orange-300/80 font-semibold mb-2">🦉 Owl</p>
+              <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">{aiReply}</p>
             </div>
           )}
         </section>
