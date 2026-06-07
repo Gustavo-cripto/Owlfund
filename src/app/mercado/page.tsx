@@ -1055,7 +1055,9 @@ export default function MercadoPage() {
             )}
           </div>
         </section>
-        ) : (
+        ) : null}
+
+        {marketMode === "tradicional" && (
           <section className="mx-auto w-full max-w-6xl rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
