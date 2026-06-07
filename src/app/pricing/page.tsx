@@ -13,6 +13,9 @@ const FREE_FEATURES = [
     { label: "Carteiras Solana", free: true, pro: true },
     { label: "Carteiras Bitcoin (saldo)", free: true, pro: true },
     { label: "Carteiras Cardano (ADA)", free: true, pro: true },
+    { label: "CEX (Binance, Kraken, CoinEx)", free: false, pro: true },
+    { label: "Hyperliquid (Spot + Perp)", free: false, pro: true },
+    { label: "Hardware Wallet (Ledger/Trezor)", free: false, pro: true },
     { label: "Número de carteiras", free: "Até 3", pro: "Ilimitado" },
     { label: "Snapshots automáticos diários", free: false, pro: true },
     { label: "Histórico de valor do portfolio", free: "7 dias", pro: "1 ano+" },
@@ -107,12 +110,27 @@ export default function PricingPage() {
           <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-6 space-y-10">
 
             {/* Header */}
-            <div className="text-center space-y-3">
+            <div className="text-center space-y-4">
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">Owlfund</p>
-              <h1 className="text-3xl font-bold text-white">{t("pricing_title")}</h1>
-              <p className="text-slate-400 max-w-lg mx-auto text-sm">
-                Começa grátis e faz upgrade quando precisares de mais potência.
+              <h1 className="text-4xl font-bold text-white">{t("pricing_title")}</h1>
+              <p className="text-slate-400 max-w-xl mx-auto text-sm leading-relaxed">
+                O único tracker que combina carteiras on-chain, CEXs, Hyperliquid, hardware wallets,
+                Smart Money e fiscalidade — num só lugar.
               </p>
+              {/* Stats bar */}
+              <div className="flex flex-wrap justify-center gap-6 pt-2">
+                {[
+                  { value: "10+", label: "Blockchains suportadas" },
+                  { value: "3 CEXs", label: "Binance · Kraken · CoinEx" },
+                  { value: "8 países", label: "Fiscalidade local (Pro)" },
+                  { value: "€9,99/mês", label: "vs €19,99 concorrência" },
+                ].map((s) => (
+                  <div key={s.label} className="text-center">
+                    <p className="text-lg font-bold text-orange-300">{s.value}</p>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wide">{s.label}</p>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Plan cards */}
@@ -125,7 +143,7 @@ export default function PricingPage() {
                   <p className="text-xs text-slate-500 mt-1">Para começar a monitorar o teu portfolio</p>
                 </div>
                 <div className="space-y-2 text-sm">
-                  {["3 carteiras", "Preços em tempo real", "Calculadora de impostos", "Blocos BTC ao vivo", "Watchlist (5 baleias)", "Chat IA (10/mês)"].map((f) => (
+                  {["3 carteiras on-chain", "Preços em tempo real", "Calculadora de impostos (FIFO)", "Blocos BTC ao vivo", "Watchlist Smart Money (5 baleias)", "Chat IA (10/mês)", "Calculadora FIRE"].map((f) => (
                     <div key={f} className="flex items-center gap-2 text-slate-300">
                       <span className="text-emerald-400 text-xs">✓</span>
                       {f}
@@ -147,7 +165,19 @@ export default function PricingPage() {
                   <p className="text-xs text-slate-500 mt-1">Para investidores a sério</p>
                 </div>
                 <div className="space-y-2 text-sm">
-                  {["Carteiras ilimitadas", "Snapshots diários automáticos", "Alertas de baleias > $100k", "Chat IA ilimitado", "Exportação CSV + PDF fiscal", "Histórico 1 ano+", "8+ países fiscais", "Suporte prioritário"].map((f) => (
+                  {[
+                    "Carteiras ilimitadas (on-chain)",
+                    "CEX: Binance, Kraken, CoinEx",
+                    "Hyperliquid (Spot + Perp)",
+                    "Hardware Wallet (Ledger/Trezor)",
+                    "Snapshots diários automáticos",
+                    "Alertas de baleias > $100k",
+                    "Chat IA ilimitado",
+                    "Exportação CSV + PDF fiscal",
+                    "Histórico 1 ano+",
+                    "8+ países fiscais",
+                    "Suporte prioritário",
+                  ].map((f) => (
                     <div key={f} className="flex items-center gap-2 text-slate-200">
                       <span className="text-orange-400 text-xs">✓</span>
                       {f}
@@ -189,7 +219,10 @@ export default function PricingPage() {
                     </thead>
                     <tbody>
                       {[
-                        ["Carteiras no portfolio", "Até 3", "Ilimitado"],
+                        ["Carteiras on-chain", "Até 3", "Ilimitado"],
+                        ["CEX (Binance/Kraken/CoinEx)", "—", "✓ Ilimitado"],
+                        ["Hyperliquid Spot + Perp", "—", "✓ Incluído"],
+                        ["Hardware Wallet (Ledger/Trezor)", "—", "✓ WebHID"],
                         ["Watchlist Smart Money", "5 endereços", "Ilimitado"],
                         ["Histórico de transações baleias", "Últimas 10", "Últimas 100"],
                         ["Chat IA por mês", "10 mensagens", "Ilimitado"],
@@ -249,6 +282,74 @@ export default function PricingPage() {
                     </tbody>
                   </table>
                 </div>
+              </div>
+            </div>
+
+            {/* Why Owlfund */}
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 space-y-5">
+              <h2 className="text-lg font-bold text-white text-center">Porque é diferente dos outros trackers?</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {[
+                  {
+                    icon: "🌐",
+                    title: "Portfolio completo",
+                    desc: "On-chain + CEX + Hyperliquid + Ledger num único dashboard. Sem saltar entre apps.",
+                  },
+                  {
+                    icon: "🦉",
+                    title: "Smart Money real",
+                    desc: "Segue baleias reais com alertas de movimentos acima de $100k. Fica à frente do mercado.",
+                  },
+                  {
+                    icon: "📊",
+                    title: "Fiscalidade integrada",
+                    desc: "Cálculo FIFO automático para Portugal, Espanha, França, Alemanha e mais. Relatório PDF pronto a enviar.",
+                  },
+                ].map((item) => (
+                  <div key={item.title} className="rounded-xl border border-slate-800 bg-slate-950/40 p-4 space-y-2">
+                    <p className="text-2xl">{item.icon}</p>
+                    <p className="font-semibold text-white text-sm">{item.title}</p>
+                    <p className="text-xs text-slate-400 leading-relaxed">{item.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Competitor comparison */}
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/40 overflow-hidden">
+              <div className="px-6 py-3 bg-slate-900 border-b border-slate-800">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Owlfund vs Concorrência</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-800">
+                      <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400">Funcionalidade</th>
+                      <th className="text-center px-4 py-3 text-xs font-semibold text-orange-400">Owlfund Pro</th>
+                      <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500">CoinStats</th>
+                      <th className="text-center px-4 py-3 text-xs font-semibold text-slate-500">Delta</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ["Preço/mês", "€9,99", "€19,99", "€9,99"],
+                      ["CEX integração", "✓", "✓", "✓"],
+                      ["Hyperliquid", "✓", "—", "—"],
+                      ["Hardware Wallet", "✓ WebHID", "—", "—"],
+                      ["Smart Money / Baleias", "✓", "Parcial", "—"],
+                      ["Fiscalidade europeia", "✓ 8 países", "Limitado", "—"],
+                      ["Chat IA portfolio", "✓", "—", "—"],
+                      ["FIRE Simulator", "✓", "—", "—"],
+                    ].map(([feature, owlfund, coinStats, delta]) => (
+                      <tr key={feature} className="border-b border-slate-800/50 last:border-0 hover:bg-slate-800/20">
+                        <td className="px-6 py-2.5 text-slate-300">{feature}</td>
+                        <td className="px-4 py-2.5 text-center text-orange-300 font-semibold">{owlfund}</td>
+                        <td className="px-4 py-2.5 text-center text-slate-500">{coinStats}</td>
+                        <td className="px-4 py-2.5 text-center text-slate-500">{delta}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
 

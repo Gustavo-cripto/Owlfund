@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from "react";
 
 import AppShell from "@/components/AppShell";
+import CexSection from "@/components/wallets/CexSection";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import WalletCard from "@/components/wallets/WalletCard";
 import { createClient } from "@/lib/supabase/client";
@@ -4217,6 +4218,8 @@ export default function WalletsPage() {
             </div>
           </div>
         )}
+        {/* ── CEX + Hyperliquid + Ledger ── */}
+        <CexSection />
       </main>
     </div>
     </AppShell>
