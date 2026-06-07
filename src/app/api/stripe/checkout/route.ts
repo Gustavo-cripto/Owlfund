@@ -10,20 +10,35 @@ const siteUrl =
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 
 export async function POST(request: Request) {
-  // 1. Verificar sessão do utilizador autenticado
-  const cookieStore = await cookies();
-  const supabaseAuth = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get: (name) => cookieStore.get(name)?.value,
-        set: () => {},
-        remove: () => {},
-      },
-    }
-  );
-  const { data: { user } } = await supabaseAuth.auth.getUser();
+  // 1. Verificar sessão — tentar pelo token Bearer primeiro, depois cookies
+  let user: import("@supabase/supabase-js").User | null = null;
+
+  const authHeader = request.headers.get("Authorization");
+  const accessToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+
+  if (accessToken) {
+    const supabaseAdmin = getSupabaseAdmin();
+    const { data } = await supabaseAdmin.auth.getUser(accessToken);
+    user = data.user ?? null;
+  }
+
+  if (!user) {
+    const cookieStore = await cookies();
+    const supabaseAuth = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get: (name) => cookieStore.get(name)?.value,
+          set: () => {},
+          remove: () => {},
+        },
+      }
+    );
+    const { data } = await supabaseAuth.auth.getUser();
+    user = data.user ?? null;
+  }
+
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -38,9 +53,9 @@ export async function POST(request: Request) {
   }
 
   const stripe = getStripe();
-  const supabaseAdmin = getSupabaseAdmin();
+  const supabaseAdmin2 = getSupabaseAdmin();
 
-  const { data: profile } = await supabaseAdmin
+  const { data: profile } = await supabaseAdmin2
     .from("profiles")
     .select("stripe_customer_id")
     .eq("id", user.id)
@@ -53,7 +68,7 @@ export async function POST(request: Request) {
       metadata: { user_id: user.id },
     });
     customerId = customer.id;
-    await supabaseAdmin
+    await supabaseAdmin2
       .from("profiles")
       .upsert({ id: user.id, stripe_customer_id: customerId });
   }

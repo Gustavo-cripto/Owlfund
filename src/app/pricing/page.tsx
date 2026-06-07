@@ -90,9 +90,11 @@ export default function PricingPage() {
 
   const handleUpgrade = async () => {
     if (!userId) { window.location.href = "/login"; return; }
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token ?? "";
     const res = await fetch("/api/stripe/checkout", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${accessToken}` },
       body: JSON.stringify({ userId }),
     });
     const data = (await res.json()) as { url?: string };
