@@ -23,9 +23,9 @@ const TICKER_DATA = [
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col xl:flex-row">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col xl:flex-row xl:items-start">
       <Sidebar />
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="flex-1 min-w-0 flex flex-col min-h-screen">
         {/* ── Live price ticker ── */}
         <div className="border-b border-slate-800/60 bg-slate-900/50 py-2 overflow-hidden select-none shrink-0">
           <div className="flex animate-ticker" style={{ width: "max-content" }}>

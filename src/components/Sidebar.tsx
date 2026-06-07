@@ -222,7 +222,7 @@ export default function Sidebar() {
       <aside
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        className={`hidden xl:flex flex-col shrink-0 min-h-screen bg-black border-r border-white/[0.06] transition-all duration-300 ease-in-out z-40 ${
+        className={`hidden xl:flex flex-col shrink-0 sticky top-0 h-screen overflow-y-auto bg-black border-r border-white/[0.06] transition-all duration-300 ease-in-out z-40 ${
           expanded ? "w-64 shadow-2xl shadow-black/60" : "w-[72px]"
         }`}
       >
@@ -276,19 +276,16 @@ export default function Sidebar() {
               );
             })}
           </ul>
-        </nav>
 
-        {/* Footer */}
-        <div className={`border-t border-white/[0.06] ${expanded ? "px-4 py-4" : "px-2 py-4"}`}>
-          {/* Language picker */}
-          <div className={`mb-3 ${expanded ? "grid grid-cols-4 gap-1 px-1" : "flex flex-col gap-1.5 items-center"}`}>
+          {/* Language picker — logo abaixo de "Conta" */}
+          <div className={`mt-3 pt-3 border-t border-white/[0.06] ${expanded ? "grid grid-cols-4 gap-1 px-1" : "flex flex-col gap-1.5 items-center"}`}>
             {LANGS.map((l) => (
               <button key={l.code} type="button" onClick={() => setLang(l.code)}
                 title={l.label}
                 className={`rounded-xl font-medium transition-all duration-150 ${
                   expanded
                     ? "flex items-center justify-center gap-1.5 py-2 px-1 text-xs"
-                    : "w-10 h-10 flex items-center justify-center text-xl"
+                    : "w-10 h-10 flex items-center justify-center"
                 } ${lang === l.code
                     ? "bg-orange-500/25 ring-1 ring-orange-500/50 text-orange-300"
                     : "text-slate-400 hover:bg-white/8 hover:text-white"
@@ -299,6 +296,10 @@ export default function Sidebar() {
               </button>
             ))}
           </div>
+        </nav>
+
+        {/* Footer — só logout + email */}
+        <div className={`border-t border-white/[0.06] ${expanded ? "px-4 py-4" : "px-2 py-4"}`}>
           {expanded && email && (
             <p className="text-[11px] text-slate-600 truncate mb-2 px-1 whitespace-nowrap">{email}</p>
           )}
