@@ -93,6 +93,12 @@ export default function AccountPage() {
   const [billingError, setBillingError] = useState<string | null>(null);
   const [section, setSection] = useState<SettingsSection>("account");
   const [resetConfirm, setResetConfirm] = useState(false);
+  // Briefing agendado
+  const [briefingEnabled, setBriefingEnabled] = useState(false);
+  const [briefingHour, setBriefingHour] = useState(7);
+  const [briefingMode, setBriefingMode] = useState<"crypto" | "tradicional" | "both">("crypto");
+  const [briefingSaving, setBriefingSaving] = useState(false);
+  const [briefingSaved, setBriefingSaved] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -105,6 +111,18 @@ export default function AccountPage() {
         .from("subscriptions").select("status, current_period_end")
         .eq("user_id", user.id).order("current_period_end", { ascending: false }).limit(1).maybeSingle();
       setSubscription(subData ?? null);
+      // Carregar preferências de briefing
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token ?? "";
+      if (token) {
+        const res = await fetch("/api/news-briefing-schedule", { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) {
+          const pref = await res.json() as { enabled: boolean; hour_utc: number; mode: "crypto" | "tradicional" | "both" };
+          setBriefingEnabled(pref.enabled ?? false);
+          setBriefingHour(pref.hour_utc ?? 7);
+          setBriefingMode(pref.mode ?? "crypto");
+        }
+      }
       setLoading(false);
     };
     load();
@@ -342,6 +360,78 @@ export default function AccountPage() {
                       </a>
                     </div>
                   )}
+
+                  {/* ── Briefing Agendado ── */}
+                  <div className="rounded-xl border border-slate-700 bg-slate-900/40 p-5 space-y-4 mt-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-white">🦉 Briefing Diário por Email</p>
+                        <p className="text-xs text-slate-400 mt-0.5">Recebe análise de mercado gerada por IA todos os dias à hora escolhida.</p>
+                      </div>
+                      <Toggle checked={briefingEnabled} onChange={setBriefingEnabled} />
+                    </div>
+
+                    {briefingEnabled && (
+                      <div className="space-y-3 pt-2 border-t border-slate-800">
+                        {/* Hora */}
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-slate-400">Hora de envio (UTC)</p>
+                          <select
+                            value={briefingHour}
+                            onChange={(e) => setBriefingHour(Number(e.target.value))}
+                            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-orange-500"
+                          >
+                            {Array.from({ length: 24 }, (_, i) => (
+                              <option key={i} value={i}>{String(i).padStart(2, "0")}:00 UTC</option>
+                            ))}
+                          </select>
+                        </div>
+                        {/* Modo */}
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-slate-400">Tipo de análise</p>
+                          <div className="flex gap-1">
+                            {(["crypto", "tradicional", "both"] as const).map((m) => (
+                              <button
+                                key={m}
+                                type="button"
+                                onClick={() => setBriefingMode(m)}
+                                className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                                  briefingMode === m
+                                    ? "border-orange-400 bg-orange-500/20 text-orange-200"
+                                    : "border-slate-700 text-slate-400 hover:border-slate-500"
+                                }`}
+                              >
+                                {m === "crypto" ? "Cripto" : m === "tradicional" ? "Tradicional" : "Ambos"}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-slate-600">Email enviado para: {email ?? "—"}</p>
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      disabled={briefingSaving}
+                      onClick={async () => {
+                        setBriefingSaving(true);
+                        setBriefingSaved(false);
+                        const { data: sessionData } = await supabase.auth.getSession();
+                        const token = sessionData.session?.access_token ?? "";
+                        await fetch("/api/news-briefing-schedule", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                          body: JSON.stringify({ enabled: briefingEnabled, hour_utc: briefingHour, mode: briefingMode }),
+                        });
+                        setBriefingSaving(false);
+                        setBriefingSaved(true);
+                        setTimeout(() => setBriefingSaved(false), 3000);
+                      }}
+                      className="w-full rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-bold text-slate-950 hover:bg-orange-400 disabled:opacity-50 transition"
+                    >
+                      {briefingSaving ? "A guardar…" : briefingSaved ? "✓ Guardado!" : "Guardar Agendamento"}
+                    </button>
+                  </div>
                 </div>
               )}
 
