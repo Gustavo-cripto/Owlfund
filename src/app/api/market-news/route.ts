@@ -1,34 +1,90 @@
 import { NextResponse } from "next/server";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+
 const COINGECKO_IDS: Record<string, string> = {
   BTC: "bitcoin", ETH: "ethereum", SOL: "solana",
   BNB: "binancecoin", ADA: "cardano", XRP: "ripple",
   DOGE: "dogecoin", AVAX: "avalanche-2", DOT: "polkadot",
 };
 
-async function fetchCryptoPrices(): Promise<Record<string, { usd: number; usd_24h_change: number }>> {
+async function fetchJson<T>(url: string): Promise<T | null> {
   try {
-    const ids = Object.values(COINGECKO_IDS).join(",");
-    const res = await fetch(
-      `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`,
-      { next: { revalidate: 300 } }
-    );
-    if (!res.ok) return {};
-    return await res.json() as Record<string, { usd: number; usd_24h_change: number }>;
-  } catch {
-    return {};
-  }
+    const res = await fetch(url, { next: { revalidate: 300 } });
+    if (!res.ok) return null;
+    return await res.json() as T;
+  } catch { return null; }
 }
 
-function formatPrices(prices: Record<string, { usd: number; usd_24h_change: number }>): string {
+async function buildCryptoContext(): Promise<string> {
   const lines: string[] = [];
-  for (const [sym, id] of Object.entries(COINGECKO_IDS)) {
-    const p = prices[id];
-    if (!p) continue;
-    const sign = p.usd_24h_change >= 0 ? "+" : "";
-    lines.push(`${sym}: $${p.usd.toLocaleString("en-US", { maximumFractionDigits: 2 })} (${sign}${p.usd_24h_change.toFixed(2)}% 24h)`);
+
+  // 1. Preços + variação 24h
+  const ids = Object.values(COINGECKO_IDS).join(",");
+  type PriceData = Record<string, { usd: number; usd_24h_change: number; usd_market_cap: number; usd_24h_vol: number }>;
+  const prices = await fetchJson<PriceData>(
+    `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true&include_market_cap=true&include_24hr_vol=true`
+  );
+
+  lines.push("=== PREÇOS EM TEMPO REAL ===");
+  if (prices) {
+    for (const [sym, id] of Object.entries(COINGECKO_IDS)) {
+      const p = prices[id];
+      if (!p) continue;
+      const sign = p.usd_24h_change >= 0 ? "+" : "";
+      const mcap = p.usd_market_cap ? ` | Mcap: $${(p.usd_market_cap / 1e9).toFixed(1)}B` : "";
+      lines.push(`${sym}: $${p.usd.toLocaleString("en-US", { maximumFractionDigits: 2 })} (${sign}${p.usd_24h_change?.toFixed(2) ?? "?"}% 24h${mcap})`);
+    }
   }
+
+  // 2. Dados globais do mercado
+  type GlobalData = { data: { total_market_cap: { usd: number }; total_volume: { usd: number }; market_cap_percentage: { btc: number; eth: number }; market_cap_change_percentage_24h_usd: number; active_cryptocurrencies: number } };
+  const global = await fetchJson<GlobalData>("https://api.coingecko.com/api/v3/global");
+  if (global?.data) {
+    const g = global.data;
+    lines.push("\n=== MERCADO GLOBAL ===");
+    lines.push(`Cap total: $${(g.total_market_cap.usd / 1e12).toFixed(2)}T`);
+    lines.push(`Volume 24h: $${(g.total_volume.usd / 1e9).toFixed(1)}B`);
+    lines.push(`Variação cap 24h: ${g.market_cap_change_percentage_24h_usd?.toFixed(2)}%`);
+    lines.push(`Dominância BTC: ${g.market_cap_percentage?.btc?.toFixed(1)}% | ETH: ${g.market_cap_percentage?.eth?.toFixed(1)}%`);
+  }
+
+  // 3. Fear & Greed
+  type FearGreed = { data: { value: string; value_classification: string }[] };
+  const fg = await fetchJson<FearGreed>("https://api.alternative.me/fng/?limit=1");
+  if (fg?.data?.[0]) {
+    lines.push("\n=== FEAR & GREED INDEX ===");
+    lines.push(`${fg.data[0].value}/100 — ${fg.data[0].value_classification}`);
+  }
+
+  // 4. Trending coins
+  type Trending = { coins: { item: { name: string; symbol: string; price_btc: number } }[] };
+  const trending = await fetchJson<Trending>("https://api.coingecko.com/api/v3/search/trending");
+  if (trending?.coins) {
+    lines.push("\n=== TRENDING (últimas 24h) ===");
+    trending.coins.slice(0, 5).forEach((c) => {
+      lines.push(`${c.item.name} (${c.item.symbol})`);
+    });
+  }
+
+  return lines.join("\n");
+}
+
+async function buildTraditionalContext(): Promise<string> {
+  const lines: string[] = [];
+
+  // Ouro e prata via metals API (gratuita)
+  type MetalsData = { price: number; currency: string };
+  const gold = await fetchJson<MetalsData>("https://api.metals.live/v1/spot/gold");
+  const silver = await fetchJson<MetalsData>("https://api.metals.live/v1/spot/silver");
+
+  lines.push("=== COMMODITIES EM TEMPO REAL ===");
+  if (gold) lines.push(`Ouro (XAU): $${gold.price?.toFixed(2) ?? "n/d"}/oz`);
+  if (silver) lines.push(`Prata (XAG): $${silver.price?.toFixed(2) ?? "n/d"}/oz`);
+
+  lines.push("\n=== NOTA ===");
+  lines.push("Para ações e índices (S&P 500, NVDA, AAPL, MSFT), faz análise baseada em tendências estruturais e contexto macro — não inventes cotações específicas do dia.");
+
   return lines.join("\n");
 }
 
@@ -37,78 +93,78 @@ export async function POST(request: Request) {
   const { mode = "crypto" } = body;
 
   const apiKey = (process.env.GROQ_API_KEY ?? "").trim();
-  if (!apiKey) {
-    return NextResponse.json({ error: "GROQ_API_KEY não configurada." }, { status: 503 });
-  }
+  if (!apiKey) return NextResponse.json({ error: "GROQ_API_KEY não configurada." }, { status: 503 });
 
   const model = (process.env.GROQ_MODEL ?? "").trim() || "llama-3.3-70b-versatile";
   const today = new Date().toISOString().split("T")[0];
+  const time = new Date().toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Lisbon" });
 
-  let priceContext = "";
-  if (mode === "crypto") {
-    const prices = await fetchCryptoPrices();
-    const formatted = formatPrices(prices);
-    if (formatted) {
-      priceContext = `\n\nPREÇOS REAIS EM TEMPO REAL (usa ESTES valores — não inventes preços):\n${formatted}\n`;
-    }
-  }
+  const context = mode === "crypto"
+    ? await buildCryptoContext()
+    : await buildTraditionalContext();
 
   const prompt = mode === "crypto"
-    ? `És um analista de criptomoedas sénior. A data de hoje é ${today}.${priceContext}
+    ? `És um analista de criptomoedas sénior. Data/hora atual: ${today} ${time} (Lisboa).
 
-Com base nos preços reais acima, faz um briefing de mercado cripto em português europeu.
+DADOS REAIS DE MERCADO AGORA:
+${context}
 
-REGRAS IMPORTANTES:
-- Usa APENAS os preços fornecidos acima — NUNCA inventes valores
-- Não menciones preços do teu conhecimento de treino
-- Foca em análise técnica, sentimento e contexto macro
-- Sê profissional e conciso
+Com base EXCLUSIVAMENTE nos dados reais acima, escreve um briefing de mercado em português europeu.
 
-Estrutura a resposta EXATAMENTE assim:
+REGRAS:
+- Usa APENAS os valores fornecidos acima para preços
+- Nunca inventes dados — se não sabes algo, diz "dados não disponíveis"
+- Foca em análise técnica, sentimento (Fear & Greed) e dominância
 
 ## 📊 Resumo do Mercado
-[2-3 frases sobre o sentimento geral com base nos preços reais]
+[Sentimento geral baseado no Fear & Greed e variações 24h reais]
 
 ## 🔥 Destaques
-- [movimento relevante baseado nos dados reais]
-- [outro destaque]
-- [outro destaque]
+- [baseado nos dados reais — variações, trending, dominância]
+- [outro destaque real]
+- [outro]
 
 ## 📈 Análise por Ativo
-**BTC:** [análise com preço real fornecido]
-**ETH:** [análise]
-**SOL:** [análise]
-**BNB:** [análise]
+**BTC $[preço real]:** [análise]
+**ETH $[preço real]:** [análise]
+**SOL $[preço real]:** [análise]
+**BNB $[preço real]:** [análise]
 
-## ⚠️ Riscos a Monitorizar
-- [risco macro ou cripto]
-- [outro risco]
+## 🚀 Trending Agora
+[Menciona as coins trending fornecidas e por que podem estar a ganhar atenção]
 
-## 🎯 Perspetiva
-[1 parágrafo com outlook para as próximas 24-48h baseado nos dados reais]`
-    : `És um analista de mercados financeiros sénior. A data de hoje é ${today}.
+## ⚠️ Riscos
+- [risco identificável com base nos dados]
+- [outro]
 
-Faz um briefing do mercado tradicional em português europeu. Foca em análise macro, tendências estruturais e contexto de investimento — NÃO inventes cotações específicas do dia se não tens acesso a dados em tempo real.
+## 🎯 Perspetiva 24-48h
+[Outlook baseado no sentimento e dados reais]`
+    : `És um analista de mercados financeiros sénior. Data/hora atual: ${today} ${time} (Lisboa).
+
+DADOS REAIS DE MERCADO:
+${context}
+
+Escreve um briefing do mercado tradicional em português europeu.
 
 ## 📊 Resumo Macro
-[Sentimento geral: Fed, inflação, crescimento económico]
+[Contexto macro atual: Fed, inflação, ciclo económico]
 
 ## 🔥 Destaques
-- [tendência ou catalisador relevante]
+- [tendência setorial relevante]
 - [outro]
 - [outro]
 
 ## 📈 Análise por Setor
-**Tecnologia (NVDA, AAPL, MSFT):** [tendência setorial]
-**S&P 500 / Índices:** [contexto]
-**Commodities (Ouro, Petróleo):** [análise]
+**Commodities (Ouro: $[preço real], Prata: $[preço real]):** [análise]
+**Tecnologia (NVDA, AAPL, MSFT):** [tendência estrutural do setor]
+**S&P 500 / Índices:** [contexto e expectativas]
 
 ## ⚠️ Riscos Macro
-- [risco geopolítico ou económico]
+- [risco real identificável]
 - [outro]
 
 ## 🎯 Perspetiva
-[Outlook para os próximos dias/semanas]`;
+[Outlook para os próximos dias]`;
 
   try {
     const res = await fetch(GROQ_URL, {
@@ -117,8 +173,8 @@ Faz um briefing do mercado tradicional em português europeu. Foca em análise m
       body: JSON.stringify({
         model,
         messages: [{ role: "user", content: prompt }],
-        max_tokens: 1400,
-        temperature: 0.3,
+        max_tokens: 1500,
+        temperature: 0.2,
       }),
     });
 
@@ -129,7 +185,7 @@ Faz um briefing do mercado tradicional em português europeu. Foca em análise m
 
     const data = await res.json() as { choices: { message: { content: string } }[] };
     const content = data.choices[0]?.message?.content ?? "";
-    return NextResponse.json({ content, mode, date: today, hasPrices: !!priceContext });
+    return NextResponse.json({ content, mode, date: `${today} ${time}` });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Erro" }, { status: 500 });
   }
