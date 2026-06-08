@@ -121,12 +121,11 @@ export async function GET(request: Request) {
   const supabase = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
   const resend = new Resend(resendKey);
 
-  // Buscar utilizadores com briefing agendado para esta hora
+  // Plano Hobby Vercel: cron corre 1x/dia às 7 UTC — envia a todos os utilizadores com briefing ativo
   const { data: users } = await supabase
     .from("news_briefing_schedule")
     .select("user_id, email, mode, hour_utc")
-    .eq("enabled", true)
-    .eq("hour_utc", currentHour);
+    .eq("enabled", true);
 
   if (!users || users.length === 0) {
     return NextResponse.json({ sent: 0, hour: currentHour });
