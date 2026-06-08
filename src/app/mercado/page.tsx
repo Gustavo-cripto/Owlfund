@@ -492,6 +492,12 @@ export default function MercadoPage() {
   const [newsLoading, setNewsLoading] = useState(false);
   const [newsError, setNewsError] = useState<string | null>(null);
   const [newsDate, setNewsDate] = useState<string | null>(null);
+  // Chat de perguntas sobre a análise
+  type ChatMsg = { role: "user" | "assistant"; content: string };
+  const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
   const [rows, setRows] = useState<MarketRow[]>([]);
   const [selected, setSelected] = useState<MarketRow | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -1580,6 +1586,7 @@ export default function MercadoPage() {
                   setNewsLoading(true);
                   setNewsError(null);
                   setNewsContent(null);
+                  setChatMessages([]);
                   try {
                     const res = await fetch("/api/market-news", {
                       method: "POST",
@@ -1604,24 +1611,120 @@ export default function MercadoPage() {
               {newsError && <p className="text-sm text-rose-400">{newsError}</p>}
 
               {newsContent && (
-                <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-5 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-slate-500">{newsMode === "crypto" ? "Cripto" : "Mercado Tradicional"} · {newsDate}</p>
-                    <span className="text-xs text-orange-400 font-semibold">🦉 Owlfund AI</span>
+                <>
+                  <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-slate-500">{newsMode === "crypto" ? "Cripto" : "Mercado Tradicional"} · {newsDate}</p>
+                      <span className="text-xs text-orange-400 font-semibold">🦉 Owlfund AI</span>
+                    </div>
+                    <div className="prose prose-sm prose-invert max-w-none">
+                      {newsContent.split("\n").map((line, i) => {
+                        if (line.startsWith("## ")) {
+                          return <h3 key={i} className="text-base font-bold text-white mt-4 mb-2">{line.replace("## ", "")}</h3>;
+                        }
+                        if (line.startsWith("- ") || line.startsWith("• ")) {
+                          return <p key={i} className="text-sm text-slate-300 pl-3 border-l border-orange-500/30 my-1">{line.replace(/^[-•] /, "")}</p>;
+                        }
+                        if (line.trim() === "") return <div key={i} className="h-1" />;
+                        return <p key={i} className="text-sm text-slate-300 leading-relaxed">{line}</p>;
+                      })}
+                    </div>
                   </div>
-                  <div className="prose prose-sm prose-invert max-w-none">
-                    {newsContent.split("\n").map((line, i) => {
-                      if (line.startsWith("## ")) {
-                        return <h3 key={i} className="text-base font-bold text-white mt-4 mb-2">{line.replace("## ", "")}</h3>;
-                      }
-                      if (line.startsWith("- ") || line.startsWith("• ")) {
-                        return <p key={i} className="text-sm text-slate-300 pl-3 border-l border-orange-500/30 my-1">{line.replace(/^[-•] /, "")}</p>;
-                      }
-                      if (line.trim() === "") return <div key={i} className="h-1" />;
-                      return <p key={i} className="text-sm text-slate-300 leading-relaxed">{line}</p>;
-                    })}
+
+                  {/* Chat de perguntas sobre a análise */}
+                  <div className="rounded-xl border border-slate-700 bg-slate-900/60 p-5 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">💬</span>
+                      <div>
+                        <p className="text-sm font-semibold text-white">Perguntas sobre esta análise</p>
+                        <p className="text-xs text-slate-400">Podes fazer perguntas sobre o briefing gerado</p>
+                      </div>
+                    </div>
+
+                    {/* Histórico de mensagens */}
+                    {chatMessages.length > 0 && (
+                      <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                        {chatMessages.map((msg, i) => (
+                          <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                            <div className={`max-w-[85%] rounded-xl px-4 py-2.5 text-sm ${
+                              msg.role === "user"
+                                ? "bg-orange-500/20 border border-orange-500/30 text-orange-100"
+                                : "bg-slate-800 border border-slate-700 text-slate-200"
+                            }`}>
+                              {msg.role === "assistant" && (
+                                <p className="text-[10px] text-orange-400 font-semibold mb-1">🦉 Owlfund AI</p>
+                              )}
+                              <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                            </div>
+                          </div>
+                        ))}
+                        {chatLoading && (
+                          <div className="flex justify-start">
+                            <div className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5">
+                              <p className="text-[10px] text-orange-400 font-semibold mb-1">🦉 Owlfund AI</p>
+                              <div className="flex gap-1 items-center h-4">
+                                <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:0ms]"/>
+                                <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:150ms]"/>
+                                <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:300ms]"/>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        <div ref={chatEndRef} />
+                      </div>
+                    )}
+
+                    {/* Input */}
+                    <form
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        const q = chatInput.trim();
+                        if (!q || chatLoading) return;
+                        const newMessages: ChatMsg[] = [...chatMessages, { role: "user", content: q }];
+                        setChatMessages(newMessages);
+                        setChatInput("");
+                        setChatLoading(true);
+                        setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+                        try {
+                          const res = await fetch("/api/market-chat", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              briefing: newsContent,
+                              mode: newsMode,
+                              messages: newMessages,
+                            }),
+                          });
+                          const data = await res.json() as { reply?: string; error?: string };
+                          const reply = data.reply ?? data.error ?? "Erro ao obter resposta.";
+                          setChatMessages(prev => [...prev, { role: "assistant", content: reply }]);
+                        } catch {
+                          setChatMessages(prev => [...prev, { role: "assistant", content: "Erro de ligação. Tenta novamente." }]);
+                        } finally {
+                          setChatLoading(false);
+                          setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+                        }
+                      }}
+                      className="flex gap-2"
+                    >
+                      <input
+                        type="text"
+                        value={chatInput}
+                        onChange={e => setChatInput(e.target.value)}
+                        placeholder="Ex: O que achas do BTC a curto prazo? Por que está o Fear & Greed baixo?"
+                        disabled={chatLoading}
+                        className="flex-1 rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-orange-500 focus:outline-none disabled:opacity-50"
+                      />
+                      <button
+                        type="submit"
+                        disabled={chatLoading || !chatInput.trim()}
+                        className="rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-bold text-slate-950 hover:bg-orange-400 disabled:opacity-40 transition"
+                      >
+                        Enviar
+                      </button>
+                    </form>
                   </div>
-                </div>
+                </>
               )}
             </div>
           </div>
