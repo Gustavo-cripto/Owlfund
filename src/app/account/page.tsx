@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useTheme, type Theme, type Currency, type NumberFormat } from "@/lib/theme/ThemeContext";
 
-type SubscriptionStatus = { status: string; current_period_end: string | null };
+type SubscriptionStatus = { status: string; current_period_end: string | null; price_id?: string | null };
 type SettingsSection = "account" | "appearance" | "preferences" | "notifications" | "privacy";
 
 // ── Toggle switch ─────────────────────────────────────────────────────────
@@ -108,7 +108,7 @@ export default function AccountPage() {
       setEmail(user.email ?? null);
       setUserId(user.id);
       const { data: subData } = await supabase
-        .from("subscriptions").select("status, current_period_end")
+        .from("subscriptions").select("status, current_period_end, price_id")
         .eq("user_id", user.id).order("current_period_end", { ascending: false }).limit(1).maybeSingle();
       setSubscription(subData ?? null);
       // Carregar preferências de briefing
@@ -145,7 +145,11 @@ export default function AccountPage() {
     else setBillingError(t("acc_billing_error"));
   };
 
-  const isPro = subscription?.status === "active" || subscription?.status === "trialing";
+  const premiumPriceId = process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID;
+  const isActive = subscription?.status === "active" || subscription?.status === "trialing";
+  const isPremium = isActive && !!premiumPriceId && subscription?.price_id === premiumPriceId;
+  const isPro = isActive && !isPremium;
+  const currentPlan = isPremium ? "premium" : isPro ? "pro" : "free";
   const periodEnd = subscription?.current_period_end
     ? new Date(subscription.current_period_end).toLocaleDateString("pt-PT") : null;
 
@@ -198,6 +202,8 @@ export default function AccountPage() {
                     <SettingRow label={t("acc_plan")}>
                       {loading ? (
                         <span className="text-xs text-slate-500 animate-pulse">{t("loading")}</span>
+                      ) : isPremium ? (
+                        <span className="text-sm font-bold text-violet-400">Premium ✓</span>
                       ) : isPro ? (
                         <span className="text-sm font-bold text-emerald-400">Pro ✓</span>
                       ) : (
@@ -212,11 +218,12 @@ export default function AccountPage() {
                   </div>
 
                   {/* Plan cards */}
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className={`rounded-xl border p-4 ${!isPro ? "border-orange-500/30 bg-orange-500/5" : "border-slate-800 bg-slate-950/40"}`}>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {/* Free */}
+                    <div className={`rounded-xl border p-4 ${currentPlan === "free" ? "border-orange-500/30 bg-orange-500/5" : "border-slate-800 bg-slate-950/40"}`}>
                       <div className="flex items-center justify-between mb-2">
                         <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("acc_free_plan")}</p>
-                        {!isPro && <span className="text-[10px] bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded-full px-2 py-0.5">{t("pricing_current")}</span>}
+                        {currentPlan === "free" && <span className="text-[10px] bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded-full px-2 py-0.5">{t("pricing_current")}</span>}
                       </div>
                       <ul className="space-y-1 text-xs text-slate-400">
                         {[t("acc_free_feature_1"), t("acc_free_feature_2"), t("acc_free_feature_3")].map(f => (
@@ -225,27 +232,52 @@ export default function AccountPage() {
                         <li className="flex gap-2"><span className="text-slate-600 shrink-0">—</span>{t("acc_free_limitation")}</li>
                       </ul>
                     </div>
-                    <div className={`rounded-xl border p-4 ${isPro ? "border-orange-500/40 bg-orange-500/5" : "border-slate-700 bg-slate-900/40"}`}>
+                    {/* Pro */}
+                    <div className={`rounded-xl border p-4 ${currentPlan === "pro" ? "border-orange-500/40 bg-orange-500/5" : "border-slate-700 bg-slate-900/40"}`}>
                       <div className="flex items-center justify-between mb-2">
                         <p className="text-xs font-bold uppercase tracking-widest text-orange-400">{t("acc_pro_plan")}</p>
-                        {isPro && <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full px-2 py-0.5">{t("acc_active_pro")}</span>}
+                        {currentPlan === "pro" && <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full px-2 py-0.5">{t("acc_active_pro")}</span>}
                       </div>
                       <ul className="space-y-1 text-xs text-slate-300">
                         {[t("acc_pro_feature_1"), t("acc_pro_feature_2"), t("acc_pro_feature_3")].map(f => (
                           <li key={f} className="flex gap-2"><span className="text-orange-400 shrink-0">✓</span>{f}</li>
                         ))}
                       </ul>
+                      <p className="text-xs text-orange-300/60 font-semibold mt-3">€9,99/mês</p>
+                    </div>
+                    {/* Premium */}
+                    <div className={`rounded-xl border p-4 ${currentPlan === "premium" ? "border-violet-500/40 bg-violet-500/5" : "border-slate-700 bg-slate-900/40"}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-bold uppercase tracking-widest text-violet-400">Premium</p>
+                        {currentPlan === "premium" && <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full px-2 py-0.5">Ativo ✓</span>}
+                      </div>
+                      <ul className="space-y-1 text-xs text-slate-300">
+                        {["Smart Money em tempo real", "Análise on-chain", "API/MCP + webhooks", "Exportação fiscal avançada"].map(f => (
+                          <li key={f} className="flex gap-2"><span className="text-violet-400 shrink-0">✓</span>{f}</li>
+                        ))}
+                      </ul>
+                      <p className="text-xs text-violet-300/60 font-semibold mt-3">€39/mês</p>
                     </div>
                   </div>
 
                   {billingError && <p className="text-xs text-rose-400">{billingError}</p>}
 
                   <div className="flex flex-wrap gap-3 pt-2">
-                    {isPro ? (
+                    {isPremium ? (
                       <button type="button" onClick={handleManageBilling}
-                        className="rounded-full border border-orange-400/40 px-5 py-2.5 text-sm font-semibold text-orange-200 hover:border-orange-400 hover:text-white transition">
-                        {t("acc_manage")}
+                        className="rounded-full border border-violet-400/40 px-5 py-2.5 text-sm font-semibold text-violet-200 hover:border-violet-400 hover:text-white transition">
+                        Gerir Premium
                       </button>
+                    ) : isPro ? (
+                      <>
+                        <button type="button" onClick={handleManageBilling}
+                          className="rounded-full border border-orange-400/40 px-5 py-2.5 text-sm font-semibold text-orange-200 hover:border-orange-400 hover:text-white transition">
+                          {t("acc_manage")}
+                        </button>
+                        <a href="/pricing" className="rounded-full border border-violet-500/40 bg-violet-500/10 px-5 py-2.5 text-sm font-bold text-violet-300 hover:bg-violet-500/20 transition">
+                          Upgrade para Premium →
+                        </a>
+                      </>
                     ) : (
                       <a href="/pricing" className="rounded-full bg-orange-500 px-5 py-2.5 text-sm font-bold text-slate-950 hover:bg-orange-400 transition">
                         {t("acc_upgrade")}
