@@ -420,11 +420,19 @@ export default function FiscalidadePage() {
                 )
               ))}
               {PREMIUM_COUNTRIES.map(c => (
-                <a key={c.code} href="/pricing"
-                  title={`${c.flag} ${c.label} — Plano Premium`}
-                  className="rounded-lg px-3 py-1.5 text-xs font-bold border border-violet-500/20 text-violet-400/60 hover:border-violet-500/40 transition flex items-center gap-1">
-                  {c.flag} {c.code} 💎
-                </a>
+                isPremium ? (
+                  <button key={c.code}
+                    title={`${c.flag} ${c.label} (em breve)`}
+                    className="rounded-lg px-3 py-1.5 text-xs font-bold border border-slate-700 text-slate-500 cursor-not-allowed" disabled>
+                    {c.flag} {c.code}
+                  </button>
+                ) : (
+                  <a key={c.code} href="/pricing"
+                    title={`${c.flag} ${c.label} — Plano Premium`}
+                    className="rounded-lg px-3 py-1.5 text-xs font-bold border border-violet-500/20 text-violet-400/60 hover:border-violet-500/40 transition flex items-center gap-1">
+                    {c.flag} {c.code} 💎
+                  </a>
+                )
               ))}
             </div>
           </div>
