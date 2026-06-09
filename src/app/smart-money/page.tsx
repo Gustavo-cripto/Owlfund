@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { createClient } from "@/lib/supabase/client";
 
 const STORAGE_KEY = "smart-money-watchlist";
 const ALERTS_KEY = "smart-money-alerts";
@@ -219,9 +220,13 @@ function TxRow({ tx, whaleName }: { tx: WhaleTx; whaleName?: string }) {
 
 // ── Main Page ───────────────────────────────────────────────────────────────
 
+const FREE_WHALE_LIMIT = 5;
+
 export default function SmartMoneyPage() {
-  const { isLoading } = useRequireAuth("/login");
+  const { isLoading, userId } = useRequireAuth("/login");
   const { t } = useLanguage();
+  const supabase = createClient();
+  const [isPro, setIsPro] = useState(false);
   const [tab, setTab] = useState<"watchlist" | "history" | "alerts">("watchlist");
   const [watchlist, setWatchlist] = useState<WatchEntry[]>([]);
   const [walletData, setWalletData] = useState<Record<string, WalletData>>({});
@@ -246,6 +251,24 @@ export default function SmartMoneyPage() {
     if (!hydratedRef.current) return;
     saveWatchlist(watchlist);
   }, [watchlist]);
+
+  // Verificar subscrição
+  useEffect(() => {
+    if (!userId) return;
+    const check = async () => {
+      const { data: sub } = await supabase
+        .from("subscriptions")
+        .select("status, current_period_end")
+        .eq("user_id", userId)
+        .order("current_period_end", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const active = sub?.status === "active" || sub?.status === "trialing";
+      const notExpired = !sub?.current_period_end || new Date(sub.current_period_end).getTime() > Date.now();
+      setIsPro(active && notExpired);
+    };
+    check();
+  }, [userId, supabase]);
 
   const fetchWalletData = useCallback(async (entry: WatchEntry) => {
     const key = entry.address;
@@ -321,6 +344,10 @@ export default function SmartMoneyPage() {
     setAddError(null);
     const addr = newAddress.trim();
     if (!addr) { setAddError("Insere um endereço."); return; }
+    if (!isPro && watchlist.length >= FREE_WHALE_LIMIT) {
+      setAddError(`Plano Gratuito limitado a ${FREE_WHALE_LIMIT} baleias. Faz upgrade para Pro.`);
+      return;
+    }
     const isEvm = /^0x[a-fA-F0-9]{40}$/.test(addr);
     const isSol = addr.length >= 32 && addr.length <= 44 && !addr.startsWith("0x");
     const isBtc = /^(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,62}$/.test(addr);
@@ -349,6 +376,11 @@ export default function SmartMoneyPage() {
 
   const handleAddKnown = (entry: WatchEntry) => {
     if (watchlist.some((e) => e.address === entry.address)) return;
+    if (!isPro && watchlist.length >= FREE_WHALE_LIMIT) {
+      setAddError(`Plano Gratuito limitado a ${FREE_WHALE_LIMIT} baleias. Faz upgrade para Pro.`);
+      setShowKnown(false);
+      return;
+    }
     setWatchlist((prev) => [{ ...entry, addedAt: Date.now() }, ...prev]);
     setShowKnown(false);
   };
@@ -461,7 +493,20 @@ export default function SmartMoneyPage() {
                       {t("sm_known_whales")}
                     </button>
                   </div>
-                  {addError && <p className="text-xs text-rose-400">{addError}</p>}
+                  {addError && (
+                    <p className="text-xs text-rose-400">
+                      {addError}{" "}
+                      {addError.includes("upgrade") && (
+                        <a href="/pricing" className="text-orange-400 underline hover:text-orange-300">Upgrade →</a>
+                      )}
+                    </p>
+                  )}
+                  {!isPro && watchlist.length >= FREE_WHALE_LIMIT && !addError && (
+                    <p className="text-xs text-amber-400/80">
+                      ⚠️ Limite de {FREE_WHALE_LIMIT} baleias atingido.{" "}
+                      <a href="/pricing" className="text-orange-400 underline hover:text-orange-300">Upgrade para Pro →</a>
+                    </p>
+                  )}
                   {showKnown && (
                     <div className="mt-2 rounded-xl border border-slate-700 bg-slate-800/80 p-4 space-y-2 max-h-80 overflow-y-auto">
                       <p className="text-xs text-slate-400 mb-3">Clica para adicionar:</p>

@@ -3,16 +3,38 @@
 import { useEffect, useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
 import ChatWidget from "@/components/ChatWidget";
+import { createClient } from "@/lib/supabase/client";
 
 const STORAGE_KEY_OPEN = "owlfund.floatingChat.open.v1";
 const STORAGE_KEY_SEEN = "owlfund.floatingChat.seen.v1";
 
 export default function FloatingChat() {
   const pathname = usePathname();
+  const supabase = createClient();
   const [isOpen, setIsOpen] = useState(false);
   const [isContentReady, setIsContentReady] = useState(false);
   const [showBadge, setShowBadge] = useState(false);
+  const [isPro, setIsPro] = useState(false);
   const [, startTransition] = useTransition();
+
+  // Verificar plano
+  useEffect(() => {
+    const check = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: sub } = await supabase
+        .from("subscriptions")
+        .select("status, current_period_end")
+        .eq("user_id", user.id)
+        .order("current_period_end", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const active = sub?.status === "active" || sub?.status === "trialing";
+      const notExpired = !sub?.current_period_end || new Date(sub.current_period_end).getTime() > Date.now();
+      setIsPro(active && notExpired);
+    };
+    check();
+  }, [supabase]);
 
   useEffect(() => {
     try {
@@ -115,6 +137,7 @@ export default function FloatingChat() {
                 inputClassName="py-2.5 text-sm"
                 buttonClassName="px-6 py-2.5 text-sm"
                 placeholder="Pergunta sobre o Owlfund ou cripto..."
+                isPro={isPro}
               />
             )}
             {!isContentReady && <div className="h-64 flex items-center justify-center"><span className="text-sm text-slate-500 animate-pulse">A carregar Chain...</span></div>}

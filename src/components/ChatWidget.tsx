@@ -17,9 +17,24 @@ type ChatWidgetProps = {
   inputClassName?: string;
   buttonClassName?: string;
   placeholder?: string;
+  isPro?: boolean;
 };
 
 const STORAGE_KEY = "owlfund.chat.messages.v2";
+const FREE_CHAT_LIMIT = 5;
+
+function getChatMonthKey() {
+  const d = new Date();
+  return `owlfund.chat.count.${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+function getChatCount(): number {
+  try { return parseInt(localStorage.getItem(getChatMonthKey()) ?? "0", 10) || 0; }
+  catch { return 0; }
+}
+function incrementChatCount() {
+  try { localStorage.setItem(getChatMonthKey(), String(getChatCount() + 1)); }
+  catch { /* ignore */ }
+}
 
 // Sugestões por página
 const PAGE_SUGGESTIONS: Record<string, string[]> = {
@@ -66,13 +81,20 @@ export default function ChatWidget({
   inputClassName = "",
   buttonClassName = "",
   placeholder = "Escreve a tua pergunta...",
+  isPro = false,
 }: ChatWidgetProps) {
   const pathname = usePathname();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [chatCount, setChatCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Carregar contador mensal
+  useEffect(() => {
+    setChatCount(getChatCount());
+  }, []);
 
   // Carregar histórico do localStorage
   useEffect(() => {
@@ -103,6 +125,12 @@ export default function ChatWidget({
     const trimmed = text.trim();
     if (!trimmed || isLoading) return;
 
+    // Verificar limite mensal para utilizadores Free
+    if (!isPro && chatCount >= FREE_CHAT_LIMIT) {
+      setError(`Atingiste o limite de ${FREE_CHAT_LIMIT} chats/mês do plano Gratuito. Faz upgrade para Pro para chats ilimitados.`);
+      return;
+    }
+
     const nextMessages: ChatMessage[] = [...messages, { role: "user", content: trimmed }];
     setMessages(nextMessages);
     setInput("");
@@ -132,6 +160,10 @@ export default function ChatWidget({
       if (!reply) throw new Error("Resposta vazia da IA.");
 
       setMessages(prev => [...prev, { role: "assistant", content: reply }]);
+      if (!isPro) {
+        incrementChatCount();
+        setChatCount(getChatCount());
+      }
     } catch (err) {
       const msg = err instanceof DOMException && err.name === "AbortError"
         ? "Timeout — tenta novamente."
@@ -224,8 +256,25 @@ export default function ChatWidget({
           </div>
         )}
 
-        {error && (
-          <p className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">{error}</p>
+        {!isPro && chatCount >= FREE_CHAT_LIMIT ? (
+          <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 px-3 py-3 text-xs space-y-1">
+            <p className="text-orange-300 font-semibold">🔒 Limite de {FREE_CHAT_LIMIT} chats/mês atingido</p>
+            <p className="text-slate-400">Faz upgrade para Pro e tem chats ilimitados.</p>
+            <a href="/pricing" className="inline-block mt-1 rounded-full bg-orange-500 px-4 py-1.5 text-xs font-bold text-slate-950 hover:bg-orange-400 transition">
+              Upgrade para Pro →
+            </a>
+          </div>
+        ) : (
+          <>
+            {!isPro && (
+              <p className="text-[10px] text-slate-600 text-right">
+                Chats este mês: <span className={chatCount >= FREE_CHAT_LIMIT - 1 ? "text-amber-400" : "text-slate-500"}>{chatCount}/{FREE_CHAT_LIMIT}</span>
+              </p>
+            )}
+            {error && (
+              <p className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">{error}</p>
+            )}
+          </>
         )}
 
         <div ref={messagesEndRef} />
@@ -239,7 +288,7 @@ export default function ChatWidget({
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          disabled={isLoading}
+          disabled={isLoading || (!isPro && chatCount >= FREE_CHAT_LIMIT)}
           maxLength={1000}
         />
         <button

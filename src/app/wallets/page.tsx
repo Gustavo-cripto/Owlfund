@@ -1364,7 +1364,14 @@ export default function WalletsPage() {
     updateWalletSnapshot({ eth: [], sol: solWallets, btc: btcWallets, ada: adaWallets });
   };
 
+  const FREE_WALLET_LIMIT = 3;
+  const totalWallets = ethWallets.length + solWallets.length + btcWallets.length + adaWallets.length;
+
   const handleAddEthWalletInternal = async () => {
+    if (!isPro && totalWallets >= FREE_WALLET_LIMIT) {
+      setEthNewError(`Plano Gratuito limitado a ${FREE_WALLET_LIMIT} carteiras. Faz upgrade para Pro.`);
+      return;
+    }
     if (!ethNewAddress.trim()) {
       setEthNewError("Insere um endereço.");
       return;
@@ -1483,6 +1490,10 @@ export default function WalletsPage() {
   };
 
   const handleAddSolWalletInternal = async () => {
+    if (!isPro && totalWallets >= FREE_WALLET_LIMIT) {
+      setSolNewError(`Plano Gratuito limitado a ${FREE_WALLET_LIMIT} carteiras. Faz upgrade para Pro.`);
+      return;
+    }
     if (!solNewAddress.trim()) {
       setSolNewError("Insere um endereço.");
       return;
@@ -1623,6 +1634,10 @@ export default function WalletsPage() {
   };
 
   const handleAddBtcWalletInternal = async () => {
+    if (!isPro && totalWallets >= FREE_WALLET_LIMIT) {
+      setBtcNewError(`Plano Gratuito limitado a ${FREE_WALLET_LIMIT} carteiras. Faz upgrade para Pro.`);
+      return;
+    }
     if (!btcNewAddress.trim()) {
       setBtcNewError("Insere um endereço.");
       return;
@@ -2083,6 +2098,10 @@ export default function WalletsPage() {
   }, [walletMode, btcWallets, btcAddress, fetchBtcBalanceForAddress, fetchRunesForAddress]);
 
   const handleAddAdaWalletInternal = () => {
+    if (!isPro && totalWallets >= FREE_WALLET_LIMIT) {
+      setAdaNewError(`Plano Gratuito limitado a ${FREE_WALLET_LIMIT} carteiras. Faz upgrade para Pro.`);
+      return;
+    }
     if (!adaNewAddress.trim()) {
       setAdaNewError("Insere um endereço.");
       return;
@@ -2143,9 +2162,15 @@ export default function WalletsPage() {
               Sincronização automática ativa (Plano Pro).
             </p>
           ) : (
-            <p className="text-xs text-slate-500">
-              Sincronização entre dispositivos disponível apenas no Plano Pro.
-            </p>
+            <div className="flex items-center gap-3">
+              <p className="text-xs text-slate-500">
+                Carteiras: <span className={totalWallets >= FREE_WALLET_LIMIT ? "text-rose-400 font-semibold" : "text-slate-300 font-semibold"}>{totalWallets}/{FREE_WALLET_LIMIT}</span>
+                {" "}(Plano Gratuito){" "}
+                {totalWallets >= FREE_WALLET_LIMIT && (
+                  <a href="/pricing" className="text-orange-400 underline hover:text-orange-300">Upgrade para Pro →</a>
+                )}
+              </p>
+            </div>
           )}
           {cloudSyncError ? (
             <p className="text-xs text-rose-300">{cloudSyncError}</p>
