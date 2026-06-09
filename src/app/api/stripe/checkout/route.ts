@@ -51,7 +51,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const priceId = process.env.STRIPE_PRICE_ID;
+  const body2 = await request.json().catch(() => ({})) as { userId?: string; plan?: string };
+  const plan = body2.plan ?? "pro";
+  const priceId = plan === "premium"
+    ? (process.env.STRIPE_PREMIUM_PRICE_ID ?? process.env.STRIPE_PRICE_ID)
+    : process.env.STRIPE_PRICE_ID;
   if (!priceId) {
     return NextResponse.json({ error: "Stripe price não configurado." }, { status: 503 });
   }
