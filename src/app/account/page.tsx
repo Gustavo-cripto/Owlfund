@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AppShell from "@/components/AppShell";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -91,6 +91,9 @@ export default function AccountPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const [billingError, setBillingError] = useState<string | null>(null);
   const [section, setSection] = useState<SettingsSection>("account");
   const [resetConfirm, setResetConfirm] = useState(false);
@@ -108,6 +111,10 @@ export default function AccountPage() {
       if (!user) { window.location.href = "/login"; return; }
       setEmail(user.email ?? null);
       setUserId(user.id);
+      // Carregar avatar
+      const { data: profile } = await supabase
+        .from("profiles").select("avatar_url").eq("id", user.id).maybeSingle();
+      if (profile?.avatar_url) setAvatarUrl(profile.avatar_url);
       const { data: subData } = await supabase
         .from("subscriptions").select("status, current_period_end, price_id")
         .eq("user_id", user.id).order("current_period_end", { ascending: false }).limit(1).maybeSingle();
@@ -144,6 +151,35 @@ export default function AccountPage() {
     const data = (await response.json()) as { url?: string };
     if (data.url) window.location.href = data.url;
     else setBillingError(t("acc_billing_error"));
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !userId) return;
+    if (file.size > 2 * 1024 * 1024) { alert("Imagem demasiado grande. Máximo 2MB."); return; }
+    if (!file.type.startsWith("image/")) { alert("Ficheiro inválido. Seleciona uma imagem."); return; }
+
+    setAvatarUploading(true);
+    try {
+      // Upload para Supabase Storage (bucket: avatars)
+      const ext = file.name.split(".").pop() ?? "jpg";
+      const path = `${userId}/avatar.${ext}`;
+      const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+
+      const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
+      const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`; // cache busting
+
+      // Guardar URL no perfil
+      await supabase.from("profiles").upsert({ id: userId, avatar_url: publicUrl });
+      setAvatarUrl(publicUrl);
+    } catch (err) {
+      alert("Erro ao carregar imagem. Tenta novamente.");
+      console.error(err);
+    } finally {
+      setAvatarUploading(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
   };
 
   const premiumPriceId = process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID;
@@ -194,6 +230,57 @@ export default function AccountPage() {
               {section === "account" && (
                 <div className="space-y-4">
                   <h2 className="text-base font-bold text-white mb-4">Informações da conta</h2>
+
+                  {/* Avatar */}
+                  <div className="flex flex-col items-center gap-3 pb-2">
+                    <div className="relative group">
+                      <button
+                        type="button"
+                        onClick={() => avatarInputRef.current?.click()}
+                        disabled={avatarUploading}
+                        className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-slate-700 hover:border-orange-500/60 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500/40"
+                        title="Clica para alterar a foto de perfil"
+                      >
+                        {avatarUrl ? (
+                          <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-slate-800 flex items-center justify-center">
+                            <span className="text-3xl text-slate-500">
+                              {email ? email[0].toUpperCase() : "?"}
+                            </span>
+                          </div>
+                        )}
+                        {/* Overlay ao hover */}
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          {avatarUploading ? (
+                            <svg className="animate-spin w-6 h-6 text-white" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                            </svg>
+                          ) : (
+                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                          )}
+                        </div>
+                      </button>
+                      {/* Botão + pequeno no canto */}
+                      <div className="absolute bottom-0.5 right-0.5 w-7 h-7 rounded-full bg-orange-500 border-2 border-slate-900 flex items-center justify-center pointer-events-none">
+                        <svg className="w-3.5 h-3.5 text-slate-950" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/>
+                        </svg>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-500">Clica para alterar · JPG, PNG, WebP · máx. 2MB</p>
+                    <input
+                      ref={avatarInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      className="hidden"
+                      onChange={handleAvatarUpload}
+                    />
+                  </div>
 
                   {/* User info */}
                   <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4 space-y-3">
