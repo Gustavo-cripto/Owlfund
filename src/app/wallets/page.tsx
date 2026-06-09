@@ -4336,7 +4336,22 @@ export default function WalletsPage() {
           </div>
         )}
         {/* ── CEX + Hyperliquid + Ledger ── */}
-        <CexSection />
+        {isPro ? (
+          <CexSection />
+        ) : (
+          <div className="mx-auto w-full max-w-5xl px-4 pb-8">
+            <div className="rounded-2xl border border-orange-500/20 bg-orange-500/5 p-6 flex flex-col sm:flex-row items-center gap-5">
+              <div className="text-4xl">🔒</div>
+              <div className="flex-1 text-center sm:text-left">
+                <p className="text-base font-bold text-white mb-1">CEX &amp; Hardware Wallets — Plano Pro</p>
+                <p className="text-sm text-slate-400">Conecta exchanges (Binance, Coinbase, Kraken…) e hardware wallets (Ledger, Trezor) com o Plano Pro.</p>
+              </div>
+              <a href="/pricing" className="shrink-0 rounded-full bg-orange-500 px-5 py-2.5 text-sm font-bold text-slate-950 hover:bg-orange-400 transition">
+                Upgrade para Pro →
+              </a>
+            </div>
+          </div>
+        )}
       </main>
     </div>
     </AppShell>

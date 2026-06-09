@@ -331,12 +331,16 @@ export default function PortfolioPage() {
 
       setIsSnapshotsLoading(true);
 
+      // Free: 30 dias histórico | Pro: 1 ano
+      const historyDays = pro ? 365 : 30;
+      const historyFrom = new Date(Date.now() - historyDays * 24 * 60 * 60 * 1000).toISOString();
       const { data: snapshotRows } = await supabase
         .from("portfolio_snapshots")
         .select("id, created_at, data")
         .eq("user_id", user.id)
+        .gte("created_at", historyFrom)
         .order("created_at", { ascending: false })
-        .limit(10);
+        .limit(pro ? 365 : 30);
 
       const rows = (snapshotRows ?? []) as SnapshotRow[];
       setSnapshots(rows);
@@ -405,12 +409,14 @@ export default function PortfolioPage() {
 
     if (!silent) setSaveMessage("Portfólio salvo com sucesso.");
 
+    const historyFrom2 = new Date(Date.now() - (isPro ? 365 : 30) * 24 * 60 * 60 * 1000).toISOString();
     const { data: snapshotRows } = await supabase
       .from("portfolio_snapshots")
       .select("id, created_at, data")
       .eq("user_id", userId)
+      .gte("created_at", historyFrom2)
       .order("created_at", { ascending: false })
-      .limit(10);
+      .limit(isPro ? 365 : 30);
 
     setSnapshots((snapshotRows ?? []) as SnapshotRow[]);
   };
@@ -1347,7 +1353,7 @@ export default function PortfolioPage() {
             <div>
               <h2 className="text-lg font-semibold text-white">Histórico do portfólio</h2>
               <p className="text-sm text-slate-400">
-                Últimos snapshots salvos na nuvem (por utilizador).
+                {isPro ? "Últimos 365 dias de snapshots (Plano Pro)." : <>Últimos 30 dias (Plano Gratuito). <a href="/pricing" className="text-orange-400 underline hover:text-orange-300">Pro = 1 ano →</a></>}
               </p>
             </div>
             <a

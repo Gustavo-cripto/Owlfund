@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { createClient } from "@/lib/supabase/client";
 
 type TradeEntry = {
   id: string;
@@ -253,12 +254,35 @@ function LegislationSection() {
   );
 }
 
+const FREE_COUNTRIES = ["PT", "ES", "FR", "DE"] as const;
+const PRO_COUNTRIES = [
+  { code: "GB", flag: "🇬🇧", label: "Reino Unido" },
+  { code: "NL", flag: "🇳🇱", label: "Países Baixos" },
+  { code: "IT", flag: "🇮🇹", label: "Itália" },
+  { code: "BR", flag: "🇧🇷", label: "Brasil" },
+] as const;
+
 export default function FiscalidadePage() {
-  const { isLoading } = useRequireAuth("/login");
+  const { isLoading, userId } = useRequireAuth("/login");
   const { t } = useLanguage();
+  const supabase = createClient();
+  const [isPro, setIsPro] = useState(false);
   const [trades, setTrades] = useState<TradeEntry[]>([]);
   const [newTrade, setNewTrade] = useState<TradeEntry>(emptyTrade());
   const [country, setCountry] = useState<"PT" | "ES" | "FR" | "DE">("PT");
+
+  useEffect(() => {
+    if (!userId) return;
+    const check = async () => {
+      const { data: sub } = await supabase
+        .from("subscriptions").select("status, current_period_end")
+        .eq("user_id", userId).order("current_period_end", { ascending: false }).limit(1).maybeSingle();
+      const active = sub?.status === "active" || sub?.status === "trialing";
+      const notExpired = !sub?.current_period_end || new Date(sub.current_period_end).getTime() > Date.now();
+      setIsPro(active && notExpired);
+    };
+    check();
+  }, [userId, supabase]);
 
   const taxRates: Record<string, { short: number; long: number; longDays: number; longLabel: string }> = {
     PT: { short: 0.28, long: 0.0, longDays: 365, longLabel: "Isento (>1 ano)" },
@@ -360,13 +384,28 @@ export default function FiscalidadePage() {
               <p className="mt-1 text-sm text-slate-400">{t("fisc_subtitle")}</p>
             </div>
             {/* País */}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs text-slate-400">{t("fisc_country")}:</span>
-              {(["PT", "ES", "FR", "DE"] as const).map(c => (
+              {FREE_COUNTRIES.map(c => (
                 <button key={c} onClick={() => setCountry(c)}
                   className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${country === c ? "bg-orange-500 text-slate-950" : "border border-slate-700 text-slate-400 hover:border-orange-400/40 hover:text-orange-200"}`}>
                   {c}
                 </button>
+              ))}
+              {PRO_COUNTRIES.map(c => (
+                isPro ? (
+                  <button key={c.code} onClick={() => {}}
+                    title={`${c.flag} ${c.label} (em breve)`}
+                    className="rounded-lg px-3 py-1.5 text-xs font-bold border border-slate-700 text-slate-500 cursor-not-allowed" disabled>
+                    {c.flag} {c.code}
+                  </button>
+                ) : (
+                  <a key={c.code} href="/pricing"
+                    title={`${c.flag} ${c.label} — Plano Pro`}
+                    className="rounded-lg px-3 py-1.5 text-xs font-bold border border-orange-500/20 text-orange-400/60 hover:border-orange-500/40 transition flex items-center gap-1">
+                    {c.flag} {c.code} 🔒
+                  </a>
+                )
               ))}
             </div>
           </div>

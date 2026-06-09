@@ -35,6 +35,23 @@ export async function POST(request: Request) {
 
   const body = await request.json() as { enabled: boolean; hour_utc: number; mode: "crypto" | "tradicional" | "both" };
 
+  // Verificar se é Pro antes de ativar
+  if (body.enabled) {
+    const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+    const { data: sub } = await admin
+      .from("subscriptions")
+      .select("status, current_period_end")
+      .eq("user_id", user.id)
+      .order("current_period_end", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const isActive = sub?.status === "active" || sub?.status === "trialing";
+    const notExpired = !sub?.current_period_end || new Date(sub.current_period_end).getTime() > Date.now();
+    if (!isActive || !notExpired) {
+      return NextResponse.json({ error: "O briefing diário requer o Plano Pro.", requiresPro: true }, { status: 403 });
+    }
+  }
+
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
   const { error } = await admin.from("news_briefing_schedule").upsert({
     user_id: user.id,

@@ -420,16 +420,23 @@ export default function AccountPage() {
                   )}
 
                   {/* ── Briefing Agendado ── */}
-                  <div className="rounded-xl border border-slate-700 bg-slate-900/40 p-5 space-y-4 mt-2">
+                  <div className={`rounded-xl border p-5 space-y-4 mt-2 ${isPro || isPremium ? "border-slate-700 bg-slate-900/40" : "border-orange-500/20 bg-orange-500/5"}`}>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-semibold text-white">🦉 Briefing Diário por Email</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-white">🦉 Briefing Diário por Email</p>
+                          {!isPro && !isPremium && <span className="text-[10px] border border-orange-500/40 text-orange-400 rounded-full px-2 py-0.5">Pro</span>}
+                        </div>
                         <p className="text-xs text-slate-400 mt-0.5">Recebe análise de mercado gerada por IA todos os dias à hora escolhida.</p>
                       </div>
-                      <Toggle checked={briefingEnabled} onChange={setBriefingEnabled} />
+                      {isPro || isPremium ? (
+                        <Toggle checked={briefingEnabled} onChange={setBriefingEnabled} />
+                      ) : (
+                        <a href="/pricing" className="rounded-full bg-orange-500 px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-orange-400 transition">Upgrade →</a>
+                      )}
                     </div>
 
-                    {briefingEnabled && (
+                    {(isPro || isPremium) && briefingEnabled && (
                       <div className="space-y-3 pt-2 border-t border-slate-800">
                         {/* Hora */}
                         <div className="flex items-center justify-between">
@@ -470,7 +477,7 @@ export default function AccountPage() {
 
                     <button
                       type="button"
-                      disabled={briefingSaving}
+                      disabled={briefingSaving || (!isPro && !isPremium)}
                       onClick={async () => {
                         setBriefingSaving(true);
                         setBriefingSaved(false);
