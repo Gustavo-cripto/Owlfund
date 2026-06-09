@@ -221,25 +221,43 @@ export default function AccountPage() {
                   <div className="grid gap-3 sm:grid-cols-3">
                     {/* Free */}
                     <div className={`rounded-xl border p-4 ${currentPlan === "free" ? "border-orange-500/30 bg-orange-500/5" : "border-slate-800 bg-slate-950/40"}`}>
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("acc_free_plan")}</p>
-                        {currentPlan === "free" && <span className="text-[10px] bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded-full px-2 py-0.5">{t("pricing_current")}</span>}
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Gratuito</p>
+                        {currentPlan === "free" && <span className="text-[10px] bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded-full px-2 py-0.5">Plano atual</span>}
                       </div>
-                      <ul className="space-y-1 text-xs text-slate-400">
-                        {[t("acc_free_feature_1"), t("acc_free_feature_2"), t("acc_free_feature_3")].map(f => (
+                      <ul className="space-y-1.5 text-xs text-slate-400">
+                        {[
+                          "3 carteiras on-chain",
+                          "Preços em tempo real",
+                          "Blocos BTC ao vivo",
+                          "Watchlist (5 baleias)",
+                          "Chat IA (5/mês)",
+                          "Calculadora FIFO",
+                          "Calculadora FIRE básica",
+                          "4 países fiscais",
+                        ].map(f => (
                           <li key={f} className="flex gap-2"><span className="text-emerald-400 shrink-0">✓</span>{f}</li>
                         ))}
-                        <li className="flex gap-2"><span className="text-slate-600 shrink-0">—</span>{t("acc_free_limitation")}</li>
                       </ul>
+                      <p className="text-xs text-slate-500 font-semibold mt-3">€0/mês</p>
                     </div>
                     {/* Pro */}
                     <div className={`rounded-xl border p-4 ${currentPlan === "pro" ? "border-orange-500/40 bg-orange-500/5" : "border-slate-700 bg-slate-900/40"}`}>
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-xs font-bold uppercase tracking-widest text-orange-400">{t("acc_pro_plan")}</p>
-                        {currentPlan === "pro" && <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full px-2 py-0.5">{t("acc_active_pro")}</span>}
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-xs font-bold uppercase tracking-widest text-orange-400">Pro</p>
+                        {currentPlan === "pro" && <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full px-2 py-0.5">Ativo ✓</span>}
                       </div>
-                      <ul className="space-y-1 text-xs text-slate-300">
-                        {[t("acc_pro_feature_1"), t("acc_pro_feature_2"), t("acc_pro_feature_3")].map(f => (
+                      <ul className="space-y-1.5 text-xs text-slate-300">
+                        {[
+                          "Tudo do Gratuito",
+                          "Carteiras ilimitadas",
+                          "CEX + hardware wallets",
+                          "Chat IA ilimitado",
+                          "Briefing diário por email",
+                          "Alertas de baleias",
+                          "8+ países fiscais",
+                          "1 ano de histórico",
+                        ].map(f => (
                           <li key={f} className="flex gap-2"><span className="text-orange-400 shrink-0">✓</span>{f}</li>
                         ))}
                       </ul>
@@ -247,12 +265,20 @@ export default function AccountPage() {
                     </div>
                     {/* Premium */}
                     <div className={`rounded-xl border p-4 ${currentPlan === "premium" ? "border-violet-500/40 bg-violet-500/5" : "border-slate-700 bg-slate-900/40"}`}>
-                      <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center justify-between mb-3">
                         <p className="text-xs font-bold uppercase tracking-widest text-violet-400">Premium</p>
                         {currentPlan === "premium" && <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full px-2 py-0.5">Ativo ✓</span>}
                       </div>
-                      <ul className="space-y-1 text-xs text-slate-300">
-                        {["Smart Money em tempo real", "Análise on-chain", "API/MCP + webhooks", "Exportação fiscal avançada"].map(f => (
+                      <ul className="space-y-1.5 text-xs text-slate-300">
+                        {[
+                          "Tudo do Pro",
+                          "Smart Money em tempo real",
+                          "Análise on-chain",
+                          "Exportação fiscal avançada",
+                          "API/MCP + webhooks",
+                          "Todos os países fiscais",
+                          "Gestor dedicado",
+                        ].map(f => (
                           <li key={f} className="flex gap-2"><span className="text-violet-400 shrink-0">✓</span>{f}</li>
                         ))}
                       </ul>
