@@ -227,6 +227,7 @@ export default function SmartMoneyPage() {
   const { t } = useLanguage();
   const supabase = createClient();
   const [isPro, setIsPro] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
   const [tab, setTab] = useState<"watchlist" | "history" | "alerts">("watchlist");
   const [watchlist, setWatchlist] = useState<WatchEntry[]>([]);
   const [walletData, setWalletData] = useState<Record<string, WalletData>>({});
@@ -258,14 +259,18 @@ export default function SmartMoneyPage() {
     const check = async () => {
       const { data: sub } = await supabase
         .from("subscriptions")
-        .select("status, current_period_end")
+        .select("status, current_period_end, price_id")
         .eq("user_id", userId)
         .order("current_period_end", { ascending: false })
         .limit(1)
         .maybeSingle();
       const active = sub?.status === "active" || sub?.status === "trialing";
       const notExpired = !sub?.current_period_end || new Date(sub.current_period_end).getTime() > Date.now();
-      setIsPro(active && notExpired);
+      const isActivePlan = active && notExpired;
+      const premiumPriceId = process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID;
+      const premium = isActivePlan && !!premiumPriceId && sub?.price_id === premiumPriceId;
+      setIsPremium(premium);
+      setIsPro(isActivePlan);
     };
     check();
   }, [userId, supabase]);
@@ -328,6 +333,15 @@ export default function SmartMoneyPage() {
       if (!walletData[entry.address]) fetchWalletData(entry);
     });
   }, [watchlist, fetchWalletData]);
+
+  // Premium RT: auto-refresh todos os 60s
+  useEffect(() => {
+    if (!isPremium || watchlist.length === 0) return;
+    const interval = setInterval(() => {
+      watchlist.forEach((entry) => fetchWalletData(entry));
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, [isPremium, watchlist, fetchWalletData]);
 
   // Set default history address when switching to history tab
   useEffect(() => {
@@ -430,9 +444,19 @@ export default function SmartMoneyPage() {
             {/* Header */}
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">Rastreamento</p>
-              <h1 className="mt-2 text-2xl font-bold text-white">{t("sm_title")}</h1>
+              <div className="flex items-center gap-3 mt-2">
+                <h1 className="text-2xl font-bold text-white">{t("sm_title")}</h1>
+                {isPremium && (
+                  <span className="flex items-center gap-1.5 rounded-full bg-violet-500/20 border border-violet-500/30 px-2.5 py-1 text-[11px] font-bold text-violet-300">
+                    <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
+                    RT
+                  </span>
+                )}
+              </div>
               <p className="mt-1 text-sm text-slate-400">
-                Acompanha carteiras de baleias, fundos e traders profissionais em tempo real.
+                {isPremium
+                  ? "Modo tempo real ativo — dados atualizados a cada 60s."
+                  : "Acompanha carteiras de baleias, fundos e traders profissionais."}
               </p>
             </div>
 
@@ -677,7 +701,19 @@ export default function SmartMoneyPage() {
             )}
 
             {/* ── Tab: Alertas ── */}
-            {tab === "alerts" && (
+            {tab === "alerts" && !isPro && (
+              <div className="rounded-2xl border border-orange-500/20 bg-orange-500/5 p-8 flex flex-col items-center gap-4 text-center">
+                <div className="text-4xl">🔒</div>
+                <div>
+                  <p className="text-base font-bold text-white mb-1">Alertas de Baleias — Plano Pro</p>
+                  <p className="text-sm text-slate-400">Recebe notificações quando uma baleia move mais de $100k. Disponível no Plano Pro.</p>
+                </div>
+                <a href="/pricing" className="rounded-full bg-orange-500 px-6 py-2.5 text-sm font-bold text-slate-950 hover:bg-orange-400 transition">
+                  Upgrade para Pro →
+                </a>
+              </div>
+            )}
+            {tab === "alerts" && isPro && (
               <div className="space-y-5">
                 <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 space-y-4">
                   <div className="flex items-center justify-between">
@@ -718,6 +754,36 @@ export default function SmartMoneyPage() {
                     </div>
                   )}
                 </div>
+
+                {/* On-chain Analysis — Premium */}
+                {isPremium ? (
+                  <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-5 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-400">Análise On-Chain</p>
+                      <span className="rounded-full bg-violet-500/20 border border-violet-500/30 px-2 py-0.5 text-[10px] text-violet-300 font-bold">Premium</span>
+                    </div>
+                    <p className="text-xs text-slate-400">Métricas on-chain avançadas disponíveis em breve: MVRV, NVT, Supply in Profit, Exchange Flows.</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {["MVRV Ratio", "NVT Signal", "Supply in Profit", "Exchange Outflow"].map(m => (
+                        <div key={m} className="rounded-xl border border-violet-500/20 bg-slate-950/40 p-3 text-center">
+                          <p className="text-xs text-slate-500">{m}</p>
+                          <p className="text-sm text-violet-400 font-bold mt-1 animate-pulse">Em breve</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-5 flex flex-col sm:flex-row items-center gap-4">
+                    <div className="text-3xl">🔮</div>
+                    <div className="flex-1 text-center sm:text-left">
+                      <p className="text-sm font-bold text-white mb-0.5">Análise On-Chain — Plano Premium</p>
+                      <p className="text-xs text-slate-400">MVRV, NVT, Supply in Profit, Exchange Flows e mais com o Premium.</p>
+                    </div>
+                    <a href="/pricing" className="shrink-0 rounded-full border border-violet-500/40 bg-violet-500/10 px-4 py-2 text-xs font-bold text-violet-300 hover:bg-violet-500/20 transition">
+                      Ver Premium →
+                    </a>
+                  </div>
+                )}
               </div>
             )}
 

@@ -262,11 +262,19 @@ const PRO_COUNTRIES = [
   { code: "BR", flag: "🇧🇷", label: "Brasil" },
 ] as const;
 
+const PREMIUM_COUNTRIES = [
+  { code: "US", flag: "🇺🇸", label: "EUA" },
+  { code: "CA", flag: "🇨🇦", label: "Canadá" },
+  { code: "AU", flag: "🇦🇺", label: "Austrália" },
+  { code: "CH", flag: "🇨🇭", label: "Suíça" },
+] as const;
+
 export default function FiscalidadePage() {
   const { isLoading, userId } = useRequireAuth("/login");
   const { t } = useLanguage();
   const supabase = createClient();
   const [isPro, setIsPro] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
   const [trades, setTrades] = useState<TradeEntry[]>([]);
   const [newTrade, setNewTrade] = useState<TradeEntry>(emptyTrade());
   const [country, setCountry] = useState<"PT" | "ES" | "FR" | "DE">("PT");
@@ -275,11 +283,15 @@ export default function FiscalidadePage() {
     if (!userId) return;
     const check = async () => {
       const { data: sub } = await supabase
-        .from("subscriptions").select("status, current_period_end")
+        .from("subscriptions").select("status, current_period_end, price_id")
         .eq("user_id", userId).order("current_period_end", { ascending: false }).limit(1).maybeSingle();
       const active = sub?.status === "active" || sub?.status === "trialing";
       const notExpired = !sub?.current_period_end || new Date(sub.current_period_end).getTime() > Date.now();
-      setIsPro(active && notExpired);
+      const isActivePlan = active && notExpired;
+      const premiumPriceId = process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID;
+      const premium = isActivePlan && !!premiumPriceId && sub?.price_id === premiumPriceId;
+      setIsPremium(premium);
+      setIsPro(isActivePlan);
     };
     check();
   }, [userId, supabase]);
@@ -407,6 +419,13 @@ export default function FiscalidadePage() {
                   </a>
                 )
               ))}
+              {PREMIUM_COUNTRIES.map(c => (
+                <a key={c.code} href="/pricing"
+                  title={`${c.flag} ${c.label} — Plano Premium`}
+                  className="rounded-lg px-3 py-1.5 text-xs font-bold border border-violet-500/20 text-violet-400/60 hover:border-violet-500/40 transition flex items-center gap-1">
+                  {c.flag} {c.code} 💎
+                </a>
+              ))}
             </div>
           </div>
 
@@ -500,10 +519,30 @@ export default function FiscalidadePage() {
               <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Eventos fiscais ({taxEvents.length})</p>
-                  <button onClick={exportCSV}
-                    className="flex items-center gap-2 rounded-xl border border-orange-500/40 px-3 py-1.5 text-xs font-semibold text-orange-300 hover:bg-orange-500/10 transition">
-                    ↓ Exportar CSV (IRS)
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {isPro ? (
+                      <button onClick={exportCSV}
+                        className="flex items-center gap-2 rounded-xl border border-orange-500/40 px-3 py-1.5 text-xs font-semibold text-orange-300 hover:bg-orange-500/10 transition">
+                        ↓ Exportar CSV (IRS)
+                      </button>
+                    ) : (
+                      <a href="/pricing"
+                        className="flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:border-orange-400/40 hover:text-orange-300 transition">
+                        🔒 Exportar CSV (Pro)
+                      </a>
+                    )}
+                    {isPremium ? (
+                      <button onClick={() => alert("Exportação PDF em desenvolvimento. Disponível em breve!")}
+                        className="flex items-center gap-2 rounded-xl border border-violet-500/40 bg-violet-500/5 px-3 py-1.5 text-xs font-semibold text-violet-300 hover:bg-violet-500/10 transition">
+                        ↓ Exportar PDF (AT)
+                      </button>
+                    ) : (
+                      <a href="/pricing"
+                        className="flex items-center gap-2 rounded-xl border border-violet-500/20 px-3 py-1.5 text-xs font-semibold text-violet-400/50 hover:border-violet-500/40 hover:text-violet-300 transition">
+                        💎 PDF Avançado (Premium)
+                      </a>
+                    )}
+                  </div>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">

@@ -7,7 +7,7 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useTheme, type Theme, type Currency, type NumberFormat } from "@/lib/theme/ThemeContext";
 
 type SubscriptionStatus = { status: string; current_period_end: string | null; price_id?: string | null };
-type SettingsSection = "account" | "appearance" | "preferences" | "notifications" | "privacy";
+type SettingsSection = "account" | "appearance" | "preferences" | "notifications" | "privacy" | "premium";
 
 // ── Toggle switch ─────────────────────────────────────────────────────────
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
@@ -75,6 +75,7 @@ const SECTIONS: { key: SettingsSection; label: string; icon: string }[] = [
   { key: "preferences",  label: "Preferências",    icon: "⚙️" },
   { key: "notifications",label: "Notificações",    icon: "🔔" },
   { key: "privacy",      label: "Privacidade",     icon: "🔒" },
+  { key: "premium",      label: "Premium",         icon: "💎" },
 ];
 
 export default function AccountPage() {
@@ -546,6 +547,84 @@ export default function AccountPage() {
                         Sair de tudo
                       </button>
                     </SettingRow>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Premium ── */}
+              {section === "premium" && (
+                <div className="space-y-6">
+                  <h2 className="text-base font-bold text-white">Funcionalidades Premium</h2>
+
+                  {!isPremium && (
+                    <div className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-5 flex flex-col sm:flex-row items-center gap-4">
+                      <div className="text-3xl">💎</div>
+                      <div className="flex-1">
+                        <p className="text-sm font-bold text-white mb-1">Plano Premium — €39/mês</p>
+                        <p className="text-xs text-slate-400">Smart Money RT, análise on-chain, API/MCP, exportação avançada e gestor dedicado.</p>
+                      </div>
+                      <a href="/pricing" className="shrink-0 rounded-full border border-violet-500/40 bg-violet-500/10 px-5 py-2.5 text-sm font-bold text-violet-300 hover:bg-violet-500/20 transition">
+                        Ver Premium →
+                      </a>
+                    </div>
+                  )}
+
+                  {/* API Keys */}
+                  <div className={`rounded-xl border p-5 space-y-4 ${isPremium ? "border-slate-700 bg-slate-900/40" : "border-violet-500/10 bg-slate-950/40"}`}>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-white">🔑 API & MCP Access</p>
+                      {!isPremium && <span className="text-[10px] border border-violet-500/40 text-violet-400 rounded-full px-2 py-0.5">Premium</span>}
+                    </div>
+                    {isPremium ? (
+                      <div className="space-y-3">
+                        <p className="text-xs text-slate-400">Usa a API do Owlfund para integrar com ferramentas externas, MCP servers e webhooks.</p>
+                        <div className="rounded-lg bg-slate-950 border border-slate-800 p-3 flex items-center justify-between gap-3">
+                          <code className="text-xs text-violet-300 font-mono">owf_live_••••••••••••••••</code>
+                          <span className="text-[10px] text-amber-400 border border-amber-500/30 rounded-full px-2 py-0.5">Em breve</span>
+                        </div>
+                        <p className="text-xs text-slate-500">Documentação da API disponível em breve. Webhooks configuráveis por endpoint.</p>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-500">Acede à API REST do Owlfund, integra com MCP servers e recebe webhooks em tempo real.</p>
+                    )}
+                  </div>
+
+                  {/* Gestor dedicado */}
+                  <div className={`rounded-xl border p-5 space-y-4 ${isPremium ? "border-slate-700 bg-slate-900/40" : "border-violet-500/10 bg-slate-950/40"}`}>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-white">👤 Gestor Dedicado</p>
+                      {!isPremium && <span className="text-[10px] border border-violet-500/40 text-violet-400 rounded-full px-2 py-0.5">Premium</span>}
+                    </div>
+                    {isPremium ? (
+                      <div className="space-y-3">
+                        <p className="text-xs text-slate-400">O teu gestor dedicado está disponível para suporte personalizado, onboarding e consultoria.</p>
+                        <a href="mailto:premium@owlfund.app"
+                          className="inline-flex items-center gap-2 rounded-xl border border-violet-500/40 bg-violet-500/10 px-4 py-2.5 text-sm font-semibold text-violet-200 hover:bg-violet-500/20 transition">
+                          📧 Contactar Gestor
+                        </a>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-500">Suporte prioritário com gestor dedicado para configuração, estratégia e questões fiscais complexas.</p>
+                    )}
+                  </div>
+
+                  {/* Smart Money RT status */}
+                  <div className={`rounded-xl border p-5 ${isPremium ? "border-slate-700 bg-slate-900/40" : "border-violet-500/10 bg-slate-950/40"}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-white">📡 Smart Money RT</p>
+                        {!isPremium && <span className="text-[10px] border border-violet-500/40 text-violet-400 rounded-full px-2 py-0.5">Premium</span>}
+                      </div>
+                      {isPremium ? (
+                        <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-semibold">
+                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                          Ativo — atualiza cada 60s
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-600">Inativo</span>
+                      )}
+                    </div>
+                    {!isPremium && <p className="text-xs text-slate-500 mt-2">Dados da watchlist atualizados em tempo real (cada 60s) com o Plano Premium.</p>}
                   </div>
                 </div>
               )}
