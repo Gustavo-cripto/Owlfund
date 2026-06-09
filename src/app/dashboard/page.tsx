@@ -57,6 +57,7 @@ export default function DashboardPage() {
   const [currentTotal, setCurrentTotal] = useState(0);
   const [isPnlLoading, setIsPnlLoading] = useState(true);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -65,8 +66,14 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }: { data: { user: { email?: string } | null } }) => {
-      if (mountedRef.current) setUserEmail(data.user?.email ?? null);
+    supabase.auth.getUser().then(async ({ data }: { data: { user: { id?: string; email?: string } | null } }) => {
+      if (!mountedRef.current) return;
+      setUserEmail(data.user?.email ?? null);
+      if (data.user?.id) {
+        const { data: profile } = await supabase
+          .from("profiles").select("avatar_url").eq("id", data.user.id).maybeSingle();
+        if (mountedRef.current && profile?.avatar_url) setAvatarUrl(profile.avatar_url);
+      }
     });
   }, [supabase]);
 
@@ -174,12 +181,28 @@ export default function DashboardPage() {
 
           {/* ── Hero ── */}
           <section className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/70 mb-1">
-                {greeting()}
-              </p>
-              <h1 className="text-3xl font-black text-white leading-tight">{firstName} 👋</h1>
-              <p className="mt-1 text-sm text-slate-400">{t("dash_subtitle")}</p>
+            <div className="flex items-center gap-4">
+              {/* Avatar */}
+              <a href="/account" title="Editar perfil">
+                <div className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-slate-700 hover:border-orange-500/60 transition-all shrink-0">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-slate-800 flex items-center justify-center">
+                      <span className="text-xl font-bold text-slate-400">
+                        {userEmail ? userEmail[0].toUpperCase() : "?"}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </a>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/70 mb-1">
+                  {greeting()}
+                </p>
+                <h1 className="text-3xl font-black text-white leading-tight">{firstName} 👋</h1>
+                <p className="mt-1 text-sm text-slate-400">{t("dash_subtitle")}</p>
+              </div>
             </div>
 
             <div className="md:w-[340px] shrink-0">
