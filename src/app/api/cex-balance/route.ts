@@ -23,6 +23,7 @@ async function fetchBinance(apiKey: string, apiSecret: string): Promise<CexBalan
   const sig = crypto.createHmac("sha256", apiSecret).update(query).digest("hex");
   const url = `https://api.binance.com/api/v3/account?${query}&signature=${sig}`;
   const res = await fetch(url, { headers: { "X-MBX-APIKEY": apiKey } });
+  if (res.status === 451) throw new Error("Binance bloqueou o acesso a partir dos servidores da app (restrição geográfica). Usa a Binance diretamente ou experimenta a Kraken/CoinEx.");
   if (!res.ok) throw new Error(`Binance: ${res.status}`);
   const data = await res.json() as { balances: { asset: string; free: string; locked: string }[] };
   return data.balances

@@ -733,7 +733,7 @@ async function fetchUniswapV3ViaContracts(
   );
 
   // 4. Decode positions, collect unique tokens and pool keys
-  type Decoded = { token0: string; token1: string; fee: number; tickLower: number; tickUpper: number; liquidity: bigint };
+  type Decoded = { token0: string; token1: string; fee: number; tickLower: number; tickUpper: number; liquidity: bigint; owed0: bigint; owed1: bigint };
   const decoded: Decoded[] = [];
   const uniqueTokens = new Set<string>();
   const uniquePools  = new Set<string>();
@@ -741,20 +741,24 @@ async function fetchUniswapV3ViaContracts(
   for (const raw of posData) {
     if (raw === "0x" || raw.length < 2 + 12 * 64) continue;
     const d = raw.slice(2);
-    // ABI: each field = 32 bytes = 64 hex chars. Byte offset × 2 = hex offset.
-    // nonce(0→0) operator(32→64) token0(64→128) token1(96→192) fee(128→256)
-    // tickLower(160→320) tickUpper(192→384) liquidity(224→448)
-    const token0   = ("0x" + d.slice(152, 192)).toLowerCase();
-    const token1   = ("0x" + d.slice(216, 256)).toLowerCase();
-    const fee      = Number(BigInt("0x" + d.slice(256, 320)));
+    // ABI fields (32 bytes = 64 hex chars each):
+    // nonce(0) operator(64) token0(128) token1(192) fee(256)
+    // tickLower(320) tickUpper(384) liquidity(448)
+    // feeGrowth0(512) feeGrowth1(576) tokensOwed0(640) tokensOwed1(704)
+    const token0    = ("0x" + d.slice(152, 192)).toLowerCase();
+    const token1    = ("0x" + d.slice(216, 256)).toLowerCase();
+    const fee       = Number(BigInt("0x" + d.slice(256, 320)));
     const tickLower = decodeInt24(d.slice(320, 384));
     const tickUpper = decodeInt24(d.slice(384, 448));
     const liquidity = BigInt("0x" + d.slice(448, 512));
-    if (liquidity === BigInt(0)) continue;
-    decoded.push({ token0, token1, fee, tickLower, tickUpper, liquidity });
+    const owed0     = d.length >= 768 ? BigInt("0x" + d.slice(640, 704)) : BigInt(0);
+    const owed1     = d.length >= 768 ? BigInt("0x" + d.slice(704, 768)) : BigInt(0);
+    // Skip only if truly empty (no liquidity AND no unclaimed fees)
+    if (liquidity === BigInt(0) && owed0 === BigInt(0) && owed1 === BigInt(0)) continue;
+    decoded.push({ token0, token1, fee, tickLower, tickUpper, liquidity, owed0, owed1 });
     uniqueTokens.add(token0);
     uniqueTokens.add(token1);
-    uniquePools.add(`${token0}:${token1}:${fee}`);
+    if (liquidity > BigInt(0)) uniquePools.add(`${token0}:${token1}:${fee}`);
   }
   if (decoded.length === 0) return { total: 0, positions: [] };
 
@@ -795,18 +799,32 @@ async function fetchUniswapV3ViaContracts(
   const positions: { name: string; usd: number }[] = [];
 
   for (const p of decoded) {
-    const sqrtHex = sqrtMap.get(`${p.token0}:${p.token1}:${p.fee}`);
-    if (!sqrtHex) continue;
     const dec0 = decimalsMap.get(p.token0) ?? 18;
     const dec1 = decimalsMap.get(p.token1) ?? 18;
-    const { amount0, amount1 } = calcUniV3Amounts(
-      p.liquidity.toString(), "0x" + sqrtHex, p.tickLower, p.tickUpper, dec0, dec1
-    );
     const price0 = STABLECOINS.has(p.token0) ? 1 : p.token0 === wethAddr ? ethPrice : p.token0 === wbtcAddr ? btcPrice : 0;
     const price1 = STABLECOINS.has(p.token1) ? 1 : p.token1 === wethAddr ? ethPrice : p.token1 === wbtcAddr ? btcPrice : 0;
-    let usd = amount0 * price0 + amount1 * price1;
-    if (price0 > 0 && price1 === 0 && amount1 < 0.001) usd = amount0 * price0 * 2;
-    if (price1 > 0 && price0 === 0 && amount0 < 0.001) usd = amount1 * price1 * 2;
+
+    // Active liquidity value
+    let usd = 0;
+    const sqrtHex = sqrtMap.get(`${p.token0}:${p.token1}:${p.fee}`);
+    if (sqrtHex && p.liquidity > BigInt(0)) {
+      const { amount0, amount1 } = calcUniV3Amounts(
+        p.liquidity.toString(), "0x" + sqrtHex, p.tickLower, p.tickUpper, dec0, dec1
+      );
+      const liqUsd = amount0 * price0 + amount1 * price1;
+      const liqUsdAdj = price0 > 0 && price1 === 0 && amount1 < 0.001 ? amount0 * price0 * 2
+        : price1 > 0 && price0 === 0 && amount0 < 0.001 ? amount1 * price1 * 2
+        : liqUsd;
+      usd += liqUsdAdj;
+    }
+
+    // Unclaimed fees (tokensOwed) — value even on closed positions
+    if (p.owed0 > BigInt(0) || p.owed1 > BigInt(0)) {
+      const fee0 = Number(p.owed0) / Math.pow(10, dec0);
+      const fee1 = Number(p.owed1) / Math.pow(10, dec1);
+      usd += fee0 * price0 + fee1 * price1;
+    }
+
     if (usd < 0.01) continue;
     const sym0 = TOKEN_SYMBOLS[p.token0] ?? p.token0.slice(0, 8) + "…";
     const sym1 = TOKEN_SYMBOLS[p.token1] ?? p.token1.slice(0, 8) + "…";
