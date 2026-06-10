@@ -66,6 +66,22 @@ async function connectLedger(): Promise<string> {
 
 // ── CexSection ─────────────────────────────────────────────────────────────
 
+const CEX_STORAGE_KEY = "cex-accounts-v1";
+const HL_STORAGE_KEY = "hl-accounts-v1";
+
+type StoredCex = { id: string; exchange: "binance" | "kraken" | "coinex"; label: string; apiKey: string; apiSecret: string };
+type StoredHl = { address: string };
+
+function loadStored<T>(key: string): T[] {
+  if (typeof window === "undefined") return [];
+  try { return JSON.parse(window.localStorage.getItem(key) ?? "[]") as T[]; } catch { return []; }
+}
+
+function saveStored<T>(key: string, data: T[]) {
+  if (typeof window === "undefined") return;
+  try { window.localStorage.setItem(key, JSON.stringify(data)); } catch { /* ignore */ }
+}
+
 export default function CexSection({ onTotalChange }: { onTotalChange?: (usd: number) => void }) {
   const [cexAccounts, setCexAccounts] = useState<CexAccount[]>([]);
   const [hlAccounts, setHlAccounts] = useState<HlAccount[]>([]);
@@ -82,6 +98,65 @@ export default function CexSection({ onTotalChange }: { onTotalChange?: (usd: nu
   // HL add form
   const [showAddHl, setShowAddHl] = useState(false);
   const [newHlAddress, setNewHlAddress] = useState("");
+
+  // Load and re-fetch on mount
+  useEffect(() => {
+    const storedCex = loadStored<StoredCex>(CEX_STORAGE_KEY);
+    const storedHl = loadStored<StoredHl>(HL_STORAGE_KEY);
+
+    if (storedCex.length > 0) {
+      setCexAccounts(storedCex.map((s) => ({ ...s, balances: [], loading: true })));
+      storedCex.forEach((s) => {
+        fetch("/api/cex-balance", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ exchange: s.exchange, apiKey: s.apiKey, apiSecret: s.apiSecret }),
+        })
+          .then((r) => r.json() as Promise<{ balances?: CexBalance[]; error?: string }>)
+          .then((data) =>
+            setCexAccounts((prev) =>
+              prev.map((a) => a.id === s.id ? { ...a, loading: false, balances: data.balances ?? [], error: data.error } : a)
+            )
+          )
+          .catch(() =>
+            setCexAccounts((prev) =>
+              prev.map((a) => a.id === s.id ? { ...a, loading: false, error: "Falha ao carregar" } : a)
+            )
+          );
+      });
+    }
+
+    if (storedHl.length > 0) {
+      setHlAccounts(storedHl.map((s) => ({ address: s.address, spotBalances: [], perpValue: 0, loading: true })));
+      storedHl.forEach((s) => {
+        fetch("/api/hyperliquid-balance", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ address: s.address }),
+        })
+          .then((r) => r.json() as Promise<{ spotBalances?: HlBalance[]; perpValue?: number; error?: string }>)
+          .then((data) =>
+            setHlAccounts((prev) =>
+              prev.map((a) => a.address === s.address ? { ...a, loading: false, spotBalances: data.spotBalances ?? [], perpValue: data.perpValue ?? 0, error: data.error } : a)
+            )
+          )
+          .catch(() =>
+            setHlAccounts((prev) =>
+              prev.map((a) => a.address === s.address ? { ...a, loading: false, error: "Falha ao carregar" } : a)
+            )
+          );
+      });
+    }
+  }, []);
+
+  // Save config to localStorage whenever accounts change (without transient state)
+  useEffect(() => {
+    saveStored<StoredCex>(CEX_STORAGE_KEY, cexAccounts.map(({ id, exchange, label, apiKey, apiSecret }) => ({ id, exchange, label, apiKey, apiSecret })));
+  }, [cexAccounts]);
+
+  useEffect(() => {
+    saveStored<StoredHl>(HL_STORAGE_KEY, hlAccounts.map(({ address }) => ({ address })));
+  }, [hlAccounts]);
 
   useEffect(() => {
     if (!onTotalChange) return;
