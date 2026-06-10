@@ -543,6 +543,103 @@ async function fetchMeteoraPositionsViaShyft(
 const EVM_L2_CHAINS = ["arbitrum", "base", "optimism", "polygon", "bsc", "avalanche", "linea", "zksync"] as const;
 type EvmL2Chain = typeof EVM_L2_CHAINS[number];
 
+// ── Uniswap V3 subgraph endpoints per chain ──────────────────────────────────
+const UNISWAP_V3_SUBGRAPHS: Partial<Record<EvmL2Chain | "eth", string>> = {
+  eth:       "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3",
+  arbitrum:  "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3-arbitrum",
+  optimism:  "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3-optimism",
+  base:      "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3-base",
+  polygon:   "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3-polygon",
+};
+
+function sqrtX96toFloat(sqrtPriceX96: string): number {
+  const val = BigInt(sqrtPriceX96);
+  const Q96 = BigInt(2) ** BigInt(96);
+  return Number(val / Q96) + Number(val % Q96) / Number(Q96);
+}
+
+function tickToSqrt(tick: number): number {
+  return Math.sqrt(Math.pow(1.0001, tick));
+}
+
+function calcUniV3Amounts(
+  liquidity: string,
+  sqrtPriceX96: string,
+  tickLower: number,
+  tickUpper: number,
+  decimals0: number,
+  decimals1: number
+): { amount0: number; amount1: number } {
+  const L = parseFloat(liquidity);
+  if (!L || !isFinite(L)) return { amount0: 0, amount1: 0 };
+  const sqrtC = sqrtX96toFloat(sqrtPriceX96);
+  const sqrtA = tickToSqrt(tickLower);
+  const sqrtB = tickToSqrt(tickUpper);
+  let raw0 = 0, raw1 = 0;
+  if (sqrtC <= sqrtA) {
+    raw0 = L * (sqrtB - sqrtA) / (sqrtA * sqrtB);
+  } else if (sqrtC >= sqrtB) {
+    raw1 = L * (sqrtB - sqrtA);
+  } else {
+    raw0 = L * (sqrtB - sqrtC) / (sqrtC * sqrtB);
+    raw1 = L * (sqrtC - sqrtA);
+  }
+  return {
+    amount0: raw0 / 10 ** decimals0,
+    amount1: raw1 / 10 ** decimals1,
+  };
+}
+
+interface UniV3Position {
+  id: string;
+  liquidity: string;
+  tickLower: { tickIdx: string };
+  tickUpper: { tickIdx: string };
+  token0: { symbol: string; decimals: string; derivedETH: string };
+  token1: { symbol: string; decimals: string; derivedETH: string };
+  pool: { sqrtPrice: string };
+}
+
+async function fetchUniswapV3Total(address: string, subgraphUrl: string): Promise<{ total: number; positions: { name: string; usd: number }[] }> {
+  const query = `{
+    positions(where:{owner:"${address.toLowerCase()}",liquidity_gt:"0"},first:50) {
+      id liquidity
+      tickLower{tickIdx} tickUpper{tickIdx}
+      token0{symbol decimals derivedETH}
+      token1{symbol decimals derivedETH}
+      pool{sqrtPrice}
+    }
+    bundle(id:"1"){ethPriceUSD}
+  }`;
+  const res = await fetch(subgraphUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query }),
+    next: { revalidate: 60 },
+  });
+  if (!res.ok) return { total: 0, positions: [] };
+  const json = (await res.json()) as { data?: { positions?: UniV3Position[]; bundle?: { ethPriceUSD: string } } };
+  const ethUSD = parseFloat(json.data?.bundle?.ethPriceUSD ?? "0");
+  const posArr = json.data?.positions ?? [];
+  let total = 0;
+  const positions: { name: string; usd: number }[] = [];
+  for (const p of posArr) {
+    const { amount0, amount1 } = calcUniV3Amounts(
+      p.liquidity, p.pool.sqrtPrice,
+      parseInt(p.tickLower.tickIdx), parseInt(p.tickUpper.tickIdx),
+      parseInt(p.token0.decimals), parseInt(p.token1.decimals)
+    );
+    const price0 = parseFloat(p.token0.derivedETH) * ethUSD;
+    const price1 = parseFloat(p.token1.derivedETH) * ethUSD;
+    const usd = amount0 * price0 + amount1 * price1;
+    if (usd > 0.01) {
+      total += usd;
+      positions.push({ name: `Uniswap V3 ${p.token0.symbol}/${p.token1.symbol}`, usd });
+    }
+  }
+  return { total, positions };
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const address = searchParams.get("address");
@@ -556,22 +653,41 @@ export async function GET(request: Request) {
   // Handle specific EVM L2 chains (arbitrum, base, optimism, etc.)
   if (evmChain && EVM_L2_CHAINS.includes(evmChain) && isEvmAddress(address)) {
     const moralisKey = process.env.MORALIS_API_KEY;
-    if (!moralisKey) return NextResponse.json({ total: 0, positions: [] });
-    try {
-      const res = await fetch(`${MORALIS_DEFI}/${address}/defi/summary?chain=${evmChain}`, {
-        headers: { Accept: "application/json", "X-API-Key": moralisKey },
-        next: { revalidate: 120 },
-      });
-      if (!res.ok) return NextResponse.json({ total: 0, positions: [] });
-      const data = (await res.json()) as MoralisDefiSummary;
-      const total = Math.max(0, Number(data.total_usd_value ?? 0) || 0);
-      const positions: { name: string; usd: number }[] = (data.protocols ?? [])
-        .filter((p) => Number(p.total_usd_value ?? 0) > 0)
-        .map((p) => ({ name: resolveProtocolName(p), usd: Number(p.total_usd_value ?? 0) }));
-      return NextResponse.json({ total, positions });
-    } catch {
-      return NextResponse.json({ total: 0, positions: [] });
+    let moralisTotal = 0;
+    let moralisPositions: { name: string; usd: number }[] = [];
+
+    // Try Moralis first
+    if (moralisKey) {
+      try {
+        const res = await fetch(`${MORALIS_DEFI}/${address}/defi/summary?chain=${evmChain}`, {
+          headers: { Accept: "application/json", "X-API-Key": moralisKey },
+          next: { revalidate: 120 },
+        });
+        if (res.ok) {
+          const data = (await res.json()) as MoralisDefiSummary;
+          moralisTotal = Math.max(0, Number(data.total_usd_value ?? 0) || 0);
+          moralisPositions = (data.protocols ?? [])
+            .filter((p) => Number(p.total_usd_value ?? 0) > 0)
+            .map((p) => ({ name: resolveProtocolName(p), usd: Number(p.total_usd_value ?? 0) }));
+        }
+      } catch { /* fallthrough to Uniswap subgraph */ }
     }
+
+    // Fallback: Uniswap V3 subgraph (catches LP positions Moralis misses)
+    const subgraphUrl = UNISWAP_V3_SUBGRAPHS[evmChain];
+    if (subgraphUrl) {
+      try {
+        const uniData = await fetchUniswapV3Total(address, subgraphUrl);
+        // Merge: avoid double-counting if Moralis already detected Uniswap
+        const hasUniswapInMoralis = moralisPositions.some(p => p.name.toLowerCase().includes("uniswap"));
+        if (!hasUniswapInMoralis && uniData.total > 0) {
+          moralisTotal += uniData.total;
+          moralisPositions.push(...uniData.positions);
+        }
+      } catch { /* subgraph unavailable, use Moralis result */ }
+    }
+
+    return NextResponse.json({ total: moralisTotal, positions: moralisPositions });
   }
 
   if (!["eth", "sol", "btc", "ada"].includes(chain)) {
