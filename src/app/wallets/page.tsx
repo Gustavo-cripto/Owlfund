@@ -1298,9 +1298,7 @@ export default function WalletsPage() {
       }
       const address = await connectEvmProvider(selectedProvider);
       setEthAddress(address);
-      const balance = selectedEthConnectNetwork === "Ethereum"
-        ? await getEthBalance(address)
-        : await getEvmBalance(address, selectedEthConnectNetwork);
+      const balance = await fetchEvmBalanceServerSide(address, selectedEthConnectNetwork);
       const formatted = Number(balance).toFixed(4);
       setEthBalance(formatted);
       const label = getEvmProviderLabel(selectedEvmProvider);
@@ -1426,8 +1424,7 @@ export default function WalletsPage() {
     try {
       setEthNewLoading(true);
       setEthNewError(null);
-      const balance = await getEvmBalance(trimmed as `0x${string}`, netForFetch);
-      const formatted = Number(balance).toFixed(4);
+      const formatted = await fetchEvmBalanceServerSide(trimmed, netForFetch);
       const nextWallets = upsertWallet(
         ethWallets,
         { address: trimmed, balance: formatted, network },
@@ -2012,16 +2009,21 @@ export default function WalletsPage() {
     return () => window.clearTimeout(id);
   }, [walletMode, adaWallets, adaAddress, fetchAdaBalanceForAddress]);
 
+  const fetchEvmBalanceServerSide = async (address: string, network: string): Promise<string> => {
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const res = await fetch(`${base}/api/evm-balance?address=${encodeURIComponent(address)}&network=${encodeURIComponent(network)}`);
+    const data = await res.json() as { balance?: string; error?: string };
+    if (!res.ok || data.error) throw new Error(data.error ?? "Falha ao obter saldo.");
+    return Number(data.balance ?? 0).toFixed(4);
+  };
+
   const fetchEthBalanceForEntry = useCallback(
     async (address: string, network: string) => {
-      if (address === ethAddress && network === "Ethereum") return;
       const key = ethBalanceKey(address, network);
       setEthBalancesLoading((prev) => ({ ...prev, [key]: true }));
       setEthBalanceErrors((prev) => ({ ...prev, [key]: null }));
       try {
-        const net = evmNetworks.includes(network as EvmNetwork) ? (network as EvmNetwork) : "Ethereum";
-        const balance = await getEvmBalance(address as `0x${string}`, net);
-        const formatted = Number(balance).toFixed(4);
+        const formatted = await fetchEvmBalanceServerSide(address, network);
         startTransition(() => {
           setEthBalancesByKey((prev) => ({ ...prev, [key]: formatted }));
           setEthBalanceErrors((prev) => ({ ...prev, [key]: null }));
@@ -2038,14 +2040,14 @@ export default function WalletsPage() {
         });
       }
     },
-    [ethAddress]
+    []
   );
 
   useEffect(() => {
     if (walletMode !== "web3") return;
     const id = window.setTimeout(() => {
       ethWallets
-        .filter((w) => w.address && w.network && !(w.address === ethAddress && w.network === "Ethereum"))
+        .filter((w) => w.address && w.network)
         .forEach((w) => void fetchEthBalanceForEntry(w.address!, w.network!));
     }, 0);
     return () => window.clearTimeout(id);
