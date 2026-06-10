@@ -172,6 +172,45 @@ const getPercent = (value: number, total: number): string => {
   return String(Math.round((value / total) * 100));
 };
 
+function SnapshotList({ snapshots, onRestore }: { snapshots: SnapshotRow[]; onRestore: (row: SnapshotRow) => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded ? snapshots : snapshots.slice(0, 3);
+  const hasMore = snapshots.length > 3;
+  return (
+    <div className="mt-6 space-y-3">
+      {visible.map((row) => (
+        <div
+          key={row.id}
+          className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-4 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div>
+            <p className="text-sm font-semibold text-white">
+              {new Date(row.created_at).toLocaleString("pt-BR")}
+            </p>
+            <p className="text-xs text-slate-500">ID #{row.id}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => onRestore(row)}
+            className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
+          >
+            Restaurar
+          </button>
+        </div>
+      ))}
+      {hasMore && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="w-full rounded-xl border border-slate-700 py-2 text-xs font-semibold text-slate-400 transition hover:border-slate-500 hover:text-white"
+        >
+          {expanded ? `Mostrar menos ▲` : `Ver mais ${snapshots.length - 3} snapshots ▼`}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function PortfolioPage() {
   const supabase = createClient();
   useRequireAuth("/login");
@@ -1383,28 +1422,7 @@ export default function PortfolioPage() {
               Ainda não tens snapshots salvos. Salva um para aparecer aqui.
             </p>
           ) : (
-            <div className="mt-6 space-y-3">
-              {snapshots.map((row) => (
-                <div
-                  key={row.id}
-                  className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-4 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div>
-                    <p className="text-sm font-semibold text-white">
-                      {new Date(row.created_at).toLocaleString("pt-BR")}
-                    </p>
-                    <p className="text-xs text-slate-500">ID #{row.id}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleRestoreSnapshot(row)}
-                    className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
-                  >
-                    Restaurar
-                  </button>
-                </div>
-              ))}
-            </div>
+            <SnapshotList snapshots={snapshots} onRestore={handleRestoreSnapshot} />
           )}
         </section>
         {/* ── SIMULADOR DE CENÁRIOS ── */}
