@@ -680,7 +680,8 @@ function calcUniV3Amounts(
 }
 
 function decodeInt24(hex64: string): number {
-  const raw = parseInt(hex64, 16) & 0xFFFFFF;
+  // int24 is stored in last 3 bytes (6 hex chars) of the 32-byte ABI slot
+  const raw = parseInt(hex64.slice(-6), 16);
   return raw >= 0x800000 ? raw - 0x1000000 : raw;
 }
 
@@ -756,13 +757,15 @@ async function fetchUniswapV3ViaContracts(
   for (const raw of posData) {
     if (raw === "0x" || raw.length < 2 + 12 * 64) continue;
     const d = raw.slice(2);
-    // decode: nonce(0) operator(32) token0(64) token1(96) fee(128) tickLower(160) tickUpper(192) liquidity(224)
-    const token0 = ("0x" + d.slice(64 + 24, 64 + 64)).toLowerCase();
-    const token1 = ("0x" + d.slice(96 + 24, 96 + 64)).toLowerCase();
-    const fee    = Number(BigInt("0x" + d.slice(128, 192)));
-    const tickLower = decodeInt24(d.slice(160, 224));
-    const tickUpper = decodeInt24(d.slice(224, 288));
-    const liquidity = BigInt("0x" + d.slice(288, 352));
+    // Each ABI field = 32 bytes = 64 hex chars. Byte offset × 2 = hex offset.
+    // nonce(0→0) operator(32→64) token0(64→128) token1(96→192) fee(128→256)
+    // tickLower(160→320) tickUpper(192→384) liquidity(224→448)
+    const token0 = ("0x" + d.slice(152, 192)).toLowerCase();  // hex 128+24 to 192
+    const token1 = ("0x" + d.slice(216, 256)).toLowerCase();  // hex 192+24 to 256
+    const fee    = Number(BigInt("0x" + d.slice(256, 320)));
+    const tickLower = decodeInt24(d.slice(320, 384));
+    const tickUpper = decodeInt24(d.slice(384, 448));
+    const liquidity = BigInt("0x" + d.slice(448, 512));
     if (liquidity === BigInt(0)) continue;
 
     const [dec0, dec1, sqrtHex] = await Promise.all([
@@ -893,6 +896,21 @@ export async function GET(request: Request) {
         (data.protocols ?? [])
           .filter((p) => Number(p.total_usd_value ?? 0) > 0)
           .forEach((p) => positions.push({ name: resolveProtocolName(p), usd: Number(p.total_usd_value ?? 0) }));
+      }
+    }
+    // Fallback: Uniswap V3 contracts for chains Moralis may miss
+    const uniChains = ["arbitrum", "base", "optimism", "polygon", "eth"] as const;
+    const hasUniswapInMoralis = positions.some(p => p.name.toLowerCase().includes("uniswap"));
+    if (!hasUniswapInMoralis) {
+      for (const uc of uniChains) {
+        try {
+          const uniData = await fetchUniswapV3ViaContracts(address, uc);
+          if (uniData.total > 0) {
+            total += uniData.total;
+            positions.push(...uniData.positions);
+            break; // found on this chain, stop (avoid duplicate)
+          }
+        } catch { /* skip chain */ }
       }
     }
     if (total > 0 || results.some((r) => r.status === "fulfilled" && r.value))

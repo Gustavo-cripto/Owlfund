@@ -275,18 +275,21 @@ export default function CexSection({ onTotalChange }: { onTotalChange?: (usd: nu
             />
             <input
               type="text"
-              placeholder="API Key"
+              placeholder={newExchange === "coinex" ? "Access ID (API Key)" : "API Key"}
               value={newKey}
               onChange={(e) => setNewKey(e.target.value)}
               className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-orange-500 font-mono"
             />
             <input
               type="password"
-              placeholder="API Secret"
+              placeholder={newExchange === "coinex" ? "Secret Key" : "API Secret"}
               value={newSecret}
               onChange={(e) => setNewSecret(e.target.value)}
               className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-orange-500 font-mono"
             />
+            {newExchange === "coinex" && (
+              <p className="text-[10px] text-orange-400">CoinEx: o campo "Access ID" é o que aparece como chave na página de API Keys. O "Secret Key" é a chave de assinatura.</p>
+            )}
             <p className="text-[10px] text-slate-600">⚠️ Usa apenas chaves read-only. Nunca partilhes chaves com permissão de trade/withdrawal.</p>
             <div className="flex gap-2">
               <button
