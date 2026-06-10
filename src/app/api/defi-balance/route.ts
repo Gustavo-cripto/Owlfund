@@ -701,6 +701,150 @@ function decodeInt24(hex64: string): number {
 }
 
 
+// ── Uniswap V4 via eth_getLogs (PoolManager events) ───────────────────────
+const UNI_V4_POOL_MANAGER: Record<string, string> = {
+  eth:      "0x000000000004444c5dc75cB358380D2e3dE08A90",
+  arbitrum: "0x360e68faccca8ca495c1b759fd9eee466db9fb32",
+  base:     "0x498581ff718922c3f8e6a244956af099b2652b2b",
+  optimism: "0x9a13f98cb987694c9f086b1f5eb990114ee2b96c",
+  polygon:  "0x67366782805870060151383f4bbff9dab53e5cd6",
+};
+// StateView for reading pool/position state
+const UNI_V4_STATE_VIEW: Record<string, string> = {
+  eth:      "0x7ffe42c4a5deea5b0fec41c94ac78e175b6d1c07",
+  arbitrum: "0x76fd297e2d437cd7f76d50f01afe6160f86e9990",
+  base:     "0xa3c0c9b65bad0b08107aa264b0f3db444b867a71",
+  optimism: "0xf3cb1d0d2aacb42e7e99e8b51b8a4dc2dff9dd27",
+  polygon:  "0x5c68b0b83d3b9e2e9b0a6d6bed0e09f3c0cda784",
+};
+// keccak256 event topics (precomputed)
+const V4_TOPIC_MODIFY   = "0xf208f4912782fd25c7f114ca3723a2d5dd6f3bcc3ac8db5af63baa85f711d5ec";
+const V4_TOPIC_INIT     = "0xdd466e674ea557f56295e2d0218a125ea4b4f0f6f3307b95f85e6110838d6438";
+// Function selectors (first 4 bytes of keccak256)
+const V4_SEL_GET_POS    = "0xdacf1d2f"; // getPositionInfo(bytes32,address,int24,int24,bytes32)
+const V4_SEL_GET_SLOT0  = "0xc815641c"; // getSlot0(bytes32)
+
+async function fetchLogsRpc(rpc: string, address: string, topics: (string | null)[], fromBlock: string): Promise<{topics: string[]; data: string}[]> {
+  const res = await fetch(rpc, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0", id: 1, method: "eth_getLogs",
+      params: [{ fromBlock, toBlock: "latest", address, topics }],
+    }),
+  });
+  const json = await res.json() as { result?: {topics: string[]; data: string}[]; error?: unknown };
+  return json.result ?? [];
+}
+
+async function fetchUniswapV4ViaLogs(
+  address: string,
+  chain: string,
+  ethPrice: number
+): Promise<{ total: number; positions: { name: string; usd: number }[] }> {
+  const poolManager = UNI_V4_POOL_MANAGER[chain];
+  const stateView   = UNI_V4_STATE_VIEW[chain];
+  const rpc         = EVM_RPC[chain];
+  if (!poolManager || !stateView || !rpc || ethPrice === 0) return { total: 0, positions: [] };
+
+  const paddedAddr = "0x" + address.toLowerCase().slice(2).padStart(64, "0");
+
+  // 1. Fetch ModifyLiquidity events for this user (last ~500k blocks ≈ 1 month on Arbitrum)
+  const logs = await fetchLogsRpc(rpc, poolManager,
+    [V4_TOPIC_MODIFY, null, paddedAddr], "0x0"
+  ).catch(() => []);
+  if (logs.length === 0) return { total: 0, positions: [] };
+
+  // 2. Extract unique (poolId, tickLower, tickUpper, salt) from events
+  type PosKey = { poolId: string; tL: number; tU: number; salt: string };
+  const seen = new Set<string>();
+  const posKeys: PosKey[] = [];
+  for (const log of logs) {
+    const poolId   = log.topics[1];
+    const d        = log.data.slice(2);
+    // data layout: tickLower(32) tickUpper(32) liquidityDelta(32) salt(32)
+    const tL = decodeInt24(d.slice(0, 64));
+    const tU = decodeInt24(d.slice(64, 128));
+    const salt = "0x" + d.slice(192, 256);
+    const key = `${poolId}:${tL}:${tU}:${salt}`;
+    if (!seen.has(key)) { seen.add(key); posKeys.push({ poolId, tL, tU, salt }); }
+  }
+
+  // 3. Get Initialize events to map poolId → (currency0, currency1)
+  const poolIds = [...new Set(posKeys.map(p => p.poolId))];
+  const currencyMap = new Map<string, { c0: string; c1: string }>();
+  await Promise.all(poolIds.map(async (pid) => {
+    const initLogs = await fetchLogsRpc(rpc, poolManager,
+      [V4_TOPIC_INIT, pid], "0x0"
+    ).catch(() => []);
+    if (initLogs.length > 0) {
+      const c0 = "0x" + initLogs[0].topics[2].slice(-40);
+      const c1 = "0x" + initLogs[0].topics[3].slice(-40);
+      currencyMap.set(pid, { c0: c0.toLowerCase(), c1: c1.toLowerCase() });
+    }
+  }));
+
+  // 4. For each position key, get current liquidity + pool price
+  const wethAddr = (WETH_ADDR[chain] ?? "").toLowerCase();
+  const wbtcAddr = (WBTC_ADDR[chain] ?? "").toLowerCase();
+  let btcPrice = 0;
+  const btcFeed = CHAINLINK_BTC_USD[chain];
+  if (btcFeed) btcPrice = await chainlinkPrice(rpc, btcFeed).catch(() => 0);
+
+  const [slot0Map, posInfoMap] = [new Map<string, string>(), new Map<string, string>()];
+
+  await Promise.all([
+    ...poolIds.map(async (pid) => {
+      const r = await ethCallRpc(rpc, stateView, V4_SEL_GET_SLOT0 + pid.slice(2).padStart(64, "0"));
+      if (r !== "0x") slot0Map.set(pid, r.slice(2, 66)); // first 32 bytes = sqrtPriceX96
+    }),
+    ...posKeys.map(async (pk) => {
+      const paddedOwner  = address.toLowerCase().slice(2).padStart(64, "0");
+      const paddedTL     = (pk.tL < 0 ? (pk.tL + 0x1000000) : pk.tL).toString(16).padStart(64, "0");
+      const paddedTU     = (pk.tU < 0 ? (pk.tU + 0x1000000) : pk.tU).toString(16).padStart(64, "0");
+      const saltHex      = pk.salt.slice(2).padStart(64, "0");
+      const data = V4_SEL_GET_POS + pk.poolId.slice(2) + paddedOwner + paddedTL + paddedTU + saltHex;
+      const r = await ethCallRpc(rpc, stateView, data);
+      if (r !== "0x") posInfoMap.set(`${pk.poolId}:${pk.tL}:${pk.tU}:${pk.salt}`, r.slice(2, 34));
+    }),
+  ]);
+
+  // 5. Compute USD value for each position
+  let total = 0;
+  const positions: { name: string; usd: number }[] = [];
+
+  for (const pk of posKeys) {
+    const sqrtHex = slot0Map.get(pk.poolId);
+    const liqHex  = posInfoMap.get(`${pk.poolId}:${pk.tL}:${pk.tU}:${pk.salt}`);
+    if (!sqrtHex || !liqHex) continue;
+    const liquidity = BigInt("0x" + liqHex);
+    if (liquidity === BigInt(0)) continue;
+
+    const currencies = currencyMap.get(pk.poolId);
+    if (!currencies) continue;
+    const { c0, c1 } = currencies;
+
+    const dec0 = 18; // default — V4 often uses WETH (18) and stables (6)
+    const dec1 = STABLECOINS.has(c1) ? 6 : 18;
+    const { amount0, amount1 } = calcUniV3Amounts(liquidity.toString(), "0x" + sqrtHex, pk.tL, pk.tU, dec0, dec1);
+
+    const price0 = STABLECOINS.has(c0) ? 1 : c0 === wethAddr || c0 === "0x0000000000000000000000000000000000000000" ? ethPrice : c0 === wbtcAddr ? btcPrice : 0;
+    const price1 = STABLECOINS.has(c1) ? 1 : c1 === wethAddr || c1 === "0x0000000000000000000000000000000000000000" ? ethPrice : c1 === wbtcAddr ? btcPrice : 0;
+
+    let usd = amount0 * price0 + amount1 * price1;
+    if (price0 > 0 && price1 === 0 && amount1 < 0.001) usd = amount0 * price0 * 2;
+    if (price1 > 0 && price0 === 0 && amount0 < 0.001) usd = amount1 * price1 * 2;
+    if (usd < 0.01) continue;
+
+    const sym0 = TOKEN_SYMBOLS[c0] ?? (c0 === "0x0000000000000000000000000000000000000000" ? "ETH" : c0.slice(0, 6) + "…");
+    const sym1 = TOKEN_SYMBOLS[c1] ?? c1.slice(0, 6) + "…";
+    total += usd;
+    positions.push({ name: `Uniswap V4 ${sym0}/${sym1}`, usd });
+  }
+
+  return { total, positions };
+}
+
 // ── Uniswap V2 LP positions via direct contract calls ──────────────────────
 const UNI_V2_FACTORY: Record<string, string> = {
   eth:      "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f",
@@ -949,7 +1093,7 @@ export async function GET(request: Request) {
       } catch { /* fallthrough to Uniswap subgraph */ }
     }
 
-    // Fallback: Uniswap V2+V3 via direct contract calls (no external API needed)
+    // Fallback: Uniswap V2+V3+V4 via direct contract calls (no external API needed)
     const hasUniswapInMoralis = moralisPositions.some(p => p.name.toLowerCase().includes("uniswap"));
     if (!hasUniswapInMoralis) {
       const ethPriceLocal = await (async () => {
@@ -957,17 +1101,16 @@ export async function GET(request: Request) {
         const r = EVM_RPC[evmChain];
         return f && r ? chainlinkPrice(r, f) : 0;
       })().catch(() => 0);
-      const [v3Data, v2Data] = await Promise.allSettled([
+      const [v4Data, v3Data, v2Data] = await Promise.allSettled([
+        fetchUniswapV4ViaLogs(address, evmChain, ethPriceLocal),
         fetchUniswapV3ViaContracts(address, evmChain),
         fetchUniswapV2ViaContracts(address, evmChain, ethPriceLocal),
       ]);
-      if (v3Data.status === "fulfilled" && v3Data.value.total > 0) {
-        moralisTotal += v3Data.value.total;
-        moralisPositions.push(...v3Data.value.positions);
-      }
-      if (v2Data.status === "fulfilled" && v2Data.value.total > 0) {
-        moralisTotal += v2Data.value.total;
-        moralisPositions.push(...v2Data.value.positions);
+      for (const r of [v4Data, v3Data, v2Data]) {
+        if (r.status === "fulfilled" && r.value.total > 0) {
+          moralisTotal += r.value.total;
+          moralisPositions.push(...r.value.positions);
+        }
       }
     }
 
@@ -1015,7 +1158,7 @@ export async function GET(request: Request) {
           .forEach((p) => positions.push({ name: resolveProtocolName(p), usd: Number(p.total_usd_value ?? 0) }));
       }
     }
-    // Fallback: Uniswap V2+V3 contracts for chains Moralis may miss
+    // Fallback: Uniswap V2+V3+V4 contracts for chains Moralis may miss
     const uniChains = ["eth", "arbitrum", "base", "optimism", "polygon"] as const;
     const hasUniswapInMoralis = positions.some(p => p.name.toLowerCase().includes("uniswap"));
     if (!hasUniswapInMoralis) {
@@ -1025,15 +1168,18 @@ export async function GET(request: Request) {
             const f = CHAINLINK_ETH_USD[uc]; const r = EVM_RPC[uc];
             return f && r ? chainlinkPrice(r, f) : 0;
           })().catch(() => 0);
-          const [v3, v2] = await Promise.allSettled([
+          const [v4, v3, v2] = await Promise.allSettled([
+            fetchUniswapV4ViaLogs(address, uc, ethPriceLocal),
             fetchUniswapV3ViaContracts(address, uc),
             fetchUniswapV2ViaContracts(address, uc, ethPriceLocal),
           ]);
-          const v3ok = v3.status === "fulfilled" && v3.value.total > 0;
-          const v2ok = v2.status === "fulfilled" && v2.value.total > 0;
-          if (v3ok) { total += v3.value.total; positions.push(...v3.value.positions); }
-          if (v2ok) { total += v2.value.total; positions.push(...v2.value.positions); }
-          if (v3ok || v2ok) break;
+          let found = false;
+          for (const r of [v4, v3, v2]) {
+            if (r.status === "fulfilled" && r.value.total > 0) {
+              total += r.value.total; positions.push(...r.value.positions); found = true;
+            }
+          }
+          if (found) break;
         } catch { /* skip chain */ }
       }
     }
