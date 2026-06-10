@@ -82,19 +82,16 @@ function saveStored<T>(key: string, data: T[]) {
   try { window.localStorage.setItem(key, JSON.stringify(data)); } catch { /* ignore */ }
 }
 
-interface MarketPrice { priceUsd: number }
-
 export default function CexSection({
   onTotalChange,
-  prices = {},
   usdToEur = 0.92,
 }: {
   onTotalChange?: (usd: number) => void;
-  prices?: Record<string, MarketPrice>;
   usdToEur?: number;
 }) {
   const [cexAccounts, setCexAccounts] = useState<CexAccount[]>([]);
   const [hlAccounts, setHlAccounts] = useState<HlAccount[]>([]);
+  const [tokenPricesUsd, setTokenPricesUsd] = useState<Record<string, number>>({});
   const [ledgerLabel, setLedgerLabel] = useState<string | null>(null);
   const [ledgerError, setLedgerError] = useState<string | null>(null);
 
@@ -168,8 +165,30 @@ export default function CexSection({
     saveStored<StoredHl>(HL_STORAGE_KEY, hlAccounts.map(({ address }) => ({ address })));
   }, [hlAccounts]);
 
+  // Fetch CoinEx public prices for all tokens in all accounts
+  useEffect(() => {
+    const allSymbols = Array.from(
+      new Set(cexAccounts.flatMap((a) => a.balances.map((b) => b.asset)))
+    ).filter((s) => s !== "USDT" && s !== "USDC");
+    if (allSymbols.length === 0) return;
+
+    const markets = allSymbols.map((s) => `${s}USDT`).join(",");
+    fetch(`https://api.coinex.com/v2/spot/ticker?market=${markets}`)
+      .then((r) => r.json())
+      .then((d: { data?: Array<{ market: string; last: string }> }) => {
+        const map: Record<string, number> = { USDT: 1, USDC: 1 };
+        (d.data ?? []).forEach((t) => {
+          const sym = t.market.replace(/USDT$/, "");
+          const price = parseFloat(t.last);
+          if (Number.isFinite(price) && price > 0) map[sym] = price;
+        });
+        setTokenPricesUsd(map);
+      })
+      .catch(() => {});
+  }, [cexAccounts]);
+
   const accountUsd = (balances: CexBalance[]) =>
-    balances.reduce((s, b) => s + b.total * (prices[b.asset]?.priceUsd ?? 0), 0);
+    balances.reduce((s, b) => s + b.total * (tokenPricesUsd[b.asset] ?? 0), 0);
 
   useEffect(() => {
     if (!onTotalChange) return;
@@ -180,7 +199,7 @@ export default function CexSection({
     }, 0);
     onTotalChange(cexUsd + hlUsd);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cexAccounts, hlAccounts, onTotalChange, prices]);
+  }, [cexAccounts, hlAccounts, onTotalChange, tokenPricesUsd]);
 
   async function addCex() {
     if (!newKey || !newSecret) return;
