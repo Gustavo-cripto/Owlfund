@@ -958,16 +958,33 @@ export default function WalletsPage() {
   const adaIsAvailable = isClient && isCardanoWalletAvailable(selectedAdaProvider);
 
   const ethBalanceKey = (addr: string, net: string) => `${addr}-${net}`;
+
+  // Entrada activa: o wallet da rede seleccionada no dropdown
+  const ethActiveEntry = useMemo(() => {
+    return ethWallets.find(w => w.network === selectedEthConnectNetwork && w.address) ?? null;
+  }, [ethWallets, selectedEthConnectNetwork]);
+
+  // Saldo da entrada activa (usa ethBalance se for a mainnet conectada via MetaMask)
+  const ethActiveBalance = useMemo(() => {
+    if (!ethActiveEntry) return ethBalance ?? null;
+    const key = ethBalanceKey(ethActiveEntry.address!, ethActiveEntry.network!);
+    return ethBalancesByKey[key] ?? ethActiveEntry.balance ?? null;
+  }, [ethActiveEntry, ethBalancesByKey, ethBalance]);
+
   const totalEthBalance = useMemo(() => {
-    let sum = parseFloat(ethBalance ?? "") || 0;
+    // Soma todos os wallets (por endereço+rede) sem duplicar
+    const seen = new Set<string>();
+    let sum = 0;
     ethWallets.forEach((w) => {
-      if (w.address && w.network && !(w.address === ethAddress && w.network === "Ethereum")) {
-        const b = ethBalancesByKey[ethBalanceKey(w.address, w.network)] ?? w.balance;
-        sum += typeof b === "string" && b !== "—" ? parseFloat(b) || 0 : 0;
-      }
+      if (!w.address || !w.network) return;
+      const k = ethBalanceKey(w.address, w.network);
+      if (seen.has(k)) return;
+      seen.add(k);
+      const b = ethBalancesByKey[k] ?? w.balance;
+      sum += typeof b === "string" && b !== "—" ? parseFloat(b) || 0 : 0;
     });
     return sum.toFixed(4);
-  }, [ethBalance, ethWallets, ethAddress, ethBalancesByKey]);
+  }, [ethWallets, ethBalancesByKey]);
 
   const totalSolBalance = useMemo(() => {
     let sum = parseFloat(solBalance ?? "") || 0;
@@ -2545,18 +2562,18 @@ export default function WalletsPage() {
             title="Ethereum"
             description={
               ethWallets.length > 0
-                ? `${ethWallets.length} carteira(s) · Saldo total ETH`
+                ? `${selectedEthConnectNetwork === "Ethereum" ? "ETH Mainnet" : selectedEthConnectNetwork} · ${ethWallets.length} rede(s) ligada(s)`
                 : "MetaMask (ETH)"
             }
-            address={ethAddress ?? ethWallets[0]?.address}
+            address={ethActiveEntry?.address ?? ethAddress ?? ethWallets[0]?.address}
             addressDisplay={
               ethShowMain
-                ? ethAddress ?? ethWallets[0]?.address
-                : formatAddress(ethAddress ?? ethWallets[0]?.address)
+                ? (ethActiveEntry?.address ?? ethAddress ?? ethWallets[0]?.address)
+                : formatAddress(ethActiveEntry?.address ?? ethAddress ?? ethWallets[0]?.address)
             }
-            balance={ethWallets.length > 0 ? totalEthBalance : ethBalance}
+            balance={ethActiveBalance}
             balanceUnit="ETH"
-            fiatValueUsd={getFiatValue("ETH", ethWallets.length > 0 ? totalEthBalance : ethBalance)}
+            fiatValueUsd={getFiatValue("ETH", ethActiveBalance)}
             defiBalanceUsd={ethMainAddress ? defiTotals[defiKey(ethMainAddress, "eth")] ?? null : null}
             defiLoading={ethMainAddress ? !!defiLoading[defiKey(ethMainAddress, "eth")] : false}
             defiError={ethMainAddress ? defiErrors[defiKey(ethMainAddress, "eth")] ?? null : null}
