@@ -733,7 +733,64 @@ export default function WalletsPage() {
   }, [ethWallets, solWallets, btcWallets, adaWallets, userId, isPro, isLoadingAuth, supabase]);
 
   type DefiChain = "eth" | "sol" | "btc" | "ada";
-  const defiKey = (address: string, chain: DefiChain) => `${address}:${chain}`;
+  const defiKey = (address: string, chain: DefiChain | string) => `${address}:${chain}`;
+
+  /** Maps EVM network name to Moralis chain id (for L2-specific DeFi/NFT queries) */
+  const networkToMoralisChain = (network: string): string => {
+    const map: Record<string, string> = {
+      Ethereum: "eth", Arbitrum: "arbitrum", Optimism: "optimism",
+      Base: "base", Polygon: "polygon", BSC: "bsc", Avalanche: "avalanche",
+      Linea: "linea", zkSync: "zksync",
+    };
+    return map[network] ?? "eth";
+  };
+
+  const fetchDefiForEntry = async (address: string, network: string) => {
+    const moralisChain = networkToMoralisChain(network);
+    const key = defiKey(address, network);
+    setDefiLoading((prev) => ({ ...prev, [key]: true }));
+    setDefiErrors((prev) => ({ ...prev, [key]: null }));
+    try {
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const isEthMainnet = moralisChain === "eth";
+      const url = isEthMainnet
+        ? `${base}/api/defi-balance?address=${encodeURIComponent(address)}&chain=eth`
+        : `${base}/api/defi-balance?address=${encodeURIComponent(address)}&chain=eth&evmChain=${moralisChain}`;
+      const response = await fetch(url);
+      const data = (await response.json()) as { total?: number; error?: string };
+      const total = typeof data?.total === "number" && Number.isFinite(data.total) ? data.total : 0;
+      setDefiTotals((prev) => ({ ...prev, [key]: total }));
+      setDefiErrors((prev) => ({ ...prev, [key]: null }));
+    } catch (error) {
+      setDefiErrors((prev) => ({ ...prev, [key]: error instanceof Error ? error.message : "Erro DeFi." }));
+      setDefiTotals((prev) => ({ ...prev, [key]: null }));
+    } finally {
+      setDefiLoading((prev) => ({ ...prev, [key]: false }));
+    }
+  };
+
+  const fetchNftForEntry = async (address: string, network: string) => {
+    const moralisChain = networkToMoralisChain(network);
+    const key = defiKey(address, network);
+    setNftLoading((prev) => ({ ...prev, [key]: true }));
+    setNftErrors((prev) => ({ ...prev, [key]: null }));
+    try {
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const isEthMainnet = moralisChain === "eth";
+      const url = isEthMainnet
+        ? `${base}/api/nft-balance?address=${encodeURIComponent(address)}&chain=eth`
+        : `${base}/api/nft-balance?address=${encodeURIComponent(address)}&chain=eth&evmChain=${moralisChain}`;
+      const response = await fetch(url);
+      const data = (await response.json()) as { count?: number; nfts?: Array<{ id: string; name: string; image?: string; tokenAddress?: string; tokenId?: string }>; error?: string };
+      setNftCounts((prev) => ({ ...prev, [key]: data.count ?? 0 }));
+      setNftsByKey((prev) => ({ ...prev, [key]: data.nfts ?? [] }));
+      setNftErrors((prev) => ({ ...prev, [key]: null }));
+    } catch (error) {
+      setNftErrors((prev) => ({ ...prev, [key]: error instanceof Error ? error.message : "Erro NFT." }));
+    } finally {
+      setNftLoading((prev) => ({ ...prev, [key]: false }));
+    }
+  };
 
   const fetchDefiTotal = async (address: string, chain: DefiChain) => {
     const key = defiKey(address, chain);
@@ -789,8 +846,19 @@ export default function WalletsPage() {
   );
 
   useEffect(() => {
-    ethAddresses.forEach((addr) => fetchDefiTotal(addr, "eth"));
-  }, [ethAddresses.join(",")]);
+    // Fetch DeFi and NFT per wallet entry using the entry's specific network
+    ethWallets.forEach((w) => {
+      if (!w.address) return;
+      void fetchDefiForEntry(w.address, w.network ?? "Ethereum");
+      void fetchNftForEntry(w.address, w.network ?? "Ethereum");
+    });
+    // Also fetch for connected address on Ethereum mainnet (for main WalletCard)
+    if (ethAddress) {
+      void fetchDefiTotal(ethAddress, "eth");
+      void fetchNftBalance(ethAddress, "eth");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ethWallets.map(w => `${w.address}:${w.network}`).join(","), ethAddress]);
   useEffect(() => {
     solAddresses.forEach((addr) => fetchDefiTotal(addr, "sol"));
   }, [solAddresses.join(",")]);
@@ -1392,6 +1460,12 @@ export default function WalletsPage() {
         void fetchDefiTotal(ethMainAddress, "eth");
         void fetchNftBalance(ethMainAddress, "eth");
       }
+      ethWallets.forEach((w) => {
+        if (w.address) {
+          void fetchDefiForEntry(w.address, w.network ?? "Ethereum");
+          void fetchNftForEntry(w.address, w.network ?? "Ethereum");
+        }
+      });
     } catch (error) {
       setEthError(error instanceof Error ? error.message : "Erro ao atualizar saldo.");
     } finally {
@@ -2794,7 +2868,7 @@ export default function WalletsPage() {
                       : err
                         ? null
                         : ethBalancesByKey[key] ?? item.balance ?? "—";
-                  const dk = item.address ? defiKey(item.address, "eth") : null;
+                  const dk = item.address ? defiKey(item.address, item.network ?? "Ethereum") : null;
                   const itemDefi = dk ? (defiTotals[dk] ?? null) : null;
                   const itemDefiLoading = dk ? !!defiLoading[dk] : false;
                   const itemNftCount = dk ? (nftCounts[dk] ?? null) : null;

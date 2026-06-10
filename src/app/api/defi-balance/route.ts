@@ -80,6 +80,314 @@ function resolveProtocolName(p: MoralisProtocol): string {
 
 const SHYFT_GRAPHQL = "https://programs.shyft.to/v0/graphql/accounts";
 const METEORA_API = "https://dlmm-api.meteora.ag";
+// Meteora DLMM program IDs (v1 and v2)
+const METEORA_DLMM_PROGRAM = "LBUZKhRxPF3XUpBCjp4YzTKgLLjnZE1UKixNR7L2PFC";
+
+async function fetchMeteoraPositionsViaRPC(
+  wallet: string
+): Promise<{ total: number; positions: { name: string; usd: number }[] }> {
+  // owner field is at offset 40 in both Position and PositionV2 (after 8-byte discriminator + 32-byte lb_pair)
+  const body = {
+    jsonrpc: "2.0",
+    id: 1,
+    method: "getProgramAccounts",
+    params: [
+      METEORA_DLMM_PROGRAM,
+      {
+        filters: [{ memcmp: { offset: 40, bytes: wallet } }],
+        encoding: "base58",
+        dataSlice: { offset: 0, length: 0 }, // only need pubkeys
+        withContext: false,
+      },
+    ],
+  };
+  const res = await fetch(SOL_RPC, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(15_000),
+    cache: "no-store",
+  });
+  if (!res.ok) return { total: 0, positions: [] };
+  const json = await res.json() as { result?: Array<{ pubkey: string }> };
+  const accounts = json?.result ?? [];
+  if (accounts.length === 0) {
+    // Try offset 8 as fallback (some position layouts differ)
+    const body2 = { ...body, params: [METEORA_DLMM_PROGRAM, { ...body.params[1], filters: [{ memcmp: { offset: 8, bytes: wallet } }] }] };
+    const res2 = await fetch(SOL_RPC, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body2),
+      signal: AbortSignal.timeout(15_000),
+      cache: "no-store",
+    });
+    if (res2.ok) {
+      const json2 = await res2.json() as { result?: Array<{ pubkey: string }> };
+      accounts.push(...(json2?.result ?? []));
+    }
+  }
+  if (accounts.length === 0) return { total: 0, positions: [] };
+
+  // Query Meteora API for each position value
+  let totalUsd = 0;
+  const positionResults: { name: string; usd: number }[] = [];
+  const endpoints = ["position_v2", "position"] as const;
+
+  for (const acc of accounts.slice(0, 20)) { // cap at 20 positions
+    const pubkey = acc.pubkey;
+    let usd = 0;
+    for (const ep of endpoints) {
+      try {
+        const r = await fetch(`${METEORA_API}/${ep}/${pubkey}`, {
+          cache: "no-store",
+          signal: AbortSignal.timeout(8_000),
+        });
+        if (!r.ok) continue;
+        const data = await r.json() as Record<string, unknown>;
+        const nested = (data.data as Record<string, unknown> | undefined) ?? {};
+        usd = firstPositive(data, ["total_value_usd","liquidity_usd","position_value_usd"]) ||
+              firstPositive(nested, ["total_value_usd","liquidity_usd","position_value_usd"]);
+        if (usd > 0) break;
+      } catch { continue; }
+    }
+    if (usd > 0) {
+      totalUsd += usd;
+      positionResults.push({ name: "Meteora DLMM", usd });
+    }
+  }
+
+  // If individual position values failed, try deposits - withdraws approach
+  if (totalUsd <= 0) {
+    for (const acc of accounts.slice(0, 10)) {
+      const pubkey = acc.pubkey;
+      for (const ep of endpoints) {
+        try {
+          const [depRes, wdRes] = await Promise.all([
+            fetch(`${METEORA_API}/${ep}/${pubkey}/deposits`, { cache: "no-store", signal: AbortSignal.timeout(8_000) }),
+            fetch(`${METEORA_API}/${ep}/${pubkey}/withdraws`, { cache: "no-store", signal: AbortSignal.timeout(8_000) }),
+          ]);
+          if (!depRes.ok || !wdRes.ok) continue;
+          const deps = await depRes.json() as Array<Record<string, unknown>>;
+          const wds = await wdRes.json() as Array<Record<string, unknown>>;
+          if (!Array.isArray(deps) || !Array.isArray(wds)) continue;
+          const usdFrom = (d: Record<string, unknown>) =>
+            firstPositive(d, ["token_x_usd_amount","token_x_value_usd"]) +
+            firstPositive(d, ["token_y_usd_amount","token_y_value_usd"]);
+          const net = deps.reduce((s, d) => s + usdFrom(d), 0) - wds.reduce((s, w) => s + usdFrom(w), 0);
+          if (net > 0) { totalUsd += net; positionResults.push({ name: "Meteora DLMM", usd: net }); break; }
+        } catch { continue; }
+      }
+    }
+  }
+
+  // Merge all Meteora positions into one entry
+  if (totalUsd > 0) {
+    return { total: totalUsd, positions: [{ name: `Meteora DLMM (${accounts.length} posição${accounts.length > 1 ? "ões" : ""})`, usd: totalUsd }] };
+  }
+  // Return 0 value but still flag that positions exist (so we don't show $0 falsely)
+  if (accounts.length > 0) {
+    return { total: 0, positions: [{ name: `Meteora DLMM (${accounts.length} posição${accounts.length > 1 ? "ões" : ""} — valor indisponível)`, usd: 0 }] };
+  }
+  return { total: 0, positions: [] };
+}
+
+// Known Solana DeFi protocol tokens (mint → protocol name)
+const SOL_DEFI_TOKENS: Record<string, string> = {
+  mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So: "Marinade (mSOL)",
+  "7dHbWXmci3dT8UFYWYZweBLXgycu7Y3iL6trKn1Y7ARj": "Lido (stSOL)",
+  J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn: "Jito (jitoSOL)",
+  bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1: "BlazeStake (bSOL)",
+  "27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4": "Jupiter (JLP)",
+  LSTxxxnJzKDFSLr4dUkPcmCf5VyryEqzPLz5j4bpxFp: "Marginfi (LST)",
+  "5oVNBeEEQvYi1cX3ir8Dx5n1P7pdxydbGF2X4TxVusJm": "Orca (whSOL)",
+  "7Q2afV64in6N6SeZsAAB81TJzwDoD6zpqmHkzi9Dcavn": "Raydium (USDC-SOL LP)",
+  "3UNBZ6o52WTWwjac2kPiK9xns6XHW5UsqohAd5n4VFGf": "Raydium (SOL-USDC)",
+  EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v: "USDC",
+};
+
+const SOL_RPC = "https://api.mainnet-beta.solana.com";
+const JUPITER_PRICE = "https://price.jup.ag/v6/price";
+const STAKE_PROGRAM = "Stake11111111111111111111111111111111111111112";
+const SOL_MINT = "So11111111111111111111111111111111111111112";
+
+type StakeAccountParsed = {
+  pubkey: string;
+  account: {
+    lamports: number;
+    data: {
+      parsed: {
+        info?: {
+          stake?: { delegation?: { stake?: string } };
+          meta?: { authorized?: { staker?: string; withdrawer?: string } };
+        };
+        type?: string;
+      };
+    };
+  };
+};
+
+async function fetchSolanaStakeAccounts(
+  wallet: string
+): Promise<{ total: number; positions: { name: string; usd: number }[] }> {
+  // Get SOL price
+  let solPrice = 0;
+  try {
+    const p = await fetch(`${JUPITER_PRICE}?ids=${SOL_MINT}`, {
+      signal: AbortSignal.timeout(6_000),
+      cache: "no-store",
+    });
+    if (p.ok) {
+      const j = await p.json() as { data?: { [k: string]: { price?: number } } };
+      solPrice = j?.data?.[SOL_MINT]?.price ?? 0;
+    }
+  } catch { /* ignore */ }
+  if (solPrice <= 0) return { total: 0, positions: [] };
+
+  // Find stake accounts where staker == wallet (offset 12) OR withdrawer == wallet (offset 44)
+  // We try withdrawer first (more common) then staker
+  const tryOffsets = [44, 12];
+  let stakedLamports = 0;
+
+  for (const offset of tryOffsets) {
+    try {
+      const body = {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "getProgramAccounts",
+        params: [
+          STAKE_PROGRAM,
+          {
+            filters: [{ memcmp: { offset, bytes: wallet } }],
+            encoding: "jsonParsed",
+          },
+        ],
+      };
+      const res = await fetch(SOL_RPC, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(12_000),
+        cache: "no-store",
+      });
+      if (!res.ok) continue;
+      const json = await res.json() as { result?: StakeAccountParsed[] };
+      const accounts = json?.result ?? [];
+      for (const acc of accounts) {
+        const lamports = acc?.account?.lamports ?? 0;
+        if (lamports > 0) stakedLamports += lamports;
+      }
+      if (stakedLamports > 0) break;
+    } catch { /* try next offset */ }
+  }
+
+  if (stakedLamports <= 0) return { total: 0, positions: [] };
+  const stakedSol = stakedLamports / 1e9;
+  const usd = stakedSol * solPrice;
+  return {
+    total: usd,
+    positions: [{ name: `SOL Staking Nativo (${stakedSol.toFixed(3)} SOL)`, usd }],
+  };
+}
+
+async function fetchSolanaDefiFromTokenAccounts(
+  wallet: string
+): Promise<{ total: number; positions: { name: string; usd: number }[] }> {
+  // 1. Get all SPL token accounts
+  const rpcBody = {
+    jsonrpc: "2.0",
+    id: 1,
+    method: "getTokenAccountsByOwner",
+    params: [
+      wallet,
+      { programId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
+      { encoding: "jsonParsed" },
+    ],
+  };
+  const rpcRes = await fetch(SOL_RPC, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(rpcBody),
+    signal: AbortSignal.timeout(10_000),
+    cache: "no-store",
+  });
+  if (!rpcRes.ok) return { total: 0, positions: [] };
+  const rpcJson = await rpcRes.json() as {
+    result?: {
+      value?: Array<{
+        account: { data: { parsed: { info: { mint: string; tokenAmount: { uiAmount: number } } } } };
+      }>;
+    };
+  };
+  const accounts = rpcJson?.result?.value ?? [];
+
+  // Filter only known DeFi tokens with balance > 0
+  const defiHoldings: { mint: string; name: string; amount: number }[] = [];
+  for (const acc of accounts) {
+    const info = acc?.account?.data?.parsed?.info;
+    if (!info) continue;
+    const { mint, tokenAmount } = info;
+    if (!SOL_DEFI_TOKENS[mint]) continue;
+    if ((tokenAmount?.uiAmount ?? 0) <= 0) continue;
+    defiHoldings.push({ mint, name: SOL_DEFI_TOKENS[mint], amount: tokenAmount.uiAmount });
+  }
+  if (defiHoldings.length === 0) return { total: 0, positions: [] };
+
+  // 2. Get prices from Jupiter
+  const mints = defiHoldings.map((h) => h.mint).join(",");
+  let prices: Record<string, number> = {};
+  try {
+    const priceRes = await fetch(`${JUPITER_PRICE}?ids=${mints}`, {
+      signal: AbortSignal.timeout(8_000),
+      cache: "no-store",
+    });
+    if (priceRes.ok) {
+      const priceJson = await priceRes.json() as { data?: Record<string, { price?: number }> };
+      for (const [mint, info] of Object.entries(priceJson?.data ?? {})) {
+        prices[mint] = info?.price ?? 0;
+      }
+    }
+  } catch { /* use fallback prices */ }
+
+  // SOL-derived tokens: use SOL price as fallback (~1:1 ratio)
+  const SOL_EQUIVALENT_TOKENS = new Set([
+    "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So",
+    "7dHbWXmci3dT8UFYWYZweBLXgycu7Y3iL6trKn1Y7ARj",
+    "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn",
+    "bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1",
+    "LSTxxxnJzKDFSLr4dUkPcmCf5VyryEqzPLz5j4bpxFp",
+    "5oVNBeEEQvYi1cX3ir8Dx5n1P7pdxydbGF2X4TxVusJm",
+  ]);
+
+  // Get SOL price as fallback for staking tokens
+  let solPrice = 0;
+  if ([...SOL_EQUIVALENT_TOKENS].some((m) => defiHoldings.find((h) => h.mint === m) && !prices[m])) {
+    try {
+      const solRes = await fetch(
+        `${JUPITER_PRICE}?ids=So11111111111111111111111111111111111111112`,
+        { signal: AbortSignal.timeout(5_000), cache: "no-store" }
+      );
+      if (solRes.ok) {
+        const j = await solRes.json() as { data?: { So11111111111111111111111111111111111111112?: { price?: number } } };
+        solPrice = j?.data?.So11111111111111111111111111111111111111112?.price ?? 0;
+      }
+    } catch { /* ignore */ }
+  }
+
+  // 3. Calculate USD values
+  const positions: { name: string; usd: number }[] = [];
+  let total = 0;
+  for (const h of defiHoldings) {
+    let price = prices[h.mint] ?? 0;
+    if (price <= 0 && SOL_EQUIVALENT_TOKENS.has(h.mint)) price = solPrice;
+    if (price <= 0) continue;
+    const usd = h.amount * price;
+    if (usd <= 0) continue;
+    total += usd;
+    positions.push({ name: h.name, usd });
+  }
+
+  return { total, positions };
+}
 
 function toNum(x: unknown): number {
   if (x == null) return 0;
@@ -232,13 +540,38 @@ async function fetchMeteoraPositionsViaShyft(
   return totalUsd > 0 ? { total: totalUsd, positions: [{ name: "Meteora", usd: totalUsd }] } : { total: 0, positions: [] };
 }
 
+const EVM_L2_CHAINS = ["arbitrum", "base", "optimism", "polygon", "bsc", "avalanche", "linea", "zksync"] as const;
+type EvmL2Chain = typeof EVM_L2_CHAINS[number];
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const address = searchParams.get("address");
   const chain = (searchParams.get("chain") ?? "eth") as ChainId;
+  const evmChain = searchParams.get("evmChain") as EvmL2Chain | null;
 
   if (!address?.trim()) {
     return NextResponse.json({ error: "Endereço obrigatório." }, { status: 400 });
+  }
+
+  // Handle specific EVM L2 chains (arbitrum, base, optimism, etc.)
+  if (evmChain && EVM_L2_CHAINS.includes(evmChain) && isEvmAddress(address)) {
+    const moralisKey = process.env.MORALIS_API_KEY;
+    if (!moralisKey) return NextResponse.json({ total: 0, positions: [] });
+    try {
+      const res = await fetch(`${MORALIS_DEFI}/${address}/defi/summary?chain=${evmChain}`, {
+        headers: { Accept: "application/json", "X-API-Key": moralisKey },
+        next: { revalidate: 120 },
+      });
+      if (!res.ok) return NextResponse.json({ total: 0, positions: [] });
+      const data = (await res.json()) as MoralisDefiSummary;
+      const total = Math.max(0, Number(data.total_usd_value ?? 0) || 0);
+      const positions: { name: string; usd: number }[] = (data.protocols ?? [])
+        .filter((p) => Number(p.total_usd_value ?? 0) > 0)
+        .map((p) => ({ name: resolveProtocolName(p), usd: Number(p.total_usd_value ?? 0) }));
+      return NextResponse.json({ total, positions });
+    } catch {
+      return NextResponse.json({ total: 0, positions: [] });
+    }
   }
 
   if (!["eth", "sol", "btc", "ada"].includes(chain)) {
@@ -288,22 +621,33 @@ export async function GET(request: Request) {
 
   const shyftKey = process.env.SHYFT_API_KEY;
 
-  // Solana: fonte única de DeFi = SHYFT (Meteora DLMM)
+  // Solana: tenta SHYFT/Meteora se disponível, senão usa token accounts públicos
   if (chain === "sol" && isSolAddress(address)) {
-    if (!shyftKey) {
-      return NextResponse.json(
-        { error: "Configura SHYFT_API_KEY para consultar DeFi Solana (Meteora).", total: null, positions: [] },
-        { status: 503 }
-      );
+    if (shyftKey) {
+      try {
+        const meteoraResult = await fetchMeteoraPositionsViaShyft(address.trim(), shyftKey);
+        if (meteoraResult.total > 0) {
+          return NextResponse.json({ total: meteoraResult.total, positions: meteoraResult.positions });
+        }
+      } catch { /* fallthrough to token-based detection */ }
     }
+    // Fallback 1: Meteora DLMM positions via public RPC getProgramAccounts
+    // Fallback 2: known protocol token holdings (mSOL, stSOL, JLP, etc.)
+    // Fallback 3: native SOL staking accounts
     try {
-      const meteoraResult = await fetchMeteoraPositionsViaShyft(address.trim(), shyftKey);
-      return NextResponse.json({ total: meteoraResult.total, positions: meteoraResult.positions });
+      const [meteoraResult, tokenResult, stakeResult] = await Promise.allSettled([
+        fetchMeteoraPositionsViaRPC(address.trim()),
+        fetchSolanaDefiFromTokenAccounts(address.trim()),
+        fetchSolanaStakeAccounts(address.trim()),
+      ]);
+      const meteora = meteoraResult.status === "fulfilled" ? meteoraResult.value : { total: 0, positions: [] };
+      const tokenData = tokenResult.status === "fulfilled" ? tokenResult.value : { total: 0, positions: [] };
+      const stakeData = stakeResult.status === "fulfilled" ? stakeResult.value : { total: 0, positions: [] };
+      const total = meteora.total + tokenData.total + stakeData.total;
+      const positions = [...meteora.positions, ...tokenData.positions, ...stakeData.positions];
+      return NextResponse.json({ total, positions });
     } catch {
-      return NextResponse.json(
-        { error: "Falha ao consultar SHYFT/Meteora.", total: null, positions: [] },
-        { status: 503 }
-      );
+      return NextResponse.json({ total: 0, positions: [] });
     }
   }
 
@@ -384,11 +728,6 @@ export async function GET(request: Request) {
     } catch {
       continue;
     }
-  }
-
-  // Sem posições DeFi: retorna 0. O saldo da carteira vai em "Saldo"/"Valor", não em DeFi.
-  if (chain === "sol" && isSolAddress(address)) {
-    return NextResponse.json({ total: 0, positions: [] });
   }
 
   const hasAnyKey = moralisKey || shyftKey;

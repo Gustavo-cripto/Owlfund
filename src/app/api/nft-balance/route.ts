@@ -83,13 +83,54 @@ function getSolanaRpcCandidates(): string[] {
   return [...new Set(candidates.filter(Boolean))];
 }
 
+const EVM_L2_CHAINS_NFT = ["arbitrum", "base", "optimism", "polygon", "bsc", "avalanche"] as const;
+type EvmL2ChainNFT = typeof EVM_L2_CHAINS_NFT[number];
+
+function getEvmNftImage(item: EvmNftItem): string | undefined {
+  const nm = item.normalized_metadata;
+  if (nm?.image) return nm.image;
+  const m = item.media?.media_collection;
+  if (m?.high?.url) return m.high.url;
+  if (m?.medium?.url) return m.medium.url;
+  if (m?.low?.url) return m.low.url;
+  try {
+    const meta = typeof item.metadata === "string" ? JSON.parse(item.metadata || "{}") : item.metadata;
+    return (meta as { image?: string; image_url?: string } | null)?.image ?? (meta as { image?: string; image_url?: string } | null)?.image_url;
+  } catch { return undefined; }
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const address = searchParams.get("address");
   const chain = (searchParams.get("chain") ?? "eth") as ChainId;
+  const evmChain = searchParams.get("evmChain") as EvmL2ChainNFT | null;
 
   if (!address?.trim()) {
     return NextResponse.json({ error: "Endereço obrigatório." }, { status: 400 });
+  }
+
+  // Handle specific EVM L2 chains
+  if (evmChain && EVM_L2_CHAINS_NFT.includes(evmChain) && isEvmAddress(address)) {
+    const moralisKey = process.env.MORALIS_API_KEY;
+    if (!moralisKey) return NextResponse.json({ count: 0, nfts: [] });
+    try {
+      const res = await fetch(
+        `${MORALIS_EVM}/${address}/nft?chain=${evmChain}&format=decimal&limit=50&exclude_spam=true&normalizeMetadata=true&media_items=true`,
+        { headers: { Accept: "application/json", "X-API-Key": moralisKey }, next: { revalidate: 120 } }
+      );
+      if (!res.ok) return NextResponse.json({ count: 0, nfts: [] });
+      const data = (await res.json()) as { result?: EvmNftItem[] };
+      const nfts = (data.result ?? []).map((item) => ({
+        id: `${item.token_address}-${item.token_id}`,
+        name: item.name ?? "NFT",
+        image: getEvmNftImage(item),
+        tokenAddress: item.token_address,
+        tokenId: item.token_id,
+      }));
+      return NextResponse.json({ count: nfts.length, nfts });
+    } catch {
+      return NextResponse.json({ count: 0, nfts: [] });
+    }
   }
 
   if (!["eth", "sol", "btc", "ada"].includes(chain)) {
@@ -217,20 +258,7 @@ export async function GET(request: Request) {
 
   const moralisKey = process.env.MORALIS_API_KEY;
 
-  const getImage = (item: EvmNftItem): string | undefined => {
-    const nm = item.normalized_metadata;
-    if (nm?.image) return nm.image;
-    const m = item.media?.media_collection;
-    if (m?.high?.url) return m.high.url;
-    if (m?.medium?.url) return m.medium.url;
-    if (m?.low?.url) return m.low.url;
-    try {
-      const meta = typeof item.metadata === "string" ? JSON.parse(item.metadata || "{}") : item.metadata;
-      return meta?.image ?? meta?.image_url;
-    } catch {
-      return undefined;
-    }
-  };
+  const getImage = getEvmNftImage;
 
   if (chain === "eth" && isEvmAddress(address)) {
     if (!moralisKey) {
