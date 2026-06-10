@@ -54,7 +54,7 @@ const COINGECKO_IDS: Record<string, string> = {
   ADA: "cardano",
 };
 
-type TokenPrices = Record<string, number>; // symbol → EUR price
+type TokenPrices = Record<string, number> & { usdToEur?: number }; // symbol → EUR price
 
 type PricesApiResponse = {
   prices?: TokenPrices;
@@ -249,6 +249,7 @@ export default function PortfolioPage() {
   const [aiError, setAiError] = useState<string | null>(null);
   const [snapshotCexUsd, setSnapshotCexUsd] = useState(0);
   const [snapshotDefiUsd, setSnapshotDefiUsd] = useState(0);
+  const [usdToEur, setUsdToEur] = useState(0.92); // fallback ~0.92
 
   useEffect(() => {
     const snap = loadWalletSnapshot();
@@ -287,6 +288,9 @@ export default function PortfolioPage() {
           }
           if (data.prices && Object.keys(data.prices).length > 0) {
             applyPrices(data.prices);
+            if (data.prices.usdToEur && data.prices.usdToEur > 0) {
+              setUsdToEur(data.prices.usdToEur);
+            }
           }
         })
         .catch(() => {})
@@ -494,6 +498,9 @@ export default function PortfolioPage() {
     setSaveMessage(`Snapshot de ${new Date(row.created_at).toLocaleString("pt-BR")} carregado.`);
   };
 
+  const snapshotCexEur = snapshotCexUsd * usdToEur;
+  const snapshotDefiEur = snapshotDefiUsd * usdToEur;
+
   const manualCryptoTotal = useMemo(() => {
     return Object.values(cryptoHoldings).reduce((sum, holding) => {
       const value = Number(holding.buyValue ?? 0);
@@ -501,7 +508,7 @@ export default function PortfolioPage() {
     }, 0);
   }, [cryptoHoldings]);
 
-  const cryptoTotal = useMemo(() => sumCrypto(wallets) + manualCryptoTotal, [wallets, manualCryptoTotal]);
+  const cryptoTotal = useMemo(() => sumCrypto(wallets) + manualCryptoTotal + snapshotCexEur + snapshotDefiEur, [wallets, manualCryptoTotal, snapshotCexEur, snapshotDefiEur]);
   const stablecoinTotal = useMemo(() => {
     return stablecoinEntries.reduce((sum, e) => sum + (parseFloat(e.balance ?? "0") || 0), 0);
   }, [stablecoinEntries]);
@@ -643,8 +650,8 @@ export default function PortfolioPage() {
       })),
       ...manualItems.filter((item) => Number.isFinite(item.value) && item.value > 0),
       { label: "Stablecoins", symbol: "USDT/USDC", value: stablecoinTotal },
-      ...(snapshotCexUsd > 0 ? [{ label: "CEX / Exchange", symbol: "CEX", value: snapshotCexUsd }] : []),
-      ...(snapshotDefiUsd > 0 ? [{ label: "DeFi", symbol: "DeFi", value: snapshotDefiUsd }] : []),
+      ...(snapshotCexEur > 0 ? [{ label: "CEX / Exchange", symbol: "CEX", value: snapshotCexEur }] : []),
+      ...(snapshotDefiEur > 0 ? [{ label: "DeFi", symbol: "DeFi", value: snapshotDefiEur }] : []),
     ];
     const total = items.reduce((sum, item) => sum + item.value, 0);
     return items.map((item) => ({
@@ -991,8 +998,8 @@ export default function PortfolioPage() {
               ...Object.entries(cryptoHoldings).filter(([,h]) => Number(h.buyValue) > 0).map(([k,h]) => ({ name: k, value: Number(h.buyValue) })),
               ...(stablecoinTotal > 0 ? [{ name: "Stable", value: stablecoinTotal }] : []),
               ...(traditionalTotal > 0 ? [{ name: "Trad.", value: traditionalTotal }] : []),
-              ...(snapshotCexUsd > 0 ? [{ name: "CEX", value: snapshotCexUsd }] : []),
-              ...(snapshotDefiUsd > 0 ? [{ name: "DeFi", value: snapshotDefiUsd }] : []),
+              ...(snapshotCexEur > 0 ? [{ name: "CEX", value: snapshotCexEur }] : []),
+              ...(snapshotDefiEur > 0 ? [{ name: "DeFi", value: snapshotDefiEur }] : []),
             ].filter(d => d.value > 0);
             return (
               <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">

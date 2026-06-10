@@ -404,6 +404,7 @@ export default function WalletsPage() {
   const [adaBalanceErrors, setAdaBalanceErrors] = useState<Record<string, string | null>>({});
   const [defiTotals, setDefiTotals] = useState<Record<string, number | null>>({});
   const [cexHlTotalUsd, setCexHlTotalUsd] = useState(0);
+  const [usdToEurRate, setUsdToEurRate] = useState(0.92);
   const [defiLoading, setDefiLoading] = useState<Record<string, boolean>>({});
   const [defiErrors, setDefiErrors] = useState<Record<string, string | null>>({});
   const [nftCounts, setNftCounts] = useState<Record<string, number>>({});
@@ -1009,6 +1010,13 @@ export default function WalletsPage() {
     if (walletMode !== "web3") return;
     refreshWeb3Prices();
     const id = window.setInterval(refreshWeb3Prices, 60000);
+    // Fetch EUR/USD rate for CEX+DeFi conversion
+    fetch("/api/prices", { cache: "no-store" })
+      .then(r => r.json())
+      .then((d: { prices?: { usdToEur?: number } }) => {
+        if (d.prices?.usdToEur && d.prices.usdToEur > 0) setUsdToEurRate(d.prices.usdToEur);
+      })
+      .catch(() => {});
     return () => window.clearInterval(id);
   }, [walletMode]);
 
@@ -1250,6 +1258,7 @@ export default function WalletsPage() {
   }, [defiTotals]);
 
   useEffect(() => {
+    // Store as USD; portfolio page converts to EUR via usdToEur from /api/prices
     updateWalletSnapshot({ cexUsd: cexHlTotalUsd, defiUsd: totalDefiUsd });
   }, [cexHlTotalUsd, totalDefiUsd]);
 
@@ -4008,7 +4017,7 @@ export default function WalletsPage() {
               </p>
               <p className="text-lg font-semibold text-white">
                 €{" "}
-                {(walletsTotalUsd + totalDefiUsd + cexHlTotalUsd + cryptoManualTotal).toLocaleString("pt-PT", {
+                {(walletsTotalUsd + (totalDefiUsd + cexHlTotalUsd) * usdToEurRate + cryptoManualTotal).toLocaleString("pt-PT", {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}
@@ -4050,20 +4059,20 @@ export default function WalletsPage() {
               <span>
                 <span className="text-slate-500">Total carteiras:</span>{" "}
                 <span className="font-semibold text-white">
-                  € {(walletsTotalUsd + cexHlTotalUsd).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  € {(walletsTotalUsd + cexHlTotalUsd * usdToEurRate).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </span>
               <span>
                 <span className="text-slate-500">DeFi:</span>{" "}
                 <span className="font-semibold text-white">
-                  $ {totalDefiUsd.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  € {(totalDefiUsd * usdToEurRate).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </span>
               {cexHlTotalUsd > 0 && (
                 <span>
                   <span className="text-slate-500">CEX / HL:</span>{" "}
                   <span className="font-semibold text-white">
-                    $ {cexHlTotalUsd.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    € {(cexHlTotalUsd * usdToEurRate).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </span>
               )}

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-type Prices = { ETH: number; SOL: number; BTC: number; ADA: number };
+type Prices = { ETH: number; SOL: number; BTC: number; ADA: number; usdToEur?: number };
 type Benchmark = {
   btc_eur: number; btc_24h: number; btc_7d: number; btc_30d: number;
   eth_eur: number; eth_24h: number; eth_7d: number; eth_30d: number;
@@ -12,8 +12,7 @@ type Benchmark = {
 
 // ── Binance (EUR pairs via USDT + ECB rate approx) ──────────────────────────
 async function fromBinance(): Promise<{ prices: Prices; benchmark: Partial<Benchmark> }> {
-  // Binance has EUR pairs for major assets
-  const symbols = ["ETHEUR", "SOLEUR", "BTCEUR", "ADAEUR"];
+  const symbols = ["ETHEUR", "SOLEUR", "BTCEUR", "ADAEUR", "BTCUSDT"];
   const res = await fetch(
     `https://api.binance.com/api/v3/ticker/24hr?symbols=${JSON.stringify(symbols)}`,
     { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(6000) }
@@ -30,11 +29,15 @@ async function fromBinance(): Promise<{ prices: Prices; benchmark: Partial<Bench
       change24h: parseFloat(row.priceChangePercent),
     };
   }
+  const btcEur = map.BTCEUR?.price ?? 0;
+  const btcUsd = map.BTCUSDT?.price ?? 0;
+  const usdToEur = btcEur > 0 && btcUsd > 0 ? btcEur / btcUsd : undefined;
   const prices: Prices = {
     ETH: map.ETHEUR?.price ?? 0,
     SOL: map.SOLEUR?.price ?? 0,
-    BTC: map.BTCEUR?.price ?? 0,
+    BTC: btcEur,
     ADA: map.ADAEUR?.price ?? 0,
+    usdToEur,
   };
   const benchmark: Partial<Benchmark> = {
     btc_eur: prices.BTC,
@@ -47,7 +50,7 @@ async function fromBinance(): Promise<{ prices: Prices; benchmark: Partial<Bench
 
 // ── Kraken (EUR pairs) ───────────────────────────────────────────────────────
 async function fromKraken(): Promise<{ prices: Prices; benchmark: Partial<Benchmark> }> {
-  const pairs = "XETHZEUR,SOLEUR,XXBTZEUR,ADAEUR";
+  const pairs = "XETHZEUR,SOLEUR,XXBTZEUR,ADAEUR,XXBTZUSD";
   const res = await fetch(
     `https://api.kraken.com/0/public/Ticker?pair=${pairs}`,
     { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(6000) }
@@ -59,11 +62,15 @@ async function fromKraken(): Promise<{ prices: Prices; benchmark: Partial<Benchm
   const r = data.result;
   const getPrice = (key: string) => parseFloat(r[key]?.c[0] ?? "0");
   const getChange = (key: string) => parseFloat(r[key]?.P[1] ?? "0");
+  const btcEur = getPrice("XXBTZEUR");
+  const btcUsd = getPrice("XXBTZUSD");
+  const usdToEur = btcEur > 0 && btcUsd > 0 ? btcEur / btcUsd : undefined;
   const prices: Prices = {
     ETH: getPrice("XETHZEUR"),
     SOL: getPrice("SOLEUR"),
-    BTC: getPrice("XXBTZEUR"),
+    BTC: btcEur,
     ADA: getPrice("ADAEUR"),
+    usdToEur,
   };
   const benchmark: Partial<Benchmark> = {
     btc_eur: prices.BTC,
@@ -77,7 +84,7 @@ async function fromKraken(): Promise<{ prices: Prices; benchmark: Partial<Benchm
 // ── CoinGecko (with retries) ─────────────────────────────────────────────────
 async function fromCoinGecko(): Promise<{ prices: Prices; benchmark: Partial<Benchmark> }> {
   const res = await fetch(
-    "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,cardano,gold&vs_currencies=eur&include_24hr_change=true&include_7d_change=true&include_30d_change=true",
+    "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,cardano,gold&vs_currencies=eur,usd&include_24hr_change=true&include_7d_change=true&include_30d_change=true",
     {
       headers: {
         "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36",
@@ -87,13 +94,16 @@ async function fromCoinGecko(): Promise<{ prices: Prices; benchmark: Partial<Ben
     }
   );
   if (!res.ok) throw new Error(`CoinGecko ${res.status}`);
-  type CoinData = { eur?: number; eur_24h_change?: number; eur_7d_change?: number; eur_30d_change?: number };
+  type CoinData = { eur?: number; usd?: number; eur_24h_change?: number; eur_7d_change?: number; eur_30d_change?: number };
   const d = (await res.json()) as Record<string, CoinData>;
+  const btcEur = d.bitcoin?.eur ?? 0;
+  const btcUsd = d.bitcoin?.usd ?? 0;
   const prices: Prices = {
     ETH: d.ethereum?.eur ?? 0,
     SOL: d.solana?.eur ?? 0,
-    BTC: d.bitcoin?.eur ?? 0,
+    BTC: btcEur,
     ADA: d.cardano?.eur ?? 0,
+    usdToEur: btcEur > 0 && btcUsd > 0 ? btcEur / btcUsd : undefined,
   };
   const benchmark: Partial<Benchmark> = {
     btc_eur: d.bitcoin?.eur ?? 0,
