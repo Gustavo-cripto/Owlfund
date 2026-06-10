@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
-type WalletBalance = { label: string; symbol: string; balance?: string; address?: string };
+type WalletBalance = { label: string; symbol: string; balance?: string; address?: string; network?: string };
 type TokenPrices = Record<string, number>;
 type SnapshotTotal = { id: number; createdAt: number; total: number };
 type HistoricalPrices = { "1d": Record<string, number>; "7d": Record<string, number>; "30d": Record<string, number> };
@@ -42,6 +42,35 @@ const TABS: { key: Tab; label: string }[] = [
 const SYMBOL_CHAIN: Record<string, string> = {
   ETH: "eth", SOL: "sol", BTC: "btc", ADA: "ada",
 };
+
+// ── Network name → Moralis/API chain param ────────────────────────────────
+const NETWORK_TO_CHAIN: Record<string, { chain: string; evmChain?: string }> = {
+  Ethereum:  { chain: "eth" },
+  Arbitrum:  { chain: "eth", evmChain: "arbitrum" },
+  Base:      { chain: "eth", evmChain: "base" },
+  Optimism:  { chain: "eth", evmChain: "optimism" },
+  Polygon:   { chain: "eth", evmChain: "polygon" },
+  BSC:       { chain: "eth", evmChain: "bsc" },
+  zkSync:    { chain: "eth", evmChain: "zksync" },
+  Linea:     { chain: "eth", evmChain: "linea" },
+  Solana:    { chain: "sol" },
+  Bitcoin:   { chain: "btc" },
+  Cardano:   { chain: "ada" },
+};
+
+function nftUrl(address: string, network?: string, symbol?: string): string {
+  const net = network ?? (symbol ? { ETH: "Ethereum", SOL: "Solana", BTC: "Bitcoin", ADA: "Cardano" }[symbol] : undefined);
+  const cfg = NETWORK_TO_CHAIN[net ?? "Ethereum"] ?? { chain: "eth" };
+  const base = `/api/nft-balance?address=${encodeURIComponent(address)}&chain=${cfg.chain}`;
+  return cfg.evmChain ? `${base}&evmChain=${cfg.evmChain}` : base;
+}
+
+function defiUrl(address: string, network?: string, symbol?: string): string {
+  const net = network ?? (symbol ? { ETH: "Ethereum", SOL: "Solana" }[symbol] : undefined);
+  const cfg = NETWORK_TO_CHAIN[net ?? "Ethereum"] ?? { chain: "eth" };
+  const base = `/api/defi-balance?address=${encodeURIComponent(address)}&chain=${cfg.chain}`;
+  return cfg.evmChain ? `${base}&evmChain=${cfg.evmChain}` : base;
+}
 
 // ── Types for API responses ──────────────────────────────────────────────────
 type NftItem = { id: string; name: string; image?: string; tokenAddress?: string; tokenId?: string };
@@ -128,7 +157,12 @@ function TokenRow({ wallet, price, pnlToday, total }: { wallet: WalletBalance; p
       <div className="h-9 w-9 rounded-full bg-slate-800 flex items-center justify-center shrink-0 text-sm font-bold text-slate-300">{wallet.symbol.slice(0, 2)}</div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-white">{wallet.label}</p>
-        <p className="text-xs text-slate-500">{wallet.symbol}</p>
+        <p className="text-xs text-slate-500">
+          {wallet.symbol}
+          {wallet.network && wallet.network !== wallet.symbol && (
+            <span className="ml-1.5 rounded px-1 py-0.5 text-[10px] border border-slate-700 text-slate-500">{wallet.network}</span>
+          )}
+        </p>
       </div>
       <div className="w-24 text-right">
         <p className="text-sm text-slate-300">{price > 0 ? `€ ${price >= 1000 ? (price/1000).toFixed(2)+"K" : price.toFixed(2)}` : "—"}</p>
@@ -219,6 +253,7 @@ export default function PortfolioChartSection({
       address: w.address!,
       chain: SYMBOL_CHAIN[w.symbol] ?? "eth",
       label: w.label,
+      url: nftUrl(w.address!, w.network, w.symbol),
     }));
 
     if (targets.length === 0) return;
@@ -228,7 +263,7 @@ export default function PortfolioChartSection({
 
     targets.forEach(async (t, i) => {
       try {
-        const res = await fetch(`/api/nft-balance?address=${encodeURIComponent(t.address)}&chain=${t.chain}`);
+        const res = await fetch(t.url);
         const data = (await res.json()) as { nfts?: NftItem[]; count?: number; error?: string };
         setNftData(prev => {
           const next = [...prev];
@@ -258,6 +293,7 @@ export default function PortfolioChartSection({
         address: w.address!,
         chain: SYMBOL_CHAIN[w.symbol] ?? "eth",
         label: w.label,
+        url: defiUrl(w.address!, w.network, w.symbol),
       }));
 
     if (targets.length === 0) return;
@@ -267,7 +303,7 @@ export default function PortfolioChartSection({
 
     targets.forEach(async (t, i) => {
       try {
-        const res = await fetch(`/api/defi-balance?address=${encodeURIComponent(t.address)}&chain=${t.chain}`);
+        const res = await fetch(t.url);
         const data = (await res.json()) as { total?: number; positions?: DefiPosition[]; error?: string };
         setDefiData(prev => {
           const next = [...prev];

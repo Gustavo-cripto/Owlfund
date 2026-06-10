@@ -32,6 +32,7 @@ type WalletBalance = {
   symbol: string;
   balance?: string;
   address?: string;
+  network?: string; // "Ethereum" | "Arbitrum" | "Base" | ...
 };
 
 type SubscriptionStatus = {
@@ -111,30 +112,38 @@ const snapshotTotal = (snapshot: WalletSnapshot, prices: TokenPrices = {}) =>
   sumEntries(snapshot.ada) * (prices.ADA ?? 0);
 
 const snapshotToWallets = (snapshot: WalletSnapshot, prices: TokenPrices = {}): WalletBalance[] => [
-  {
-    label: "Ethereum",
+  // Each ETH wallet entry as its own row (mainnet + L2s)
+  ...(snapshot.eth ?? []).map((entry) => ({
+    label: entry.label || (entry.address ? `${entry.address.slice(0, 6)}…${entry.address.slice(-4)}` : "Ethereum"),
     symbol: "ETH",
-    balance: (sumEntries(snapshot.eth) * (prices.ETH ?? 0)).toFixed(2),
-    address: snapshot.eth?.[0]?.address,
-  },
-  {
-    label: "Solana",
+    balance: (Number(entry.balance ?? 0) * (prices.ETH ?? 0)).toFixed(2),
+    address: entry.address,
+    network: entry.network ?? "Ethereum",
+  })),
+  // SOL wallets
+  ...(snapshot.sol ?? []).map((entry) => ({
+    label: entry.label || (entry.address ? `${entry.address.slice(0, 6)}…${entry.address.slice(-4)}` : "Solana"),
     symbol: "SOL",
-    balance: (sumEntries(snapshot.sol) * (prices.SOL ?? 0)).toFixed(2),
-    address: snapshot.sol?.[0]?.address,
-  },
-  {
-    label: "Bitcoin",
+    balance: (Number(entry.balance ?? 0) * (prices.SOL ?? 0)).toFixed(2),
+    address: entry.address,
+    network: "Solana",
+  })),
+  // BTC wallets
+  ...(snapshot.btc ?? []).map((entry) => ({
+    label: entry.label || (entry.address ? `${entry.address.slice(0, 6)}…${entry.address.slice(-4)}` : "Bitcoin"),
     symbol: "BTC",
-    balance: (sumEntries(snapshot.btc) * (prices.BTC ?? 0)).toFixed(2),
-    address: snapshot.btc?.[0]?.address,
-  },
-  {
-    label: "Cardano",
+    balance: (Number(entry.balance ?? 0) * (prices.BTC ?? 0)).toFixed(2),
+    address: entry.address,
+    network: "Bitcoin",
+  })),
+  // ADA wallets
+  ...(snapshot.ada ?? []).map((entry) => ({
+    label: entry.label || (entry.address ? `${entry.address.slice(0, 6)}…${entry.address.slice(-4)}` : "Cardano"),
     symbol: "ADA",
-    balance: (sumEntries(snapshot.ada) * (prices.ADA ?? 0)).toFixed(2),
-    address: snapshot.ada?.[0]?.address,
-  },
+    balance: (Number(entry.balance ?? 0) * (prices.ADA ?? 0)).toFixed(2),
+    address: entry.address,
+    network: "Cardano",
+  })),
 ];
 
 const formatAddress = (address?: string) => {
