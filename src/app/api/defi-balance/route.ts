@@ -543,9 +543,18 @@ async function fetchMeteoraPositionsViaShyft(
 const EVM_L2_CHAINS = ["arbitrum", "base", "optimism", "polygon", "bsc", "avalanche", "linea", "zksync"] as const;
 type EvmL2Chain = typeof EVM_L2_CHAINS[number];
 
-// ── Uniswap V3 via contracts (no external API needed) ────────────────────────
-const UNI_V3_NPM    = "0xC36442b4a4522E871399CD717aBDD847Ab11FE88"; // NonfungiblePositionManager (all chains)
-const UNI_V3_FACTORY = "0x1F98431c8aD98523631AE4a59f267346ea31F984"; // Factory (all chains)
+// ── Uniswap V3 + V4 via contracts ────────────────────────────────────────────
+const UNI_V3_NPM    = "0xC36442b4a4522E871399CD717aBDD847Ab11FE88"; // V3 NonfungiblePositionManager (all chains)
+const UNI_V3_FACTORY = "0x1F98431c8aD98523631AE4a59f267346ea31F984"; // V3 Factory (all chains)
+
+// V4 PositionManager addresses (chain-specific, from @uniswap/sdk-core)
+const UNI_V4_NPM: Record<string, string> = {
+  eth:      "0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e",
+  arbitrum: "0xd88f38f930b7952f2db2432cb002e7abbf3dd869",
+  base:     "0x7c5f5a4bbd8fd63184577525326123b519429bdc",
+  optimism: "0x3c3ea4b57a46241e54610e5f022e5c45859a1017",
+  polygon:  "0x1ec2ebf4f37e7363fdfe3551602425af0b3ceef9",
+};
 
 const EVM_RPC: Record<string, string> = {
   eth:      "https://cloudflare-eth.com",
@@ -690,6 +699,7 @@ function decodeInt24(hex64: string): number {
   const raw = parseInt(hex64.slice(-6), 16);
   return raw >= 0x800000 ? raw - 0x1000000 : raw;
 }
+
 
 async function fetchUniswapV3ViaContracts(
   address: string,
