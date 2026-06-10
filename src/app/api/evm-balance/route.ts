@@ -11,10 +11,10 @@ const blast = { id: 81457, name: "Blast", nativeCurrency: { name: "Ether", symbo
 
 const chainMap = {
   Ethereum:  { chain: mainnet,   rpcs: ["https://ethereum.publicnode.com", "https://cloudflare-eth.com", "https://eth.drpc.org"] },
-  Arbitrum:  { chain: arbitrum,  rpcs: ["https://arb1.arbitrum.io/rpc", "https://arbitrum-one.publicnode.com", "https://arbitrum.llamarpc.com", "https://1rpc.io/arb"] },
-  Optimism:  { chain: optimism,  rpcs: ["https://mainnet.optimism.io", "https://optimism.publicnode.com", "https://optimism.drpc.org"] },
-  Base:      { chain: base,      rpcs: ["https://mainnet.base.org", "https://base.publicnode.com", "https://base.drpc.org"] },
-  Polygon:   { chain: polygon,   rpcs: ["https://polygon-rpc.com", "https://polygon-bor.publicnode.com", "https://polygon.drpc.org"] },
+  Arbitrum:  { chain: arbitrum,  rpcs: ["https://arb1.arbitrum.io/rpc", "https://arbitrum.llamarpc.com", "https://1rpc.io/arb", "https://rpc.ankr.com/arbitrum"] },
+  Optimism:  { chain: optimism,  rpcs: ["https://mainnet.optimism.io", "https://1rpc.io/op", "https://rpc.ankr.com/optimism", "https://optimism.drpc.org"] },
+  Base:      { chain: base,      rpcs: ["https://mainnet.base.org", "https://1rpc.io/base", "https://rpc.ankr.com/base", "https://base.drpc.org"] },
+  Polygon:   { chain: polygon,   rpcs: ["https://polygon-rpc.com", "https://1rpc.io/matic", "https://rpc.ankr.com/polygon", "https://polygon.drpc.org"] },
   BSC:       { chain: bsc,       rpcs: ["https://bsc-dataseed.binance.org", "https://bsc.publicnode.com"] },
   Avalanche: { chain: avalanche, rpcs: ["https://api.avax.network/ext/bc/C/rpc", "https://avalanche-c-chain.publicnode.com"] },
   Fantom:    { chain: fantom,    rpcs: ["https://rpcapi.fantom.network", "https://fantom.publicnode.com"] },

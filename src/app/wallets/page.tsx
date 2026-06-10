@@ -329,6 +329,7 @@ export default function WalletsPage() {
     eternl: false,
   });
   const [ethAddress, setEthAddress] = useState<string>();
+  const [ethConnectedNetwork, setEthConnectedNetwork] = useState<string>("Ethereum");
   const [ethBalance, setEthBalance] = useState<string>();
   const [ethError, setEthError] = useState<string | null>(null);
   const [ethLoading, setEthLoading] = useState(false);
@@ -1302,6 +1303,7 @@ export default function WalletsPage() {
       }
       const address = await connectEvmProvider(selectedProvider);
       setEthAddress(address);
+      setEthConnectedNetwork(selectedEthConnectNetwork);
       const balance = await fetchEvmBalanceServerSide(address, selectedEthConnectNetwork);
       const formatted = Number(balance).toFixed(4);
       setEthBalance(formatted);
@@ -1335,13 +1337,13 @@ export default function WalletsPage() {
       setEthError(null);
       const address = await connectWalletConnect();
       setEthAddress(address);
-      const balance = await getEthBalance(address);
+      const balance = await fetchEvmBalanceServerSide(address, "Ethereum");
       const formatted = Number(balance).toFixed(4);
       setEthBalance(formatted);
       const nextWallets = upsertWallet(
         ethWallets,
         { address, balance: formatted, network: "Ethereum", label: "WalletConnect" },
-        (item) => item.address === address
+        (item) => item.address === address && item.network === "Ethereum"
       );
       setEthWallets(nextWallets);
       updateWalletSnapshot({ eth: nextWallets, sol: solWallets, btc: btcWallets, ada: adaWallets });
@@ -1371,13 +1373,13 @@ export default function WalletsPage() {
       setEthLoading(true);
       setEthError(null);
       if (ethAddress) {
-        const balance = await getEthBalance(ethAddress as `0x${string}`);
+        const balance = await fetchEvmBalanceServerSide(ethAddress, ethConnectedNetwork);
         const formatted = Number(balance).toFixed(4);
         setEthBalance(formatted);
         const nextWallets = upsertWallet(
           ethWallets,
-          { address: ethAddress, balance: formatted, network: "Ethereum", label: "MetaMask" },
-          (item) => item.address === ethAddress && item.network === "Ethereum"
+          { address: ethAddress, balance: formatted, network: ethConnectedNetwork },
+          (item) => item.address === ethAddress && item.network === ethConnectedNetwork
         );
         setEthWallets(nextWallets);
       }
@@ -1401,6 +1403,7 @@ export default function WalletsPage() {
     setEthWallets([]);
     setEthAddress(undefined);
     setEthBalance(undefined);
+    setEthConnectedNetwork("Ethereum");
     setEthError(null);
     updateWalletSnapshot({ eth: [], sol: solWallets, btc: btcWallets, ada: adaWallets });
   };
@@ -2780,7 +2783,7 @@ export default function WalletsPage() {
               {ethNewError ? <p className="text-xs text-rose-300">{ethNewError}</p> : null}
               <div className="space-y-2">
                 {ethWallets.map((item) => {
-                  const isConnected = item.address === ethAddress && item.network === "Ethereum";
+                  const isConnected = item.address === ethAddress && item.network === ethConnectedNetwork;
                   const key = ethBalanceKey(item.address ?? "", item.network ?? "");
                   const loading = ethBalancesLoading[key];
                   const err = ethBalanceErrors[key];
