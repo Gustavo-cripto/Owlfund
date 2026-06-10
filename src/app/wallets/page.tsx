@@ -2794,11 +2794,18 @@ export default function WalletsPage() {
                       : err
                         ? null
                         : ethBalancesByKey[key] ?? item.balance ?? "—";
+                  const dk = item.address ? defiKey(item.address, "eth") : null;
+                  const itemDefi = dk ? (defiTotals[dk] ?? null) : null;
+                  const itemDefiLoading = dk ? !!defiLoading[dk] : false;
+                  const itemNftCount = dk ? (nftCounts[dk] ?? null) : null;
+                  const itemNftLoading = dk ? !!nftLoading[dk] : false;
+                  const itemNfts = dk ? (nftsByKey[dk] ?? []) : [];
                   return (
                     <div
                       key={`${item.address}-${item.network}`}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300"
+                      className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300"
                     >
+                      <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="space-y-1">
                         <p className="font-semibold text-white">
                           {item.network ?? "Ethereum"}
@@ -2827,6 +2834,39 @@ export default function WalletsPage() {
                             {ethShown[item.address ?? ""] ? "🙈" : "👁️"}
                           </button>
                         </div>
+                        <p className="text-slate-500">
+                          DeFi:{" "}
+                          {itemDefiLoading
+                            ? "A carregar..."
+                            : itemDefi != null && itemDefi >= 0.01
+                              ? <span className="text-emerald-400">${itemDefi.toFixed(2)}</span>
+                              : "—"}
+                        </p>
+                        <p className="text-slate-500">
+                          NFT:{" "}
+                          {itemNftLoading
+                            ? "A carregar..."
+                            : itemNftCount != null
+                              ? `${itemNftCount} ${itemNftCount === 1 ? "item" : "itens"}`
+                              : "—"}
+                        </p>
+                        {itemNfts.length > 0 && (
+                          <div className="mt-1 grid grid-cols-4 gap-1 max-w-[160px]">
+                            {itemNfts.slice(0, 8).map((nft) => (
+                              <a
+                                key={nft.id}
+                                href={nft.tokenAddress && nft.tokenId ? `https://opensea.io/assets/ethereum/${nft.tokenAddress}/${nft.tokenId}` : "#"}
+                                target="_blank" rel="noopener noreferrer"
+                                className="aspect-square overflow-hidden rounded border border-slate-700 bg-slate-800"
+                                title={nft.name}
+                              >
+                                {nft.image
+                                  ? <img src={nft.image} alt={nft.name} className="h-full w-full object-cover" />
+                                  : <div className="flex h-full w-full items-center justify-center text-[8px] text-slate-500">—</div>}
+                              </a>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <div className="text-right">
                         {balanceDisplay != null && (
@@ -2883,6 +2923,7 @@ export default function WalletsPage() {
                             Remover
                           </button>
                         </div>
+                      </div>
                       </div>
                     </div>
                   );
