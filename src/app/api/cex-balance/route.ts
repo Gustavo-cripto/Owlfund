@@ -57,17 +57,17 @@ async function fetchKraken(apiKey: string, apiSecret: string): Promise<CexBalanc
 // ── CoinEx ─────────────────────────────────────────────────────────────────
 
 async function fetchCoinEx(apiKey: string, apiSecret: string): Promise<CexBalance[]> {
-  const ts = Date.now().toString(); // CoinEx v2 uses milliseconds
-  const method = "GET";
+  const key    = apiKey.trim();
+  const secret = apiSecret.trim();
+  const ts   = Date.now().toString(); // CoinEx v2: milliseconds
   const path = "/assets/spot/balance";
-  const body = "";
-  // CoinEx v2 signature: METHOD\nPATH\nBODY\nTIMESTAMP (newline separated, milliseconds)
-  const toSign = `${method}\n${path}\n${body}\n${ts}`;
-  const sig = crypto.createHmac("sha256", apiSecret).update(toSign).digest("hex");
+  // CoinEx v2 signature: METHOD + PATH + BODY + TIMESTAMP (no separators)
+  const toSign = `GET${path}${ts}`;
+  const sig = crypto.createHmac("sha256", secret).update(toSign).digest("hex");
   const res = await fetch(`https://api.coinex.com/v2${path}`, {
     headers: {
-      "X-COINEX-KEY": apiKey,
-      "X-COINEX-SIGN": sig,
+      "X-COINEX-KEY":       key,
+      "X-COINEX-SIGN":      sig,
       "X-COINEX-TIMESTAMP": ts,
     },
   });

@@ -694,114 +694,110 @@ async function fetchUniswapV3ViaContracts(
 
   const paddedOwner = address.toLowerCase().slice(2).padStart(64, "0");
 
-  // balanceOf(address) → 0x70a08231
+  // 1. balanceOf — single call
   const balHex = await ethCallRpc(rpc, UNI_V3_NPM, `0x70a08231${paddedOwner}`);
   if (balHex === "0x") return { total: 0, positions: [] };
   const balance = Number(BigInt("0x" + balHex.slice(2)));
   if (balance === 0 || balance > 100) return { total: 0, positions: [] };
-
-  // tokenOfOwnerByIndex(address, uint256) → 0x2f745c59 — fetch all in parallel
   const cap = Math.min(balance, 30);
-  const tokenIds = (await Promise.all(
-    Array.from({ length: cap }, (_, i) => {
+
+  // 2. tokenIds + ethPrice — all parallel
+  const [tokenIdResults, ethPrice] = await Promise.all([
+    Promise.all(Array.from({ length: cap }, (_, i) => {
       const idx = BigInt(i).toString(16).padStart(64, "0");
       return ethCallRpc(rpc, UNI_V3_NPM, `0x2f745c59${paddedOwner}${idx}`);
-    })
-  )).map(r => r !== "0x" ? BigInt("0x" + r.slice(2)) : null).filter((id): id is bigint => id !== null);
+    })),
+    (async () => { const f = CHAINLINK_ETH_USD[chain]; return f ? chainlinkPrice(rpc, f) : 0; })(),
+  ]);
 
+  const tokenIds = tokenIdResults
+    .map(r => r !== "0x" ? BigInt("0x" + r.slice(2)) : null)
+    .filter((id): id is bigint => id !== null);
   if (tokenIds.length === 0) return { total: 0, positions: [] };
 
-  // positions(uint256) → 0x99fbab88 — fetch all in parallel
+  // 3. positions data — all parallel
   const posData = await Promise.all(
     tokenIds.map(id => ethCallRpc(rpc, UNI_V3_NPM, `0x99fbab88${id.toString(16).padStart(64, "0")}`))
   );
 
-  // Fetch ETH price once from Chainlink
-  const ethFeed = CHAINLINK_ETH_USD[chain];
-  const ethPrice = ethFeed ? await chainlinkPrice(rpc, ethFeed) : 0;
-  let btcPrice = 0;
-
-  const wethAddr = (WETH_ADDR[chain] ?? "").toLowerCase();
-  const wbtcAddr = (WBTC_ADDR[chain] ?? "").toLowerCase();
-
-  const decimalsCache = new Map<string, number>();
-  const poolSqrtCache = new Map<string, string>();
-
-  async function getDecimals(token: string): Promise<number> {
-    if (decimalsCache.has(token)) return decimalsCache.get(token)!;
-    const r = await ethCallRpc(rpc, token, "0x313ce567"); // decimals()
-    const d = r === "0x" ? 18 : Number(BigInt("0x" + r.slice(2, 66)));
-    decimalsCache.set(token, d);
-    return d;
-  }
-
-  async function getPoolSqrt(token0: string, token1: string, fee: number): Promise<string | null> {
-    const key = `${token0}-${token1}-${fee}`;
-    if (poolSqrtCache.has(key)) return poolSqrtCache.get(key)!;
-    const t0p = token0.slice(2).padStart(64, "0");
-    const t1p = token1.slice(2).padStart(64, "0");
-    const fp  = fee.toString(16).padStart(64, "0");
-    const poolHex = await ethCallRpc(rpc, UNI_V3_FACTORY, `0x1698ee82${t0p}${t1p}${fp}`);
-    if (poolHex === "0x") return null;
-    const poolAddr = "0x" + poolHex.slice(26); // last 20 bytes
-    const slot0 = await ethCallRpc(rpc, poolAddr, "0x3850c7bd"); // slot0()
-    if (slot0 === "0x") return null;
-    const sqrtHex = slot0.slice(2, 66); // first 32 bytes = sqrtPriceX96
-    poolSqrtCache.set(key, sqrtHex);
-    return sqrtHex;
-  }
-
-  let total = 0;
-  const positions: { name: string; usd: number }[] = [];
+  // 4. Decode positions, collect unique tokens and pool keys
+  type Decoded = { token0: string; token1: string; fee: number; tickLower: number; tickUpper: number; liquidity: bigint };
+  const decoded: Decoded[] = [];
+  const uniqueTokens = new Set<string>();
+  const uniquePools  = new Set<string>();
 
   for (const raw of posData) {
     if (raw === "0x" || raw.length < 2 + 12 * 64) continue;
     const d = raw.slice(2);
-    // Each ABI field = 32 bytes = 64 hex chars. Byte offset × 2 = hex offset.
+    // ABI: each field = 32 bytes = 64 hex chars. Byte offset × 2 = hex offset.
     // nonce(0→0) operator(32→64) token0(64→128) token1(96→192) fee(128→256)
     // tickLower(160→320) tickUpper(192→384) liquidity(224→448)
-    const token0 = ("0x" + d.slice(152, 192)).toLowerCase();  // hex 128+24 to 192
-    const token1 = ("0x" + d.slice(216, 256)).toLowerCase();  // hex 192+24 to 256
-    const fee    = Number(BigInt("0x" + d.slice(256, 320)));
+    const token0   = ("0x" + d.slice(152, 192)).toLowerCase();
+    const token1   = ("0x" + d.slice(216, 256)).toLowerCase();
+    const fee      = Number(BigInt("0x" + d.slice(256, 320)));
     const tickLower = decodeInt24(d.slice(320, 384));
     const tickUpper = decodeInt24(d.slice(384, 448));
     const liquidity = BigInt("0x" + d.slice(448, 512));
     if (liquidity === BigInt(0)) continue;
+    decoded.push({ token0, token1, fee, tickLower, tickUpper, liquidity });
+    uniqueTokens.add(token0);
+    uniqueTokens.add(token1);
+    uniquePools.add(`${token0}:${token1}:${fee}`);
+  }
+  if (decoded.length === 0) return { total: 0, positions: [] };
 
-    const [dec0, dec1, sqrtHex] = await Promise.all([
-      getDecimals(token0),
-      getDecimals(token1),
-      getPoolSqrt(token0, token1, fee),
-    ]);
+  // 5. All decimals + all pool sqrtPrices — fully parallel
+  const decimalsMap = new Map<string, number>();
+  const sqrtMap     = new Map<string, string>();
+
+  const needsBtc = decoded.some(p => p.token0 === (WBTC_ADDR[chain] ?? "x").toLowerCase() || p.token1 === (WBTC_ADDR[chain] ?? "x").toLowerCase());
+
+  await Promise.all([
+    ...[...uniqueTokens].map(async (tok) => {
+      const r = await ethCallRpc(rpc, tok, "0x313ce567");
+      decimalsMap.set(tok, r === "0x" ? 18 : Number(BigInt("0x" + r.slice(2, 66))));
+    }),
+    ...[...uniquePools].map(async (pk) => {
+      const [t0, t1, fs] = pk.split(":");
+      const poolHex = await ethCallRpc(rpc, UNI_V3_FACTORY,
+        `0x1698ee82${t0.slice(2).padStart(64,"0")}${t1.slice(2).padStart(64,"0")}${parseInt(fs).toString(16).padStart(64,"0")}`);
+      if (poolHex === "0x") return;
+      const slot0 = await ethCallRpc(rpc, "0x" + poolHex.slice(26), "0x3850c7bd");
+      if (slot0 !== "0x") sqrtMap.set(pk, slot0.slice(2, 66));
+    }),
+    needsBtc
+      ? (async () => { const f = CHAINLINK_BTC_USD[chain]; if (f) { /* fetched later */ } })()
+      : Promise.resolve(),
+  ]);
+
+  let btcPrice = 0;
+  if (needsBtc) {
+    const f = CHAINLINK_BTC_USD[chain];
+    if (f) btcPrice = await chainlinkPrice(rpc, f);
+  }
+
+  // 6. Compute USD values
+  const wethAddr = (WETH_ADDR[chain] ?? "").toLowerCase();
+  const wbtcAddr = (WBTC_ADDR[chain] ?? "").toLowerCase();
+  let total = 0;
+  const positions: { name: string; usd: number }[] = [];
+
+  for (const p of decoded) {
+    const sqrtHex = sqrtMap.get(`${p.token0}:${p.token1}:${p.fee}`);
     if (!sqrtHex) continue;
-
+    const dec0 = decimalsMap.get(p.token0) ?? 18;
+    const dec1 = decimalsMap.get(p.token1) ?? 18;
     const { amount0, amount1 } = calcUniV3Amounts(
-      liquidity.toString(), "0x" + sqrtHex, tickLower, tickUpper, dec0, dec1
+      p.liquidity.toString(), "0x" + sqrtHex, p.tickLower, p.tickUpper, dec0, dec1
     );
-
-    const isStable0 = STABLECOINS.has(token0);
-    const isStable1 = STABLECOINS.has(token1);
-    const isWeth0   = token0 === wethAddr;
-    const isWeth1   = token1 === wethAddr;
-    const isWbtc0   = token0 === wbtcAddr;
-    const isWbtc1   = token1 === wbtcAddr;
-
-    if (!btcPrice && (isWbtc0 || isWbtc1)) {
-      const btcFeed = CHAINLINK_BTC_USD[chain];
-      if (btcFeed) btcPrice = await chainlinkPrice(rpc, btcFeed);
-    }
-
-    const price0 = isStable0 ? 1 : isWeth0 ? ethPrice : isWbtc0 ? btcPrice : 0;
-    const price1 = isStable1 ? 1 : isWeth1 ? ethPrice : isWbtc1 ? btcPrice : 0;
-
+    const price0 = STABLECOINS.has(p.token0) ? 1 : p.token0 === wethAddr ? ethPrice : p.token0 === wbtcAddr ? btcPrice : 0;
+    const price1 = STABLECOINS.has(p.token1) ? 1 : p.token1 === wethAddr ? ethPrice : p.token1 === wbtcAddr ? btcPrice : 0;
     let usd = amount0 * price0 + amount1 * price1;
-    // If only one side is priced (out-of-range position), double it as estimate
     if (price0 > 0 && price1 === 0 && amount1 < 0.001) usd = amount0 * price0 * 2;
     if (price1 > 0 && price0 === 0 && amount0 < 0.001) usd = amount1 * price1 * 2;
     if (usd < 0.01) continue;
-
-    const sym0 = TOKEN_SYMBOLS[token0] ?? token0.slice(0, 8) + "…";
-    const sym1 = TOKEN_SYMBOLS[token1] ?? token1.slice(0, 8) + "…";
+    const sym0 = TOKEN_SYMBOLS[p.token0] ?? p.token0.slice(0, 8) + "…";
+    const sym1 = TOKEN_SYMBOLS[p.token1] ?? p.token1.slice(0, 8) + "…";
     total += usd;
     positions.push({ name: `Uniswap V3 ${sym0}/${sym1}`, usd });
   }
