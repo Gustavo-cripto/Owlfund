@@ -402,6 +402,7 @@ export default function WalletsPage() {
   const [adaBalancesLoading, setAdaBalancesLoading] = useState<Record<string, boolean>>({});
   const [adaBalanceErrors, setAdaBalanceErrors] = useState<Record<string, string | null>>({});
   const [defiTotals, setDefiTotals] = useState<Record<string, number | null>>({});
+  const [cexHlTotalUsd, setCexHlTotalUsd] = useState(0);
   const [defiLoading, setDefiLoading] = useState<Record<string, boolean>>({});
   const [defiErrors, setDefiErrors] = useState<Record<string, string | null>>({});
   const [nftCounts, setNftCounts] = useState<Record<string, number>>({});
@@ -3820,11 +3821,11 @@ export default function WalletsPage() {
             </div>
             <div className="text-right">
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                Total (carteiras + DeFi + manuais)
+                Total (carteiras + DeFi + CEX/HL + manuais)
               </p>
               <p className="text-lg font-semibold text-white">
                 €{" "}
-                {(walletsTotalUsd + totalDefiUsd + cryptoManualTotal).toLocaleString("pt-PT", {
+                {(walletsTotalUsd + totalDefiUsd + cexHlTotalUsd + cryptoManualTotal).toLocaleString("pt-PT", {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}
@@ -3866,7 +3867,7 @@ export default function WalletsPage() {
               <span>
                 <span className="text-slate-500">Total carteiras:</span>{" "}
                 <span className="font-semibold text-white">
-                  € {walletsTotalUsd.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  € {(walletsTotalUsd + cexHlTotalUsd).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </span>
               <span>
@@ -3875,6 +3876,14 @@ export default function WalletsPage() {
                   $ {totalDefiUsd.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </span>
+              {cexHlTotalUsd > 0 && (
+                <span>
+                  <span className="text-slate-500">CEX / HL:</span>{" "}
+                  <span className="font-semibold text-white">
+                    $ {cexHlTotalUsd.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </span>
+              )}
               <span>
                 <span className="text-slate-500">NFTs:</span>{" "}
                 <span className="font-semibold text-white">
@@ -4359,7 +4368,7 @@ export default function WalletsPage() {
         )}
         {/* ── CEX + Hyperliquid + Ledger ── */}
         {isPro ? (
-          <CexSection />
+          <CexSection onTotalChange={setCexHlTotalUsd} />
         ) : (
           <div className="mx-auto w-full max-w-5xl px-4 pb-8">
             <div className="rounded-2xl border border-orange-500/20 bg-orange-500/5 p-6 flex flex-col sm:flex-row items-center gap-5">

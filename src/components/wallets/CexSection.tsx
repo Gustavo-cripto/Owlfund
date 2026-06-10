@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -66,7 +66,7 @@ async function connectLedger(): Promise<string> {
 
 // ── CexSection ─────────────────────────────────────────────────────────────
 
-export default function CexSection() {
+export default function CexSection({ onTotalChange }: { onTotalChange?: (usd: number) => void }) {
   const [cexAccounts, setCexAccounts] = useState<CexAccount[]>([]);
   const [hlAccounts, setHlAccounts] = useState<HlAccount[]>([]);
   const [ledgerLabel, setLedgerLabel] = useState<string | null>(null);
@@ -82,6 +82,18 @@ export default function CexSection() {
   // HL add form
   const [showAddHl, setShowAddHl] = useState(false);
   const [newHlAddress, setNewHlAddress] = useState("");
+
+  useEffect(() => {
+    if (!onTotalChange) return;
+    const cexUsd = cexAccounts.reduce((sum, a) => {
+      return sum + a.balances.reduce((s, b) => s + (b.total ?? 0), 0);
+    }, 0);
+    const hlUsd = hlAccounts.reduce((sum, a) => {
+      const spot = a.spotBalances.reduce((s, b) => s + (b.total ?? 0), 0);
+      return sum + spot + (a.perpValue ?? 0);
+    }, 0);
+    onTotalChange(cexUsd + hlUsd);
+  }, [cexAccounts, hlAccounts, onTotalChange]);
 
   async function addCex() {
     if (!newKey || !newSecret) return;
