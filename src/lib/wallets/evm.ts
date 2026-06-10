@@ -200,6 +200,34 @@ export const connectEvmProvider = async (provider?: EvmProvider) => {
   return address as `0x${string}`;
 };
 
+export const switchEvmNetwork = async (provider: EvmProvider, network: EvmNetwork) => {
+  if (!provider || network === "Ethereum") return;
+  const chain = chainMap[network];
+  const chainIdHex = `0x${chain.id.toString(16)}`;
+  try {
+    await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: chainIdHex }] });
+  } catch (err: unknown) {
+    // 4902 = chain not added to wallet
+    if (err && typeof err === "object" && "code" in err && (err as { code: number }).code === 4902) {
+      const rpcs = chainRpcs[network] ?? [chain.rpcUrls.default.http[0]];
+      await provider.request({
+        method: "wallet_addEthereumChain",
+        params: [{
+          chainId: chainIdHex,
+          chainName: chain.name,
+          nativeCurrency: chain.nativeCurrency,
+          rpcUrls: rpcs,
+          blockExplorerUrls: ("blockExplorers" in chain && chain.blockExplorers)
+            ? [Object.values(chain.blockExplorers as Record<string, { url: string }>)[0]?.url]
+            : undefined,
+        }],
+      });
+    } else {
+      throw err;
+    }
+  }
+};
+
 export const getEthBalance = async (address: `0x${string}`) => {
   const balance = await publicClient.getBalance({ address });
   return formatEther(balance);

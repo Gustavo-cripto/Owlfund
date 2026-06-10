@@ -18,6 +18,7 @@ import {
   getEvmTokenBalance,
   isEvmWalletAvailable,
   isMetaMaskAvailable,
+  switchEvmNetwork,
   STABLECOIN_TOKEN_ADDRESSES,
   type EvmNetwork,
   type EvmProviderId,
@@ -411,6 +412,7 @@ export default function WalletsPage() {
     []
   );
   const [selectedEvmProvider, setSelectedEvmProvider] = useState<EvmProviderId>("metamask");
+  const [selectedEthConnectNetwork, setSelectedEthConnectNetwork] = useState<EvmNetwork>("Ethereum");
   const [showEthNetworks, setShowEthNetworks] = useState(false);
   const [selectedBtcProvider, setSelectedBtcProvider] = useState<BtcWalletId>("xverse");
   const [showBtcWalletsList, setShowBtcWalletsList] = useState(false);
@@ -1260,14 +1262,19 @@ export default function WalletsPage() {
         throw new Error(`${label} não está disponível. Instala a extensão.`);
       }
       const address = await connectEvmProvider(selectedProvider);
+      if (selectedEthConnectNetwork !== "Ethereum") {
+        await switchEvmNetwork(selectedProvider, selectedEthConnectNetwork);
+      }
       setEthAddress(address);
-      const balance = await getEthBalance(address);
+      const balance = selectedEthConnectNetwork === "Ethereum"
+        ? await getEthBalance(address)
+        : await getEvmBalance(address, selectedEthConnectNetwork);
       const formatted = Number(balance).toFixed(4);
       setEthBalance(formatted);
       const label = getEvmProviderLabel(selectedEvmProvider);
       const nextWallets = upsertWallet(
         ethWallets,
-        { address, balance: formatted, network: "Ethereum", label },
+        { address, balance: formatted, network: selectedEthConnectNetwork, label },
         (item) => item.address === address
       );
       setEthWallets(nextWallets);
@@ -2613,6 +2620,21 @@ export default function WalletsPage() {
                     </div>
                   ) : null}
                 </div>
+                {/* Network chips */}
+                {(["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon"] as EvmNetwork[]).map((net) => (
+                  <button
+                    key={net}
+                    type="button"
+                    onClick={() => setSelectedEthConnectNetwork(net)}
+                    className={`rounded-full border px-2.5 py-1 text-[11px] transition ${
+                      selectedEthConnectNetwork === net
+                        ? "border-orange-400 bg-orange-400/10 text-orange-300"
+                        : "border-slate-700 bg-slate-900/50 text-slate-400 hover:border-slate-500 hover:text-slate-300"
+                    }`}
+                  >
+                    {net === "Ethereum" ? "ETH" : net === "Arbitrum" ? "ARB" : net === "Optimism" ? "OP" : net === "Polygon" ? "POL" : net}
+                  </button>
+                ))}
               </div>
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
                 Carteiras adicionais / L2
