@@ -2915,12 +2915,18 @@ export default function WalletsPage() {
                             : itemDefi != null && itemDefi >= 0.01
                               ? <span className="text-emerald-400">${itemDefi.toFixed(2)}</span>
                               : item.address
-                                ? <a
-                                    href={`https://defillama.com/portfolio#${item.address}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-violet-400 hover:text-violet-300 underline underline-offset-2"
-                                  >Ver DeFiLlama ↗</a>
+                                ? <span className="inline-flex gap-2">
+                                    <a
+                                      href={`https://app.uniswap.org/positions?chain=${(item.network ?? "Ethereum").toLowerCase()}`}
+                                      target="_blank" rel="noopener noreferrer"
+                                      className="text-pink-400 hover:text-pink-300 underline underline-offset-2"
+                                    >Uniswap ↗</a>
+                                    <a
+                                      href={`https://defillama.com/portfolio#${item.address}`}
+                                      target="_blank" rel="noopener noreferrer"
+                                      className="text-violet-400 hover:text-violet-300 underline underline-offset-2"
+                                    >DeFiLlama ↗</a>
+                                  </span>
                                 : "—"}
                         </p>
                         <p className="text-slate-500">
