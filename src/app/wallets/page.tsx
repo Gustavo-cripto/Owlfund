@@ -414,6 +414,8 @@ export default function WalletsPage() {
   );
   const [selectedEvmProvider, setSelectedEvmProvider] = useState<EvmProviderId>("metamask");
   const [selectedEthConnectNetwork, setSelectedEthConnectNetwork] = useState<EvmNetwork>("Ethereum");
+  const [ethNetworkSelectOpen, setEthNetworkSelectOpen] = useState(false);
+  const ethNetworkSelectRef = useRef<HTMLDivElement>(null);
   const [showEthNetworks, setShowEthNetworks] = useState(false);
   const [selectedBtcProvider, setSelectedBtcProvider] = useState<BtcWalletId>("xverse");
   const [showBtcWalletsList, setShowBtcWalletsList] = useState(false);
@@ -517,6 +519,17 @@ export default function WalletsPage() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [ethWalletSelectOpen]);
+
+  useEffect(() => {
+    if (!ethNetworkSelectOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (ethNetworkSelectRef.current && !ethNetworkSelectRef.current.contains(e.target as Node)) {
+        setEthNetworkSelectOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [ethNetworkSelectOpen]);
 
   useEffect(() => {
     if (!btcWalletSelectOpen) return;
@@ -1262,10 +1275,11 @@ export default function WalletsPage() {
         const label = getEvmProviderLabel(selectedEvmProvider);
         throw new Error(`${label} não está disponível. Instala a extensão.`);
       }
-      const address = await connectEvmProvider(selectedProvider);
+      // Switch network BEFORE requesting accounts so MetaMask connects on the right chain
       if (selectedEthConnectNetwork !== "Ethereum") {
         await switchEvmNetwork(selectedProvider, selectedEthConnectNetwork);
       }
+      const address = await connectEvmProvider(selectedProvider);
       setEthAddress(address);
       const balance = selectedEthConnectNetwork === "Ethereum"
         ? await getEthBalance(address)
@@ -2621,21 +2635,34 @@ export default function WalletsPage() {
                     </div>
                   ) : null}
                 </div>
-                {/* Network chips */}
-                {(["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon"] as EvmNetwork[]).map((net) => (
+                {/* Network dropdown */}
+                <div className="relative min-w-[130px]" ref={ethNetworkSelectRef}>
                   <button
-                    key={net}
                     type="button"
-                    onClick={() => setSelectedEthConnectNetwork(net)}
-                    className={`rounded-full border px-2.5 py-1 text-[11px] transition ${
-                      selectedEthConnectNetwork === net
-                        ? "border-orange-400 bg-orange-400/10 text-orange-300"
-                        : "border-slate-700 bg-slate-900/50 text-slate-400 hover:border-slate-500 hover:text-slate-300"
-                    }`}
+                    className="flex min-w-[130px] items-center justify-between gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1.5 text-left text-xs text-slate-200 outline-none transition focus:border-orange-400"
+                    onClick={() => setEthNetworkSelectOpen((o) => !o)}
                   >
-                    {net === "Ethereum" ? "ETH" : net === "Arbitrum" ? "ARB" : net === "Optimism" ? "OP" : net === "Polygon" ? "POL" : net}
+                    <span className="truncate">
+                      {selectedEthConnectNetwork === "Ethereum" ? "ETH Mainnet" : selectedEthConnectNetwork}
+                    </span>
+                    <span className="text-slate-500 text-[10px]">{ethNetworkSelectOpen ? "▲" : "▼"}</span>
                   </button>
-                ))}
+                  {ethNetworkSelectOpen && (
+                    <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[160px] rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
+                      {(["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon", "zkSync", "Linea", "Blast"] as EvmNetwork[]).map((net) => (
+                        <button
+                          key={net}
+                          type="button"
+                          className={`flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left text-xs hover:bg-slate-800 ${selectedEthConnectNetwork === net ? "text-orange-300" : "text-slate-200"}`}
+                          onClick={() => { setSelectedEthConnectNetwork(net); setEthNetworkSelectOpen(false); }}
+                        >
+                          <span>{net === "Ethereum" ? "ETH Mainnet" : net}</span>
+                          {selectedEthConnectNetwork === net && <span className="text-orange-400">✓</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
                 Carteiras adicionais / L2
