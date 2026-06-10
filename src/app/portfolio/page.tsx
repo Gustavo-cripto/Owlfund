@@ -907,6 +907,8 @@ export default function PortfolioPage() {
                 ...Object.entries(cryptoHoldings).filter(([,h]) => Number(h.buyValue) > 0).map(([k,h]) => ({ name: k, value: Number(h.buyValue) })),
                 ...(stablecoinTotal > 0 ? [{ name: "Stable", value: stablecoinTotal }] : []),
                 ...(traditionalTotal > 0 ? [{ name: "Trad.", value: traditionalTotal }] : []),
+                ...(snapshotCexUsd > 0 ? [{ name: "CEX", value: snapshotCexUsd }] : []),
+                ...(snapshotDefiUsd > 0 ? [{ name: "DeFi", value: snapshotDefiUsd }] : []),
               ].filter(d => d.value > 0);
               if (!pieData.length) return (
                 <div className="flex h-[200px] items-center justify-center">
