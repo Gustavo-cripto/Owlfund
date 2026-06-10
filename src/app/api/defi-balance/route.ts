@@ -549,11 +549,17 @@ const UNI_V3_FACTORY = "0x1F98431c8aD98523631AE4a59f267346ea31F984"; // Factory 
 
 const EVM_RPC: Record<string, string> = {
   eth:      "https://cloudflare-eth.com",
-  arbitrum: "https://rpc.ankr.com/arbitrum",
+  arbitrum: "https://arb1.arbitrum.io/rpc",
   base:     "https://mainnet.base.org",
   optimism: "https://mainnet.optimism.io",
   polygon:  "https://polygon-rpc.com",
   bsc:      "https://bsc-dataseed1.binance.org",
+};
+const EVM_RPC_FALLBACK: Record<string, string> = {
+  eth:      "https://rpc.ankr.com/eth",
+  arbitrum: "https://rpc.ankr.com/arbitrum",
+  base:     "https://rpc.ankr.com/base",
+  optimism: "https://rpc.ankr.com/optimism",
 };
 
 const CHAINLINK_ETH_USD: Record<string, string> = {
@@ -689,13 +695,19 @@ async function fetchUniswapV3ViaContracts(
   address: string,
   chain: string
 ): Promise<{ total: number; positions: { name: string; usd: number }[] }> {
-  const rpc = EVM_RPC[chain];
-  if (!rpc) return { total: 0, positions: [] };
+  const primaryRpc = EVM_RPC[chain];
+  if (!primaryRpc) return { total: 0, positions: [] };
 
   const paddedOwner = address.toLowerCase().slice(2).padStart(64, "0");
 
-  // 1. balanceOf — single call
-  const balHex = await ethCallRpc(rpc, UNI_V3_NPM, `0x70a08231${paddedOwner}`);
+  // 1. balanceOf — try primary RPC, fallback on failure
+  let balHex = await ethCallRpc(primaryRpc, UNI_V3_NPM, `0x70a08231${paddedOwner}`);
+  const rpc = (balHex === "0x" && EVM_RPC_FALLBACK[chain])
+    ? EVM_RPC_FALLBACK[chain]
+    : primaryRpc;
+  if (balHex === "0x" && rpc !== primaryRpc) {
+    balHex = await ethCallRpc(rpc, UNI_V3_NPM, `0x70a08231${paddedOwner}`);
+  }
   if (balHex === "0x") return { total: 0, positions: [] };
   const balance = Number(BigInt("0x" + balHex.slice(2)));
   if (balance === 0 || balance > 100) return { total: 0, positions: [] };

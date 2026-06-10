@@ -899,87 +899,129 @@ export default function PortfolioPage() {
         {/* ── GRÁFICOS ── */}
         <section className="grid gap-6 md:grid-cols-2">
           {/* Gráfico PNL histórico */}
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Histórico</p>
-                <h2 className="text-base font-bold text-white mt-0.5">Evolução do portfólio</h2>
+          {(() => {
+            const RANGES = [
+              { label: "1D", days: 1 },
+              { label: "7D", days: 7 },
+              { label: "30D", days: 30 },
+              { label: "90D", days: 90 },
+              { label: "Tudo", days: 0 },
+            ] as const;
+            type RangeLabel = typeof RANGES[number]["label"];
+            const [chartRange, setChartRange] = useState<RangeLabel>("Tudo");
+            const now = Date.now();
+            const days = RANGES.find(r => r.label === chartRange)?.days ?? 0;
+            const chartData = [...snapshotTotals]
+              .filter(s => days === 0 || now - new Date(s.createdAt).getTime() <= days * 86_400_000)
+              .reverse()
+              .map(s => ({
+                data: new Date(s.createdAt).toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit" }),
+                valor: parseFloat(s.total.toFixed(2)),
+              }));
+            return (
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Histórico</p>
+                    <h2 className="text-base font-bold text-white mt-0.5">Evolução do portfólio</h2>
+                  </div>
+                  <span className={`text-sm font-bold ${pnlSummary.position >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                    {pnlSummary.position >= 0 ? "+" : ""}€{formatValue(pnlSummary.position)}
+                  </span>
+                </div>
+                <div className="flex gap-1 mb-3">
+                  {RANGES.map(r => (
+                    <button
+                      key={r.label}
+                      onClick={() => setChartRange(r.label)}
+                      className={`px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                        chartRange === r.label
+                          ? "bg-orange-500 text-white"
+                          : "bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700"
+                      }`}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+                {chartData.length >= 2 ? (
+                  <ResponsiveContainer width="100%" height={180}>
+                    <AreaChart data={chartData}>
+                      <defs>
+                        <linearGradient id="colorValor" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                      <XAxis dataKey="data" tick={{ fill: "#64748b", fontSize: 11 }} />
+                      <YAxis tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={v => `€${v}`} width={60} />
+                      <Tooltip
+                        contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
+                        labelStyle={{ color: "#94a3b8" }}
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        formatter={(v: any) => [`€ ${formatValue(typeof v === "number" ? v : 0)}`, "Valor"]}
+                      />
+                      <Area type="monotone" dataKey="valor" stroke="#f97316" strokeWidth={2} fill="url(#colorValor)" dot={chartData.length < 30 ? { fill: "#f97316", r: 3 } : false} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex h-[180px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-700">
+                    <p className="text-2xl">📸</p>
+                    <p className="text-sm text-slate-400 text-center">Precisas de pelo menos 2 snapshots<br/>para ver a evolução.</p>
+                    <p className="text-xs text-slate-500">{snapshotTotals.length}/2 {t("port_snapshots")}</p>
+                  </div>
+                )}
               </div>
-              <span className={`text-sm font-bold ${pnlSummary.position >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                {pnlSummary.position >= 0 ? "+" : ""}€{formatValue(pnlSummary.position)}
-              </span>
-            </div>
-            {snapshotTotals.length >= 2 ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <AreaChart data={[...snapshotTotals].reverse().map(s => ({
-                  data: new Date(s.createdAt).toLocaleDateString("pt-PT", { day: "2-digit", month: "short" }),
-                  valor: parseFloat(s.total.toFixed(2)),
-                }))}>
-                  <defs>
-                    <linearGradient id="colorValor" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                  <XAxis dataKey="data" tick={{ fill: "#64748b", fontSize: 11 }} />
-                  <YAxis tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={v => `€${v}`} width={60} />
-                  <Tooltip
-                    contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
-                    labelStyle={{ color: "#94a3b8" }}
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    formatter={(v: any) => [`€ ${formatValue(typeof v === "number" ? v : 0)}`, "Valor"]}
-                  />
-                  <Area type="monotone" dataKey="valor" stroke="#f97316" strokeWidth={2} fill="url(#colorValor)" dot={{ fill: "#f97316", r: 3 }} />
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex h-[200px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-700">
-                <p className="text-2xl">📸</p>
-                <p className="text-sm text-slate-400 text-center">Precisas de pelo menos 2 snapshots<br/>para ver a evolução.</p>
-                <p className="text-xs text-slate-500">{snapshotTotals.length}/2 {t("port_snapshots")}</p>
-              </div>
-            )}
-          </div>
+            );
+          })()}
 
           {/* Gráfico distribuição por ativo */}
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-            <div className="mb-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Distribuição</p>
-              <h2 className="text-base font-bold text-white mt-0.5">Alocação por ativo</h2>
-            </div>
-            {(() => {
-              const COLORS = ["#f97316","#fb923c","#fdba74","#0ea5e9","#38bdf8","#7dd3fc","#a78bfa","#c4b5fd"];
-              const pieData = [
-                ...wallets.filter(w => Number(w.balance) > 0).map(w => ({ name: w.symbol, value: Number(w.balance) })),
-                ...Object.entries(cryptoHoldings).filter(([,h]) => Number(h.buyValue) > 0).map(([k,h]) => ({ name: k, value: Number(h.buyValue) })),
-                ...(stablecoinTotal > 0 ? [{ name: "Stable", value: stablecoinTotal }] : []),
-                ...(traditionalTotal > 0 ? [{ name: "Trad.", value: traditionalTotal }] : []),
-                ...(snapshotCexUsd > 0 ? [{ name: "CEX", value: snapshotCexUsd }] : []),
-                ...(snapshotDefiUsd > 0 ? [{ name: "DeFi", value: snapshotDefiUsd }] : []),
-              ].filter(d => d.value > 0);
-              if (!pieData.length) return (
-                <div className="flex h-[200px] items-center justify-center">
-                  <p className="text-sm text-slate-500">Sem ativos para mostrar.</p>
+          {(() => {
+            const ASSET_COLOR: Record<string, string> = {
+              BTC: "#f7931a", ETH: "#627eea", SOL: "#9945ff", ADA: "#0033ad",
+              BNB: "#f0b90b", MATIC: "#8247e5", AVAX: "#e84142", DOT: "#e6007a",
+              LINK: "#2a5ada", UNI: "#ff007a", AAVE: "#b6509e",
+              XRP: "#346aa9", LTC: "#345d9d", DOGE: "#c2a633",
+              Stable: "#64748b", "Trad.": "#475569", CEX: "#10b981", DeFi: "#8b5cf6",
+            };
+            const assetColor = (name: string) => ASSET_COLOR[name] ?? `hsl(${(name.charCodeAt(0) * 47) % 360},65%,55%)`;
+            const pieData = [
+              ...wallets.filter(w => Number(w.balance) > 0).map(w => ({ name: w.symbol, value: Number(w.balance) })),
+              ...Object.entries(cryptoHoldings).filter(([,h]) => Number(h.buyValue) > 0).map(([k,h]) => ({ name: k, value: Number(h.buyValue) })),
+              ...(stablecoinTotal > 0 ? [{ name: "Stable", value: stablecoinTotal }] : []),
+              ...(traditionalTotal > 0 ? [{ name: "Trad.", value: traditionalTotal }] : []),
+              ...(snapshotCexUsd > 0 ? [{ name: "CEX", value: snapshotCexUsd }] : []),
+              ...(snapshotDefiUsd > 0 ? [{ name: "DeFi", value: snapshotDefiUsd }] : []),
+            ].filter(d => d.value > 0);
+            return (
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+                <div className="mb-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Distribuição</p>
+                  <h2 className="text-base font-bold text-white mt-0.5">Alocação por ativo</h2>
                 </div>
-              );
-              return (
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={3} dataKey="value">
-                      {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      formatter={(v: any) => [`€ ${formatValue(typeof v === "number" ? v : 0)}`, ""]}
-                    />
-                    <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{ color: "#94a3b8", fontSize: 11 }}>{v}</span>} />
-                  </PieChart>
-                </ResponsiveContainer>
-              );
-            })()}
-          </div>
+                {pieData.length === 0 ? (
+                  <div className="flex h-[200px] items-center justify-center">
+                    <p className="text-sm text-slate-500">Sem ativos para mostrar.</p>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie data={pieData} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={3} dataKey="value">
+                        {pieData.map((entry, i) => <Cell key={i} fill={assetColor(entry.name)} />)}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        formatter={(v: any) => [`€ ${formatValue(typeof v === "number" ? v : 0)}`, ""]}
+                      />
+                      <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{ color: "#94a3b8", fontSize: 11 }}>{v}</span>} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Gráfico PNL por período */}
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 md:col-span-2">
