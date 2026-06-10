@@ -60,8 +60,8 @@ async function fetchCoinEx(apiKey: string, apiSecret: string): Promise<CexBalanc
   const ts = Math.floor(Date.now() / 1000).toString();
   const method = "GET";
   const path = "/assets/spot/balance";
-  const bodyStr = "";
-  const toSign = `${method}\n${path}\n${bodyStr}\n${ts}`;
+  // CoinEx v2 signature: METHOD + PATH + BODY + TIMESTAMP (no separators)
+  const toSign = `${method}${path}${ts}`;
   const sig = crypto.createHmac("sha256", apiSecret).update(toSign).digest("hex");
   const res = await fetch(`https://api.coinex.com/v2${path}`, {
     headers: {
@@ -71,9 +71,9 @@ async function fetchCoinEx(apiKey: string, apiSecret: string): Promise<CexBalanc
     },
   });
   if (!res.ok) throw new Error(`CoinEx: ${res.status}`);
-  const data = await res.json() as { code: number; data: { ccy: string; available: string; frozen: string }[] };
-  if (data.code !== 0) throw new Error(`CoinEx code ${data.code}`);
-  return data.data
+  const data = await res.json() as { code: number; message?: string; data: { ccy: string; available: string; frozen: string }[] };
+  if (data.code !== 0) throw new Error(`CoinEx code ${data.code}: ${data.message ?? ""}`);
+  return (data.data ?? [])
     .map((b) => ({ asset: b.ccy, free: parseFloat(b.available), locked: parseFloat(b.frozen), total: parseFloat(b.available) + parseFloat(b.frozen) }))
     .filter((b) => b.total > 0);
 }
