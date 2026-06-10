@@ -82,7 +82,17 @@ function saveStored<T>(key: string, data: T[]) {
   try { window.localStorage.setItem(key, JSON.stringify(data)); } catch { /* ignore */ }
 }
 
-export default function CexSection({ onTotalChange }: { onTotalChange?: (usd: number) => void }) {
+interface MarketPrice { priceUsd: number }
+
+export default function CexSection({
+  onTotalChange,
+  prices = {},
+  usdToEur = 0.92,
+}: {
+  onTotalChange?: (usd: number) => void;
+  prices?: Record<string, MarketPrice>;
+  usdToEur?: number;
+}) {
   const [cexAccounts, setCexAccounts] = useState<CexAccount[]>([]);
   const [hlAccounts, setHlAccounts] = useState<HlAccount[]>([]);
   const [ledgerLabel, setLedgerLabel] = useState<string | null>(null);
@@ -158,17 +168,19 @@ export default function CexSection({ onTotalChange }: { onTotalChange?: (usd: nu
     saveStored<StoredHl>(HL_STORAGE_KEY, hlAccounts.map(({ address }) => ({ address })));
   }, [hlAccounts]);
 
+  const accountUsd = (balances: CexBalance[]) =>
+    balances.reduce((s, b) => s + b.total * (prices[b.asset]?.priceUsd ?? 0), 0);
+
   useEffect(() => {
     if (!onTotalChange) return;
-    const cexUsd = cexAccounts.reduce((sum, a) => {
-      return sum + a.balances.reduce((s, b) => s + (b.total ?? 0), 0);
-    }, 0);
+    const cexUsd = cexAccounts.reduce((sum, a) => sum + accountUsd(a.balances), 0);
     const hlUsd = hlAccounts.reduce((sum, a) => {
       const spot = a.spotBalances.reduce((s, b) => s + (b.total ?? 0), 0);
       return sum + spot + (a.perpValue ?? 0);
     }, 0);
     onTotalChange(cexUsd + hlUsd);
-  }, [cexAccounts, hlAccounts, onTotalChange]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cexAccounts, hlAccounts, onTotalChange, prices]);
 
   async function addCex() {
     if (!newKey || !newSecret) return;
@@ -336,15 +348,27 @@ export default function CexSection({ onTotalChange }: { onTotalChange?: (usd: nu
               ) : acc.error ? (
                 <p className="text-xs text-rose-400">{acc.error}</p>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {acc.balances.map((b) => (
-                    <div key={b.asset} className="rounded-lg bg-slate-900 px-3 py-2 text-xs">
-                      <p className="font-bold text-white">{b.asset}</p>
-                      <p className="text-slate-400">{fmt(b.total)}</p>
-                      {b.locked > 0 && <p className="text-[10px] text-slate-600">Locked: {fmt(b.locked)}</p>}
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {acc.balances.map((b) => (
+                      <div key={b.asset} className="rounded-lg bg-slate-900 px-3 py-2 text-xs">
+                        <p className="font-bold text-white">{b.asset}</p>
+                        <p className="text-slate-400">{fmt(b.total)}</p>
+                        {b.locked > 0 && <p className="text-[10px] text-slate-600">Locked: {fmt(b.locked)}</p>}
+                      </div>
+                    ))}
+                  </div>
+                  {acc.balances.length > 0 && (
+                    <div className="mt-3 flex justify-end">
+                      <span className="text-xs text-slate-500">Total: </span>
+                      <span className="ml-1 text-sm font-semibold text-white">
+                        {accountUsd(acc.balances) > 0
+                          ? `€ ${(accountUsd(acc.balances) * usdToEur).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          : "—"}
+                      </span>
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               )}
             </div>
           ))}

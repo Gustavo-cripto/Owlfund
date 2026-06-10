@@ -4560,7 +4560,7 @@ export default function WalletsPage() {
         )}
         {/* ── CEX + Hyperliquid + Ledger ── */}
         {isPro ? (
-          <CexSection onTotalChange={setCexHlTotalUsd} />
+          <CexSection onTotalChange={setCexHlTotalUsd} prices={web3Prices} usdToEur={usdToEurRate} />
         ) : (
           <div className="mx-auto w-full max-w-5xl px-4 pb-8">
             <div className="rounded-2xl border border-orange-500/20 bg-orange-500/5 p-6 flex flex-col sm:flex-row items-center gap-5">
