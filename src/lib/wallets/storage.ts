@@ -10,6 +10,8 @@ export type WalletSnapshot = {
   sol?: StoredWalletEntry[];
   btc?: StoredWalletEntry[];
   ada?: StoredWalletEntry[];
+  cexUsd?: number;
+  defiUsd?: number;
 };
 
 const STORAGE_KEY = "portfolio-wallets";
@@ -28,6 +30,8 @@ const normalizeSnapshot = (value: unknown): WalletSnapshot => {
     sol: normalizeEntry(raw.sol),
     btc: normalizeEntry(raw.btc),
     ada: normalizeEntry(raw.ada),
+    cexUsd: typeof raw.cexUsd === "number" ? raw.cexUsd : undefined,
+    defiUsd: typeof raw.defiUsd === "number" ? raw.defiUsd : undefined,
   };
 };
 
@@ -59,5 +63,7 @@ export const updateWalletSnapshot = (patch: WalletSnapshot) => {
       next[key] = value;
     }
   });
+  if (typeof patch.cexUsd === "number") next.cexUsd = patch.cexUsd;
+  if (typeof patch.defiUsd === "number") next.defiUsd = patch.defiUsd;
   saveWalletSnapshot(next);
 };

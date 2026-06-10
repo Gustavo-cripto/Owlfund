@@ -199,6 +199,14 @@ export default function PortfolioPage() {
   const [aiReply, setAiReply] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [snapshotCexUsd, setSnapshotCexUsd] = useState(0);
+  const [snapshotDefiUsd, setSnapshotDefiUsd] = useState(0);
+
+  useEffect(() => {
+    const snap = loadWalletSnapshot();
+    if (typeof snap.cexUsd === "number") setSnapshotCexUsd(snap.cexUsd);
+    if (typeof snap.defiUsd === "number") setSnapshotDefiUsd(snap.defiUsd);
+  }, []);
 
   // Buscar benchmark + crypto prices via proxy server-side (evita rate limits CoinGecko)
   useEffect(() => {
@@ -587,13 +595,15 @@ export default function PortfolioPage() {
       })),
       ...manualItems.filter((item) => Number.isFinite(item.value) && item.value > 0),
       { label: "Stablecoins", symbol: "USDT/USDC", value: stablecoinTotal },
+      ...(snapshotCexUsd > 0 ? [{ label: "CEX / Exchange", symbol: "CEX", value: snapshotCexUsd }] : []),
+      ...(snapshotDefiUsd > 0 ? [{ label: "DeFi", symbol: "DeFi", value: snapshotDefiUsd }] : []),
     ];
     const total = items.reduce((sum, item) => sum + item.value, 0);
     return items.map((item) => ({
       ...item,
       percent: getPercent(item.value, total),
     }));
-  }, [wallets, stablecoinTotal, cryptoHoldings]);
+  }, [wallets, stablecoinTotal, cryptoHoldings, snapshotCexUsd, snapshotDefiUsd]);
 
   const traditionalAllocations = useMemo(() => {
     const byCategory: Record<string, number> = {};

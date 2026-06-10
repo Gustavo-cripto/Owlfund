@@ -1180,6 +1180,10 @@ export default function WalletsPage() {
     );
   }, [defiTotals]);
 
+  useEffect(() => {
+    updateWalletSnapshot({ cexUsd: cexHlTotalUsd, defiUsd: totalDefiUsd });
+  }, [cexHlTotalUsd, totalDefiUsd]);
+
   const sortedCryptoSymbols = useMemo(() => {
     const dir = cryptoSortDir === "asc" ? 1 : -1;
     return [...selectedCryptoSymbols].sort((a, b) => {
