@@ -16,7 +16,7 @@ const ETH_RPCS = [
 
 const chainRpcs: Record<string, string[]> = {
   Ethereum:       ETH_RPCS,
-  Arbitrum:       ["https://arb1.arbitrum.io/rpc", "https://arbitrum-one.publicnode.com", "https://arbitrum.drpc.org", "https://rpc.ankr.com/arbitrum"],
+  Arbitrum:       ["https://arbitrum-one.publicnode.com", "https://arb1.arbitrum.io/rpc", "https://arbitrum.drpc.org", "https://arbitrum-one.drpc.org"],
   Optimism:       ["https://mainnet.optimism.io", "https://optimism.publicnode.com", "https://optimism.drpc.org"],
   Base:           ["https://mainnet.base.org", "https://base.publicnode.com", "https://base.drpc.org"],
   Polygon:        ["https://polygon-rpc.com", "https://polygon-bor.publicnode.com", "https://polygon.drpc.org"],
