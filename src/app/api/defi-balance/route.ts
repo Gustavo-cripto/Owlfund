@@ -113,7 +113,7 @@ async function fetchMeteoraPositionsViaRPC(
   const accounts = json?.result ?? [];
   if (accounts.length === 0) {
     // Try offset 8 as fallback (some position layouts differ)
-    const body2 = { ...body, params: [METEORA_DLMM_PROGRAM, { ...body.params[1], filters: [{ memcmp: { offset: 8, bytes: wallet } }] }] };
+    const body2 = { ...body, params: [METEORA_DLMM_PROGRAM, { ...(body.params[1] as object), filters: [{ memcmp: { offset: 8, bytes: wallet } }] }] };
     const res2 = await fetch(SOL_RPC, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -543,14 +543,106 @@ async function fetchMeteoraPositionsViaShyft(
 const EVM_L2_CHAINS = ["arbitrum", "base", "optimism", "polygon", "bsc", "avalanche", "linea", "zksync"] as const;
 type EvmL2Chain = typeof EVM_L2_CHAINS[number];
 
-// ── Uniswap V3 subgraph endpoints per chain ──────────────────────────────────
-const UNISWAP_V3_SUBGRAPHS: Partial<Record<EvmL2Chain | "eth", string>> = {
-  eth:       "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3",
-  arbitrum:  "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3-arbitrum",
-  optimism:  "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3-optimism",
-  base:      "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3-base",
-  polygon:   "https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v3-polygon",
+// ── Uniswap V3 via contracts (no external API needed) ────────────────────────
+const UNI_V3_NPM    = "0xC36442b4a4522E871399CD717aBDD847Ab11FE88"; // NonfungiblePositionManager (all chains)
+const UNI_V3_FACTORY = "0x1F98431c8aD98523631AE4a59f267346ea31F984"; // Factory (all chains)
+
+const EVM_RPC: Record<string, string> = {
+  eth:      "https://cloudflare-eth.com",
+  arbitrum: "https://rpc.ankr.com/arbitrum",
+  base:     "https://mainnet.base.org",
+  optimism: "https://mainnet.optimism.io",
+  polygon:  "https://polygon-rpc.com",
+  bsc:      "https://bsc-dataseed1.binance.org",
 };
+
+const CHAINLINK_ETH_USD: Record<string, string> = {
+  eth:      "0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419",
+  arbitrum: "0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612",
+  base:     "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70",
+  optimism: "0x13e3Ee699D1909E989722E753853AE30b17e08c5",
+  polygon:  "0xF9680D99D6C9589e2a93a78A04A279e509205945",
+};
+
+const CHAINLINK_BTC_USD: Record<string, string> = {
+  eth:      "0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c",
+  arbitrum: "0x6ce185539AD4EFd0E2F98F0E28F5ff84D0E87c37",
+  base:     "0xCCADC697c55bbB68dc5bCdf8d3CBe83CdD4E071E",
+  optimism: "0xD702DD976Fb76Fffc2D3963D037dfDae5b04E593",
+  polygon:  "0xc907E116054Ad103354f2D350FD2514433D57F6f",
+};
+
+const WETH_ADDR: Record<string, string> = {
+  eth:      "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
+  arbitrum: "0x82af49447d8a07e3bd95bd0d56f35241523fbab1",
+  base:     "0x4200000000000000000000000000000000000006",
+  optimism: "0x4200000000000000000000000000000000000006",
+  polygon:  "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619",
+};
+
+const WBTC_ADDR: Record<string, string> = {
+  eth:      "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+  arbitrum: "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f",
+  base:     "0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf",
+  optimism: "0x68f180fcce6836688e9084f035309e29bf0a2095",
+  polygon:  "0x1bfd67037b42cf73acf2047067bd4f2c47d9bfd6",
+};
+
+const TOKEN_SYMBOLS: Record<string, string> = {
+  "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": "WETH",
+  "0x82af49447d8a07e3bd95bd0d56f35241523fbab1": "WETH",
+  "0x4200000000000000000000000000000000000006": "WETH",
+  "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619": "WETH",
+  "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599": "WBTC",
+  "0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f": "WBTC",
+  "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": "USDC",
+  "0xaf88d065e77c8cc2239327c5edb3a432268e5831": "USDC",
+  "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8": "USDC.e",
+  "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913": "USDC",
+  "0x7f5c764cbc14f9669b88837ca1490cca17c31607": "USDC.e",
+  "0x0b2c639c533813f4aa9d7837caf62653d097ff85": "USDC",
+  "0x2791bca1f2de4661ed88a30c99a7a9449aa84174": "USDC.e",
+  "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359": "USDC",
+  "0xdac17f958d2ee523a2206206994597c13d831ec7": "USDT",
+  "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9": "USDT",
+  "0x94b008aa00579c1307b0ef2c499ad98a8ce58e58": "USDT",
+  "0xc2132d05d31c914a87c6611c10748aeb04b58e8f": "USDT",
+  "0x6b175474e89094c44da98b954eedeac495271d0f": "DAI",
+  "0xda10009cbd5d07dd0cecc66161fc93d7c9000da1": "DAI",
+  "0x8f3cf7ad23cd3cadbd9735aff958023239c6a063": "DAI",
+};
+
+const STABLECOINS = new Set([
+  "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48","0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+  "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8","0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+  "0x7f5c764cbc14f9669b88837ca1490cca17c31607","0x0b2c639c533813f4aa9d7837caf62653d097ff85",
+  "0x2791bca1f2de4661ed88a30c99a7a9449aa84174","0x3c499c542cef5e3811e1192ce70d8cc03d5c3359",
+  "0xdac17f958d2ee523a2206206994597c13d831ec7","0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
+  "0x94b008aa00579c1307b0ef2c499ad98a8ce58e58","0xc2132d05d31c914a87c6611c10748aeb04b58e8f",
+  "0x6b175474e89094c44da98b954eedeac495271d0f","0xda10009cbd5d07dd0cecc66161fc93d7c9000da1",
+  "0x8f3cf7ad23cd3cadbd9735aff958023239c6a063","0x50c5725949a6f0c72e6c4a641f24049a917db0cb",
+]);
+
+async function ethCallRpc(rpc: string, to: string, data: string): Promise<string> {
+  try {
+    const res = await fetch(rpc, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_call", params: [{ to, data }, "latest"] }),
+      signal: AbortSignal.timeout(10_000),
+      cache: "no-store",
+    });
+    if (!res.ok) return "0x";
+    const json = await res.json() as { result?: string };
+    return json.result ?? "0x";
+  } catch { return "0x"; }
+}
+
+async function chainlinkPrice(rpc: string, feed: string): Promise<number> {
+  const r = await ethCallRpc(rpc, feed, "0xfeaf968c"); // latestRoundData()
+  if (r === "0x" || r.length < 130) return 0;
+  return Number(BigInt("0x" + r.slice(66, 130))) / 1e8; // answer at offset 32
+}
 
 function sqrtX96toFloat(sqrtPriceX96: string): number {
   const val = BigInt(sqrtPriceX96);
@@ -584,59 +676,133 @@ function calcUniV3Amounts(
     raw0 = L * (sqrtB - sqrtC) / (sqrtC * sqrtB);
     raw1 = L * (sqrtC - sqrtA);
   }
-  return {
-    amount0: raw0 / 10 ** decimals0,
-    amount1: raw1 / 10 ** decimals1,
-  };
+  return { amount0: raw0 / 10 ** decimals0, amount1: raw1 / 10 ** decimals1 };
 }
 
-interface UniV3Position {
-  id: string;
-  liquidity: string;
-  tickLower: { tickIdx: string };
-  tickUpper: { tickIdx: string };
-  token0: { symbol: string; decimals: string; derivedETH: string };
-  token1: { symbol: string; decimals: string; derivedETH: string };
-  pool: { sqrtPrice: string };
+function decodeInt24(hex64: string): number {
+  const raw = parseInt(hex64, 16) & 0xFFFFFF;
+  return raw >= 0x800000 ? raw - 0x1000000 : raw;
 }
 
-async function fetchUniswapV3Total(address: string, subgraphUrl: string): Promise<{ total: number; positions: { name: string; usd: number }[] }> {
-  const query = `{
-    positions(where:{owner:"${address.toLowerCase()}",liquidity_gt:"0"},first:50) {
-      id liquidity
-      tickLower{tickIdx} tickUpper{tickIdx}
-      token0{symbol decimals derivedETH}
-      token1{symbol decimals derivedETH}
-      pool{sqrtPrice}
-    }
-    bundle(id:"1"){ethPriceUSD}
-  }`;
-  const res = await fetch(subgraphUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query }),
-    next: { revalidate: 60 },
-  });
-  if (!res.ok) return { total: 0, positions: [] };
-  const json = (await res.json()) as { data?: { positions?: UniV3Position[]; bundle?: { ethPriceUSD: string } } };
-  const ethUSD = parseFloat(json.data?.bundle?.ethPriceUSD ?? "0");
-  const posArr = json.data?.positions ?? [];
+async function fetchUniswapV3ViaContracts(
+  address: string,
+  chain: string
+): Promise<{ total: number; positions: { name: string; usd: number }[] }> {
+  const rpc = EVM_RPC[chain];
+  if (!rpc) return { total: 0, positions: [] };
+
+  const paddedOwner = address.toLowerCase().slice(2).padStart(64, "0");
+
+  // balanceOf(address) → 0x70a08231
+  const balHex = await ethCallRpc(rpc, UNI_V3_NPM, `0x70a08231${paddedOwner}`);
+  if (balHex === "0x") return { total: 0, positions: [] };
+  const balance = Number(BigInt("0x" + balHex.slice(2)));
+  if (balance === 0 || balance > 100) return { total: 0, positions: [] };
+
+  // tokenOfOwnerByIndex(address, uint256) → 0x2f745c59 — fetch all in parallel
+  const cap = Math.min(balance, 30);
+  const tokenIds = (await Promise.all(
+    Array.from({ length: cap }, (_, i) => {
+      const idx = BigInt(i).toString(16).padStart(64, "0");
+      return ethCallRpc(rpc, UNI_V3_NPM, `0x2f745c59${paddedOwner}${idx}`);
+    })
+  )).map(r => r !== "0x" ? BigInt("0x" + r.slice(2)) : null).filter((id): id is bigint => id !== null);
+
+  if (tokenIds.length === 0) return { total: 0, positions: [] };
+
+  // positions(uint256) → 0x99fbab88 — fetch all in parallel
+  const posData = await Promise.all(
+    tokenIds.map(id => ethCallRpc(rpc, UNI_V3_NPM, `0x99fbab88${id.toString(16).padStart(64, "0")}`))
+  );
+
+  // Fetch ETH price once from Chainlink
+  const ethFeed = CHAINLINK_ETH_USD[chain];
+  const ethPrice = ethFeed ? await chainlinkPrice(rpc, ethFeed) : 0;
+  let btcPrice = 0;
+
+  const wethAddr = (WETH_ADDR[chain] ?? "").toLowerCase();
+  const wbtcAddr = (WBTC_ADDR[chain] ?? "").toLowerCase();
+
+  const decimalsCache = new Map<string, number>();
+  const poolSqrtCache = new Map<string, string>();
+
+  async function getDecimals(token: string): Promise<number> {
+    if (decimalsCache.has(token)) return decimalsCache.get(token)!;
+    const r = await ethCallRpc(rpc, token, "0x313ce567"); // decimals()
+    const d = r === "0x" ? 18 : Number(BigInt("0x" + r.slice(2, 66)));
+    decimalsCache.set(token, d);
+    return d;
+  }
+
+  async function getPoolSqrt(token0: string, token1: string, fee: number): Promise<string | null> {
+    const key = `${token0}-${token1}-${fee}`;
+    if (poolSqrtCache.has(key)) return poolSqrtCache.get(key)!;
+    const t0p = token0.slice(2).padStart(64, "0");
+    const t1p = token1.slice(2).padStart(64, "0");
+    const fp  = fee.toString(16).padStart(64, "0");
+    const poolHex = await ethCallRpc(rpc, UNI_V3_FACTORY, `0x1698ee82${t0p}${t1p}${fp}`);
+    if (poolHex === "0x") return null;
+    const poolAddr = "0x" + poolHex.slice(26); // last 20 bytes
+    const slot0 = await ethCallRpc(rpc, poolAddr, "0x3850c7bd"); // slot0()
+    if (slot0 === "0x") return null;
+    const sqrtHex = slot0.slice(2, 66); // first 32 bytes = sqrtPriceX96
+    poolSqrtCache.set(key, sqrtHex);
+    return sqrtHex;
+  }
+
   let total = 0;
   const positions: { name: string; usd: number }[] = [];
-  for (const p of posArr) {
+
+  for (const raw of posData) {
+    if (raw === "0x" || raw.length < 2 + 12 * 64) continue;
+    const d = raw.slice(2);
+    // decode: nonce(0) operator(32) token0(64) token1(96) fee(128) tickLower(160) tickUpper(192) liquidity(224)
+    const token0 = ("0x" + d.slice(64 + 24, 64 + 64)).toLowerCase();
+    const token1 = ("0x" + d.slice(96 + 24, 96 + 64)).toLowerCase();
+    const fee    = Number(BigInt("0x" + d.slice(128, 192)));
+    const tickLower = decodeInt24(d.slice(160, 224));
+    const tickUpper = decodeInt24(d.slice(224, 288));
+    const liquidity = BigInt("0x" + d.slice(288, 352));
+    if (liquidity === BigInt(0)) continue;
+
+    const [dec0, dec1, sqrtHex] = await Promise.all([
+      getDecimals(token0),
+      getDecimals(token1),
+      getPoolSqrt(token0, token1, fee),
+    ]);
+    if (!sqrtHex) continue;
+
     const { amount0, amount1 } = calcUniV3Amounts(
-      p.liquidity, p.pool.sqrtPrice,
-      parseInt(p.tickLower.tickIdx), parseInt(p.tickUpper.tickIdx),
-      parseInt(p.token0.decimals), parseInt(p.token1.decimals)
+      liquidity.toString(), "0x" + sqrtHex, tickLower, tickUpper, dec0, dec1
     );
-    const price0 = parseFloat(p.token0.derivedETH) * ethUSD;
-    const price1 = parseFloat(p.token1.derivedETH) * ethUSD;
-    const usd = amount0 * price0 + amount1 * price1;
-    if (usd > 0.01) {
-      total += usd;
-      positions.push({ name: `Uniswap V3 ${p.token0.symbol}/${p.token1.symbol}`, usd });
+
+    const isStable0 = STABLECOINS.has(token0);
+    const isStable1 = STABLECOINS.has(token1);
+    const isWeth0   = token0 === wethAddr;
+    const isWeth1   = token1 === wethAddr;
+    const isWbtc0   = token0 === wbtcAddr;
+    const isWbtc1   = token1 === wbtcAddr;
+
+    if (!btcPrice && (isWbtc0 || isWbtc1)) {
+      const btcFeed = CHAINLINK_BTC_USD[chain];
+      if (btcFeed) btcPrice = await chainlinkPrice(rpc, btcFeed);
     }
+
+    const price0 = isStable0 ? 1 : isWeth0 ? ethPrice : isWbtc0 ? btcPrice : 0;
+    const price1 = isStable1 ? 1 : isWeth1 ? ethPrice : isWbtc1 ? btcPrice : 0;
+
+    let usd = amount0 * price0 + amount1 * price1;
+    // If only one side is priced (out-of-range position), double it as estimate
+    if (price0 > 0 && price1 === 0 && amount1 < 0.001) usd = amount0 * price0 * 2;
+    if (price1 > 0 && price0 === 0 && amount0 < 0.001) usd = amount1 * price1 * 2;
+    if (usd < 0.01) continue;
+
+    const sym0 = TOKEN_SYMBOLS[token0] ?? token0.slice(0, 8) + "…";
+    const sym1 = TOKEN_SYMBOLS[token1] ?? token1.slice(0, 8) + "…";
+    total += usd;
+    positions.push({ name: `Uniswap V3 ${sym0}/${sym1}`, usd });
   }
+
   return { total, positions };
 }
 
@@ -673,18 +839,16 @@ export async function GET(request: Request) {
       } catch { /* fallthrough to Uniswap subgraph */ }
     }
 
-    // Fallback: Uniswap V3 subgraph (catches LP positions Moralis misses)
-    const subgraphUrl = UNISWAP_V3_SUBGRAPHS[evmChain];
-    if (subgraphUrl) {
+    // Fallback: Uniswap V3 via direct contract calls (no external API needed)
+    const hasUniswapInMoralis = moralisPositions.some(p => p.name.toLowerCase().includes("uniswap"));
+    if (!hasUniswapInMoralis) {
       try {
-        const uniData = await fetchUniswapV3Total(address, subgraphUrl);
-        // Merge: avoid double-counting if Moralis already detected Uniswap
-        const hasUniswapInMoralis = moralisPositions.some(p => p.name.toLowerCase().includes("uniswap"));
-        if (!hasUniswapInMoralis && uniData.total > 0) {
+        const uniData = await fetchUniswapV3ViaContracts(address, evmChain);
+        if (uniData.total > 0) {
           moralisTotal += uniData.total;
           moralisPositions.push(...uniData.positions);
         }
-      } catch { /* subgraph unavailable, use Moralis result */ }
+      } catch { /* contracts unreachable, use Moralis result */ }
     }
 
     return NextResponse.json({ total: moralisTotal, positions: moralisPositions });

@@ -60,8 +60,9 @@ async function fetchCoinEx(apiKey: string, apiSecret: string): Promise<CexBalanc
   const ts = Date.now().toString(); // CoinEx v2 uses milliseconds
   const method = "GET";
   const path = "/assets/spot/balance";
-  // CoinEx v2 signature: METHOD + PATH + BODY + TIMESTAMP (milliseconds, no separators)
-  const toSign = `${method}${path}${ts}`;
+  const body = "";
+  // CoinEx v2 signature: METHOD\nPATH\nBODY\nTIMESTAMP (newline separated, milliseconds)
+  const toSign = `${method}\n${path}\n${body}\n${ts}`;
   const sig = crypto.createHmac("sha256", apiSecret).update(toSign).digest("hex");
   const res = await fetch(`https://api.coinex.com/v2${path}`, {
     headers: {
