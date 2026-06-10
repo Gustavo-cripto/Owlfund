@@ -701,6 +701,77 @@ function decodeInt24(hex64: string): number {
 }
 
 
+// ── Uniswap V2 LP positions via direct contract calls ──────────────────────
+const UNI_V2_FACTORY: Record<string, string> = {
+  eth:      "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f",
+  arbitrum: "0xf1D7CC64Fb4452F05c498126312eBE29f30Fbcf9",
+  base:     "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
+  polygon:  "0x9e5A52f57b3038F1B8EeE45F28b3C1967e22799C",
+  optimism: "0x0c3c1c532F1e39EdF36BE9Fe0bE1410313E074Bf",
+};
+
+async function fetchUniswapV2ViaContracts(
+  address: string,
+  chain: string,
+  ethPrice: number
+): Promise<{ total: number; positions: { name: string; usd: number }[] }> {
+  const factory = UNI_V2_FACTORY[chain];
+  const rpc = EVM_RPC[chain];
+  if (!factory || !rpc || ethPrice === 0) return { total: 0, positions: [] };
+
+  const weth = (WETH_ADDR[chain] ?? "").toLowerCase();
+  const stables = [...STABLECOINS];
+  // Check LP positions for common WETH+stable pairs + top pairs
+  const commonTokens = [
+    ...stables.slice(0, 3), // USDC, USDT, DAI
+    (WBTC_ADDR[chain] ?? "").toLowerCase(),
+  ].filter(t => t && t !== "0x");
+
+  const pairCalls = commonTokens.map(async (tok) => {
+    if (!tok || tok.length < 10) return null;
+    // getPair(weth, tok) selector: 0xe6a43905
+    const t0 = weth.slice(2).padStart(64, "0");
+    const t1 = tok.slice(2).padStart(64, "0");
+    const pairHex = await ethCallRpc(rpc, factory, `0xe6a43905${t0}${t1}`);
+    if (pairHex === "0x" || pairHex === "0x" + "0".repeat(64)) return null;
+    const pair = "0x" + pairHex.slice(-40);
+    if (pair === "0x0000000000000000000000000000000000000000") return null;
+
+    const paddedOwner = address.toLowerCase().slice(2).padStart(64, "0");
+    const [lpBalHex, totalSupplyHex, reservesHex] = await Promise.all([
+      ethCallRpc(rpc, pair, `0x70a08231${paddedOwner}`),
+      ethCallRpc(rpc, pair, "0x18160ddd"),
+      ethCallRpc(rpc, pair, "0x0902f1ac"),
+    ]);
+    if (lpBalHex === "0x" || totalSupplyHex === "0x" || reservesHex === "0x") return null;
+
+    const lpBal = BigInt("0x" + lpBalHex.slice(2));
+    if (lpBal === BigInt(0)) return null;
+
+    const totalSupply = BigInt("0x" + totalSupplyHex.slice(2));
+    if (totalSupply === BigInt(0)) return null;
+
+    const r = reservesHex.slice(2);
+    const reserve0 = BigInt("0x" + r.slice(0, 64));
+    const reserve1 = BigInt("0x" + r.slice(64, 128));
+
+    // ETH share in the pool
+    const share = Number(lpBal) / Number(totalSupply);
+    const wethReserve = Number(reserve0) / 1e18; // assume WETH is token0 (order may differ)
+    const ethValue = wethReserve * share * ethPrice * 2; // ×2 = both sides
+    if (ethValue < 0.01) return null;
+
+    const symMap: Record<string, string> = { ...TOKEN_SYMBOLS };
+    const sym = symMap[tok] ?? tok.slice(0, 6) + "…";
+    return { name: `Uniswap V2 WETH/${sym}`, usd: ethValue };
+  });
+
+  const results = await Promise.all(pairCalls);
+  const positions = results.filter((p): p is { name: string; usd: number } => p !== null);
+  const total = positions.reduce((s, p) => s + p.usd, 0);
+  return { total, positions };
+}
+
 async function fetchUniswapV3ViaContracts(
   address: string,
   chain: string
@@ -878,16 +949,26 @@ export async function GET(request: Request) {
       } catch { /* fallthrough to Uniswap subgraph */ }
     }
 
-    // Fallback: Uniswap V3 via direct contract calls (no external API needed)
+    // Fallback: Uniswap V2+V3 via direct contract calls (no external API needed)
     const hasUniswapInMoralis = moralisPositions.some(p => p.name.toLowerCase().includes("uniswap"));
     if (!hasUniswapInMoralis) {
-      try {
-        const uniData = await fetchUniswapV3ViaContracts(address, evmChain);
-        if (uniData.total > 0) {
-          moralisTotal += uniData.total;
-          moralisPositions.push(...uniData.positions);
-        }
-      } catch { /* contracts unreachable, use Moralis result */ }
+      const ethPriceLocal = await (async () => {
+        const f = CHAINLINK_ETH_USD[evmChain];
+        const r = EVM_RPC[evmChain];
+        return f && r ? chainlinkPrice(r, f) : 0;
+      })().catch(() => 0);
+      const [v3Data, v2Data] = await Promise.allSettled([
+        fetchUniswapV3ViaContracts(address, evmChain),
+        fetchUniswapV2ViaContracts(address, evmChain, ethPriceLocal),
+      ]);
+      if (v3Data.status === "fulfilled" && v3Data.value.total > 0) {
+        moralisTotal += v3Data.value.total;
+        moralisPositions.push(...v3Data.value.positions);
+      }
+      if (v2Data.status === "fulfilled" && v2Data.value.total > 0) {
+        moralisTotal += v2Data.value.total;
+        moralisPositions.push(...v2Data.value.positions);
+      }
     }
 
     return NextResponse.json({ total: moralisTotal, positions: moralisPositions });
@@ -934,18 +1015,25 @@ export async function GET(request: Request) {
           .forEach((p) => positions.push({ name: resolveProtocolName(p), usd: Number(p.total_usd_value ?? 0) }));
       }
     }
-    // Fallback: Uniswap V3 contracts for chains Moralis may miss
-    const uniChains = ["arbitrum", "base", "optimism", "polygon", "eth"] as const;
+    // Fallback: Uniswap V2+V3 contracts for chains Moralis may miss
+    const uniChains = ["eth", "arbitrum", "base", "optimism", "polygon"] as const;
     const hasUniswapInMoralis = positions.some(p => p.name.toLowerCase().includes("uniswap"));
     if (!hasUniswapInMoralis) {
       for (const uc of uniChains) {
         try {
-          const uniData = await fetchUniswapV3ViaContracts(address, uc);
-          if (uniData.total > 0) {
-            total += uniData.total;
-            positions.push(...uniData.positions);
-            break; // found on this chain, stop (avoid duplicate)
-          }
+          const ethPriceLocal = await (async () => {
+            const f = CHAINLINK_ETH_USD[uc]; const r = EVM_RPC[uc];
+            return f && r ? chainlinkPrice(r, f) : 0;
+          })().catch(() => 0);
+          const [v3, v2] = await Promise.allSettled([
+            fetchUniswapV3ViaContracts(address, uc),
+            fetchUniswapV2ViaContracts(address, uc, ethPriceLocal),
+          ]);
+          const v3ok = v3.status === "fulfilled" && v3.value.total > 0;
+          const v2ok = v2.status === "fulfilled" && v2.value.total > 0;
+          if (v3ok) { total += v3.value.total; positions.push(...v3.value.positions); }
+          if (v2ok) { total += v2.value.total; positions.push(...v2.value.positions); }
+          if (v3ok || v2ok) break;
         } catch { /* skip chain */ }
       }
     }

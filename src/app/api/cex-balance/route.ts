@@ -58,25 +58,42 @@ async function fetchKraken(apiKey: string, apiSecret: string): Promise<CexBalanc
 // ── CoinEx ─────────────────────────────────────────────────────────────────
 
 async function fetchCoinEx(apiKey: string, apiSecret: string): Promise<CexBalance[]> {
-  // Strip any invisible whitespace/BOM that copy-paste may introduce
-  const key    = apiKey.replace(/\s/g, "");
-  const secret = apiSecret.replace(/\s/g, "");
-  const ts     = Date.now().toString();
-  const path   = "/assets/spot/balance";
-  // CoinEx v2 signature: METHOD + RequestPath + RequestBody + Timestamp (no separators)
-  const toSign = "GET" + path + "" + ts;
-  const sig = crypto.createHmac("sha256", Buffer.from(secret, "utf-8"))
-    .update(Buffer.from(toSign, "utf-8"))
-    .digest("hex");
-  const res = await fetch(`https://api.coinex.com/v2${path}`, {
-    method: "GET",
-    headers: {
-      "Content-Type":       "application/json",
-      "X-COINEX-KEY":       key,
-      "X-COINEX-SIGN":      sig,
-      "X-COINEX-TIMESTAMP": ts,
-    },
-  });
+  const key    = apiKey.replace(/[\s\r\n\t]/g, "");
+  const secret = apiSecret.replace(/[\s\r\n\t]/g, "");
+
+  const signAndFetch = async (signPath: string) => {
+    const ts     = Date.now().toString();
+    // CoinEx v2: METHOD + signedPath + body + timestamp (no separators)
+    const toSign = "GET" + signPath + ts;
+    const sig = crypto.createHmac("sha256", Buffer.from(secret, "utf-8"))
+      .update(Buffer.from(toSign, "utf-8"))
+      .digest("hex");
+    return fetch("https://api.coinex.com/v2/assets/spot/balance", {
+      headers: {
+        "X-COINEX-KEY":       key,
+        "X-COINEX-SIGN":      sig,
+        "X-COINEX-TIMESTAMP": ts,
+      },
+      cache: "no-store",
+    });
+  };
+
+  // Try short path first, then full path if signature fails
+  let res = await signAndFetch("/assets/spot/balance");
+  if (res.ok || res.status !== 200) {
+    const d = await res.json() as { code: number; message?: string; data: { ccy: string; available: string; frozen: string }[] };
+    if (d.code === 25) {
+      // Retry with full path including /v2 prefix
+      res = await signAndFetch("/v2/assets/spot/balance");
+    } else if (d.code !== 0) {
+      throw new Error(`CoinEx code ${d.code}: ${d.message ?? ""}`);
+    } else {
+      return (d.data ?? [])
+        .map((b) => ({ asset: b.ccy, free: parseFloat(b.available), locked: parseFloat(b.frozen), total: parseFloat(b.available) + parseFloat(b.frozen) }))
+        .filter((b) => b.total > 0);
+    }
+  }
+
   if (!res.ok) throw new Error(`CoinEx: ${res.status}`);
   const data = await res.json() as { code: number; message?: string; data: { ccy: string; available: string; frozen: string }[] };
   if (data.code !== 0) throw new Error(`CoinEx code ${data.code}: ${data.message ?? ""}`);
