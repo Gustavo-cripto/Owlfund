@@ -39,6 +39,8 @@ type WalletCardProps = {
   isAddressVisible?: boolean;
   /** Ex.: para BTC: { label: "Runes:", content: "DOG: 1,234 · …" } */
   extraBalance?: { label: string; content: React.ReactNode };
+  /** Conteúdo a renderizar acima dos valores (endereço, saldo, etc.) */
+  topContent?: React.ReactNode;
 };
 
 const formatAddress = (address?: string) => {
@@ -75,6 +77,7 @@ export default function WalletCard({
   onToggleAddress,
   isAddressVisible,
   extraBalance,
+  topContent,
 }: WalletCardProps) {
   const [showNfts, setShowNfts] = useState(false);
   return (
@@ -98,6 +101,7 @@ export default function WalletCard({
         </div>
       </div>
 
+      {topContent ? <div className="mt-4">{topContent}</div> : null}
       <div className="mt-5 space-y-3 text-sm text-slate-300">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -132,9 +136,18 @@ export default function WalletCard({
           <span className="text-slate-500">DeFi:</span>{" "}
           {defiLoading
             ? "A carregar..."
-            : defiBalanceUsd != null
+            : defiBalanceUsd != null && defiBalanceUsd >= 0.01
               ? `$${defiBalanceUsd.toFixed(2)}`
-              : "—"}
+              : address && balanceUnit === "SOL"
+                ? <a
+                    href={`https://app.meteora.ag/dlmm?wallet=${address}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-violet-400 hover:text-violet-300 underline underline-offset-2"
+                  >
+                    Ver na Meteora ↗
+                  </a>
+                : "—"}
         </div>
         <div>
           <span className="text-slate-500">NFT:</span>{" "}

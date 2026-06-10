@@ -1290,7 +1290,7 @@ export default function WalletsPage() {
       const nextWallets = upsertWallet(
         ethWallets,
         { address, balance: formatted, network: selectedEthConnectNetwork, label },
-        (item) => item.address === address
+        (item) => item.address === address && item.network === selectedEthConnectNetwork
       );
       setEthWallets(nextWallets);
       updateWalletSnapshot({ eth: nextWallets, sol: solWallets, btc: btcWallets, ada: adaWallets });
@@ -2573,8 +2573,7 @@ export default function WalletsPage() {
             onRefresh={handleEthRefresh}
             onToggleAddress={() => setEthShowMain((prev) => !prev)}
             isAddressVisible={ethShowMain}
-          >
-            <div className="space-y-3">
+            topContent={
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[11px] uppercase tracking-[0.3em] text-slate-500">
                   Carteira ETH
@@ -2664,6 +2663,9 @@ export default function WalletsPage() {
                   )}
                 </div>
               </div>
+            }
+          >
+            <div className="space-y-3">
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
                 Carteiras adicionais / L2
               </p>
