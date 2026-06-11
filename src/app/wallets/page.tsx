@@ -1483,12 +1483,12 @@ export default function WalletsPage() {
   };
 
   const handleEthDisconnect = () => {
-    setEthWallets([]);
+    // Only disconnect the browser wallet — keep manually saved wallets intact
     setEthAddress(undefined);
     setEthBalance(undefined);
     setEthConnectedNetwork("Ethereum");
     setEthError(null);
-    updateWalletSnapshot({ eth: [], sol: solWallets, btc: btcWallets, ada: adaWallets });
+    updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: adaWallets });
   };
 
   const FREE_WALLET_LIMIT = 3;
