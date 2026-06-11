@@ -1565,15 +1565,19 @@ export default function WalletsPage() {
       setSolLoading(true);
       setSolError(null);
       const address = await connectSolanaWallet(selectedSolProvider);
-      setSolAddress(address);
       const balance = await getSolBalance(address);
-      setSolBalance(balance);
+      const providerLabel = solWalletOptions.find((o) => o.id === selectedSolProvider)?.label ?? selectedSolProvider;
       const nextWallets = upsertWallet(
         solWallets,
-        { address, balance, network: "Solana" },
+        { address, balance, network: "Solana", label: providerLabel },
         (item) => item.address === address
       );
       setSolWallets(nextWallets);
+      // Only replace solAddress if none set yet (allow multiple simultaneous connections)
+      if (!solAddress) {
+        setSolAddress(address);
+        setSolBalance(balance);
+      }
       updateWalletSnapshot({ eth: ethWallets, sol: nextWallets, btc: btcWallets, ada: adaWallets });
     } catch (error) {
       setSolError(error instanceof Error ? error.message : "Erro ao conectar.");
@@ -3175,35 +3179,24 @@ export default function WalletsPage() {
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
                 Carteiras adicionais / L2
               </p>
-              <div>
-                <button
-                  type="button"
-                  className="rounded-full border border-slate-700 px-3 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                  onClick={() => setShowSolWalletsList((prev) => !prev)}
-                >
-                  Carteiras Solana
-                </button>
-                {showSolWalletsList ? (
-                  <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-                    {solWalletOptions.map((option) => (
-                      <span
-                        key={option.id}
-                        className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1 text-slate-200"
-                      >
-                        {option.label}{" "}
-                        {isClient && isSolanaWalletAvailable(option.id) ? (
-                          <span className="ml-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
-                            Disponível
-                          </span>
-                        ) : (
-                          <span className="ml-1 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
-                            Não instalada
-                          </span>
-                        )}
+              <div className="flex flex-wrap gap-2 text-[11px]">
+                {solWalletOptions.map((option) => (
+                  <span
+                    key={option.id}
+                    className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1 text-slate-200"
+                  >
+                    {option.label}{" "}
+                    {isClient && isSolanaWalletAvailable(option.id) ? (
+                      <span className="ml-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
+                        Disponível
                       </span>
-                    ))}
-                  </div>
-                ) : null}
+                    ) : (
+                      <span className="ml-1 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
+                        Não instalada
+                      </span>
+                    )}
+                  </span>
+                ))}
               </div>
               <p className="text-xs text-slate-500">
                 Conecta uma carteira e/ou adiciona endereços. O saldo total junta todas.
@@ -3282,11 +3275,12 @@ export default function WalletsPage() {
               {solNewError ? <p className="text-xs text-rose-300">{solNewError}</p> : null}
               <div className="space-y-2">
                 {solWallets.map((item) => {
-                  const isConnected = item.address === solAddress && (item.network ?? "Solana") === "Solana";
+                  const isConnected = item.address === solAddress
+                    || (!!item.label && solWalletOptions.some((o) => o.label === item.label));
                   const addr = item.address ?? "";
                   const loading = solBalancesLoading[addr];
                   const err = solBalanceErrors[addr];
-                  const balanceDisplay = isConnected
+                  const balanceDisplay = item.address === solAddress
                     ? solBalance ?? "—"
                     : loading
                       ? "A carregar..."
@@ -3307,7 +3301,9 @@ export default function WalletsPage() {
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div className="space-y-1">
                           <p className="font-semibold text-white">
-                            {item.network ?? "Solana"}
+                            {item.label && solWalletOptions.some((o) => o.label === item.label)
+                              ? item.label
+                              : (item.network ?? "Solana")}
                             {isConnected ? (
                               <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">Conectada</span>
                             ) : (
