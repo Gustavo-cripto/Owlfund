@@ -138,7 +138,7 @@ export default function WalletCard({
             ? `€ ${(fiatValueUsd * usdToEur).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
             : "—"}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-slate-500">DeFi:</span>{" "}
           {defiLoading
             ? <span className="animate-pulse">A carregar…</span>
@@ -146,13 +146,19 @@ export default function WalletCard({
               ? <span className={defiBalanceUsd >= 0.01 ? "text-emerald-400 font-semibold" : "text-slate-400"}>
                   € {(defiBalanceUsd * usdToEur).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
-              : address && balanceUnit === "SOL"
-                ? <a href={`https://app.meteora.ag/dlmm?wallet=${address}`} target="_blank" rel="noopener noreferrer" className="text-xs text-violet-400 hover:text-violet-300 underline underline-offset-2">Ver na Meteora ↗</a>
-                : address
-                  ? <button type="button" onClick={onRefreshDefi} className="text-orange-400 hover:text-orange-300 underline underline-offset-2 text-[10px]">↻ Carregar</button>
-                  : "—"}
-          {defiBalanceUsd != null && onRefreshDefi && (
-            <button type="button" onClick={onRefreshDefi} className="text-slate-600 hover:text-orange-400 transition text-[10px]" title="Atualizar DeFi">↻</button>
+              : <span className="text-slate-600 text-[11px]">—</span>}
+          {address && balanceUnit !== "BTC" && balanceUnit !== "ADA" && (
+            <span className="inline-flex items-center gap-1.5">
+              {balanceUnit === "SOL"
+                ? <a href={`https://app.meteora.ag/dlmm?wallet=${address}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-violet-400 hover:text-violet-300 underline underline-offset-2">Meteora ↗</a>
+                : <>
+                    <a href={`https://app.uniswap.org/positions`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-pink-400 hover:text-pink-300 underline underline-offset-2">Uniswap ↗</a>
+                    <a href={`https://defillama.com/portfolio#${address}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-violet-400 hover:text-violet-300 underline underline-offset-2">DeFiLlama ↗</a>
+                  </>}
+              {onRefreshDefi && (
+                <button type="button" onClick={onRefreshDefi} className="text-slate-600 hover:text-orange-400 transition text-[10px]" title="Atualizar DeFi">↻</button>
+              )}
+            </span>
           )}
         </div>
         <div>
