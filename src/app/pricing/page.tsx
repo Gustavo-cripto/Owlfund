@@ -107,20 +107,14 @@ export default function PricingPage() {
       const user = data.user;
       if (!user) { setLoading(false); return; }
       setUserId(user.id);
-      const { data: sub } = await supabase
-        .from("subscriptions")
-        .select("status, price_id")
-        .eq("user_id", user.id)
-        .eq("status", "active")
-        .maybeSingle();
-      if (sub) {
-        const premiumPriceId = process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID;
-        if (premiumPriceId && sub.price_id === premiumPriceId) {
-          setIsPremium(true);
-        } else {
-          setIsPro(true);
+      try {
+        const res = await fetch("/api/subscription");
+        if (res.ok) {
+          const json = await res.json() as { plan: string };
+          if (json.plan === "premium") setIsPremium(true);
+          else if (json.plan === "pro") setIsPro(true);
         }
-      }
+      } catch { /* ignore */ }
       setLoading(false);
     };
     load();
