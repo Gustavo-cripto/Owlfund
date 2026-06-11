@@ -432,6 +432,9 @@ export default function WalletsPage() {
   const [solWalletSelectOpen, setSolWalletSelectOpen] = useState(false);
   const [solWalletSelectFilter, setSolWalletSelectFilter] = useState("");
   const solWalletSelectRef = useRef<HTMLDivElement>(null);
+  const [solNetworkSelectOpen, setSolNetworkSelectOpen] = useState(false);
+  const solNetworkSelectRef = useRef<HTMLDivElement>(null);
+  const [selectedSolNetwork, setSelectedSolNetwork] = useState<"Mainnet" | "Devnet">("Mainnet");
   const [solNewWalletSelectOpen, setSolNewWalletSelectOpen] = useState(false);
   const [solNewWalletSelectFilter, setSolNewWalletSelectFilter] = useState("");
   const solNewWalletSelectRef = useRef<HTMLDivElement>(null);
@@ -532,6 +535,17 @@ export default function WalletsPage() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [ethNetworkSelectOpen]);
+
+  useEffect(() => {
+    if (!solNetworkSelectOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (solNetworkSelectRef.current && !solNetworkSelectRef.current.contains(e.target as Node)) {
+        setSolNetworkSelectOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [solNetworkSelectOpen]);
 
   useEffect(() => {
     if (!btcWalletSelectOpen) return;
@@ -3064,12 +3078,12 @@ export default function WalletsPage() {
             onRefresh={handleSolRefresh}
             onToggleAddress={() => setSolShowMain((prev) => !prev)}
             isAddressVisible={solShowMain}
-          >
-            <div className="space-y-3">
+            topContent={
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[11px] uppercase tracking-[0.3em] text-slate-500">
                   Carteira SOL
                 </span>
+                {/* Wallet selector */}
                 <div className="relative min-w-[160px]" ref={solWalletSelectRef}>
                   <button
                     type="button"
@@ -3126,7 +3140,38 @@ export default function WalletsPage() {
                     </div>
                   ) : null}
                 </div>
+                {/* Network selector */}
+                <div className="relative min-w-[130px]" ref={solNetworkSelectRef}>
+                  <button
+                    type="button"
+                    className="flex min-w-[130px] items-center justify-between gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1.5 text-left text-xs text-slate-200 outline-none transition focus:border-orange-400"
+                    onClick={() => setSolNetworkSelectOpen((o) => !o)}
+                  >
+                    <span className="truncate">
+                      {selectedSolNetwork === "Mainnet" ? "SOL Mainnet" : "SOL Devnet"}
+                    </span>
+                    <span className="text-slate-500 text-[10px]">{solNetworkSelectOpen ? "▲" : "▼"}</span>
+                  </button>
+                  {solNetworkSelectOpen && (
+                    <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[160px] rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
+                      {(["Mainnet", "Devnet"] as const).map((net) => (
+                        <button
+                          key={net}
+                          type="button"
+                          className={`flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left text-xs hover:bg-slate-800 ${selectedSolNetwork === net ? "text-orange-300" : "text-slate-200"}`}
+                          onClick={() => { setSelectedSolNetwork(net); setSolNetworkSelectOpen(false); }}
+                        >
+                          <span>{net === "Mainnet" ? "SOL Mainnet" : "SOL Devnet"}</span>
+                          {selectedSolNetwork === net && <span className="text-orange-400">✓</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
+            }
+          >
+            <div className="space-y-3">
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
                 Carteiras adicionais / L2
               </p>

@@ -1022,8 +1022,9 @@ export default function PortfolioPage() {
                         outerRadius={80}
                         paddingAngle={3}
                         dataKey="value"
-                        label={({ name, percent }: { name: string; percent: number }) =>
-                          percent > 0.03 ? `${(percent * 100).toFixed(1)}%` : ""
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        label={({ name, percent }: any) =>
+                          (percent as number) > 0.03 ? `${((percent as number) * 100).toFixed(1)}%` : ""
                         }
                         labelLine={false}
                       >
