@@ -1608,11 +1608,11 @@ export default function WalletsPage() {
   };
 
   const handleSolDisconnect = () => {
-    setSolWallets([]);
+    // Only disconnect the browser wallet — keep manually saved wallets intact
     setSolAddress(undefined);
     setSolBalance(undefined);
     setSolError(null);
-    updateWalletSnapshot({ eth: ethWallets, sol: [], btc: btcWallets, ada: adaWallets });
+    updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: adaWallets });
   };
 
   const handleAddSolWalletInternal = async () => {
