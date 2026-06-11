@@ -22,7 +22,33 @@ const upsertSubscription = async (subscription: any) => {
     .eq("stripe_customer_id", customerId)
     .maybeSingle();
 
-  if (!profile?.id) return;
+  let userId = profile?.id;
+
+  // Fallback: look up by email via Stripe customer object
+  if (!userId) {
+    try {
+      const stripe = getStripe();
+      const customer = await stripe.customers.retrieve(customerId);
+      const email = !customer.deleted && "email" in customer ? customer.email : null;
+      if (email) {
+        const { data: profileByEmail } = await supabaseAdmin
+          .from("profiles")
+          .select("id")
+          .eq("email", email)
+          .maybeSingle();
+        if (profileByEmail?.id) {
+          userId = profileByEmail.id;
+          // Save customer_id for next time
+          await supabaseAdmin
+            .from("profiles")
+            .update({ stripe_customer_id: customerId })
+            .eq("id", userId);
+        }
+      }
+    } catch { /* ignore */ }
+  }
+
+  if (!userId) return;
 
   const priceId = subscription.items?.data?.[0]?.price?.id ?? null;
   const currentPeriodEndUnix = subscription.current_period_end as number | undefined;
@@ -31,7 +57,7 @@ const upsertSubscription = async (subscription: any) => {
     : null;
 
   await supabaseAdmin.from("subscriptions").upsert({
-    user_id: profile.id,
+    user_id: userId,
     status: subscription.status,
     price_id: priceId,
     current_period_end: currentPeriodEnd,

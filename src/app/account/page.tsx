@@ -90,6 +90,7 @@ export default function AccountPage() {
   const [email, setEmail] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
+  const [serverPlan, setServerPlan] = useState<"free" | "pro" | "premium" | null>(null);
   const [loading, setLoading] = useState(true);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -117,8 +118,18 @@ export default function AccountPage() {
       if (profile?.avatar_url) setAvatarUrl(profile.avatar_url);
       const { data: subData } = await supabase
         .from("subscriptions").select("status, current_period_end, price_id")
-        .eq("user_id", user.id).order("current_period_end", { ascending: false }).limit(1).maybeSingle();
+        .eq("user_id", user.id).eq("status", "active").order("current_period_end", { ascending: false }).limit(1).maybeSingle();
       setSubscription(subData ?? null);
+      // Fetch plan from server-side API (avoids NEXT_PUBLIC env var issue)
+      try {
+        const planRes = await fetch("/api/subscription");
+        if (planRes.ok) {
+          const planJson = await planRes.json() as { plan: string };
+          if (planJson.plan === "premium") setServerPlan("premium");
+          else if (planJson.plan === "pro") setServerPlan("pro");
+          else setServerPlan("free");
+        }
+      } catch { /* ignore */ }
       // Carregar preferências de briefing
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token ?? "";
@@ -182,10 +193,9 @@ export default function AccountPage() {
     }
   };
 
-  const premiumPriceId = process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID;
   const isActive = subscription?.status === "active" || subscription?.status === "trialing";
-  const isPremium = isActive && !!premiumPriceId && subscription?.price_id === premiumPriceId;
-  const isPro = isActive && !isPremium;
+  const isPremium = serverPlan === "premium" || (serverPlan === null && isActive && subscription?.price_id === process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID && !!process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID);
+  const isPro = serverPlan === "pro" || (serverPlan === null && isActive && !isPremium);
   const currentPlan = isPremium ? "premium" : isPro ? "pro" : "free";
   const periodEnd = subscription?.current_period_end
     ? new Date(subscription.current_period_end).toLocaleDateString("pt-PT") : null;
@@ -400,6 +410,14 @@ export default function AccountPage() {
                     <a href="/pricing" className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-300 hover:text-white transition">
                       {t("acc_compare_plans")}
                     </a>
+                    <button type="button" onClick={async () => {
+                      const res = await fetch("/api/sync-subscription", { method: "POST" });
+                      const json = await res.json() as { synced?: boolean; error?: string };
+                      if (json.synced) window.location.reload();
+                      else alert(json.error ?? "Nenhuma subscrição Stripe ativa encontrada.");
+                    }} className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-400 hover:text-white transition">
+                      Sincronizar plano
+                    </button>
                     <button type="button" onClick={handleLogout}
                       className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-400 hover:border-rose-500/40 hover:text-rose-400 transition ml-auto">
                       {t("acc_logout")}

@@ -100,6 +100,7 @@ export default function PricingPage() {
   const [isPremium, setIsPremium] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -119,6 +120,19 @@ export default function PricingPage() {
     };
     load();
   }, [supabase]);
+
+  const handleSyncPlan = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch("/api/sync-subscription", { method: "POST" });
+      const json = await res.json() as { synced?: boolean; price_id?: string; error?: string };
+      if (json.synced) window.location.reload();
+      else alert(json.error ?? "Nenhuma subscrição ativa encontrada no Stripe.");
+    } catch {
+      alert("Erro ao sincronizar. Tenta novamente.");
+    }
+    setSyncing(false);
+  };
 
   const handleUpgrade = async (plan: "pro" | "premium") => {
     if (!userId) { window.location.href = "/login"; return; }
