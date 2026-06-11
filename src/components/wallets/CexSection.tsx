@@ -180,6 +180,30 @@ export default function CexSection({
       .catch(() => {});
   }, [cexAccounts]);
 
+  const refreshAccount = (acc: CexAccount) => {
+    setCexAccounts((prev) => prev.map((a) => a.id === acc.id ? { ...a, loading: true, error: undefined } : a));
+    fetch("/api/cex-balance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ exchange: acc.exchange, apiKey: acc.apiKey, apiSecret: acc.apiSecret }),
+    })
+      .then((r) => r.json() as Promise<{ balances?: CexBalance[]; error?: string }>)
+      .then((data) => setCexAccounts((prev) => prev.map((a) => a.id === acc.id ? { ...a, loading: false, balances: data.balances ?? [], error: data.error } : a)))
+      .catch(() => setCexAccounts((prev) => prev.map((a) => a.id === acc.id ? { ...a, loading: false, error: "Falha ao atualizar" } : a)));
+  };
+
+  const refreshHlAccount = (address: string) => {
+    setHlAccounts((prev) => prev.map((a) => a.address === address ? { ...a, loading: true, error: undefined } : a));
+    fetch("/api/hyperliquid-balance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address }),
+    })
+      .then((r) => r.json() as Promise<{ spotBalances?: HlBalance[]; perpValue?: number; error?: string }>)
+      .then((data) => setHlAccounts((prev) => prev.map((a) => a.address === address ? { ...a, loading: false, spotBalances: data.spotBalances ?? [], perpValue: data.perpValue ?? 0, error: data.error } : a)))
+      .catch(() => setHlAccounts((prev) => prev.map((a) => a.address === address ? { ...a, loading: false, error: "Falha ao atualizar" } : a)));
+  };
+
   const accountUsd = (balances: CexBalance[]) =>
     balances.reduce((s, b) => s + b.total * (tokenPricesUsd[b.asset] ?? 0), 0);
 
@@ -347,13 +371,25 @@ export default function CexSection({
                   <p className="text-sm font-semibold text-white">{acc.label}</p>
                   <p className="text-[10px] text-slate-500 uppercase tracking-wide">{acc.exchange}</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setCexAccounts((prev) => prev.filter((a) => a.id !== acc.id))}
-                  className="text-xs text-slate-600 hover:text-rose-400 transition"
-                >
-                  Remover
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => refreshAccount(acc)}
+                    disabled={acc.loading}
+                    className="flex items-center gap-1 rounded-lg border border-slate-700 px-2.5 py-1 text-[11px] font-semibold text-slate-300 hover:border-orange-400/60 hover:text-orange-300 disabled:opacity-40 transition"
+                    title="Atualizar saldos"
+                  >
+                    <span className={acc.loading ? "animate-spin" : ""}>↻</span>
+                    {acc.loading ? "A atualizar…" : "Atualizar"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCexAccounts((prev) => prev.filter((a) => a.id !== acc.id))}
+                    className="text-xs text-slate-600 hover:text-rose-400 transition"
+                  >
+                    Remover
+                  </button>
+                </div>
               </div>
               {acc.loading ? (
                 <p className="text-xs text-slate-500 animate-pulse">A carregar saldos…</p>
@@ -450,16 +486,28 @@ export default function CexSection({
             <div key={acc.address} className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-mono text-slate-400">{acc.address.slice(0, 10)}…{acc.address.slice(-6)}</p>
-                <button
-                  type="button"
-                  onClick={() => setHlAccounts((prev) => prev.filter((a) => a.address !== acc.address))}
-                  className="text-xs text-slate-600 hover:text-rose-400 transition"
-                >
-                  Remover
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => refreshHlAccount(acc.address)}
+                    disabled={acc.loading}
+                    className="flex items-center gap-1 rounded-lg border border-slate-700 px-2.5 py-1 text-[11px] font-semibold text-slate-300 hover:border-orange-400/60 hover:text-orange-300 disabled:opacity-40 transition"
+                    title="Atualizar saldos"
+                  >
+                    <span className={acc.loading ? "animate-spin" : ""}>↻</span>
+                    {acc.loading ? "A atualizar…" : "Atualizar"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHlAccounts((prev) => prev.filter((a) => a.address !== acc.address))}
+                    className="text-xs text-slate-600 hover:text-rose-400 transition"
+                  >
+                    Remover
+                  </button>
+                </div>
               </div>
               {acc.loading ? (
-                <p className="text-xs text-slate-500 animate-pulse">A carregar…</p>
+                <p className="text-xs text-slate-500 animate-pulse">A atualizar saldos…</p>
               ) : acc.error ? (
                 <p className="text-xs text-rose-400">{acc.error}</p>
               ) : (
@@ -467,16 +515,26 @@ export default function CexSection({
                   {acc.perpValue > 0 && (
                     <div className="rounded-lg bg-orange-500/10 border border-orange-500/20 px-3 py-2 text-xs">
                       <p className="text-orange-300 font-semibold">Perp Account Value</p>
-                      <p className="text-white font-bold">${acc.perpValue.toLocaleString("pt-PT", { minimumFractionDigits: 2 })}</p>
+                      <p className="text-white font-bold">€ {(acc.perpValue * usdToEur).toLocaleString("pt-PT", { minimumFractionDigits: 2 })}</p>
                     </div>
                   )}
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {acc.spotBalances.map((b) => (
-                      <div key={b.coin} className="rounded-lg bg-slate-900 px-3 py-2 text-xs">
-                        <p className="font-bold text-white">{b.coin}</p>
-                        <p className="text-slate-400">{fmt(b.total)}</p>
-                      </div>
-                    ))}
+                    {acc.spotBalances.map((b) => {
+                      const STABLES = new Set(["USDC", "USDT", "DAI", "BUSD", "USDE"]);
+                      const priceUsd = STABLES.has(b.coin) ? 1 : (tokenPricesUsd[b.coin] ?? 0);
+                      const valueEur = b.total > 0 && priceUsd > 0 ? b.total * priceUsd * usdToEur : null;
+                      return (
+                        <div key={b.coin} className="rounded-lg bg-slate-900 px-3 py-2 text-xs">
+                          <p className="font-bold text-white">{b.coin}</p>
+                          <p className="text-slate-400">{fmt(b.total)}</p>
+                          {valueEur != null && valueEur > 0.001 && (
+                            <p className="text-[11px] text-emerald-400/80 mt-0.5">
+                              € {valueEur.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                   {acc.spotBalances.length === 0 && acc.perpValue === 0 && (
                     <p className="text-xs text-slate-600">Sem saldos encontrados.</p>
