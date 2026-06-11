@@ -4369,7 +4369,60 @@ export default function WalletsPage() {
                 );
               });
             })()}
-            {sortedCryptoSymbols.length === 0 && !(ethWallets.length > 0 || ethAddress || solWallets.length > 0 || solAddress || btcWallets.length > 0 || btcAddress || adaWallets.length > 0 || adaAddress) ? (
+            {/* Stablecoins por endereço */}
+            {stablecoinEntries.map((e) => {
+              const market = cryptoPrices[e.symbol];
+              const bal = stablecoinBalances[e.id];
+              const balNum = bal ? parseFloat(bal) : 0;
+              const fiatEur = balNum > 0 && market ? balNum * market.priceUsd * usdToEurRate : null;
+              return (
+                <div
+                  key={`stable-${e.id}`}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-700/60 bg-slate-900/40 px-4 py-3 text-xs text-slate-100"
+                >
+                  <div>
+                    <p className="font-semibold text-white">{e.symbol}</p>
+                    <p className="text-slate-500">{e.network}</p>
+                    <p className="mt-0.5 text-[10px] text-slate-600 uppercase tracking-wide">Por endereço</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 text-right">
+                    <div>
+                      <p className="text-slate-300 tabular-nums">{bal ?? "—"} {e.symbol}</p>
+                      {fiatEur != null && (
+                        <p className="text-slate-500">€ {fiatEur.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                      )}
+                    </div>
+                    <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
+                      Preço atual:{" "}
+                      <span className="font-semibold text-white">
+                        {market ? market.priceUsd.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 4 }) : "—"}
+                      </span>
+                    </span>
+                    <span className="rounded-full border border-slate-700/40 bg-slate-800/40 px-3 py-2 text-[10px] text-slate-500">Stablecoin</span>
+                  </div>
+                </div>
+              );
+            })}
+            {/* Outras redes — tracking */}
+            {otherWallets.map((item) => {
+              const addr = item.address ?? "";
+              return (
+                <div
+                  key={`other-${addr}-${item.network}`}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-700/60 bg-slate-900/40 px-4 py-3 text-xs text-slate-100"
+                >
+                  <div>
+                    <p className="font-semibold text-white">{item.label ?? item.network ?? addr}</p>
+                    <p className="text-slate-500 font-mono text-[10px]">{addr.length > 20 ? `${addr.slice(0, 10)}…${addr.slice(-6)}` : addr}</p>
+                    <p className="mt-0.5 text-[10px] text-slate-600 uppercase tracking-wide">Tracking · {item.network}</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 text-right">
+                    <span className="rounded-full border border-slate-700/40 bg-slate-800/40 px-3 py-2 text-[10px] text-slate-500">Sem preço</span>
+                  </div>
+                </div>
+              );
+            })}
+            {sortedCryptoSymbols.length === 0 && !(ethWallets.length > 0 || ethAddress || solWallets.length > 0 || solAddress || btcWallets.length > 0 || btcAddress || adaWallets.length > 0 || adaAddress) && stablecoinEntries.length === 0 && otherWallets.length === 0 ? (
               <p className="text-sm text-slate-500">Nenhum ativo selecionado.</p>
             ) : (
               sortedCryptoSymbols.map((symbol) => {
