@@ -3248,91 +3248,125 @@ export default function WalletsPage() {
                       : err
                         ? null
                         : solBalancesByAddress[addr] ?? item.balance ?? "—";
+                  const dk = addr ? defiKey(addr, "sol") : null;
+                  const itemDefi = dk ? (defiTotals[dk] ?? null) : null;
+                  const itemDefiLoading = dk ? !!defiLoading[dk] : false;
+                  const itemNftCount = dk ? (nftCounts[dk] ?? null) : null;
+                  const itemNftLoading = dk ? !!nftLoading[dk] : false;
+                  const itemNfts = dk ? (nftsByKey[dk] ?? []) : [];
                   return (
                     <div
                       key={`${item.address}-${item.network ?? "Solana"}`}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300"
+                      className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300"
                     >
-                      <div className="space-y-1">
-                        <p className="font-semibold text-white">
-                          {item.network ?? "Solana"}
-                          {isConnected ? (
-                            <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
-                              Conectada
-                            </span>
-                          ) : (
-                            <span className="ml-2 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
-                              Por endereço
-                            </span>
-                          )}
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <p className="text-slate-500">
-                            {solShown[addr] ? item.address : formatAddress(item.address)}
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="space-y-1">
+                          <p className="font-semibold text-white">
+                            {item.network ?? "Solana"}
+                            {isConnected ? (
+                              <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">Conectada</span>
+                            ) : (
+                              <span className="ml-2 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">Por endereço</span>
+                            )}
                           </p>
-                          <button
-                            type="button"
-                            onClick={() => setSolShown((prev) => ({ ...prev, [addr]: !prev[addr] }))}
-                            className="rounded-full border border-slate-700 px-2 py-1 text-[10px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                            title={solShown[addr] ? "Ocultar" : "Mostrar"}
-                          >
-                            {solShown[addr] ? "🙈" : "👁️"}
-                          </button>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        {balanceDisplay != null && (
-                          <p>
-                            {balanceDisplay} {balanceDisplay !== "A carregar..." && balanceDisplay !== "—" ? "SOL" : ""}
-                          </p>
-                        )}
-                        {balanceDisplay != null && balanceDisplay !== "A carregar..." && balanceDisplay !== "—" && getFiatValue("SOL", balanceDisplay) != null ? (
-                          <p className="text-slate-400">${getFiatValue("SOL", balanceDisplay)!.toFixed(2)}</p>
-                        ) : null}
-                        {err ? (
-                          <p className="text-rose-300" title={err}>
-                            {err.length > 40 ? `${err.slice(0, 40)}…` : err}
-                          </p>
-                        ) : null}
-                        <div className="mt-1 flex flex-wrap justify-end gap-1">
-                          {!isConnected && (err || balanceDisplay === "—") ? (
+                          <div className="flex items-center gap-2">
+                            <p className="text-slate-500">
+                              {solShown[addr] ? item.address : formatAddress(item.address)}
+                            </p>
                             <button
                               type="button"
-                              className="rounded-full border border-slate-600 px-3 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white disabled:opacity-50"
-                              onClick={() => void fetchSolBalanceForAddress(addr)}
-                              disabled={loading}
+                              onClick={() => setSolShown((prev) => ({ ...prev, [addr]: !prev[addr] }))}
+                              className="rounded-full border border-slate-700 px-2 py-1 text-[10px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                              title={solShown[addr] ? "Ocultar" : "Mostrar"}
                             >
-                              {loading ? "A carregar…" : "Tentar novamente"}
+                              {solShown[addr] ? "🙈" : "👁️"}
                             </button>
+                          </div>
+                          {/* DeFi */}
+                          <p className="flex flex-wrap items-center gap-1.5 text-slate-500">
+                            DeFi:{" "}
+                            {itemDefiLoading
+                              ? <span className="animate-pulse">A carregar…</span>
+                              : itemDefi != null
+                                ? <span className={itemDefi >= 0.01 ? "text-emerald-400 font-semibold" : "text-slate-400"}>
+                                    € {(itemDefi * usdToEurRate).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                : <span className="text-slate-600 text-[11px]">—</span>}
+                            {addr && (
+                              <span className="inline-flex items-center gap-1.5">
+                                <a href={`https://app.meteora.ag/dlmm?wallet=${addr}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-violet-400 hover:text-violet-300 underline underline-offset-2">Meteora ↗</a>
+                                <a href={`https://defillama.com/portfolio#${addr}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-violet-400 hover:text-violet-300 underline underline-offset-2">DeFiLlama ↗</a>
+                                <button
+                                  type="button"
+                                  onClick={() => { void fetchDefiTotal(addr, "sol"); void fetchNftBalance(addr, "sol"); }}
+                                  className="text-slate-600 hover:text-orange-400 transition text-[10px]"
+                                  title="Atualizar DeFi"
+                                >↻</button>
+                              </span>
+                            )}
+                          </p>
+                          {/* NFT */}
+                          <p className="text-slate-500">
+                            NFT:{" "}
+                            {itemNftLoading
+                              ? "A carregar..."
+                              : itemNftCount != null
+                                ? `${itemNftCount} ${itemNftCount === 1 ? "item" : "itens"}`
+                                : "—"}
+                          </p>
+                          {itemNfts.length > 0 && (
+                            <div className="mt-1 grid grid-cols-4 gap-1 max-w-[160px]">
+                              {itemNfts.slice(0, 8).map((nft) => (
+                                <a
+                                  key={nft.id}
+                                  href={nft.tokenAddress ? `https://magiceden.io/item-details/${nft.tokenAddress}` : "#"}
+                                  target="_blank" rel="noopener noreferrer"
+                                  className="aspect-square overflow-hidden rounded border border-slate-700 bg-slate-800"
+                                  title={nft.name}
+                                >
+                                  {nft.image
+                                    ? <img src={nft.image} alt={nft.name} className="h-full w-full object-cover" loading="lazy" />
+                                    : <div className="h-full w-full flex items-center justify-center text-[8px] text-slate-500">{nft.name?.slice(0, 3)}</div>}
+                                </a>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-right shrink-0">
+                          {balanceDisplay != null && (
+                            <p>{balanceDisplay}{balanceDisplay !== "A carregar..." && balanceDisplay !== "—" ? " SOL" : ""}</p>
+                          )}
+                          {balanceDisplay != null && balanceDisplay !== "A carregar..." && balanceDisplay !== "—" && getFiatValue("SOL", balanceDisplay) != null ? (
+                            <p className="text-slate-400">€ {((getFiatValue("SOL", balanceDisplay) ?? 0) * usdToEurRate).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                           ) : null}
-                          <button
-                            className="rounded-full border border-rose-400/40 px-3 py-1 text-[11px] font-semibold text-rose-200 transition hover:border-rose-400 hover:text-white"
-                            type="button"
-                            onClick={() => {
-                              const nextWallets = removeWallet(
-                                solWallets,
-                                (entry) => entry.address === item.address && (entry.network ?? "Solana") === (item.network ?? "Solana")
-                              );
-                              setSolWallets(nextWallets);
-                              if (item.address === solAddress) {
-                                setSolAddress(undefined);
-                                setSolBalance(undefined);
-                                setSolError(null);
-                              }
-                              setSolBalancesByAddress((prev) => {
-                                const next = { ...prev };
-                                delete next[addr];
-                                return next;
-                              });
-                              setSolBalanceErrors((prev) => {
-                                const next = { ...prev };
-                                delete next[addr];
-                                return next;
-                              });
-                            }}
-                          >
-                            Remover
-                          </button>
+                          {err ? (
+                            <p className="text-rose-300" title={err}>{err.length > 40 ? `${err.slice(0, 40)}…` : err}</p>
+                          ) : null}
+                          <div className="mt-1 flex flex-wrap justify-end gap-1">
+                            {!isConnected && (err || balanceDisplay === "—") ? (
+                              <button
+                                type="button"
+                                className="rounded-full border border-slate-600 px-3 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white disabled:opacity-50"
+                                onClick={() => void fetchSolBalanceForAddress(addr)}
+                                disabled={loading}
+                              >
+                                {loading ? "A carregar…" : "Tentar novamente"}
+                              </button>
+                            ) : null}
+                            <button
+                              className="rounded-full border border-rose-400/40 px-3 py-1 text-[11px] font-semibold text-rose-200 transition hover:border-rose-400 hover:text-white"
+                              type="button"
+                              onClick={() => {
+                                const nextWallets = removeWallet(solWallets, (entry) => entry.address === item.address && (entry.network ?? "Solana") === (item.network ?? "Solana"));
+                                setSolWallets(nextWallets);
+                                if (item.address === solAddress) { setSolAddress(undefined); setSolBalance(undefined); setSolError(null); }
+                                setSolBalancesByAddress((prev) => { const next = { ...prev }; delete next[addr]; return next; });
+                                setSolBalanceErrors((prev) => { const next = { ...prev }; delete next[addr]; return next; });
+                              }}
+                            >
+                              Remover
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
