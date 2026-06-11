@@ -1012,15 +1012,32 @@ export default function PortfolioPage() {
                     <p className="text-sm text-slate-500">Sem ativos para mostrar.</p>
                   </div>
                 ) : (
-                  <ResponsiveContainer width="100%" height={200}>
+                  <ResponsiveContainer width="100%" height={220}>
                     <PieChart>
-                      <Pie data={pieData} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={3} dataKey="value">
+                      <Pie
+                        data={pieData}
+                        cx="50%"
+                        cy="45%"
+                        innerRadius={55}
+                        outerRadius={80}
+                        paddingAngle={3}
+                        dataKey="value"
+                        label={({ name, percent }: { name: string; percent: number }) =>
+                          percent > 0.03 ? `${(percent * 100).toFixed(1)}%` : ""
+                        }
+                        labelLine={false}
+                      >
                         {pieData.map((entry, i) => <Cell key={i} fill={assetColor(entry.name)} />)}
                       </Pie>
                       <Tooltip
                         contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        formatter={(v: any) => [`€ ${formatValue(typeof v === "number" ? v : 0)}`, ""]}
+                        formatter={(v: any, _: any, props: any) => {
+                          const val = typeof v === "number" ? v : 0;
+                          const total = pieData.reduce((s, d) => s + d.value, 0);
+                          const pct = total > 0 ? ((val / total) * 100).toFixed(1) : "0.0";
+                          return [`€ ${formatValue(val)} (${pct}%)`, ""];
+                        }}
                       />
                       <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{ color: "#94a3b8", fontSize: 11 }}>{v}</span>} />
                     </PieChart>
