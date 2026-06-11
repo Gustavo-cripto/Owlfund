@@ -25,7 +25,7 @@ export const isPhantomAvailable = () =>
   typeof window !== "undefined" && !!window.solana?.isPhantom;
 
 export const isSolflareAvailable = () =>
-  typeof window !== "undefined" && !!window.solflare;
+  typeof window !== "undefined" && (!!window.solflare?.isSolflare || !!window.solflare?.connect);
 
 export const isBackpackAvailable = () =>
   typeof window !== "undefined" && !!window.backpack;
@@ -42,7 +42,7 @@ export const isSolanaWalletAvailable = (id: SolanaWalletId): boolean => {
     case "phantom":
       return !!window.solana?.isPhantom;
     case "solflare":
-      return !!window.solflare;
+      return !!window.solflare?.isSolflare || !!window.solflare?.connect;
     case "backpack":
       return !!window.backpack;
     case "glow":
@@ -68,12 +68,17 @@ export const connectSolflare = async (): Promise<string> => {
   if (!window.solflare) {
     throw new Error("Solflare não está disponível. Instala a extensão Solflare.");
   }
-  const response = await window.solflare.connect();
-  const address =
-    response?.publicKey?.toString() ??
-    response?.address ??
-    window.solflare.publicKey?.toString();
-  if (!address) throw new Error("Nenhuma conta retornada pela Solflare.");
+  try {
+    await window.solflare.connect();
+  } catch (err) {
+    // Some versions throw on connect() if already connected — ignore and try to read publicKey
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!msg.includes("already") && !msg.includes("connected")) throw err;
+  }
+  // After connect(), publicKey is set on the window object (may take a tick)
+  await new Promise((r) => setTimeout(r, 100));
+  const address = window.solflare.publicKey?.toString();
+  if (!address) throw new Error("Nenhuma conta retornada pela Solflare. Verifica se a extensão está desbloqueada.");
   return address;
 };
 
