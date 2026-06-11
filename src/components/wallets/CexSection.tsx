@@ -165,24 +165,17 @@ export default function CexSection({
     saveStored<StoredHl>(HL_STORAGE_KEY, hlAccounts.map(({ address }) => ({ address })));
   }, [hlAccounts]);
 
-  // Fetch CoinEx public prices for all tokens in all accounts
+  // Fetch prices for all tokens via server-side proxy (avoids CORS)
   useEffect(() => {
     const allSymbols = Array.from(
       new Set(cexAccounts.flatMap((a) => a.balances.map((b) => b.asset)))
-    ).filter((s) => s !== "USDT" && s !== "USDC");
+    );
     if (allSymbols.length === 0) return;
 
-    const markets = allSymbols.map((s) => `${s}USDT`).join(",");
-    fetch(`https://api.coinex.com/v2/spot/ticker?market=${markets}`)
+    fetch(`/api/token-prices?symbols=${allSymbols.join(",")}`)
       .then((r) => r.json())
-      .then((d: { data?: Array<{ market: string; last: string }> }) => {
-        const map: Record<string, number> = { USDT: 1, USDC: 1 };
-        (d.data ?? []).forEach((t) => {
-          const sym = t.market.replace(/USDT$/, "");
-          const price = parseFloat(t.last);
-          if (Number.isFinite(price) && price > 0) map[sym] = price;
-        });
-        setTokenPricesUsd(map);
+      .then((d: { prices?: Record<string, number> }) => {
+        if (d.prices) setTokenPricesUsd(d.prices);
       })
       .catch(() => {});
   }, [cexAccounts]);
@@ -369,21 +362,30 @@ export default function CexSection({
               ) : (
                 <>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {acc.balances.map((b) => (
-                      <div key={b.asset} className="rounded-lg bg-slate-900 px-3 py-2 text-xs">
-                        <p className="font-bold text-white">{b.asset}</p>
-                        <p className="text-slate-400">{fmt(b.total)}</p>
-                        {b.locked > 0 && <p className="text-[10px] text-slate-600">Locked: {fmt(b.locked)}</p>}
-                      </div>
-                    ))}
+                    {acc.balances.map((b) => {
+                      const priceUsd = tokenPricesUsd[b.asset];
+                      const valueEur = priceUsd != null ? b.total * priceUsd * usdToEur : null;
+                      return (
+                        <div key={b.asset} className="rounded-lg bg-slate-900 px-3 py-2 text-xs">
+                          <p className="font-bold text-white">{b.asset}</p>
+                          <p className="text-slate-400">{fmt(b.total)}</p>
+                          {valueEur != null && valueEur > 0.001 && (
+                            <p className="text-[11px] text-emerald-400/80 mt-0.5">
+                              € {valueEur.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                          )}
+                          {b.locked > 0 && <p className="text-[10px] text-slate-600">Locked: {fmt(b.locked)}</p>}
+                        </div>
+                      );
+                    })}
                   </div>
                   {acc.balances.length > 0 && (
-                    <div className="mt-3 flex justify-end">
-                      <span className="text-xs text-slate-500">Total: </span>
-                      <span className="ml-1 text-sm font-semibold text-white">
+                    <div className="mt-3 flex items-center justify-end gap-1.5">
+                      <span className="text-xs text-slate-500">Total:</span>
+                      <span className="text-sm font-bold text-white">
                         {accountUsd(acc.balances) > 0
                           ? `€ ${(accountUsd(acc.balances) * usdToEur).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                          : "—"}
+                          : <span className="text-slate-600 animate-pulse text-xs">A calcular…</span>}
                       </span>
                     </div>
                   )}
