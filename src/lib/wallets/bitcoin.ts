@@ -77,16 +77,45 @@ export const getBtcBalanceFromWallet = async () => {
   return Number(total) / 1e8;
 };
 
-export const getBtcBalanceFromAddress = async (address: string) => {
-  const response = await fetch(`https://blockstream.info/api/address/${address}`);
-  if (!response.ok) {
-    throw new Error("Falha ao consultar saldo BTC.");
+const parseBtcBalance = (data: unknown): number => {
+  const d = data as Record<string, unknown>;
+  const stats = (d?.chain_stats ?? d?.chainStats ?? d) as Record<string, unknown>;
+  const funded = Number(stats?.funded_txo_sum ?? 0);
+  const spent = Number(stats?.spent_txo_sum ?? 0);
+  return (funded - spent) / 1e8;
+};
+
+export const getBtcBalanceFromAddress = async (address: string): Promise<number> => {
+  const endpoints = [
+    `https://mempool.space/api/address/${address}`,
+    `https://blockstream.info/api/address/${address}`,
+    `https://mempool.space/api/address/${address}`, // retry mempool on blockstream fail
+  ];
+
+  let lastErr: unknown;
+  for (const url of endpoints) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) continue;
+      const data = await res.json();
+      return parseBtcBalance(data);
+    } catch (err) {
+      lastErr = err;
+    }
   }
 
-  const data = await response.json();
-  const funded = Number(data?.chain_stats?.funded_txo_sum ?? 0);
-  const spent = Number(data?.chain_stats?.spent_txo_sum ?? 0);
-  return (funded - spent) / 1e8;
+  // Last resort: proxy via API route (avoids CORS)
+  try {
+    const res = await fetch(`/api/btc-balance?address=${encodeURIComponent(address)}`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (res.ok) {
+      const data = await res.json() as { balance?: number };
+      if (typeof data.balance === "number") return data.balance;
+    }
+  } catch { /* ignore */ }
+
+  throw lastErr ?? new Error("Falha ao consultar saldo BTC.");
 };
 
 /** Saldo Runes (ex.: DOG) por endereço Bitcoin. Usa API Hiro; em falha devolve []. */
