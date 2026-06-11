@@ -2673,6 +2673,8 @@ export default function WalletsPage() {
             nftLoading={ethMainAddress ? !!nftLoading[defiKey(ethMainAddress, "eth")] : false}
             nftError={ethMainAddress ? nftErrors[defiKey(ethMainAddress, "eth")] ?? null : null}
             nfts={ethMainAddress ? nftsByKey[defiKey(ethMainAddress, "eth")] ?? [] : []}
+            usdToEur={usdToEurRate}
+            onRefreshDefi={ethMainAddress ? () => void fetchDefiTotal(ethMainAddress, "eth") : undefined}
             isConnected={!!ethAddress || ethWallets.length > 0}
             isAvailable={ethIsAvailable || ethWallets.length > 0}
             isLoading={ethLoading}
@@ -2920,23 +2922,30 @@ export default function WalletsPage() {
                         <p className="text-slate-500">
                           DeFi:{" "}
                           {itemDefiLoading
-                            ? "A carregar..."
-                            : itemDefi != null && itemDefi >= 0.01
-                              ? <span className="text-emerald-400">${itemDefi.toFixed(2)}</span>
+                            ? <span className="animate-pulse">A carregar…</span>
+                            : itemDefi != null
+                              ? <span className={itemDefi >= 0.01 ? "text-emerald-400 font-semibold" : "text-slate-400"}>
+                                  € {(itemDefi * usdToEurRate).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
                               : item.address
-                                ? <span className="inline-flex gap-2">
-                                    <a
-                                      href={`https://app.uniswap.org/positions?chain=${(item.network ?? "Ethereum").toLowerCase()}`}
-                                      target="_blank" rel="noopener noreferrer"
-                                      className="text-pink-400 hover:text-pink-300 underline underline-offset-2"
-                                    >Uniswap ↗</a>
-                                    <a
-                                      href={`https://defillama.com/portfolio#${item.address}`}
-                                      target="_blank" rel="noopener noreferrer"
-                                      className="text-violet-400 hover:text-violet-300 underline underline-offset-2"
-                                    >DeFiLlama ↗</a>
+                                ? <span className="inline-flex items-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => void fetchDefiForEntry(item.address!, item.network ?? "Ethereum")}
+                                      className="text-orange-400 hover:text-orange-300 underline underline-offset-2 text-[10px]"
+                                    >↻ Carregar</button>
+                                    <a href={`https://app.uniswap.org/positions?chain=${(item.network ?? "Ethereum").toLowerCase()}`} target="_blank" rel="noopener noreferrer" className="text-pink-400 hover:text-pink-300 underline underline-offset-2">Uniswap ↗</a>
+                                    <a href={`https://defillama.com/portfolio#${item.address}`} target="_blank" rel="noopener noreferrer" className="text-violet-400 hover:text-violet-300 underline underline-offset-2">DeFiLlama ↗</a>
                                   </span>
                                 : "—"}
+                          {itemDefi != null && item.address && (
+                            <button
+                              type="button"
+                              onClick={() => void fetchDefiForEntry(item.address!, item.network ?? "Ethereum")}
+                              className="ml-2 text-slate-600 hover:text-orange-400 transition text-[10px]"
+                              title="Atualizar DeFi"
+                            >↻</button>
+                          )}
                         </p>
                         <p className="text-slate-500">
                           NFT:{" "}
@@ -3050,6 +3059,8 @@ export default function WalletsPage() {
             nftLoading={solMainAddress ? !!nftLoading[defiKey(solMainAddress, "sol")] : false}
             nftError={solMainAddress ? nftErrors[defiKey(solMainAddress, "sol")] ?? null : null}
             nfts={solMainAddress ? nftsByKey[defiKey(solMainAddress, "sol")] ?? [] : []}
+            usdToEur={usdToEurRate}
+            onRefreshDefi={solMainAddress ? () => void fetchDefiTotal(solMainAddress, "sol") : undefined}
             isConnected={!!solAddress || solWallets.length > 0}
             isAvailable={solIsAvailable || solWallets.length > 0}
             isLoading={solLoading}
@@ -3359,6 +3370,7 @@ export default function WalletsPage() {
             nftLoading={btcMainAddress ? !!nftLoading[defiKey(btcMainAddress, "btc")] : false}
             nftError={btcMainAddress ? nftErrors[defiKey(btcMainAddress, "btc")] ?? null : null}
             nfts={btcMainAddress ? nftsByKey[defiKey(btcMainAddress, "btc")] ?? [] : []}
+            usdToEur={usdToEurRate}
             isConnected={!!btcAddress || btcWallets.length > 0}
             isAvailable={btcIsAvailable}
             isLoading={btcLoading}
@@ -3713,6 +3725,7 @@ export default function WalletsPage() {
             nftLoading={adaMainAddress ? !!nftLoading[defiKey(adaMainAddress, "ada")] : false}
             nftError={adaMainAddress ? nftErrors[defiKey(adaMainAddress, "ada")] ?? null : null}
             nfts={adaMainAddress ? nftsByKey[defiKey(adaMainAddress, "ada")] ?? [] : []}
+            usdToEur={usdToEurRate}
             isConnected={!!adaAddress || adaWallets.length > 0}
             isAvailable={adaIsAvailable || adaWallets.length > 0}
             isLoading={adaLoading}

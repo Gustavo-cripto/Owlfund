@@ -21,6 +21,8 @@ type WalletCardProps = {
   defiBalanceUsd?: number | null;
   defiLoading?: boolean;
   defiError?: string | null;
+  usdToEur?: number;
+  onRefreshDefi?: () => void;
   nftCount?: number | null;
   nftLoading?: boolean;
   nftError?: string | null;
@@ -60,6 +62,8 @@ export default function WalletCard({
   defiBalanceUsd,
   defiLoading,
   defiError,
+  usdToEur = 0.92,
+  onRefreshDefi,
   nftCount,
   nftLoading,
   nftError,
@@ -130,24 +134,26 @@ export default function WalletCard({
         </div>
         <div>
           <span className="text-slate-500">Valor:</span>{" "}
-          {fiatValueUsd != null ? `$${fiatValueUsd.toFixed(2)}` : "—"}
+          {fiatValueUsd != null
+            ? `€ ${(fiatValueUsd * usdToEur).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+            : "—"}
         </div>
-        <div>
+        <div className="flex items-center gap-2">
           <span className="text-slate-500">DeFi:</span>{" "}
           {defiLoading
-            ? "A carregar..."
-            : defiBalanceUsd != null && defiBalanceUsd >= 0.01
-              ? `$${defiBalanceUsd.toFixed(2)}`
+            ? <span className="animate-pulse">A carregar…</span>
+            : defiBalanceUsd != null
+              ? <span className={defiBalanceUsd >= 0.01 ? "text-emerald-400 font-semibold" : "text-slate-400"}>
+                  € {(defiBalanceUsd * usdToEur).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
               : address && balanceUnit === "SOL"
-                ? <a
-                    href={`https://app.meteora.ag/dlmm?wallet=${address}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-violet-400 hover:text-violet-300 underline underline-offset-2"
-                  >
-                    Ver na Meteora ↗
-                  </a>
-                : "—"}
+                ? <a href={`https://app.meteora.ag/dlmm?wallet=${address}`} target="_blank" rel="noopener noreferrer" className="text-xs text-violet-400 hover:text-violet-300 underline underline-offset-2">Ver na Meteora ↗</a>
+                : address
+                  ? <button type="button" onClick={onRefreshDefi} className="text-orange-400 hover:text-orange-300 underline underline-offset-2 text-[10px]">↻ Carregar</button>
+                  : "—"}
+          {defiBalanceUsd != null && onRefreshDefi && (
+            <button type="button" onClick={onRefreshDefi} className="text-slate-600 hover:text-orange-400 transition text-[10px]" title="Atualizar DeFi">↻</button>
+          )}
         </div>
         <div>
           <span className="text-slate-500">NFT:</span>{" "}
