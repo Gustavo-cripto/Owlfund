@@ -955,6 +955,36 @@ export default function WalletsPage() {
         (payload.data ?? []).forEach((row) => {
           map[row.symbol] = row;
         });
+        // For symbols not covered by CoinEx (e.g. BTC, ETH from selectList only),
+        // fetch prices from /api/prices which always has BTC, ETH, SOL
+        const missing = symbols.filter((s) => !map[s]);
+        if (missing.length > 0) {
+          try {
+            const pricesRes = await fetch("/api/prices");
+            if (pricesRes.ok) {
+              const pricesData = (await pricesRes.json()) as {
+                prices?: { btc_eur?: number; eth_eur?: number; sol_eur?: number; usdToEur?: number };
+              };
+              const rate = pricesData.prices?.usdToEur ?? 0.92;
+              const fillFrom: Record<string, { priceUsd: number; name: string }> = {
+                BTC: { priceUsd: (pricesData.prices?.btc_eur ?? 0) / rate, name: "Bitcoin" },
+                ETH: { priceUsd: (pricesData.prices?.eth_eur ?? 0) / rate, name: "Ethereum" },
+                SOL: { priceUsd: (pricesData.prices?.sol_eur ?? 0) / rate, name: "Solana" },
+              };
+              missing.forEach((sym) => {
+                if (fillFrom[sym] && fillFrom[sym].priceUsd > 0) {
+                  const info = payload.selectList?.find((r) => r.symbol === sym);
+                  map[sym] = {
+                    symbol: sym,
+                    name: info?.name ?? fillFrom[sym].name,
+                    priceUsd: fillFrom[sym].priceUsd,
+                    marketCapUsd: null,
+                  };
+                }
+              });
+            }
+          } catch { /* ignore, use what we have */ }
+        }
         setCryptoPrices(map);
       }
     } catch (error) {
