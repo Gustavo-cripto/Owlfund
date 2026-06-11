@@ -402,6 +402,7 @@ export default function WalletsPage() {
   const [adaBalancesByAddress, setAdaBalancesByAddress] = useState<Record<string, string>>({});
   const [adaBalancesLoading, setAdaBalancesLoading] = useState<Record<string, boolean>>({});
   const [adaBalanceErrors, setAdaBalanceErrors] = useState<Record<string, string | null>>({});
+  const [otherWallets, setOtherWallets] = useState<StoredWalletEntry[]>([]);
   const [defiTotals, setDefiTotals] = useState<Record<string, number | null>>({});
   const [cexHlTotalUsd, setCexHlTotalUsd] = useState(0);
   const [usdToEurRate, setUsdToEurRate] = useState(0.92);
@@ -605,6 +606,7 @@ export default function WalletsPage() {
     setSolWallets(snapshot.sol ?? []);
     setBtcWallets(snapshot.btc ?? []);
     setAdaWallets(snapshot.ada ?? []);
+    setOtherWallets(snapshot.other ?? []);
     walletsHydratedRef.current = true;
   }, []);
 
@@ -617,11 +619,12 @@ export default function WalletsPage() {
           sol: solWallets,
           btc: btcWallets,
           ada: adaWallets,
+          other: otherWallets,
         }),
       150
     );
     return () => window.clearTimeout(id);
-  }, [ethWallets, solWallets, btcWallets, adaWallets]);
+  }, [ethWallets, solWallets, btcWallets, adaWallets, otherWallets]);
 
   useEffect(() => {
     const loadAuth = async () => {
@@ -717,6 +720,7 @@ export default function WalletsPage() {
       setSolWallets(latest.data.sol ?? []);
       setBtcWallets(latest.data.btc ?? []);
       setAdaWallets(latest.data.ada ?? []);
+      setOtherWallets(latest.data.other ?? []);
     };
 
     loadCloudSnapshot();
@@ -731,6 +735,7 @@ export default function WalletsPage() {
         sol: solWallets,
         btc: btcWallets,
         ada: adaWallets,
+        other: otherWallets,
       };
 
       const { error } = await supabase
@@ -1980,8 +1985,20 @@ export default function WalletsPage() {
       updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: nextWallets });
       void fetchAdaBalanceForAddress(trimmed);
     } else {
-      setManualAddError("Suporte para esta rede em breve. Por agora usa ETH, SOL, BTC ou ADA.");
-      return;
+      // Other networks: store address without balance (tracking only)
+      if (trimmed.length < 6) {
+        setManualAddError("Endereço demasiado curto.");
+        return;
+      }
+      const networkLabel = MANUAL_ADD_NETWORKS.find((n) => n.id === manualAddNetwork)?.label ?? manualAddNetwork.toUpperCase();
+      const entry: StoredWalletEntry = { address: trimmed, network: networkLabel, label };
+      const nextWallets = upsertWallet(
+        otherWallets,
+        entry,
+        (item) => item.address === trimmed && item.network === networkLabel
+      );
+      setOtherWallets(nextWallets);
+      updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: adaWallets, other: nextWallets });
     }
     setManualAddAddress("");
     setManualAddLabel("");
@@ -2383,10 +2400,46 @@ export default function WalletsPage() {
             </div>
           </div>
         ) : null}
+        {otherWallets.length > 0 && (
+          <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+            <div className="mb-3">
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Outras redes</p>
+              <h3 className="text-base font-bold text-white mt-0.5">Carteiras — Tracking</h3>
+              <p className="text-xs text-slate-500 mt-1">Endereços adicionados para acompanhamento. Saldo não disponível.</p>
+            </div>
+            <div className="space-y-2">
+              {otherWallets.map((item) => (
+                <div
+                  key={`${item.address}-${item.network}`}
+                  className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300 flex flex-wrap items-center justify-between gap-2"
+                >
+                  <div className="space-y-0.5">
+                    <p className="font-semibold text-white text-[11px]">
+                      {item.label && item.label !== item.network ? item.label : (item.network ?? "—")}
+                      <span className="ml-2 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">{item.network}</span>
+                    </p>
+                    <p className="text-slate-500 font-mono text-[11px] break-all">{item.address}</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="rounded-full border border-rose-400/40 px-3 py-1 text-[11px] font-semibold text-rose-200 transition hover:border-rose-400 hover:text-white shrink-0"
+                    onClick={() => {
+                      const next = otherWallets.filter((w) => !(w.address === item.address && w.network === item.network));
+                      setOtherWallets(next);
+                      updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: adaWallets, other: next });
+                    }}
+                  >
+                    Remover
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
         <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
           <h3 className="text-sm font-semibold text-white">Adicionar endereço manual (todas as redes)</h3>
           <p className="mt-1 text-xs text-slate-500">
-            Escolhe a rede e insere o endereço. O saldo aparece no card da respetiva rede.
+            Escolhe a rede e insere o endereço. ETH, SOL, BTC e ADA mostram saldo. Outras redes ficam em tracking.
           </p>
           <div className="mt-3 flex flex-wrap items-end gap-2">
             <div className="relative min-w-[200px]" ref={manualAddNetworkRef}>

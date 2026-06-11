@@ -10,6 +10,7 @@ export type WalletSnapshot = {
   sol?: StoredWalletEntry[];
   btc?: StoredWalletEntry[];
   ada?: StoredWalletEntry[];
+  other?: StoredWalletEntry[];
   cexUsd?: number;
   defiUsd?: number;
 };
@@ -30,6 +31,7 @@ const normalizeSnapshot = (value: unknown): WalletSnapshot => {
     sol: normalizeEntry(raw.sol),
     btc: normalizeEntry(raw.btc),
     ada: normalizeEntry(raw.ada),
+    other: normalizeEntry(raw.other),
     cexUsd: typeof raw.cexUsd === "number" ? raw.cexUsd : undefined,
     defiUsd: typeof raw.defiUsd === "number" ? raw.defiUsd : undefined,
   };
@@ -57,7 +59,7 @@ export const saveWalletSnapshot = (next: WalletSnapshot) => {
 export const updateWalletSnapshot = (patch: WalletSnapshot) => {
   const current = loadWalletSnapshot();
   const next: WalletSnapshot = { ...current };
-  (["eth", "sol", "btc", "ada"] as const).forEach((key) => {
+  (["eth", "sol", "btc", "ada", "other"] as const).forEach((key) => {
     const value = normalizeEntry(patch[key]);
     if (value !== undefined) {
       next[key] = value;
