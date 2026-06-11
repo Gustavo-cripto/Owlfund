@@ -421,7 +421,6 @@ export default function WalletsPage() {
   const ethNetworkSelectRef = useRef<HTMLDivElement>(null);
   const [showEthNetworks, setShowEthNetworks] = useState(false);
   const [selectedBtcProvider, setSelectedBtcProvider] = useState<BtcWalletId>("xverse");
-  const [showBtcWalletsList, setShowBtcWalletsList] = useState(false);
   const [showSolWalletsList, setShowSolWalletsList] = useState(false);
   const [manualAddNetwork, setManualAddNetwork] = useState<string>("sol");
   const [manualAddNetworkOpen, setManualAddNetworkOpen] = useState(false);
@@ -1725,27 +1724,19 @@ export default function WalletsPage() {
       setBtcLoading(true);
       setBtcError(null);
       const address = await connectXverse();
-      setBtcAddress(address);
+      const providerLabel = btcWalletOptions.find((o) => o.id === selectedBtcProvider)?.label ?? selectedBtcProvider;
       const walletBalance = await getBtcBalanceFromWallet();
-      if (walletBalance !== null) {
-        setBtcBalance(walletBalance);
-        const nextWallets = upsertWallet(
-          btcWallets,
-          { address, balance: walletBalance.toFixed(8), network: "Bitcoin" },
-          (item) => item.address === address
-        );
-        setBtcWallets(nextWallets);
-        updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: nextWallets, ada: adaWallets });
-        return;
-      }
-      const apiBalance = await getBtcBalanceFromAddress(address);
-      setBtcBalance(apiBalance);
+      const balance = walletBalance !== null ? walletBalance : await getBtcBalanceFromAddress(address);
       const nextWallets = upsertWallet(
         btcWallets,
-        { address, balance: apiBalance.toFixed(8), network: "Bitcoin" },
+        { address, balance: balance.toFixed(8), network: "Bitcoin", label: providerLabel },
         (item) => item.address === address
       );
       setBtcWallets(nextWallets);
+      if (!btcAddress) {
+        setBtcAddress(address);
+        setBtcBalance(balance);
+      }
       updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: nextWallets, ada: adaWallets });
     } catch (error) {
       setBtcError(error instanceof Error ? error.message : "Erro ao conectar.");
@@ -2573,7 +2564,7 @@ export default function WalletsPage() {
         <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
           <h3 className="text-sm font-semibold text-white">Por ativos cripto manual</h3>
           <p className="mt-1 text-xs text-slate-500">
-            Escolhe o ativo, data de compra e quantidade em USD. O ativo aparece na Carteira Cripto em baixo.
+            Escolhe o ativo, data de compra e valor investido em <span className="text-slate-300 font-medium">USD ($)</span>. O ativo aparece na Carteira Cripto em baixo.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <div className="relative min-w-[220px]" ref={manualCryptoSelectRef}>
@@ -2647,15 +2638,19 @@ export default function WalletsPage() {
               value={manualCryptoAssetDate}
               onChange={(e) => setManualCryptoAssetDate(e.target.value)}
             />
-            <input
-              type="number"
-              min={0}
-              step={0.01}
-              className="w-32 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none placeholder:text-slate-500 transition focus:border-orange-400"
-              placeholder="Quantidade (USD)"
-              value={manualCryptoAssetAmountUsd}
-              onChange={(e) => setManualCryptoAssetAmountUsd(e.target.value)}
-            />
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">$</span>
+              <input
+                type="number"
+                min={0}
+                step={0.01}
+                className="w-36 rounded-full border border-slate-800 bg-slate-950/60 pl-7 pr-12 py-2 text-xs text-slate-200 outline-none placeholder:text-slate-500 transition focus:border-orange-400"
+                placeholder="Valor"
+                value={manualCryptoAssetAmountUsd}
+                onChange={(e) => setManualCryptoAssetAmountUsd(e.target.value)}
+              />
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-500">USD</span>
+            </div>
             <button
               type="button"
               className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
@@ -3533,28 +3528,7 @@ export default function WalletsPage() {
             allowConnectWhenUnavailable
             onToggleAddress={() => setBtcShowMain((prev) => !prev)}
             isAddressVisible={btcShowMain}
-            extraBalance={{
-              label: "Saldo dos RUNES:",
-              content:
-                !btcAddress && btcWallets.length === 0 ? (
-                  <span className="text-slate-500">—</span>
-                ) : btcRunesSummary.loading ? (
-                  <span className="text-slate-400">A carregar…</span>
-                ) : btcRunesSummary.runes.length > 0 ? (
-                  <div className="mt-1 space-y-1 text-amber-200/90">
-                    {btcRunesSummary.runes.map((r) => (
-                      <div key={r.symbol} className="flex justify-between gap-3 text-xs">
-                        <span className="truncate" title={r.displayName}>{r.displayName}</span>
-                        <span className="shrink-0 tabular-nums">{formatRuneAmount(r.amount)}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <span className="text-slate-500">—</span>
-                ),
-            }}
-          >
-            <div className="space-y-3">
+            topContent={
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[11px] uppercase tracking-[0.3em] text-slate-500">
                   Carteira BTC
@@ -3616,39 +3590,29 @@ export default function WalletsPage() {
                   ) : null}
                 </div>
               </div>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                Carteiras adicionais / L2
-              </p>
-              <div>
-                <button
-                  type="button"
-                  className="rounded-full border border-slate-700 px-3 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                  onClick={() => setShowBtcWalletsList((prev) => !prev)}
-                >
-                  Carteiras BTC
-                </button>
-                {showBtcWalletsList ? (
-                  <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-                    {btcWalletOptions.map((option) => (
-                      <span
-                        key={option.id}
-                        className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1 text-slate-200"
-                      >
-                        {option.label}{" "}
-                        {isBtcWalletAvailable(option.id) ? (
-                          <span className="ml-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
-                            Disponível
-                          </span>
-                        ) : (
-                          <span className="ml-1 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
-                            Não instalada
-                          </span>
-                        )}
-                      </span>
+            }
+            extraBalance={{
+              label: "Saldo dos RUNES:",
+              content:
+                !btcAddress && btcWallets.length === 0 ? (
+                  <span className="text-slate-500">—</span>
+                ) : btcRunesSummary.loading ? (
+                  <span className="text-slate-400">A carregar…</span>
+                ) : btcRunesSummary.runes.length > 0 ? (
+                  <div className="mt-1 space-y-1 text-amber-200/90">
+                    {btcRunesSummary.runes.map((r) => (
+                      <div key={r.symbol} className="flex justify-between gap-3 text-xs">
+                        <span className="truncate" title={r.displayName}>{r.displayName}</span>
+                        <span className="shrink-0 tabular-nums">{formatRuneAmount(r.amount)}</span>
+                      </div>
                     ))}
                   </div>
-                ) : null}
-              </div>
+                ) : (
+                  <span className="text-slate-500">—</span>
+                ),
+            }}
+          >
+            <div className="space-y-3">
               <p className="text-xs text-slate-500">
                 Conecta uma carteira e/ou adiciona endereços. O saldo total junta todas.
               </p>
@@ -3724,25 +3688,34 @@ export default function WalletsPage() {
               {btcNewError ? <p className="text-xs text-rose-300">{btcNewError}</p> : null}
               <div className="space-y-2">
                 {btcWallets.map((item) => {
-                  const isConnected = item.address === btcAddress;
+                  const isConnected = item.address === btcAddress ||
+                    (!!item.label && btcWalletOptions.some((o) => o.label === item.label));
                   const addr = item.address ?? "";
                   const loading = btcBalancesLoading[addr];
                   const err = btcBalanceErrors[addr];
-                  const balanceDisplay = isConnected
+                  const balanceDisplay = isConnected && item.address === btcAddress
                     ? (btcBalance != null ? btcBalance.toFixed(8) : "—")
                     : loading
                       ? "A carregar..."
                       : err
                         ? null
                         : btcBalancesByAddress[addr] ?? item.balance ?? "—";
+                  const dk = addr ? defiKey(addr, item.network ?? "btc") : null;
+                  const itemDefi = dk ? (defiTotals[dk] ?? null) : null;
+                  const itemDefiLoading = dk ? !!defiLoading[dk] : false;
+                  const itemNftCount = dk ? (nftCounts[dk] ?? null) : null;
+                  const itemNftLoading = dk ? !!nftLoading[dk] : false;
+                  const itemNfts = dk ? (nftsByKey[dk] ?? []) : [];
+                  const isBtcNative = !(item.network && ["Liquid", "Rootstock (RSK)", "Stacks", "Lightning (em breve)"].includes(item.network));
                   return (
                     <div
                       key={item.address}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300"
+                      className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300"
                     >
+                      <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="space-y-1">
                         <p className="font-semibold text-white">
-                          {item.network ?? "Bitcoin"}
+                          {item.label ?? item.network ?? "Bitcoin"}
                           {isConnected ? (
                             <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
                               Conectada
@@ -3766,6 +3739,72 @@ export default function WalletsPage() {
                             {btcShown[addr] ? "🙈" : "👁️"}
                           </button>
                         </div>
+                        {isBtcNative && (
+                          <>
+                            <p className="flex flex-wrap items-center gap-1.5 text-slate-500">
+                              DeFi:{" "}
+                              {itemDefiLoading
+                                ? <span className="animate-pulse">A carregar…</span>
+                                : itemDefi != null
+                                  ? <span className={itemDefi >= 0.01 ? "text-emerald-400 font-semibold" : "text-slate-400"}>
+                                      € {(itemDefi * usdToEurRate).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                  : <span className="text-slate-600 text-[11px]">—</span>}
+                              {addr && (
+                                <button
+                                  type="button"
+                                  onClick={() => void fetchDefiTotal(addr, "btc")}
+                                  className="text-slate-600 hover:text-orange-400 transition text-[10px]"
+                                  title="Atualizar DeFi"
+                                >↻</button>
+                              )}
+                            </p>
+                            <p className="text-slate-500">
+                              NFT (Ordinals):{" "}
+                              {itemNftLoading
+                                ? "A carregar..."
+                                : itemNftCount != null
+                                  ? `${itemNftCount} ${itemNftCount === 1 ? "item" : "itens"}`
+                                  : "—"}
+                            </p>
+                            {itemNfts.length > 0 && (
+                              <div className="mt-1 grid grid-cols-4 gap-1 max-w-[160px]">
+                                {itemNfts.slice(0, 8).map((nft) => (
+                                  <a
+                                    key={nft.id}
+                                    href={nft.tokenAddress ? `https://magiceden.us/ordinals/item-details/${nft.tokenAddress}` : "#"}
+                                    target="_blank" rel="noopener noreferrer"
+                                    className="aspect-square rounded overflow-hidden bg-slate-800 border border-slate-700 hover:border-orange-400 transition"
+                                    title={nft.name}
+                                  >
+                                    {nft.image ? (
+                                      // eslint-disable-next-line @next/next/no-img-element
+                                      <img src={nft.image} alt={nft.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center text-[8px] text-slate-500 p-0.5 text-center leading-tight">{nft.name}</div>
+                                    )}
+                                  </a>
+                                ))}
+                              </div>
+                            )}
+                          </>
+                        )}
+                        {isBtcNative && (
+                          <>
+                            {btcRunesLoading[addr] ? (
+                              <p className="text-[10px] text-slate-500">Runes: a carregar…</p>
+                            ) : (btcRunesByAddress[addr]?.length ?? 0) > 0 ? (
+                              <div className="space-y-0.5 text-[10px] text-amber-200/90">
+                                {btcRunesByAddress[addr]!.map((r) => (
+                                  <div key={r.symbol} className="flex gap-2">
+                                    <span className="truncate max-w-[120px]" title={r.displayName}>{r.displayName}</span>
+                                    <span className="shrink-0 tabular-nums">{formatRuneAmount(r.amount)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : null}
+                          </>
+                        )}
                       </div>
                       <div className="text-right">
                         {balanceDisplay != null && (
@@ -3775,22 +3814,6 @@ export default function WalletsPage() {
                         )}
                         {balanceDisplay != null && balanceDisplay !== "A carregar..." && balanceDisplay !== "—" && getFiatValue("BTC", balanceDisplay) != null ? (
                           <p className="text-slate-400">${getFiatValue("BTC", balanceDisplay)!.toFixed(2)}</p>
-                        ) : null}
-                        {!(item.network && ["Liquid", "Rootstock (RSK)", "Stacks", "Lightning (em breve)"].includes(item.network)) ? (
-                          <>
-                            {btcRunesLoading[addr] ? (
-                              <p className="mt-1 text-[10px] text-slate-500">Runes: a carregar…</p>
-                            ) : (btcRunesByAddress[addr]?.length ?? 0) > 0 ? (
-                              <div className="mt-1 space-y-0.5 text-right text-[10px] text-amber-200/90">
-                                {btcRunesByAddress[addr]!.map((r) => (
-                                  <div key={r.symbol} className="flex justify-end gap-2">
-                                    <span className="truncate max-w-[120px]" title={r.displayName}>{r.displayName}</span>
-                                    <span className="shrink-0 tabular-nums">{formatRuneAmount(r.amount)}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : null}
-                          </>
                         ) : null}
                         {err ? (
                           <p className="text-rose-300" title={err}>
@@ -3847,6 +3870,7 @@ export default function WalletsPage() {
                             Remover
                           </button>
                         </div>
+                      </div>
                       </div>
                     </div>
                   );
@@ -4295,7 +4319,57 @@ export default function WalletsPage() {
           </div>
 
           <div className="mt-4 space-y-3">
-            {sortedCryptoSymbols.length === 0 ? (
+            {/* Carteiras conectadas */}
+            {(() => {
+              const walletEntries: Array<{ symbol: string; name: string; balance: string | number | null | undefined; source: string }> = [];
+              if (ethWallets.length > 0 || ethAddress) walletEntries.push({ symbol: "ETH", name: "Ethereum", balance: totalEthBalance, source: "Carteira ETH" });
+              if (solWallets.length > 0 || solAddress) walletEntries.push({ symbol: "SOL", name: "Solana", balance: totalSolBalance, source: "Carteira SOL" });
+              if (btcWallets.length > 0 || btcAddress) walletEntries.push({ symbol: "BTC", name: "Bitcoin", balance: totalBtcBalance, source: "Carteira BTC" });
+              if (adaWallets.length > 0 || adaAddress) walletEntries.push({ symbol: "ADA", name: "Cardano", balance: totalAdaBalance, source: "Carteira ADA" });
+              if (walletEntries.length === 0) return null;
+              return walletEntries.map(({ symbol, name, balance, source }) => {
+                const market = cryptoPrices[symbol];
+                const balanceNum = typeof balance === "string" ? parseFloat(balance) : (balance ?? 0);
+                const fiatEur = getFiatValue(symbol, balance);
+                return (
+                  <div
+                    key={`wallet-${symbol}`}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-700/60 bg-slate-900/40 px-4 py-3 text-xs text-slate-100"
+                  >
+                    <div>
+                      <p className="font-semibold text-white">{symbol}</p>
+                      <p className="text-slate-500">{name}</p>
+                      <p className="mt-0.5 text-[10px] text-slate-600 uppercase tracking-wide">{source}</p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 text-right">
+                      <div>
+                        <p className="text-slate-300 tabular-nums">{balanceNum > 0 ? balanceNum.toFixed(symbol === "BTC" ? 8 : 4) : "—"} {symbol}</p>
+                        {fiatEur != null && fiatEur > 0 && (
+                          <p className="text-slate-500">€ {fiatEur.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                        )}
+                      </div>
+                      <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
+                        Preço atual:{" "}
+                        <span className="font-semibold text-white">
+                          {market
+                            ? market.priceUsd.toLocaleString("en-US", {
+                                style: "currency",
+                                currency: "USD",
+                                minimumFractionDigits: market.priceUsd < 1 ? 6 : 2,
+                                maximumFractionDigits: market.priceUsd < 1 ? 6 : 2,
+                              })
+                            : "—"}
+                        </span>
+                      </span>
+                      <span className="rounded-full border border-slate-700/40 bg-slate-800/40 px-3 py-2 text-[10px] text-slate-500">
+                        Carteira
+                      </span>
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+            {sortedCryptoSymbols.length === 0 && !(ethWallets.length > 0 || ethAddress || solWallets.length > 0 || solAddress || btcWallets.length > 0 || btcAddress || adaWallets.length > 0 || adaAddress) ? (
               <p className="text-sm text-slate-500">Nenhum ativo selecionado.</p>
             ) : (
               sortedCryptoSymbols.map((symbol) => {
