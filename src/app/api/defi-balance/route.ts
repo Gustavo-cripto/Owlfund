@@ -83,108 +83,102 @@ const METEORA_API = "https://dlmm-api.meteora.ag";
 // Meteora DLMM program IDs (v1 and v2)
 const METEORA_DLMM_PROGRAM = "LBUZKhRxPF3XUpBCjp4YzTKgLLjnZE1UKixNR7L2PFC";
 
+// Try the direct Meteora wallet endpoint first — much more reliable than getProgramAccounts
+async function fetchMeteoraPositionsViaWalletEndpoint(
+  wallet: string
+): Promise<{ total: number; positions: { name: string; usd: number }[] }> {
+  // Primary: new portfolio/wallet endpoint
+  const endpoints = [
+    `${METEORA_API}/position/wallet/${wallet}`,
+    `${METEORA_API}/wallet/${wallet}/positions`,
+  ];
+  for (const url of endpoints) {
+    try {
+      const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(10_000) });
+      if (!res.ok) continue;
+      const raw = await res.json() as unknown;
+      // Response can be array of positions or { data: [...] }
+      const rows: Record<string, unknown>[] = Array.isArray(raw)
+        ? (raw as Record<string, unknown>[])
+        : Array.isArray((raw as Record<string, unknown>).data)
+          ? ((raw as Record<string, unknown>).data as Record<string, unknown>[])
+          : [];
+      if (rows.length === 0) continue;
+      let totalUsd = 0;
+      for (const pos of rows) {
+        const val = firstPositive(pos, [
+          "total_value_usd", "totalValueUsd", "liquidity_usd", "liquidityUsd",
+          "position_value_usd", "positionValueUsd", "value_usd", "valueUsd",
+        ]);
+        if (val > 0) totalUsd += val;
+      }
+      if (totalUsd > 0) {
+        return { total: totalUsd, positions: [{ name: `Meteora (${rows.length} posição${rows.length > 1 ? "ões" : ""})`, usd: totalUsd }] };
+      }
+    } catch { continue; }
+  }
+  return { total: 0, positions: [] };
+}
+
 async function fetchMeteoraPositionsViaRPC(
   wallet: string
 ): Promise<{ total: number; positions: { name: string; usd: number }[] }> {
-  // owner field is at offset 40 in both Position and PositionV2 (after 8-byte discriminator + 32-byte lb_pair)
-  const body = {
-    jsonrpc: "2.0",
-    id: 1,
-    method: "getProgramAccounts",
-    params: [
-      METEORA_DLMM_PROGRAM,
-      {
-        filters: [{ memcmp: { offset: 40, bytes: wallet } }],
-        encoding: "base58",
-        dataSlice: { offset: 0, length: 0 }, // only need pubkeys
-        withContext: false,
-      },
-    ],
-  };
-  const res = await fetch(SOL_RPC, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(15_000),
-    cache: "no-store",
-  });
-  if (!res.ok) return { total: 0, positions: [] };
-  const json = await res.json() as { result?: Array<{ pubkey: string }> };
-  const accounts = json?.result ?? [];
-  if (accounts.length === 0) {
-    // Try offset 8 as fallback (some position layouts differ)
-    const body2 = { ...body, params: [METEORA_DLMM_PROGRAM, { ...(body.params[1] as object), filters: [{ memcmp: { offset: 8, bytes: wallet } }] }] };
-    const res2 = await fetch(SOL_RPC, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body2),
-      signal: AbortSignal.timeout(15_000),
-      cache: "no-store",
-    });
-    if (res2.ok) {
-      const json2 = await res2.json() as { result?: Array<{ pubkey: string }> };
-      accounts.push(...(json2?.result ?? []));
-    }
+  // First try the direct wallet endpoint — avoids heavy getProgramAccounts
+  const direct = await fetchMeteoraPositionsViaWalletEndpoint(wallet);
+  if (direct.total > 0) return direct;
+
+  // Fallback: getProgramAccounts with memcmp on owner field
+  // Position layout: 8 discriminator + 32 lb_pair + 32 owner = offset 40
+  const offsets = [40, 8];
+  const accounts: { pubkey: string }[] = [];
+  for (const offset of offsets) {
+    try {
+      const body = {
+        jsonrpc: "2.0", id: 1, method: "getProgramAccounts",
+        params: [METEORA_DLMM_PROGRAM, {
+          filters: [{ memcmp: { offset, bytes: wallet } }],
+          encoding: "base58",
+          dataSlice: { offset: 0, length: 0 },
+          withContext: false,
+        }],
+      };
+      const res = await fetch(SOL_RPC, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(15_000),
+        cache: "no-store",
+      });
+      if (!res.ok) continue;
+      const json = await res.json() as { result?: Array<{ pubkey: string }> };
+      accounts.push(...(json?.result ?? []));
+      if (accounts.length > 0) break;
+    } catch { continue; }
   }
   if (accounts.length === 0) return { total: 0, positions: [] };
 
-  // Query Meteora API for each position value
+  // Query individual position values
   let totalUsd = 0;
-  const positionResults: { name: string; usd: number }[] = [];
   const endpoints = ["position_v2", "position"] as const;
-
-  for (const acc of accounts.slice(0, 20)) { // cap at 20 positions
-    const pubkey = acc.pubkey;
+  for (const acc of accounts.slice(0, 20)) {
     let usd = 0;
     for (const ep of endpoints) {
       try {
-        const r = await fetch(`${METEORA_API}/${ep}/${pubkey}`, {
-          cache: "no-store",
-          signal: AbortSignal.timeout(8_000),
-        });
+        const r = await fetch(`${METEORA_API}/${ep}/${acc.pubkey}`, { cache: "no-store", signal: AbortSignal.timeout(8_000) });
         if (!r.ok) continue;
         const data = await r.json() as Record<string, unknown>;
         const nested = (data.data as Record<string, unknown> | undefined) ?? {};
-        usd = firstPositive(data, ["total_value_usd","liquidity_usd","position_value_usd"]) ||
-              firstPositive(nested, ["total_value_usd","liquidity_usd","position_value_usd"]);
+        usd = firstPositive(data, ["total_value_usd","liquidity_usd","position_value_usd","value_usd"]) ||
+              firstPositive(nested, ["total_value_usd","liquidity_usd","position_value_usd","value_usd"]);
         if (usd > 0) break;
       } catch { continue; }
     }
-    if (usd > 0) {
-      totalUsd += usd;
-      positionResults.push({ name: "Meteora DLMM", usd });
-    }
+    if (usd > 0) totalUsd += usd;
   }
 
-  // If individual position values failed, try deposits - withdraws approach
-  if (totalUsd <= 0) {
-    for (const acc of accounts.slice(0, 10)) {
-      const pubkey = acc.pubkey;
-      for (const ep of endpoints) {
-        try {
-          const [depRes, wdRes] = await Promise.all([
-            fetch(`${METEORA_API}/${ep}/${pubkey}/deposits`, { cache: "no-store", signal: AbortSignal.timeout(8_000) }),
-            fetch(`${METEORA_API}/${ep}/${pubkey}/withdraws`, { cache: "no-store", signal: AbortSignal.timeout(8_000) }),
-          ]);
-          if (!depRes.ok || !wdRes.ok) continue;
-          const deps = await depRes.json() as Array<Record<string, unknown>>;
-          const wds = await wdRes.json() as Array<Record<string, unknown>>;
-          if (!Array.isArray(deps) || !Array.isArray(wds)) continue;
-          const usdFrom = (d: Record<string, unknown>) =>
-            firstPositive(d, ["token_x_usd_amount","token_x_value_usd"]) +
-            firstPositive(d, ["token_y_usd_amount","token_y_value_usd"]);
-          const net = deps.reduce((s, d) => s + usdFrom(d), 0) - wds.reduce((s, w) => s + usdFrom(w), 0);
-          if (net > 0) { totalUsd += net; positionResults.push({ name: "Meteora DLMM", usd: net }); break; }
-        } catch { continue; }
-      }
-    }
-  }
-
-  // Merge all Meteora positions into one entry
   if (totalUsd > 0) {
     return { total: totalUsd, positions: [{ name: `Meteora DLMM (${accounts.length} posição${accounts.length > 1 ? "ões" : ""})`, usd: totalUsd }] };
   }
-  // Return 0 value but still flag that positions exist (so we don't show $0 falsely)
   if (accounts.length > 0) {
     return { total: 0, positions: [{ name: `Meteora DLMM (${accounts.length} posição${accounts.length > 1 ? "ões" : ""} — valor indisponível)`, usd: 0 }] };
   }
