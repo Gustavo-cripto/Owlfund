@@ -15,11 +15,40 @@ PÁGINAS E FUNCIONALIDADES:
 • /dashboard — Centro de controlo principal. Mostra PNL em tempo real, acesso rápido a todas as secções e chat de mercado (tu próprio).
 • /portfolio — Visão consolidada de todos os ativos. Inclui: valor total em EUR, PNL da posição/dia/30d, gráficos interativos (área, barras, pizza), Score do portfólio 0-100, benchmark vs BTC/ETH/S&P500/Ouro, métricas avançadas (ROI, CAGR, Sharpe Ratio, Max Drawdown, Volatilidade), simulador de cenários, exportação PDF.
 • /wallets — Conectar carteiras blockchain. Suporta: ETH + 15 redes EVM (Arbitrum, Optimism, Base, Polygon, BSC, Avalanche, Fantom, zkSync, Linea, Scroll, Mantle, Blast, Gnosis, Celo, Cronos), Solana, Bitcoin, Cardano. Carteiras: MetaMask, Rabby, Rainbow, OKX, Bybit, Coinbase, Trust + WalletConnect QR. Mostra saldos, tokens, posições DeFi e NFTs. Modo só leitura — nunca pede chaves privadas.
-• /smart-money — Watchlist de baleias e traders profissionais. Pré-carregada com 50+ carteiras conhecidas (Binance, Vitalik, Jump Trading, Wintermute, etc.). Monitoriza holdings e movimentos on-chain.
+• /smart-money — Watchlist de baleias e traders profissionais. Pré-carregada com 50+ carteiras conhecidas (Binance, Vitalik, Jump Trading, Wintermute, etc.). Monitoriza holdings e movimentos on-chain. Alertas em tempo real (Premium).
+• /gestor — Gestor Dedicado IA (exclusivo Premium). Chat privado com IA especializada no teu portfolio real. Analisa alocação, risco, fiscalidade, FIRE planning com os teus dados reais de carteiras.
 • /mercado — Tabela de mercado em tempo real com preços, variações 1h/24h/7d, volume, sparklines e gráfico TradingView.
 • /fiscalidade — Calculadora de mais-valias cripto por método FIFO. Suporta regras fiscais de PT (isenção >1 ano), ES, FR, DE. Exportação para declaração de IRS.
 • /fire — Calculadora FIRE (Financial Independence, Retire Early). Regra dos 4%, projeção de patrimônio, CAGR ajustado à inflação.
-• /account — Conta do utilizador, preferências, gestão do plano Pro (via Stripe).
+• /account — Conta do utilizador, preferências, gestão do plano, API Keys (Premium).
+
+PLANOS E FUNCIONALIDADES:
+
+Plano Gratuito (€0):
+- Até 3 carteiras on-chain
+- 5 chats/mês com o Chain (este chat)
+- 30 dias de histórico de portfolio
+- 5 endereços na watchlist de baleias
+- Calculadora fiscal básica (PT, ES, FR, DE)
+- Calculadora FIRE (3 cenários)
+
+Plano Pro (€9.99/mês):
+- Carteiras ilimitadas
+- Chats ilimitados com o Chain
+- 365 dias de histórico de portfolio
+- Watchlist de baleias ilimitada
+- Snapshots automáticos diários
+- Briefing IA diário por email
+- Exportação CSV/PDF
+- Suporte prioritário
+
+Plano Premium (€39/mês) — inclui tudo do Pro, mais:
+- /gestor — Gestor Dedicado IA com acesso ao teu portfolio real
+- Smart Money em tempo real (movimentos de baleias ao vivo)
+- API REST (chaves em /account > secção Premium)
+- Integração MCP para agentes de IA externos
+- Webhooks para alertas instantâneos
+- Acesso antecipado a novas funcionalidades
 
 COMO FUNCIONA O PNL:
 - O PNL calcula-se a partir de snapshots guardados no Supabase.
@@ -30,7 +59,6 @@ COMO FUNCIONA O PNL:
 SEGURANÇA:
 - Modo só leitura em todas as carteiras — o Owlfund nunca pede chaves privadas nem pode fazer transações.
 - Autenticação via Supabase (email + Google).
-- Plano gratuito para sempre no plano base. Plano Pro via Stripe.
 
 SUPORTE:
 - Problemas com MetaMask: instalar extensão no browser, clicar Conectar no card Ethereum.
@@ -39,6 +67,7 @@ SUPORTE:
 - Saldo a zeros: verificar se o endereço foi adicionado corretamente; clicar "Atualizar saldo".
 - Para DeFi Solana: precisas de SHYFT_API_KEY (shyft.to gratuito).
 - Para DeFi ETH: precisas de MORALIS_API_KEY (moralis.io gratuito).
+- Plano não atualizado após pagamento: ir a /account e clicar "Sincronizar plano".
 `;
 
 const SYSTEM_PROMPT = `Tu és o Chain — analista de cripto/mercados E assistente da plataforma Owlfund. Respondes em PT-PT, de forma clara, direta e amigável.
