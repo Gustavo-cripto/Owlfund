@@ -21,7 +21,7 @@ const COMPARISON = [
     category: "📊 Portfolio & Histórico",
     rows: [
       { label: "Snapshots automáticos diários", free: false, pro: true, premium: true },
-      { label: "Histórico de valor do portfolio", free: "7 dias", pro: "1 ano+", premium: "Ilimitado" },
+      { label: "Histórico de valor do portfolio", free: "30 dias", pro: "1 ano+", premium: "Ilimitado" },
       { label: "Exportação CSV", free: false, pro: true, premium: true },
       { label: "Relatório PDF automático", free: false, pro: true, premium: "Avançado" },
     ],
@@ -200,6 +200,7 @@ export default function PricingPage() {
                     "Blocos BTC ao vivo",
                     "Watchlist (5 baleias)",
                     "Chat IA (5/mês)",
+                    "Histórico 30 dias",
                     "Calculadora FIFO",
                     "Calculadora FIRE básica",
                     "4 países fiscais",
@@ -277,7 +278,7 @@ export default function PricingPage() {
                     "API REST pública",
                     "Integração MCP (Claude, Cursor…)",
                     "Webhooks de alertas",
-                    "Gestor de conta dedicado",
+                    "Gestor Dedicado IA (chat com os teus dados)",
                     "Acesso antecipado a features",
                   ].map((f) => (
                     <div key={f} className={`flex items-center gap-2 text-sm ${f.startsWith("Tudo") ? "text-violet-300 font-semibold" : "text-slate-200"}`}>

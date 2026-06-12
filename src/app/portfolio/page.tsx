@@ -237,6 +237,7 @@ export default function PortfolioPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [isPro, setIsPro] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isBillingLoading, setIsBillingLoading] = useState(false);
   const [billingError, setBillingError] = useState<string | null>(null);
@@ -374,7 +375,7 @@ export default function PortfolioPage() {
 
       const { data: subscription } = await supabase
         .from("subscriptions")
-        .select("status, current_period_end")
+        .select("status, current_period_end, price_id")
         .eq("user_id", user.id)
         .order("current_period_end", { ascending: false })
         .limit(1)
@@ -387,20 +388,24 @@ export default function PortfolioPage() {
         : null;
 
       const pro = isActive && (!periodEnd || periodEnd > Date.now());
+      const premiumPriceId = process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID;
+      const premium = pro && !!premiumPriceId && subscription?.price_id === premiumPriceId;
       setIsPro(pro);
+      setIsPremium(premium);
 
       setIsSnapshotsLoading(true);
 
-      // Free: 30 dias histórico | Pro: 1 ano
-      const historyDays = pro ? 365 : 30;
-      const historyFrom = new Date(Date.now() - historyDays * 24 * 60 * 60 * 1000).toISOString();
+      // Free: 30 dias | Pro: 1 ano | Premium: ilimitado
+      const historyFrom = premium
+        ? new Date(0).toISOString()
+        : new Date(Date.now() - (pro ? 365 : 30) * 24 * 60 * 60 * 1000).toISOString();
       const { data: snapshotRows } = await supabase
         .from("portfolio_snapshots")
         .select("id, created_at, data")
         .eq("user_id", user.id)
         .gte("created_at", historyFrom)
         .order("created_at", { ascending: false })
-        .limit(pro ? 365 : 30);
+        .limit(premium ? 3650 : pro ? 365 : 30);
 
       const rows = (snapshotRows ?? []) as SnapshotRow[];
       setSnapshots(rows);
@@ -469,14 +474,16 @@ export default function PortfolioPage() {
 
     if (!silent) setSaveMessage("Portfólio salvo com sucesso.");
 
-    const historyFrom2 = new Date(Date.now() - (isPro ? 365 : 30) * 24 * 60 * 60 * 1000).toISOString();
+    const historyFrom2 = isPremium
+      ? new Date(0).toISOString()
+      : new Date(Date.now() - (isPro ? 365 : 30) * 24 * 60 * 60 * 1000).toISOString();
     const { data: snapshotRows } = await supabase
       .from("portfolio_snapshots")
       .select("id, created_at, data")
       .eq("user_id", userId)
       .gte("created_at", historyFrom2)
       .order("created_at", { ascending: false })
-      .limit(isPro ? 365 : 30);
+      .limit(isPremium ? 3650 : isPro ? 365 : 30);
 
     setSnapshots((snapshotRows ?? []) as SnapshotRow[]);
   };
@@ -1480,7 +1487,7 @@ export default function PortfolioPage() {
             <div>
               <h2 className="text-lg font-semibold text-white">Histórico do portfólio</h2>
               <p className="text-sm text-slate-400">
-                {isPro ? "Últimos 365 dias de snapshots (Plano Pro)." : <>Últimos 30 dias (Plano Gratuito). <a href="/pricing" className="text-orange-400 underline hover:text-orange-300">Pro = 1 ano →</a></>}
+                {isPremium ? "Histórico ilimitado (Plano Premium)." : isPro ? "Últimos 365 dias de snapshots (Plano Pro)." : <>Últimos 30 dias (Plano Gratuito). <a href="/pricing" className="text-orange-400 underline hover:text-orange-300">Pro = 1 ano →</a></>}
               </p>
             </div>
             <a
