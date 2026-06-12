@@ -399,12 +399,18 @@ export default function PortfolioChartSection({
               <TokenRow key={`${w.symbol}-${i}`} wallet={w} price={priceMap[w.symbol] ?? 0} pnlToday={pnlToday} total={portfolioTotal} />
             ))}
           </div>
-          {cryptoTotal > 0 && (
-            <div className="px-4 py-3 border-t border-slate-800 flex items-center justify-between">
-              <span className="text-xs text-slate-500">Total Blockchain</span>
-              <span className="text-sm font-bold text-white">€ {fmtEur(cryptoTotal)}</span>
-            </div>
-          )}
+          {(() => {
+            const walletTotal = wallets.reduce((sum, w) => {
+              const val = (parseFloat(w.balance ?? "0") || 0) * (priceMap[w.symbol] ?? 0);
+              return sum + (val >= 0.01 ? val : 0);
+            }, 0);
+            return walletTotal > 0 ? (
+              <div className="px-4 py-3 border-t border-slate-800 flex items-center justify-between">
+                <span className="text-xs text-slate-500">Total Blockchain</span>
+                <span className="text-sm font-bold text-white">€ {fmtEur(walletTotal)}</span>
+              </div>
+            ) : null;
+          })()}
         </div>
       )}
 
