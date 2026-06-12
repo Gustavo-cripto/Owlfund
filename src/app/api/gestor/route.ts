@@ -60,11 +60,21 @@ type SnapshotData = {
 };
 
 function buildPortfolioContext(snapshot: SnapshotData | null, subscription: { price_id: string | null; current_period_end: string | null } | null, prices: Record<string, number>): string {
-  if (!snapshot) return "Nenhum snapshot de portfolio disponível. O utilizador ainda não guardou dados de carteiras.";
+  const hasData = snapshot && (
+    (snapshot.btc?.length ?? 0) + (snapshot.eth?.length ?? 0) +
+    (snapshot.sol?.length ?? 0) + (snapshot.ada?.length ?? 0) +
+    (snapshot.other?.length ?? 0) + (snapshot.cexUsd ?? 0) + (snapshot.defiUsd ?? 0)
+  ) > 0;
+
+  if (!hasData) {
+    return `=== ESTADO DO PORTFOLIO ===
+Sem carteiras registadas ainda.
+INSTRUÇÃO: Informa o utilizador de forma simpática que ainda não tem carteiras adicionadas na app. Sugere que vá a /wallets para adicionar as suas carteiras cripto (BTC, ETH, SOL, etc.) e que depois poderás analisar o portfolio real. Entretanto, podes responder a perguntas gerais sobre cripto, fiscalidade portuguesa e estratégias financeiras com base nas informações que o utilizador fornecer na conversa.`;
+  }
 
   const lines: string[] = ["=== DADOS DO PORTFOLIO DO UTILIZADOR ==="];
 
-  const totalEur = snapshot._totalEur;
+  const totalEur = snapshot!._totalEur;
   if (totalEur) lines.push(`Valor total estimado: €${totalEur.toFixed(2)}`);
 
   const addChain = (name: string, entries?: Array<{ balance?: string }>, priceKey?: string) => {
@@ -75,15 +85,15 @@ function buildPortfolioContext(snapshot: SnapshotData | null, subscription: { pr
     lines.push(`${name}: ${total.toFixed(8)} (≈€${eur.toFixed(2)}, ${entries.length} carteira(s))`);
   };
 
-  addChain("Bitcoin (BTC)", snapshot.btc, "bitcoin");
-  addChain("Ethereum (ETH)", snapshot.eth, "ethereum");
-  addChain("Solana (SOL)", snapshot.sol, "solana");
-  addChain("Cardano (ADA)", snapshot.ada, "cardano");
+  addChain("Bitcoin (BTC)", snapshot!.btc, "bitcoin");
+  addChain("Ethereum (ETH)", snapshot!.eth, "ethereum");
+  addChain("Solana (SOL)", snapshot!.sol, "solana");
+  addChain("Cardano (ADA)", snapshot!.ada, "cardano");
 
-  if (snapshot.cexUsd) lines.push(`CEX: $${snapshot.cexUsd.toFixed(2)} USD`);
-  if (snapshot.defiUsd) lines.push(`DeFi: $${snapshot.defiUsd.toFixed(2)} USD`);
-  if (snapshot.other?.length) {
-    const others = snapshot.other.map(e => `${e.label ?? e.network ?? "?"}: ${e.balance ?? "?"}`).join(", ");
+  if (snapshot!.cexUsd) lines.push(`CEX: $${snapshot!.cexUsd.toFixed(2)} USD`);
+  if (snapshot!.defiUsd) lines.push(`DeFi: $${snapshot!.defiUsd.toFixed(2)} USD`);
+  if (snapshot!.other?.length) {
+    const others = snapshot!.other.map(e => `${e.label ?? e.network ?? "?"}: ${e.balance ?? "?"}`).join(", ");
     lines.push(`Outras redes: ${others}`);
   }
 
@@ -97,23 +107,23 @@ function buildPortfolioContext(snapshot: SnapshotData | null, subscription: { pr
 
 const GESTOR_SYSTEM = `És o Gestor Dedicado IA do Owlfund — um assistente financeiro premium especializado em cripto e gestão de portfolio.
 
-PERSONALIDADE: Profissional mas acessível. Conciso e direto. Usa dados reais do portfolio do utilizador nas respostas. Fala em PT-PT.
+PERSONALIDADE: Profissional mas acessível. Conciso e direto. Fala em PT-PT (Portugal). Respostas curtas e úteis — sem introduções longas.
 
 CAPACIDADES:
-- Análise de risco e alocação do portfolio
-- Estimativas fiscais (IRS Portugal, regime de mais-valias cripto — isenção >365 dias para ativos adquiridos antes de 2023, 28% para os restantes)
+- Análise de risco e alocação do portfolio com dados reais
+- Estimativas fiscais (IRS Portugal — isenção >365 dias para ativos adquiridos antes de 2023, taxa 28% para os restantes)
 - FIRE planning (regra dos 4%, projeção patrimonial)
-- Estratégias de rebalanceamento
+- Estratégias de rebalanceamento e diversificação
 - Interpretação de movimentos on-chain / Smart Money
-- Alertas e recomendações baseadas em dados reais
+- Educação financeira e cripto em geral
 
 REGRAS:
-- Usa SEMPRE os dados reais do portfolio fornecidos abaixo no contexto.
-- Não inventes saldos ou valores — usa os dados disponíveis.
+- Se houver dados reais do portfolio, usa-os sempre nas respostas.
+- Se não houver dados, sê útil na mesma — responde com base no que o utilizador te diz na conversa.
+- Nunca inventes saldos ou valores que não existam no contexto.
 - Não dês recomendações diretas de compra/venda — apresenta análise e cenários com riscos.
 - Respostas estruturadas: máx 4 parágrafos ou lista com bullets. Usa markdown.
-- Para cálculos fiscais: indica sempre que são estimativas e recomendar validação com contabilista.
-- Se o utilizador pedir ação (exportar PDF, criar alerta): confirma que vais processar e indica onde encontrar o resultado.`;
+- Para cálculos fiscais: indica sempre que são estimativas e recomenda validação com contabilista.`;
 
 // ── Route handler ─────────────────────────────────────────────────────────────
 
