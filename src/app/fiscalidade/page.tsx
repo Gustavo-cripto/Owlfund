@@ -277,7 +277,7 @@ export default function FiscalidadePage() {
   const [isPremium, setIsPremium] = useState(false);
   const [trades, setTrades] = useState<TradeEntry[]>([]);
   const [newTrade, setNewTrade] = useState<TradeEntry>(emptyTrade());
-  const [country, setCountry] = useState<"PT" | "ES" | "FR" | "DE">("PT");
+  const [country, setCountry] = useState<string>("PT");
 
   useEffect(() => {
     if (!userId) return;
@@ -297,12 +297,22 @@ export default function FiscalidadePage() {
   }, [userId, supabase]);
 
   const taxRates: Record<string, { short: number; long: number; longDays: number; longLabel: string }> = {
-    PT: { short: 0.28, long: 0.0, longDays: 365, longLabel: "Isento (>1 ano)" },
+    PT: { short: 0.28, long: 0.0,  longDays: 365, longLabel: "Isento (>1 ano)" },
     ES: { short: 0.19, long: 0.23, longDays: 365, longLabel: "23% (>1 ano)" },
-    FR: { short: 0.30, long: 0.30, longDays: 0, longLabel: "30% (flat tax)" },
-    DE: { short: 0.25, long: 0.0, longDays: 365, longLabel: "Isento (>1 ano)" },
+    FR: { short: 0.30, long: 0.30, longDays: 0,   longLabel: "30% (flat tax)" },
+    DE: { short: 0.25, long: 0.0,  longDays: 365, longLabel: "Isento (>1 ano)" },
+    // Pro countries
+    GB: { short: 0.20, long: 0.20, longDays: 0,   longLabel: "20% (sem isenção temporal)" },
+    NL: { short: 0.31, long: 0.31, longDays: 0,   longLabel: "31% (rendimento fictício)" },
+    IT: { short: 0.26, long: 0.26, longDays: 0,   longLabel: "26% (flat rate)" },
+    BR: { short: 0.15, long: 0.15, longDays: 0,   longLabel: "15% (isenção < R$35k/mês)" },
+    // Premium countries
+    US: { short: 0.37, long: 0.20, longDays: 365, longLabel: "0–20% (>1 ano)" },
+    CA: { short: 0.27, long: 0.27, longDays: 0,   longLabel: "27% (50% inclusion rate)" },
+    AU: { short: 0.45, long: 0.225,longDays: 365, longLabel: "50% desconto (>1 ano)" },
+    CH: { short: 0.0,  long: 0.0,  longDays: 0,   longLabel: "Isento (investidor privado)" },
   };
-  const regime = taxRates[country];
+  const regime = taxRates[country] ?? taxRates["PT"];
 
   // FIFO: calcular eventos de mais-valias
   const taxEvents = useMemo<TaxEvent[]>(() => {
@@ -406,9 +416,9 @@ export default function FiscalidadePage() {
               ))}
               {PRO_COUNTRIES.map(c => (
                 isPro ? (
-                  <button key={c.code} onClick={() => {}}
-                    title={`${c.flag} ${c.label} (em breve)`}
-                    className="rounded-lg px-3 py-1.5 text-xs font-bold border border-slate-700 text-slate-500 cursor-not-allowed" disabled>
+                  <button key={c.code} onClick={() => setCountry(c.code)}
+                    title={`${c.flag} ${c.label}`}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${country === c.code ? "bg-orange-500 text-slate-950" : "border border-slate-700 text-slate-400 hover:border-orange-400/40 hover:text-orange-200"}`}>
                     {c.flag} {c.code}
                   </button>
                 ) : (
@@ -421,9 +431,9 @@ export default function FiscalidadePage() {
               ))}
               {PREMIUM_COUNTRIES.map(c => (
                 isPremium ? (
-                  <button key={c.code}
-                    title={`${c.flag} ${c.label} (em breve)`}
-                    className="rounded-lg px-3 py-1.5 text-xs font-bold border border-slate-700 text-slate-500 cursor-not-allowed" disabled>
+                  <button key={c.code} onClick={() => setCountry(c.code)}
+                    title={`${c.flag} ${c.label}`}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${country === c.code ? "bg-violet-500 text-white" : "border border-slate-700 text-slate-400 hover:border-violet-400/40 hover:text-violet-200"}`}>
                     {c.flag} {c.code}
                   </button>
                 ) : (
