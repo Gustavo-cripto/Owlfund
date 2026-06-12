@@ -991,15 +991,15 @@ export default function PortfolioPage() {
               .sort((a, b) => b.value - a.value);
             const total = pieData.reduce((s, d) => s + d.value, 0);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const renderLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
+            const renderLabel = ({ cx, cy, midAngle, outerRadius, percent }: any) => {
               if ((percent as number) < 0.05) return null;
               const RADIAN = Math.PI / 180;
-              const r = innerRadius + (outerRadius - innerRadius) * 0.55;
+              const r = outerRadius + 18;
               const x = cx + r * Math.cos(-midAngle * RADIAN);
               const y = cy + r * Math.sin(-midAngle * RADIAN);
               return (
-                <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central"
-                  style={{ fontSize: 11, fontWeight: 600, textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>
+                <text x={x} y={y} fill="#94a3b8" textAnchor="middle" dominantBaseline="central"
+                  style={{ fontSize: 10, fontWeight: 600 }}>
                   {((percent as number) * 100).toLocaleString("pt-PT", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
                 </text>
               );
