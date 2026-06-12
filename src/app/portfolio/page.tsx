@@ -1000,7 +1000,8 @@ export default function PortfolioPage() {
               Stable: "#64748b", "Trad.": "#475569", CEX: "#10b981", DeFi: "#8b5cf6",
             };
             const assetColor = (name: string) => ASSET_COLOR[name] ?? `hsl(${(name.charCodeAt(0) * 47) % 360},65%,55%)`;
-            const pieData = [
+            // Group by symbol — merge multiple wallets of same coin
+            const rawEntries = [
               ...wallets.filter(w => Number(w.balance) > 0).map(w => ({ name: w.symbol, value: Number(w.balance) })),
               ...Object.entries(cryptoHoldings).filter(([,h]) => Number(h.buyValue) > 0).map(([k,h]) => ({ name: k, value: Number(h.buyValue) })),
               ...(stablecoinTotal > 0 ? [{ name: "Stable", value: stablecoinTotal }] : []),
@@ -1008,6 +1009,12 @@ export default function PortfolioPage() {
               ...(snapshotCexEur > 0 ? [{ name: "CEX", value: snapshotCexEur }] : []),
               ...(snapshotDefiEur > 0 ? [{ name: "DeFi", value: snapshotDefiEur }] : []),
             ].filter(d => d.value > 0);
+            const grouped: Record<string, number> = {};
+            rawEntries.forEach(e => { grouped[e.name] = (grouped[e.name] ?? 0) + e.value; });
+            const pieData = Object.entries(grouped)
+              .map(([name, value]) => ({ name, value }))
+              .sort((a, b) => b.value - a.value);
+            const total = pieData.reduce((s, d) => s + d.value, 0);
             return (
               <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
                 <div className="mb-4">
@@ -1019,37 +1026,47 @@ export default function PortfolioPage() {
                     <p className="text-sm text-slate-500">Sem ativos para mostrar.</p>
                   </div>
                 ) : (
-                  <ResponsiveContainer width="100%" height={220}>
-                    <PieChart>
-                      <Pie
-                        data={pieData}
-                        cx="50%"
-                        cy="45%"
-                        innerRadius={55}
-                        outerRadius={80}
-                        paddingAngle={3}
-                        dataKey="value"
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        label={({ name, percent }: any) =>
-                          (percent as number) > 0.03 ? `${((percent as number) * 100).toFixed(1)}%` : ""
-                        }
-                        labelLine={false}
-                      >
-                        {pieData.map((entry, i) => <Cell key={i} fill={assetColor(entry.name)} />)}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        formatter={(v: any, _: any, props: any) => {
-                          const val = typeof v === "number" ? v : 0;
-                          const total = pieData.reduce((s, d) => s + d.value, 0);
-                          const pct = total > 0 ? ((val / total) * 100).toFixed(1) : "0.0";
-                          return [`€ ${formatValue(val)} (${pct}%)`, ""];
-                        }}
-                      />
-                      <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{ color: "#94a3b8", fontSize: 11 }}>{v}</span>} />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  <div className="flex flex-col gap-4">
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie
+                          data={pieData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={90}
+                          paddingAngle={2}
+                          dataKey="value"
+                          label={false}
+                          labelLine={false}
+                        >
+                          {pieData.map((entry, i) => <Cell key={i} fill={assetColor(entry.name)} />)}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
+                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                          formatter={(v: any) => {
+                            const val = typeof v === "number" ? v : 0;
+                            const pct = total > 0 ? ((val / total) * 100).toLocaleString("pt-PT", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : "0,0";
+                            return [`€ ${formatValue(val)} · ${pct}%`, ""];
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    {/* Custom legend: two-column grid */}
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                      {pieData.map((entry) => {
+                        const pct = total > 0 ? ((entry.value / total) * 100) : 0;
+                        return (
+                          <div key={entry.name} className="flex items-center gap-2 min-w-0">
+                            <span className="shrink-0 h-2.5 w-2.5 rounded-full" style={{ background: assetColor(entry.name) }} />
+                            <span className="text-xs text-slate-300 font-medium truncate">{entry.name}</span>
+                            <span className="ml-auto text-xs text-slate-500 shrink-0">{pct.toLocaleString("pt-PT", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 )}
               </div>
             );
