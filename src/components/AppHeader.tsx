@@ -104,6 +104,7 @@ export default function AppHeader({
     { href: "/portfolio", label: "Portfolio" },
     { href: "/wallets", label: "Carteiras" },
     { href: "/smart-money", label: "Smart Money" },
+    { href: "/gestor", label: "Gestor IA" },
     { href: "/mercado", label: "Mercado" },
     { href: "/fiscalidade", label: "Impostos" },
     { href: "/fire", label: "FIRE" },

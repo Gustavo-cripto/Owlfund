@@ -8,6 +8,122 @@ import { useTheme, type Theme, type Currency, type NumberFormat } from "@/lib/th
 
 type SubscriptionStatus = { status: string; current_period_end: string | null; price_id?: string | null };
 type SettingsSection = "account" | "appearance" | "preferences" | "notifications" | "privacy" | "premium";
+type ApiKey = { id: string; name: string; key_prefix: string; created_at: string; last_used_at: string | null; is_active: boolean };
+
+// ── API Keys component ────────────────────────────────────────────────────
+function PremiumApiKeys({ isPremium }: { isPremium: boolean }) {
+  const [keys, setKeys] = useState<ApiKey[]>([]);
+  const [newKeyName, setNewKeyName] = useState("");
+  const [revealedKey, setRevealedKey] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [loadingKeys, setLoadingKeys] = useState(false);
+
+  useEffect(() => {
+    if (!isPremium) return;
+    setLoadingKeys(true);
+    fetch("/api/api-keys")
+      .then(r => r.ok ? r.json() : { keys: [] })
+      .then((d: { keys?: ApiKey[] }) => setKeys(d.keys ?? []))
+      .finally(() => setLoadingKeys(false));
+  }, [isPremium]);
+
+  const createKey = async () => {
+    if (creating) return;
+    setCreating(true);
+    setRevealedKey(null);
+    try {
+      const res = await fetch("/api/api-keys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newKeyName || "Chave API" }),
+      });
+      const data = await res.json() as { key?: string; meta?: ApiKey; error?: string };
+      if (data.error) { alert(data.error); return; }
+      if (data.key) {
+        setRevealedKey(data.key);
+        setKeys(prev => [data.meta!, ...prev]);
+        setNewKeyName("");
+      }
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const revokeKey = async (id: string) => {
+    if (!confirm("Revogar esta chave? Esta ação é irreversível.")) return;
+    const res = await fetch("/api/api-keys", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ keyId: id }),
+    });
+    if (res.ok) setKeys(prev => prev.filter(k => k.id !== id));
+  };
+
+  return (
+    <div className={`rounded-xl border p-5 space-y-4 ${isPremium ? "border-slate-700 bg-slate-900/40" : "border-violet-500/10 bg-slate-950/40"}`}>
+      <div className="flex items-center gap-2">
+        <p className="text-sm font-semibold text-white">🔑 API & MCP Access</p>
+        {!isPremium && <span className="text-[10px] border border-violet-500/40 text-violet-400 rounded-full px-2 py-0.5">Premium</span>}
+      </div>
+      {isPremium ? (
+        <div className="space-y-4">
+          <p className="text-xs text-slate-400">Gera chaves API para integrar o Owlfund com ferramentas externas, MCP servers e webhooks.</p>
+
+          {revealedKey && (
+            <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/30 p-3 space-y-2">
+              <p className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wide">Guarda esta chave — só aparece uma vez</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 text-xs text-emerald-300 font-mono break-all">{revealedKey}</code>
+                <button type="button" onClick={() => { navigator.clipboard.writeText(revealedKey); }}
+                  className="shrink-0 text-[10px] border border-emerald-500/40 text-emerald-400 rounded px-2 py-1 hover:bg-emerald-500/10 transition">
+                  Copiar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {loadingKeys ? (
+            <div className="space-y-2">
+              {[1,2].map(i => <div key={i} className="h-10 rounded-lg bg-slate-800 animate-pulse" />)}
+            </div>
+          ) : keys.length > 0 ? (
+            <div className="space-y-2">
+              {keys.map(k => (
+                <div key={k.id} className="rounded-lg bg-slate-950 border border-slate-800 p-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs text-slate-200 font-medium truncate">{k.name}</p>
+                    <code className="text-[10px] text-slate-500 font-mono">{k.key_prefix}••••••••••••</code>
+                    {k.last_used_at && <span className="text-[10px] text-slate-600 ml-2">usado {new Date(k.last_used_at).toLocaleDateString("pt-PT")}</span>}
+                  </div>
+                  <button type="button" onClick={() => revokeKey(k.id)}
+                    className="shrink-0 text-[10px] border border-rose-500/30 text-rose-400 rounded px-2 py-1 hover:bg-rose-500/10 transition">
+                    Revogar
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-500">Nenhuma chave criada ainda.</p>
+          )}
+
+          <div className="flex gap-2">
+            <input type="text" value={newKeyName} onChange={e => setNewKeyName(e.target.value)}
+              placeholder="Nome da chave (ex: MCP Claude)"
+              className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-violet-500/50" />
+            <button type="button" onClick={createKey} disabled={creating}
+              className="shrink-0 rounded-lg border border-violet-500/40 bg-violet-500/10 px-4 py-2 text-xs font-semibold text-violet-300 hover:bg-violet-500/20 disabled:opacity-50 transition">
+              {creating ? "A criar..." : "+ Nova chave"}
+            </button>
+          </div>
+
+          <p className="text-[10px] text-slate-600">Endpoint base: <code className="text-slate-500">https://owlfund.vercel.app/api/v1/</code> · Cabeçalho: <code className="text-slate-500">Authorization: Bearer owf_live_…</code></p>
+        </div>
+      ) : (
+        <p className="text-xs text-slate-500">Acede à API REST do Owlfund, integra com MCP servers e recebe webhooks em tempo real.</p>
+      )}
+    </div>
+  );
+}
 
 // ── Toggle switch ─────────────────────────────────────────────────────────
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
@@ -125,9 +241,34 @@ export default function AccountPage() {
         const planRes = await fetch("/api/subscription");
         if (planRes.ok) {
           const planJson = await planRes.json() as { plan: string };
-          if (planJson.plan === "premium") setServerPlan("premium");
-          else if (planJson.plan === "pro") setServerPlan("pro");
-          else setServerPlan("free");
+          if (planJson.plan === "premium") {
+            setServerPlan("premium");
+          } else {
+            // Auto-sync from Stripe to catch missed webhooks
+            try {
+              const syncRes = await fetch("/api/sync-subscription", { method: "POST" });
+              if (syncRes.ok) {
+                const syncJson = await syncRes.json() as { synced?: boolean };
+                if (syncJson.synced) {
+                  // Re-check after sync
+                  const recheckRes = await fetch("/api/subscription");
+                  if (recheckRes.ok) {
+                    const recheckJson = await recheckRes.json() as { plan: string };
+                    if (recheckJson.plan === "premium") { setServerPlan("premium"); setLoading(false); return; }
+                    setServerPlan(recheckJson.plan === "pro" ? "pro" : "free");
+                  } else {
+                    setServerPlan(planJson.plan === "pro" ? "pro" : "free");
+                  }
+                } else {
+                  setServerPlan(planJson.plan === "pro" ? "pro" : "free");
+                }
+              } else {
+                setServerPlan(planJson.plan === "pro" ? "pro" : "free");
+              }
+            } catch {
+              setServerPlan(planJson.plan === "pro" ? "pro" : "free");
+            }
+          }
         }
       } catch { /* ignore */ }
       // Carregar preferências de briefing
@@ -674,44 +815,27 @@ export default function AccountPage() {
                     </div>
                   )}
 
-                  {/* API Keys */}
+                  {/* Gestor Dedicado IA */}
                   <div className={`rounded-xl border p-5 space-y-4 ${isPremium ? "border-slate-700 bg-slate-900/40" : "border-violet-500/10 bg-slate-950/40"}`}>
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-white">🔑 API & MCP Access</p>
+                      <p className="text-sm font-semibold text-white">🤖 Gestor Dedicado IA</p>
                       {!isPremium && <span className="text-[10px] border border-violet-500/40 text-violet-400 rounded-full px-2 py-0.5">Premium</span>}
                     </div>
                     {isPremium ? (
                       <div className="space-y-3">
-                        <p className="text-xs text-slate-400">Usa a API do Owlfund para integrar com ferramentas externas, MCP servers e webhooks.</p>
-                        <div className="rounded-lg bg-slate-950 border border-slate-800 p-3 flex items-center justify-between gap-3">
-                          <code className="text-xs text-violet-300 font-mono">owf_live_••••••••••••••••</code>
-                          <span className="text-[10px] text-amber-400 border border-amber-500/30 rounded-full px-2 py-0.5">Em breve</span>
-                        </div>
-                        <p className="text-xs text-slate-500">Documentação da API disponível em breve. Webhooks configuráveis por endpoint.</p>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-slate-500">Acede à API REST do Owlfund, integra com MCP servers e recebe webhooks em tempo real.</p>
-                    )}
-                  </div>
-
-                  {/* Gestor dedicado */}
-                  <div className={`rounded-xl border p-5 space-y-4 ${isPremium ? "border-slate-700 bg-slate-900/40" : "border-violet-500/10 bg-slate-950/40"}`}>
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-white">👤 Gestor Dedicado</p>
-                      {!isPremium && <span className="text-[10px] border border-violet-500/40 text-violet-400 rounded-full px-2 py-0.5">Premium</span>}
-                    </div>
-                    {isPremium ? (
-                      <div className="space-y-3">
-                        <p className="text-xs text-slate-400">O teu gestor dedicado está disponível para suporte personalizado, onboarding e consultoria.</p>
-                        <a href="mailto:premium@owlfund.app"
+                        <p className="text-xs text-slate-400">O teu gestor financeiro com IA — análise de portfolio, planeamento fiscal, FIRE e Smart Money em tempo real.</p>
+                        <a href="/gestor"
                           className="inline-flex items-center gap-2 rounded-xl border border-violet-500/40 bg-violet-500/10 px-4 py-2.5 text-sm font-semibold text-violet-200 hover:bg-violet-500/20 transition">
-                          📧 Contactar Gestor
+                          🤖 Abrir Gestor Dedicado →
                         </a>
                       </div>
                     ) : (
-                      <p className="text-xs text-slate-500">Suporte prioritário com gestor dedicado para configuração, estratégia e questões fiscais complexas.</p>
+                      <p className="text-xs text-slate-500">Assistente IA com acesso completo ao teu portfolio — análise, fiscalidade, FIRE e rebalanceamento.</p>
                     )}
                   </div>
+
+                  {/* API Keys */}
+                  <PremiumApiKeys isPremium={isPremium} />
 
                   {/* Smart Money RT status */}
                   <div className={`rounded-xl border p-5 ${isPremium ? "border-slate-700 bg-slate-900/40" : "border-violet-500/10 bg-slate-950/40"}`}>
@@ -729,7 +853,11 @@ export default function AccountPage() {
                         <span className="text-xs text-slate-600">Inativo</span>
                       )}
                     </div>
-                    {!isPremium && <p className="text-xs text-slate-500 mt-2">Dados da watchlist atualizados em tempo real (cada 60s) com o Plano Premium.</p>}
+                    {isPremium ? (
+                      <p className="text-xs text-slate-400 mt-2">Acede à página <a href="/smart-money" className="text-violet-400 hover:underline">Smart Money</a> — a tua watchlist é agora atualizada automaticamente a cada 60 segundos.</p>
+                    ) : (
+                      <p className="text-xs text-slate-500 mt-2">Dados da watchlist atualizados em tempo real (cada 60s) com o Plano Premium.</p>
+                    )}
                   </div>
                 </div>
               )}
