@@ -639,21 +639,21 @@ export default function AccountPage() {
                     <SettingRow label="Alertas de baleias" desc="Notificações quando uma baleia na watchlist mover > $100k.">
                       <Toggle checked={alertsEnabled} onChange={v => setSetting("alertsEnabled", v)} />
                     </SettingRow>
-                    <SettingRow label="Alertas por email" desc="Recebe alertas no email da conta (requer plano Pro).">
+                    <SettingRow label="Alertas por email" desc="Recebe alertas no email da conta (plano Pro ou Premium).">
                       <div className="flex items-center gap-2">
-                        {!isPro && <span className="text-[10px] text-orange-400 border border-orange-500/30 rounded-full px-2 py-0.5">Pro</span>}
-                        <Toggle checked={isPro && alertsEnabled} onChange={() => { if (!isPro) window.location.href = "/pricing"; }} />
+                        {!isPro && !isPremium && <span className="text-[10px] text-orange-400 border border-orange-500/30 rounded-full px-2 py-0.5">Pro</span>}
+                        <Toggle checked={(isPro || isPremium) && alertsEnabled} onChange={() => { if (!isPro && !isPremium) window.location.href = "/pricing"; }} />
                       </div>
                     </SettingRow>
                     <SettingRow label="Novos blocos BTC" desc="Animação quando um novo bloco BTC é confirmado.">
                       <Toggle checked={true} onChange={() => {}} />
                     </SettingRow>
                     <SettingRow label="Variações de preço > 5%" desc="Alerta quando um ativo do portfolio sobe ou desce mais de 5%.">
-                      <Toggle checked={isPro} onChange={() => { if (!isPro) window.location.href = "/pricing"; }} />
+                      <Toggle checked={isPro || isPremium} onChange={() => { if (!isPro && !isPremium) window.location.href = "/pricing"; }} />
                     </SettingRow>
                   </div>
 
-                  {!isPro && (
+                  {!isPro && !isPremium && (
                     <div className="rounded-xl border border-orange-500/20 bg-orange-500/5 p-4 flex items-center gap-3">
                       <span className="text-2xl">⭐</span>
                       <div className="flex-1">
