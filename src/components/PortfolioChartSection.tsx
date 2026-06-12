@@ -84,9 +84,9 @@ function fmtEur(v: number) {
   return v.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function fmtEurCompact(v: number) {
-  if (v >= 1_000_000) return `€ ${(v / 1_000_000).toFixed(2)}M`;
-  if (v >= 1_000)     return `€ ${(v / 1_000).toFixed(1)}K`;
-  return `€ ${v.toFixed(2)}`;
+  if (v >= 1_000_000) return `€ ${(v / 1_000_000).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}M`;
+  if (v >= 1_000)     return `€ ${(v / 1_000).toLocaleString("pt-PT", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}K`;
+  return `€ ${fmtEur(v)}`;
 }
 
 function buildChartData(
@@ -165,7 +165,7 @@ function TokenRow({ wallet, price, pnlToday, total }: { wallet: WalletBalance; p
         </p>
       </div>
       <div className="w-24 text-right">
-        <p className="text-sm text-slate-300">{price > 0 ? `€ ${price >= 1000 ? (price/1000).toFixed(2)+"K" : price.toFixed(2)}` : "—"}</p>
+        <p className="text-sm text-slate-300">{price > 0 ? `€ ${price >= 1000 ? (price/1000).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })+"K" : fmtEur(price)}` : "—"}</p>
       </div>
       <div className="w-24 text-right">
         <p className="text-sm text-slate-300">{balanceNum.toFixed(4)} {wallet.symbol}</p>
@@ -177,10 +177,10 @@ function TokenRow({ wallet, price, pnlToday, total }: { wallet: WalletBalance; p
         {pnlPct !== 0 ? (
           <>
             <p className={`text-sm font-semibold ${pnlEur >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-              {pnlEur >= 0 ? "+" : ""}€ {Math.abs(pnlEur).toFixed(2)}
+              {pnlEur >= 0 ? "+" : ""}€ {fmtEur(Math.abs(pnlEur))}
             </p>
             <p className={`text-xs ${pnlPct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-              {pnlPct >= 0 ? "▲" : "▼"} {Math.abs(pnlPct).toFixed(2)}%
+              {pnlPct >= 0 ? "▲" : "▼"} {Math.abs(pnlPct).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
             </p>
           </>
         ) : <p className="text-sm text-slate-600">—</p>}
@@ -332,7 +332,7 @@ export default function PortfolioChartSection({
           <p className="text-4xl font-black text-white tracking-tight">€ {fmtEur(portfolioTotal)}</p>
           <div className="flex items-center gap-1.5 mt-1.5">
             <span className={`text-sm ${isUp ? "text-emerald-400" : "text-rose-400"}`}>
-              {isUp ? "▲" : "▼"} € {Math.abs(pnlToday).toFixed(2)} ({Math.abs(pnlPct).toFixed(2)}%) hoje
+              {isUp ? "▲" : "▼"} € {fmtEur(Math.abs(pnlToday))} ({Math.abs(pnlPct).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%) hoje
             </span>
           </div>
         </div>
