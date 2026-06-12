@@ -103,10 +103,15 @@ function buildEmailHtml(briefing: string, mode: string, date: string): string {
 }
 
 export async function GET(request: Request) {
-  // Verificar cron secret
-  const secret = request.headers.get("x-vercel-cron-signature") ?? new URL(request.url).searchParams.get("secret");
-  if (secret !== process.env.CRON_SECRET && process.env.NODE_ENV === "production") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Vercel cron jobs send Authorization: Bearer {CRON_SECRET}
+  const cronSecret = process.env.CRON_SECRET ?? "";
+  if (cronSecret) {
+    const authHeader = request.headers.get("authorization") ?? "";
+    const querySecret = new URL(request.url).searchParams.get("secret") ?? "";
+    const isVercelCron = request.headers.get("x-vercel-cron") === "1";
+    if (!isVercelCron && authHeader !== `Bearer ${cronSecret}` && querySecret !== cronSecret) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -114,14 +119,13 @@ export async function GET(request: Request) {
   const resendKey = process.env.RESEND_API_KEY ?? "";
 
   if (!supabaseUrl || !serviceKey || !resendKey) {
-    return NextResponse.json({ error: "Env vars em falta (SUPABASE_SERVICE_ROLE_KEY ou RESEND_API_KEY)" }, { status: 503 });
+    return NextResponse.json({ error: "Env vars em falta: SUPABASE_SERVICE_ROLE_KEY e/ou RESEND_API_KEY não configuradas no Vercel." }, { status: 503 });
   }
 
   const currentHour = new Date().getUTCHours();
   const supabase = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
   const resend = new Resend(resendKey);
 
-  // Plano Hobby Vercel: cron corre 1x/dia às 7 UTC — envia a todos os utilizadores com briefing ativo
   const { data: users } = await supabase
     .from("news_briefing_schedule")
     .select("user_id, email, mode, hour_utc")
@@ -133,22 +137,32 @@ export async function GET(request: Request) {
 
   const date = new Date().toLocaleDateString("pt-PT", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   let sent = 0;
+  const errors: string[] = [];
 
   for (const user of users) {
-    const mode = (user.mode ?? "crypto") as "crypto" | "tradicional";
-    const context = await buildContext(mode);
-    const briefing = await generateBriefing(mode, context);
-    const html = buildEmailHtml(briefing, mode, date);
+    const rawMode = (user.mode ?? "crypto") as "crypto" | "tradicional" | "both";
 
-    const { error } = await resend.emails.send({
-      from: "Owlfund <briefing@owlfund.app>",
-      to: user.email,
-      subject: `🦉 Briefing ${mode === "crypto" ? "Cripto" : "Tradicional"} — ${date}`,
-      html,
-    });
+    // "both" = envia dois emails (cripto + tradicional)
+    const modes: Array<"crypto" | "tradicional"> = rawMode === "both"
+      ? ["crypto", "tradicional"]
+      : [rawMode];
 
-    if (!error) sent++;
+    for (const mode of modes) {
+      const context = await buildContext(mode);
+      const briefing = await generateBriefing(mode, context);
+      const html = buildEmailHtml(briefing, mode, date);
+
+      const { error } = await resend.emails.send({
+        from: "Owlfund <briefing@owlfund.app>",
+        to: user.email,
+        subject: `🦉 Briefing ${mode === "crypto" ? "Cripto" : "Mercado Tradicional"} — ${date}`,
+        html,
+      });
+
+      if (error) errors.push(`${user.email}/${mode}: ${error.message}`);
+      else sent++;
+    }
   }
 
-  return NextResponse.json({ sent, total: users.length, hour: currentHour });
+  return NextResponse.json({ sent, total: users.length, hour: currentHour, errors });
 }
