@@ -111,36 +111,34 @@ const snapshotTotal = (snapshot: WalletSnapshot, prices: TokenPrices = {}) =>
   sumEntries(snapshot.btc) * (prices.BTC ?? 0) +
   sumEntries(snapshot.ada) * (prices.ADA ?? 0);
 
-const snapshotToWallets = (snapshot: WalletSnapshot, prices: TokenPrices = {}): WalletBalance[] => [
-  // Each ETH wallet entry as its own row (mainnet + L2s)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const snapshotToWallets = (snapshot: WalletSnapshot, _prices?: TokenPrices): WalletBalance[] => [
+  // Each ETH wallet entry as its own row (mainnet + L2s) — balance is raw token amount
   ...(snapshot.eth ?? []).map((entry) => ({
     label: entry.label || (entry.address ? `${entry.address.slice(0, 6)}…${entry.address.slice(-4)}` : "Ethereum"),
     symbol: "ETH",
-    balance: (Number(entry.balance ?? 0) * (prices.ETH ?? 0)).toFixed(2),
+    balance: String(Number(entry.balance ?? 0)),
     address: entry.address,
     network: entry.network ?? "Ethereum",
   })),
-  // SOL wallets
   ...(snapshot.sol ?? []).map((entry) => ({
     label: entry.label || (entry.address ? `${entry.address.slice(0, 6)}…${entry.address.slice(-4)}` : "Solana"),
     symbol: "SOL",
-    balance: (Number(entry.balance ?? 0) * (prices.SOL ?? 0)).toFixed(2),
+    balance: String(Number(entry.balance ?? 0)),
     address: entry.address,
     network: "Solana",
   })),
-  // BTC wallets
   ...(snapshot.btc ?? []).map((entry) => ({
     label: entry.label || (entry.address ? `${entry.address.slice(0, 6)}…${entry.address.slice(-4)}` : "Bitcoin"),
     symbol: "BTC",
-    balance: (Number(entry.balance ?? 0) * (prices.BTC ?? 0)).toFixed(2),
+    balance: String(Number(entry.balance ?? 0)),
     address: entry.address,
     network: "Bitcoin",
   })),
-  // ADA wallets
   ...(snapshot.ada ?? []).map((entry) => ({
     label: entry.label || (entry.address ? `${entry.address.slice(0, 6)}…${entry.address.slice(-4)}` : "Cardano"),
     symbol: "ADA",
-    balance: (Number(entry.balance ?? 0) * (prices.ADA ?? 0)).toFixed(2),
+    balance: String(Number(entry.balance ?? 0)),
     address: entry.address,
     network: "Cardano",
   })),
@@ -152,10 +150,12 @@ const formatAddress = (address?: string) => {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 };
 
-const sumCrypto = (balances: WalletBalance[]) => {
+const sumCrypto = (balances: WalletBalance[], prices: TokenPrices = {}) => {
   return balances.reduce((sum, item) => {
-    const value = Number(item.balance ?? 0);
-    return Number.isFinite(value) ? sum + value : sum;
+    const raw = Number(item.balance ?? 0);
+    const price = prices[item.symbol] ?? 0;
+    const eur = raw * price;
+    return Number.isFinite(eur) ? sum + eur : sum;
   }, 0);
 };
 
@@ -515,7 +515,7 @@ export default function PortfolioPage() {
     }, 0);
   }, [cryptoHoldings]);
 
-  const cryptoTotal = useMemo(() => sumCrypto(wallets) + manualCryptoTotal + snapshotCexEur + snapshotDefiEur, [wallets, manualCryptoTotal, snapshotCexEur, snapshotDefiEur]);
+  const cryptoTotal = useMemo(() => sumCrypto(wallets, tokenPrices) + manualCryptoTotal + snapshotCexEur + snapshotDefiEur, [wallets, tokenPrices, manualCryptoTotal, snapshotCexEur, snapshotDefiEur]);
   const stablecoinTotal = useMemo(() => {
     return stablecoinEntries.reduce((sum, e) => sum + (parseFloat(e.balance ?? "0") || 0), 0);
   }, [stablecoinEntries]);
