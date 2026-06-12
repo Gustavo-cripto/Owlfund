@@ -952,9 +952,12 @@ export default function PortfolioPage() {
               Stable: "#64748b", "Trad.": "#475569", CEX: "#10b981", DeFi: "#8b5cf6",
             };
             const assetColor = (name: string) => ASSET_COLOR[name] ?? `hsl(${(name.charCodeAt(0) * 47) % 360},65%,55%)`;
-            // Group by symbol — merge multiple wallets of same coin
+            // Group by symbol — values in EUR
             const rawEntries = [
-              ...wallets.filter(w => Number(w.balance) > 0).map(w => ({ name: w.symbol, value: Number(w.balance) })),
+              ...wallets.filter(w => Number(w.balance) > 0).map(w => ({
+                name: w.symbol,
+                value: Number(w.balance) * (tokenPrices[w.symbol] ?? 0),
+              })),
               ...Object.entries(cryptoHoldings).filter(([,h]) => Number(h.buyValue) > 0).map(([k,h]) => ({ name: k, value: Number(h.buyValue) })),
               ...(stablecoinTotal > 0 ? [{ name: "Stable", value: stablecoinTotal }] : []),
               ...(traditionalTotal > 0 ? [{ name: "Trad.", value: traditionalTotal }] : []),
@@ -967,6 +970,20 @@ export default function PortfolioPage() {
               .map(([name, value]) => ({ name, value }))
               .sort((a, b) => b.value - a.value);
             const total = pieData.reduce((s, d) => s + d.value, 0);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const renderLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
+              if ((percent as number) < 0.05) return null;
+              const RADIAN = Math.PI / 180;
+              const r = innerRadius + (outerRadius - innerRadius) * 0.55;
+              const x = cx + r * Math.cos(-midAngle * RADIAN);
+              const y = cy + r * Math.sin(-midAngle * RADIAN);
+              return (
+                <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central"
+                  style={{ fontSize: 11, fontWeight: 600, textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>
+                  {((percent as number) * 100).toLocaleString("pt-PT", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
+                </text>
+              );
+            };
             return (
               <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
                 <div className="mb-4">
@@ -979,17 +996,17 @@ export default function PortfolioPage() {
                   </div>
                 ) : (
                   <div className="flex flex-col gap-4">
-                    <ResponsiveContainer width="100%" height={200}>
+                    <ResponsiveContainer width="100%" height={220}>
                       <PieChart>
                         <Pie
                           data={pieData}
                           cx="50%"
                           cy="50%"
-                          innerRadius={60}
-                          outerRadius={90}
+                          innerRadius={65}
+                          outerRadius={95}
                           paddingAngle={2}
                           dataKey="value"
-                          label={false}
+                          label={renderLabel}
                           labelLine={false}
                         >
                           {pieData.map((entry, i) => <Cell key={i} fill={assetColor(entry.name)} />)}
@@ -1005,18 +1022,15 @@ export default function PortfolioPage() {
                         />
                       </PieChart>
                     </ResponsiveContainer>
-                    {/* Custom legend: two-column grid */}
+                    {/* Legend: name + EUR value */}
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-                      {pieData.map((entry) => {
-                        const pct = total > 0 ? ((entry.value / total) * 100) : 0;
-                        return (
-                          <div key={entry.name} className="flex items-center gap-2 min-w-0">
-                            <span className="shrink-0 h-2.5 w-2.5 rounded-full" style={{ background: assetColor(entry.name) }} />
-                            <span className="text-xs text-slate-300 font-medium truncate">{entry.name}</span>
-                            <span className="ml-auto text-xs text-slate-500 shrink-0">{pct.toLocaleString("pt-PT", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</span>
-                          </div>
-                        );
-                      })}
+                      {pieData.map((entry) => (
+                        <div key={entry.name} className="flex items-center gap-2 min-w-0">
+                          <span className="shrink-0 h-2.5 w-2.5 rounded-full" style={{ background: assetColor(entry.name) }} />
+                          <span className="text-xs text-slate-300 font-medium truncate">{entry.name}</span>
+                          <span className="ml-auto text-xs text-slate-400 shrink-0">€ {formatValue(entry.value)}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
