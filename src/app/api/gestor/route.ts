@@ -59,6 +59,73 @@ type SnapshotData = {
   _totalEur?: number;
 };
 
+type WatchEntry = { address: string; label: string; chain: "eth" | "sol" | "btc" };
+type Movement = { address: string; label: string; chain: string; type: string; description: string; usdValue: number; timestamp: number };
+
+// ── On-chain movement fetchers (reused from /api/smart-money-rt) ──────────────
+
+async function fetchBtcMovements(address: string, label: string): Promise<Movement[]> {
+  try {
+    const res = await fetch(`https://mempool.space/api/address/${address}/txs`, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return [];
+    const txs = await res.json() as Array<{ status: { block_time: number }; vout: Array<{ value: number }> }>;
+    if (!txs?.length) return [];
+    const latest = txs[0];
+    const btcValue = (latest.vout ?? []).reduce((s, o) => s + (o.value ?? 0), 0) / 1e8;
+    if (btcValue < 0.01) return [];
+    return [{ address, label, chain: "btc", type: btcValue > 1 ? "large_transfer" : "accumulation",
+      description: `${btcValue.toFixed(4)} BTC`, usdValue: 0,
+      timestamp: (latest.status?.block_time ?? Date.now() / 1000) * 1000 }];
+  } catch { return []; }
+}
+
+async function fetchEthMovements(address: string, label: string): Promise<Movement[]> {
+  try {
+    const apiKey = process.env.MORALIS_API_KEY ?? "";
+    if (!apiKey) return [];
+    const res = await fetch(`https://deep-index.moralis.io/api/v2.2/${address}/erc20/transfers?chain=eth&limit=5`,
+      { headers: { "X-API-Key": apiKey }, signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return [];
+    const data = await res.json() as { result?: Array<{ value: string; token_decimals: string; token_symbol: string; block_timestamp: string }> };
+    return (data.result ?? []).slice(0, 2).map(tx => {
+      const amount = parseInt(tx.value ?? "0") / Math.pow(10, parseInt(tx.token_decimals ?? "18"));
+      return { address, label, chain: "eth", type: amount > 100000 ? "large_transfer" : "accumulation",
+        description: `${amount.toFixed(2)} ${tx.token_symbol}`, usdValue: 0,
+        timestamp: new Date(tx.block_timestamp).getTime() };
+    }).filter(m => parseFloat(m.description) > 0);
+  } catch { return []; }
+}
+
+async function fetchWatchlistMovements(watchlist: WatchEntry[]): Promise<Movement[]> {
+  if (!watchlist.length) return [];
+  const results = await Promise.allSettled(
+    watchlist.slice(0, 8).map(e => {
+      if (e.chain === "btc") return fetchBtcMovements(e.address, e.label);
+      if (e.chain === "eth") return fetchEthMovements(e.address, e.label);
+      return Promise.resolve([] as Movement[]);
+    })
+  );
+  return results.flatMap(r => r.status === "fulfilled" ? r.value : [])
+    .sort((a, b) => b.timestamp - a.timestamp).slice(0, 15);
+}
+
+function buildWatchlistContext(watchlist: WatchEntry[], movements: Movement[]): string {
+  if (!watchlist.length) return "";
+  const lines = ["\n=== SMART MONEY WATCHLIST ==="];
+  lines.push(`Endereços monitorados: ${watchlist.length}`);
+  watchlist.slice(0, 10).forEach(e => lines.push(`  • ${e.label} (${e.chain.toUpperCase()}): ${e.address.slice(0, 10)}...`));
+  if (movements.length) {
+    lines.push("\nMovimentos recentes detetados:");
+    movements.forEach(m => {
+      const time = new Date(m.timestamp).toLocaleString("pt-PT");
+      lines.push(`  [${time}] ${m.label} (${m.chain.toUpperCase()}): ${m.description} — ${m.type}`);
+    });
+  } else {
+    lines.push("\nSem movimentos significativos recentes na watchlist.");
+  }
+  return lines.join("\n");
+}
+
 function buildPortfolioContext(snapshot: SnapshotData | null, subscription: { price_id: string | null; current_period_end: string | null } | null, prices: Record<string, number>): string {
   const hasData = snapshot && (
     (snapshot.btc?.length ?? 0) + (snapshot.eth?.length ?? 0) +
@@ -77,12 +144,13 @@ INSTRUÇÃO: Informa o utilizador de forma simpática que ainda não tem carteir
   const totalEur = snapshot!._totalEur;
   if (totalEur) lines.push(`Valor total estimado: €${totalEur.toFixed(2)}`);
 
-  const addChain = (name: string, entries?: Array<{ balance?: string }>, priceKey?: string) => {
+  const addChain = (name: string, entries?: Array<{ address?: string; balance?: string }>, priceKey?: string) => {
     if (!entries?.length) return;
     const total = entries.reduce((s, e) => s + parseFloat(e.balance ?? "0"), 0);
     const price = priceKey ? (prices[priceKey] ?? 0) : 0;
     const eur = total * price;
     lines.push(`${name}: ${total.toFixed(8)} (≈€${eur.toFixed(2)}, ${entries.length} carteira(s))`);
+    entries.slice(0, 3).forEach(e => { if (e.address) lines.push(`    Endereço: ${e.address}`); });
   };
 
   addChain("Bitcoin (BTC)", snapshot!.btc, "bitcoin");
@@ -110,17 +178,18 @@ const GESTOR_SYSTEM = `És o Gestor Dedicado IA do Owlfund — um assistente fin
 PERSONALIDADE: Profissional mas acessível. Conciso e direto. Fala em PT-PT (Portugal). Respostas curtas e úteis — sem introduções longas.
 
 CAPACIDADES:
-- Análise de risco e alocação do portfolio com dados reais
+- Análise de risco e alocação do portfolio com dados reais das carteiras
+- Análise de movimentos on-chain em tempo real (watchlist de baleias)
 - Estimativas fiscais (IRS Portugal — isenção >365 dias para ativos adquiridos antes de 2023, taxa 28% para os restantes)
 - FIRE planning (regra dos 4%, projeção patrimonial)
 - Estratégias de rebalanceamento e diversificação
-- Interpretação de movimentos on-chain / Smart Money
-- Educação financeira e cripto em geral
+- Interpretação de movimentos Smart Money / baleias
 
 REGRAS:
-- Se houver dados reais do portfolio, usa-os sempre nas respostas.
-- Se não houver dados, sê útil na mesma — responde com base no que o utilizador te diz na conversa.
-- Nunca inventes saldos ou valores que não existam no contexto.
+- Se houver dados reais do portfolio, usa-os sempre. Menciona endereços e valores.
+- Se houver movimentos on-chain da watchlist, analisa-os e interpreta o que significam.
+- Se não houver dados, sê útil na mesma — responde com base no que o utilizador te diz.
+- Nunca inventes saldos ou movimentos que não existam no contexto.
 - Não dês recomendações diretas de compra/venda — apresenta análise e cenários com riscos.
 - Respostas estruturadas: máx 4 parágrafos ou lista com bullets. Usa markdown.
 - Para cálculos fiscais: indica sempre que são estimativas e recomenda validação com contabilista.`;
@@ -145,31 +214,38 @@ export async function POST(req: NextRequest) {
     const isPremium = !!premiumPriceId && sub?.price_id === premiumPriceId;
     if (!isPremium) return NextResponse.json({ error: "Requer Plano Premium." }, { status: 403 });
 
-    const body = await req.json() as { messages: Message[] };
+    const body = await req.json() as { messages: Message[]; watchlist?: WatchEntry[] };
     const messages = (body.messages ?? []).slice(-14).map(m => ({
       role: m.role,
       content: String(m.content ?? "").slice(0, 4000),
     }));
+    const watchlist: WatchEntry[] = (body.watchlist ?? []).slice(0, 10);
 
     if (!messages.length) return NextResponse.json({ error: "Sem mensagens." }, { status: 400 });
 
-    // Fetch latest portfolio snapshot
+    // Fetch portfolio snapshot + prices + watchlist movements in parallel
     const supabaseAdmin = getSupabaseAdmin();
-    const { data: snapshotRow } = await supabaseAdmin
-      .from("portfolio_snapshots").select("data").eq("user_id", user.id)
-      .order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const [snapshotResult, priceResult, movements] = await Promise.allSettled([
+      supabaseAdmin.from("portfolio_snapshots").select("data").eq("user_id", user.id)
+        .order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,cardano&vs_currencies=eur",
+        { signal: AbortSignal.timeout(5000) }),
+      fetchWatchlistMovements(watchlist),
+    ]);
 
-    // Fetch prices
+    const snapshotRow = snapshotResult.status === "fulfilled" ? snapshotResult.value.data : null;
+
     let prices: Record<string, number> = {};
-    try {
-      const priceRes = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,cardano&vs_currencies=eur", { signal: AbortSignal.timeout(5000) });
-      if (priceRes.ok) prices = await priceRes.json() as Record<string, { eur: number }>;
-      // flatten { bitcoin: { eur: N } } → { bitcoin: N }
-      prices = Object.fromEntries(Object.entries(prices).map(([k, v]) => [k, (v as { eur: number }).eur ?? 0]));
-    } catch { /* use empty prices */ }
+    if (priceResult.status === "fulfilled" && priceResult.value.ok) {
+      const raw = await priceResult.value.json() as Record<string, { eur: number }>;
+      prices = Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, v.eur ?? 0]));
+    }
+
+    const movementsList = movements.status === "fulfilled" ? movements.value : [];
 
     const portfolioCtx = buildPortfolioContext(snapshotRow?.data as SnapshotData ?? null, sub, prices);
-    const systemPrompt = `${GESTOR_SYSTEM}\n\n${portfolioCtx}`;
+    const watchlistCtx = buildWatchlistContext(watchlist, movementsList);
+    const systemPrompt = `${GESTOR_SYSTEM}\n\n${portfolioCtx}${watchlistCtx}`;
 
     const reply = await callLLM([
       { role: "system", content: systemPrompt },

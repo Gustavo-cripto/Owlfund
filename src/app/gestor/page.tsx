@@ -6,6 +6,16 @@ import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { createClient } from "@/lib/supabase/client";
 import { loadWalletSnapshot } from "@/lib/wallets/storage";
 
+type WatchEntry = { address: string; label: string; chain: "eth" | "sol" | "btc" };
+
+function loadWatchlist(): WatchEntry[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem("smart-money-watchlist");
+    return raw ? (JSON.parse(raw) as WatchEntry[]) : [];
+  } catch { return []; }
+}
+
 type Message = {
   id: string;
   role: "user" | "assistant";
@@ -113,10 +123,11 @@ export default function GestorPage() {
 
     try {
       const history = [...messages, userMsg].slice(-14).map(m => ({ role: m.role, content: m.content }));
+      const watchlist = loadWatchlist();
       const res = await fetch("/api/gestor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history }),
+        body: JSON.stringify({ messages: history, watchlist }),
       });
 
       if (!res.ok) {
