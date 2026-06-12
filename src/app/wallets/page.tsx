@@ -49,6 +49,7 @@ import {
 } from "@/lib/wallets/cardano";
 import {
   loadWalletSnapshot,
+  saveWalletSnapshot,
   updateWalletSnapshot,
   type StoredWalletEntry,
   type WalletSnapshot,
@@ -601,27 +602,43 @@ export default function WalletsPage() {
     });
     setEvmProviders(getEvmProviderOptions());
     const snapshot = loadWalletSnapshot();
-    setEthWallets(snapshot.eth ?? []);
-    setSolWallets(snapshot.sol ?? []);
-    setBtcWallets(snapshot.btc ?? []);
-    setAdaWallets(snapshot.ada ?? []);
-    setOtherWallets(snapshot.other ?? []);
-    walletsHydratedRef.current = true;
+    const hasLocal = snapshot.eth?.length || snapshot.sol?.length || snapshot.btc?.length || snapshot.ada?.length;
+
+    if (hasLocal) {
+      setEthWallets(snapshot.eth ?? []);
+      setSolWallets(snapshot.sol ?? []);
+      setBtcWallets(snapshot.btc ?? []);
+      setAdaWallets(snapshot.ada ?? []);
+      setOtherWallets(snapshot.other ?? []);
+      walletsHydratedRef.current = true;
+    } else {
+      // No local data — try to restore from cloud
+      fetch("/api/wallet-sync")
+        .then(r => r.ok ? r.json() : null)
+        .then((json: { data?: { eth?: unknown[]; sol?: unknown[]; btc?: unknown[]; ada?: unknown[]; other?: unknown[] } | null } | null) => {
+          if (json?.data) {
+            const d = json.data;
+            saveWalletSnapshot(d as Parameters<typeof saveWalletSnapshot>[0]);
+            setEthWallets((d.eth ?? []) as typeof ethWallets);
+            setSolWallets((d.sol ?? []) as typeof solWallets);
+            setBtcWallets((d.btc ?? []) as typeof btcWallets);
+            setAdaWallets((d.ada ?? []) as typeof adaWallets);
+            setOtherWallets((d.other ?? []) as typeof otherWallets);
+          }
+        })
+        .catch(() => {})
+        .finally(() => { walletsHydratedRef.current = true; });
+    }
   }, []);
 
   useEffect(() => {
     if (!walletsHydratedRef.current) return;
-    const id = window.setTimeout(
-      () =>
-        updateWalletSnapshot({
-          eth: ethWallets,
-          sol: solWallets,
-          btc: btcWallets,
-          ada: adaWallets,
-          other: otherWallets,
-        }),
-      150
-    );
+    const id = window.setTimeout(() => {
+      const snap = { eth: ethWallets, sol: solWallets, btc: btcWallets, ada: adaWallets, other: otherWallets };
+      updateWalletSnapshot(snap);
+      // Sync to cloud so other devices stay in sync
+      fetch("/api/wallet-sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: snap }) }).catch(() => {});
+    }, 500);
     return () => window.clearTimeout(id);
   }, [ethWallets, solWallets, btcWallets, adaWallets, otherWallets]);
 

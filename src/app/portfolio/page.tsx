@@ -13,7 +13,7 @@ import PnlSummaryCard from "@/components/PnlSummaryCard";
 import PortfolioChartSection from "@/components/PortfolioChartSection";
 import ScenarioSimulator from "@/components/ScenarioSimulator";
 import { createClient } from "@/lib/supabase/client";
-import { loadWalletSnapshot, updateWalletSnapshot, type StoredWalletEntry, type WalletSnapshot } from "@/lib/wallets/storage";
+import { loadWalletSnapshot, saveWalletSnapshot, updateWalletSnapshot, type StoredWalletEntry, type WalletSnapshot } from "@/lib/wallets/storage";
 import { getEvmBalance } from "@/lib/wallets/evm";
 import { getSolBalance } from "@/lib/wallets/solana";
 import { getBtcBalanceFromAddress } from "@/lib/wallets/bitcoin";
@@ -307,46 +307,66 @@ export default function PortfolioPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Re-fetch saldos frescos das carteiras ao carregar
+  // Sync wallet config: load from cloud if localStorage empty, then refresh on-chain balances
   useEffect(() => {
-    const snapshot = loadWalletSnapshot();
-    if (!snapshot.eth?.length && !snapshot.sol?.length && !snapshot.btc?.length && !snapshot.ada?.length) return;
+    const run = async () => {
+      let snapshot = loadWalletSnapshot();
+      const isEmpty = !snapshot.eth?.length && !snapshot.sol?.length && !snapshot.btc?.length && !snapshot.ada?.length;
 
-    const patch: WalletSnapshot = {};
-    const refreshEntries = async (
-      entries: StoredWalletEntry[] | undefined,
-      fetcher: (addr: string) => Promise<string>
-    ): Promise<StoredWalletEntry[] | undefined> => {
-      if (!entries?.length) return undefined;
-      return Promise.all(
-        entries.map(async (e) => {
-          if (!e.address) return e;
-          try {
-            const balance = await fetcher(e.address);
-            return { ...e, balance };
-          } catch { return e; }
-        })
-      );
-    };
+      // If no local data, try to restore from cloud
+      if (isEmpty) {
+        try {
+          const res = await fetch("/api/wallet-sync");
+          if (res.ok) {
+            const json = await res.json() as { data?: WalletSnapshot | null };
+            if (json.data && (json.data.eth?.length || json.data.sol?.length || json.data.btc?.length || json.data.ada?.length)) {
+              saveWalletSnapshot(json.data);
+              snapshot = json.data;
+              setWallets(snapshotToWallets(snapshot, tokenPricesRef.current));
+            }
+          }
+        } catch { /* ignore */ }
+      }
 
-    Promise.allSettled([
-      refreshEntries(snapshot.eth, (a) => getEvmBalance(a as `0x${string}`, "Ethereum")),
-      refreshEntries(snapshot.sol, getSolBalance),
-      refreshEntries(snapshot.btc, (a) => getBtcBalanceFromAddress(a).then(String)),
-      refreshEntries(snapshot.ada, (a) => getAdaBalanceByAddress(a).then(String)),
-    ]).then(([eth, sol, btc, ada]) => {
+      if (!snapshot.eth?.length && !snapshot.sol?.length && !snapshot.btc?.length && !snapshot.ada?.length) return;
+
+      const patch: WalletSnapshot = {};
+      const refreshEntries = async (
+        entries: StoredWalletEntry[] | undefined,
+        fetcher: (addr: string) => Promise<string>
+      ): Promise<StoredWalletEntry[] | undefined> => {
+        if (!entries?.length) return undefined;
+        return Promise.all(
+          entries.map(async (e) => {
+            if (!e.address) return e;
+            try { return { ...e, balance: await fetcher(e.address) }; }
+            catch { return e; }
+          })
+        );
+      };
+
+      const [eth, sol, btc, ada] = await Promise.allSettled([
+        refreshEntries(snapshot.eth, (a) => getEvmBalance(a as `0x${string}`, "Ethereum")),
+        refreshEntries(snapshot.sol, getSolBalance),
+        refreshEntries(snapshot.btc, (a) => getBtcBalanceFromAddress(a).then(String)),
+        refreshEntries(snapshot.ada, (a) => getAdaBalanceByAddress(a).then(String)),
+      ]);
+
       if (eth.status === "fulfilled" && eth.value) patch.eth = eth.value;
       if (sol.status === "fulfilled" && sol.value) patch.sol = sol.value;
       if (btc.status === "fulfilled" && btc.value) patch.btc = btc.value;
       if (ada.status === "fulfilled" && ada.value) patch.ada = ada.value;
+
       if (Object.keys(patch).length > 0) {
         updateWalletSnapshot(patch);
         const fresh = loadWalletSnapshot();
-        // Use ref to get latest prices (avoids stale closure)
-        const prices = tokenPricesRef.current;
-        setWallets(snapshotToWallets(fresh as WalletSnapshot, prices));
+        setWallets(snapshotToWallets(fresh as WalletSnapshot, tokenPricesRef.current));
+        // Sync updated balances back to cloud
+        fetch("/api/wallet-sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: fresh }) }).catch(() => {});
       }
-    }).catch(() => {});
+    };
+    run();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
