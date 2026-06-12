@@ -1,4 +1,51 @@
 import { NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
+
+const FREE_CHAT_LIMIT = 5;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+const premiumPriceId = process.env.STRIPE_PREMIUM_PRICE_ID ?? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID ?? "";
+
+async function checkAndIncrementChatUsage(userId: string): Promise<{ allowed: boolean; count: number }> {
+  try {
+    const admin = getSupabaseAdmin();
+    const month = new Date().toISOString().slice(0, 7); // "YYYY-MM"
+
+    // Check if user has active subscription
+    const { data: sub } = await admin
+      .from("subscriptions")
+      .select("status, current_period_end, price_id")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .maybeSingle();
+
+    const isActive = sub?.status === "active" || sub?.status === "trialing";
+    const notExpired = !sub?.current_period_end || new Date(sub.current_period_end).getTime() > Date.now();
+    if (isActive && notExpired) return { allowed: true, count: 0 }; // Pro/Premium: unlimited
+
+    // Free user: check monthly count
+    const { data: usage } = await admin
+      .from("chat_usage")
+      .select("count")
+      .eq("user_id", userId)
+      .eq("month", month)
+      .maybeSingle();
+
+    const currentCount = usage?.count ?? 0;
+    if (currentCount >= FREE_CHAT_LIMIT) return { allowed: false, count: currentCount };
+
+    // Upsert incremented count
+    await admin.from("chat_usage").upsert(
+      { user_id: userId, month, count: currentCount + 1, updated_at: new Date().toISOString() },
+      { onConflict: "user_id,month" }
+    );
+    return { allowed: true, count: currentCount + 1 };
+  } catch {
+    return { allowed: true, count: 0 }; // fail open — don't block on DB error
+  }
+}
 
 type IncomingMessage = {
   role: "user" | "assistant";
@@ -400,6 +447,25 @@ export async function POST(request: Request) {
   if (!checkRateLimit(ip)) {
     return NextResponse.json({ error: "Demasiados pedidos. Tenta novamente em 1 minuto." }, { status: 429 });
   }
+
+  // Verificar limite mensal para utilizadores Free (autenticados)
+  try {
+    const cookieStore = await cookies();
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+      cookies: { get: (name) => cookieStore.get(name)?.value, set: () => {}, remove: () => {} },
+    });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { allowed, count } = await checkAndIncrementChatUsage(user.id);
+      if (!allowed) {
+        return NextResponse.json({
+          error: `Atingiste o limite de ${FREE_CHAT_LIMIT} chats/mês do plano Gratuito. Faz upgrade para Pro para chats ilimitados.`,
+          limitReached: true,
+          count,
+        }, { status: 429 });
+      }
+    }
+  } catch { /* fail open */ }
 
   let body: { messages?: IncomingMessage[]; pageContext?: string } | null = null;
   try {
