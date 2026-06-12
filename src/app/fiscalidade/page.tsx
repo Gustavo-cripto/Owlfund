@@ -272,7 +272,6 @@ const PREMIUM_COUNTRIES = [
 export default function FiscalidadePage() {
   const { isLoading, userId } = useRequireAuth("/login");
   const { t } = useLanguage();
-  const supabase = createClient();
   const [isPro, setIsPro] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
   const [trades, setTrades] = useState<TradeEntry[]>([]);
@@ -282,19 +281,17 @@ export default function FiscalidadePage() {
   useEffect(() => {
     if (!userId) return;
     const check = async () => {
-      const { data: sub } = await supabase
-        .from("subscriptions").select("status, current_period_end, price_id")
-        .eq("user_id", userId).order("current_period_end", { ascending: false }).limit(1).maybeSingle();
-      const active = sub?.status === "active" || sub?.status === "trialing";
-      const notExpired = !sub?.current_period_end || new Date(sub.current_period_end).getTime() > Date.now();
-      const isActivePlan = active && notExpired;
-      const premiumPriceId = process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID;
-      const premium = isActivePlan && !!premiumPriceId && sub?.price_id === premiumPriceId;
-      setIsPremium(premium);
-      setIsPro(isActivePlan);
+      try {
+        const res = await fetch("/api/subscription");
+        if (res.ok) {
+          const json = await res.json() as { plan: string };
+          setIsPremium(json.plan === "premium");
+          setIsPro(json.plan === "pro" || json.plan === "premium");
+        }
+      } catch { /* ignore */ }
     };
     check();
-  }, [userId, supabase]);
+  }, [userId]);
 
   const taxRates: Record<string, { short: number; long: number; longDays: number; longLabel: string }> = {
     PT: { short: 0.28, long: 0.0,  longDays: 365, longLabel: "Isento (>1 ano)" },
