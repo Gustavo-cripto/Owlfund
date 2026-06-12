@@ -200,6 +200,7 @@ REGRAS:
 - Não dês recomendações diretas de compra/venda — apresenta análise e cenários com riscos.
 - Respostas estruturadas: máx 4 parágrafos ou lista com bullets. Usa markdown.
 - Para cálculos fiscais: indica sempre que são estimativas e recomenda validação com contabilista.`;
+}
 
 // ── Route handler ─────────────────────────────────────────────────────────────
 
