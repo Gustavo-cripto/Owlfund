@@ -25,16 +25,19 @@ type Message = {
 
 type PlanStatus = "loading" | "premium" | "not-premium";
 
-const QUICK_ACTIONS = [
-  { icon: "📊", label: "Análise de portfolio", prompt: "Analisa o meu portfolio atual — risco, alocação e recomendações." },
-  { icon: "🧾", label: "Impostos PT 2024", prompt: "Qual a minha exposição fiscal estimada em Portugal para 2024?" },
-  { icon: "📡", label: "Smart Money RT", prompt: "Há movimentos relevantes de baleias na minha watchlist hoje?" },
-  { icon: "🔥", label: "Plano FIRE", prompt: "Simula o meu plano FIRE com base no portfolio atual." },
-  { icon: "⚖️", label: "Rebalancear", prompt: "Recomenda uma estratégia de rebalanceamento para este mês." },
-  { icon: "📄", label: "Relatório fiscal", prompt: "Gera um resumo do relatório fiscal 2024 para exportação." },
-  { icon: "🐋", label: "Análise on-chain", prompt: "Analisa os movimentos on-chain das minhas carteiras." },
-  { icon: "📈", label: "Benchmark", prompt: "Como está o meu portfolio a performar vs BTC, ETH e S&P500?" },
-];
+function getQuickActions() {
+  const year = new Date().getFullYear();
+  return [
+    { icon: "📊", label: "Análise de portfolio", prompt: "Analisa o meu portfolio atual — risco, alocação e recomendações." },
+    { icon: "🧾", label: `Impostos PT ${year}`, prompt: `Qual a minha exposição fiscal estimada em Portugal para ${year}?` },
+    { icon: "📡", label: "Smart Money RT", prompt: "Há movimentos relevantes de baleias na minha watchlist hoje?" },
+    { icon: "🔥", label: "Plano FIRE", prompt: "Simula o meu plano FIRE com base no portfolio atual." },
+    { icon: "⚖️", label: "Rebalancear", prompt: "Recomenda uma estratégia de rebalanceamento para este mês." },
+    { icon: "📄", label: `Relatório fiscal ${year}`, prompt: `Gera um resumo do relatório fiscal ${year} para exportação.` },
+    { icon: "🐋", label: "Análise on-chain", prompt: "Analisa os movimentos on-chain das minhas carteiras." },
+    { icon: "📈", label: "Benchmark", prompt: "Como está o meu portfolio a performar vs BTC, ETH e S&P500?" },
+  ];
+}
 
 function formatMarkdown(text: string): string {
   return text
@@ -237,7 +240,7 @@ export default function GestorPage() {
             <div className="px-3 pt-2 pb-1">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Sugestões rápidas</p>
               <div className="space-y-1">
-                {QUICK_ACTIONS.map(a => (
+                {getQuickActions().map(a => (
                   <button key={a.label} type="button"
                     onClick={() => sendMessage(a.prompt)}
                     className="w-full text-left rounded-lg px-3 py-2 text-xs text-slate-300 hover:bg-slate-800 hover:text-white transition flex items-center gap-2">
@@ -263,7 +266,7 @@ export default function GestorPage() {
           <div className="flex-1 flex flex-col overflow-hidden">
             {/* Mobile quick actions */}
             <div className="lg:hidden flex gap-2 overflow-x-auto px-4 py-2 border-b border-slate-800 no-scrollbar">
-              {QUICK_ACTIONS.slice(0, 4).map(a => (
+              {getQuickActions().slice(0, 4).map(a => (
                 <button key={a.label} type="button"
                   onClick={() => sendMessage(a.prompt)}
                   className="flex-shrink-0 rounded-full border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:border-violet-500/50 hover:text-violet-300 transition whitespace-nowrap">

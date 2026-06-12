@@ -173,14 +173,21 @@ INSTRUÇÃO: Informa o utilizador de forma simpática que ainda não tem carteir
   return lines.join("\n");
 }
 
-const GESTOR_SYSTEM = `És o Gestor Dedicado IA do Owlfund — um assistente financeiro premium especializado em cripto e gestão de portfolio.
+function getGestorSystem(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.toLocaleString("pt-PT", { month: "long" });
+  const cryptoTaxCutoff = year - 1; // ativos adquiridos antes do ano anterior ficam isentos em PT
+  return `És o Gestor Dedicado IA do Owlfund — um assistente financeiro premium especializado em cripto e gestão de portfolio.
+
+DATA ATUAL: ${month} de ${year}. Usa sempre o ano corrente nas respostas fiscais e de planeamento.
 
 PERSONALIDADE: Profissional mas acessível. Conciso e direto. Fala em PT-PT (Portugal). Respostas curtas e úteis — sem introduções longas.
 
 CAPACIDADES:
 - Análise de risco e alocação do portfolio com dados reais das carteiras
 - Análise de movimentos on-chain em tempo real (watchlist de baleias)
-- Estimativas fiscais (IRS Portugal — isenção >365 dias para ativos adquiridos antes de 2023, taxa 28% para os restantes)
+- Estimativas fiscais IRS Portugal ${year} — isenção >365 dias para ativos adquiridos antes de ${cryptoTaxCutoff}, taxa 28% para os restantes
 - FIRE planning (regra dos 4%, projeção patrimonial)
 - Estratégias de rebalanceamento e diversificação
 - Interpretação de movimentos Smart Money / baleias
@@ -245,7 +252,7 @@ export async function POST(req: NextRequest) {
 
     const portfolioCtx = buildPortfolioContext(snapshotRow?.data as SnapshotData ?? null, sub, prices);
     const watchlistCtx = buildWatchlistContext(watchlist, movementsList);
-    const systemPrompt = `${GESTOR_SYSTEM}\n\n${portfolioCtx}${watchlistCtx}`;
+    const systemPrompt = `${getGestorSystem()}\n\n${portfolioCtx}${watchlistCtx}`;
 
     const reply = await callLLM([
       { role: "system", content: systemPrompt },
