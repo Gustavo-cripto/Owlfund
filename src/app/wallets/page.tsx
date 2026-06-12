@@ -2346,7 +2346,7 @@ export default function WalletsPage() {
           </p>
           {isLoadingAuth ? null : isPro ? (
             <p className="text-xs text-emerald-300">
-              Sincronização automática ativa (Plano Pro).
+              Sincronização automática ativa.
             </p>
           ) : (
             <div className="flex items-center gap-3">
