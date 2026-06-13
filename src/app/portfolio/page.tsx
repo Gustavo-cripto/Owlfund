@@ -1189,85 +1189,57 @@ export default function PortfolioPage() {
             ) : null}
           </div>
 
-          {/* Benchmark REMOVED */}
-          <div className="hidden">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Comparação</p>
-            <h2 className="text-base font-bold text-white mt-0.5 mb-4">Benchmark</h2>
-            {benchmarkLoading ? (
-              <p className="text-xs text-slate-400 animate-pulse">{t("loading")}</p>
-            ) : (
-              <div className="space-y-1">
-                {/* Header */}
-                <div className="flex items-center gap-2 pb-2 border-b border-slate-800 text-[10px] uppercase tracking-wider text-slate-500">
-                  <span className="flex-1">Ativo</span>
-                  <span className="w-20 text-right">Preço</span>
-                  <span className="w-16 text-right">24h</span>
-                  <span className="w-16 text-right">7d</span>
-                  <span className="w-16 text-right">30d</span>
+          {/* Resumo do portfólio */}
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 flex flex-col gap-5">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Resumo</p>
+              <h2 className="text-base font-bold text-white mt-0.5">Total do portfólio</h2>
+            </div>
+
+            {/* Valor total destacado */}
+            <div className="rounded-xl bg-slate-950/60 border border-slate-800 px-5 py-4">
+              <p className="text-xs text-slate-500 mb-1">Valor total</p>
+              <p className="text-3xl font-black text-white tracking-tight">€ {formatValue(portfolioTotal)}</p>
+              <p className={`text-sm mt-1 font-semibold ${pnlSummary.today >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                {pnlSummary.today >= 0 ? "▲" : "▼"} € {formatValue(Math.abs(pnlSummary.today))} hoje
+              </p>
+            </div>
+
+            {/* Métricas em grid 2x2 */}
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: "Cripto", value: `€ ${formatValue(cryptoTotal)}`, sub: `${portfolioSplit.crypto}% do total`, color: "text-orange-300" },
+                { label: "Tradicional", value: `€ ${formatValue(traditionalTotal)}`, sub: `${portfolioSplit.traditional}% do total`, color: "text-sky-400" },
+                { label: "PNL 30 dias", value: `${pnlSummary.days30 >= 0 ? "+" : ""}€ ${formatValue(Math.abs(pnlSummary.days30))}`, sub: portfolioTotal > 0 ? `${((pnlSummary.days30 / portfolioTotal) * 100).toLocaleString("pt-PT", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%` : "—", color: pnlSummary.days30 >= 0 ? "text-emerald-400" : "text-rose-400" },
+                { label: "PNL posição", value: `${pnlSummary.position >= 0 ? "+" : ""}€ ${formatValue(Math.abs(pnlSummary.position))}`, sub: advancedMetrics ? `ROI ${advancedMetrics.roi >= 0 ? "+" : ""}${advancedMetrics.roi.toFixed(1)}%` : "—", color: pnlSummary.position >= 0 ? "text-emerald-400" : "text-rose-400" },
+              ].map(m => (
+                <div key={m.label} className="rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
+                  <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">{m.label}</p>
+                  <p className={`text-base font-bold ${m.color}`}>{m.value}</p>
+                  <p className="text-[10px] text-slate-600 mt-0.5">{m.sub}</p>
                 </div>
-                {[
-                  { label: "Bitcoin", sym: "BTC", icon: "₿", price: benchmarkPrices.btc_eur, d24: benchmarkPrices.btc_24h, d7: benchmarkPrices.btc_7d, d30: benchmarkPrices.btc_30d },
-                  { label: "Ethereum", sym: "ETH", icon: "Ξ", price: benchmarkPrices.eth_eur, d24: benchmarkPrices.eth_24h, d7: benchmarkPrices.eth_7d, d30: benchmarkPrices.eth_30d },
-                  { label: "Ouro", sym: "XAU", icon: "Au", price: benchmarkPrices.gold_eur, d24: benchmarkPrices.gold_24h, d7: benchmarkPrices.gold_7d, d30: benchmarkPrices.gold_30d },
-                ].map(b => {
-                  const fmtChg = (v?: number) => {
-                    if (!v && v !== 0) return <span className="text-slate-600">—</span>;
-                    const cls = v >= 0 ? "text-emerald-400" : "text-rose-400";
-                    return <span className={cls}>{v >= 0 ? "+" : ""}{v.toFixed(1)}%</span>;
-                  };
-                  const fmtPrice = (v?: number) => v ? `€ ${v >= 1000 ? (v/1000).toFixed(1)+"K" : v.toFixed(0)}` : "—";
-                  return (
-                    <div key={b.sym} className="flex items-center gap-2 py-2 border-b border-slate-800/40">
-                      <div className="flex items-center gap-2 flex-1">
-                        <div className="h-7 w-7 rounded-full bg-orange-500/20 flex items-center justify-center text-[10px] font-bold text-orange-400">{b.icon}</div>
-                        <div>
-                          <p className="text-sm font-semibold text-white">{b.label}</p>
-                          <p className="text-[10px] text-slate-500">{b.sym}</p>
-                        </div>
-                      </div>
-                      <span className="w-20 text-right text-xs text-slate-300">{fmtPrice(b.price)}</span>
-                      <span className="w-16 text-right text-xs">{fmtChg(b.d24)}</span>
-                      <span className="w-16 text-right text-xs">{fmtChg(b.d7)}</span>
-                      <span className="w-16 text-right text-xs">{fmtChg(b.d30)}</span>
-                    </div>
-                  );
-                })}
-                {/* Portfolio vs benchmark */}
-                {pnlSummary.position !== 0 && portfolioTotal > 0 && (
-                  <div className="flex items-center gap-2 py-2">
-                    <div className="flex items-center gap-2 flex-1">
-                      <div className="h-7 w-7 rounded-full bg-orange-500 flex items-center justify-center text-[10px] font-bold text-slate-950">🦉</div>
-                      <div>
-                        <p className="text-sm font-semibold text-white">O teu portfólio</p>
-                        <p className="text-[10px] text-slate-500">ROI total</p>
-                      </div>
-                    </div>
-                    <span className="w-20 text-right text-xs text-slate-300">€ {portfolioTotal >= 1000 ? (portfolioTotal/1000).toFixed(1)+"K" : portfolioTotal.toFixed(0)}</span>
-                    <span className="w-16 text-right text-xs">
-                      {pnlSummary.today !== 0 && portfolioTotal > 0 ? (
-                        <span className={pnlSummary.today >= 0 ? "text-emerald-400" : "text-rose-400"}>
-                          {pnlSummary.today >= 0 ? "+" : ""}{((pnlSummary.today / portfolioTotal) * 100).toFixed(1)}%
-                        </span>
-                      ) : <span className="text-slate-600">—</span>}
-                    </span>
-                    <span className="w-16 text-right text-xs">
-                      {advancedMetrics ? (
-                        <span className={advancedMetrics.roi >= 0 ? "text-emerald-400" : "text-rose-400"}>
-                          {advancedMetrics.roi >= 0 ? "+" : ""}{advancedMetrics.roi.toFixed(1)}%
-                        </span>
-                      ) : <span className="text-slate-600">—</span>}
-                    </span>
-                    <span className="w-16 text-right text-xs">
-                      {pnlSummary.days30 !== 0 && portfolioTotal > 0 ? (
-                        <span className={pnlSummary.days30 >= 0 ? "text-emerald-400" : "text-rose-400"}>
-                          {pnlSummary.days30 >= 0 ? "+" : ""}{((pnlSummary.days30 / portfolioTotal) * 100).toFixed(1)}%
-                        </span>
-                      ) : <span className="text-slate-600">—</span>}
-                    </span>
-                  </div>
-                )}
+              ))}
+            </div>
+
+            {/* Carteiras activas */}
+            <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-slate-500">Ativos conectados</p>
+                <p className="text-base font-bold text-white mt-0.5">
+                  {wallets.filter(w => Number(w.balance) > 0).length + Object.keys(cryptoHoldings).length + Object.keys(traditionalHoldings).length}
+                </p>
               </div>
-            )}
+              <div className="text-right">
+                <p className="text-[10px] uppercase tracking-wider text-slate-500">Snapshots</p>
+                <p className="text-base font-bold text-white mt-0.5">{snapshots.length}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] uppercase tracking-wider text-slate-500">Último snapshot</p>
+                <p className="text-base font-bold text-white mt-0.5">
+                  {snapshots[0] ? new Date(snapshots[0].created_at).toLocaleDateString("pt-PT", { day: "2-digit", month: "short" }) : "—"}
+                </p>
+              </div>
+            </div>
           </div>
         </section>
 
