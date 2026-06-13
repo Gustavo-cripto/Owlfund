@@ -1971,25 +1971,24 @@ export default function WalletsPage() {
         setManualAddError("Endereço inválido (deve ser 0x... para redes EVM/L2).");
         return;
       }
-      const network = label ?? evmNetwork;
       const nextWallets = upsertWallet(
         ethWallets,
-        { address: trimmed, network },
-        (item) => item.address === trimmed && item.network === network
+        { address: trimmed, network: evmNetwork, label },
+        (item) => item.address === trimmed && item.network === evmNetwork
       );
       setEthWallets(nextWallets);
       updateWalletSnapshot({ eth: nextWallets, sol: solWallets, btc: btcWallets, ada: adaWallets });
-      void fetchEthBalanceForEntry(trimmed, network);
+      void fetchEthBalanceForEntry(trimmed, evmNetwork);
     } else if (MANUAL_ADD_TO_SOL_NETWORK[manualAddNetwork]) {
       if (!isSolAddress(trimmed)) {
         setManualAddError("Endereço Solana inválido (base58, 32–44 caracteres).");
         return;
       }
-      const network = label ?? MANUAL_ADD_TO_SOL_NETWORK[manualAddNetwork];
+      const solNetwork = MANUAL_ADD_TO_SOL_NETWORK[manualAddNetwork];
       const nextWallets = upsertWallet(
         solWallets,
-        { address: trimmed, network },
-        (item) => item.address === trimmed && (item.network ?? "Solana") === network
+        { address: trimmed, network: solNetwork, label },
+        (item) => item.address === trimmed && (item.network ?? "Solana") === solNetwork
       );
       setSolWallets(nextWallets);
       updateWalletSnapshot({ eth: ethWallets, sol: nextWallets, btc: btcWallets, ada: adaWallets });
@@ -1999,10 +1998,9 @@ export default function WalletsPage() {
         setManualAddError("Endereço Bitcoin inválido.");
         return;
       }
-      const network = label ?? "Bitcoin";
       const nextWallets = upsertWallet(
         btcWallets,
-        { address: trimmed, network },
+        { address: trimmed, network: "Bitcoin", label },
         (item) => item.address === trimmed
       );
       setBtcWallets(nextWallets);
@@ -2013,11 +2011,10 @@ export default function WalletsPage() {
         setManualAddError("Endereço Cardano inválido (addr1... ou stake1...).");
         return;
       }
-      const network = label ?? "Cardano";
       const nextWallets = upsertWallet(
         adaWallets,
-        { address: trimmed, network },
-        (item) => item.address === trimmed && (item.network ?? "Cardano") === network
+        { address: trimmed, network: "Cardano", label },
+        (item) => item.address === trimmed && (item.network ?? "Cardano") === "Cardano"
       );
       setAdaWallets(nextWallets);
       updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: nextWallets });
