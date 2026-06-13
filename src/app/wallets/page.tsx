@@ -2171,10 +2171,16 @@ export default function WalletsPage() {
 
   const fetchEvmBalanceServerSide = async (address: string, network: string): Promise<string> => {
     const base = typeof window !== "undefined" ? window.location.origin : "";
-    const res = await fetch(`${base}/api/evm-balance?address=${encodeURIComponent(address)}&network=${encodeURIComponent(network)}`);
-    const data = await res.json() as { balance?: string; error?: string };
-    if (!res.ok || data.error) throw new Error(data.error ?? "Falha ao obter saldo.");
-    return Number(data.balance ?? 0).toFixed(4);
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 15_000);
+    try {
+      const res = await fetch(`${base}/api/evm-balance?address=${encodeURIComponent(address)}&network=${encodeURIComponent(network)}`, { signal: controller.signal });
+      const data = await res.json() as { balance?: string; error?: string };
+      if (!res.ok || data.error) throw new Error(data.error ?? "Falha ao obter saldo.");
+      return Number(data.balance ?? 0).toFixed(4);
+    } finally {
+      window.clearTimeout(timer);
+    }
   };
 
   const fetchEthBalanceForEntry = useCallback(
@@ -3003,7 +3009,10 @@ export default function WalletsPage() {
                       <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="space-y-1">
                         <p className="font-semibold text-white">
-                          {item.network ?? "Ethereum"}
+                          {item.label ?? item.network ?? "Ethereum"}
+                          {item.label && item.network && (
+                            <span className="ml-1.5 text-[10px] font-normal text-slate-500">{item.network}</span>
+                          )}
                           {isConnected ? (
                             <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
                               Conectada
