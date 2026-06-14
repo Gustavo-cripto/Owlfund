@@ -263,9 +263,12 @@ export const connectWalletConnect = async (): Promise<`0x${string}`> => {
     chains: [1],
     optionalChains: [137, 42161, 10, 8453, 56],
     showQrModal: true,
+    // Só leitura: não precisamos de signing methods nem HID (hardware wallets)
+    optionalMethods: ["eth_accounts", "eth_requestAccounts"],
+    disableProviderPing: true,
     metadata: {
-      name: "Fundo Coruja",
-      description: "Gestor de portfólio multi-chain",
+      name: "Owlfund",
+      description: "Portfólio read-only — consulta dados públicos da blockchain, não assina transações.",
       url: typeof window !== "undefined" ? window.location.origin : "https://owlfund.app",
       icons: ["/owlfund-owl.png"],
     },

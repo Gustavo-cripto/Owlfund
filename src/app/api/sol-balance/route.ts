@@ -1,4 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rate-limit";
+
+const CACHE_HEADERS = { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" };
 
 const RPCS = [
   "https://api.mainnet-beta.solana.com",
@@ -24,7 +27,12 @@ async function fetchBalance(rpc: string, address: string): Promise<number> {
   return (data.result?.value ?? 0) / 1e9;
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
+  if (!checkRateLimit(ip)) {
+    return NextResponse.json({ error: "Demasiados pedidos." }, { status: 429 });
+  }
+
   const { searchParams } = new URL(request.url);
   const address = searchParams.get("address");
   if (!address) return NextResponse.json({ error: "address required" }, { status: 400 });
@@ -32,7 +40,7 @@ export async function GET(request: Request) {
   for (const rpc of RPCS) {
     try {
       const balance = await fetchBalance(rpc, address);
-      return NextResponse.json({ balance });
+      return NextResponse.json({ balance }, { headers: CACHE_HEADERS });
     } catch { /* try next */ }
   }
   return NextResponse.json({ error: "All SOL RPCs failed" }, { status: 502 });

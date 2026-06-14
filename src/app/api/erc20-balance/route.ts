@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPublicClient, http, parseAbi, formatUnits } from "viem";
 import { mainnet } from "viem/chains";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+const CACHE_HEADERS = { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" };
 
 const ERC20_ABI = parseAbi([
   "function balanceOf(address owner) view returns (uint256)",
@@ -26,6 +29,11 @@ const ETH_RPCS = [
 ];
 
 export async function GET(req: NextRequest) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
+  if (!checkRateLimit(ip)) {
+    return NextResponse.json({ error: "Demasiados pedidos." }, { status: 429 });
+  }
+
   const address = req.nextUrl.searchParams.get("address")?.trim();
   const token = req.nextUrl.searchParams.get("token")?.toUpperCase();
 
@@ -49,7 +57,7 @@ export async function GET(req: NextRequest) {
         client.readContract({ address: tokenAddress, abi: ERC20_ABI, functionName: "decimals" }),
       ]);
       const formatted = formatUnits(balance, decimals);
-      return NextResponse.json({ balance: formatted, token });
+      return NextResponse.json({ balance: formatted, token }, { headers: CACHE_HEADERS });
     } catch {
       continue;
     }

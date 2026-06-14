@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rate-limit";
 
-export const runtime = "edge";
+const CACHE_HEADERS = { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" };
 
 export async function GET(req: NextRequest) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
+  if (!checkRateLimit(ip)) {
+    return NextResponse.json({ error: "Demasiados pedidos." }, { status: 429 });
+  }
+
   const address = req.nextUrl.searchParams.get("address");
   if (!address) return NextResponse.json({ error: "Missing address" }, { status: 400 });
 
@@ -20,7 +26,7 @@ export async function GET(req: NextRequest) {
       const funded = Number(stats?.funded_txo_sum ?? 0);
       const spent = Number(stats?.spent_txo_sum ?? 0);
       const balance = (funded - spent) / 1e8;
-      return NextResponse.json({ balance });
+      return NextResponse.json({ balance }, { headers: CACHE_HEADERS });
     } catch {
       continue;
     }

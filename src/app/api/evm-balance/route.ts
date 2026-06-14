@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createPublicClient, formatEther, http } from "viem";
+import { checkRateLimit } from "@/lib/rate-limit";
 import {
   arbitrum, avalanche, base, bsc, celo, cronos, fantom, gnosis,
   linea, mainnet, optimism, polygon, zkSync,
@@ -28,7 +29,14 @@ const chainMap = {
   Blast:     { chain: blast,     rpcs: ["https://rpc.blast.io"] },
 } as const;
 
-export async function GET(request: Request) {
+const CACHE_HEADERS = { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" };
+
+export async function GET(request: NextRequest) {
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
+  if (!checkRateLimit(ip)) {
+    return NextResponse.json({ error: "Demasiados pedidos." }, { status: 429 });
+  }
+
   const { searchParams } = new URL(request.url);
   const address = searchParams.get("address")?.trim();
   const network = (searchParams.get("network") ?? "Ethereum") as keyof typeof chainMap;
@@ -46,7 +54,7 @@ export async function GET(request: Request) {
         transport: http(rpc, { timeout: 8_000 }),
       });
       const balance = await client.getBalance({ address: address as `0x${string}` });
-      return NextResponse.json({ balance: formatEther(balance), network });
+      return NextResponse.json({ balance: formatEther(balance), network }, { headers: CACHE_HEADERS });
     } catch {
       continue;
     }
