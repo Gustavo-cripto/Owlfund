@@ -2984,6 +2984,25 @@ export default function WalletsPage() {
                 />
               ) : null}
               {ethNewError ? <p className="text-xs text-rose-300">{ethNewError}</p> : null}
+              {ethWallets.length > 1 && (
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    className="rounded-full border border-rose-400/30 px-3 py-1 text-[11px] font-semibold text-rose-300 transition hover:border-rose-400 hover:text-white"
+                    onClick={() => {
+                      if (!confirm("Remover todas as carteiras ETH adicionadas por endereço?")) return;
+                      setEthWallets([]);
+                      setEthAddress(undefined);
+                      setEthBalance(undefined);
+                      setEthError(null);
+                      setEthBalancesByKey({});
+                      setEthBalanceErrors({});
+                    }}
+                  >
+                    Remover todas
+                  </button>
+                </div>
+              )}
               <div className="space-y-2">
                 {ethWallets.map((item) => {
                   const isConnected = item.address === ethAddress && item.network === ethConnectedNetwork;

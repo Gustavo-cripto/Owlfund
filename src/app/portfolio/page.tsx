@@ -248,6 +248,7 @@ export default function PortfolioPage() {
   const [aiReply, setAiReply] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [portfolioNote, setPortfolioNote] = useState("");
   const [snapshotCexUsd, setSnapshotCexUsd] = useState(0);
   const [snapshotDefiUsd, setSnapshotDefiUsd] = useState(0);
   const [usdToEur, setUsdToEur] = useState(0.92); // fallback ~0.92
@@ -519,6 +520,10 @@ export default function PortfolioPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, isLoadingAuth]);
+
+  useEffect(() => {
+    try { setPortfolioNote(localStorage.getItem("portfolio-note") ?? ""); } catch {}
+  }, []);
 
   const handleRestoreSnapshot = (row: SnapshotRow) => {
     setWallets(snapshotToWallets(row.data, tokenPricesRef.current));
@@ -992,7 +997,7 @@ export default function PortfolioPage() {
             const total = pieData.reduce((s, d) => s + d.value, 0);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const renderLabel = ({ cx, cy, midAngle, outerRadius, percent }: any) => {
-              if ((percent as number) < 0.06) return null;
+              if ((percent as number) < 0.03) return null;
               const RADIAN = Math.PI / 180;
               const r = outerRadius + 22;
               const x = cx + r * Math.cos(-midAngle * RADIAN);
@@ -1061,18 +1066,20 @@ export default function PortfolioPage() {
           {/* Gráfico PNL histórico — bottom, full width */}
           {(() => {
             const RANGES = [
-              { label: "1D", days: 1 },
-              { label: "7D", days: 7 },
-              { label: "30D", days: 30 },
-              { label: "90D", days: 90 },
-              { label: "Tudo", days: 0 },
+              { label: "1H", ms: 3_600_000 },
+              { label: "4H", ms: 4 * 3_600_000 },
+              { label: "1D", ms: 86_400_000 },
+              { label: "7D", ms: 7 * 86_400_000 },
+              { label: "30D", ms: 30 * 86_400_000 },
+              { label: "90D", ms: 90 * 86_400_000 },
+              { label: "Tudo", ms: 0 },
             ] as const;
             type RangeLabel = typeof RANGES[number]["label"];
             const [chartRange, setChartRange] = useState<RangeLabel>("Tudo");
             const now = Date.now();
-            const days = RANGES.find(r => r.label === chartRange)?.days ?? 0;
+            const ms = RANGES.find(r => r.label === chartRange)?.ms ?? 0;
             const chartData = [...snapshotTotals]
-              .filter(s => days === 0 || now - new Date(s.createdAt).getTime() <= days * 86_400_000)
+              .filter(s => ms === 0 || now - new Date(s.createdAt).getTime() <= ms)
               .reverse()
               .map(s => ({
                 data: new Date(s.createdAt).toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit" }),
@@ -1673,6 +1680,26 @@ export default function PortfolioPage() {
               <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">{aiReply}</p>
             </div>
           )}
+        </section>
+
+        {/* ── NOTAS ── */}
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+          <div className="mb-3">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Pessoal</p>
+            <h2 className="text-base font-bold text-white mt-0.5">Notas do portfólio</h2>
+          </div>
+          <textarea
+            className="w-full rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 placeholder-slate-600 outline-none transition focus:border-orange-400 resize-none"
+            rows={4}
+            placeholder="Escreve aqui as tuas notas, estratégia, objetivos ou observações sobre o portfólio..."
+            value={portfolioNote}
+            onChange={(e) => {
+              const v = e.target.value;
+              setPortfolioNote(v);
+              try { localStorage.setItem("portfolio-note", v); } catch {}
+            }}
+          />
+          <p className="mt-1.5 text-[10px] text-slate-600">Guardado localmente no dispositivo.</p>
         </section>
 
       </main>
