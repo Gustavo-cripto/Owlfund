@@ -48,7 +48,8 @@ type SolanaNftItem = {
   mint?: string;
   name?: string;
   image?: string;
-  metadata?: { image?: string };
+  metadata_uri?: string;
+  metadata?: { image?: string; image_url?: string };
 };
 
 type SolanaRpcParsedToken = {
@@ -88,8 +89,8 @@ type EvmL2ChainNFT = typeof EVM_L2_CHAINS_NFT[number];
 
 function normalizeImageUrl(url: string | undefined): string | undefined {
   if (!url) return undefined;
-  if (url.startsWith("ipfs://")) return `https://ipfs.io/ipfs/${url.slice(7)}`;
-  if (url.startsWith("/ipfs/")) return `https://ipfs.io${url}`;
+  if (url.startsWith("ipfs://")) return `https://cloudflare-ipfs.com/ipfs/${url.slice(7)}`;
+  if (url.startsWith("/ipfs/")) return `https://cloudflare-ipfs.com${url}`;
   return url;
 }
 
@@ -303,39 +304,13 @@ export async function GET(request: Request) {
   }
 
   if (chain === "sol" && isSolAddress(address)) {
-    if (moralisKey) {
-      try {
-        const res = await fetch(
-          `${MORALIS_SOLANA}/${address}/nft?nftMetadata=true&mediaItems=true&excludeSpam=true`,
-          { headers: { Accept: "application/json", "X-API-Key": moralisKey }, cache: "no-store" }
-        );
-        if (res.ok) {
-          const data = (await res.json()) as { nfts?: SolanaNftItem[] } | SolanaNftItem[];
-          const list = Array.isArray(data) ? data : (data as { nfts?: SolanaNftItem[] }).nfts ?? [];
-          if (list.length > 0) {
-            const nfts: Array<{ id: string; name: string; image?: string; tokenAddress?: string; tokenId?: string }> = list.map((item, i) => ({
-              id: item.mint ?? `sol-${i}`,
-              name: item.name ?? "NFT",
-              image: normalizeImageUrl(item.image ?? item.metadata?.image),
-              tokenAddress: item.mint,
-            }));
-            return NextResponse.json({ count: nfts.length, nfts });
-          }
-        }
-      } catch {
-        // fallback para RPC abaixo
-      }
-    }
-
+    // 1. Shyft primeiro — tem cached_image_uri confiável (CDN) para Solana NFTs
     const shyftKey = process.env.SHYFT_API_KEY;
     if (shyftKey) {
       try {
         const shyftRes = await fetch(
           `https://api.shyft.to/sol/v2/nft/read_all?network=mainnet-beta&address=${encodeURIComponent(address.trim())}&page=1&size=50`,
-          {
-            headers: { Accept: "application/json", "x-api-key": shyftKey },
-            cache: "no-store",
-          }
+          { headers: { Accept: "application/json", "x-api-key": shyftKey }, cache: "no-store" }
         );
         if (shyftRes.ok) {
           const payload = (await shyftRes.json()) as {
@@ -360,9 +335,49 @@ export async function GET(request: Request) {
             return NextResponse.json({ count: nfts.length, nfts });
           }
         }
-      } catch {
-        // fallback RPC abaixo
-      }
+      } catch { /* fallback */ }
+    }
+
+    // 2. Moralis — com resolução de metadata_uri para imagens em falta
+    if (moralisKey) {
+      try {
+        const res = await fetch(
+          `${MORALIS_SOLANA}/${address}/nft?nftMetadata=true&mediaItems=true&excludeSpam=true`,
+          { headers: { Accept: "application/json", "X-API-Key": moralisKey }, cache: "no-store" }
+        );
+        if (res.ok) {
+          const data = (await res.json()) as { nfts?: SolanaNftItem[] } | SolanaNftItem[];
+          const list = Array.isArray(data) ? data : (data as { nfts?: SolanaNftItem[] }).nfts ?? [];
+          if (list.length > 0) {
+            // Resolve metadata_uri for NFTs without images (up to 20 in parallel)
+            const nfts = await Promise.all(
+              list.slice(0, 50).map(async (item, i) => {
+                let image = normalizeImageUrl(
+                  item.image ?? item.metadata?.image ?? item.metadata?.image_url
+                );
+                if (!image && item.metadata_uri) {
+                  try {
+                    const metaRes = await fetch(normalizeImageUrl(item.metadata_uri) ?? item.metadata_uri, {
+                      signal: AbortSignal.timeout(4000),
+                    });
+                    if (metaRes.ok) {
+                      const meta = (await metaRes.json()) as { image?: string; image_url?: string };
+                      image = normalizeImageUrl(meta.image ?? meta.image_url);
+                    }
+                  } catch { /* ignore */ }
+                }
+                return {
+                  id: item.mint ?? `sol-${i}`,
+                  name: item.name ?? "NFT",
+                  image,
+                  tokenAddress: item.mint,
+                };
+              })
+            );
+            return NextResponse.json({ count: nfts.length, nfts });
+          }
+        }
+      } catch { /* fallback para RPC */ }
     }
 
     // Fallback sem Moralis: conta NFTs SPL (amount=1 e decimals=0) via RPC.
