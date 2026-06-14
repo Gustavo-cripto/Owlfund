@@ -992,9 +992,9 @@ export default function PortfolioPage() {
             const total = pieData.reduce((s, d) => s + d.value, 0);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const renderLabel = ({ cx, cy, midAngle, outerRadius, percent }: any) => {
-              if ((percent as number) < 0.05) return null;
+              if ((percent as number) < 0.06) return null;
               const RADIAN = Math.PI / 180;
-              const r = outerRadius + 18;
+              const r = outerRadius + 22;
               const x = cx + r * Math.cos(-midAngle * RADIAN);
               const y = cy + r * Math.sin(-midAngle * RADIAN);
               return (
@@ -1016,14 +1016,14 @@ export default function PortfolioPage() {
                   </div>
                 ) : (
                   <div className="flex flex-col gap-4">
-                    <ResponsiveContainer width="100%" height={220}>
-                      <PieChart>
+                    <ResponsiveContainer width="100%" height={280}>
+                      <PieChart margin={{ top: 20, right: 30, bottom: 20, left: 30 }}>
                         <Pie
                           data={pieData}
                           cx="50%"
                           cy="50%"
-                          innerRadius={65}
-                          outerRadius={95}
+                          innerRadius={60}
+                          outerRadius={85}
                           paddingAngle={2}
                           dataKey="value"
                           label={renderLabel}

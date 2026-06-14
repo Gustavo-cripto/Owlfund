@@ -385,6 +385,10 @@ export default function PortfolioChartSection({
       {/* ── Tab: Tokens ── */}
       {tab === "tokens" && (
         <div className="rounded-b-2xl bg-slate-900/40 border border-t-0 border-slate-800 overflow-hidden">
+          <div className="px-4 pt-4 pb-2">
+            <h3 className="text-sm font-bold text-white">Ativos por valor</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Ordenado do maior para o menor saldo</p>
+          </div>
           <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-800 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
             <span className="flex-1">Token</span>
             <span className="w-24 text-right">Preço</span>
@@ -395,9 +399,15 @@ export default function PortfolioChartSection({
           <div className="px-4">
             {wallets.filter(w => (parseFloat(w.balance ?? "0") || 0) * (priceMap[w.symbol] ?? 0) >= 0.01).length === 0 ? (
               <p className="text-sm text-slate-500 py-8 text-center">Nenhum token com valor encontrado.<br /><a href="/wallets" className="text-orange-400 underline text-xs">Liga uma carteira →</a></p>
-            ) : wallets.map((w, i) => (
-              <TokenRow key={`${w.symbol}-${i}`} wallet={w} price={priceMap[w.symbol] ?? 0} pnlToday={pnlToday} total={portfolioTotal} />
-            ))}
+            ) : [...wallets]
+                .sort((a, b) => {
+                  const va = (parseFloat(a.balance ?? "0") || 0) * (priceMap[a.symbol] ?? 0);
+                  const vb = (parseFloat(b.balance ?? "0") || 0) * (priceMap[b.symbol] ?? 0);
+                  return vb - va;
+                })
+                .map((w, i) => (
+                  <TokenRow key={`${w.symbol}-${i}`} wallet={w} price={priceMap[w.symbol] ?? 0} pnlToday={pnlToday} total={portfolioTotal} />
+                ))}
           </div>
           {(() => {
             const walletTotal = wallets.reduce((sum, w) => {

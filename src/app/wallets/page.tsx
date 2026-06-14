@@ -4301,45 +4301,6 @@ export default function WalletsPage() {
             <p className="mt-3 text-xs text-rose-300">{cryptoPricesError}</p>
           ) : null}
 
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <select
-              value={cryptoSortKey}
-              onChange={(event) => setCryptoSortKey(event.target.value as "date" | "marketCap")}
-              className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 outline-none"
-            >
-              <option value="date">Data de compra</option>
-              <option value="marketCap">Market cap</option>
-            </select>
-            <button
-              type="button"
-              onClick={() => setCryptoSortDir((prev) => (prev === "asc" ? "desc" : "asc"))}
-              className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-            >
-              {cryptoSortDir === "asc" ? "Asc" : "Desc"}
-            </button>
-          </div>
-
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <select
-              value=""
-              onChange={(event) => {
-                const symbol = event.target.value;
-                if (!symbol) return;
-                toggleCryptoHolding(symbol);
-              }}
-              className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 outline-none"
-            >
-              <option value="">Adicionar ativo</option>
-              {marketRows
-                .filter((row) => !cryptoHoldings[row.symbol])
-                .slice(0, 50)
-                .map((row) => (
-                  <option key={row.symbol} value={row.symbol}>
-                    {row.symbol} · {row.name}
-                  </option>
-                ))}
-            </select>
-          </div>
 
           <div className="mt-4 space-y-3">
             {/* Carteiras conectadas */}
