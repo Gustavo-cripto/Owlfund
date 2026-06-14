@@ -307,7 +307,7 @@ export async function GET(request: Request) {
       try {
         const res = await fetch(
           `${MORALIS_SOLANA}/${address}/nft?nftMetadata=true&mediaItems=true&excludeSpam=true`,
-          { headers: { Accept: "application/json", "X-API-Key": moralisKey }, next: { revalidate: 120 } }
+          { headers: { Accept: "application/json", "X-API-Key": moralisKey }, cache: "no-store" }
         );
         if (res.ok) {
           const data = (await res.json()) as { nfts?: SolanaNftItem[] } | SolanaNftItem[];
@@ -316,7 +316,7 @@ export async function GET(request: Request) {
             const nfts: Array<{ id: string; name: string; image?: string; tokenAddress?: string; tokenId?: string }> = list.map((item, i) => ({
               id: item.mint ?? `sol-${i}`,
               name: item.name ?? "NFT",
-              image: item.image ?? item.metadata?.image,
+              image: normalizeImageUrl(item.image ?? item.metadata?.image),
               tokenAddress: item.mint,
             }));
             return NextResponse.json({ count: nfts.length, nfts });
@@ -354,7 +354,7 @@ export async function GET(request: Request) {
             const nfts = list.map((item, i) => ({
               id: item.mint ?? `sol-shyft-${i}`,
               name: item.name ?? "NFT",
-              image: item.cached_image_uri ?? item.image_uri,
+              image: normalizeImageUrl(item.cached_image_uri ?? item.image_uri),
               tokenAddress: item.mint,
             }));
             return NextResponse.json({ count: nfts.length, nfts });
