@@ -86,16 +86,24 @@ function getSolanaRpcCandidates(): string[] {
 const EVM_L2_CHAINS_NFT = ["arbitrum", "base", "optimism", "polygon", "bsc", "avalanche"] as const;
 type EvmL2ChainNFT = typeof EVM_L2_CHAINS_NFT[number];
 
+function normalizeImageUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  if (url.startsWith("ipfs://")) return `https://ipfs.io/ipfs/${url.slice(7)}`;
+  if (url.startsWith("/ipfs/")) return `https://ipfs.io${url}`;
+  return url;
+}
+
 function getEvmNftImage(item: EvmNftItem): string | undefined {
   const nm = item.normalized_metadata;
-  if (nm?.image) return nm.image;
+  if (nm?.image) return normalizeImageUrl(nm.image);
   const m = item.media?.media_collection;
-  if (m?.high?.url) return m.high.url;
-  if (m?.medium?.url) return m.medium.url;
-  if (m?.low?.url) return m.low.url;
+  if (m?.high?.url) return normalizeImageUrl(m.high.url);
+  if (m?.medium?.url) return normalizeImageUrl(m.medium.url);
+  if (m?.low?.url) return normalizeImageUrl(m.low.url);
   try {
     const meta = typeof item.metadata === "string" ? JSON.parse(item.metadata || "{}") : item.metadata;
-    return (meta as { image?: string; image_url?: string } | null)?.image ?? (meta as { image?: string; image_url?: string } | null)?.image_url;
+    const raw = (meta as { image?: string; image_url?: string } | null)?.image ?? (meta as { image?: string; image_url?: string } | null)?.image_url;
+    return normalizeImageUrl(raw);
   } catch { return undefined; }
 }
 
