@@ -1463,7 +1463,7 @@ export default function MercadoPage() {
                         <th className="px-4 py-3">Variação 24h</th>
                         <th className="px-4 py-3">Valor de Mercado (USD)</th>
                         <th className="px-4 py-3">Volume 24h (USD)</th>
-                        <th className="px-4 py-3">Tendência</th>
+                        <th className="px-4 py-3" title="Variação de preço nos últimos 7 dias">Tendência (7d)</th>
                       </tr>
                     </thead>
                     <tbody>

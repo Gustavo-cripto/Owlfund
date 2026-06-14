@@ -1647,10 +1647,10 @@ export default function PortfolioPage() {
                     body: JSON.stringify({ question: aiQuestion.trim(), context }),
                   });
                   const data = (await res.json()) as { reply?: string; error?: string };
-                  if (!res.ok || data.error) { setAiError(data.error ?? "Erro."); return; }
+                  if (!res.ok || data.error) { setAiError(data.error ?? "Não foi possível obter resposta. Tenta novamente."); return; }
                   setAiReply(data.reply ?? "");
                 } catch (err) {
-                  setAiError(err instanceof Error ? err.message : "Erro.");
+                  setAiError(err instanceof Error ? err.message : "Não foi possível obter resposta. Verifica a tua ligação e tenta novamente.");
                 } finally {
                   setAiLoading(false);
                 }
@@ -1669,7 +1669,7 @@ export default function PortfolioPage() {
           )}
           {aiReply && (
             <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/80">
-              <p className="text-xs text-orange-500 dark:text-orange-300/80 font-semibold mb-2">🦉 Owl</p>
+              <p className="text-xs text-orange-500 dark:text-orange-300/80 font-semibold mb-2">🦉 Owl — Assistente IA</p>
               <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">{aiReply}</p>
             </div>
           )}

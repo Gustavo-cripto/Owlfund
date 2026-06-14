@@ -755,7 +755,7 @@ export default function SmartMoneyPage() {
                       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-400">Análise On-Chain</p>
                       <span className="rounded-full bg-violet-500/20 border border-violet-500/30 px-2 py-0.5 text-[10px] text-violet-300 font-bold">Premium</span>
                     </div>
-                    <p className="text-xs text-slate-400">Métricas on-chain avançadas disponíveis em breve: MVRV, NVT, Supply in Profit, Exchange Flows.</p>
+                    <p className="text-xs text-slate-400">Métricas on-chain avançadas a chegar ao Plano Premium. Permitem avaliar se o mercado está sobrevalorizado ou subvalorizado.</p>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       {["MVRV Ratio", "NVT Signal", "Supply in Profit", "Exchange Outflow"].map(m => (
                         <div key={m} className="rounded-xl border border-violet-500/20 bg-slate-950/40 p-3 text-center">

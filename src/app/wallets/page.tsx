@@ -2362,7 +2362,7 @@ export default function WalletsPage() {
             {t("port_blockchain")} · {t("port_traditional")}
           </h1>
           <p className="max-w-2xl text-sm text-slate-400">
-            Alterna entre carteiras on-chain e seleção de ativos do mercado tradicional.
+            Liga carteiras blockchain (ETH, SOL, BTC, ADA) para ver saldos em tempo real, ou regista ativos tradicionais e cripto comprados manualmente.
           </p>
           {isLoadingAuth ? null : isPro ? (
             <p className="text-xs text-emerald-300">
@@ -4220,7 +4220,7 @@ export default function WalletsPage() {
             <div>
               <h2 className="text-lg font-semibold text-white">Carteira Cripto</h2>
               <p className="text-sm text-slate-400">
-                Define o valor de compra e a data por ativo selecionado.
+                Regista cripto comprada fora de carteiras (ex: numa exchange). Define o valor de compra para calcular o PNL.
               </p>
             </div>
             <div className="text-right">
@@ -4406,8 +4406,25 @@ export default function WalletsPage() {
                 </div>
               );
             })}
+            {/* Adicionar ativo manual */}
+            <div className="flex items-center gap-2 pt-1">
+              <select
+                value=""
+                onChange={(e) => { const s = e.target.value; if (s) toggleCryptoHolding(s); }}
+                className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 outline-none hover:border-orange-400 transition cursor-pointer"
+              >
+                <option value="">+ Adicionar ativo manual</option>
+                {marketRows.filter((r) => !cryptoHoldings[r.symbol]).slice(0, 50).map((r) => (
+                  <option key={r.symbol} value={r.symbol}>{r.symbol} · {r.name}</option>
+                ))}
+              </select>
+              <span className="text-[10px] text-slate-600">Regista cripto sem carteira on-chain ligada</span>
+            </div>
             {sortedCryptoSymbols.length === 0 && !(ethWallets.length > 0 || ethAddress || solWallets.length > 0 || solAddress || btcWallets.length > 0 || btcAddress || adaWallets.length > 0 || adaAddress) && stablecoinEntries.length === 0 && otherWallets.length === 0 ? (
-              <p className="text-sm text-slate-500">Nenhum ativo selecionado.</p>
+              <div className="rounded-xl border border-dashed border-slate-700 p-4 text-center">
+                <p className="text-sm text-slate-500">Nenhum ativo adicionado ainda.</p>
+                <p className="text-xs text-slate-600 mt-1">Usa o selector acima para adicionar cripto comprada numa exchange.</p>
+              </div>
             ) : (
               sortedCryptoSymbols.map((symbol) => {
                 const holding = cryptoHoldings[symbol] ?? {};
@@ -4422,29 +4439,35 @@ export default function WalletsPage() {
                       <p className="text-slate-500">{market?.name ?? "—"}</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <input
-                        type="number"
-                        inputMode="decimal"
-                        min="0"
-                        step="0.01"
-                        placeholder="Valor de compra"
-                        value={holding.buyValue ?? ""}
-                        onChange={(event) => {
-                          const value = event.target.value;
-                          updateCryptoHolding(symbol, {
-                            buyValue: value === "" ? undefined : Number(value),
-                          });
-                        }}
-                        className="w-40 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
-                      />
-                      <input
-                        type="date"
-                        value={holding.buyDate ?? ""}
-                        onChange={(event) =>
-                          updateCryptoHolding(symbol, { buyDate: event.target.value })
-                        }
-                        className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
-                      />
+                      <div className="flex flex-col gap-0.5">
+                        <label className="text-[10px] text-slate-600 px-1">Valor investido (€)</label>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          min="0"
+                          step="0.01"
+                          placeholder="Ex: 200"
+                          value={holding.buyValue ?? ""}
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            updateCryptoHolding(symbol, {
+                              buyValue: value === "" ? undefined : Number(value),
+                            });
+                          }}
+                          className="w-36 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        <label className="text-[10px] text-slate-600 px-1">Data de compra</label>
+                        <input
+                          type="date"
+                          value={holding.buyDate ?? ""}
+                          onChange={(event) =>
+                            updateCryptoHolding(symbol, { buyDate: event.target.value })
+                          }
+                          className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
+                        />
+                      </div>
                       <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
                         Preço atual:{" "}
                         <span className="font-semibold text-white">
