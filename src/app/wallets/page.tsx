@@ -4324,31 +4324,85 @@ export default function WalletsPage() {
 
 
           <div className="mt-4 space-y-3">
-            {/* Carteiras conectadas */}
+            {/* Carteiras conectadas — uma linha por carteira */}
             {(() => {
-              const walletEntries: Array<{ symbol: string; name: string; balance: string | number | null | undefined; source: string }> = [];
-              if (ethWallets.length > 0 || ethAddress) walletEntries.push({ symbol: "ETH", name: "Ethereum", balance: totalEthBalance, source: "Carteira ETH" });
-              if (solWallets.length > 0 || solAddress) walletEntries.push({ symbol: "SOL", name: "Solana", balance: totalSolBalance, source: "Carteira SOL" });
-              if (btcWallets.length > 0 || btcAddress) walletEntries.push({ symbol: "BTC", name: "Bitcoin", balance: totalBtcBalance, source: "Carteira BTC" });
-              if (adaWallets.length > 0 || adaAddress) walletEntries.push({ symbol: "ADA", name: "Cardano", balance: totalAdaBalance, source: "Carteira ADA" });
-              if (walletEntries.length === 0) return null;
-              return walletEntries.map(({ symbol, name, balance, source }) => {
+              type WEntry = { key: string; symbol: string; label: string; network: string; balance: string | null; source: string };
+              const entries: WEntry[] = [];
+
+              // ETH — cada carteira separada
+              ethWallets.forEach((w, i) => {
+                const k = ethBalanceKey(w.address ?? "", w.network ?? "Ethereum");
+                const bal = ethBalancesLoading[k] ? null : (ethBalancesByKey[k] ?? w.balance ?? null);
+                entries.push({
+                  key: `eth-${i}-${w.address}`,
+                  symbol: "ETH",
+                  label: w.label ?? w.network ?? "Ethereum",
+                  network: w.network ?? "Ethereum",
+                  balance: bal,
+                  source: "Carteira ETH",
+                });
+              });
+
+              // SOL — cada carteira separada
+              solWallets.forEach((w, i) => {
+                const bal = w.address ? (solBalancesByAddress[w.address] ?? w.balance ?? null) : null;
+                entries.push({
+                  key: `sol-${i}-${w.address}`,
+                  symbol: "SOL",
+                  label: w.label ?? w.network ?? "Solana",
+                  network: w.network ?? "Solana",
+                  balance: bal,
+                  source: "Carteira SOL",
+                });
+              });
+
+              // BTC — cada carteira separada
+              btcWallets.forEach((w, i) => {
+                const bal = w.address ? (btcBalancesByAddress[w.address] ?? w.balance ?? null) : null;
+                entries.push({
+                  key: `btc-${i}-${w.address}`,
+                  symbol: "BTC",
+                  label: w.label ?? "Bitcoin",
+                  network: "Bitcoin",
+                  balance: bal,
+                  source: "Carteira BTC",
+                });
+              });
+
+              // ADA — cada carteira separada
+              adaWallets.forEach((w, i) => {
+                const bal = w.address ? (adaBalancesByAddress[w.address] ?? w.balance ?? null) : null;
+                entries.push({
+                  key: `ada-${i}-${w.address}`,
+                  symbol: "ADA",
+                  label: w.label ?? "Cardano",
+                  network: "Cardano",
+                  balance: bal,
+                  source: "Carteira ADA",
+                });
+              });
+
+              if (entries.length === 0) return null;
+              return entries.map(({ key, symbol, label, network, balance, source }) => {
                 const market = cryptoPrices[symbol];
-                const balanceNum = typeof balance === "string" ? parseFloat(balance) : (balance ?? 0);
+                const balNum = balance !== null && balance !== "—" ? parseFloat(balance) || 0 : 0;
                 const fiatEur = getFiatValue(symbol, balance);
                 return (
                   <div
-                    key={`wallet-${symbol}`}
+                    key={key}
                     className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-700/60 bg-slate-900/40 px-4 py-3 text-xs text-slate-100"
                   >
                     <div>
                       <p className="font-semibold text-white">{symbol}</p>
-                      <p className="text-slate-500">{name}</p>
-                      <p className="mt-0.5 text-[10px] text-slate-600 uppercase tracking-wide">{source}</p>
+                      <p className="text-slate-500">{label !== network ? label : network}</p>
+                      <p className="mt-0.5 text-[10px] text-slate-600 uppercase tracking-wide">{network !== label ? `${source} · ${network}` : source}</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3 text-right">
                       <div>
-                        <p className="text-slate-300 tabular-nums">{balanceNum > 0 ? balanceNum.toFixed(symbol === "BTC" ? 8 : 4) : "—"} {symbol}</p>
+                        {balance === null
+                          ? <p className="text-slate-500 italic">A carregar…</p>
+                          : <p className="text-slate-300 tabular-nums">{balNum > 0 ? balNum.toFixed(symbol === "BTC" ? 8 : 4) : "—"} {symbol}</p>
+                        }
                         {fiatEur != null && fiatEur > 0 && (
                           <p className="text-slate-500">€ {fiatEur.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                         )}
