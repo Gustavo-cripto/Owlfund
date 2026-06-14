@@ -2078,6 +2078,8 @@ export default function WalletsPage() {
     void fetchStablecoinBalance(id, stablecoinAddSymbol, "Ethereum", addr);
   };
 
+  const fetchedStablecoinIds = useRef<Set<string>>(new Set());
+
   const fetchStablecoinBalance = useCallback(
     async (entryId: string, symbol: string, _network: EvmNetwork, address: string) => {
       setStablecoinBalancesLoading((prev) => ({ ...prev, [entryId]: true }));
@@ -2088,9 +2090,6 @@ export default function WalletsPage() {
         startTransition(() => {
           setStablecoinBalances((prev) => ({ ...prev, [entryId]: balance }));
           setStablecoinBalancesLoading((prev) => ({ ...prev, [entryId]: false }));
-          setStablecoinEntries((prev) =>
-            prev.map((e) => (e.id === entryId ? { ...e, balance } : e))
-          );
         });
       } catch {
         startTransition(() => {
@@ -2104,13 +2103,17 @@ export default function WalletsPage() {
 
   useEffect(() => {
     if (walletMode !== "web3") return;
-    const id = window.setTimeout(() => {
-      stablecoinEntries.forEach((e) => {
-        if (isEvmAddress(e.address)) void fetchStablecoinBalance(e.id, e.symbol, e.network as EvmNetwork, e.address);
-      });
-    }, 0);
-    return () => window.clearTimeout(id);
-  }, [walletMode, stablecoinEntries, fetchStablecoinBalance]);
+    const toFetch = stablecoinEntries.filter(
+      (e) => isEvmAddress(e.address) && !fetchedStablecoinIds.current.has(e.id)
+    );
+    if (toFetch.length === 0) return;
+    toFetch.forEach((e) => {
+      fetchedStablecoinIds.current.add(e.id);
+      void fetchStablecoinBalance(e.id, e.symbol, e.network as EvmNetwork, e.address);
+    });
+  // stablecoinEntries.length tracks additions; not the full array to avoid re-triggering on internal updates
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletMode, stablecoinEntries.length, fetchStablecoinBalance]);
 
   useEffect(() => {
     if (walletMode !== "web3") return;
