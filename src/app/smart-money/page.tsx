@@ -237,6 +237,8 @@ export default function SmartMoneyPage() {
   const [newChain, setNewChain] = useState<"eth" | "sol" | "btc">("eth");
   const [addError, setAddError] = useState<string | null>(null);
   const [showKnown, setShowKnown] = useState(false);
+  const [checkingAlerts, setCheckingAlerts] = useState(false);
+  const [lastCheckResult, setLastCheckResult] = useState<"none" | "found" | null>(null);
   const [historyAddr, setHistoryAddr] = useState<string>("");
   const hydratedRef = useRef(false);
 
@@ -729,12 +731,27 @@ export default function SmartMoneyPage() {
                       <p className="text-xs text-slate-600 mt-1">
                         Os alertas aparecem quando uma baleia da watchlist mover &gt; $100k.
                       </p>
+                      {ethWatchlist.length === 0 && (
+                        <p className="text-xs text-slate-600 mt-3">Adiciona carteiras ETH ou BTC à watchlist para receber alertas.</p>
+                      )}
                       {ethWatchlist.length > 0 && (
-                        <button type="button"
-                          onClick={() => ethWatchlist.forEach(fetchTxData)}
-                          className="mt-4 px-4 py-2 rounded-xl bg-orange-500/10 border border-orange-500/30 text-orange-400 text-sm hover:bg-orange-500/20 transition">
-                          Verificar agora
-                        </button>
+                        <>
+                          <button type="button"
+                            disabled={checkingAlerts}
+                            onClick={async () => {
+                              setCheckingAlerts(true);
+                              setLastCheckResult(null);
+                              await Promise.all(ethWatchlist.map(fetchTxData));
+                              setCheckingAlerts(false);
+                              setLastCheckResult("none");
+                            }}
+                            className="mt-4 px-4 py-2 rounded-xl bg-orange-500/10 border border-orange-500/30 text-orange-400 text-sm hover:bg-orange-500/20 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                            {checkingAlerts ? "A verificar..." : "Verificar agora"}
+                          </button>
+                          {lastCheckResult === "none" && !checkingAlerts && (
+                            <p className="text-xs text-slate-500 mt-2">Nenhum movimento acima de $100k encontrado.</p>
+                          )}
+                        </>
                       )}
                     </div>
                   ) : (
