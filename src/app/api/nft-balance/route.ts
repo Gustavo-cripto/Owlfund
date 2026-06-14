@@ -39,7 +39,8 @@ type EvmNftItem = {
   token_address?: string;
   token_id?: string;
   name?: string;
-  normalized_metadata?: { image?: string };
+  token_uri?: string;
+  normalized_metadata?: { image?: string; name?: string };
   media?: { media_collection?: { low?: { url?: string }; medium?: { url?: string }; high?: { url?: string } } };
   metadata?: string;
 };
@@ -87,14 +88,21 @@ function getSolanaRpcCandidates(): string[] {
 const EVM_L2_CHAINS_NFT = ["arbitrum", "base", "optimism", "polygon", "bsc", "avalanche"] as const;
 type EvmL2ChainNFT = typeof EVM_L2_CHAINS_NFT[number];
 
+const IPFS_GATEWAYS = [
+  "https://nftstorage.link/ipfs/",
+  "https://ipfs.io/ipfs/",
+  "https://cloudflare-ipfs.com/ipfs/",
+  "https://gateway.pinata.cloud/ipfs/",
+];
+
 function normalizeImageUrl(url: string | undefined): string | undefined {
   if (!url) return undefined;
-  if (url.startsWith("ipfs://")) return `https://cloudflare-ipfs.com/ipfs/${url.slice(7)}`;
-  if (url.startsWith("/ipfs/")) return `https://cloudflare-ipfs.com${url}`;
+  if (url.startsWith("ipfs://")) return `${IPFS_GATEWAYS[0]}${url.slice(7)}`;
+  if (url.startsWith("/ipfs/")) return `${IPFS_GATEWAYS[0]}${url.slice(6)}`;
   return url;
 }
 
-function getEvmNftImage(item: EvmNftItem): string | undefined {
+function getEvmNftImageSync(item: EvmNftItem): string | undefined {
   const nm = item.normalized_metadata;
   if (nm?.image) return normalizeImageUrl(nm.image);
   const m = item.media?.media_collection;
@@ -105,6 +113,20 @@ function getEvmNftImage(item: EvmNftItem): string | undefined {
     const meta = typeof item.metadata === "string" ? JSON.parse(item.metadata || "{}") : item.metadata;
     const raw = (meta as { image?: string; image_url?: string } | null)?.image ?? (meta as { image?: string; image_url?: string } | null)?.image_url;
     return normalizeImageUrl(raw);
+  } catch { return undefined; }
+}
+
+async function resolveEvmNftImage(item: EvmNftItem): Promise<string | undefined> {
+  const image = getEvmNftImageSync(item);
+  if (image) return image;
+  // Try token_uri to resolve metadata
+  const tokenUri = item.token_uri ? normalizeImageUrl(item.token_uri) ?? item.token_uri : undefined;
+  if (!tokenUri) return undefined;
+  try {
+    const res = await fetch(tokenUri, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return undefined;
+    const meta = (await res.json()) as { image?: string; image_url?: string };
+    return normalizeImageUrl(meta.image ?? meta.image_url);
   } catch { return undefined; }
 }
 
@@ -129,13 +151,15 @@ export async function GET(request: Request) {
       );
       if (!res.ok) return NextResponse.json({ count: 0, nfts: [] });
       const data = (await res.json()) as { result?: EvmNftItem[] };
-      const nfts = (data.result ?? []).map((item) => ({
-        id: `${item.token_address}-${item.token_id}`,
-        name: item.name ?? "NFT",
-        image: getEvmNftImage(item),
-        tokenAddress: item.token_address,
-        tokenId: item.token_id,
-      }));
+      const nfts = await Promise.all(
+        (data.result ?? []).map(async (item) => ({
+          id: `${item.token_address}-${item.token_id}`,
+          name: item.normalized_metadata?.name ?? item.name ?? "NFT",
+          image: await resolveEvmNftImage(item),
+          tokenAddress: item.token_address,
+          tokenId: item.token_id,
+        }))
+      );
       return NextResponse.json({ count: nfts.length, nfts });
     } catch {
       return NextResponse.json({ count: 0, nfts: [] });
@@ -195,8 +219,8 @@ export async function GET(request: Request) {
           const img = asset.onchain_metadata?.image;
           if (typeof img === "string") {
             if (img.startsWith("http")) image = img;
-            else if (img.startsWith("ipfs://")) image = `https://ipfs.io/ipfs/${img.slice(7)}`;
-            else if (img.startsWith("/ipfs/")) image = `https://ipfs.io${img}`;
+            else if (img.startsWith("ipfs://")) image = `${IPFS_GATEWAYS[0]}${img.slice(7)}`;
+            else if (img.startsWith("/ipfs/")) image = `${IPFS_GATEWAYS[0]}${img.slice(6)}`;
             else if (img.startsWith("/")) image = `https://cardano-mainnet.blockfrost.io/api/v0/ipfs/gateway${img}`;
           }
           nfts.push({
@@ -267,8 +291,6 @@ export async function GET(request: Request) {
 
   const moralisKey = process.env.MORALIS_API_KEY;
 
-  const getImage = getEvmNftImage;
-
   if (chain === "eth" && isEvmAddress(address)) {
     if (!moralisKey) {
       return NextResponse.json(
@@ -277,7 +299,7 @@ export async function GET(request: Request) {
       );
     }
     const evmChains = ["eth", "polygon"] as const;
-    const allNfts: Array<{ id: string; name: string; image?: string; tokenAddress?: string; tokenId?: string }> = [];
+    const allItems: EvmNftItem[] = [];
     for (const c of evmChains) {
       try {
         const res = await fetch(
@@ -286,20 +308,20 @@ export async function GET(request: Request) {
         );
         if (!res.ok) continue;
         const data = (await res.json()) as { result?: EvmNftItem[] };
-        const list = data.result ?? [];
-        for (const item of list) {
-          allNfts.push({
-            id: `${item.token_address}-${item.token_id}`,
-            name: item.name ?? "NFT",
-            image: getImage(item),
-            tokenAddress: item.token_address,
-            tokenId: item.token_id,
-          });
-        }
+        allItems.push(...(data.result ?? []));
       } catch {
         continue;
       }
     }
+    const allNfts = await Promise.all(
+      allItems.map(async (item) => ({
+        id: `${item.token_address}-${item.token_id}`,
+        name: item.normalized_metadata?.name ?? item.name ?? "NFT",
+        image: await resolveEvmNftImage(item),
+        tokenAddress: item.token_address,
+        tokenId: item.token_id,
+      }))
+    );
     return NextResponse.json({ count: allNfts.length, nfts: allNfts });
   }
 
