@@ -20,6 +20,7 @@ const NAV_ITEMS_KEYS = [
   { href: "/smart-money", labelKey: "nav_smart_money" },
   { href: "/gestor",      labelKey: "nav_gestor" },
   { href: "/mercado",     labelKey: "nav_mercado" },
+  { href: "/historico",   labelKey: "nav_historico" },
   { href: "/fiscalidade", labelKey: "nav_fiscalidade" },
   { href: "/fire",        labelKey: "nav_fire" },
   { href: "/pricing",     labelKey: "nav_pricing" },
@@ -81,6 +82,15 @@ const NAV_ITEMS = [
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" /><polyline points="16 7 22 7 22 13" />
+      </svg>
+    ),
+  },
+  {
+    href: "/historico",
+    label: "Histórico",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/>
       </svg>
     ),
   },
