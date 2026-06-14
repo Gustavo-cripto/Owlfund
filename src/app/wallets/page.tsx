@@ -2079,10 +2079,12 @@ export default function WalletsPage() {
   };
 
   const fetchStablecoinBalance = useCallback(
-    async (entryId: string, symbol: string, network: EvmNetwork, address: string) => {
+    async (entryId: string, symbol: string, _network: EvmNetwork, address: string) => {
       setStablecoinBalancesLoading((prev) => ({ ...prev, [entryId]: true }));
       try {
-        const balance = await getEvmTokenBalance(address as `0x${string}`, symbol, network);
+        const res = await fetch(`/api/erc20-balance?address=${encodeURIComponent(address)}&token=${encodeURIComponent(symbol)}`);
+        const data = (await res.json()) as { balance?: string; error?: string };
+        const balance = data.balance ?? "0";
         startTransition(() => {
           setStablecoinBalances((prev) => ({ ...prev, [entryId]: balance }));
           setStablecoinBalancesLoading((prev) => ({ ...prev, [entryId]: false }));
