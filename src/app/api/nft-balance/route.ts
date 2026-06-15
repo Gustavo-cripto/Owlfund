@@ -88,6 +88,13 @@ function getSolanaRpcCandidates(): string[] {
 const EVM_L2_CHAINS_NFT = ["arbitrum", "base", "optimism", "polygon", "bsc", "avalanche"] as const;
 type EvmL2ChainNFT = typeof EVM_L2_CHAINS_NFT[number];
 
+// Server-side gateways: ipfs.fleek.co works for metadata (ipfs.io returns 403 server-side)
+const SERVER_IPFS_GATEWAYS = [
+  "https://ipfs.fleek.co/ipfs/",
+  "https://nftstorage.link/ipfs/",
+  "https://cloudflare-ipfs.com/ipfs/",
+];
+
 const IPFS_GATEWAYS = [
   "https://nftstorage.link/ipfs/",
   "https://ipfs.io/ipfs/",
@@ -95,39 +102,68 @@ const IPFS_GATEWAYS = [
   "https://gateway.pinata.cloud/ipfs/",
 ];
 
-function normalizeImageUrl(url: string | undefined): string | undefined {
+function extractIpfsCid(url: string): string | undefined {
+  if (url.startsWith("ipfs://")) return url.slice(7);
+  const m = url.match(/\/ipfs\/(.+)/);
+  return m?.[1];
+}
+
+function normalizeImageUrl(url: string | undefined, serverSide = false): string | undefined {
   if (!url) return undefined;
-  if (url.startsWith("ipfs://")) return `${IPFS_GATEWAYS[0]}${url.slice(7)}`;
-  if (url.startsWith("/ipfs/")) return `${IPFS_GATEWAYS[0]}${url.slice(6)}`;
+  const gws = serverSide ? SERVER_IPFS_GATEWAYS : IPFS_GATEWAYS;
+  if (url.startsWith("ipfs://")) return `${gws[0]}${url.slice(7)}`;
+  if (url.startsWith("/ipfs/")) return `${gws[0]}${url.slice(6)}`;
+  // Rewrite ipfs.io → fleek for server-side fetches (ipfs.io blocks server requests)
+  if (serverSide && url.includes("ipfs.io/ipfs/")) return `${SERVER_IPFS_GATEWAYS[0]}${extractIpfsCid(url) ?? ""}`;
   return url;
 }
 
 function getEvmNftImageSync(item: EvmNftItem): string | undefined {
   const nm = item.normalized_metadata;
-  if (nm?.image) return normalizeImageUrl(nm.image);
+  if (nm?.image) return normalizeImageUrl(nm.image, true);
   const m = item.media?.media_collection;
-  if (m?.high?.url) return normalizeImageUrl(m.high.url);
-  if (m?.medium?.url) return normalizeImageUrl(m.medium.url);
-  if (m?.low?.url) return normalizeImageUrl(m.low.url);
+  if (m?.high?.url) return normalizeImageUrl(m.high.url, true);
+  if (m?.medium?.url) return normalizeImageUrl(m.medium.url, true);
+  if (m?.low?.url) return normalizeImageUrl(m.low.url, true);
   try {
     const meta = typeof item.metadata === "string" ? JSON.parse(item.metadata || "{}") : item.metadata;
     const raw = (meta as { image?: string; image_url?: string } | null)?.image ?? (meta as { image?: string; image_url?: string } | null)?.image_url;
-    return normalizeImageUrl(raw);
+    return normalizeImageUrl(raw, true);
   } catch { return undefined; }
+}
+
+async function fetchMetadataFromGateway(cid: string): Promise<{ image?: string; image_url?: string } | undefined> {
+  for (const gw of SERVER_IPFS_GATEWAYS) {
+    try {
+      const res = await fetch(`${gw}${cid}`, { signal: AbortSignal.timeout(6000) });
+      if (res.ok) return (await res.json()) as { image?: string; image_url?: string };
+    } catch { continue; }
+  }
+  return undefined;
 }
 
 async function resolveEvmNftImage(item: EvmNftItem): Promise<string | undefined> {
   const image = getEvmNftImageSync(item);
   if (image) return image;
-  // Try token_uri to resolve metadata
-  const tokenUri = item.token_uri ? normalizeImageUrl(item.token_uri) ?? item.token_uri : undefined;
-  if (!tokenUri) return undefined;
+  if (!item.token_uri) return undefined;
+  // Normalise token_uri: rewrite ipfs.io → fleek, handle ipfs:// scheme
+  const cid = extractIpfsCid(item.token_uri);
+  const tokenUri = cid
+    ? `${SERVER_IPFS_GATEWAYS[0]}${cid}`
+    : item.token_uri;
   try {
-    const res = await fetch(tokenUri, { signal: AbortSignal.timeout(5000) });
-    if (!res.ok) return undefined;
-    const meta = (await res.json()) as { image?: string; image_url?: string };
-    return normalizeImageUrl(meta.image ?? meta.image_url);
-  } catch { return undefined; }
+    const res = await fetch(tokenUri, { signal: AbortSignal.timeout(6000) });
+    if (res.ok) {
+      const meta = (await res.json()) as { image?: string; image_url?: string };
+      return normalizeImageUrl(meta.image ?? meta.image_url, true);
+    }
+  } catch { /* fallback to gateway loop */ }
+  // If primary gateway failed and we have a CID, try remaining gateways
+  if (cid) {
+    const meta = await fetchMetadataFromGateway(cid);
+    if (meta) return normalizeImageUrl(meta.image ?? meta.image_url, true);
+  }
+  return undefined;
 }
 
 export async function GET(request: Request) {

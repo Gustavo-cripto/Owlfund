@@ -1,13 +1,29 @@
 "use client";
 import { useEffect, useState } from "react";
 
+// Ordered by reliability for browser-side fetching
 const IPFS_GATEWAYS = [
+  "https://ipfs.fleek.co/ipfs/",
   "https://nftstorage.link/ipfs/",
   "https://ipfs.io/ipfs/",
   "https://cloudflare-ipfs.com/ipfs/",
   "https://gateway.pinata.cloud/ipfs/",
   "https://dweb.link/ipfs/",
 ];
+
+function extractCid(url: string): string | undefined {
+  if (url.startsWith("ipfs://")) return url.slice(7);
+  const m = url.match(/\/ipfs\/(.+)/);
+  return m?.[1];
+}
+
+function normalizeUrl(url: string): string {
+  if (url.startsWith("ipfs://")) return `${IPFS_GATEWAYS[0]}${url.slice(7)}`;
+  if (url.startsWith("/ipfs/")) return `${IPFS_GATEWAYS[0]}${url.slice(6)}`;
+  // Rewrite any known slow/blocked gateways to fleek
+  if (url.includes("ipfs.io/ipfs/")) return `${IPFS_GATEWAYS[0]}${extractCid(url) ?? ""}`;
+  return url;
+}
 
 function nextGatewayUrl(src: string): string | null {
   for (let i = 0; i < IPFS_GATEWAYS.length - 1; i++) {
@@ -16,12 +32,6 @@ function nextGatewayUrl(src: string): string | null {
     }
   }
   return null;
-}
-
-function normalizeUrl(url: string): string {
-  if (url.startsWith("ipfs://")) return `${IPFS_GATEWAYS[0]}${url.slice(7)}`;
-  if (url.startsWith("/ipfs/")) return `${IPFS_GATEWAYS[0]}${url.slice(6)}`;
-  return url;
 }
 
 interface NftImageProps {
@@ -33,24 +43,36 @@ interface NftImageProps {
 }
 
 export default function NftImage({ src, tokenUri, alt, className, loading }: NftImageProps) {
-  const [currentSrc, setCurrentSrc] = useState<string | undefined>(src);
+  const [currentSrc, setCurrentSrc] = useState<string | undefined>(src ? normalizeUrl(src) : undefined);
   const [failed, setFailed] = useState(false);
 
-  // If no src but tokenUri provided, fetch metadata client-side
+  // If no src, fetch tokenUri metadata client-side
   useEffect(() => {
     if (src || !tokenUri || failed) return;
     let cancelled = false;
-    const url = normalizeUrl(tokenUri);
-    fetch(url, { signal: AbortSignal.timeout(8000) })
-      .then((r) => r.json())
-      .then((meta: unknown) => {
-        if (cancelled) return;
-        const m = meta as { image?: string; image_url?: string };
-        const raw = m?.image ?? m?.image_url;
-        if (raw) setCurrentSrc(normalizeUrl(raw));
-        else setFailed(true);
-      })
-      .catch(() => { if (!cancelled) setFailed(true); });
+
+    const tryGateways = async () => {
+      const cid = extractCid(tokenUri);
+      const urls = cid
+        ? IPFS_GATEWAYS.map((gw) => `${gw}${cid}`)
+        : [normalizeUrl(tokenUri)];
+
+      for (const url of urls) {
+        try {
+          const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+          if (!r.ok) continue;
+          const meta = (await r.json()) as { image?: string; image_url?: string };
+          const raw = meta?.image ?? meta?.image_url;
+          if (raw && !cancelled) {
+            setCurrentSrc(normalizeUrl(raw));
+            return;
+          }
+        } catch { continue; }
+      }
+      if (!cancelled) setFailed(true);
+    };
+
+    void tryGateways();
     return () => { cancelled = true; };
   }, [src, tokenUri, failed]);
 
