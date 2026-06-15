@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const IPFS_GATEWAYS = [
   "https://nftstorage.link/ipfs/",
@@ -18,18 +18,43 @@ function nextGatewayUrl(src: string): string | null {
   return null;
 }
 
+function normalizeUrl(url: string): string {
+  if (url.startsWith("ipfs://")) return `${IPFS_GATEWAYS[0]}${url.slice(7)}`;
+  if (url.startsWith("/ipfs/")) return `${IPFS_GATEWAYS[0]}${url.slice(6)}`;
+  return url;
+}
+
 interface NftImageProps {
-  src: string;
+  src?: string;
+  tokenUri?: string;
   alt: string;
   className?: string;
   loading?: "lazy" | "eager";
 }
 
-export default function NftImage({ src, alt, className, loading }: NftImageProps) {
-  const [currentSrc, setCurrentSrc] = useState(src);
+export default function NftImage({ src, tokenUri, alt, className, loading }: NftImageProps) {
+  const [currentSrc, setCurrentSrc] = useState<string | undefined>(src);
   const [failed, setFailed] = useState(false);
 
-  if (failed) return null;
+  // If no src but tokenUri provided, fetch metadata client-side
+  useEffect(() => {
+    if (src || !tokenUri || failed) return;
+    let cancelled = false;
+    const url = normalizeUrl(tokenUri);
+    fetch(url, { signal: AbortSignal.timeout(8000) })
+      .then((r) => r.json())
+      .then((meta: unknown) => {
+        if (cancelled) return;
+        const m = meta as { image?: string; image_url?: string };
+        const raw = m?.image ?? m?.image_url;
+        if (raw) setCurrentSrc(normalizeUrl(raw));
+        else setFailed(true);
+      })
+      .catch(() => { if (!cancelled) setFailed(true); });
+    return () => { cancelled = true; };
+  }, [src, tokenUri, failed]);
+
+  if (failed || !currentSrc) return null;
 
   return (
     <img

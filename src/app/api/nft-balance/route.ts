@@ -152,13 +152,17 @@ export async function GET(request: Request) {
       if (!res.ok) return NextResponse.json({ count: 0, nfts: [] });
       const data = (await res.json()) as { result?: EvmNftItem[] };
       const nfts = await Promise.all(
-        (data.result ?? []).map(async (item) => ({
-          id: `${item.token_address}-${item.token_id}`,
-          name: item.normalized_metadata?.name ?? item.name ?? "NFT",
-          image: await resolveEvmNftImage(item),
-          tokenAddress: item.token_address,
-          tokenId: item.token_id,
-        }))
+        (data.result ?? []).map(async (item) => {
+          const image = await resolveEvmNftImage(item);
+          return {
+            id: `${item.token_address}-${item.token_id}`,
+            name: item.normalized_metadata?.name ?? item.name ?? "NFT",
+            image,
+            tokenUri: image ? undefined : (item.token_uri ? normalizeImageUrl(item.token_uri) ?? item.token_uri : undefined),
+            tokenAddress: item.token_address,
+            tokenId: item.token_id,
+          };
+        })
       );
       return NextResponse.json({ count: nfts.length, nfts });
     } catch {
@@ -314,13 +318,17 @@ export async function GET(request: Request) {
       }
     }
     const allNfts = await Promise.all(
-      allItems.map(async (item) => ({
-        id: `${item.token_address}-${item.token_id}`,
-        name: item.normalized_metadata?.name ?? item.name ?? "NFT",
-        image: await resolveEvmNftImage(item),
-        tokenAddress: item.token_address,
-        tokenId: item.token_id,
-      }))
+      allItems.map(async (item) => {
+        const image = await resolveEvmNftImage(item);
+        return {
+          id: `${item.token_address}-${item.token_id}`,
+          name: item.normalized_metadata?.name ?? item.name ?? "NFT",
+          image,
+          tokenUri: image ? undefined : (item.token_uri ? normalizeImageUrl(item.token_uri) ?? item.token_uri : undefined),
+          tokenAddress: item.token_address,
+          tokenId: item.token_id,
+        };
+      })
     );
     return NextResponse.json({ count: allNfts.length, nfts: allNfts });
   }

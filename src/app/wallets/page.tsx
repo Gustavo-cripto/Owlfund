@@ -413,7 +413,7 @@ export default function WalletsPage() {
   const [nftCounts, setNftCounts] = useState<Record<string, number>>({});
   const [nftLoading, setNftLoading] = useState<Record<string, boolean>>({});
   const [nftErrors, setNftErrors] = useState<Record<string, string | null>>({});
-  const [nftsByKey, setNftsByKey] = useState<Record<string, Array<{ id: string; name: string; image?: string; tokenAddress?: string; tokenId?: string }>>>({});
+  const [nftsByKey, setNftsByKey] = useState<Record<string, Array<{ id: string; name: string; image?: string; tokenUri?: string; tokenAddress?: string; tokenId?: string }>>>({});
   const [evmProviders, setEvmProviders] = useState<Array<{ id: EvmProviderId; label: string }>>(
     []
   );
@@ -818,7 +818,7 @@ export default function WalletsPage() {
         ? `${base}/api/nft-balance?address=${encodeURIComponent(address)}&chain=eth`
         : `${base}/api/nft-balance?address=${encodeURIComponent(address)}&chain=eth&evmChain=${moralisChain}`;
       const response = await fetch(url);
-      const data = (await response.json()) as { count?: number; nfts?: Array<{ id: string; name: string; image?: string; tokenAddress?: string; tokenId?: string }>; error?: string };
+      const data = (await response.json()) as { count?: number; nfts?: Array<{ id: string; name: string; image?: string; tokenUri?: string; tokenAddress?: string; tokenId?: string }>; error?: string };
       setNftCounts((prev) => ({ ...prev, [key]: data.count ?? 0 }));
       setNftsByKey((prev) => ({ ...prev, [key]: data.nfts ?? [] }));
       setNftErrors((prev) => ({ ...prev, [key]: null }));
@@ -915,7 +915,7 @@ export default function WalletsPage() {
       const response = await fetch(
         `${base}/api/nft-balance?address=${encodeURIComponent(address)}&chain=${chain}`
       );
-      const data = (await response.json()) as { count?: number; nfts?: Array<{ id: string; name: string; image?: string; tokenAddress?: string; tokenId?: string }>; error?: string };
+      const data = (await response.json()) as { count?: number; nfts?: Array<{ id: string; name: string; image?: string; tokenUri?: string; tokenAddress?: string; tokenId?: string }>; error?: string };
       if (!response.ok) {
         setNftCounts((prev) => ({ ...prev, [key]: 0 }));
         setNftErrors((prev) => ({ ...prev, [key]: data?.error ?? "Falha ao consultar NFTs." }));
@@ -3109,8 +3109,8 @@ export default function WalletsPage() {
                                 className="aspect-square overflow-hidden rounded border border-slate-700 bg-slate-800"
                                 title={nft.name}
                               >
-                                {nft.image
-                                  ? <NftImage src={nft.image} alt={nft.name} className="h-full w-full object-cover" />
+                                {(nft.image || nft.tokenUri)
+                                  ? <NftImage src={nft.image} tokenUri={nft.tokenUri} alt={nft.name} className="h-full w-full object-cover" />
                                   : <div className="flex h-full w-full items-center justify-center text-[8px] text-slate-500">—</div>}
                               </a>
                             ))}
@@ -3497,8 +3497,8 @@ export default function WalletsPage() {
                                   className="aspect-square overflow-hidden rounded border border-slate-700 bg-slate-800"
                                   title={nft.name}
                                 >
-                                  {nft.image
-                                    ? <NftImage src={nft.image} alt={nft.name} className="h-full w-full object-cover" loading="lazy" />
+                                  {(nft.image || nft.tokenUri)
+                                    ? <NftImage src={nft.image} tokenUri={nft.tokenUri} alt={nft.name} className="h-full w-full object-cover" loading="lazy" />
                                     : <div className="h-full w-full flex items-center justify-center text-[8px] text-slate-500">{nft.name?.slice(0, 3)}</div>}
                                 </a>
                               ))}
@@ -3831,8 +3831,8 @@ export default function WalletsPage() {
                                     className="aspect-square rounded overflow-hidden bg-slate-800 border border-slate-700 hover:border-orange-400 transition"
                                     title={nft.name}
                                   >
-                                    {nft.image ? (
-                                      <NftImage src={nft.image} alt={nft.name} className="w-full h-full object-cover" />
+                                    {(nft.image || nft.tokenUri) ? (
+                                      <NftImage src={nft.image} tokenUri={nft.tokenUri} alt={nft.name} className="w-full h-full object-cover" />
                                     ) : (
                                       <div className="w-full h-full flex items-center justify-center text-[8px] text-slate-500 p-0.5 text-center leading-tight">{nft.name}</div>
                                     )}
