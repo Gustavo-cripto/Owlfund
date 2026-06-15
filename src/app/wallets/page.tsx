@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from "react";
 
 import AppShell from "@/components/AppShell";
+import NftImage from "@/components/NftImage";
 import CexSection from "@/components/wallets/CexSection";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import WalletCard from "@/components/wallets/WalletCard";
@@ -3109,7 +3110,7 @@ export default function WalletsPage() {
                                 title={nft.name}
                               >
                                 {nft.image
-                                  ? <img src={nft.image} alt={nft.name} className="h-full w-full object-cover" />
+                                  ? <NftImage src={nft.image} alt={nft.name} className="h-full w-full object-cover" />
                                   : <div className="flex h-full w-full items-center justify-center text-[8px] text-slate-500">—</div>}
                               </a>
                             ))}
@@ -3497,7 +3498,7 @@ export default function WalletsPage() {
                                   title={nft.name}
                                 >
                                   {nft.image
-                                    ? <img src={nft.image} alt={nft.name} className="h-full w-full object-cover" loading="lazy" />
+                                    ? <NftImage src={nft.image} alt={nft.name} className="h-full w-full object-cover" loading="lazy" />
                                     : <div className="h-full w-full flex items-center justify-center text-[8px] text-slate-500">{nft.name?.slice(0, 3)}</div>}
                                 </a>
                               ))}
@@ -3831,8 +3832,7 @@ export default function WalletsPage() {
                                     title={nft.name}
                                   >
                                     {nft.image ? (
-                                      // eslint-disable-next-line @next/next/no-img-element
-                                      <img src={nft.image} alt={nft.name} className="w-full h-full object-cover" />
+                                      <NftImage src={nft.image} alt={nft.name} className="w-full h-full object-cover" />
                                     ) : (
                                       <div className="w-full h-full flex items-center justify-center text-[8px] text-slate-500 p-0.5 text-center leading-tight">{nft.name}</div>
                                     )}
