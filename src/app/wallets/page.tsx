@@ -4363,7 +4363,7 @@ export default function WalletsPage() {
           <div className="mt-4 space-y-3">
             {/* Carteiras conectadas — uma linha por carteira */}
             {(() => {
-              type WEntry = { key: string; symbol: string; label: string; network: string; balance: string | null; source: string };
+              type WEntry = { key: string; symbol: string; label: string; network: string; balance: string | null; source: string; onRemove: () => void };
               const entries: WEntry[] = [];
 
               // ETH — cada carteira separada
@@ -4377,6 +4377,11 @@ export default function WalletsPage() {
                   network: w.network ?? "Ethereum",
                   balance: bal,
                   source: "Carteira ETH",
+                  onRemove: () => {
+                    const next = ethWallets.filter((_, j) => j !== i);
+                    setEthWallets(next);
+                    updateWalletSnapshot({ eth: next, sol: solWallets, btc: btcWallets, ada: adaWallets });
+                  },
                 });
               });
 
@@ -4390,6 +4395,11 @@ export default function WalletsPage() {
                   network: w.network ?? "Solana",
                   balance: bal,
                   source: "Carteira SOL",
+                  onRemove: () => {
+                    const next = solWallets.filter((_, j) => j !== i);
+                    setSolWallets(next);
+                    updateWalletSnapshot({ eth: ethWallets, sol: next, btc: btcWallets, ada: adaWallets });
+                  },
                 });
               });
 
@@ -4403,6 +4413,11 @@ export default function WalletsPage() {
                   network: "Bitcoin",
                   balance: bal,
                   source: "Carteira BTC",
+                  onRemove: () => {
+                    const next = btcWallets.filter((_, j) => j !== i);
+                    setBtcWallets(next);
+                    updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: next, ada: adaWallets });
+                  },
                 });
               });
 
@@ -4416,11 +4431,16 @@ export default function WalletsPage() {
                   network: "Cardano",
                   balance: bal,
                   source: "Carteira ADA",
+                  onRemove: () => {
+                    const next = adaWallets.filter((_, j) => j !== i);
+                    setAdaWallets(next);
+                    updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: next });
+                  },
                 });
               });
 
               if (entries.length === 0) return null;
-              return entries.map(({ key, symbol, label, network, balance, source }) => {
+              return entries.map(({ key, symbol, label, network, balance, source, onRemove }) => {
                 const market = cryptoPrices[symbol];
                 const balNum = balance !== null && balance !== "—" ? parseFloat(balance) || 0 : 0;
                 const fiatEur = getFiatValue(symbol, balance);
@@ -4457,9 +4477,15 @@ export default function WalletsPage() {
                             : "—"}
                         </span>
                       </span>
-                      <span className="rounded-full border border-slate-700/40 bg-slate-800/40 px-3 py-2 text-[10px] text-slate-500">
-                        Carteira
-                      </span>
+                      <button
+                        onClick={onRemove}
+                        title="Remover carteira"
+                        className="rounded-full border border-rose-800/40 bg-rose-950/30 p-2 text-rose-400 transition hover:bg-rose-900/50 hover:text-rose-300"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
+                          <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
+                        </svg>
+                      </button>
                     </div>
                   </div>
                 );
