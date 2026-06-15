@@ -3044,16 +3044,17 @@ export default function WalletsPage() {
               <div className="space-y-2">
                 {ethWallets.map((item) => {
                   const isConnected = item.address === ethAddress && item.network === ethConnectedNetwork;
-                  const key = ethBalanceKey(item.address ?? "", item.network ?? "");
+                  const key = ethBalanceKey(item.address ?? "", item.network ?? "Ethereum");
                   const loading = ethBalancesLoading[key];
                   const err = ethBalanceErrors[key];
+                  const liveBalance = ethBalancesByKey[key];
                   const balanceDisplay = isConnected
                     ? ethBalance ?? "—"
-                    : loading
+                    : loading || liveBalance === undefined
                       ? "A carregar..."
                       : err
                         ? null
-                        : ethBalancesByKey[key] ?? item.balance ?? "—";
+                        : liveBalance ?? "—";
                   const dk = item.address ? defiKey(item.address, item.network ?? "Ethereum") : null;
                   const itemDefi = dk ? (defiTotals[dk] ?? null) : null;
                   const itemDefiLoading = dk ? !!defiLoading[dk] : false;
@@ -4369,7 +4370,7 @@ export default function WalletsPage() {
               // ETH — cada carteira separada
               ethWallets.forEach((w, i) => {
                 const k = ethBalanceKey(w.address ?? "", w.network ?? "Ethereum");
-                const bal = ethBalancesLoading[k] ? null : (ethBalancesByKey[k] ?? w.balance ?? null);
+                const bal = ethBalancesLoading[k] || ethBalancesByKey[k] === undefined ? null : (ethBalancesByKey[k] ?? null);
                 entries.push({
                   key: `eth-${i}-${w.address}`,
                   symbol: "ETH",
