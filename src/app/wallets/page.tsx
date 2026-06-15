@@ -1115,19 +1115,28 @@ export default function WalletsPage() {
   }, [ethActiveEntry, ethBalancesByKey, ethBalance]);
 
   const totalEthBalance = useMemo(() => {
-    // Soma todos os wallets (por endereço+rede) sem duplicar
+    // Include connected MetaMask wallet first (same pattern as SOL)
     const seen = new Set<string>();
     let sum = 0;
+    if (ethAddress) {
+      const connNet = ethConnectedNetwork ?? "Ethereum";
+      const k = ethBalanceKey(ethAddress, connNet);
+      seen.add(k);
+      const b = ethBalancesByKey[k] ?? ethBalance;
+      sum += typeof b === "string" && b !== "—" ? parseFloat(b) || 0 : 0;
+    }
+    // Add manually-added wallets, skip if same address+network already counted
     ethWallets.forEach((w) => {
-      if (!w.address || !w.network) return;
-      const k = ethBalanceKey(w.address, w.network);
+      if (!w.address) return;
+      const net = w.network ?? "Ethereum";
+      const k = ethBalanceKey(w.address, net);
       if (seen.has(k)) return;
       seen.add(k);
       const b = ethBalancesByKey[k] ?? w.balance;
       sum += typeof b === "string" && b !== "—" ? parseFloat(b) || 0 : 0;
     });
     return sum.toFixed(4);
-  }, [ethWallets, ethBalancesByKey]);
+  }, [ethWallets, ethBalancesByKey, ethAddress, ethConnectedNetwork, ethBalance]);
 
   const totalSolBalance = useMemo(() => {
     let sum = parseFloat(solBalance ?? "") || 0;
