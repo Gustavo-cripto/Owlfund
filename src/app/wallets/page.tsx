@@ -1312,15 +1312,43 @@ export default function WalletsPage() {
     return eth + sol + btc + ada;
   }, [totalEthBalance, totalSolBalance, totalBtcBalance, totalAdaBalance, web3Prices]);
 
+  // "Ethereum" and "eth" refer to the same chain — normalize so the same address
+  // fetched under different key formats isn't double-counted.
+  const normalizeChain = (c: string) => {
+    if (c === "Ethereum" || c === "eth") return "eth";
+    return c.toLowerCase();
+  };
+
   const totalNftCount = useMemo(() => {
-    return Object.values(nftCounts).reduce((sum, n) => sum + (typeof n === "number" ? n : 0), 0);
+    const seen = new Set<string>();
+    let sum = 0;
+    for (const [key, count] of Object.entries(nftCounts)) {
+      const colonIdx = key.indexOf(":");
+      const addr = key.slice(0, colonIdx);
+      const chain = normalizeChain(key.slice(colonIdx + 1));
+      const normalized = `${addr}:${chain}`;
+      if (!seen.has(normalized)) {
+        seen.add(normalized);
+        sum += typeof count === "number" ? count : 0;
+      }
+    }
+    return sum;
   }, [nftCounts]);
 
   const totalDefiUsd = useMemo((): number => {
-    return Object.values(defiTotals).reduce<number>(
-      (sum, v) => sum + (typeof v === "number" && Number.isFinite(v) ? v : 0),
-      0
-    );
+    const seen = new Set<string>();
+    let sum = 0;
+    for (const [key, value] of Object.entries(defiTotals)) {
+      const colonIdx = key.indexOf(":");
+      const addr = key.slice(0, colonIdx);
+      const chain = normalizeChain(key.slice(colonIdx + 1));
+      const normalized = `${addr}:${chain}`;
+      if (!seen.has(normalized)) {
+        seen.add(normalized);
+        if (typeof value === "number" && Number.isFinite(value)) sum += value;
+      }
+    }
+    return sum;
   }, [defiTotals]);
 
   useEffect(() => {
