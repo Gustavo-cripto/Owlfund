@@ -88,54 +88,51 @@ function getSolanaRpcCandidates(): string[] {
 const EVM_L2_CHAINS_NFT = ["arbitrum", "base", "optimism", "polygon", "bsc", "avalanche"] as const;
 type EvmL2ChainNFT = typeof EVM_L2_CHAINS_NFT[number];
 
-// Server-side gateways: ipfs.fleek.co works for metadata (ipfs.io returns 403 server-side)
-const SERVER_IPFS_GATEWAYS = [
-  "https://ipfs.fleek.co/ipfs/",
-  "https://nftstorage.link/ipfs/",
-  "https://cloudflare-ipfs.com/ipfs/",
-];
-
-const IPFS_GATEWAYS = [
-  "https://nftstorage.link/ipfs/",
-  "https://ipfs.io/ipfs/",
-  "https://cloudflare-ipfs.com/ipfs/",
+// Gateways for fetching metadata JSON server-side. Pinata reliably serves the
+// content that gotas.social (and many others) pin there.
+const META_GATEWAYS = [
   "https://gateway.pinata.cloud/ipfs/",
+  "https://ipfs.io/ipfs/",
+  "https://dweb.link/ipfs/",
 ];
 
 function extractIpfsCid(url: string): string | undefined {
-  if (url.startsWith("ipfs://")) return url.slice(7);
+  if (url.startsWith("ipfs://")) return url.slice(7).replace(/^ipfs\//, "");
   const m = url.match(/\/ipfs\/(.+)/);
   return m?.[1];
 }
 
-function normalizeImageUrl(url: string | undefined, serverSide = false): string | undefined {
+/**
+ * Turns any image reference into a stable URL. IPFS content is routed through
+ * our own /api/ipfs-image proxy (which races gateways + edge-caches the bytes),
+ * so the browser always receives one reliable URL. Plain https images (e.g.
+ * Moralis CDN, spam NFTs) are passed through unchanged.
+ */
+function toImageUrl(url: string | undefined): string | undefined {
   if (!url) return undefined;
-  const gws = serverSide ? SERVER_IPFS_GATEWAYS : IPFS_GATEWAYS;
-  if (url.startsWith("ipfs://")) return `${gws[0]}${url.slice(7)}`;
-  if (url.startsWith("/ipfs/")) return `${gws[0]}${url.slice(6)}`;
-  // Rewrite ipfs.io → fleek for server-side fetches (ipfs.io blocks server requests)
-  if (serverSide && url.includes("ipfs.io/ipfs/")) return `${SERVER_IPFS_GATEWAYS[0]}${extractIpfsCid(url) ?? ""}`;
-  return url;
+  const cid = extractIpfsCid(url);
+  if (cid) return `/api/ipfs-image?cid=${encodeURIComponent(cid)}`;
+  return url; // already a usable http(s) url
 }
 
 function getEvmNftImageSync(item: EvmNftItem): string | undefined {
   const nm = item.normalized_metadata;
-  if (nm?.image) return normalizeImageUrl(nm.image, true);
+  if (nm?.image) return toImageUrl(nm.image);
   const m = item.media?.media_collection;
-  if (m?.high?.url) return normalizeImageUrl(m.high.url, true);
-  if (m?.medium?.url) return normalizeImageUrl(m.medium.url, true);
-  if (m?.low?.url) return normalizeImageUrl(m.low.url, true);
+  if (m?.high?.url) return toImageUrl(m.high.url);
+  if (m?.medium?.url) return toImageUrl(m.medium.url);
+  if (m?.low?.url) return toImageUrl(m.low.url);
   try {
     const meta = typeof item.metadata === "string" ? JSON.parse(item.metadata || "{}") : item.metadata;
     const raw = (meta as { image?: string; image_url?: string } | null)?.image ?? (meta as { image?: string; image_url?: string } | null)?.image_url;
-    return normalizeImageUrl(raw, true);
+    return toImageUrl(raw);
   } catch { return undefined; }
 }
 
-async function fetchMetadataFromGateway(cid: string): Promise<{ image?: string; image_url?: string } | undefined> {
-  for (const gw of SERVER_IPFS_GATEWAYS) {
+async function fetchMetadataFromGateways(cid: string): Promise<{ image?: string; image_url?: string } | undefined> {
+  for (const gw of META_GATEWAYS) {
     try {
-      const res = await fetch(`${gw}${cid}`, { signal: AbortSignal.timeout(6000) });
+      const res = await fetch(`${gw}${cid}`, { signal: AbortSignal.timeout(8000) });
       if (res.ok) return (await res.json()) as { image?: string; image_url?: string };
     } catch { continue; }
   }
@@ -146,22 +143,19 @@ async function resolveEvmNftImage(item: EvmNftItem): Promise<string | undefined>
   const image = getEvmNftImageSync(item);
   if (image) return image;
   if (!item.token_uri) return undefined;
-  // Normalise token_uri: rewrite ipfs.io → fleek, handle ipfs:// scheme
   const cid = extractIpfsCid(item.token_uri);
-  const tokenUri = cid
-    ? `${SERVER_IPFS_GATEWAYS[0]}${cid}`
-    : item.token_uri;
-  try {
-    const res = await fetch(tokenUri, { signal: AbortSignal.timeout(6000) });
-    if (res.ok) {
-      const meta = (await res.json()) as { image?: string; image_url?: string };
-      return normalizeImageUrl(meta.image ?? meta.image_url, true);
-    }
-  } catch { /* fallback to gateway loop */ }
-  // If primary gateway failed and we have a CID, try remaining gateways
   if (cid) {
-    const meta = await fetchMetadataFromGateway(cid);
-    if (meta) return normalizeImageUrl(meta.image ?? meta.image_url, true);
+    const meta = await fetchMetadataFromGateways(cid);
+    if (meta) return toImageUrl(meta.image ?? meta.image_url);
+  } else {
+    // Non-IPFS token_uri (e.g. https metadata)
+    try {
+      const res = await fetch(item.token_uri, { signal: AbortSignal.timeout(8000) });
+      if (res.ok) {
+        const meta = (await res.json()) as { image?: string; image_url?: string };
+        return toImageUrl(meta.image ?? meta.image_url);
+      }
+    } catch { /* ignore */ }
   }
   return undefined;
 }
@@ -194,7 +188,7 @@ export async function GET(request: Request) {
             id: `${item.token_address}-${item.token_id}`,
             name: item.normalized_metadata?.name ?? item.name ?? "NFT",
             image,
-            tokenUri: image ? undefined : (item.token_uri ? normalizeImageUrl(item.token_uri) ?? item.token_uri : undefined),
+            tokenUri: image ? undefined : (item.token_uri ? toImageUrl(item.token_uri) ?? item.token_uri : undefined),
             tokenAddress: item.token_address,
             tokenId: item.token_id,
           };
@@ -258,9 +252,8 @@ export async function GET(request: Request) {
           let image: string | undefined;
           const img = asset.onchain_metadata?.image;
           if (typeof img === "string") {
-            if (img.startsWith("http")) image = img;
-            else if (img.startsWith("ipfs://")) image = `${IPFS_GATEWAYS[0]}${img.slice(7)}`;
-            else if (img.startsWith("/ipfs/")) image = `${IPFS_GATEWAYS[0]}${img.slice(6)}`;
+            if (img.startsWith("ipfs://") || img.includes("/ipfs/")) image = toImageUrl(img);
+            else if (img.startsWith("http")) image = img;
             else if (img.startsWith("/")) image = `https://cardano-mainnet.blockfrost.io/api/v0/ipfs/gateway${img}`;
           }
           nfts.push({
@@ -360,7 +353,7 @@ export async function GET(request: Request) {
           id: `${item.token_address}-${item.token_id}`,
           name: item.normalized_metadata?.name ?? item.name ?? "NFT",
           image,
-          tokenUri: image ? undefined : (item.token_uri ? normalizeImageUrl(item.token_uri) ?? item.token_uri : undefined),
+          tokenUri: image ? undefined : (item.token_uri ? toImageUrl(item.token_uri) ?? item.token_uri : undefined),
           tokenAddress: item.token_address,
           tokenId: item.token_id,
         };
@@ -395,7 +388,7 @@ export async function GET(request: Request) {
             const nfts = list.map((item, i) => ({
               id: item.mint ?? `sol-shyft-${i}`,
               name: item.name ?? "NFT",
-              image: normalizeImageUrl(item.cached_image_uri ?? item.image_uri),
+              image: toImageUrl(item.cached_image_uri ?? item.image_uri),
               tokenAddress: item.mint,
             }));
             return NextResponse.json({ count: nfts.length, nfts });
@@ -418,17 +411,17 @@ export async function GET(request: Request) {
             // Resolve metadata_uri for NFTs without images (up to 20 in parallel)
             const nfts = await Promise.all(
               list.slice(0, 50).map(async (item, i) => {
-                let image = normalizeImageUrl(
+                let image = toImageUrl(
                   item.image ?? item.metadata?.image ?? item.metadata?.image_url
                 );
                 if (!image && item.metadata_uri) {
                   try {
-                    const metaRes = await fetch(normalizeImageUrl(item.metadata_uri) ?? item.metadata_uri, {
-                      signal: AbortSignal.timeout(4000),
-                    });
+                    const metaCid = extractIpfsCid(item.metadata_uri);
+                    const metaUrl = metaCid ? `${META_GATEWAYS[0]}${metaCid}` : item.metadata_uri;
+                    const metaRes = await fetch(metaUrl, { signal: AbortSignal.timeout(5000) });
                     if (metaRes.ok) {
                       const meta = (await metaRes.json()) as { image?: string; image_url?: string };
-                      image = normalizeImageUrl(meta.image ?? meta.image_url);
+                      image = toImageUrl(meta.image ?? meta.image_url);
                     }
                   } catch { /* ignore */ }
                 }
