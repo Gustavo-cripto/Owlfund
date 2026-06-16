@@ -112,37 +112,48 @@ const snapshotTotal = (snapshot: WalletSnapshot, prices: TokenPrices = {}) =>
   sumEntries(snapshot.ada) * (prices.ADA ?? 0);
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const snapshotToWallets = (snapshot: WalletSnapshot, _prices?: TokenPrices): WalletBalance[] => [
+const snapshotToWallets = (snapshot: WalletSnapshot, _prices?: TokenPrices): WalletBalance[] => {
+  const seen = new Set<string>();
+  const dedup = (entries: StoredWalletEntry[] | undefined) =>
+    (entries ?? []).filter((e) => {
+      const k = `${e.address ?? ""}:${e.network ?? ""}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+
+  return [
   // Each ETH wallet entry as its own row (mainnet + L2s) — balance is raw token amount
-  ...(snapshot.eth ?? []).map((entry) => ({
+  ...dedup(snapshot.eth).map((entry) => ({
     label: entry.label || (entry.address ? `${entry.address.slice(0, 6)}…${entry.address.slice(-4)}` : "Ethereum"),
     symbol: "ETH",
     balance: String(Number(entry.balance ?? 0)),
     address: entry.address,
     network: entry.network ?? "Ethereum",
   })),
-  ...(snapshot.sol ?? []).map((entry) => ({
+  ...dedup(snapshot.sol).map((entry) => ({
     label: entry.label || (entry.address ? `${entry.address.slice(0, 6)}…${entry.address.slice(-4)}` : "Solana"),
     symbol: "SOL",
     balance: String(Number(entry.balance ?? 0)),
     address: entry.address,
     network: "Solana",
   })),
-  ...(snapshot.btc ?? []).map((entry) => ({
+  ...dedup(snapshot.btc).map((entry) => ({
     label: entry.label || (entry.address ? `${entry.address.slice(0, 6)}…${entry.address.slice(-4)}` : "Bitcoin"),
     symbol: "BTC",
     balance: String(Number(entry.balance ?? 0)),
     address: entry.address,
     network: "Bitcoin",
   })),
-  ...(snapshot.ada ?? []).map((entry) => ({
+  ...dedup(snapshot.ada).map((entry) => ({
     label: entry.label || (entry.address ? `${entry.address.slice(0, 6)}…${entry.address.slice(-4)}` : "Cardano"),
     symbol: "ADA",
     balance: String(Number(entry.balance ?? 0)),
     address: entry.address,
     network: "Cardano",
   })),
-];
+  ]};
+
 
 const formatAddress = (address?: string) => {
   if (!address) return "—";
@@ -334,21 +345,21 @@ export default function PortfolioPage() {
       const patch: WalletSnapshot = {};
       const refreshEntries = async (
         entries: StoredWalletEntry[] | undefined,
-        fetcher: (addr: string) => Promise<string>
+        fetcher: (addr: string, entry: StoredWalletEntry) => Promise<string>
       ): Promise<StoredWalletEntry[] | undefined> => {
         if (!entries?.length) return undefined;
         return Promise.all(
           entries.map(async (e) => {
             if (!e.address) return e;
-            try { return { ...e, balance: await fetcher(e.address) }; }
+            try { return { ...e, balance: await fetcher(e.address, e) }; }
             catch { return e; }
           })
         );
       };
 
       const [eth, sol, btc, ada] = await Promise.allSettled([
-        refreshEntries(snapshot.eth, (a) => getEvmBalance(a as `0x${string}`, "Ethereum")),
-        refreshEntries(snapshot.sol, getSolBalance),
+        refreshEntries(snapshot.eth, (a, e) => getEvmBalance(a as `0x${string}`, (e.network ?? "Ethereum") as Parameters<typeof getEvmBalance>[1])),
+        refreshEntries(snapshot.sol, (a) => getSolBalance(a)),
         refreshEntries(snapshot.btc, (a) => getBtcBalanceFromAddress(a).then(String)),
         refreshEntries(snapshot.ada, (a) => getAdaBalanceByAddress(a).then(String)),
       ]);
