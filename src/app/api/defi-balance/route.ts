@@ -551,18 +551,19 @@ const UNI_V4_NPM: Record<string, string> = {
 };
 
 const EVM_RPC: Record<string, string> = {
-  eth:      "https://cloudflare-eth.com",
+  eth:      "https://ethereum.publicnode.com",
+  arbitrum: "https://arbitrum-one.publicnode.com",
+  base:     "https://base.publicnode.com",
+  optimism: "https://optimism.publicnode.com",
+  polygon:  "https://polygon-bor.publicnode.com",
+  bsc:      "https://bsc.publicnode.com",
+};
+const EVM_RPC_FALLBACK: Record<string, string> = {
+  eth:      "https://eth.drpc.org",
   arbitrum: "https://arb1.arbitrum.io/rpc",
   base:     "https://mainnet.base.org",
   optimism: "https://mainnet.optimism.io",
   polygon:  "https://polygon-rpc.com",
-  bsc:      "https://bsc-dataseed1.binance.org",
-};
-const EVM_RPC_FALLBACK: Record<string, string> = {
-  eth:      "https://rpc.ankr.com/eth",
-  arbitrum: "https://rpc.ankr.com/arbitrum",
-  base:     "https://rpc.ankr.com/base",
-  optimism: "https://rpc.ankr.com/optimism",
 };
 
 const CHAINLINK_ETH_USD: Record<string, string> = {
@@ -1131,7 +1132,7 @@ export async function GET(request: Request) {
 
   // Moralis: DeFi em chains EVM (reduzido para evitar limite de créditos)
   if (moralisKey && chain === "eth" && isEvmAddress(address)) {
-    const evmChains = ["eth", "polygon", "arbitrum"] as const;
+    const evmChains = ["eth", "polygon", "arbitrum", "base", "optimism"] as const;
     const results = await Promise.allSettled(
       evmChains.map((c) =>
         fetch(`${MORALIS_DEFI}/${address}/defi/summary?chain=${c}`, {
