@@ -82,8 +82,59 @@ function resolveProtocolName(p: MoralisProtocol): string {
 
 const SHYFT_GRAPHQL = "https://programs.shyft.to/v0/graphql/accounts";
 const METEORA_API = "https://dlmm-api.meteora.ag";
+// New Meteora data API (replaces the deprecated dlmm-api.meteora.ag wallet endpoints)
+const METEORA_DATA_API = "https://dlmm.datapi.meteora.ag";
 // Meteora DLMM program IDs (v1 and v2)
 const METEORA_DLMM_PROGRAM = "LBUZKhRxPF3XUpBCjp4YzTKgLLjnZE1UKixNR7L2PFC";
+
+/**
+ * Primary Meteora detector — uses the official data API, which returns each
+ * open position's live USD value directly. No API key needed.
+ * Endpoint: GET /wallets/{wallet}/open_positions
+ */
+async function fetchMeteoraViaDataApi(
+  wallet: string
+): Promise<{ total: number; positions: { name: string; usd: number }[] }> {
+  try {
+    const res = await fetch(
+      `${METEORA_DATA_API}/wallets/${encodeURIComponent(wallet)}/open_positions`,
+      {
+        headers: { Accept: "application/json", "User-Agent": "Mozilla/5.0" },
+        cache: "no-store",
+        signal: AbortSignal.timeout(12_000),
+      }
+    );
+    if (!res.ok) return { total: 0, positions: [] };
+    const data = (await res.json()) as {
+      data?: Array<{
+        name?: string;
+        positions?: Array<{
+          current_position?: {
+            current_deposits?: { amount_usd?: number };
+            unclaimed_fees?: { amount_usd?: number };
+          };
+        }>;
+      }>;
+    };
+    let total = 0;
+    const positions: { name: string; usd: number }[] = [];
+    for (const pool of data.data ?? []) {
+      let poolUsd = 0;
+      for (const pos of pool.positions ?? []) {
+        const dep = Number(pos.current_position?.current_deposits?.amount_usd ?? 0) || 0;
+        const fees = Number(pos.current_position?.unclaimed_fees?.amount_usd ?? 0) || 0;
+        poolUsd += dep + fees;
+      }
+      if (poolUsd > 0) {
+        total += poolUsd;
+        positions.push({ name: `Meteora ${pool.name ?? "DLMM"}`, usd: poolUsd });
+      }
+    }
+    return { total, positions };
+  } catch {
+    return { total: 0, positions: [] };
+  }
+}
 
 // Try the direct Meteora wallet endpoint first — much more reliable than getProgramAccounts
 async function fetchMeteoraPositionsViaWalletEndpoint(
@@ -1327,28 +1378,36 @@ export async function GET(request: Request) {
 
   const shyftKey = process.env.SHYFT_API_KEY;
 
-  // Solana: tenta SHYFT/Meteora se disponível, senão usa token accounts públicos
+  // Solana DeFi detection.
   if (chain === "sol" && isSolAddress(address)) {
-    if (shyftKey) {
-      try {
-        const meteoraResult = await fetchMeteoraPositionsViaShyft(address.trim(), shyftKey);
-        if (meteoraResult.total > 0) {
-          return NextResponse.json({ total: meteoraResult.total, positions: meteoraResult.positions });
-        }
-      } catch { /* fallthrough to token-based detection */ }
-    }
-    // Fallback 1: Meteora DLMM positions via public RPC getProgramAccounts
-    // Fallback 2: known protocol token holdings (mSOL, stSOL, JLP, etc.)
-    // Fallback 3: native SOL staking accounts
     try {
-      const [meteoraResult, tokenResult, stakeResult] = await Promise.allSettled([
-        fetchMeteoraPositionsViaRPC(address.trim()),
+      // Primary Meteora detector: official data API (live USD value, no key).
+      // Token holdings (mSOL/JLP…) + native staking run in parallel.
+      const [meteoraApiR, tokenR, stakeR] = await Promise.allSettled([
+        fetchMeteoraViaDataApi(address.trim()),
         fetchSolanaDefiFromTokenAccounts(address.trim()),
         fetchSolanaStakeAccounts(address.trim()),
       ]);
-      const meteora = meteoraResult.status === "fulfilled" ? meteoraResult.value : { total: 0, positions: [] };
-      const tokenData = tokenResult.status === "fulfilled" ? tokenResult.value : { total: 0, positions: [] };
-      const stakeData = stakeResult.status === "fulfilled" ? stakeResult.value : { total: 0, positions: [] };
+      let meteora = meteoraApiR.status === "fulfilled" ? meteoraApiR.value : { total: 0, positions: [] };
+      const tokenData = tokenR.status === "fulfilled" ? tokenR.value : { total: 0, positions: [] };
+      const stakeData = stakeR.status === "fulfilled" ? stakeR.value : { total: 0, positions: [] };
+
+      // Fallbacks for Meteora only if the data API returned nothing.
+      if (meteora.total === 0) {
+        if (shyftKey) {
+          try {
+            const r = await fetchMeteoraPositionsViaShyft(address.trim(), shyftKey);
+            if (r.total > 0) meteora = r;
+          } catch { /* ignore */ }
+        }
+        if (meteora.total === 0) {
+          try {
+            const r = await fetchMeteoraPositionsViaRPC(address.trim());
+            if (r.total > 0) meteora = r;
+          } catch { /* ignore */ }
+        }
+      }
+
       const total = meteora.total + tokenData.total + stakeData.total;
       const positions = [...meteora.positions, ...tokenData.positions, ...stakeData.positions];
       return NextResponse.json({ total, positions });
