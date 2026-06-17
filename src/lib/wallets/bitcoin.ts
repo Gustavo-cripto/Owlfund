@@ -50,13 +50,19 @@ export const isBtcWalletAvailable = (providerId?: string): boolean => {
 /** Endereços devolvidos pela Xverse: payment (BTC) + ordinals (taproot, onde vivem Ordinals/Runes). */
 export type XverseAddresses = { payment: string; ordinals?: string };
 
-export const connectXverse = async (): Promise<XverseAddresses> => {
-  const response = await Wallet.request("getAccounts", {
-    // Pede ambos: pagamento (saldo BTC) e ordinals/taproot (Ordinals + Runes).
-    purposes: [AddressPurpose.Payment, AddressPurpose.Ordinals],
+const requestAccounts = async (purposes: AddressPurpose[]) =>
+  Wallet.request("getAccounts", {
+    purposes,
     message: "Permita o acesso para leitura do saldo, Ordinals e Runes.",
   });
 
+export const connectXverse = async (): Promise<XverseAddresses> => {
+  // Tenta pagamento + ordinals/taproot; se a carteira recusar o pedido duplo,
+  // recai para só pagamento (comportamento clássico) para nunca falhar a ligação.
+  let response = await requestAccounts([AddressPurpose.Payment, AddressPurpose.Ordinals]);
+  if (response.status === "error") {
+    response = await requestAccounts([AddressPurpose.Payment]);
+  }
   if (response.status === "error") {
     throw new Error(response.error?.message ?? "Falha ao conectar com Xverse.");
   }
