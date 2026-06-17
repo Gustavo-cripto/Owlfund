@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { encodeAbiParameters, keccak256 } from "viem";
 
 const MORALIS_DEFI = "https://deep-index.moralis.io/api/v2.2/wallets";
+const MORALIS_NFT = "https://deep-index.moralis.io/api/v2.2";
 
 type ChainId = "eth" | "sol" | "btc" | "ada";
 
@@ -840,6 +842,147 @@ async function fetchUniswapV4ViaLogs(
   return { total, positions };
 }
 
+// ── Uniswap V4 via PositionManager NFTs ─────────────────────────────────────
+// V4 positions are ERC-721s on the PositionManager (posm). It's NOT enumerable,
+// so we list the owner's tokenIds via Moralis (filtered to the posm contract),
+// then read each position directly on-chain. This replaces the eth_getLogs
+// approach which public RPCs reject (block-0 → latest range too large).
+const V4_SEL_GET_POSITION_LIQUIDITY = "0x1efeed33"; // getPositionLiquidity(uint256)
+const V4_SEL_GET_POOL_AND_POS_INFO  = "0x7ba03aad"; // getPoolAndPositionInfo(uint256)
+
+const CHAIN_TO_MORALIS: Record<string, string> = {
+  eth: "eth", arbitrum: "arbitrum", base: "base", optimism: "optimism", polygon: "polygon",
+};
+
+function decodeInt24FromWord(hex6: string): number {
+  const raw = parseInt(hex6, 16);
+  return raw >= 0x800000 ? raw - 0x1000000 : raw;
+}
+
+async function fetchUniV4PositionTokenIds(
+  address: string, posm: string, chain: string, moralisKey: string
+): Promise<string[]> {
+  const mChain = CHAIN_TO_MORALIS[chain];
+  if (!mChain) return [];
+  try {
+    const url = `${MORALIS_NFT}/${address}/nft?chain=${mChain}&format=decimal&token_addresses%5B%5D=${posm}&limit=50`;
+    const res = await fetch(url, {
+      headers: { Accept: "application/json", "X-API-Key": moralisKey },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { result?: Array<{ token_id?: string }> };
+    return (data.result ?? []).map((n) => n.token_id ?? "").filter(Boolean);
+  } catch { return []; }
+}
+
+async function fetchUniswapV4ViaPositionManager(
+  address: string, chain: string, ethPrice: number, moralisKey: string | undefined
+): Promise<{ total: number; positions: { name: string; usd: number }[] }> {
+  const posm = UNI_V4_NPM[chain];
+  const stateView = UNI_V4_STATE_VIEW[chain];
+  const rpc = EVM_RPC[chain];
+  if (!posm || !stateView || !rpc || !moralisKey) return { total: 0, positions: [] };
+
+  // 1. Does the wallet hold any V4 position NFTs?
+  const paddedOwner = address.toLowerCase().slice(2).padStart(64, "0");
+  const balHex = await ethCallRpc(rpc, posm, `0x70a08231${paddedOwner}`);
+  if (balHex === "0x" || BigInt(balHex) === BigInt(0)) return { total: 0, positions: [] };
+
+  // 2. Enumerate the owner's tokenIds on the posm contract.
+  const tokenIds = await fetchUniV4PositionTokenIds(address, posm, chain, moralisKey);
+  if (tokenIds.length === 0) return { total: 0, positions: [] };
+
+  const wethAddr = (WETH_ADDR[chain] ?? "").toLowerCase();
+  const wbtcAddr = (WBTC_ADDR[chain] ?? "").toLowerCase();
+  let btcPrice = 0;
+  const decimalsCache = new Map<string, number>();
+
+  const priceFor = (addr: string): number => {
+    const a = addr.toLowerCase();
+    if (a === "0x0000000000000000000000000000000000000000" || a === wethAddr) return ethPrice;
+    if (STABLECOINS.has(a)) return 1;
+    if (a === wbtcAddr) return btcPrice;
+    return 0;
+  };
+  const decimalsFor = async (addr: string): Promise<number> => {
+    const a = addr.toLowerCase();
+    if (a === "0x0000000000000000000000000000000000000000") return 18;
+    if (decimalsCache.has(a)) return decimalsCache.get(a)!;
+    const r = await ethCallRpc(rpc, a, "0x313ce567");
+    const d = r === "0x" ? 18 : Number(BigInt(r));
+    decimalsCache.set(a, d);
+    return d;
+  };
+
+  let total = 0;
+  const positions: { name: string; usd: number }[] = [];
+
+  for (const tid of tokenIds.slice(0, 20)) {
+    try {
+      const tidHex = BigInt(tid).toString(16).padStart(64, "0");
+      const [liqHex, infoHex] = await Promise.all([
+        ethCallRpc(rpc, posm, `${V4_SEL_GET_POSITION_LIQUIDITY}${tidHex}`),
+        ethCallRpc(rpc, posm, `${V4_SEL_GET_POOL_AND_POS_INFO}${tidHex}`),
+      ]);
+      if (liqHex === "0x" || infoHex === "0x") continue;
+      const liquidity = BigInt(liqHex);
+      if (liquidity === BigInt(0)) continue; // closed position
+
+      // getPoolAndPositionInfo returns (PoolKey, PositionInfo): 6 words.
+      const d = infoHex.slice(2);
+      const currency0 = ("0x" + d.slice(24, 64)).toLowerCase();
+      const currency1 = ("0x" + d.slice(64 + 24, 128)).toLowerCase();
+      const fee = Number(BigInt("0x" + d.slice(128, 192)));
+      const tickSpacing = decodeInt24FromWord(d.slice(192 + 58, 192 + 64));
+      const hooks = ("0x" + d.slice(256 + 24, 320)).toLowerCase();
+      // PositionInfo packed word (word index 5)
+      const infoWord = d.slice(320, 384);
+      const tickUpper = decodeInt24FromWord(infoWord.slice(50, 56));
+      const tickLower = decodeInt24FromWord(infoWord.slice(56, 62));
+
+      const price0 = priceFor(currency0);
+      const price1 = priceFor(currency1);
+      if (price0 === 0 && price1 === 0) continue; // can't value either side
+      if (price1 > 0 && btcPrice === 0 && currency1 === wbtcAddr) { /* set below */ }
+      if ((currency0 === wbtcAddr || currency1 === wbtcAddr) && btcPrice === 0) {
+        const f = CHAINLINK_BTC_USD[chain];
+        if (f) btcPrice = await chainlinkPrice(rpc, f).catch(() => 0);
+      }
+
+      // poolId = keccak256(abi.encode(PoolKey))
+      const poolId = keccak256(encodeAbiParameters(
+        [{ type: "tuple", components: [
+          { type: "address" }, { type: "address" }, { type: "uint24" }, { type: "int24" }, { type: "address" },
+        ] }],
+        [[currency0 as `0x${string}`, currency1 as `0x${string}`, fee, tickSpacing, hooks as `0x${string}`]]
+      ));
+      const slot0 = await ethCallRpc(rpc, stateView, `${V4_SEL_GET_SLOT0}${poolId.slice(2)}`);
+      if (slot0 === "0x") continue;
+      const sqrtHex = slot0.slice(2, 66);
+
+      const dec0 = await decimalsFor(currency0);
+      const dec1 = await decimalsFor(currency1);
+      const { amount0, amount1 } = calcUniV3Amounts(liquidity.toString(), "0x" + sqrtHex, tickLower, tickUpper, dec0, dec1);
+
+      const p0 = priceFor(currency0);
+      const p1 = priceFor(currency1);
+      let usd = amount0 * p0 + amount1 * p1;
+      // If only one side priced, approximate full value by doubling the priced side
+      if (p0 > 0 && p1 === 0) usd = amount0 * p0 * 2;
+      else if (p1 > 0 && p0 === 0) usd = amount1 * p1 * 2;
+      if (usd < 0.01) continue;
+
+      const sym0 = currency0 === "0x0000000000000000000000000000000000000000" ? "ETH" : (TOKEN_SYMBOLS[currency0] ?? currency0.slice(0, 6) + "…");
+      const sym1 = TOKEN_SYMBOLS[currency1] ?? currency1.slice(0, 6) + "…";
+      total += usd;
+      positions.push({ name: `Uniswap V4 ${sym0}/${sym1}`, usd });
+    } catch { continue; }
+  }
+
+  return { total, positions };
+}
+
 // ── Uniswap V2 LP positions via direct contract calls ──────────────────────
 const UNI_V2_FACTORY: Record<string, string> = {
   eth:      "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f",
@@ -1097,7 +1240,7 @@ export async function GET(request: Request) {
         return f && r ? chainlinkPrice(r, f) : 0;
       })().catch(() => 0);
       const [v4Data, v3Data, v2Data] = await Promise.allSettled([
-        fetchUniswapV4ViaLogs(address, evmChain, ethPriceLocal),
+        fetchUniswapV4ViaPositionManager(address, evmChain, ethPriceLocal, moralisKey),
         fetchUniswapV3ViaContracts(address, evmChain),
         fetchUniswapV2ViaContracts(address, evmChain, ethPriceLocal),
       ]);
@@ -1164,7 +1307,7 @@ export async function GET(request: Request) {
             return f && r ? chainlinkPrice(r, f) : 0;
           })().catch(() => 0);
           const [v4, v3, v2] = await Promise.allSettled([
-            fetchUniswapV4ViaLogs(address, uc, ethPriceLocal),
+            fetchUniswapV4ViaPositionManager(address, uc, ethPriceLocal, moralisKey),
             fetchUniswapV3ViaContracts(address, uc),
             fetchUniswapV2ViaContracts(address, uc, ethPriceLocal),
           ]);
