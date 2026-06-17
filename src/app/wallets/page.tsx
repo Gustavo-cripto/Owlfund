@@ -3804,7 +3804,9 @@ export default function WalletsPage() {
                       : err
                         ? null
                         : btcBalancesByAddress[addr] ?? item.balance ?? "—";
-                  const dk = addr ? defiKey(addr, item.network ?? "btc") : null;
+                  // NFT/Runes counts are stored under the "btc" chain key (see fetchNftBalance(addr, "btc")),
+                  // so look them up with "btc" — not item.network ("Bitcoin") — or they never match.
+                  const dk = addr ? defiKey(addr, "btc") : null;
                   const itemDefi = dk ? (defiTotals[dk] ?? null) : null;
                   const itemDefiLoading = dk ? !!defiLoading[dk] : false;
                   const itemNftCount = dk ? (nftCounts[dk] ?? null) : null;
