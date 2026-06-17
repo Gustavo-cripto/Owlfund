@@ -21,6 +21,8 @@ type WalletCardProps = {
   defiBalanceUsd?: number | null;
   defiLoading?: boolean;
   defiError?: string | null;
+  /** Esconde a linha "DeFi:" (ex.: BTC, que não tem DeFi de lending na L1). */
+  hideDefi?: boolean;
   usdToEur?: number;
   onRefreshDefi?: () => void;
   nftCount?: number | null;
@@ -62,6 +64,7 @@ export default function WalletCard({
   defiBalanceUsd,
   defiLoading,
   defiError,
+  hideDefi,
   usdToEur = 0.92,
   onRefreshDefi,
   nftCount,
@@ -138,7 +141,7 @@ export default function WalletCard({
             ? `€ ${(fiatValueUsd * usdToEur).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
             : "—"}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className={`flex flex-wrap items-center gap-2 ${hideDefi ? "hidden" : ""}`}>
           <span className="text-slate-500">DeFi:</span>{" "}
           {defiLoading
             ? <span className="animate-pulse">A carregar…</span>

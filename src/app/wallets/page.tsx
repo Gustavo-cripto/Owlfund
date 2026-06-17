@@ -3613,6 +3613,7 @@ export default function WalletsPage() {
             balance={btcWallets.length > 0 ? totalBtcBalance : (btcBalance !== null ? btcBalance.toFixed(8) : null)}
             balanceUnit="BTC"
             fiatValueUsd={getFiatValue("BTC", btcWallets.length > 0 ? totalBtcBalance : (btcBalance ?? undefined))}
+            hideDefi
             defiBalanceUsd={btcMainAddress ? defiTotals[defiKey(btcMainAddress, "btc")] ?? null : null}
             defiLoading={btcMainAddress ? !!defiLoading[defiKey(btcMainAddress, "btc")] : false}
             defiError={btcMainAddress ? defiErrors[defiKey(btcMainAddress, "btc")] ?? null : null}
@@ -3844,24 +3845,6 @@ export default function WalletsPage() {
                         </div>
                         {isBtcNative && (
                           <>
-                            <p className="flex flex-wrap items-center gap-1.5 text-slate-500">
-                              DeFi:{" "}
-                              {itemDefiLoading
-                                ? <span className="animate-pulse">A carregar…</span>
-                                : itemDefi != null
-                                  ? <span className={itemDefi >= 0.01 ? "text-emerald-400 font-semibold" : "text-slate-400"}>
-                                      € {(itemDefi * usdToEurRate).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </span>
-                                  : <span className="text-slate-600 text-[11px]">—</span>}
-                              {addr && (
-                                <button
-                                  type="button"
-                                  onClick={() => void fetchDefiTotal(addr, "btc")}
-                                  className="text-slate-600 hover:text-orange-400 transition text-[10px]"
-                                  title="Atualizar DeFi"
-                                >↻</button>
-                              )}
-                            </p>
                             <p className="text-slate-500">
                               NFT (Ordinals):{" "}
                               {itemNftLoading
