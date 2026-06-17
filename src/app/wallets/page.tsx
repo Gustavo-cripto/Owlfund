@@ -1778,15 +1778,26 @@ export default function WalletsPage() {
     try {
       setBtcLoading(true);
       setBtcError(null);
-      const address = await connectXverse();
+      const { payment: address, ordinals } = await connectXverse();
       const providerLabel = btcWalletOptions.find((o) => o.id === selectedBtcProvider)?.label ?? selectedBtcProvider;
       const walletBalance = await getBtcBalanceFromWallet();
       const balance = walletBalance !== null ? walletBalance : await getBtcBalanceFromAddress(address);
-      const nextWallets = upsertWallet(
+      let nextWallets = upsertWallet(
         btcWallets,
         { address, balance: balance.toFixed(8), network: "Bitcoin", label: providerLabel },
         (item) => item.address === address
       );
+      // Capture the taproot/ordinals address too — that's where Ordinals & Runes live.
+      if (ordinals && ordinals !== address) {
+        const ordBalance = await getBtcBalanceFromAddress(ordinals).catch(() => 0);
+        nextWallets = upsertWallet(
+          nextWallets,
+          { address: ordinals, balance: ordBalance.toFixed(8), network: "Bitcoin", label: `${providerLabel} (Ordinals)` },
+          (item) => item.address === ordinals
+        );
+        void fetchRunesForAddress(ordinals);
+        void fetchNftForEntry(ordinals, "Bitcoin");
+      }
       setBtcWallets(nextWallets);
       if (!btcAddress) {
         setBtcAddress(address);

@@ -47,22 +47,29 @@ export const isBtcWalletAvailable = (providerId?: string): boolean => {
   return list.some((w) => w.isInstalled) || isExodusInjected();
 };
 
-export const connectXverse = async () => {
+/** Endereços devolvidos pela Xverse: payment (BTC) + ordinals (taproot, onde vivem Ordinals/Runes). */
+export type XverseAddresses = { payment: string; ordinals?: string };
+
+export const connectXverse = async (): Promise<XverseAddresses> => {
   const response = await Wallet.request("getAccounts", {
-    purposes: [AddressPurpose.Payment],
-    message: "Permita o acesso para leitura do saldo.",
+    // Pede ambos: pagamento (saldo BTC) e ordinals/taproot (Ordinals + Runes).
+    purposes: [AddressPurpose.Payment, AddressPurpose.Ordinals],
+    message: "Permita o acesso para leitura do saldo, Ordinals e Runes.",
   });
 
   if (response.status === "error") {
     throw new Error(response.error?.message ?? "Falha ao conectar com Xverse.");
   }
 
-  const account = response.result?.[0];
-  if (!account?.address) {
+  const accounts = response.result ?? [];
+  const payment = accounts.find((a) => a.purpose === AddressPurpose.Payment)?.address
+    ?? accounts[0]?.address;
+  const ordinals = accounts.find((a) => a.purpose === AddressPurpose.Ordinals)?.address;
+  if (!payment) {
     throw new Error("Nenhum endereço retornado pela Xverse.");
   }
 
-  return account.address;
+  return { payment, ordinals };
 };
 
 export const getBtcBalanceFromWallet = async () => {
@@ -118,29 +125,20 @@ export const getBtcBalanceFromAddress = async (address: string): Promise<number>
   throw lastErr ?? new Error("Falha ao consultar saldo BTC.");
 };
 
-/** Saldo Runes (ex.: DOG) por endereço Bitcoin. Usa API Hiro; em falha devolve []. */
+/** Saldo Runes por endereço Bitcoin. Proxy server-side via UniSat (a chave fica no servidor). */
 export type RunesBalanceEntry = { symbol: string; displayName: string; amount: string };
 
 export const getRunesBalancesForAddress = async (
   address: string
 ): Promise<RunesBalanceEntry[]> => {
   try {
-    const res = await fetch(
-      `https://api.hiro.so/runes/v1/addresses/${encodeURIComponent(address)}/balances`,
-      { headers: { Accept: "application/json" } }
-    );
+    const base = typeof window !== "undefined" ? window.location.origin : "";
+    const res = await fetch(`${base}/api/runes-balance?address=${encodeURIComponent(address)}`, {
+      signal: AbortSignal.timeout(15000),
+    });
     if (!res.ok) return [];
-    const data = (await res.json()) as {
-      results?: Array<{ rune?: { id?: string; name?: string; spaced_name?: string }; balance?: string }>;
-    };
-    const list = data?.results ?? [];
-    return list
-      .filter((b) => b.rune != null && b.balance != null)
-      .map((b) => ({
-        symbol: String(b.rune?.name ?? "?"),
-        displayName: String(b.rune?.spaced_name ?? b.rune?.name ?? "?"),
-        amount: String(b.balance!),
-      }));
+    const data = (await res.json()) as { runes?: RunesBalanceEntry[] };
+    return Array.isArray(data.runes) ? data.runes : [];
   } catch {
     return [];
   }
