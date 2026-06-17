@@ -305,9 +305,16 @@ export async function GET(request: Request) {
       for (const utxo of utxos) {
         for (const insc of utxo.inscriptions ?? []) {
           const id = insc.inscriptionId ?? `btc-${i}`;
+          // Render the inscription content for visual types via the Magic Eden CDN mirror.
+          const ct = insc.contentType ?? "";
+          const isVisual = ct.startsWith("image") || ct.startsWith("text/html") || ct.startsWith("model") || ct.startsWith("video");
+          const image = insc.inscriptionId && isVisual
+            ? `https://ord-mirror.magiceden.dev/content/${insc.inscriptionId}`
+            : undefined;
           nfts.push({
             id,
             name: `Ordinal #${i + 1}`,
+            image,
             tokenAddress: insc.inscriptionId,
             tokenId: insc.inscriptionId,
           });
