@@ -90,14 +90,16 @@ const METEORA_DLMM_PROGRAM = "LBUZKhRxPF3XUpBCjp4YzTKgLLjnZE1UKixNR7L2PFC";
 /**
  * Primary Meteora detector — uses the official data API, which returns each
  * open position's live USD value directly. No API key needed.
- * Endpoint: GET /wallets/{wallet}/open_positions
+ * Endpoint: GET /portfolio/open?user={wallet}
+ * Response: { total: { balances, unclaimedFees }, pools: [{ tokenX, tokenY, balances, unclaimedFees }] }
+ * where balances / unclaimedFees are USD value strings.
  */
 async function fetchMeteoraViaDataApi(
   wallet: string
 ): Promise<{ total: number; positions: { name: string; usd: number }[] }> {
   try {
     const res = await fetch(
-      `${METEORA_DATA_API}/wallets/${encodeURIComponent(wallet)}/open_positions`,
+      `${METEORA_DATA_API}/portfolio/open?user=${encodeURIComponent(wallet)}`,
       {
         headers: { Accept: "application/json", "User-Agent": "Mozilla/5.0" },
         cache: "no-store",
@@ -106,29 +108,25 @@ async function fetchMeteoraViaDataApi(
     );
     if (!res.ok) return { total: 0, positions: [] };
     const data = (await res.json()) as {
-      data?: Array<{
-        name?: string;
-        positions?: Array<{
-          current_position?: {
-            current_deposits?: { amount_usd?: number };
-            unclaimed_fees?: { amount_usd?: number };
-          };
-        }>;
-      }>;
+      total?: { balances?: string; unclaimedFees?: string };
+      pools?: Array<{ tokenX?: string; tokenY?: string; balances?: string; unclaimedFees?: string }>;
     };
     let total = 0;
     const positions: { name: string; usd: number }[] = [];
-    for (const pool of data.data ?? []) {
-      let poolUsd = 0;
-      for (const pos of pool.positions ?? []) {
-        const dep = Number(pos.current_position?.current_deposits?.amount_usd ?? 0) || 0;
-        const fees = Number(pos.current_position?.unclaimed_fees?.amount_usd ?? 0) || 0;
-        poolUsd += dep + fees;
+    for (const pool of data.pools ?? []) {
+      const bal = Number(pool.balances ?? 0) || 0;
+      const fees = Number(pool.unclaimedFees ?? 0) || 0;
+      const usd = bal + fees;
+      if (usd > 0) {
+        total += usd;
+        const pair = [pool.tokenX, pool.tokenY].filter(Boolean).join("/") || "DLMM";
+        positions.push({ name: `Meteora ${pair}`, usd });
       }
-      if (poolUsd > 0) {
-        total += poolUsd;
-        positions.push({ name: `Meteora ${pool.name ?? "DLMM"}`, usd: poolUsd });
-      }
+    }
+    // Fallback to the aggregate total if per-pool rows are absent.
+    if (total === 0 && data.total) {
+      const t = (Number(data.total.balances ?? 0) || 0) + (Number(data.total.unclaimedFees ?? 0) || 0);
+      if (t > 0) { total = t; positions.push({ name: "Meteora DLMM", usd: t }); }
     }
     return { total, positions };
   } catch {
