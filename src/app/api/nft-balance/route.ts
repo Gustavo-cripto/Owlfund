@@ -296,7 +296,7 @@ export async function GET(request: Request) {
         return NextResponse.json({ count: 0, nfts: [] });
       }
       const data = (await res.json()) as {
-        data?: { total?: number; utxo?: Array<{ inscriptions?: Array<{ inscriptionId?: string; contentType?: string }> }> };
+        data?: { total?: number; utxo?: Array<{ inscriptions?: Array<{ inscriptionId?: string; contentType?: string; inscriptionNumber?: number }> }> };
       };
       const utxos = data.data?.utxo ?? [];
       const total = data.data?.total ?? 0;
@@ -305,15 +305,15 @@ export async function GET(request: Request) {
       for (const utxo of utxos) {
         for (const insc of utxo.inscriptions ?? []) {
           const id = insc.inscriptionId ?? `btc-${i}`;
-          // Render the inscription content for visual types via the Magic Eden CDN mirror.
-          const ct = insc.contentType ?? "";
-          const isVisual = ct.startsWith("image") || ct.startsWith("text/html") || ct.startsWith("model") || ct.startsWith("video");
-          const image = insc.inscriptionId && isVisual
+          // inscription-utxo-data returns an empty contentType, so render every
+          // inscription's content via the Magic Eden CDN mirror. Image/SVG/HTML
+          // inscriptions display; pure-text ones fail gracefully to a placeholder.
+          const image = insc.inscriptionId
             ? `https://ord-mirror.magiceden.dev/content/${insc.inscriptionId}`
             : undefined;
           nfts.push({
             id,
-            name: `Ordinal #${i + 1}`,
+            name: insc.inscriptionNumber != null ? `#${insc.inscriptionNumber}` : `Ordinal #${i + 1}`,
             image,
             tokenAddress: insc.inscriptionId,
             tokenId: insc.inscriptionId,
