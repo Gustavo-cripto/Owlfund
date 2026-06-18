@@ -305,11 +305,11 @@ export async function GET(request: Request) {
       for (const utxo of utxos) {
         for (const insc of utxo.inscriptions ?? []) {
           const id = insc.inscriptionId ?? `btc-${i}`;
-          // inscription-utxo-data returns an empty contentType, so render every
-          // inscription's content via the Magic Eden CDN mirror. Image/SVG/HTML
-          // inscriptions display; pure-text ones fail gracefully to a placeholder.
+          // Route content through our proxy (races CDNs + edge-caches), so the
+          // browser doesn't hit a rate-limited CDN 37× at once. Image/SVG render;
+          // pure-text/JSON ones fail gracefully to a placeholder.
           const image = insc.inscriptionId
-            ? `https://ord-mirror.magiceden.dev/content/${insc.inscriptionId}`
+            ? `/api/ord-content?id=${encodeURIComponent(insc.inscriptionId)}`
             : undefined;
           nfts.push({
             id,
