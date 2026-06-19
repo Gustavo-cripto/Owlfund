@@ -1247,6 +1247,102 @@ async function fetchUniswapV3ViaContracts(
   return { total, positions };
 }
 
+// ─── Cardano DeFi (Minswap V1/V2, SundaeSwap, WingRiders via LP tokens) ───────
+
+const CARDANO_LP_POLICIES: Record<string, string> = {
+  "0be55d262b29f564998ff81efe21bdc0022621c12f15af08d0f2ddb1": "Minswap V1",
+  e4214b7cce62ac6fbba385d164df48e157eae5863521b4b67ca71d8: "Minswap V2",
+  "0029cb7c88c7567b63d1a512c0ed626aa169688ec980730c0473b913": "SundaeSwap",
+  "026a18d04a0c642759bb3d83b12e3344894e5c1c7b2aeb1a2113a570": "WingRiders",
+};
+
+type MinswapPair = {
+  base_id: string;
+  quote_id: string;
+  pool_id?: string;
+  liquidity_in_usd?: string | number;
+  base_name?: string;
+  quote_name?: string;
+};
+
+async function fetchCardanoDeFi(address: string): Promise<{ total: number; positions: { name: string; usd: number }[] }> {
+  const projectId = process.env.BLOCKFROST_PROJECT_ID;
+  if (!projectId) return { total: 0, positions: [] };
+
+  // 1. Get all native assets held at address
+  const res = await fetch(
+    `https://cardano-mainnet.blockfrost.io/api/v0/addresses/${encodeURIComponent(address)}/extended`,
+    { headers: { project_id: projectId }, next: { revalidate: 120 } }
+  ).catch(() => null);
+  if (!res?.ok) return { total: 0, positions: [] };
+
+  const data = (await res.json()) as { amount?: Array<{ unit: string; quantity: string }> };
+  const lpTokens = (data.amount ?? []).filter((a) => {
+    if (a.unit === "lovelace") return false;
+    const policy = a.unit.slice(0, 56);
+    return policy in CARDANO_LP_POLICIES;
+  });
+  if (lpTokens.length === 0) return { total: 0, positions: [] };
+
+  // 2. Fetch Minswap pairs for valuation (public, no key needed)
+  let minswapPairs: MinswapPair[] = [];
+  try {
+    const mpRes = await fetch("https://api-mainnet.minswap.org/coinmarketcap/v2/pairs", {
+      next: { revalidate: 300 },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (mpRes.ok) {
+      const mpData = (await mpRes.json()) as Record<string, MinswapPair>;
+      minswapPairs = Object.values(mpData);
+    }
+  } catch { /* pairs unavailable — positions show 0 value */ }
+
+  const positions: { name: string; usd: number }[] = [];
+  let total = 0;
+
+  for (const lp of lpTokens) {
+    const policy = lp.unit.slice(0, 56);
+    const protocol = CARDANO_LP_POLICIES[policy] ?? "Unknown";
+    const userAmount = Number(lp.quantity);
+
+    // Try to get total LP supply and pool liquidity for valuation
+    let usd = 0;
+    if (protocol.startsWith("Minswap") && minswapPairs.length > 0) {
+      try {
+        // Get total LP supply for this token from Blockfrost
+        const assetRes = await fetch(
+          `https://cardano-mainnet.blockfrost.io/api/v0/assets/${encodeURIComponent(lp.unit)}`,
+          { headers: { project_id: projectId }, next: { revalidate: 300 } }
+        );
+        if (assetRes.ok) {
+          const assetData = (await assetRes.json()) as { quantity?: string };
+          const totalSupply = Number(assetData.quantity ?? "0");
+          // Match pool by LP unit prefix in Minswap pairs pool_id
+          const lpHex = lp.unit.slice(56);
+          const matchedPair = minswapPairs.find((p) =>
+            p.pool_id && lp.unit.toLowerCase().includes(p.pool_id.toLowerCase().slice(0, 8))
+          ) ?? (lpHex ? minswapPairs.find((p) =>
+            p.base_name && p.quote_name &&
+            lp.unit.toLowerCase().includes(lpHex.slice(0, 8))
+          ) : undefined);
+
+          if (matchedPair && matchedPair.liquidity_in_usd && totalSupply > 0) {
+            const poolLiqUsd = Number(matchedPair.liquidity_in_usd);
+            const share = userAmount / totalSupply;
+            usd = share * poolLiqUsd;
+          }
+        }
+      } catch { /* skip valuation for this token */ }
+    }
+
+    const label = `${protocol} LP`;
+    positions.push({ name: label, usd });
+    total += usd;
+  }
+
+  return { total, positions };
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const address = searchParams.get("address");
@@ -1315,9 +1411,15 @@ export async function GET(request: Request) {
     );
   }
 
-  // Moralis não suporta Bitcoin nem Cardano
-  if (chain === "btc" || chain === "ada") {
+  // Bitcoin: sem DeFi L1
+  if (chain === "btc") {
     return NextResponse.json({ total: 0, positions: [] });
+  }
+
+  // Cardano: LP token detection via Blockfrost + Minswap API
+  if (chain === "ada") {
+    const result = await fetchCardanoDeFi(address.trim());
+    return NextResponse.json(result);
   }
 
   const moralisKey = process.env.MORALIS_API_KEY;

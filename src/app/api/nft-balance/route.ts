@@ -243,14 +243,17 @@ export async function GET(request: Request) {
           if (!ar.ok) continue;
           const asset = (await ar.json()) as {
             asset_name?: string;
-            onchain_metadata?: { name?: string; image?: string };
+            onchain_metadata?: { name?: string | string[]; image?: string | string[] };
           };
+          const rawName = asset.onchain_metadata?.name;
           const name =
-            asset.onchain_metadata?.name ??
+            (Array.isArray(rawName) ? rawName.join("") : rawName) ??
             (asset.asset_name ? (Buffer.from(asset.asset_name, "hex").toString("utf8") || undefined) : undefined) ??
             "NFT";
           let image: string | undefined;
-          const img = asset.onchain_metadata?.image;
+          const imgRaw = asset.onchain_metadata?.image;
+          // CIP-25: image can be a string or an array of strings (concatenated)
+          const img = Array.isArray(imgRaw) ? imgRaw.join("") : imgRaw;
           if (typeof img === "string") {
             if (img.startsWith("ipfs://") || img.includes("/ipfs/")) image = toImageUrl(img);
             else if (img.startsWith("http")) image = img;
