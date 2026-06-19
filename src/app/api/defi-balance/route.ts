@@ -1247,8 +1247,13 @@ async function fetchUniswapV3ViaContracts(
   return { total, positions };
 }
 
-// ─── Cardano DeFi (Minswap V1/V2, SundaeSwap, WingRiders via LP tokens) ───────
+// ─── Cardano DeFi ─────────────────────────────────────────────────────────────
+// Primary: TapTools (returns LP positions already priced in ADA + exchange name).
+// Fallback: Blockfrost LP-token detection (lists positions when no TapTools key).
 
+const TAPTOOLS_BASE = "https://openapi.taptools.io/api/v1";
+
+// Known LP-token policy IDs, used only for the Blockfrost fallback path.
 const CARDANO_LP_POLICIES: Record<string, string> = {
   "0be55d262b29f564998ff81efe21bdc0022621c12f15af08d0f2ddb1": "Minswap V1",
   e4214b7cce62ac6fbba385d164df48e157eae5863521b4b67ca71d8: "Minswap V2",
@@ -1256,20 +1261,87 @@ const CARDANO_LP_POLICIES: Record<string, string> = {
   "026a18d04a0c642759bb3d83b12e3344894e5c1c7b2aeb1a2113a570": "WingRiders",
 };
 
-type MinswapPair = {
-  base_id: string;
-  quote_id: string;
-  pool_id?: string;
-  liquidity_in_usd?: string | number;
-  base_name?: string;
-  quote_name?: string;
+type TapToolsLpPosition = {
+  ticker?: string;
+  unit?: string;
+  amountLP?: number;
+  tokenA?: string;
+  tokenAName?: string;
+  tokenAAmount?: number;
+  tokenB?: string;
+  tokenBName?: string;
+  tokenBAmount?: number;
+  adaValue?: number;
+  exchange?: string;
 };
 
-async function fetchCardanoDeFi(address: string): Promise<{ total: number; positions: { name: string; usd: number }[] }> {
+type TapToolsPositions = {
+  adaValue?: number;
+  liquidValue?: number;
+  positionsLp?: TapToolsLpPosition[];
+};
+
+/** ADA→USD spot, used to convert TapTools' ADA-denominated values to USD. */
+async function fetchAdaUsd(): Promise<number> {
+  try {
+    const r = await fetch(
+      "https://api.coingecko.com/api/v3/simple/price?ids=cardano&vs_currencies=usd",
+      { next: { revalidate: 120 }, signal: AbortSignal.timeout(8000) }
+    );
+    if (!r.ok) return 0;
+    const j = (await r.json()) as { cardano?: { usd?: number } };
+    return j.cardano?.usd ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** Primary valuation path: TapTools wallet positions (LP already priced). */
+async function fetchCardanoDeFiViaTapTools(
+  address: string
+): Promise<{ total: number; positions: { name: string; usd: number }[] } | null> {
+  const key = process.env.TAPTOOLS_API_KEY;
+  if (!key) return null;
+
+  let res: Response | null = null;
+  try {
+    res = await fetch(
+      `${TAPTOOLS_BASE}/wallet/portfolio/positions?address=${encodeURIComponent(address)}`,
+      { headers: { "x-api-key": key }, next: { revalidate: 120 }, signal: AbortSignal.timeout(12000) }
+    );
+  } catch {
+    return null;
+  }
+  if (!res.ok) return null;
+
+  const data = (await res.json()) as TapToolsPositions;
+  const lps = data.positionsLp ?? [];
+  if (lps.length === 0) return { total: 0, positions: [] };
+
+  const adaUsd = await fetchAdaUsd();
+  if (adaUsd <= 0) return null; // can't price without ADA spot → let caller fall back
+
+  const positions: { name: string; usd: number }[] = [];
+  let total = 0;
+  for (const lp of lps) {
+    const adaVal = Number(lp.adaValue ?? 0);
+    if (!(adaVal > 0)) continue;
+    const usd = adaVal * adaUsd;
+    const exchange = lp.exchange ?? "Cardano DEX";
+    const ticker = lp.ticker ?? (lp.tokenAName && lp.tokenBName ? `${lp.tokenAName}/${lp.tokenBName}` : "LP");
+    positions.push({ name: `${exchange} ${ticker}`, usd });
+    total += usd;
+  }
+  return { total, positions };
+}
+
+/** Fallback: detect LP tokens via Blockfrost so positions at least show up. */
+async function fetchCardanoDeFiViaBlockfrost(
+  address: string
+): Promise<{ total: number; positions: { name: string; usd: number }[] }> {
   const projectId = process.env.BLOCKFROST_PROJECT_ID;
   if (!projectId) return { total: 0, positions: [] };
 
-  // 1. Get all native assets held at address
   const res = await fetch(
     `https://cardano-mainnet.blockfrost.io/api/v0/addresses/${encodeURIComponent(address)}/extended`,
     { headers: { project_id: projectId }, next: { revalidate: 120 } }
@@ -1279,68 +1351,24 @@ async function fetchCardanoDeFi(address: string): Promise<{ total: number; posit
   const data = (await res.json()) as { amount?: Array<{ unit: string; quantity: string }> };
   const lpTokens = (data.amount ?? []).filter((a) => {
     if (a.unit === "lovelace") return false;
-    const policy = a.unit.slice(0, 56);
-    return policy in CARDANO_LP_POLICIES;
+    return a.unit.slice(0, 56) in CARDANO_LP_POLICIES;
   });
-  if (lpTokens.length === 0) return { total: 0, positions: [] };
 
-  // 2. Fetch Minswap pairs for valuation (public, no key needed)
-  let minswapPairs: MinswapPair[] = [];
-  try {
-    const mpRes = await fetch("https://api-mainnet.minswap.org/coinmarketcap/v2/pairs", {
-      next: { revalidate: 300 },
-      signal: AbortSignal.timeout(8000),
-    });
-    if (mpRes.ok) {
-      const mpData = (await mpRes.json()) as Record<string, MinswapPair>;
-      minswapPairs = Object.values(mpData);
-    }
-  } catch { /* pairs unavailable — positions show 0 value */ }
+  // Detected but unpriced (no TapTools key). Show the protocol so the user
+  // knows a position exists; value stays 0 until a pricing source is set up.
+  const positions = lpTokens.map((lp) => ({
+    name: `${CARDANO_LP_POLICIES[lp.unit.slice(0, 56)]} LP`,
+    usd: 0,
+  }));
+  return { total: 0, positions };
+}
 
-  const positions: { name: string; usd: number }[] = [];
-  let total = 0;
-
-  for (const lp of lpTokens) {
-    const policy = lp.unit.slice(0, 56);
-    const protocol = CARDANO_LP_POLICIES[policy] ?? "Unknown";
-    const userAmount = Number(lp.quantity);
-
-    // Try to get total LP supply and pool liquidity for valuation
-    let usd = 0;
-    if (protocol.startsWith("Minswap") && minswapPairs.length > 0) {
-      try {
-        // Get total LP supply for this token from Blockfrost
-        const assetRes = await fetch(
-          `https://cardano-mainnet.blockfrost.io/api/v0/assets/${encodeURIComponent(lp.unit)}`,
-          { headers: { project_id: projectId }, next: { revalidate: 300 } }
-        );
-        if (assetRes.ok) {
-          const assetData = (await assetRes.json()) as { quantity?: string };
-          const totalSupply = Number(assetData.quantity ?? "0");
-          // Match pool by LP unit prefix in Minswap pairs pool_id
-          const lpHex = lp.unit.slice(56);
-          const matchedPair = minswapPairs.find((p) =>
-            p.pool_id && lp.unit.toLowerCase().includes(p.pool_id.toLowerCase().slice(0, 8))
-          ) ?? (lpHex ? minswapPairs.find((p) =>
-            p.base_name && p.quote_name &&
-            lp.unit.toLowerCase().includes(lpHex.slice(0, 8))
-          ) : undefined);
-
-          if (matchedPair && matchedPair.liquidity_in_usd && totalSupply > 0) {
-            const poolLiqUsd = Number(matchedPair.liquidity_in_usd);
-            const share = userAmount / totalSupply;
-            usd = share * poolLiqUsd;
-          }
-        }
-      } catch { /* skip valuation for this token */ }
-    }
-
-    const label = `${protocol} LP`;
-    positions.push({ name: label, usd });
-    total += usd;
-  }
-
-  return { total, positions };
+async function fetchCardanoDeFi(
+  address: string
+): Promise<{ total: number; positions: { name: string; usd: number }[] }> {
+  const viaTapTools = await fetchCardanoDeFiViaTapTools(address);
+  if (viaTapTools) return viaTapTools;
+  return fetchCardanoDeFiViaBlockfrost(address);
 }
 
 export async function GET(request: Request) {
