@@ -3105,7 +3105,7 @@ export default function WalletsPage() {
                         </p>
                         <div className="flex items-center gap-2">
                           <p className="text-slate-500">
-                            {ethShown[item.address ?? ""] ? item.address : formatAddress(item.address)}
+                            {ethShown[item.address ?? ""] ? item.address : <span className="tracking-widest text-slate-600 select-none">••••••••</span>}
                           </p>
                           <button
                             type="button"
@@ -3493,7 +3493,7 @@ export default function WalletsPage() {
                           </p>
                           <div className="flex items-center gap-2">
                             <p className="text-slate-500">
-                              {solShown[addr] ? item.address : formatAddress(item.address)}
+                              {solShown[addr] ? item.address : <span className="tracking-widest text-slate-600 select-none">••••••••</span>}
                             </p>
                             <button
                               type="button"
@@ -3834,7 +3834,7 @@ export default function WalletsPage() {
                         </p>
                         <div className="flex items-center gap-2">
                           <p className="text-slate-500">
-                            {btcShown[addr] ? item.address : formatAddress(item.address)}
+                            {btcShown[addr] ? item.address : <span className="tracking-widest text-slate-600 select-none">••••••••</span>}
                           </p>
                           <button
                             type="button"
@@ -4200,7 +4200,7 @@ export default function WalletsPage() {
                         </p>
                         <div className="flex items-center gap-2">
                           <p className="text-slate-500">
-                            {adaShown[addr] ? item.address : formatAddress(item.address)}
+                            {adaShown[addr] ? item.address : <span className="tracking-widest text-slate-600 select-none">••••••••</span>}
                           </p>
                           <button
                             type="button"

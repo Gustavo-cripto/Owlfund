@@ -114,7 +114,9 @@ export default function WalletCard({
           <div>
             <span className="text-slate-500">Endereço:</span>{" "}
             {address
-              ? addressDisplay ?? formatAddress(address)
+              ? isAddressVisible
+                ? (addressDisplay ?? formatAddress(address))
+                : <span className="tracking-widest text-slate-600 select-none">••••••••</span>
               : "—"}
           </div>
           {address && onToggleAddress ? (
