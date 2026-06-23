@@ -1965,12 +1965,9 @@ export default function WalletsPage() {
   };
 
   const handleAdaConnect = () => {
-    const host = typeof window !== "undefined" ? window.location.hostname : "";
-    requestConfirm({
-      title: "Conectar carteira Cardano",
-      description: `Vai ligar a carteira ao domínio ${host || "atual"} em modo leitura.`,
-      onConfirm: handleAdaConnectInternal,
-    });
+    // Call directly — the Eternl popup must be triggered by a direct user gesture.
+    // Adding a confirm dialog in between causes the browser to block the wallet popup.
+    void handleAdaConnectInternal();
   };
 
   const handleAdaRefresh = async () => {
