@@ -1948,8 +1948,14 @@ export default function WalletsPage() {
       const msg = error instanceof Error ? error.message : "Erro ao conectar.";
       if (msg.toLowerCase().includes("user canceled") || msg.toLowerCase().includes("cancelled") || msg.toLowerCase().includes("cancel")) {
         setAdaError("Conexão cancelada. No Eternl, abre o app completo → Settings → dApp Connector → ativa uma conta dApp. Ou adiciona o endereço manualmente abaixo.");
-      } else if (msg.toLowerCase().includes("no daccount") || msg.toLowerCase().includes("dapp account")) {
-        setAdaError("Sem conta dApp configurada no Eternl. Abre o Eternl completo → Settings → dApp Connector → cria/ativa uma conta.");
+      } else if (
+        msg.toLowerCase().includes("no account set") ||
+        msg.toLowerCase().includes("no daccount") ||
+        msg.toLowerCase().includes("dapp account") ||
+        msg.toLowerCase().includes("account") ||
+        msg.toLowerCase().includes("dapp connector")
+      ) {
+        setAdaError("Sem conta dApp configurada no Eternl. Abre o Eternl completo → Settings → dApp Connector → cria/ativa uma conta dApp. Ou adiciona o endereço manualmente abaixo.");
       } else {
         setAdaError(msg);
       }
