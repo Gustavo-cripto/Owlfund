@@ -30,6 +30,7 @@ type WalletCardProps = {
   nftError?: string | null;
   nfts?: NftPreview[];
   isLoading?: boolean;
+  loadingMessage?: string;
   error?: string | null;
   isConnected: boolean;
   isAvailable: boolean;
@@ -72,6 +73,7 @@ export default function WalletCard({
   nftError,
   nfts,
   isLoading,
+  loadingMessage,
   error,
   isConnected,
   isAvailable,
@@ -266,7 +268,7 @@ export default function WalletCard({
             Atualizar saldo
           </button>
         ) : null}
-        {isLoading ? <span className="text-xs text-slate-500">Carregando...</span> : null}
+        {isLoading ? <span className="text-xs text-slate-500 animate-pulse">{loadingMessage ?? "Carregando..."}</span> : null}
       </div>
       {children ? <div className="mt-5 space-y-4">{children}</div> : null}
     </div>

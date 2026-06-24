@@ -1928,11 +1928,22 @@ export default function WalletsPage() {
     });
   };
 
+  const [adaLoadingMsg, setAdaLoadingMsg] = useState<string | undefined>(undefined);
+
   const handleAdaConnectInternal = async () => {
     try {
       setAdaLoading(true);
       setAdaError(null);
-      const { api, address } = await connectCardanoWallet(selectedAdaProvider);
+      setAdaLoadingMsg("A aguardar aprovação no Eternl… verifica o popup da extensão");
+      // Timeout: if the wallet never responds (e.g. popup dismissed silently)
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("timeout")), 60_000)
+      );
+      const { api, address } = await Promise.race([
+        connectCardanoWallet(selectedAdaProvider),
+        timeout,
+      ]);
+      setAdaLoadingMsg(undefined);
       setAdaApi(api);
       setAdaAddress(address);
       const balance = await getAdaBalance(api);
@@ -1946,8 +1957,10 @@ export default function WalletsPage() {
       updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: nextWallets });
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Erro ao conectar.";
-      if (msg.toLowerCase().includes("user canceled") || msg.toLowerCase().includes("cancelled") || msg.toLowerCase().includes("cancel")) {
-        setAdaError("Conexão cancelada. No Eternl, abre o app completo → Settings → dApp Connector → ativa uma conta dApp. Ou adiciona o endereço manualmente abaixo.");
+      if (msg === "timeout") {
+        setAdaError("O Eternl não respondeu. Verifica se o popup da extensão abriu (ícone na barra do browser) e aprova a ligação. Em alternativa, adiciona o endereço manualmente abaixo.");
+      } else if (msg.toLowerCase().includes("user canceled") || msg.toLowerCase().includes("cancelled") || msg.toLowerCase().includes("cancel")) {
+        setAdaError("Conexão cancelada pelo utilizador.");
       } else if (
         msg.toLowerCase().includes("no account set") ||
         msg.toLowerCase().includes("no daccount") ||
@@ -1955,12 +1968,13 @@ export default function WalletsPage() {
         msg.toLowerCase().includes("account") ||
         msg.toLowerCase().includes("dapp connector")
       ) {
-        setAdaError("Sem conta dApp configurada no Eternl. Abre o Eternl completo → Settings → dApp Connector → cria/ativa uma conta dApp. Ou adiciona o endereço manualmente abaixo.");
+        setAdaError("Sem conta dApp configurada no Eternl. Abre o Eternl → Settings → dApp Connector → cria/ativa uma conta. Ou adiciona o endereço manualmente abaixo.");
       } else {
         setAdaError(msg);
       }
     } finally {
       setAdaLoading(false);
+      setAdaLoadingMsg(undefined);
     }
   };
 
@@ -3995,6 +4009,7 @@ export default function WalletsPage() {
             isConnected={!!adaAddress || adaWallets.length > 0}
             isAvailable={adaIsAvailable || adaWallets.length > 0}
             isLoading={adaLoading}
+            loadingMessage={adaLoadingMsg}
             error={adaError}
             onConnect={handleAdaConnect}
             onDisconnect={handleAdaDisconnect}
