@@ -1934,10 +1934,10 @@ export default function WalletsPage() {
     try {
       setAdaLoading(true);
       setAdaError(null);
-      setAdaLoadingMsg("A aguardar aprovação no Eternl… verifica o popup da extensão");
+      setAdaLoadingMsg("👉 Clica no ícone do Eternl na barra de extensões (canto superior direito do browser) para aprovar");
       // Timeout: if the wallet never responds (e.g. popup dismissed silently)
       const timeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("timeout")), 60_000)
+        setTimeout(() => reject(new Error("timeout")), 90_000)
       );
       const { api, address } = await Promise.race([
         connectCardanoWallet(selectedAdaProvider),
