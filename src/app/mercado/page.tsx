@@ -1047,18 +1047,35 @@ export default function MercadoPage() {
                 Sair do ecrã inteiro
               </button>
             )}
-            {chartSource === "tradingview" ? (
-              <TradingViewWidget
-                key={`${tradingViewSymbol}-${tradingViewInterval}`}
-                symbol={tradingViewSymbol}
-                interval={tradingViewInterval}
-              />
-            ) : (
-              <TradingViewWidget
-                key={`coinglass-${tradingViewSymbol}-${tradingViewInterval}`}
-                symbol={tradingViewSymbol}
-                interval={tradingViewInterval}
-              />
+            <TradingViewWidget
+              key={`${chartSource}-${tradingViewSymbol}-${tradingViewInterval}`}
+              symbol={tradingViewSymbol}
+              interval={tradingViewInterval}
+            />
+            {chartSource === "coinglass" && !isFullscreen && (
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-3">
+                <p className="text-xs text-slate-500">
+                  Dados de liquidações, open interest e funding rates disponíveis na Coinglass
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: "Liquidações", path: `/LiquidationData` },
+                    { label: "Open Interest", path: `/openInterest/${selected?.market?.replace("USDT","") ?? "BTC"}` },
+                    { label: "Funding Rates", path: `/FundingRate` },
+                    { label: "Long/Short", path: `/LongShortRatio` },
+                  ].map(({ label, path }) => (
+                    <a
+                      key={label}
+                      href={`https://www.coinglass.com${path}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-full border border-slate-700 px-3 py-1 text-[11px] font-medium text-slate-300 transition hover:border-orange-500/50 hover:text-orange-400"
+                    >
+                      {label} ↗
+                    </a>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         </section>
