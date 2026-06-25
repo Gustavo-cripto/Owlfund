@@ -701,6 +701,8 @@ export default function MercadoPage() {
   useEffect(() => {
     setTraditionalHoldings(loadTraditionalHoldings());
     traditionalHydratedRef.current = true;
+    // Auto-select first asset so chart is visible on load
+    setSelectedTraditional(traditionalAssets[0] ?? null);
   }, []);
 
   useEffect(() => {
