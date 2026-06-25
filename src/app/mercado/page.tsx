@@ -495,6 +495,10 @@ export default function MercadoPage() {
   type NewsItem = { title: string; link: string; description: string; pubDate: string; source: string; image?: string; category?: string };
   const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
   const [newsItemsLoading, setNewsItemsLoading] = useState(false);
+  const [newsBriefing, setNewsBriefing] = useState<string | null>(null);
+  const [newsBriefingLoading, setNewsBriefingLoading] = useState(false);
+  const [newsBriefingError, setNewsBriefingError] = useState<string | null>(null);
+  const [newsBriefingDate, setNewsBriefingDate] = useState<string | null>(null);
   // Chat de perguntas sobre a análise
   type ChatMsg = { role: "user" | "assistant"; content: string };
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
@@ -1743,22 +1747,90 @@ export default function MercadoPage() {
                     </a>
                   ))}
                   {newsItems.length > 0 && (
-                    <button
-                      type="button"
-                      className="w-full rounded-xl border border-slate-700 py-2 text-xs text-slate-400 hover:border-slate-500 hover:text-slate-200 transition"
-                      onClick={async () => {
-                        setNewsItemsLoading(true);
-                        try {
-                          const r = await fetch("/api/news");
-                          const d = await r.json() as { items?: NewsItem[] };
-                          setNewsItems(d.items ?? []);
-                        } catch { /* ignore */ } finally {
-                          setNewsItemsLoading(false);
-                        }
-                      }}
-                    >
-                      ↻ Atualizar notícias
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        className="flex-1 rounded-xl border border-slate-700 py-2 text-xs text-slate-400 hover:border-slate-500 hover:text-slate-200 transition"
+                        onClick={async () => {
+                          setNewsItemsLoading(true);
+                          try {
+                            const r = await fetch("/api/news");
+                            const d = await r.json() as { items?: NewsItem[] };
+                            setNewsItems(d.items ?? []);
+                            setNewsBriefing(null);
+                          } catch { /* ignore */ } finally {
+                            setNewsItemsLoading(false);
+                          }
+                        }}
+                      >
+                        ↻ Atualizar notícias
+                      </button>
+                      <button
+                        type="button"
+                        disabled={newsBriefingLoading}
+                        className="flex-1 rounded-xl bg-orange-500 py-2 text-xs font-bold text-slate-950 hover:bg-orange-400 disabled:opacity-50 transition"
+                        onClick={async () => {
+                          setNewsBriefingLoading(true);
+                          setNewsBriefingError(null);
+                          setNewsBriefing(null);
+                          try {
+                            const r = await fetch("/api/news-briefing", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ items: newsItems }),
+                            });
+                            const d = await r.json() as { content?: string; error?: string; date?: string };
+                            if (!r.ok || d.error) { setNewsBriefingError(d.error ?? "Erro"); return; }
+                            setNewsBriefing(d.content ?? "");
+                            setNewsBriefingDate(d.date ?? null);
+                          } catch (e) {
+                            setNewsBriefingError(e instanceof Error ? e.message : "Erro");
+                          } finally {
+                            setNewsBriefingLoading(false);
+                          }
+                        }}
+                      >
+                        {newsBriefingLoading ? "A analisar…" : "🤖 Análise IA"}
+                      </button>
+                    </div>
+                  )}
+
+                  {newsBriefingError && <p className="text-sm text-rose-400">{newsBriefingError}</p>}
+
+                  {newsBriefingLoading && (
+                    <div className="flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-800/40 px-5 py-4">
+                      <div className="flex gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:0ms]"/>
+                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:150ms]"/>
+                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:300ms]"/>
+                      </div>
+                      <p className="text-sm text-slate-400">A analisar notícias com IA…</p>
+                    </div>
+                  )}
+
+                  {newsBriefing && (
+                    <div className="rounded-xl border border-orange-500/20 bg-slate-950/60 p-5 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs uppercase tracking-[0.2em] text-orange-400">Análise IA · Notícias</p>
+                        <span className="text-[10px] text-slate-500">{newsBriefingDate}</span>
+                      </div>
+                      <div className="space-y-1">
+                        {newsBriefing.split("\n").map((line, i) => {
+                          if (line.startsWith("## ")) return <h3 key={i} className="text-base font-bold text-white mt-5 mb-1">{line.replace(/^## /, "")}</h3>;
+                          if (line.startsWith("### ")) return <h4 key={i} className="text-sm font-semibold text-orange-300 mt-3 mb-0.5">{line.replace(/^### /, "")}</h4>;
+                          if (line.startsWith("**") && line.endsWith("**")) return <p key={i} className="text-sm font-semibold text-slate-200">{line.replace(/\*\*/g, "")}</p>;
+                          if (/^\*\*[^*]+\*\*:/.test(line)) {
+                            const [bold, ...rest] = line.split(":**");
+                            return <p key={i} className="text-sm text-slate-300"><span className="font-semibold text-slate-100">{bold.replace(/\*\*/g, "")}:</span>{rest.join(":**")}</p>;
+                          }
+                          if (line.startsWith("- ")) return <p key={i} className="text-sm text-slate-300 pl-3 border-l border-orange-500/30 my-1">{line.replace(/^- /, "")}</p>;
+                          if (line.startsWith("---")) return <hr key={i} className="border-slate-700 my-3" />;
+                          if (line.startsWith("*") && line.endsWith("*")) return <p key={i} className="text-[11px] text-slate-500 italic">{line.replace(/^\*|\*$/g, "")}</p>;
+                          if (line.trim() === "") return <div key={i} className="h-1" />;
+                          return <p key={i} className="text-sm text-slate-300 leading-relaxed">{line}</p>;
+                        })}
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
