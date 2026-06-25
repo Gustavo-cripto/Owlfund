@@ -1047,29 +1047,63 @@ export default function MercadoPage() {
                 Sair do ecrã inteiro
               </button>
             )}
-            <TradingViewWidget
-              key={`${chartSource}-${tradingViewSymbol}-${tradingViewInterval}`}
-              symbol={tradingViewSymbol}
-              interval={tradingViewInterval}
-            />
-            {chartSource === "coinglass" && !isFullscreen && (
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-3">
-                <p className="text-xs text-slate-500">
-                  Dados de liquidações, open interest e funding rates disponíveis na Coinglass
-                </p>
-                <div className="flex flex-wrap gap-2">
+            {chartSource === "tradingview" ? (
+              <TradingViewWidget
+                key={`tv-${tradingViewSymbol}-${tradingViewInterval}`}
+                symbol={tradingViewSymbol}
+                interval={tradingViewInterval}
+              />
+            ) : (
+              /* Coinglass doesn't allow iframe embedding — show a curated link page */
+              <div className="flex h-full w-full flex-col items-center justify-between gap-6 rounded-xl border border-slate-800 bg-slate-900/40 p-8">
+                <div className="flex w-full flex-col items-center gap-4 pt-4">
+                  <p className="text-sm font-medium text-slate-300">
+                    Abre a Coinglass para ver dados avançados de mercado
+                  </p>
+                  <a
+                    href={coinglassUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-6 py-3 text-sm font-bold text-slate-950 shadow-lg transition hover:bg-orange-400"
+                  >
+                    Abrir Coinglass ↗
+                  </a>
+                </div>
+
+                <div className="grid w-full max-w-2xl grid-cols-2 gap-3 sm:grid-cols-4">
                   {[
-                    { label: "Liquidações", path: `/LiquidationData` },
-                    { label: "Open Interest", path: `/openInterest/${selected?.market?.replace("USDT","") ?? "BTC"}` },
-                    { label: "Funding Rates", path: `/FundingRate` },
-                    { label: "Long/Short", path: `/LongShortRatio` },
+                    { label: "Liquidações", desc: "Liquidações em tempo real por exchange", path: "/LiquidationData", icon: "🔥" },
+                    { label: "Open Interest", desc: "Interesse em aberto por contrato", path: `/openInterest/${selected?.market?.replace("USDT","") ?? "BTC"}`, icon: "📊" },
+                    { label: "Funding Rates", desc: "Taxas de financiamento perpétuo", path: "/FundingRate", icon: "💸" },
+                    { label: "Long/Short", desc: "Rácio longs vs shorts por exchange", path: "/LongShortRatio", icon: "⚖️" },
+                  ].map(({ label, desc, path, icon }) => (
+                    <a
+                      key={label}
+                      href={`https://www.coinglass.com${path}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group flex flex-col gap-2 rounded-xl border border-slate-700 bg-slate-800/50 p-4 transition hover:border-orange-500/40 hover:bg-slate-800"
+                    >
+                      <span className="text-2xl">{icon}</span>
+                      <span className="text-xs font-semibold text-slate-200 group-hover:text-orange-400">{label} ↗</span>
+                      <span className="text-[10px] leading-relaxed text-slate-500">{desc}</span>
+                    </a>
+                  ))}
+                </div>
+
+                <div className="flex w-full max-w-2xl flex-wrap justify-center gap-2 pb-4">
+                  {[
+                    { label: "Heatmap BTC", path: "/bitcoin-liquidation-heatmap" },
+                    { label: "Fear & Greed", path: "/fear-greed-index" },
+                    { label: "Basis", path: "/FuturesBasis" },
+                    { label: "Volume", path: "/FuturesExchangeVolume" },
                   ].map(({ label, path }) => (
                     <a
                       key={label}
                       href={`https://www.coinglass.com${path}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="rounded-full border border-slate-700 px-3 py-1 text-[11px] font-medium text-slate-300 transition hover:border-orange-500/50 hover:text-orange-400"
+                      className="rounded-full border border-slate-700 px-3 py-1 text-[11px] text-slate-400 transition hover:border-slate-500 hover:text-slate-200"
                     >
                       {label} ↗
                     </a>
