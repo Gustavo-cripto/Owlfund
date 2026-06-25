@@ -243,7 +243,7 @@ export default function Sidebar() {
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         className={`hidden xl:flex flex-col shrink-0 sticky top-0 h-screen overflow-y-auto bg-black border-r border-white/[0.06] transition-all duration-300 ease-in-out z-40 ${
-          expanded ? "w-64 shadow-2xl shadow-black/60" : "w-[72px]"
+          expanded ? "w-72 shadow-2xl shadow-black/60" : "w-[72px]"
         }`}
       >
         {/* Brand */}
@@ -255,7 +255,7 @@ export default function Sidebar() {
           </a>
           <div className={`transition-all duration-200 overflow-hidden ${expanded ? "opacity-100 w-auto" : "opacity-0 w-0"}`}>
             <a href="/dashboard">
-              <p className="text-lg font-black text-white tracking-[0.22em] leading-none uppercase whitespace-nowrap">CHAINFOLIOAI</p>
+              <p className="text-base font-black tracking-[0.14em] leading-none uppercase whitespace-nowrap bg-gradient-to-r from-orange-400 to-amber-300 bg-clip-text text-transparent">CHAINFOLIOAI</p>
               <p className="text-xs text-slate-500 leading-tight mt-1 whitespace-nowrap">Portfolio Analytics</p>
             </a>
           </div>
