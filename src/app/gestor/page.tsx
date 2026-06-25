@@ -212,7 +212,7 @@ export default function GestorPage() {
           <div className="w-10 h-10 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-lg">🤖</div>
           <div className="flex-1">
             <p className="text-sm font-semibold text-white">Gestor Dedicado IA</p>
-            <p className="text-xs text-slate-400">Owlfund Premium · acesso completo ao portfolio</p>
+            <p className="text-xs text-slate-400">ChainFolioAI Premium · acesso completo ao portfolio</p>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />

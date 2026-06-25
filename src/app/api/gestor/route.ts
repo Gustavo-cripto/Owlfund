@@ -178,7 +178,7 @@ function getGestorSystem(): string {
   const year = now.getFullYear();
   const month = now.toLocaleString("pt-PT", { month: "long" });
   const cryptoTaxCutoff = year - 1; // ativos adquiridos antes do ano anterior ficam isentos em PT
-  return `És o Gestor Dedicado IA do Owlfund — um assistente financeiro premium especializado em cripto e gestão de portfolio.
+  return `És o Gestor Dedicado IA do ChainFolioAI — um assistente financeiro premium especializado em cripto e gestão de portfolio.
 
 DATA ATUAL: ${month} de ${year}. Usa sempre o ano corrente nas respostas fiscais e de planeamento.
 

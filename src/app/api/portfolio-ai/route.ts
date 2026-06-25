@@ -40,7 +40,7 @@ function buildSystemPrompt(ctx: PortfolioContext): string {
     .filter(Boolean)
     .join("\n  ");
 
-  return `Tu és o Owl — analista financeiro pessoal do utilizador no Owlfund. Tens acesso em tempo real aos dados do portfólio dele:
+  return `Tu és o assistente IA — analista financeiro pessoal do utilizador no ChainFolioAI. Tens acesso em tempo real aos dados do portfólio dele:
 
 PORTFÓLIO ATUAL:
   Total: € ${fmt(ctx.totalEur)}

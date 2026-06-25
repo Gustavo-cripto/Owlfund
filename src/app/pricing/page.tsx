@@ -161,7 +161,7 @@ export default function PricingPage() {
 
             {/* Header */}
             <div className="text-center space-y-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">Owlfund</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">ChainFolioAI</p>
               <h1 className="text-4xl font-bold text-white">{t("pricing_title")}</h1>
               <p className="text-slate-400 max-w-xl mx-auto text-sm leading-relaxed">
                 Do investidor casual ao profissional — escolhe o plano certo para o teu nível.
@@ -337,15 +337,15 @@ export default function PricingPage() {
             {/* vs Competitors */}
             <div className="rounded-2xl border border-slate-800 bg-slate-900/40 overflow-hidden">
               <div className="px-6 py-3 bg-slate-900 border-b border-slate-800">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Owlfund vs Concorrência</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">ChainFolioAI vs Concorrência</p>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-800">
                       <th className="text-left px-6 py-3 text-xs text-slate-400">Funcionalidade</th>
-                      <th className="text-center px-4 py-3 text-xs font-semibold text-orange-400">Owlfund Pro</th>
-                      <th className="text-center px-4 py-3 text-xs font-semibold text-violet-400">Owlfund Premium</th>
+                      <th className="text-center px-4 py-3 text-xs font-semibold text-orange-400">ChainFolioAI Pro</th>
+                      <th className="text-center px-4 py-3 text-xs font-semibold text-violet-400">ChainFolioAI Premium</th>
                       <th className="text-center px-4 py-3 text-xs text-slate-500">CoinStats</th>
                       <th className="text-center px-4 py-3 text-xs text-slate-500">Delta</th>
                     </tr>

@@ -1355,7 +1355,7 @@ export default function MercadoPage() {
           </section>
         )}
 
-        {marketMode === "crypto" ? (
+        {marketMode === "crypto" && chartSource !== "coinglass" ? (
         <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[420px_1fr]">
           <aside className="order-2 lg:order-1">
             <FearGreedWidget
@@ -1630,7 +1630,7 @@ export default function MercadoPage() {
                   <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-5 space-y-4">
                     <div className="flex items-center justify-between">
                       <p className="text-xs text-slate-500">{newsMode === "crypto" ? "Cripto" : "Mercado Tradicional"} · {newsDate}</p>
-                      <span className="text-xs text-orange-400 font-semibold">🦉 Owlfund AI</span>
+                      <span className="text-xs text-orange-400 font-semibold">🤖 ChainFolioAI</span>
                     </div>
                     <div className="prose prose-sm prose-invert max-w-none">
                       {newsContent.split("\n").map((line, i) => {
@@ -1667,7 +1667,7 @@ export default function MercadoPage() {
                                 : "bg-slate-800 border border-slate-700 text-slate-200"
                             }`}>
                               {msg.role === "assistant" && (
-                                <p className="text-[10px] text-orange-400 font-semibold mb-1">🦉 Owlfund AI</p>
+                                <p className="text-[10px] text-orange-400 font-semibold mb-1">🤖 ChainFolioAI</p>
                               )}
                               <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                             </div>
@@ -1676,7 +1676,7 @@ export default function MercadoPage() {
                         {chatLoading && (
                           <div className="flex justify-start">
                             <div className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5">
-                              <p className="text-[10px] text-orange-400 font-semibold mb-1">🦉 Owlfund AI</p>
+                              <p className="text-[10px] text-orange-400 font-semibold mb-1">🤖 ChainFolioAI</p>
                               <div className="flex gap-1 items-center h-4">
                                 <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:0ms]"/>
                                 <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:150ms]"/>

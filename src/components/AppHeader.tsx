@@ -16,7 +16,7 @@ type AppHeaderProps = {
 
 export default function AppHeader({
   variant = "app",
-  title = "Owlfund",
+  title = "ChainFolioAI",
   subtitle,
 }: AppHeaderProps) {
   const supabase = createClient();
@@ -119,7 +119,7 @@ export default function AppHeader({
         <a href={variant === "app" ? "/dashboard" : "/"} className="flex items-center gap-2.5 flex-shrink-0">
           <img
             src="/owlfund-owl.png"
-            alt="Owlfund"
+            alt="ChainFolioAI"
             className={variant === "public"
               ? "h-16 w-16 rounded-full object-cover shadow-lg [transform:scaleX(-1)]"
               : "h-10 w-10 rounded-full object-cover shadow-lg [transform:scaleX(-1)]"}

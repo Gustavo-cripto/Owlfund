@@ -157,7 +157,7 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
             Acesso
           </p>
           <h1 className="text-3xl font-semibold text-white">
-            {mode === "signup" ? "Criar conta na Owlfund" : "Entrar na Owlfund"}
+            {mode === "signup" ? "Criar conta na ChainFolioAI" : "Entrar na ChainFolioAI"}
           </h1>
           <p className="text-sm text-slate-400">
             Use email e senha ou faça login com Google.

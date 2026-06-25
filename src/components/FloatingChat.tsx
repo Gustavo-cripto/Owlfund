@@ -108,7 +108,7 @@ export default function FloatingChat() {
               <div className="min-w-0">
                 <p className="text-base font-bold text-white leading-tight">Chain</p>
                 <p className="text-[11px] text-slate-400 leading-tight">
-                  {currentPage ? `Estás em: ${currentPage}` : "Assistente Owlfund · Mercados cripto"}
+                  {currentPage ? `Estás em: ${currentPage}` : "Assistente ChainFolioAI · Mercados cripto"}
                 </p>
               </div>
             </div>
@@ -131,12 +131,12 @@ export default function FloatingChat() {
               <ChatWidget
                 withContainer={false}
                 title="CHAIN"
-                subtitle="Plataforma Owlfund · Mercados cripto · Análise técnica"
+                subtitle="ChainFolioAI · Mercados cripto · Análise técnica"
                 assistantLabel="Chain"
                 messagesMaxHeightClassName="max-h-[52vh]"
                 inputClassName="py-2.5 text-sm"
                 buttonClassName="px-6 py-2.5 text-sm"
-                placeholder="Pergunta sobre o Owlfund ou cripto..."
+                placeholder="Pergunta sobre o ChainFolioAI ou cripto..."
                 isPro={isPro}
               />
             )}

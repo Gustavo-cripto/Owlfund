@@ -38,7 +38,7 @@ function incrementChatCount() {
 
 // Sugestões por página
 const PAGE_SUGGESTIONS: Record<string, string[]> = {
-  "/dashboard":    ["Como funciona o Owlfund?", "Como adiciono uma carteira?", "O que é o PNL?"],
+  "/dashboard":    ["Como funciona o ChainFolioAI?", "Como adiciono uma carteira?", "O que é o PNL?"],
   "/portfolio":    ["Explica o meu Score de portfólio", "O que é o Sharpe Ratio?", "Como guardar um snapshot?"],
   "/wallets":      ["Como conecto o MetaMask?", "O que é o WalletConnect?", "A carteira é segura?"],
   "/smart-money":  ["O que é Smart Money?", "Quem é o Vitalik?", "Como interpretar movimentos de baleias?"],
@@ -49,7 +49,7 @@ const PAGE_SUGGESTIONS: Record<string, string[]> = {
 };
 
 const DEFAULT_SUGGESTIONS = [
-  "Como funciona o Owlfund?",
+  "Como funciona o ChainFolioAI?",
   "O que está a mexer com o BTC?",
   "Como adiciono uma carteira cripto?",
 ];

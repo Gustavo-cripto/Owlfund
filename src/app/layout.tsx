@@ -7,7 +7,7 @@ import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 import { ThemeProvider } from "@/lib/theme/ThemeContext";
 
 export const metadata: Metadata = {
-  title: "Portfólio Owlfund",
+  title: "ChainFolioAI Portfolio",
   description:
     "Dashboard inteligente para acompanhar seus investimentos com clareza.",
 };

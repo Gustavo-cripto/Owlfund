@@ -1329,9 +1329,9 @@ export default function PortfolioPage() {
 
                 doc.setFontSize(8);
                 doc.setTextColor(100, 116, 139);
-                doc.text(`Gerado por Owlfund em ${now}. Apenas para referência pessoal.`, 15, 287);
+                doc.text(`Gerado por ChainFolioAI em ${now}. Apenas para referência pessoal.`, 15, 287);
 
-                doc.save(`owlfund-portfolio-${new Date().toISOString().slice(0, 10)}.pdf`);
+                doc.save(`chainfolioai-portfolio-${new Date().toISOString().slice(0, 10)}.pdf`);
               }}
               className="flex items-center gap-2 rounded-xl border border-orange-500/40 px-4 py-2 text-sm font-semibold text-orange-300 hover:bg-orange-500/10 transition"
             >

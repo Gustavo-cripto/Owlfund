@@ -69,12 +69,12 @@ export default function Home() {
         <div className="pointer-events-none absolute inset-0 opacity-70" style={{ backgroundImage: "url(/hwvtot_2f4227d5a6869b1ae946ecac3e2712c2a84b9f59.jpeg)", backgroundRepeat: "no-repeat", backgroundPosition: "center", backgroundSize: "contain" }} aria-hidden />
         <div className="pointer-events-none absolute inset-0 bg-slate-950/25" aria-hidden />
         <div className="relative z-10">
-          <AppHeader variant="app" title="Portfólio Owlfund" subtitle="Área do utilizador" />
+          <AppHeader variant="app" title="ChainFolioAI Portfolio" subtitle="Área do utilizador" />
           <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-24 pt-4">
             <section className="grid gap-6 md:grid-cols-[1.1fr_0.9fr] md:items-start">
               <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
                 <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">Área logada</p>
-                <h1 className="mt-3 text-3xl font-semibold text-white">Atalhos rápidos do Owlfund</h1>
+                <h1 className="mt-3 text-3xl font-semibold text-white">Atalhos rápidos do ChainFolioAI</h1>
                 <p className="mt-2 text-sm text-slate-400">Acede direto ao dashboard, portfolio, carteiras e mercado.</p>
                 <div className="mt-6 flex flex-wrap gap-3">
                   {([["Abrir Dashboard","/dashboard","bg-orange-500 text-slate-950 hover:bg-orange-400"],["Portfolio","/portfolio","border border-orange-400/40 text-orange-200 hover:border-orange-400"],["Carteiras","/wallets","border border-slate-700 text-slate-200 hover:border-slate-500"],["Mercado","/mercado","border border-slate-700 text-slate-200 hover:border-slate-500"]] as [string,string,string][]).map(([label, href, cls]) => (
@@ -107,7 +107,7 @@ export default function Home() {
       </div>
 
       <div className="relative z-10">
-        <AppHeader variant="public" title="Portfólio Owlfund" />
+        <AppHeader variant="public" title="ChainFolioAI Portfolio" />
 
         {/* Live price ticker — CSS animation, sem JS */}
         <div className="border-b border-slate-800/60 bg-slate-900/50 py-2.5 overflow-hidden select-none">
@@ -212,7 +212,7 @@ export default function Home() {
             <div className="relative">
               <div className="mb-5 text-5xl">🦉</div>
               <h2 className="text-3xl font-bold text-white md:text-4xl">Pronto para ter controlo total?</h2>
-              <p className="mt-4 text-slate-400 max-w-sm mx-auto">Junta-te à comunidade Owlfund. Grátis para sempre no plano base.</p>
+              <p className="mt-4 text-slate-400 max-w-sm mx-auto">Junta-te à comunidade ChainFolioAI. Grátis para sempre no plano base.</p>
               <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
                 <a href="/login" className="w-full rounded-full bg-orange-500 px-10 py-4 text-base font-bold text-slate-950 shadow-lg shadow-orange-500/25 transition hover:bg-orange-400 hover:scale-[1.03] active:scale-[0.97] sm:w-auto">
                   Criar conta grátis
@@ -241,7 +241,7 @@ export default function Home() {
               <a href="#como-funciona" className="transition hover:text-slate-300">Como funciona</a>
               <a href="/login" className="transition hover:text-slate-300">Entrar</a>
             </div>
-            <p className="text-xs text-slate-600">© 2025 Owlfund · Todos os direitos reservados</p>
+            <p className="text-xs text-slate-600">© 2025 ChainFolioAI · Todos os direitos reservados</p>
           </div>
         </footer>
       </div>

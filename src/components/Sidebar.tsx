@@ -184,7 +184,7 @@ export default function Sidebar() {
       <header className="xl:hidden flex items-center justify-between px-4 py-3 bg-black border-b border-white/[0.06]">
         <a href="/dashboard" className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0">
-            <img src="/owlfund-owl.png" alt="Owlfund" className="w-10 h-10 object-cover [transform:scaleX(-1)]" />
+            <img src="/owlfund-owl.png" alt="ChainFolioAI" className="w-10 h-10 object-cover [transform:scaleX(-1)]" />
           </div>
           <div>
             <p className="text-sm font-bold text-white tracking-widest leading-none">OWLFUND</p>
@@ -250,7 +250,7 @@ export default function Sidebar() {
         <div className={`flex items-center border-b border-white/[0.06] overflow-hidden ${expanded ? "px-5 pt-8 pb-7 gap-4" : "justify-center px-0 py-5"}`}>
           <a href="/dashboard" className="shrink-0">
             <div className={`overflow-hidden border border-white/[0.08] transition-all duration-300 ${expanded ? "w-16 h-16 rounded-2xl" : "w-10 h-10 rounded-xl"}`}>
-              <img src="/owlfund-owl.png" alt="Owlfund" className="w-full h-full object-cover [transform:scaleX(-1)]" />
+              <img src="/owlfund-owl.png" alt="ChainFolioAI" className="w-full h-full object-cover [transform:scaleX(-1)]" />
             </div>
           </a>
           <div className={`transition-all duration-200 overflow-hidden ${expanded ? "opacity-100 w-auto" : "opacity-0 w-0"}`}>

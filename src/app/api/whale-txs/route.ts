@@ -34,7 +34,7 @@ async function getEthTxs(address: string): Promise<EtherscanTx[]> {
     ...(API_KEY ? { apikey: API_KEY } : {}),
   });
   const res = await fetch(`${ETHERSCAN_API}?${params}`, {
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; Owlfund/1.0)" }, cache: "no-store",
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; ChainFolioAI/1.0)" }, cache: "no-store",
   });
   if (!res.ok) throw new Error(`etherscan ${res.status}`);
   const data = (await res.json()) as { status: string; result: EtherscanTx[] | string };
@@ -49,7 +49,7 @@ async function getEthNativeTxs(address: string): Promise<EtherscanTx[]> {
     ...(API_KEY ? { apikey: API_KEY } : {}),
   });
   const res = await fetch(`${ETHERSCAN_API}?${params}`, {
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; Owlfund/1.0)" }, cache: "no-store",
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; ChainFolioAI/1.0)" }, cache: "no-store",
   });
   if (!res.ok) return [];
   const data = (await res.json()) as { status: string; result: EtherscanTx[] | string };
@@ -108,13 +108,13 @@ async function getBtcWhaleTxs(address: string): Promise<WhaleTx[]> {
 
   const res = await fetch(
     `https://mempool.space/api/address/${encodeURIComponent(address)}/txs`,
-    { headers: { "User-Agent": "Mozilla/5.0 (compatible; Owlfund/1.0)" }, cache: "no-store" }
+    { headers: { "User-Agent": "Mozilla/5.0 (compatible; ChainFolioAI/1.0)" }, cache: "no-store" }
   );
   if (!res.ok) {
     // fallback blockstream
     const res2 = await fetch(
       `https://blockstream.info/api/address/${encodeURIComponent(address)}/txs`,
-      { headers: { "User-Agent": "Mozilla/5.0 (compatible; Owlfund/1.0)" }, cache: "no-store" }
+      { headers: { "User-Agent": "Mozilla/5.0 (compatible; ChainFolioAI/1.0)" }, cache: "no-store" }
     );
     if (!res2.ok) throw new Error(`BTC API ${res2.status}`);
     const data = (await res2.json()) as MempoolTx[];

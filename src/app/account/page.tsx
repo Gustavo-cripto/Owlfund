@@ -119,7 +119,7 @@ function PremiumApiKeys({ isPremium }: { isPremium: boolean }) {
           <p className="text-[10px] text-slate-600">Endpoint base: <code className="text-slate-500">https://owlfund.vercel.app/api/v1/</code> · Cabeçalho: <code className="text-slate-500">Authorization: Bearer owf_live_…</code></p>
         </div>
       ) : (
-        <p className="text-xs text-slate-500">Acede à API REST do Owlfund, integra com MCP servers e recebe webhooks em tempo real.</p>
+        <p className="text-xs text-slate-500">Acede à API REST do ChainFolioAI, integra com MCP servers e recebe webhooks em tempo real.</p>
       )}
     </div>
   );

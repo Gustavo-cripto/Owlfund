@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Dados inválidos." }, { status: 400 });
   }
 
-  const systemPrompt = `És o assistente financeiro da Owlfund, especializado em mercados ${mode === "crypto" ? "cripto" : "tradicionais"}.
+  const systemPrompt = `És o assistente financeiro da ChainFolioAI, especializado em mercados ${mode === "crypto" ? "cripto" : "tradicionais"}.
 O utilizador acabou de receber este briefing diário gerado por ti:
 
 --- BRIEFING ---
