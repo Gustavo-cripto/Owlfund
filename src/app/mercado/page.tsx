@@ -486,6 +486,13 @@ function TradingViewWidget({
 export default function MercadoPage() {
   useRequireAuth("/login");
   const { t } = useLanguage();
+  const [userPlan, setUserPlan] = useState<"free" | "pro" | "premium">("free");
+  useEffect(() => {
+    fetch("/api/subscription").then(r => r.json()).then((d: { plan?: string }) => {
+      if (d.plan === "premium") setUserPlan("premium");
+      else if (d.plan === "pro") setUserPlan("pro");
+    }).catch(() => {});
+  }, []);
   const [marketMode, setMarketMode] = useState<"crypto" | "tradicional" | "noticias">("crypto");
   const [newsContent, setNewsContent] = useState<string | null>(null);
   const [newsMode, setNewsMode] = useState<"crypto" | "tradicional" | "diarias">("crypto");
@@ -1765,6 +1772,11 @@ export default function MercadoPage() {
                       >
                         ↻ Atualizar notícias
                       </button>
+                      {userPlan === "free" ? (
+                        <a href="/pricing" className="flex-1 rounded-xl border border-orange-500/30 py-2 text-xs font-bold text-orange-400/70 text-center hover:bg-orange-500/10 transition">
+                          🔒 Análise IA — Pro
+                        </a>
+                      ) : (
                       <button
                         type="button"
                         disabled={newsBriefingLoading}
@@ -1792,6 +1804,7 @@ export default function MercadoPage() {
                       >
                         {newsBriefingLoading ? "A analisar…" : "🤖 Análise IA"}
                       </button>
+                      )}
                     </div>
                   )}
 
@@ -1836,6 +1849,11 @@ export default function MercadoPage() {
               )}
 
               {newsMode !== "diarias" && (<>
+              {userPlan === "free" ? (
+                <a href="/pricing" className="inline-block rounded-xl border border-orange-500/30 px-6 py-2.5 text-sm font-bold text-orange-400/70 hover:bg-orange-500/10 transition">
+                  🔒 Gerar Briefing Diário — Pro
+                </a>
+              ) : (
               <button
                 type="button"
                 disabled={newsLoading}
@@ -1864,6 +1882,7 @@ export default function MercadoPage() {
               >
                 {newsLoading ? "A gerar briefing…" : "Gerar Briefing Diário"}
               </button>
+              )}
 
               {newsError && <p className="text-sm text-rose-400">{newsError}</p>}
 
