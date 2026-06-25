@@ -972,7 +972,7 @@ export default function MercadoPage() {
                   : "border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500"
               }`}
             >
-              🦉 Notícias IA
+              📡 Notícias &amp; IA
             </button>
           </div>
         </div>
