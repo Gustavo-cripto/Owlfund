@@ -1003,16 +1003,6 @@ export default function MercadoPage() {
                   Coinglass
                 </button>
               </div>
-              {chartSource === "tradingview" && (
-                <button
-                  type="button"
-                  className="rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                  onClick={closeTradingViewOverlay}
-                  title="Minimiza/fecha o painel (Markets/Favorites/Trending) do TradingView"
-                >
-                  Minimizar painel
-                </button>
-              )}
               <button
                 type="button"
                 className="rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
@@ -1070,53 +1060,99 @@ export default function MercadoPage() {
 
                 {/* 4 main cards */}
                 <div className="grid flex-1 grid-cols-2 gap-3 sm:grid-cols-4">
-                  {[
-                    {
-                      label: "Liquidações",
-                      desc: "Volume de liquidações forçadas por exchange e ativo em tempo real.",
-                      path: "/LiquidationData",
-                      icon: "🔥",
-                      badge: "Real-time",
-                    },
-                    {
-                      label: "Open Interest",
-                      desc: "Contratos em aberto por exchange — indica alavancagem no mercado.",
-                      path: `/openInterest/${selected?.market?.replace("USDT","") ?? "BTC"}`,
-                      icon: "📊",
-                      badge: selected?.market?.replace("USDT","") ?? "BTC",
-                    },
-                    {
-                      label: "Funding Rates",
-                      desc: "Taxa de financiamento perpétuo — valores negativos favorecem longs.",
-                      path: "/FundingRate",
-                      icon: "💸",
-                      badge: "Perpétuo",
-                    },
-                    {
-                      label: "Long/Short",
-                      desc: "Rácio de posições longas vs curtas por exchange e período.",
-                      path: "/LongShortRatio",
-                      icon: "⚖️",
-                      badge: "Sentimento",
-                    },
-                  ].map(({ label, desc, path, icon, badge }) => (
-                    <a
-                      key={label}
-                      href={`https://www.coinglass.com${path}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group flex flex-col justify-between gap-3 rounded-xl border border-slate-700 bg-slate-800/50 p-4 transition hover:border-orange-500/40 hover:bg-slate-800"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="text-2xl">{icon}</span>
-                        <span className="rounded-full bg-slate-700/60 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-400">{badge}</span>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-200 group-hover:text-orange-400">{label} ↗</p>
-                        <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{desc}</p>
-                      </div>
-                    </a>
-                  ))}
+                  {/* Liquidações */}
+                  <a href="https://www.coinglass.com/LiquidationData" target="_blank" rel="noopener noreferrer"
+                    className="group flex flex-col gap-3 rounded-xl border border-slate-700 bg-slate-800/50 p-4 transition hover:border-orange-500/40 hover:bg-slate-800">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-2xl">🔥</span>
+                      <span className="rounded-full bg-slate-700/60 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-400">Real-time</span>
+                    </div>
+                    {/* Bar chart: liquidation spikes */}
+                    <svg viewBox="0 0 120 60" className="w-full opacity-70">
+                      {[8,14,22,10,38,18,52,28,16,44,20,30].map((h, i) => (
+                        <rect key={i} x={i * 10 + 1} y={60 - h} width={8} height={h}
+                          fill={h > 35 ? "#ef4444" : "#f97316"} rx="2" opacity={0.7 + (i % 3) * 0.1} />
+                      ))}
+                    </svg>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-200 group-hover:text-orange-400">Liquidações ↗</p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">Volume de liquidações forçadas por exchange e ativo em tempo real.</p>
+                    </div>
+                  </a>
+
+                  {/* Open Interest */}
+                  <a href={`https://www.coinglass.com/openInterest/${selected?.market?.replace("USDT","") ?? "BTC"}`} target="_blank" rel="noopener noreferrer"
+                    className="group flex flex-col gap-3 rounded-xl border border-slate-700 bg-slate-800/50 p-4 transition hover:border-orange-500/40 hover:bg-slate-800">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-2xl">📊</span>
+                      <span className="rounded-full bg-slate-700/60 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-400">{selected?.market?.replace("USDT","") ?? "BTC"}</span>
+                    </div>
+                    {/* Area chart: open interest curve */}
+                    <svg viewBox="0 0 120 60" className="w-full opacity-70">
+                      <defs>
+                        <linearGradient id="oi-grad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.5" />
+                          <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+                        </linearGradient>
+                      </defs>
+                      <path d="M0,55 L10,48 L20,42 L30,45 L40,36 L50,30 L60,34 L70,24 L80,20 L90,16 L100,12 L110,8 L120,5 L120,60 L0,60 Z" fill="url(#oi-grad)" />
+                      <path d="M0,55 L10,48 L20,42 L30,45 L40,36 L50,30 L60,34 L70,24 L80,20 L90,16 L100,12 L110,8 L120,5" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-200 group-hover:text-orange-400">Open Interest ↗</p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">Contratos em aberto por exchange — indica alavancagem no mercado.</p>
+                    </div>
+                  </a>
+
+                  {/* Funding Rates */}
+                  <a href="https://www.coinglass.com/FundingRate" target="_blank" rel="noopener noreferrer"
+                    className="group flex flex-col gap-3 rounded-xl border border-slate-700 bg-slate-800/50 p-4 transition hover:border-orange-500/40 hover:bg-slate-800">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-2xl">💸</span>
+                      <span className="rounded-full bg-slate-700/60 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-400">Perpétuo</span>
+                    </div>
+                    {/* +/- funding rate bars around zero line */}
+                    <svg viewBox="0 0 120 60" className="w-full opacity-70">
+                      <line x1="0" y1="30" x2="120" y2="30" stroke="#334155" strokeWidth="1" />
+                      {[6,-4,8,3,-6,10,5,-3,12,7,-5,9].map((v, i) => (
+                        <rect key={i} x={i * 10 + 1} y={v > 0 ? 30 - v * 1.8 : 30} width={8}
+                          height={Math.abs(v) * 1.8} fill={v > 0 ? "#22c55e" : "#ef4444"} rx="2" opacity="0.8" />
+                      ))}
+                    </svg>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-200 group-hover:text-orange-400">Funding Rates ↗</p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">Taxa de financiamento perpétuo — valores negativos favorecem longs.</p>
+                    </div>
+                  </a>
+
+                  {/* Long/Short */}
+                  <a href="https://www.coinglass.com/LongShortRatio" target="_blank" rel="noopener noreferrer"
+                    className="group flex flex-col gap-3 rounded-xl border border-slate-700 bg-slate-800/50 p-4 transition hover:border-orange-500/40 hover:bg-slate-800">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-2xl">⚖️</span>
+                      <span className="rounded-full bg-slate-700/60 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-400">Sentimento</span>
+                    </div>
+                    {/* Stacked horizontal bars */}
+                    <svg viewBox="0 0 120 60" className="w-full opacity-70">
+                      {[
+                        { long: 62, y: 5 }, { long: 55, y: 17 }, { long: 48, y: 29 },
+                        { long: 58, y: 41 },
+                      ].map(({ long, y }, i) => (
+                        <g key={i}>
+                          <rect x={0} y={y} width={long * 1.2} height={9} fill="#22c55e" rx="2" opacity="0.75" />
+                          <rect x={long * 1.2} y={y} width={(100 - long) * 1.2} height={9} fill="#ef4444" rx="2" opacity="0.75" />
+                          <text x={long * 0.6} y={y + 7} textAnchor="middle" fontSize="6" fill="#fff" fontWeight="700">{long}%</text>
+                          <text x={long * 1.2 + (100 - long) * 0.6} y={y + 7} textAnchor="middle" fontSize="6" fill="#fff" fontWeight="700">{100 - long}%</text>
+                        </g>
+                      ))}
+                      <text x="0" y="59" fontSize="6" fill="#22c55e">Long</text>
+                      <text x="100" y="59" fontSize="6" fill="#ef4444">Short</text>
+                    </svg>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-200 group-hover:text-orange-400">Long/Short ↗</p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">Rácio de posições longas vs curtas por exchange e período.</p>
+                    </div>
+                  </a>
                 </div>
 
                 {/* Info strip */}
