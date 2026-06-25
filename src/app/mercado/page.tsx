@@ -1017,10 +1017,6 @@ export default function MercadoPage() {
                 type="button"
                 className="rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
                 onClick={() => {
-                  if (chartSource === "coinglass") {
-                    window.open(coinglassUrl, "_blank", "noopener,noreferrer");
-                    return;
-                  }
                   if (document.fullscreenElement) {
                     document.exitFullscreen();
                     return;
@@ -1028,7 +1024,7 @@ export default function MercadoPage() {
                   chartRef.current?.requestFullscreen?.();
                 }}
               >
-                {chartSource === "coinglass" ? "Abrir Coinglass ↗" : isFullscreen ? "Sair do ecrã inteiro" : "Ecrã inteiro"}
+                {isFullscreen ? "Sair do ecrã inteiro" : "Ecrã inteiro"}
               </button>
             </div>
           </div>
@@ -1054,23 +1050,9 @@ export default function MercadoPage() {
                 interval={tradingViewInterval}
               />
             ) : (
-              /* Coinglass doesn't allow iframe embedding — show a curated link page */
-              <div className="flex h-full w-full flex-col items-center justify-between gap-6 rounded-xl border border-slate-800 bg-slate-900/40 p-8">
-                <div className="flex w-full flex-col items-center gap-4 pt-4">
-                  <p className="text-sm font-medium text-slate-300">
-                    Abre a Coinglass para ver dados avançados de mercado
-                  </p>
-                  <a
-                    href={coinglassUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-6 py-3 text-sm font-bold text-slate-950 shadow-lg transition hover:bg-orange-400"
-                  >
-                    Abrir Coinglass ↗
-                  </a>
-                </div>
-
-                <div className="grid w-full max-w-2xl grid-cols-2 gap-3 sm:grid-cols-4">
+              /* Coinglass doesn't allow iframe embedding — curated links */
+              <div className="flex h-full w-full flex-col items-center justify-center gap-6 rounded-xl border border-slate-800 bg-slate-900/40 p-8">
+                <div className="grid w-full max-w-2xl grid-cols-2 gap-4 sm:grid-cols-4">
                   {[
                     { label: "Liquidações", desc: "Liquidações em tempo real por exchange", path: "/LiquidationData", icon: "🔥" },
                     { label: "Open Interest", desc: "Interesse em aberto por contrato", path: `/openInterest/${selected?.market?.replace("USDT","") ?? "BTC"}`, icon: "📊" },
@@ -1082,30 +1064,11 @@ export default function MercadoPage() {
                       href={`https://www.coinglass.com${path}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="group flex flex-col gap-2 rounded-xl border border-slate-700 bg-slate-800/50 p-4 transition hover:border-orange-500/40 hover:bg-slate-800"
+                      className="group flex flex-col gap-3 rounded-xl border border-slate-700 bg-slate-800/50 p-5 transition hover:border-orange-500/40 hover:bg-slate-800"
                     >
-                      <span className="text-2xl">{icon}</span>
-                      <span className="text-xs font-semibold text-slate-200 group-hover:text-orange-400">{label} ↗</span>
-                      <span className="text-[10px] leading-relaxed text-slate-500">{desc}</span>
-                    </a>
-                  ))}
-                </div>
-
-                <div className="flex w-full max-w-2xl flex-wrap justify-center gap-2 pb-4">
-                  {[
-                    { label: "Heatmap BTC", path: "/bitcoin-liquidation-heatmap" },
-                    { label: "Fear & Greed", path: "/fear-greed-index" },
-                    { label: "Basis", path: "/FuturesBasis" },
-                    { label: "Volume", path: "/FuturesExchangeVolume" },
-                  ].map(({ label, path }) => (
-                    <a
-                      key={label}
-                      href={`https://www.coinglass.com${path}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="rounded-full border border-slate-700 px-3 py-1 text-[11px] text-slate-400 transition hover:border-slate-500 hover:text-slate-200"
-                    >
-                      {label} ↗
+                      <span className="text-3xl">{icon}</span>
+                      <span className="text-sm font-semibold text-slate-200 group-hover:text-orange-400">{label} ↗</span>
+                      <span className="text-[11px] leading-relaxed text-slate-500">{desc}</span>
                     </a>
                   ))}
                 </div>
