@@ -54,9 +54,8 @@ export async function POST() {
     // Upsert the most recent active subscription
     const sub = subscriptions.data[0];
     const priceId = sub.items.data[0]?.price?.id ?? null;
-    const currentPeriodEnd = sub.current_period_end
-      ? new Date(sub.current_period_end * 1000).toISOString()
-      : null;
+    const periodEnd = (sub as unknown as { current_period_end?: number }).current_period_end;
+    const currentPeriodEnd = periodEnd ? new Date(periodEnd * 1000).toISOString() : null;
 
     await supabaseAdmin.from("subscriptions").upsert({
       user_id: user.id,

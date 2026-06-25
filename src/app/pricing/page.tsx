@@ -374,6 +374,22 @@ export default function PricingPage() {
               </div>
             </div>
 
+            {/* Sync plan */}
+            {userId && currentPlan !== "premium" && (
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 text-center space-y-3">
+                <p className="text-sm font-semibold text-white">Já pagaste mas o plano não actualizou?</p>
+                <p className="text-xs text-slate-400">Clica abaixo para sincronizar o teu plano directamente com o Stripe.</p>
+                <button
+                  type="button"
+                  onClick={handleSyncPlan}
+                  disabled={syncing}
+                  className="rounded-xl border border-orange-500/40 px-6 py-2.5 text-sm font-semibold text-orange-400 hover:bg-orange-500/10 disabled:opacity-50 transition"
+                >
+                  {syncing ? "A sincronizar…" : "↻ Sincronizar plano"}
+                </button>
+              </div>
+            )}
+
             {/* Footer note */}
             <div className="text-center space-y-2">
               <p className="text-xs text-slate-600">
