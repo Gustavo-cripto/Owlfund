@@ -8,94 +8,50 @@ type Quote = {
   updatedAt?: string;
 };
 
-const BROWSER_HEADERS = {
-  "User-Agent":
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-  Accept: "application/json,text/plain,*/*",
-  "Accept-Language": "en-US,en;q=0.9",
-  "Accept-Encoding": "gzip, deflate, br",
-  Referer: "https://finance.yahoo.com/",
-  Origin: "https://finance.yahoo.com",
+type TwelveQuote = {
+  symbol: string;
+  close?: string;
+  percent_change?: string;
+  volume?: string;
+  datetime?: string;
+  status?: string;
+  message?: string;
+  code?: number;
 };
 
-// Cache crumb in module scope (warm between requests on same instance)
-let cachedCrumb: string | null = null;
-let cachedCookie: string | null = null;
+async function fetchTwelveData(symbols: string[], apiKey: string): Promise<Quote[]> {
+  const joined = symbols.join(",");
+  const url = `https://api.twelvedata.com/quote?symbol=${encodeURIComponent(joined)}&apikey=${apiKey}&dp=2`;
 
-async function getCrumb(): Promise<{ crumb: string; cookie: string }> {
-  if (cachedCrumb && cachedCookie) return { crumb: cachedCrumb, cookie: cachedCookie };
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Twelve Data error: ${res.status}`);
 
-  // Step 1: get a session cookie
-  const cookieRes = await fetch("https://fc.yahoo.com", {
-    headers: BROWSER_HEADERS,
-    redirect: "follow",
-  });
-  const rawCookies = cookieRes.headers.get("set-cookie") ?? "";
-  const cookie = rawCookies
-    .split(",")
-    .map((c) => c.split(";")[0].trim())
-    .filter(Boolean)
-    .join("; ");
+  const payload = (await res.json()) as Record<string, TwelveQuote> | TwelveQuote;
 
-  // Step 2: fetch crumb
-  const crumbRes = await fetch(
-    "https://query1.finance.yahoo.com/v1/test/getcrumb",
-    {
-      headers: { ...BROWSER_HEADERS, Cookie: cookie },
-      cache: "no-store",
-    }
-  );
-  const crumb = await crumbRes.text();
-  if (!crumb || crumb.includes("<")) throw new Error("Failed to get Yahoo crumb");
+  // Single symbol returns object directly; multiple returns { SYMBOL: {...}, ... }
+  const entries: [string, TwelveQuote][] =
+    symbols.length === 1
+      ? [[symbols[0], payload as TwelveQuote]]
+      : Object.entries(payload as Record<string, TwelveQuote>);
 
-  cachedCrumb = crumb;
-  cachedCookie = cookie;
-  return { crumb, cookie };
-}
-
-async function fetchYahooQuotes(symbols: string[]): Promise<Quote[]> {
-  const { crumb, cookie } = await getCrumb();
-  const joined = symbols.map(encodeURIComponent).join(",");
-  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${joined}&crumb=${encodeURIComponent(crumb)}&fields=regularMarketPrice,regularMarketChangePercent,regularMarketVolume,regularMarketTime`;
-
-  const res = await fetch(url, {
-    headers: { ...BROWSER_HEADERS, Cookie: cookie },
-    cache: "no-store",
-  });
-
-  if (res.status === 401) {
-    // Crumb expired — reset and retry once
-    cachedCrumb = null;
-    cachedCookie = null;
-    return fetchYahooQuotes(symbols);
-  }
-
-  if (!res.ok) throw new Error(`Yahoo Finance error: ${res.status}`);
-
-  const payload = (await res.json()) as {
-    quoteResponse?: {
-      result?: Array<{
-        symbol: string;
-        regularMarketPrice?: number;
-        regularMarketChangePercent?: number;
-        regularMarketVolume?: number;
-        regularMarketTime?: number;
-      }>;
-    };
-  };
-
-  return (payload?.quoteResponse?.result ?? []).map((r) => ({
-    symbol: r.symbol,
-    price: r.regularMarketPrice ?? null,
-    changePercent: r.regularMarketChangePercent ?? null,
-    volume: r.regularMarketVolume ?? null,
-    updatedAt: r.regularMarketTime
-      ? new Date(r.regularMarketTime * 1000).toISOString().slice(0, 10)
-      : undefined,
+  return entries.map(([sym, q]) => ({
+    symbol: q.symbol ?? sym,
+    price: q.close != null ? Number(q.close) : null,
+    changePercent: q.percent_change != null ? Number(q.percent_change) : null,
+    volume: q.volume != null ? Number(q.volume) : null,
+    updatedAt: q.datetime?.slice(0, 10),
   }));
 }
 
 export async function GET(request: Request) {
+  const apiKey = (process.env.TWELVEDATA_API_KEY ?? "").trim();
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: "Adiciona TWELVEDATA_API_KEY nas variáveis de ambiente do Vercel (twelvedata.com — plano gratuito).", data: [] },
+      { status: 400 }
+    );
+  }
+
   const url = new URL(request.url);
   const symbolsParam = url.searchParams.get("symbols") ?? "";
   const symbols = symbolsParam
@@ -107,7 +63,7 @@ export async function GET(request: Request) {
   if (symbols.length === 0) return NextResponse.json({ data: [] });
 
   try {
-    const data = await fetchYahooQuotes(symbols);
+    const data = await fetchTwelveData(symbols, apiKey);
     return NextResponse.json({ data, errors: [], skipped: [] });
   } catch (err) {
     return NextResponse.json(
