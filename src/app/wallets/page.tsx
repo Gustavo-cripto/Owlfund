@@ -390,6 +390,9 @@ export default function WalletsPage() {
   const [adaError, setAdaError] = useState<string | null>(null);
   const [adaLoading, setAdaLoading] = useState(false);
   const [adaApi, setAdaApi] = useState<EternlApi | null>(null);
+  const [adaPeerAddress, setAdaPeerAddress] = useState<string | null>(null);
+  const [adaPeerConnecting, setAdaPeerConnecting] = useState(false);
+  const adaQrCanvasRef = useRef<HTMLDivElement>(null);
   const [adaWallets, setAdaWallets] = useState<StoredWalletEntry[]>([]);
   const [adaNewAddress, setAdaNewAddress] = useState("");
   const [adaNewError, setAdaNewError] = useState<string | null>(null);
@@ -1931,12 +1934,13 @@ export default function WalletsPage() {
   const [adaLoadingMsg, setAdaLoadingMsg] = useState<string | undefined>(undefined);
 
   const handleAdaConnectInternal = async () => {
+    let msgTimer: ReturnType<typeof setTimeout> | undefined;
     try {
       setAdaLoading(true);
       setAdaError(null);
       setAdaLoadingMsg("A aguardar aprovação…");
       // After 3s update message with clearer instructions
-      const msgTimer = setTimeout(() => {
+      msgTimer = setTimeout(() => {
         setAdaLoadingMsg("👉 Clica no ícone do Eternl na barra de extensões do Chrome (canto superior direito) → deverá aparecer um pedido de ligação para aprovar");
       }, 3000);
       // Timeout: if the wallet never responds (e.g. popup dismissed silently)
@@ -1985,9 +1989,80 @@ export default function WalletsPage() {
   };
 
   const handleAdaConnect = () => {
-    // Call directly — the Eternl popup must be triggered by a direct user gesture.
-    // Adding a confirm dialog in between causes the browser to block the wallet popup.
     void handleAdaConnectInternal();
+  };
+
+  const handleAdaPeerConnect = async () => {
+    setAdaPeerConnecting(true);
+    setAdaError(null);
+    setAdaPeerAddress(null);
+    try {
+      const { DAppPeerConnect } = await import("@fabianbormann/cardano-peer-connect");
+      const dAppConnect = new DAppPeerConnect({
+        dAppInfo: {
+          name: "ChainFolioAI",
+          url: typeof window !== "undefined" ? window.location.origin : "https://owlfund.vercel.app",
+          icon: typeof window !== "undefined" ? `${window.location.origin}/chainfolioai-icon.png` : "",
+        },
+        onConnect: (_address, _walletInfo) => {
+          setAdaPeerConnecting(false);
+        },
+        onApiInject: async (name: string, _address: string) => {
+          try {
+            const injected = (window as unknown as Record<string, { getChangeAddress?: () => Promise<string>; getBalance: () => Promise<string> }>)[name];
+            if (!injected) return;
+            const { connectCardanoWallet } = await import("@/lib/wallets/cardano");
+            const { getCardanoWasmAddress, hexToAddrBech32 } = await import("@/lib/wallets/cardano").then(m => ({ getCardanoWasmAddress: m.connectEternl, hexToAddrBech32: m.connectEternl })).catch(() => ({ getCardanoWasmAddress: null, hexToAddrBech32: null }));
+            void connectCardanoWallet;
+            void getCardanoWasmAddress;
+            void hexToAddrBech32;
+            // Get address from injected API
+            const changeHex = await injected.getChangeAddress?.().catch(() => "") ?? "";
+            let address = changeHex;
+            if (address && !address.startsWith("addr")) {
+              const CardanoWasm = await import("@emurgo/cardano-serialization-lib-browser");
+              const bytes = new Uint8Array(changeHex.replace(/^0x/, "").match(/.{2}/g)!.map(b => parseInt(b, 16)));
+              address = CardanoWasm.Address.from_bytes(bytes).to_bech32();
+            }
+            if (!address) { setAdaError("Não foi possível obter o endereço da carteira."); return; }
+            // Get balance
+            const balHex = await injected.getBalance().catch(() => "");
+            let balance = "0";
+            if (balHex) {
+              const CardanoWasm = await import("@emurgo/cardano-serialization-lib-browser");
+              const bytes = new Uint8Array(balHex.replace(/^0x/, "").match(/.{2}/g)!.map(b => parseInt(b, 16)));
+              const value = CardanoWasm.Value.from_bytes(bytes);
+              balance = (Number(value.coin().to_str()) / 1_000_000).toFixed(6);
+            }
+            const nextWallets = upsertWallet(
+              adaWallets,
+              { address, balance, network: "Cardano" },
+              (item) => item.address === address
+            );
+            setAdaWallets(nextWallets);
+            setAdaAddress(address);
+            setAdaBalance(balance);
+            updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: nextWallets });
+            setAdaPeerAddress(null);
+          } catch (e) {
+            setAdaError(e instanceof Error ? e.message : "Erro ao ligar via peer connect.");
+          }
+        },
+        onApiEject: (_name: string, _address: string) => {},
+        onDisconnect: (_address: string) => { setAdaPeerConnecting(false); },
+      });
+      const peerAddr = dAppConnect.getAddress();
+      setAdaPeerAddress(peerAddr);
+      // Generate QR code into canvas
+      setTimeout(() => {
+        if (adaQrCanvasRef.current) {
+          try { dAppConnect.generateQRCode(adaQrCanvasRef.current); } catch { /* ignore */ }
+        }
+      }, 300);
+    } catch (e) {
+      setAdaError(e instanceof Error ? e.message : "Erro ao iniciar peer connect.");
+      setAdaPeerConnecting(false);
+    }
   };
 
   const handleAdaRefresh = async () => {
@@ -4041,6 +4116,32 @@ export default function WalletsPage() {
                     <p>6. Deverá aparecer um pedido pendente → clica <strong className="text-slate-200">Approve</strong></p>
                   </div>
                 </details>
+              )}
+              {/* CIP-45 Peer Connect — for Eternl companion/mobile */}
+              {!adaAddress && adaWallets.length === 0 && (
+                <div className="space-y-2">
+                  {!adaPeerAddress && !adaPeerConnecting && (
+                    <button
+                      type="button"
+                      onClick={() => void handleAdaPeerConnect()}
+                      className="w-full rounded-xl border border-slate-700 py-2 text-xs text-slate-400 hover:border-orange-500/40 hover:text-orange-300 transition"
+                    >
+                      📱 Ligar via Código / QR (Eternl mobile)
+                    </button>
+                  )}
+                  {adaPeerConnecting && !adaPeerAddress && (
+                    <p className="text-xs text-slate-400 animate-pulse">A gerar código de ligação…</p>
+                  )}
+                  {adaPeerAddress && (
+                    <div className="rounded-xl border border-orange-500/20 bg-slate-900/60 p-4 space-y-3">
+                      <p className="text-xs font-semibold text-orange-400">Código de ligação CIP-45</p>
+                      <div ref={adaQrCanvasRef} className="flex justify-center" />
+                      <p className="text-[10px] text-slate-500 break-all font-mono bg-slate-950 rounded p-2 select-all">{adaPeerAddress}</p>
+                      <p className="text-[11px] text-slate-400">No Eternl: abre o menu → <strong className="text-slate-200">Ligar DApp</strong> → cola o código acima ou aponta a câmara ao QR.</p>
+                      <button type="button" onClick={() => { setAdaPeerAddress(null); setAdaPeerConnecting(false); }} className="text-xs text-slate-500 hover:text-slate-300">✕ Cancelar</button>
+                    </div>
+                  )}
+                </div>
               )}
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[11px] uppercase tracking-[0.3em] text-slate-500">

@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@emurgo/cardano-serialization-lib-browser": "^15.0.3",
+    "@fabianbormann/cardano-peer-connect": "^1.2.19",
     "@solana/web3.js": "^1.98.4",
     "@stripe/stripe-js": "^8.6.4",
     "@supabase/ssr": "^0.8.0",
