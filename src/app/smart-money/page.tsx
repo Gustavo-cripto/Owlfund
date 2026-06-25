@@ -220,7 +220,7 @@ function TxRow({ tx, whaleName }: { tx: WhaleTx; whaleName?: string }) {
 
 // ── Main Page ───────────────────────────────────────────────────────────────
 
-const FREE_WHALE_LIMIT = 5;
+const FREE_WHALE_LIMIT = 3;
 
 export default function SmartMoneyPage() {
   const { isLoading, userId } = useRequireAuth("/login");

@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
-const FREE_CHAT_LIMIT = 5;
+const FREE_CHAT_LIMIT = 1;
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const premiumPriceId = process.env.STRIPE_PREMIUM_PRICE_ID ?? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID ?? "";
@@ -73,20 +73,22 @@ PLANOS E FUNCIONALIDADES:
 
 Plano Gratuito (€0):
 - Até 3 carteiras on-chain
-- 5 chats/mês com o Chain (este chat)
+- 1 análise IA do portfolio/mês
 - 30 dias de histórico de portfolio
-- 5 endereços na watchlist de baleias
+- FIFO últimos 30 dias
+- 3 endereços na watchlist de baleias
 - Calculadora fiscal básica (PT, ES, FR, DE)
 - Calculadora FIRE (3 cenários)
 
-Plano Pro (€9.99/mês):
+Plano Pro (€14.99/mês):
 - Carteiras ilimitadas
-- Chats ilimitados com o Chain
+- Análise IA do portfolio ilimitada
+- Análise IA de notícias em tempo real
+- Briefing IA diário (cripto & tradicional)
+- FIFO ilimitado + exportação CSV/PDF
 - 365 dias de histórico de portfolio
 - Watchlist de baleias ilimitada
 - Snapshots automáticos diários
-- Briefing IA diário por email
-- Exportação CSV/PDF
 - Suporte prioritário
 
 Plano Premium (€39/mês) — inclui tudo do Pro, mais:
@@ -459,7 +461,7 @@ export async function POST(request: Request) {
       const { allowed, count } = await checkAndIncrementChatUsage(user.id);
       if (!allowed) {
         return NextResponse.json({
-          error: `Atingiste o limite de ${FREE_CHAT_LIMIT} chats/mês do plano Gratuito. Faz upgrade para Pro para chats ilimitados.`,
+          error: `Atingiste o limite de ${FREE_CHAT_LIMIT} análise IA/mês do plano Gratuito. Faz upgrade para Pro para análises ilimitadas.`,
           limitReached: true,
           count,
         }, { status: 429 });

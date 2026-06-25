@@ -29,7 +29,7 @@ const COMPARISON = [
   {
     category: "🐋 Smart Money & On-chain",
     rows: [
-      { label: "Watchlist de baleias", free: "5 endereços", pro: "Ilimitado", premium: "Ilimitado" },
+      { label: "Watchlist de baleias", free: "3 endereços", pro: "Ilimitado", premium: "Ilimitado" },
       { label: "Histórico de transações baleias", free: "Últimas 10", pro: "Últimas 100", premium: "Ilimitado" },
       { label: "Alertas de movimentos > $100k", free: false, pro: true, premium: true },
       { label: "Análise on-chain avançada", free: false, pro: false, premium: true },
@@ -45,7 +45,7 @@ const COMPARISON = [
       { label: "Notícias ao vivo (RSS)", free: true, pro: true, premium: true },
       { label: "Análise IA das notícias", free: false, pro: true, premium: true },
       { label: "Briefing IA diário (cripto & tradicional)", free: false, pro: true, premium: true },
-      { label: "Chat IA (análise de portfolio)", free: "5/mês", pro: "Ilimitado", premium: "Ilimitado" },
+      { label: "Análise IA do portfolio", free: "1/mês", pro: "Ilimitado", premium: "Ilimitado" },
       { label: "Chat sobre análise IA (mercado)", free: false, pro: true, premium: true },
       { label: "Análise preditiva IA on-chain", free: false, pro: false, premium: true },
     ],
@@ -53,7 +53,7 @@ const COMPARISON = [
   {
     category: "🧾 Fiscalidade",
     rows: [
-      { label: "Calculadora de impostos (FIFO)", free: true, pro: true, premium: true },
+      { label: "Calculadora de impostos (FIFO)", free: "30 dias", pro: "Ilimitado", premium: "Ilimitado" },
       { label: "Países suportados", free: "4 (PT/ES/FR/DE)", pro: "8+ países", premium: "Todos" },
       { label: "Guia de legislação por país", free: true, pro: true, premium: true },
       { label: "Exportação relatório fiscal PDF", free: false, pro: true, premium: "Multi-formato" },
@@ -200,10 +200,11 @@ export default function PricingPage() {
                     "3 carteiras on-chain",
                     "Preços em tempo real",
                     "Blocos BTC ao vivo",
-                    "Watchlist (5 baleias)",
-                    "Chat IA (5/mês)",
+                    "Notícias ao vivo (RSS)",
+                    "Watchlist (3 baleias)",
+                    "1 análise IA do portfolio/mês",
                     "Histórico 30 dias",
-                    "Calculadora FIFO",
+                    "FIFO últimos 30 dias",
                     "Calculadora FIRE básica",
                     "4 países fiscais",
                   ].map((f) => (
@@ -222,7 +223,7 @@ export default function PricingPage() {
                 <div className="absolute top-3 right-3 text-[10px] bg-orange-500 text-slate-950 font-bold px-2 py-0.5 rounded-full">POPULAR</div>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-400">Pro</p>
-                  <p className="text-3xl font-bold text-white mt-1">€9,99 <span className="text-sm font-normal text-slate-500">/ mês</span></p>
+                  <p className="text-3xl font-bold text-white mt-1">€14,99 <span className="text-sm font-normal text-slate-500">/ mês</span></p>
                   <p className="text-xs text-slate-500 mt-1">Para investidores activos</p>
                 </div>
                 <div className="space-y-2 text-sm">
@@ -236,7 +237,7 @@ export default function PricingPage() {
                     "Alertas baleias > $100k + email",
                     "Análise IA de notícias (tempo real)",
                     "Briefing IA diário (cripto & tradicional)",
-                    "Chat IA ilimitado",
+                    "Análise IA do portfolio ilimitada",
                     "Exportação CSV + PDF fiscal",
                     "Histórico 1 ano+",
                     "8+ países fiscais",
@@ -355,7 +356,7 @@ export default function PricingPage() {
                   </thead>
                   <tbody>
                     {[
-                      ["Preço/mês", "€9,99", "€39", "€19,99", "€9,99"],
+                      ["Preço/mês", "€14,99", "€39", "€19,99", "€14,99"],
                       ["Carteiras on-chain ilimitadas", "✓", "✓", "✓", "—"],
                       ["CEX integrado", "✓", "✓", "Parcial", "—"],
                       ["Smart Money / Baleias", "✓", "✓ Avançado", "Parcial", "—"],
