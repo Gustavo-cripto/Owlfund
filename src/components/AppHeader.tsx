@@ -118,7 +118,7 @@ export default function AppHeader({
         {/* Logo + título */}
         <a href={variant === "app" ? "/dashboard" : "/"} className="flex items-center gap-2.5 flex-shrink-0">
           <img
-            src="/owlfund-owl.png"
+            src="/chainfolioai-icon.png"
             alt="ChainFolioAI"
             className={variant === "public"
               ? "h-16 w-16 rounded-full object-cover shadow-lg [transform:scaleX(-1)]"

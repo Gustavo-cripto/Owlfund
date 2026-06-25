@@ -7,9 +7,13 @@ import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 import { ThemeProvider } from "@/lib/theme/ThemeContext";
 
 export const metadata: Metadata = {
-  title: "ChainFolioAI Portfolio",
+  title: "ChainFolioAI",
   description:
     "Dashboard inteligente para acompanhar seus investimentos com clareza.",
+  icons: {
+    icon: "/chainfolioai-icon.png",
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({
