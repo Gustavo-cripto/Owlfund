@@ -38,6 +38,7 @@ const securityHeaders = [
         "https://dlmm-api.meteora.ag",
         "https://blockfrost.io",
         "https://cardano-mainnet.blockfrost.io",
+        "https://api.alternative.me",
         "https://api.blockchair.com",
         "https://mempool.space",
         "https://blockchain.info",
