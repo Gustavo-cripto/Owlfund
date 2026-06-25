@@ -187,7 +187,7 @@ export default function Sidebar() {
             <img src="/chainfolioai-icon.png" alt="ChainFolioAI" className="w-10 h-10 object-cover " />
           </div>
           <div>
-            <p className="text-sm font-bold text-white tracking-widest leading-none">OWLFUND</p>
+            <p className="text-sm font-bold text-white tracking-widest leading-none">CHAINFOLIOAI</p>
             <p className="text-[10px] text-slate-500 leading-tight mt-0.5">Portfolio Analytics</p>
           </div>
         </a>
@@ -255,7 +255,7 @@ export default function Sidebar() {
           </a>
           <div className={`transition-all duration-200 overflow-hidden ${expanded ? "opacity-100 w-auto" : "opacity-0 w-0"}`}>
             <a href="/dashboard">
-              <p className="text-lg font-black text-white tracking-[0.22em] leading-none uppercase whitespace-nowrap">OWLFUND</p>
+              <p className="text-lg font-black text-white tracking-[0.22em] leading-none uppercase whitespace-nowrap">CHAINFOLIOAI</p>
               <p className="text-xs text-slate-500 leading-tight mt-1 whitespace-nowrap">Portfolio Analytics</p>
             </a>
           </div>
