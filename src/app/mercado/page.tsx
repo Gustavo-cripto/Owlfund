@@ -488,10 +488,13 @@ export default function MercadoPage() {
   const { t } = useLanguage();
   const [marketMode, setMarketMode] = useState<"crypto" | "tradicional" | "noticias">("crypto");
   const [newsContent, setNewsContent] = useState<string | null>(null);
-  const [newsMode, setNewsMode] = useState<"crypto" | "tradicional">("crypto");
+  const [newsMode, setNewsMode] = useState<"crypto" | "tradicional" | "diarias">("crypto");
   const [newsLoading, setNewsLoading] = useState(false);
   const [newsError, setNewsError] = useState<string | null>(null);
   const [newsDate, setNewsDate] = useState<string | null>(null);
+  type NewsItem = { title: string; link: string; description: string; pubDate: string; source: string; image?: string; category?: string };
+  const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
+  const [newsItemsLoading, setNewsItemsLoading] = useState(false);
   // Chat de perguntas sobre a análise
   type ChatMsg = { role: "user" | "assistant"; content: string };
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
@@ -1668,24 +1671,99 @@ export default function MercadoPage() {
                 <p className="text-sm text-slate-400 mt-0.5">Powered by Groq · Relatório gerado por IA com base no contexto de mercado</p>
               </div>
 
-              {/* Tabs crypto/tradicional */}
+              {/* Tabs crypto/tradicional/diarias */}
               <div className="flex gap-2">
-                {(["crypto", "tradicional"] as const).map((m) => (
+                {(["crypto", "tradicional", "diarias"] as const).map((m) => (
                   <button
                     key={m}
                     type="button"
-                    onClick={() => setNewsMode(m)}
+                    onClick={async () => {
+                      setNewsMode(m);
+                      if (m === "diarias" && newsItems.length === 0) {
+                        setNewsItemsLoading(true);
+                        try {
+                          const r = await fetch("/api/news");
+                          const d = await r.json() as { items?: NewsItem[] };
+                          setNewsItems(d.items ?? []);
+                        } catch { /* ignore */ } finally {
+                          setNewsItemsLoading(false);
+                        }
+                      }
+                    }}
                     className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition ${
                       newsMode === m
                         ? "border-orange-400 bg-orange-500/20 text-orange-200"
                         : "border-slate-700 text-slate-400 hover:border-slate-500"
                     }`}
                   >
-                    {m === "crypto" ? "Cripto" : "Tradicional"}
+                    {m === "crypto" ? "Cripto" : m === "tradicional" ? "Tradicional" : "📰 Notícias"}
                   </button>
                 ))}
               </div>
 
+              {/* News feed */}
+              {newsMode === "diarias" && (
+                <div className="space-y-3">
+                  {newsItemsLoading && (
+                    <p className="animate-pulse text-sm text-slate-400">A carregar notícias…</p>
+                  )}
+                  {!newsItemsLoading && newsItems.length === 0 && (
+                    <p className="text-sm text-slate-500">Sem notícias disponíveis.</p>
+                  )}
+                  {newsItems.map((item, i) => (
+                    <a
+                      key={i}
+                      href={item.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group flex gap-3 rounded-xl border border-slate-700 bg-slate-800/40 p-4 transition hover:border-orange-500/40 hover:bg-slate-800"
+                    >
+                      {item.image && (
+                        <img
+                          src={item.image}
+                          alt=""
+                          className="h-16 w-24 shrink-0 rounded-lg object-cover"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                        />
+                      )}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-orange-400">{item.source}</span>
+                          {item.pubDate && (
+                            <span className="text-[10px] text-slate-500">
+                              {new Date(item.pubDate).toLocaleString("pt-PT", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm font-semibold text-slate-200 group-hover:text-orange-300 leading-snug">{item.title}</p>
+                        {item.description && (
+                          <p className="mt-1 text-[11px] text-slate-500 leading-relaxed line-clamp-2">{item.description}</p>
+                        )}
+                      </div>
+                    </a>
+                  ))}
+                  {newsItems.length > 0 && (
+                    <button
+                      type="button"
+                      className="w-full rounded-xl border border-slate-700 py-2 text-xs text-slate-400 hover:border-slate-500 hover:text-slate-200 transition"
+                      onClick={async () => {
+                        setNewsItemsLoading(true);
+                        try {
+                          const r = await fetch("/api/news");
+                          const d = await r.json() as { items?: NewsItem[] };
+                          setNewsItems(d.items ?? []);
+                        } catch { /* ignore */ } finally {
+                          setNewsItemsLoading(false);
+                        }
+                      }}
+                    >
+                      ↻ Atualizar notícias
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {newsMode !== "diarias" && (<>
               <button
                 type="button"
                 disabled={newsLoading}
@@ -1833,6 +1911,7 @@ export default function MercadoPage() {
                   </div>
                 </>
               )}
+              </>)}
             </div>
           </div>
         )}
