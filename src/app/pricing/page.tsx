@@ -360,11 +360,11 @@ export default function PricingPage() {
                       ["API / MCP", "—", "✓", "—", "—"],
                       ["Fiscalidade europeia", "8 países", "Todos", "Limitado", "—"],
                       ["Chat IA portfolio", "✓", "✓", "—", "—"],
-                    ].map(([feature, owlfundPro, owlfundPremium, coinStats, delta]) => (
+                    ].map(([feature, chainfolioPro, chainfolioPremium, coinStats, delta]) => (
                       <tr key={feature} className="border-b border-slate-800/50 last:border-0 hover:bg-slate-800/20">
                         <td className="px-6 py-2.5 text-slate-300">{feature}</td>
-                        <td className="px-4 py-2.5 text-center text-orange-300 font-semibold">{owlfundPro}</td>
-                        <td className="px-4 py-2.5 text-center text-violet-300 font-semibold">{owlfundPremium}</td>
+                        <td className="px-4 py-2.5 text-center text-orange-300 font-semibold">{chainfolioPro}</td>
+                        <td className="px-4 py-2.5 text-center text-violet-300 font-semibold">{chainfolioPremium}</td>
                         <td className="px-4 py-2.5 text-center text-slate-500">{coinStats}</td>
                         <td className="px-4 py-2.5 text-center text-slate-500">{delta}</td>
                       </tr>

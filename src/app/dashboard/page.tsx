@@ -263,7 +263,7 @@ export default function DashboardPage() {
       label: "API & MCP Access",
       color: "from-slate-500/15 to-slate-600/5", border: "border-slate-500/20", iconBg: "bg-slate-500/10",
       minPlan: "premium" as Plan,
-      summary: "Integra o Owlfund nos teus próprios agentes IA via REST API ou protocolo MCP.",
+      summary: "Integra o ChainFolioAI nos teus próprios agentes IA via REST API ou protocolo MCP.",
       tiers: [
         { plan: "premium" as const, text: "Gera chaves API, conecta ao Claude/Cursor via MCP, webhooks para alertas em tempo real" },
       ],

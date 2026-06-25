@@ -104,7 +104,7 @@ COMO FUNCIONA O PNL:
 - Para começar a ver PNL histórico, o utilizador deve guardar o primeiro snapshot manualmente na página Portfolio.
 
 SEGURANÇA:
-- Modo só leitura em todas as carteiras — o Owlfund nunca pede chaves privadas nem pode fazer transações.
+- Modo só leitura em todas as carteiras — o ChainFolioAI nunca pede chaves privadas nem pode fazer transações.
 - Autenticação via Supabase (email + Google).
 
 SUPORTE:

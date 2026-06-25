@@ -67,7 +67,7 @@ function PremiumApiKeys({ isPremium }: { isPremium: boolean }) {
       </div>
       {isPremium ? (
         <div className="space-y-4">
-          <p className="text-xs text-slate-400">Gera chaves API para integrar o Owlfund com ferramentas externas, MCP servers e webhooks.</p>
+          <p className="text-xs text-slate-400">Gera chaves API para integrar o ChainFolioAI com ferramentas externas, MCP servers e webhooks.</p>
 
           {revealedKey && (
             <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/30 p-3 space-y-2">
