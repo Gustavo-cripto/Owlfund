@@ -1934,15 +1934,20 @@ export default function WalletsPage() {
     try {
       setAdaLoading(true);
       setAdaError(null);
-      setAdaLoadingMsg("👉 Clica no ícone do Eternl na barra de extensões (canto superior direito do browser) para aprovar");
+      setAdaLoadingMsg("A aguardar aprovação…");
+      // After 3s update message with clearer instructions
+      const msgTimer = setTimeout(() => {
+        setAdaLoadingMsg("👉 Clica no ícone do Eternl na barra de extensões do Chrome (canto superior direito) → deverá aparecer um pedido de ligação para aprovar");
+      }, 3000);
       // Timeout: if the wallet never responds (e.g. popup dismissed silently)
       const timeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("timeout")), 90_000)
+        setTimeout(() => reject(new Error("timeout")), 60_000)
       );
       const { api, address } = await Promise.race([
         connectCardanoWallet(selectedAdaProvider),
         timeout,
       ]);
+      clearTimeout(msgTimer);
       setAdaLoadingMsg(undefined);
       setAdaApi(api);
       setAdaAddress(address);
@@ -1956,9 +1961,10 @@ export default function WalletsPage() {
       setAdaWallets(nextWallets);
       updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: nextWallets });
     } catch (error) {
+      clearTimeout(msgTimer);
       const msg = error instanceof Error ? error.message : "Erro ao conectar.";
       if (msg === "timeout") {
-        setAdaError("O Eternl não respondeu. Verifica se o popup da extensão abriu (ícone na barra do browser) e aprova a ligação. Em alternativa, adiciona o endereço manualmente abaixo.");
+        setAdaError("O Eternl não respondeu em 60 segundos. Verifica: 1) Clica no ícone do Eternl na barra de extensões do Chrome → deverá aparecer um pedido pendente para aprovar. 2) Se não aparecer nada, abre o Eternl → Settings → dApp Connector → confirma que tens uma conta dApp activa. 3) Em alternativa, adiciona o endereço manualmente abaixo.");
       } else if (msg.toLowerCase().includes("user canceled") || msg.toLowerCase().includes("cancelled") || msg.toLowerCase().includes("cancel")) {
         setAdaError("Conexão cancelada pelo utilizador.");
       } else if (
@@ -4018,6 +4024,24 @@ export default function WalletsPage() {
             isAddressVisible={adaShowMain}
           >
             <div className="space-y-3">
+              {/* Eternl setup guide — shown when not connected */}
+              {!adaAddress && adaWallets.length === 0 && (
+                <details className="rounded-xl border border-slate-800 bg-slate-900/40">
+                  <summary className="cursor-pointer px-4 py-2.5 text-xs text-slate-400 hover:text-slate-200 transition select-none">
+                    ℹ️ Como ligar o Eternl pela primeira vez
+                  </summary>
+                  <div className="px-4 pb-4 pt-2 space-y-1.5 text-xs text-slate-400">
+                    <p className="font-semibold text-slate-300 mb-2">Antes de clicar "Conectar":</p>
+                    <p>1. Abre o Eternl → clica em <strong className="text-slate-200">Settings</strong> (ícone engrenagem)</p>
+                    <p>2. Vai a <strong className="text-slate-200">dApp Connector</strong></p>
+                    <p>3. Certifica-te que tens uma conta activa listada ali</p>
+                    <p>4. Se não houver nenhuma, cria uma nova conta dApp Connector</p>
+                    <p className="font-semibold text-slate-300 mt-3 mb-1">Depois de clicar "Conectar":</p>
+                    <p>5. Clica no <strong className="text-slate-200">ícone do Eternl</strong> na barra de extensões do Chrome (canto superior direito)</p>
+                    <p>6. Deverá aparecer um pedido pendente → clica <strong className="text-slate-200">Approve</strong></p>
+                  </div>
+                </details>
+              )}
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[11px] uppercase tracking-[0.3em] text-slate-500">
                   Carteira ADA
