@@ -1051,26 +1051,80 @@ export default function MercadoPage() {
               />
             ) : (
               /* Coinglass doesn't allow iframe embedding — curated links */
-              <div className="flex h-full w-full flex-col items-center justify-center gap-6 rounded-xl border border-slate-800 bg-slate-900/40 p-8">
-                <div className="grid w-full max-w-2xl grid-cols-2 gap-4 sm:grid-cols-4">
+              <div className="flex h-full w-full flex-col gap-5 overflow-y-auto rounded-xl border border-slate-800 bg-slate-900/40 p-6">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-orange-400">Coinglass</p>
+                    <h3 className="mt-0.5 text-base font-bold text-white">Dados avançados de derivados</h3>
+                  </div>
+                  <a
+                    href="https://www.coinglass.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-full border border-orange-500/40 bg-orange-500/10 px-4 py-1.5 text-xs font-semibold text-orange-300 transition hover:bg-orange-500/20"
+                  >
+                    Abrir Coinglass ↗
+                  </a>
+                </div>
+
+                {/* 4 main cards */}
+                <div className="grid flex-1 grid-cols-2 gap-3 sm:grid-cols-4">
                   {[
-                    { label: "Liquidações", desc: "Liquidações em tempo real por exchange", path: "/LiquidationData", icon: "🔥" },
-                    { label: "Open Interest", desc: "Interesse em aberto por contrato", path: `/openInterest/${selected?.market?.replace("USDT","") ?? "BTC"}`, icon: "📊" },
-                    { label: "Funding Rates", desc: "Taxas de financiamento perpétuo", path: "/FundingRate", icon: "💸" },
-                    { label: "Long/Short", desc: "Rácio longs vs shorts por exchange", path: "/LongShortRatio", icon: "⚖️" },
-                  ].map(({ label, desc, path, icon }) => (
+                    {
+                      label: "Liquidações",
+                      desc: "Volume de liquidações forçadas por exchange e ativo em tempo real.",
+                      path: "/LiquidationData",
+                      icon: "🔥",
+                      badge: "Real-time",
+                    },
+                    {
+                      label: "Open Interest",
+                      desc: "Contratos em aberto por exchange — indica alavancagem no mercado.",
+                      path: `/openInterest/${selected?.market?.replace("USDT","") ?? "BTC"}`,
+                      icon: "📊",
+                      badge: selected?.market?.replace("USDT","") ?? "BTC",
+                    },
+                    {
+                      label: "Funding Rates",
+                      desc: "Taxa de financiamento perpétuo — valores negativos favorecem longs.",
+                      path: "/FundingRate",
+                      icon: "💸",
+                      badge: "Perpétuo",
+                    },
+                    {
+                      label: "Long/Short",
+                      desc: "Rácio de posições longas vs curtas por exchange e período.",
+                      path: "/LongShortRatio",
+                      icon: "⚖️",
+                      badge: "Sentimento",
+                    },
+                  ].map(({ label, desc, path, icon, badge }) => (
                     <a
                       key={label}
                       href={`https://www.coinglass.com${path}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="group flex flex-col gap-3 rounded-xl border border-slate-700 bg-slate-800/50 p-5 transition hover:border-orange-500/40 hover:bg-slate-800"
+                      className="group flex flex-col justify-between gap-3 rounded-xl border border-slate-700 bg-slate-800/50 p-4 transition hover:border-orange-500/40 hover:bg-slate-800"
                     >
-                      <span className="text-3xl">{icon}</span>
-                      <span className="text-sm font-semibold text-slate-200 group-hover:text-orange-400">{label} ↗</span>
-                      <span className="text-[11px] leading-relaxed text-slate-500">{desc}</span>
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-2xl">{icon}</span>
+                        <span className="rounded-full bg-slate-700/60 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-400">{badge}</span>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-200 group-hover:text-orange-400">{label} ↗</p>
+                        <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{desc}</p>
+                      </div>
                     </a>
                   ))}
+                </div>
+
+                {/* Info strip */}
+                <div className="rounded-lg border border-slate-800 bg-slate-950/50 px-4 py-3">
+                  <p className="text-[11px] leading-relaxed text-slate-500">
+                    A Coinglass não permite incorporação externa. Clica em qualquer card para abrir directamente na plataforma.
+                    Os dados incluem todas as principais exchanges (Binance, Bybit, OKX, dYdX e outras).
+                  </p>
                 </div>
               </div>
             )}
