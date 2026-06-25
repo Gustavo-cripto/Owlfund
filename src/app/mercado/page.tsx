@@ -1017,6 +1017,10 @@ export default function MercadoPage() {
                 type="button"
                 className="rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
                 onClick={() => {
+                  if (chartSource === "coinglass") {
+                    window.open(coinglassUrl, "_blank", "noopener,noreferrer");
+                    return;
+                  }
                   if (document.fullscreenElement) {
                     document.exitFullscreen();
                     return;
@@ -1024,7 +1028,7 @@ export default function MercadoPage() {
                   chartRef.current?.requestFullscreen?.();
                 }}
               >
-                {isFullscreen ? "Sair do ecrã inteiro" : "Ecrã inteiro"}
+                {chartSource === "coinglass" ? "Abrir Coinglass ↗" : isFullscreen ? "Sair do ecrã inteiro" : "Ecrã inteiro"}
               </button>
             </div>
           </div>
@@ -1050,23 +1054,11 @@ export default function MercadoPage() {
                 interval={tradingViewInterval}
               />
             ) : (
-              <div className="flex h-full w-full flex-col items-center justify-center gap-6 rounded-xl border border-slate-800 bg-slate-900/40">
-                <div className="flex flex-col items-center gap-3 text-center px-6">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-12 w-12 text-slate-600">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                  </svg>
-                  <p className="text-sm text-slate-400">A Coinglass não permite embedding em sites externos.</p>
-                  <p className="text-xs text-slate-500">Clica no botão abaixo para ver o gráfico de liquidações, open interest e funding rates directamente no site da Coinglass.</p>
-                </div>
-                <a
-                  href={coinglassUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-orange-400"
-                >
-                  Abrir no Coinglass ↗
-                </a>
-              </div>
+              <TradingViewWidget
+                key={`coinglass-${tradingViewSymbol}-${tradingViewInterval}`}
+                symbol={tradingViewSymbol}
+                interval={tradingViewInterval}
+              />
             )}
           </div>
         </section>
