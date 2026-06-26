@@ -4487,7 +4487,7 @@ export default function WalletsPage() {
             </div>
           </WalletCard>
         </div>
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+        <section className="order-last rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-white">Carteira Cripto</h2>
