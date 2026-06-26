@@ -2009,41 +2009,43 @@ export default function WalletsPage() {
         },
         onApiInject: async (name: string, _address: string) => {
           try {
-            const injected = (window as unknown as Record<string, { getChangeAddress?: () => Promise<string>; getBalance: () => Promise<string> }>)[name];
-            if (!injected) return;
-            const { connectCardanoWallet } = await import("@/lib/wallets/cardano");
-            const { getCardanoWasmAddress, hexToAddrBech32 } = await import("@/lib/wallets/cardano").then(m => ({ getCardanoWasmAddress: m.connectEternl, hexToAddrBech32: m.connectEternl })).catch(() => ({ getCardanoWasmAddress: null, hexToAddrBech32: null }));
-            void connectCardanoWallet;
-            void getCardanoWasmAddress;
-            void hexToAddrBech32;
-            // Get address from injected API
-            const changeHex = await injected.getChangeAddress?.().catch(() => "") ?? "";
+            // CIP-45: the wallet API is injected at window.cardano[name.toLowerCase()]
+            // as a standard CIP-30 provider that still needs enable() to be called.
+            const provider = (window.cardano as Record<string, { enable: () => Promise<EternlApi> }> | undefined)?.[name.toLowerCase()];
+            if (!provider) { setAdaError("Carteira ligada mas a API não foi encontrada."); return; }
+            const api = await provider.enable();
+
+            const hexToBytes = (hex: string) =>
+              new Uint8Array(hex.replace(/^0x/, "").match(/.{2}/g)!.map((b) => parseInt(b, 16)));
+
+            const changeHex = (await api.getChangeAddress?.().catch(() => "")) ?? "";
             let address = changeHex;
             if (address && !address.startsWith("addr")) {
               const CardanoWasm = await import("@emurgo/cardano-serialization-lib-browser");
-              const bytes = new Uint8Array(changeHex.replace(/^0x/, "").match(/.{2}/g)!.map(b => parseInt(b, 16)));
-              address = CardanoWasm.Address.from_bytes(bytes).to_bech32();
+              address = CardanoWasm.Address.from_bytes(hexToBytes(changeHex)).to_bech32();
             }
             if (!address) { setAdaError("Não foi possível obter o endereço da carteira."); return; }
-            // Get balance
-            const balHex = await injected.getBalance().catch(() => "");
+
+            const balHex = await api.getBalance().catch(() => "");
             let balance = "0";
             if (balHex) {
               const CardanoWasm = await import("@emurgo/cardano-serialization-lib-browser");
-              const bytes = new Uint8Array(balHex.replace(/^0x/, "").match(/.{2}/g)!.map(b => parseInt(b, 16)));
-              const value = CardanoWasm.Value.from_bytes(bytes);
+              const value = CardanoWasm.Value.from_bytes(hexToBytes(balHex));
               balance = (Number(value.coin().to_str()) / 1_000_000).toFixed(6);
             }
+
             const nextWallets = upsertWallet(
               adaWallets,
               { address, balance, network: "Cardano" },
               (item) => item.address === address
             );
             setAdaWallets(nextWallets);
+            setAdaApi(api);
             setAdaAddress(address);
             setAdaBalance(balance);
             updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: nextWallets });
             setAdaPeerAddress(null);
+            setAdaPeerConnecting(false);
           } catch (e) {
             setAdaError(e instanceof Error ? e.message : "Erro ao ligar via peer connect.");
           }
