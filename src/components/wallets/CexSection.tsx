@@ -534,8 +534,8 @@ export default function CexSection({
         <div className="flex items-start gap-3">
           <span className="text-2xl">🔐</span>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-400">Carteira Fria (Cold Wallet)</p>
-            <p className="text-sm text-slate-300 mt-0.5">Ledger · Trezor · Keystone · BitBox — modo seguro só-leitura</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-400">Ledger &amp; Trezor</p>
+            <p className="text-sm text-slate-300 mt-0.5">Cold wallets — modo seguro só-leitura</p>
           </div>
         </div>
 
@@ -550,9 +550,9 @@ export default function CexSection({
         <div className="space-y-2.5">
           <p className="text-xs font-semibold text-slate-300">Como adicionar (1 minuto):</p>
           <div className="space-y-2 text-xs text-slate-400">
-            <p><span className="text-emerald-400 font-semibold">1.</span> Abre o <strong className="text-slate-200">Ledger Live</strong> ou <strong className="text-slate-200">Trezor Suite</strong> (ou a app da tua cold wallet)</p>
+            <p><span className="text-emerald-400 font-semibold">1.</span> Abre o <strong className="text-slate-200">Ledger Live</strong> ou <strong className="text-slate-200">Trezor Suite</strong></p>
             <p><span className="text-emerald-400 font-semibold">2.</span> Escolhe a conta (ETH, BTC, SOL, ADA…) → <strong className="text-slate-200">Receber</strong> → copia o endereço público</p>
-            <p><span className="text-emerald-400 font-semibold">3.</span> Cola no campo <strong className="text-slate-200">"Adicionar endereço manual"</strong> e escolhe a rede</p>
+            <p><span className="text-emerald-400 font-semibold">3.</span> Escolhe a rede abaixo, cola o endereço e clica <strong className="text-slate-200">Adicionar</strong></p>
           </div>
         </div>
 
@@ -610,6 +610,15 @@ export default function CexSection({
           Como é só-leitura, nunca te pedimos para ligar o dispositivo nem aprovar nada —
           a tua cold wallet mantém-se 100% offline e segura.
         </p>
+
+        <div className="rounded-xl border border-slate-700/60 bg-slate-950/40 px-4 py-3">
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            💾 <strong className="text-slate-300">Onde ficam guardados:</strong> os endereços ficam na tua conta
+            (guardados de forma segura no servidor e no teu browser) para os veres em qualquer dispositivo.
+            Guardamos <strong>apenas o endereço público</strong> — nunca chaves privadas nem seed.
+            Podes remover qualquer endereço a qualquer momento.
+          </p>
+        </div>
       </div>
     </div>
   );
