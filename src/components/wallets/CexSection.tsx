@@ -72,10 +72,18 @@ function saveStored<T>(key: string, data: T[]) {
 export default function CexSection({
   onTotalChange,
   usdToEur = 0.92,
+  onAddColdWalletAddress,
+  coldWalletNetworks = [],
 }: {
   onTotalChange?: (usd: number) => void;
   usdToEur?: number;
+  onAddColdWalletAddress?: (address: string, networkId: string, label?: string) => string | null;
+  coldWalletNetworks?: Array<{ id: string; label: string; group?: string }>;
 }) {
+  const [coldAddress, setColdAddress] = useState("");
+  const [coldNetwork, setColdNetwork] = useState("eth");
+  const [coldError, setColdError] = useState<string | null>(null);
+  const [coldSuccess, setColdSuccess] = useState<string | null>(null);
   const [cexAccounts, setCexAccounts] = useState<CexAccount[]>([]);
   const [hlAccounts, setHlAccounts] = useState<HlAccount[]>([]);
   const [tokenPricesUsd, setTokenPricesUsd] = useState<Record<string, number>>({});
@@ -548,25 +556,59 @@ export default function CexSection({
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            const el = document.getElementById("manual-address-section");
-            if (el) {
-              el.scrollIntoView({ behavior: "smooth", block: "start" });
-              const input = el.querySelector<HTMLInputElement>("input[type='text'], input:not([type])");
-              setTimeout(() => input?.focus(), 500);
-            }
-          }}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500/90 px-4 py-3 text-sm font-bold text-slate-950 hover:bg-emerald-400 transition"
-        >
-          <span>📋</span>
-          <span>Adicionar endereço da cold wallet</span>
-        </button>
+        {/* Form inline: rede + endereço + adicionar */}
+        <div className="space-y-2 pt-1">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <select
+              value={coldNetwork}
+              onChange={(e) => setColdNetwork(e.target.value)}
+              className="rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-xs text-slate-200 outline-none focus:border-emerald-400 sm:w-[180px]"
+            >
+              {coldWalletNetworks.length > 0 ? (
+                coldWalletNetworks.map((n) => (
+                  <option key={n.id} value={n.id}>{n.label}</option>
+                ))
+              ) : (
+                <>
+                  <option value="eth">Ethereum (ETH)</option>
+                  <option value="btc">Bitcoin (BTC)</option>
+                  <option value="sol">Solana (SOL)</option>
+                  <option value="ada">Cardano (ADA)</option>
+                </>
+              )}
+            </select>
+            <input
+              type="text"
+              value={coldAddress}
+              onChange={(e) => setColdAddress(e.target.value)}
+              placeholder="Cola aqui o endereço público da cold wallet"
+              className="flex-1 rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-xs text-slate-200 placeholder:text-slate-600 outline-none focus:border-emerald-400"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setColdError(null);
+              setColdSuccess(null);
+              if (!onAddColdWalletAddress) { setColdError("Indisponível."); return; }
+              const err = onAddColdWalletAddress(coldAddress, coldNetwork);
+              if (err) { setColdError(err); return; }
+              setColdSuccess("✓ Endereço adicionado — a ler saldo, NFTs e DeFi…");
+              setColdAddress("");
+            }}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500/90 px-4 py-3 text-sm font-bold text-slate-950 hover:bg-emerald-400 transition"
+          >
+            <span>📋</span>
+            <span>Adicionar endereço da cold wallet</span>
+          </button>
+          {coldError && <p className="text-xs text-rose-400">{coldError}</p>}
+          {coldSuccess && <p className="text-xs text-emerald-400">{coldSuccess}</p>}
+        </div>
 
         <p className="text-[10px] text-slate-600 leading-relaxed">
-          Funciona com qualquer hardware wallet e qualquer rede. Como é só-leitura, nunca te pedimos
-          para ligar o dispositivo nem aprovar nada — assim a tua cold wallet mantém-se 100% offline e segura.
+          Lê automaticamente <strong>saldo, NFTs e posições DeFi</strong> do endereço (ETH, BTC, SOL, ADA e L2s).
+          Como é só-leitura, nunca te pedimos para ligar o dispositivo nem aprovar nada —
+          a tua cold wallet mantém-se 100% offline e segura.
         </p>
       </div>
     </div>

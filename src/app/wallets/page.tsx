@@ -2106,20 +2106,15 @@ export default function WalletsPage() {
     updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: [] });
   };
 
-  const handleManualAddAddress = () => {
-    const trimmed = manualAddAddress.trim();
-    const label = manualAddLabel.trim() ? sanitizeLabel(manualAddLabel) : undefined;
-    setManualAddError(null);
-    if (!trimmed) {
-      setManualAddError("Insere um endereço.");
-      return;
-    }
-    const evmNetwork = MANUAL_ADD_TO_EVM_NETWORK[manualAddNetwork];
+  /** Adiciona um endereço a tracking (saldo + NFTs + DeFi automáticos via useEffect).
+   *  Devolve string de erro ou null em sucesso. Usado pelo form manual e pela cold wallet. */
+  const addManualAddress = (addressArg: string, networkId: string, labelArg?: string): string | null => {
+    const trimmed = addressArg.trim();
+    const label = labelArg && labelArg.trim() ? sanitizeLabel(labelArg) : undefined;
+    if (!trimmed) return "Insere um endereço.";
+    const evmNetwork = MANUAL_ADD_TO_EVM_NETWORK[networkId];
     if (evmNetwork) {
-      if (!isEvmAddress(trimmed)) {
-        setManualAddError("Endereço inválido (deve ser 0x... para redes EVM/L2).");
-        return;
-      }
+      if (!isEvmAddress(trimmed)) return "Endereço inválido (deve ser 0x... para redes EVM/L2).";
       const nextWallets = upsertWallet(
         ethWallets,
         { address: trimmed, network: evmNetwork, label },
@@ -2128,12 +2123,9 @@ export default function WalletsPage() {
       setEthWallets(nextWallets);
       updateWalletSnapshot({ eth: nextWallets, sol: solWallets, btc: btcWallets, ada: adaWallets });
       void fetchEthBalanceForEntry(trimmed, evmNetwork);
-    } else if (MANUAL_ADD_TO_SOL_NETWORK[manualAddNetwork]) {
-      if (!isSolAddress(trimmed)) {
-        setManualAddError("Endereço Solana inválido (base58, 32–44 caracteres).");
-        return;
-      }
-      const solNetwork = MANUAL_ADD_TO_SOL_NETWORK[manualAddNetwork];
+    } else if (MANUAL_ADD_TO_SOL_NETWORK[networkId]) {
+      if (!isSolAddress(trimmed)) return "Endereço Solana inválido (base58, 32–44 caracteres).";
+      const solNetwork = MANUAL_ADD_TO_SOL_NETWORK[networkId];
       const nextWallets = upsertWallet(
         solWallets,
         { address: trimmed, network: solNetwork, label },
@@ -2142,11 +2134,8 @@ export default function WalletsPage() {
       setSolWallets(nextWallets);
       updateWalletSnapshot({ eth: ethWallets, sol: nextWallets, btc: btcWallets, ada: adaWallets });
       void fetchSolBalanceForAddress(trimmed);
-    } else if (manualAddNetwork === "btc") {
-      if (!isBtcAddress(trimmed)) {
-        setManualAddError("Endereço Bitcoin inválido.");
-        return;
-      }
+    } else if (networkId === "btc") {
+      if (!isBtcAddress(trimmed)) return "Endereço Bitcoin inválido.";
       const nextWallets = upsertWallet(
         btcWallets,
         { address: trimmed, network: "Bitcoin", label },
@@ -2155,11 +2144,8 @@ export default function WalletsPage() {
       setBtcWallets(nextWallets);
       updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: nextWallets, ada: adaWallets });
       void fetchBtcBalanceForAddress(trimmed);
-    } else if (manualAddNetwork === "ada") {
-      if (!isAdaAddress(trimmed)) {
-        setManualAddError("Endereço Cardano inválido (addr1... ou stake1...).");
-        return;
-      }
+    } else if (networkId === "ada") {
+      if (!isAdaAddress(trimmed)) return "Endereço Cardano inválido (addr1... ou stake1...).";
       const nextWallets = upsertWallet(
         adaWallets,
         { address: trimmed, network: "Cardano", label },
@@ -2170,11 +2156,8 @@ export default function WalletsPage() {
       void fetchAdaBalanceForAddress(trimmed);
     } else {
       // Other networks: store address without balance (tracking only)
-      if (trimmed.length < 6) {
-        setManualAddError("Endereço demasiado curto.");
-        return;
-      }
-      const networkLabel = MANUAL_ADD_NETWORKS.find((n) => n.id === manualAddNetwork)?.label ?? manualAddNetwork.toUpperCase();
+      if (trimmed.length < 6) return "Endereço demasiado curto.";
+      const networkLabel = MANUAL_ADD_NETWORKS.find((n) => n.id === networkId)?.label ?? networkId.toUpperCase();
       const entry: StoredWalletEntry = { address: trimmed, network: networkLabel, label };
       const nextWallets = upsertWallet(
         otherWallets,
@@ -2184,6 +2167,13 @@ export default function WalletsPage() {
       setOtherWallets(nextWallets);
       updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: adaWallets, other: nextWallets });
     }
+    return null;
+  };
+
+  const handleManualAddAddress = () => {
+    setManualAddError(null);
+    const err = addManualAddress(manualAddAddress, manualAddNetwork, manualAddLabel);
+    if (err) { setManualAddError(err); return; }
     setManualAddAddress("");
     setManualAddLabel("");
   };
@@ -5185,7 +5175,12 @@ export default function WalletsPage() {
         )}
         {/* ── CEX + Hyperliquid + Ledger ── */}
         {isPro ? (
-          <CexSection onTotalChange={setCexHlTotalUsd} usdToEur={usdToEurRate} />
+          <CexSection
+            onTotalChange={setCexHlTotalUsd}
+            usdToEur={usdToEurRate}
+            onAddColdWalletAddress={addManualAddress}
+            coldWalletNetworks={MANUAL_ADD_NETWORKS}
+          />
         ) : (
           <div className="mx-auto w-full max-w-5xl px-4 pb-8">
             <div className="rounded-2xl border border-orange-500/20 bg-orange-500/5 p-6 flex flex-col sm:flex-row items-center gap-5">
