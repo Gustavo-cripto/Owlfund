@@ -53,6 +53,12 @@ const securityHeaders = [
         "https://walletconnect.org",
         "https://*.walletconnect.org",
         "wss://*.walletconnect.org",
+        // PeerJS broker para CIP-45 (ligação Eternl via código/QR)
+        "https://0.peerjs.com",
+        "wss://0.peerjs.com",
+        "https://*.peerjs.com",
+        "wss://*.peerjs.com",
+        "stun:stun.l.google.com:19302",
         "https://js.stripe.com",
         "https://api.stripe.com",
       ].join(" "),
