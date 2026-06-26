@@ -31,27 +31,6 @@ const chainMap = {
 
 const CACHE_HEADERS = { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" };
 
-// wETH (Wrapped ETH) ERC-20 por rede onde o nativo é ETH — somado ao saldo nativo (1 wETH ≈ 1 ETH).
-// Só redes ETH-nativas: noutras (Polygon/BSC/Avax) o nativo não é ETH, somar misturaria unidades.
-const WETH_CONTRACTS: Partial<Record<keyof typeof chainMap, `0x${string}`>> = {
-  Ethereum: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
-  Arbitrum: "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
-  Optimism: "0x4200000000000000000000000000000000000006",
-  Base:     "0x4200000000000000000000000000000000000006",
-  zkSync:   "0x5AEa5775959fBC2557Cc8789bC1bf90A239D9a91",
-  Linea:    "0xe5D7C2a44FfDDf6b295A15c148167daaAf5Cf34f",
-  Scroll:   "0x5300000000000000000000000000000000000004",
-  Blast:    "0x4300000000000000000000000000000000000004",
-};
-
-const ERC20_BALANCE_ABI = [{
-  constant: true,
-  inputs: [{ name: "_owner", type: "address" }],
-  name: "balanceOf",
-  outputs: [{ name: "balance", type: "uint256" }],
-  type: "function",
-}] as const;
-
 export async function GET(request: NextRequest) {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
   if (!checkRateLimit(ip)) {
@@ -74,23 +53,8 @@ export async function GET(request: NextRequest) {
         chain: entry.chain as Parameters<typeof createPublicClient>[0]["chain"],
         transport: http(rpc, { timeout: 8_000 }),
       });
-      const native = await client.getBalance({ address: address as `0x${string}` });
-
-      // Soma wETH (ERC-20) ao saldo nativo nas redes ETH-nativas — falha de wETH não bloqueia o nativo.
-      let weth = BigInt(0);
-      const wethContract = WETH_CONTRACTS[network];
-      if (wethContract) {
-        try {
-          weth = await client.readContract({
-            address: wethContract,
-            abi: ERC20_BALANCE_ABI,
-            functionName: "balanceOf",
-            args: [address as `0x${string}`],
-          }) as bigint;
-        } catch { /* ignora wETH se falhar */ }
-      }
-
-      return NextResponse.json({ balance: formatEther(native + weth), network }, { headers: CACHE_HEADERS });
+      const balance = await client.getBalance({ address: address as `0x${string}` });
+      return NextResponse.json({ balance: formatEther(balance), network }, { headers: CACHE_HEADERS });
     } catch {
       continue;
     }
