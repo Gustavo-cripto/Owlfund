@@ -122,13 +122,15 @@ export async function GET(request: Request) {
       const sym = (token.symbol ?? "?").toUpperCase();
       const balAmount = parseBalance(token);
       if (balAmount === 0) continue;
-      // Ignora não-verificados sem preço (spam/airdrops sem valor real).
-      if (token.verified_contract === false && Number(token.usd_value ?? 0) === 0) continue;
+
+      const isNative = token.native_token === true || !token.token_address;
+      // ANTI-SPAM: só tokens verificados pelo Moralis (ou o nativo). Tokens de spam
+      // como um falso "BTC" avaliado em triliões NÃO são verificados → excluídos.
+      if (!isNative && token.verified_contract !== true) continue;
 
       const usdPrice = Number(token.usd_price ?? 0);
       const usdValue = Number(token.usd_value ?? 0);
 
-      const isNative = token.native_token === true || !token.token_address;
       allTokens.push({
         address: isNative ? "native" : (token.token_address ?? ""),
         symbol: sym,
