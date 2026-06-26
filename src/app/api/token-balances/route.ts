@@ -114,28 +114,19 @@ export async function GET(request: Request) {
       } catch { /* skip */ }
     }));
 
-    // Stablecoins = $1 (fallback fiável quando o preço não vem). CoinGecko como último recurso.
-    const STABLE = new Set(["USDC", "USDT", "DAI", "EURE", "EURC", "BUSD", "TUSD", "FRAX", "USDE"]);
-    const symbols = rawTokens.map(t => t.symbol ?? "");
-    const cgPrices = await fetchCoinGeckoPrices(["ETH", ...symbols]);
-
+    // IMPORTANTE: usar SÓ os preços do Moralis (por contrato, não por símbolo).
+    // Um fallback por símbolo daria a um token de spam "BTC" o preço real do Bitcoin → portfólio inflado.
     const allTokens: TokenBalance[] = [];
 
     for (const token of rawTokens) {
       const sym = (token.symbol ?? "?").toUpperCase();
       const balAmount = parseBalance(token);
       if (balAmount === 0) continue;
+      // Ignora não-verificados sem preço (spam/airdrops sem valor real).
+      if (token.verified_contract === false && Number(token.usd_value ?? 0) === 0) continue;
 
-      let usdPrice = Number(token.usd_price ?? 0);
-      let usdValue = Number(token.usd_value ?? 0);
-
-      // Fallbacks de preço: CoinGecko → stablecoin $1.
-      if (usdPrice === 0) {
-        if (cgPrices[sym]) usdPrice = cgPrices[sym];
-        else if (STABLE.has(sym)) usdPrice = 1;
-        if (usdPrice > 0) usdValue = balAmount * usdPrice;
-      }
-      if (usdValue === 0 && usdPrice > 0) usdValue = balAmount * usdPrice;
+      const usdPrice = Number(token.usd_price ?? 0);
+      const usdValue = Number(token.usd_value ?? 0);
 
       const isNative = token.native_token === true || !token.token_address;
       allTokens.push({
@@ -173,16 +164,14 @@ export async function GET(request: Request) {
       const data = await res.json() as SolToken[] | { result?: SolToken[] };
       const list: SolToken[] = Array.isArray(data) ? data : (data as { result?: SolToken[] }).result ?? [];
 
-      const cgPrices = await fetchCoinGeckoPrices(["SOL", ...list.map(t => t.symbol ?? "")]);
-
+      // Só preços do Moralis (por mint, não por símbolo) — evita avaliar spam pelo nome.
       const tokens: TokenBalance[] = list
         .filter(t => !t.possible_spam)
         .map(t => {
           const sym = (t.symbol ?? "?").toUpperCase();
           const balAmount = Number(t.amount ?? 0);
-          let usdPrice = Number(t.usd_price ?? 0);
-          let usdValue = Number(t.usd_value ?? 0);
-          if (usdPrice === 0 && cgPrices[sym]) { usdPrice = cgPrices[sym]; usdValue = balAmount * usdPrice; }
+          const usdPrice = Number(t.usd_price ?? 0);
+          const usdValue = Number(t.usd_value ?? 0);
           return { address: t.mint ?? "", symbol: sym, name: t.symbol ?? sym, logo: t.logo, balance: String(balAmount), usdValue, usdPrice, chain: "sol" as const };
         })
         .filter(t => Number(t.balance) > 0)
