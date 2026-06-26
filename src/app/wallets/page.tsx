@@ -2108,7 +2108,7 @@ export default function WalletsPage() {
 
   /** Adiciona um endereço a tracking (saldo + NFTs + DeFi automáticos via useEffect).
    *  Devolve string de erro ou null em sucesso. Usado pelo form manual e pela cold wallet. */
-  const addManualAddress = (addressArg: string, networkId: string, labelArg?: string): string | null => {
+  const addManualAddress = (addressArg: string, networkId: string, labelArg?: string, source: "cold" | "manual" = "manual"): string | null => {
     const trimmed = addressArg.trim();
     const label = labelArg && labelArg.trim() ? sanitizeLabel(labelArg) : undefined;
     if (!trimmed) return "Insere um endereço.";
@@ -2117,7 +2117,7 @@ export default function WalletsPage() {
       if (!isEvmAddress(trimmed)) return "Endereço inválido (deve ser 0x... para redes EVM/L2).";
       const nextWallets = upsertWallet(
         ethWallets,
-        { address: trimmed, network: evmNetwork, label },
+        { address: trimmed, network: evmNetwork, label, source },
         (item) => item.address === trimmed && item.network === evmNetwork
       );
       setEthWallets(nextWallets);
@@ -2128,7 +2128,7 @@ export default function WalletsPage() {
       const solNetwork = MANUAL_ADD_TO_SOL_NETWORK[networkId];
       const nextWallets = upsertWallet(
         solWallets,
-        { address: trimmed, network: solNetwork, label },
+        { address: trimmed, network: solNetwork, label, source },
         (item) => item.address === trimmed && (item.network ?? "Solana") === solNetwork
       );
       setSolWallets(nextWallets);
@@ -2138,7 +2138,7 @@ export default function WalletsPage() {
       if (!isBtcAddress(trimmed)) return "Endereço Bitcoin inválido.";
       const nextWallets = upsertWallet(
         btcWallets,
-        { address: trimmed, network: "Bitcoin", label },
+        { address: trimmed, network: "Bitcoin", label, source },
         (item) => item.address === trimmed
       );
       setBtcWallets(nextWallets);
@@ -2148,7 +2148,7 @@ export default function WalletsPage() {
       if (!isAdaAddress(trimmed)) return "Endereço Cardano inválido (addr1... ou stake1...).";
       const nextWallets = upsertWallet(
         adaWallets,
-        { address: trimmed, network: "Cardano", label },
+        { address: trimmed, network: "Cardano", label, source },
         (item) => item.address === trimmed && (item.network ?? "Cardano") === "Cardano"
       );
       setAdaWallets(nextWallets);
@@ -2158,7 +2158,7 @@ export default function WalletsPage() {
       // Other networks: store address without balance (tracking only)
       if (trimmed.length < 6) return "Endereço demasiado curto.";
       const networkLabel = MANUAL_ADD_NETWORKS.find((n) => n.id === networkId)?.label ?? networkId.toUpperCase();
-      const entry: StoredWalletEntry = { address: trimmed, network: networkLabel, label };
+      const entry: StoredWalletEntry = { address: trimmed, network: networkLabel, label, source };
       const nextWallets = upsertWallet(
         otherWallets,
         entry,
@@ -2178,15 +2178,16 @@ export default function WalletsPage() {
     setManualAddLabel("");
   };
 
-  /** Lista plana de todos os endereços on-chain adicionados manualmente (para gerir nas cold wallets). */
-  const manualAddressEntries = useMemo(() => {
+  /** Endereços adicionados via card Ledger/Trezor (source === "cold"), para gerir aí. */
+  const coldWalletEntries = useMemo(() => {
     type Kind = "eth" | "sol" | "btc" | "ada" | "other";
     const out: Array<{ address: string; networkLabel: string; kind: Kind }> = [];
-    ethWallets.forEach((w) => { if (w.address) out.push({ address: w.address, networkLabel: w.network ?? "Ethereum", kind: "eth" }); });
-    solWallets.forEach((w) => { if (w.address) out.push({ address: w.address, networkLabel: w.network ?? "Solana", kind: "sol" }); });
-    btcWallets.forEach((w) => { if (w.address) out.push({ address: w.address, networkLabel: w.network ?? "Bitcoin", kind: "btc" }); });
-    adaWallets.forEach((w) => { if (w.address) out.push({ address: w.address, networkLabel: w.network ?? "Cardano", kind: "ada" }); });
-    otherWallets.forEach((w) => { if (w.address) out.push({ address: w.address, networkLabel: w.network ?? "—", kind: "other" }); });
+    const isCold = (w: StoredWalletEntry) => w.source === "cold";
+    ethWallets.filter(isCold).forEach((w) => { if (w.address) out.push({ address: w.address, networkLabel: w.network ?? "Ethereum", kind: "eth" }); });
+    solWallets.filter(isCold).forEach((w) => { if (w.address) out.push({ address: w.address, networkLabel: w.network ?? "Solana", kind: "sol" }); });
+    btcWallets.filter(isCold).forEach((w) => { if (w.address) out.push({ address: w.address, networkLabel: w.network ?? "Bitcoin", kind: "btc" }); });
+    adaWallets.filter(isCold).forEach((w) => { if (w.address) out.push({ address: w.address, networkLabel: w.network ?? "Cardano", kind: "ada" }); });
+    otherWallets.filter(isCold).forEach((w) => { if (w.address) out.push({ address: w.address, networkLabel: w.network ?? "—", kind: "other" }); });
     return out;
   }, [ethWallets, solWallets, btcWallets, adaWallets, otherWallets]);
 
@@ -5215,9 +5216,9 @@ export default function WalletsPage() {
           <CexSection
             onTotalChange={setCexHlTotalUsd}
             usdToEur={usdToEurRate}
-            onAddColdWalletAddress={addManualAddress}
+            onAddColdWalletAddress={(addr, net, label) => addManualAddress(addr, net, label, "cold")}
             coldWalletNetworks={MANUAL_ADD_NETWORKS}
-            addedAddresses={manualAddressEntries}
+            addedAddresses={coldWalletEntries}
             onRemoveAddress={removeManualAddress}
             formatAddress={formatAddress}
           />

@@ -90,6 +90,7 @@ export default function CexSection({
   const [coldNetwork, setColdNetwork] = useState("eth");
   const [coldError, setColdError] = useState<string | null>(null);
   const [coldSuccess, setColdSuccess] = useState<string | null>(null);
+  const [coldShown, setColdShown] = useState<Record<string, boolean>>({});
   const [cexAccounts, setCexAccounts] = useState<CexAccount[]>([]);
   const [hlAccounts, setHlAccounts] = useState<HlAccount[]>([]);
   const [tokenPricesUsd, setTokenPricesUsd] = useState<Record<string, number>>({});
@@ -622,19 +623,33 @@ export default function CexSection({
           <div className="space-y-2">
             <p className="text-xs font-semibold text-slate-300">Endereços adicionados ({addedAddresses.length})</p>
             <div className="space-y-1.5">
-              {addedAddresses.map((e) => (
-                <div key={`${e.kind}:${e.networkLabel}:${e.address}`} className="flex items-center gap-2 rounded-xl border border-slate-700/60 bg-slate-950/40 px-3 py-2">
-                  <span className="rounded-md bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-slate-300">{e.networkLabel}</span>
-                  <span className="flex-1 truncate font-mono text-[11px] text-slate-400">{formatAddress(e.address)}</span>
-                  <button
-                    type="button"
-                    onClick={() => onRemoveAddress?.(e.address, e.kind, e.networkLabel)}
-                    className="rounded-full border border-rose-400/40 px-2.5 py-1 text-[10px] font-semibold text-rose-300 transition hover:border-rose-400 hover:text-white"
-                  >
-                    Remover
-                  </button>
-                </div>
-              ))}
+              {addedAddresses.map((e) => {
+                const key = `${e.kind}:${e.networkLabel}:${e.address}`;
+                const shown = !!coldShown[key];
+                return (
+                  <div key={key} className="flex items-center gap-2 rounded-xl border border-slate-700/60 bg-slate-950/40 px-3 py-2">
+                    <span className="rounded-md bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-slate-300">{e.networkLabel}</span>
+                    <span className="flex-1 truncate font-mono text-[11px] text-slate-400">
+                      {shown ? e.address : formatAddress(e.address)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setColdShown((prev) => ({ ...prev, [key]: !prev[key] }))}
+                      className="rounded-full border border-slate-700 px-2 py-1 text-[10px] text-slate-400 transition hover:border-slate-500 hover:text-slate-200"
+                      title={shown ? "Esconder endereço" : "Ver endereço completo"}
+                    >
+                      {shown ? "🙈 Esconder" : "👁 Ver"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onRemoveAddress?.(e.address, e.kind, e.networkLabel)}
+                      className="rounded-full border border-rose-400/40 px-2.5 py-1 text-[10px] font-semibold text-rose-300 transition hover:border-rose-400 hover:text-white"
+                    >
+                      Remover
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
