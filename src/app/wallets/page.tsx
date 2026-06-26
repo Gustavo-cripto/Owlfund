@@ -2637,7 +2637,7 @@ export default function WalletsPage() {
             </div>
           </section>
         )}
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+        <section id="manual-address-section" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 scroll-mt-24">
           <h3 className="text-sm font-semibold text-white">Adicionar endereço manual (todas as redes)</h3>
           <p className="mt-1 text-xs text-slate-500">
             Escolhe a rede e insere o endereço. ETH, SOL, BTC e ADA mostram saldo. Outras redes ficam em tracking.

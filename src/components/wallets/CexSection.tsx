@@ -51,19 +51,6 @@ function fmt(n: number) {
   return n.toLocaleString("pt-PT", { maximumFractionDigits: 6 });
 }
 
-// ── Ledger WebHID ──────────────────────────────────────────────────────────
-
-interface HIDDeviceLike { productName?: string }
-interface HIDLike { requestDevice(o: unknown): Promise<HIDDeviceLike[]> }
-
-async function connectLedger(): Promise<string> {
-  if (!("hid" in navigator)) throw new Error("WebHID não suportado neste browser. Usa Chrome ou Edge.");
-  const hid = (navigator as unknown as { hid: HIDLike }).hid;
-  const devices = await hid.requestDevice({ filters: [{ vendorId: 0x2c97 }] });
-  if (!devices.length) throw new Error("Nenhum Ledger selecionado.");
-  return devices[0].productName ?? "Ledger Device";
-}
-
 // ── CexSection ─────────────────────────────────────────────────────────────
 
 const CEX_STORAGE_KEY = "cex-accounts-v1";
@@ -92,8 +79,6 @@ export default function CexSection({
   const [cexAccounts, setCexAccounts] = useState<CexAccount[]>([]);
   const [hlAccounts, setHlAccounts] = useState<HlAccount[]>([]);
   const [tokenPricesUsd, setTokenPricesUsd] = useState<Record<string, number>>({});
-  const [ledgerLabel, setLedgerLabel] = useState<string | null>(null);
-  const [ledgerError, setLedgerError] = useState<string | null>(null);
 
   // CEX add form
   const [showAddCex, setShowAddCex] = useState(false);
@@ -266,16 +251,6 @@ export default function CexSection({
           : a
       )
     );
-  }
-
-  async function handleLedger() {
-    setLedgerError(null);
-    try {
-      const name = await connectLedger();
-      setLedgerLabel(name);
-    } catch (err) {
-      setLedgerError(err instanceof Error ? err.message : "Erro desconhecido");
-    }
   }
 
   return (
@@ -546,46 +521,52 @@ export default function CexSection({
         </div>
       </div>
 
-      {/* ── Ledger ── */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 space-y-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Hardware Wallet</p>
-          <p className="text-sm text-slate-300 mt-0.5">Ledger / Trezor — via WebHID (Chrome/Edge)</p>
+      {/* ── Hardware Wallet (cold) — modo seguro read-only ── */}
+      <div className="rounded-2xl border border-emerald-500/20 bg-slate-900/60 p-5 space-y-4">
+        <div className="flex items-start gap-3">
+          <span className="text-2xl">🔐</span>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-400">Carteira Fria (Cold Wallet)</p>
+            <p className="text-sm text-slate-300 mt-0.5">Ledger · Trezor · Keystone · BitBox — modo seguro só-leitura</p>
+          </div>
         </div>
 
-        {ledgerLabel ? (
-          <div className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
-            <span className="text-emerald-400 text-lg">🔐</span>
-            <div>
-              <p className="text-sm font-semibold text-emerald-300">{ledgerLabel} ligado</p>
-              <p className="text-xs text-slate-400">Dispositivo detetado via WebHID</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setLedgerLabel(null)}
-              className="ml-auto text-xs text-slate-600 hover:text-rose-400 transition"
-            >
-              Desligar
-            </button>
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
+          <p className="text-xs text-emerald-200/90 leading-relaxed">
+            🛡️ <strong>Segurança máxima:</strong> só usamos o teu <strong>endereço público</strong>.
+            O dispositivo nunca é ligado ao browser, a seed e as chaves privadas
+            <strong> nunca saem do hardware</strong>. Vês saldos, NFTs e posições DeFi sem qualquer risco.
+          </p>
+        </div>
+
+        <div className="space-y-2.5">
+          <p className="text-xs font-semibold text-slate-300">Como adicionar (1 minuto):</p>
+          <div className="space-y-2 text-xs text-slate-400">
+            <p><span className="text-emerald-400 font-semibold">1.</span> Abre o <strong className="text-slate-200">Ledger Live</strong> ou <strong className="text-slate-200">Trezor Suite</strong> (ou a app da tua cold wallet)</p>
+            <p><span className="text-emerald-400 font-semibold">2.</span> Escolhe a conta (ETH, BTC, SOL, ADA…) → <strong className="text-slate-200">Receber</strong> → copia o endereço público</p>
+            <p><span className="text-emerald-400 font-semibold">3.</span> Cola no campo <strong className="text-slate-200">"Adicionar endereço manual"</strong> e escolhe a rede</p>
           </div>
-        ) : (
-          <button
-            type="button"
-            onClick={handleLedger}
-            className="flex items-center gap-2 rounded-xl border border-slate-700 px-4 py-3 text-sm text-slate-300 hover:border-orange-500/50 hover:text-white transition"
-          >
-            <span>🔐</span>
-            <span>Ligar Ledger / Trezor</span>
-          </button>
-        )}
+        </div>
 
-        {ledgerError && (
-          <p className="text-xs text-rose-400">{ledgerError}</p>
-        )}
+        <button
+          type="button"
+          onClick={() => {
+            const el = document.getElementById("manual-address-section");
+            if (el) {
+              el.scrollIntoView({ behavior: "smooth", block: "start" });
+              const input = el.querySelector<HTMLInputElement>("input[type='text'], input:not([type])");
+              setTimeout(() => input?.focus(), 500);
+            }
+          }}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500/90 px-4 py-3 text-sm font-bold text-slate-950 hover:bg-emerald-400 transition"
+        >
+          <span>📋</span>
+          <span>Adicionar endereço da cold wallet</span>
+        </button>
 
-        <p className="text-[10px] text-slate-600">
-          Requer Chrome ou Edge com WebHID. O dispositivo deve estar desbloqueado e com uma app aberta.
-          Os saldos são lidos a partir do endereço público — nenhuma chave privada é acedida.
+        <p className="text-[10px] text-slate-600 leading-relaxed">
+          Funciona com qualquer hardware wallet e qualquer rede. Como é só-leitura, nunca te pedimos
+          para ligar o dispositivo nem aprovar nada — assim a tua cold wallet mantém-se 100% offline e segura.
         </p>
       </div>
     </div>
