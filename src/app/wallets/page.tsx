@@ -2178,18 +2178,53 @@ export default function WalletsPage() {
     setManualAddLabel("");
   };
 
-  /** Endereços adicionados via card Ledger/Trezor (source === "cold"), para gerir aí. */
+  /** Endereços adicionados via card Ledger/Trezor (source === "cold"), enriquecidos com saldo/NFTs/DeFi. */
   const coldWalletEntries = useMemo(() => {
     type Kind = "eth" | "sol" | "btc" | "ada" | "other";
-    const out: Array<{ address: string; networkLabel: string; kind: Kind }> = [];
+    type ColdEntry = {
+      address: string; networkLabel: string; kind: Kind;
+      balance: string | null; symbol: string; fiatUsd: number | null;
+      nftCount: number | null; defiUsd: number | null;
+    };
+    const out: ColdEntry[] = [];
     const isCold = (w: StoredWalletEntry) => w.source === "cold";
-    ethWallets.filter(isCold).forEach((w) => { if (w.address) out.push({ address: w.address, networkLabel: w.network ?? "Ethereum", kind: "eth" }); });
-    solWallets.filter(isCold).forEach((w) => { if (w.address) out.push({ address: w.address, networkLabel: w.network ?? "Solana", kind: "sol" }); });
-    btcWallets.filter(isCold).forEach((w) => { if (w.address) out.push({ address: w.address, networkLabel: w.network ?? "Bitcoin", kind: "btc" }); });
-    adaWallets.filter(isCold).forEach((w) => { if (w.address) out.push({ address: w.address, networkLabel: w.network ?? "Cardano", kind: "ada" }); });
-    otherWallets.filter(isCold).forEach((w) => { if (w.address) out.push({ address: w.address, networkLabel: w.network ?? "—", kind: "other" }); });
+
+    ethWallets.filter(isCold).forEach((w) => {
+      if (!w.address) return;
+      const net = w.network ?? "Ethereum";
+      const k = defiKey(w.address, net);
+      const balance = ethBalancesByKey[ethBalanceKey(w.address, net)] ?? w.balance ?? null;
+      out.push({ address: w.address, networkLabel: net, kind: "eth", balance, symbol: "ETH",
+        fiatUsd: getFiatValue("ETH", balance), nftCount: nftCounts[k] ?? null, defiUsd: defiTotals[k] ?? null });
+    });
+    solWallets.filter(isCold).forEach((w) => {
+      if (!w.address) return;
+      const k = defiKey(w.address, "sol");
+      const balance = solBalancesByAddress[w.address] ?? w.balance ?? null;
+      out.push({ address: w.address, networkLabel: w.network ?? "Solana", kind: "sol", balance, symbol: "SOL",
+        fiatUsd: getFiatValue("SOL", balance), nftCount: nftCounts[k] ?? null, defiUsd: defiTotals[k] ?? null });
+    });
+    btcWallets.filter(isCold).forEach((w) => {
+      if (!w.address) return;
+      const k = defiKey(w.address, "btc");
+      const balance = btcBalancesByAddress[w.address] ?? w.balance ?? null;
+      out.push({ address: w.address, networkLabel: w.network ?? "Bitcoin", kind: "btc", balance, symbol: "BTC",
+        fiatUsd: getFiatValue("BTC", balance), nftCount: nftCounts[k] ?? null, defiUsd: defiTotals[k] ?? null });
+    });
+    adaWallets.filter(isCold).forEach((w) => {
+      if (!w.address) return;
+      const k = defiKey(w.address, "ada");
+      const balance = adaBalancesByAddress[w.address] ?? w.balance ?? null;
+      out.push({ address: w.address, networkLabel: w.network ?? "Cardano", kind: "ada", balance, symbol: "ADA",
+        fiatUsd: getFiatValue("ADA", balance), nftCount: nftCounts[k] ?? null, defiUsd: defiTotals[k] ?? null });
+    });
+    otherWallets.filter(isCold).forEach((w) => {
+      if (!w.address) return;
+      out.push({ address: w.address, networkLabel: w.network ?? "—", kind: "other", balance: null, symbol: "",
+        fiatUsd: null, nftCount: null, defiUsd: null });
+    });
     return out;
-  }, [ethWallets, solWallets, btcWallets, adaWallets, otherWallets]);
+  }, [ethWallets, solWallets, btcWallets, adaWallets, otherWallets, ethBalancesByKey, solBalancesByAddress, btcBalancesByAddress, adaBalancesByAddress, nftCounts, defiTotals, web3Prices]);
 
   /** Remove um endereço adicionado manualmente, da lista certa e do snapshot. */
   const removeManualAddress = (address: string, kind: "eth" | "sol" | "btc" | "ada" | "other", networkLabel: string) => {

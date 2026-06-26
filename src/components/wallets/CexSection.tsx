@@ -82,7 +82,11 @@ export default function CexSection({
   usdToEur?: number;
   onAddColdWalletAddress?: (address: string, networkId: string, label?: string) => string | null;
   coldWalletNetworks?: Array<{ id: string; label: string; group?: string }>;
-  addedAddresses?: Array<{ address: string; networkLabel: string; kind: "eth" | "sol" | "btc" | "ada" | "other" }>;
+  addedAddresses?: Array<{
+    address: string; networkLabel: string; kind: "eth" | "sol" | "btc" | "ada" | "other";
+    balance?: string | null; symbol?: string; fiatUsd?: number | null;
+    nftCount?: number | null; defiUsd?: number | null;
+  }>;
   onRemoveAddress?: (address: string, kind: "eth" | "sol" | "btc" | "ada" | "other", networkLabel: string) => void;
   formatAddress?: (address: string) => string;
 }) {
@@ -626,27 +630,53 @@ export default function CexSection({
               {addedAddresses.map((e) => {
                 const key = `${e.kind}:${e.networkLabel}:${e.address}`;
                 const shown = !!coldShown[key];
+                const hasBalance = e.balance != null && Number(e.balance) > 0;
+                const fmtUsd = (v: number) => `$${v.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
                 return (
-                  <div key={key} className="flex items-center gap-2 rounded-xl border border-slate-700/60 bg-slate-950/40 px-3 py-2">
-                    <span className="rounded-md bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-slate-300">{e.networkLabel}</span>
-                    <span className="flex-1 truncate font-mono text-[11px] text-slate-400">
-                      {shown ? e.address : formatAddress(e.address)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setColdShown((prev) => ({ ...prev, [key]: !prev[key] }))}
-                      className="rounded-full border border-slate-700 px-2 py-1 text-[10px] text-slate-400 transition hover:border-slate-500 hover:text-slate-200"
-                      title={shown ? "Esconder endereço" : "Ver endereço completo"}
-                    >
-                      {shown ? "🙈 Esconder" : "👁 Ver"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onRemoveAddress?.(e.address, e.kind, e.networkLabel)}
-                      className="rounded-full border border-rose-400/40 px-2.5 py-1 text-[10px] font-semibold text-rose-300 transition hover:border-rose-400 hover:text-white"
-                    >
-                      Remover
-                    </button>
+                  <div key={key} className="rounded-xl border border-slate-700/60 bg-slate-950/40 px-3 py-2.5 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-md bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-slate-300">{e.networkLabel}</span>
+                      <span className="flex-1 truncate font-mono text-[11px] text-slate-400">
+                        {shown ? e.address : formatAddress(e.address)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setColdShown((prev) => ({ ...prev, [key]: !prev[key] }))}
+                        className="rounded-full border border-slate-700 px-2 py-1 text-[10px] text-slate-400 transition hover:border-slate-500 hover:text-slate-200"
+                        title={shown ? "Esconder endereço" : "Ver endereço completo"}
+                      >
+                        {shown ? "🙈" : "👁"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onRemoveAddress?.(e.address, e.kind, e.networkLabel)}
+                        className="rounded-full border border-rose-400/40 px-2.5 py-1 text-[10px] font-semibold text-rose-300 transition hover:border-rose-400 hover:text-white"
+                      >
+                        Remover
+                      </button>
+                    </div>
+                    {/* Saldo · NFTs · DeFi */}
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pl-1 text-[11px]">
+                      <span className="text-slate-400">
+                        <span className="text-slate-500">Saldo:</span>{" "}
+                        {hasBalance ? (
+                          <span className="font-semibold text-slate-200">
+                            {Number(e.balance).toLocaleString("en-US", { maximumFractionDigits: 6 })} {e.symbol}
+                            {e.fiatUsd != null ? <span className="text-slate-500"> ({fmtUsd(e.fiatUsd)})</span> : null}
+                          </span>
+                        ) : (
+                          <span className="text-slate-600">a carregar…</span>
+                        )}
+                      </span>
+                      <span className="text-slate-400">
+                        <span className="text-slate-500">NFTs:</span>{" "}
+                        <span className="font-semibold text-slate-200">{e.nftCount != null ? e.nftCount : "—"}</span>
+                      </span>
+                      <span className="text-slate-400">
+                        <span className="text-slate-500">DeFi:</span>{" "}
+                        <span className="font-semibold text-emerald-300">{e.defiUsd != null ? fmtUsd(e.defiUsd) : "—"}</span>
+                      </span>
+                    </div>
                   </div>
                 );
               })}
