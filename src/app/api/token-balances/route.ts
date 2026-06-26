@@ -19,7 +19,11 @@ type EvmToken = {
   possible_spam?: boolean;
   verified_contract?: boolean;
   native_token?: boolean;
+  security_score?: number | null;
 };
+
+// Símbolos de scam conhecidos (airdrops fantasma com preço inflado). Case-insensitive.
+const SCAM_SYMBOLS = new Set(["AICC"]);
 
 type SolToken = {
   mint?: string;
@@ -124,9 +128,15 @@ export async function GET(request: Request) {
       if (balAmount === 0) continue;
 
       const isNative = token.native_token === true || !token.token_address;
-      // ANTI-SPAM: só tokens verificados pelo Moralis (ou o nativo). Tokens de spam
-      // como um falso "BTC" avaliado em triliões NÃO são verificados → excluídos.
-      if (!isNative && token.verified_contract !== true) continue;
+      // ANTI-SPAM (camadas):
+      // 1) denylist de scams conhecidos (ex: AICC);
+      // 2) security_score baixo do Moralis (< 40 = provável scam);
+      // 3) só verificados (ou o nativo) — falsos "BTC" em triliões não são verificados.
+      if (!isNative) {
+        if (SCAM_SYMBOLS.has(sym)) continue;
+        if (typeof token.security_score === "number" && token.security_score < 40) continue;
+        if (token.verified_contract !== true) continue;
+      }
 
       const usdPrice = Number(token.usd_price ?? 0);
       const usdValue = Number(token.usd_value ?? 0);
