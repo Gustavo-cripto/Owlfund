@@ -2178,6 +2178,43 @@ export default function WalletsPage() {
     setManualAddLabel("");
   };
 
+  /** Lista plana de todos os endereços on-chain adicionados manualmente (para gerir nas cold wallets). */
+  const manualAddressEntries = useMemo(() => {
+    type Kind = "eth" | "sol" | "btc" | "ada" | "other";
+    const out: Array<{ address: string; networkLabel: string; kind: Kind }> = [];
+    ethWallets.forEach((w) => { if (w.address) out.push({ address: w.address, networkLabel: w.network ?? "Ethereum", kind: "eth" }); });
+    solWallets.forEach((w) => { if (w.address) out.push({ address: w.address, networkLabel: w.network ?? "Solana", kind: "sol" }); });
+    btcWallets.forEach((w) => { if (w.address) out.push({ address: w.address, networkLabel: w.network ?? "Bitcoin", kind: "btc" }); });
+    adaWallets.forEach((w) => { if (w.address) out.push({ address: w.address, networkLabel: w.network ?? "Cardano", kind: "ada" }); });
+    otherWallets.forEach((w) => { if (w.address) out.push({ address: w.address, networkLabel: w.network ?? "—", kind: "other" }); });
+    return out;
+  }, [ethWallets, solWallets, btcWallets, adaWallets, otherWallets]);
+
+  /** Remove um endereço adicionado manualmente, da lista certa e do snapshot. */
+  const removeManualAddress = (address: string, kind: "eth" | "sol" | "btc" | "ada" | "other", networkLabel: string) => {
+    if (kind === "eth") {
+      const next = removeWallet(ethWallets, (e) => e.address === address && (e.network ?? "Ethereum") === networkLabel);
+      setEthWallets(next);
+      updateWalletSnapshot({ eth: next, sol: solWallets, btc: btcWallets, ada: adaWallets, other: otherWallets });
+    } else if (kind === "sol") {
+      const next = removeWallet(solWallets, (e) => e.address === address && (e.network ?? "Solana") === networkLabel);
+      setSolWallets(next);
+      updateWalletSnapshot({ eth: ethWallets, sol: next, btc: btcWallets, ada: adaWallets, other: otherWallets });
+    } else if (kind === "btc") {
+      const next = removeWallet(btcWallets, (e) => e.address === address);
+      setBtcWallets(next);
+      updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: next, ada: adaWallets, other: otherWallets });
+    } else if (kind === "ada") {
+      const next = removeWallet(adaWallets, (e) => e.address === address && (e.network ?? "Cardano") === networkLabel);
+      setAdaWallets(next);
+      updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: next, other: otherWallets });
+    } else {
+      const next = removeWallet(otherWallets, (e) => e.address === address && e.network === networkLabel);
+      setOtherWallets(next);
+      updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: adaWallets, other: next });
+    }
+  };
+
   const handleManualAddCryptoAsset = () => {
     setManualCryptoAssetError(null);
     const symbol = manualCryptoAssetSymbol.trim();
@@ -5180,6 +5217,9 @@ export default function WalletsPage() {
             usdToEur={usdToEurRate}
             onAddColdWalletAddress={addManualAddress}
             coldWalletNetworks={MANUAL_ADD_NETWORKS}
+            addedAddresses={manualAddressEntries}
+            onRemoveAddress={removeManualAddress}
+            formatAddress={formatAddress}
           />
         ) : (
           <div className="mx-auto w-full max-w-5xl px-4 pb-8">

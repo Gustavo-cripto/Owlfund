@@ -74,11 +74,17 @@ export default function CexSection({
   usdToEur = 0.92,
   onAddColdWalletAddress,
   coldWalletNetworks = [],
+  addedAddresses = [],
+  onRemoveAddress,
+  formatAddress = (a: string) => a,
 }: {
   onTotalChange?: (usd: number) => void;
   usdToEur?: number;
   onAddColdWalletAddress?: (address: string, networkId: string, label?: string) => string | null;
   coldWalletNetworks?: Array<{ id: string; label: string; group?: string }>;
+  addedAddresses?: Array<{ address: string; networkLabel: string; kind: "eth" | "sol" | "btc" | "ada" | "other" }>;
+  onRemoveAddress?: (address: string, kind: "eth" | "sol" | "btc" | "ada" | "other", networkLabel: string) => void;
+  formatAddress?: (address: string) => string;
 }) {
   const [coldAddress, setColdAddress] = useState("");
   const [coldNetwork, setColdNetwork] = useState("eth");
@@ -610,6 +616,28 @@ export default function CexSection({
           Como é só-leitura, nunca te pedimos para ligar o dispositivo nem aprovar nada —
           a tua cold wallet mantém-se 100% offline e segura.
         </p>
+
+        {/* Endereços adicionados — ver e remover */}
+        {addedAddresses.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-slate-300">Endereços adicionados ({addedAddresses.length})</p>
+            <div className="space-y-1.5">
+              {addedAddresses.map((e) => (
+                <div key={`${e.kind}:${e.networkLabel}:${e.address}`} className="flex items-center gap-2 rounded-xl border border-slate-700/60 bg-slate-950/40 px-3 py-2">
+                  <span className="rounded-md bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-slate-300">{e.networkLabel}</span>
+                  <span className="flex-1 truncate font-mono text-[11px] text-slate-400">{formatAddress(e.address)}</span>
+                  <button
+                    type="button"
+                    onClick={() => onRemoveAddress?.(e.address, e.kind, e.networkLabel)}
+                    className="rounded-full border border-rose-400/40 px-2.5 py-1 text-[10px] font-semibold text-rose-300 transition hover:border-rose-400 hover:text-white"
+                  >
+                    Remover
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="rounded-xl border border-slate-700/60 bg-slate-950/40 px-4 py-3">
           <p className="text-[11px] text-slate-400 leading-relaxed">
