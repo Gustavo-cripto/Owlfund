@@ -77,6 +77,7 @@ export default function CexSection({
   addedAddresses = [],
   onRemoveAddress,
   formatAddress = (a: string) => a,
+  tokensByAddress = {},
 }: {
   onTotalChange?: (usd: number) => void;
   usdToEur?: number;
@@ -89,6 +90,7 @@ export default function CexSection({
   }>;
   onRemoveAddress?: (address: string, kind: "eth" | "sol" | "btc" | "ada" | "other", networkLabel: string) => void;
   formatAddress?: (address: string) => string;
+  tokensByAddress?: Record<string, Array<{ address: string; symbol: string; name: string; logo?: string; balance: string; usdValue: number; chain: string }>>;
 }) {
   const [coldAddress, setColdAddress] = useState("");
   const [coldNetwork, setColdNetwork] = useState("eth");
@@ -677,6 +679,26 @@ export default function CexSection({
                         <span className="font-semibold text-emerald-300">{e.defiUsd != null ? fmtUsd(e.defiUsd) : "—"}</span>
                       </span>
                     </div>
+                    {/* Tokens (wETH, USDC, etc.) — exclui o nativo já mostrado no Saldo */}
+                    {(() => {
+                      const toks = (tokensByAddress[`${e.kind}:${e.address}`] ?? [])
+                        .filter((t) => t.address !== "native" && Number(t.balance) > 0)
+                        .sort((a, b) => b.usdValue - a.usdValue);
+                      if (toks.length === 0) return null;
+                      return (
+                        <div className="mt-1 space-y-1 rounded-lg border border-slate-800 bg-slate-900/40 px-2.5 py-2">
+                          <p className="text-[10px] uppercase tracking-wider text-slate-500">Tokens ({toks.length})</p>
+                          {toks.map((t) => (
+                            <div key={`${t.chain}:${t.address}:${t.symbol}`} className="flex items-center justify-between gap-2 text-[11px]">
+                              <span className="truncate text-slate-300">
+                                {Number(t.balance).toLocaleString("en-US", { maximumFractionDigits: 4 })} <span className="font-semibold">{t.symbol}</span>
+                              </span>
+                              <span className="shrink-0 text-slate-400">{t.usdValue > 0 ? fmtUsd(t.usdValue) : "—"}</span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}

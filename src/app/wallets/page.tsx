@@ -417,6 +417,10 @@ export default function WalletsPage() {
   const [nftLoading, setNftLoading] = useState<Record<string, boolean>>({});
   const [nftErrors, setNftErrors] = useState<Record<string, string | null>>({});
   const [nftsByKey, setNftsByKey] = useState<Record<string, Array<{ id: string; name: string; image?: string; tokenUri?: string; tokenAddress?: string; tokenId?: string }>>>({});
+  // Tokens (ERC-20 / SPL) por endereço cold — para mostrar wETH etc. e somar ao portfólio.
+  type ColdToken = { address: string; symbol: string; name: string; logo?: string; balance: string; usdValue: number; usdPrice: number; chain: string };
+  const [coldTokensByAddr, setColdTokensByAddr] = useState<Record<string, ColdToken[]>>({});
+  const [coldTokensLoading, setColdTokensLoading] = useState<Record<string, boolean>>({});
   const [evmProviders, setEvmProviders] = useState<Array<{ id: EvmProviderId; label: string }>>(
     []
   );
@@ -2225,6 +2229,50 @@ export default function WalletsPage() {
     });
     return out;
   }, [ethWallets, solWallets, btcWallets, adaWallets, otherWallets, ethBalancesByKey, solBalancesByAddress, btcBalancesByAddress, adaBalancesByAddress, nftCounts, defiTotals, web3Prices]);
+
+  // Endereços cold únicos por chain (para buscar tokens ERC-20/SPL via Moralis).
+  const coldEvmAddresses = useMemo(
+    () => Array.from(new Set(ethWallets.filter((w) => w.source === "cold" && w.address).map((w) => w.address as string))),
+    [ethWallets]
+  );
+  const coldSolAddresses = useMemo(
+    () => Array.from(new Set(solWallets.filter((w) => w.source === "cold" && w.address).map((w) => w.address as string))),
+    [solWallets]
+  );
+
+  const fetchColdTokens = useCallback(async (address: string, chain: "eth" | "sol") => {
+    const key = `${chain}:${address}`;
+    setColdTokensLoading((prev) => ({ ...prev, [key]: true }));
+    try {
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const res = await fetch(`${base}/api/token-balances?address=${encodeURIComponent(address)}&chain=${chain}`);
+      const data = await res.json() as { tokens?: ColdToken[] };
+      setColdTokensByAddr((prev) => ({ ...prev, [key]: data.tokens ?? [] }));
+    } catch {
+      setColdTokensByAddr((prev) => ({ ...prev, [key]: [] }));
+    } finally {
+      setColdTokensLoading((prev) => ({ ...prev, [key]: false }));
+    }
+  }, []);
+
+  useEffect(() => {
+    coldEvmAddresses.forEach((a) => void fetchColdTokens(a, "eth"));
+  }, [coldEvmAddresses.join(","), fetchColdTokens]);
+  useEffect(() => {
+    coldSolAddresses.forEach((a) => void fetchColdTokens(a, "sol"));
+  }, [coldSolAddresses.join(","), fetchColdTokens]);
+
+  // Total USD dos tokens cold EXCLUINDO o nativo (já contado em walletsTotalUsd) — evita dupla contagem.
+  const coldTokensExtraUsd = useMemo(() => {
+    let sum = 0;
+    for (const tokens of Object.values(coldTokensByAddr)) {
+      for (const t of tokens) {
+        if (t.address === "native") continue;
+        if (Number.isFinite(t.usdValue)) sum += t.usdValue;
+      }
+    }
+    return sum;
+  }, [coldTokensByAddr]);
 
   /** Remove um endereço adicionado manualmente, da lista certa e do snapshot. */
   const removeManualAddress = (address: string, kind: "eth" | "sol" | "btc" | "ada" | "other", networkLabel: string) => {
@@ -4501,7 +4549,7 @@ export default function WalletsPage() {
               </p>
               <p className="text-lg font-semibold text-white">
                 €{" "}
-                {(walletsTotalUsd + (totalDefiUsd + cexHlTotalUsd) * usdToEurRate + cryptoManualTotal).toLocaleString("pt-PT", {
+                {(walletsTotalUsd + (totalDefiUsd + cexHlTotalUsd + coldTokensExtraUsd) * usdToEurRate + cryptoManualTotal).toLocaleString("pt-PT", {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}
@@ -5256,6 +5304,7 @@ export default function WalletsPage() {
             addedAddresses={coldWalletEntries}
             onRemoveAddress={removeManualAddress}
             formatAddress={formatAddress}
+            tokensByAddress={coldTokensByAddr}
           />
         ) : (
           <div className="mx-auto w-full max-w-5xl px-4 pb-8">
