@@ -18,6 +18,7 @@ type EvmToken = {
   usd_price?: number;
   possible_spam?: boolean;
   verified_contract?: boolean;
+  native_token?: boolean;
 };
 
 type SolToken = {
@@ -99,10 +100,11 @@ export async function GET(request: Request) {
     const evmChains = ["eth", "polygon", "arbitrum", "base"] as const;
     const rawTokens: EvmToken[] = [];
 
+    // /wallets/{address}/tokens inclui preços (usd_price, usd_value) e o token nativo.
     await Promise.allSettled(evmChains.map(async (c) => {
       try {
         const res = await fetch(
-          `${MORALIS_EVM}/${address}/erc20?chain=${c}&exclude_spam=true&limit=50`,
+          `${MORALIS_EVM}/wallets/${address}/tokens?chain=${c}&exclude_spam=true&limit=100`,
           { headers: { Accept: "application/json", "X-API-Key": moralisKey }, next: { revalidate: 120 } }
         );
         if (!res.ok) return;
@@ -112,41 +114,12 @@ export async function GET(request: Request) {
       } catch { /* skip */ }
     }));
 
-    // Fetch native ETH
-    let nativeToken: TokenBalance | null = null;
-    try {
-      const res = await fetch(
-        `${MORALIS_EVM}/${address}/balance?chain=eth`,
-        { headers: { Accept: "application/json", "X-API-Key": moralisKey }, next: { revalidate: 120 } }
-      );
-      if (res.ok) {
-        const data = await res.json() as { balance?: string; usd_value?: number };
-        const balEth = Number(data.balance ?? "0") / 1e18;
-        if (balEth > 0.0001) {
-          nativeToken = {
-            address: "native", symbol: "ETH", name: "Ethereum",
-            balance: balEth.toFixed(6),
-            usdValue: Number(data.usd_value ?? 0),
-            usdPrice: Number(data.usd_value ?? 0) / balEth || 0,
-            chain: "eth",
-          };
-        }
-      }
-    } catch { /* skip */ }
-
-    // Get CoinGecko prices as fallback
+    // Stablecoins = $1 (fallback fiável quando o preço não vem). CoinGecko como último recurso.
+    const STABLE = new Set(["USDC", "USDT", "DAI", "EURE", "EURC", "BUSD", "TUSD", "FRAX", "USDE"]);
     const symbols = rawTokens.map(t => t.symbol ?? "");
     const cgPrices = await fetchCoinGeckoPrices(["ETH", ...symbols]);
 
-    // Fill native ETH price from CoinGecko if missing
-    if (nativeToken && nativeToken.usdPrice === 0 && cgPrices["ETH"]) {
-      const bal = parseFloat(nativeToken.balance);
-      nativeToken.usdPrice = cgPrices["ETH"];
-      nativeToken.usdValue = bal * cgPrices["ETH"];
-    }
-
     const allTokens: TokenBalance[] = [];
-    if (nativeToken) allTokens.push(nativeToken);
 
     for (const token of rawTokens) {
       const sym = (token.symbol ?? "?").toUpperCase();
@@ -156,19 +129,21 @@ export async function GET(request: Request) {
       let usdPrice = Number(token.usd_price ?? 0);
       let usdValue = Number(token.usd_value ?? 0);
 
-      // Fallback to CoinGecko price
-      if (usdPrice === 0 && cgPrices[sym]) {
-        usdPrice = cgPrices[sym];
-        usdValue = balAmount * usdPrice;
+      // Fallbacks de preço: CoinGecko → stablecoin $1.
+      if (usdPrice === 0) {
+        if (cgPrices[sym]) usdPrice = cgPrices[sym];
+        else if (STABLE.has(sym)) usdPrice = 1;
+        if (usdPrice > 0) usdValue = balAmount * usdPrice;
       }
+      if (usdValue === 0 && usdPrice > 0) usdValue = balAmount * usdPrice;
 
-      // Include even without price — show balance
+      const isNative = token.native_token === true || !token.token_address;
       allTokens.push({
-        address: token.token_address ?? "",
+        address: isNative ? "native" : (token.token_address ?? ""),
         symbol: sym,
         name: token.name ?? sym,
         logo: token.logo ?? token.thumbnail,
-        balance: balAmount.toFixed(4),
+        balance: balAmount.toFixed(6),
         usdValue,
         usdPrice,
         chain: "eth",
