@@ -169,109 +169,85 @@ export default function DashboardPage() {
   // ── Feature definitions ────────────────────────────────────────────────────
   const FEATURES = [
     {
-      href: "/wallets",
-      icon: "🔗",
-      label: "Carteiras & Saldos",
+      href: "/wallets", icon: "🔗", label: t("df_wallets_l"),
       color: "from-blue-500/15 to-blue-600/5", border: "border-blue-500/20", iconBg: "bg-blue-500/10",
-      minPlan: "free" as Plan,
-      summary: "Liga as tuas carteiras cripto em modo leitura. Nunca pedimos chaves privadas.",
+      minPlan: "free" as Plan, summary: t("df_wallets_s"),
       tiers: [
-        { plan: "free" as const,    text: "Até 3 carteiras (ETH, SOL, BTC, ADA)" },
-        { plan: "pro" as const,     text: "Carteiras ilimitadas + CEX (Binance, Kraken, CoinEx) + Hyperliquid + Ledger/Trezor" },
-        { plan: "premium" as const, text: "Tudo do Pro + sincronização prioritária" },
+        { plan: "free" as const,    text: t("df_wallets_0") },
+        { plan: "pro" as const,     text: t("df_wallets_1") },
+        { plan: "premium" as const, text: t("df_wallets_2") },
       ],
     },
     {
-      href: "/portfolio",
-      icon: "📊",
-      label: "Portfolio & PNL",
+      href: "/portfolio", icon: "📊", label: t("df_portfolio_l"),
       color: "from-orange-500/15 to-orange-600/5", border: "border-orange-500/20", iconBg: "bg-orange-500/10",
-      minPlan: "free" as Plan,
-      summary: "Visão consolidada de todos os ativos com PNL, gráficos e métricas avançadas.",
+      minPlan: "free" as Plan, summary: t("df_portfolio_s"),
       tiers: [
-        { plan: "free" as const,    text: "30 dias de histórico, gráficos básicos" },
-        { plan: "pro" as const,     text: "365 dias + Score, Sharpe, CAGR, Max Drawdown, exportação CSV/PDF" },
-        { plan: "premium" as const, text: "Histórico ilimitado + relatórios automáticos avançados" },
+        { plan: "free" as const,    text: t("df_portfolio_0") },
+        { plan: "pro" as const,     text: t("df_portfolio_1") },
+        { plan: "premium" as const, text: t("df_portfolio_2") },
       ],
     },
     {
-      href: "/smart-money",
-      icon: "🐋",
-      label: "Smart Money & Baleias",
+      href: "/smart-money", icon: "🐋", label: t("df_smart_l"),
       color: "from-purple-500/15 to-purple-600/5", border: "border-purple-500/20", iconBg: "bg-purple-500/10",
-      minPlan: "free" as Plan,
-      summary: "Monitoriza carteiras de traders profissionais e baleias on-chain.",
+      minPlan: "free" as Plan, summary: t("df_smart_s"),
       tiers: [
-        { plan: "free" as const,    text: "Watchlist de 5 endereços, 50+ baleias pré-carregadas" },
-        { plan: "pro" as const,     text: "Watchlist ilimitada + alertas de movimentos > $100k + histórico de 100 txs" },
-        { plan: "premium" as const, text: "Tracking em tempo real via Moralis + análise on-chain + alertas instantâneos" },
+        { plan: "free" as const,    text: t("df_smart_0") },
+        { plan: "pro" as const,     text: t("df_smart_1") },
+        { plan: "premium" as const, text: t("df_smart_2") },
       ],
     },
     {
-      href: "/mercado",
-      icon: "📈",
-      label: "Mercado em Tempo Real",
+      href: "/mercado", icon: "📈", label: t("df_market_l"),
       color: "from-emerald-500/15 to-emerald-600/5", border: "border-emerald-500/20", iconBg: "bg-emerald-500/10",
-      minPlan: "free" as Plan,
-      summary: "Tabela de mercado ao vivo com preços, variações, volume e gráfico TradingView.",
+      minPlan: "free" as Plan, summary: t("df_market_s"),
       tiers: [
-        { plan: "free" as const,    text: "Preços 24/7, variações 1h/24h/7d, sparklines, blocos BTC" },
-        { plan: "pro" as const,     text: "Tudo + briefing IA diário por email com análise de mercado" },
-        { plan: "premium" as const, text: "Tudo do Pro + sinais preditivos IA on-chain" },
+        { plan: "free" as const,    text: t("df_market_0") },
+        { plan: "pro" as const,     text: t("df_market_1") },
+        { plan: "premium" as const, text: t("df_market_2") },
       ],
     },
     {
-      href: "/fiscalidade",
-      icon: "🧾",
-      label: "Fiscalidade & IRS",
+      href: "/fiscalidade", icon: "🧾", label: t("df_fisc_l"),
       color: "from-yellow-500/15 to-yellow-600/5", border: "border-yellow-500/20", iconBg: "bg-yellow-500/10",
-      minPlan: "free" as Plan,
-      summary: "Calculadora de mais-valias cripto por método FIFO com legislação local.",
+      minPlan: "free" as Plan, summary: t("df_fisc_s"),
       tiers: [
-        { plan: "free" as const,    text: "4 países (PT, ES, FR, DE) + guia de legislação" },
-        { plan: "pro" as const,     text: "8+ países (+ GB, NL, IT, BR) + exportação PDF fiscal" },
-        { plan: "premium" as const, text: "Todos os países (+ US, CA, AU, CH) + relatório anual automático" },
+        { plan: "free" as const,    text: t("df_fisc_0") },
+        { plan: "pro" as const,     text: t("df_fisc_1") },
+        { plan: "premium" as const, text: t("df_fisc_2") },
       ],
     },
     {
-      href: "/fire",
-      icon: "🔥",
-      label: "Planeamento FIRE",
+      href: "/fire", icon: "🔥", label: t("df_fire_l"),
       color: "from-rose-500/15 to-rose-600/5", border: "border-rose-500/20", iconBg: "bg-rose-500/10",
-      minPlan: "free" as Plan,
-      summary: "Calculadora FIRE — regra dos 4%, projeção patrimonial e data de independência financeira.",
+      minPlan: "free" as Plan, summary: t("df_fire_s"),
       tiers: [
-        { plan: "free" as const,    text: "3 cenários de simulação, regra dos 4%, CAGR" },
-        { plan: "pro" as const,     text: "Cenários ilimitados + projeções avançadas com inflação" },
-        { plan: "premium" as const, text: "Tudo do Pro + integração com o Gestor IA para análise personalizada" },
+        { plan: "free" as const,    text: t("df_fire_0") },
+        { plan: "pro" as const,     text: t("df_fire_1") },
+        { plan: "premium" as const, text: t("df_fire_2") },
       ],
     },
     {
-      href: "/gestor",
-      icon: "🤖",
-      label: "Gestor Dedicado IA",
+      href: "/gestor", icon: "🤖", label: t("df_gestor_l"),
       color: "from-violet-500/15 to-violet-600/5", border: "border-violet-500/20", iconBg: "bg-violet-500/10",
-      minPlan: "premium" as Plan,
-      summary: "Chat privado com IA que conhece o teu portfolio real, watchlist e movimentos on-chain.",
+      minPlan: "premium" as Plan, summary: t("df_gestor_s"),
       tiers: [
-        { plan: "premium" as const, text: "Análise de risco, simulações fiscais, FIRE, Smart Money — tudo com os teus dados reais" },
+        { plan: "premium" as const, text: t("df_gestor_0") },
       ],
     },
     {
-      href: "/account",
-      icon: "⚙️",
-      label: "API & MCP Access",
+      href: "/account", icon: "⚙️", label: t("df_api_l"),
       color: "from-slate-500/15 to-slate-600/5", border: "border-slate-500/20", iconBg: "bg-slate-500/10",
-      minPlan: "premium" as Plan,
-      summary: "Integra o ChainFolioAI nos teus próprios agentes IA via REST API ou protocolo MCP.",
+      minPlan: "premium" as Plan, summary: t("df_api_s"),
       tiers: [
-        { plan: "premium" as const, text: "Gera chaves API, conecta ao Claude/Cursor via MCP, webhooks para alertas em tempo real" },
+        { plan: "premium" as const, text: t("df_api_0") },
       ],
     },
   ];
 
   const planMeta: Record<Plan, { label: string; color: string; border: string; bg: string; badge: string }> = {
-    free:    { label: "Gratuito",  color: "text-slate-300",  border: "border-slate-600", bg: "bg-slate-800/60",   badge: "bg-slate-700 text-slate-300" },
+    free:    { label: t("free"),   color: "text-slate-300",  border: "border-slate-600", bg: "bg-slate-800/60",   badge: "bg-slate-700 text-slate-300" },
     pro:     { label: "Pro",       color: "text-orange-300", border: "border-orange-500/40", bg: "bg-orange-500/10", badge: "bg-orange-500 text-slate-950" },
     premium: { label: "Premium",   color: "text-violet-300", border: "border-violet-500/40", bg: "bg-violet-500/10", badge: "bg-violet-500 text-white" },
   };
@@ -315,7 +291,7 @@ export default function DashboardPage() {
                   </span>
                   {plan !== "premium" && (
                     <a href="/pricing" className="text-xs text-orange-400 hover:text-orange-300 transition">
-                      Ver planos →
+                      {t("dash_see_plans")} →
                     </a>
                   )}
                 </div>
@@ -361,21 +337,17 @@ export default function DashboardPage() {
                 <span className="text-2xl">{plan === "premium" ? "💎" : plan === "pro" ? "⭐" : "🌱"}</span>
                 <div>
                   <p className={`text-sm font-bold ${planMeta[plan].color}`}>
-                    {plan === "premium" ? "Plano Premium — Acesso Total" : plan === "pro" ? "Plano Pro — Investidor Ativo" : "Plano Gratuito — Começa Aqui"}
+                    {plan === "premium" ? t("dash_plan_premium_title") : plan === "pro" ? t("dash_plan_pro_title") : t("dash_plan_free_title")}
                   </p>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    {plan === "premium"
-                      ? "Tens acesso a todas as funcionalidades, incluindo Gestor IA, Smart Money RT, API e MCP."
-                      : plan === "pro"
-                      ? "Carteiras ilimitadas, histórico de 1 ano, alertas de baleias e briefing IA diário."
-                      : "3 carteiras, 5 baleias, 5 chats IA/mês, 30 dias de histórico e 4 países fiscais."}
+                    {plan === "premium" ? t("dash_plan_premium_desc") : plan === "pro" ? t("dash_plan_pro_desc") : t("dash_plan_free_desc")}
                   </p>
                 </div>
               </div>
               {plan !== "premium" && (
                 <a href="/pricing"
                   className={`shrink-0 rounded-xl px-4 py-2 text-xs font-bold transition ${plan === "pro" ? "bg-violet-500 text-white hover:bg-violet-400" : "bg-orange-500 text-slate-950 hover:bg-orange-400"}`}>
-                  {plan === "pro" ? "Upgrade para Premium →" : "Upgrade para Pro →"}
+                  {plan === "pro" ? `${t("dash_upgrade_premium")} →` : `${t("dash_upgrade_pro")} →`}
                 </a>
               )}
             </div>
@@ -385,8 +357,8 @@ export default function DashboardPage() {
           <section>
             <div className="mb-5">
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/70">{t("dash_platform")}</p>
-              <h2 className="mt-1.5 text-xl font-bold text-white">Todas as funcionalidades</h2>
-              <p className="text-xs text-slate-500 mt-1">O que podes fazer com cada plano</p>
+              <h2 className="mt-1.5 text-xl font-bold text-white">{t("dash_all_features")}</h2>
+              <p className="text-xs text-slate-500 mt-1">{t("dash_what_each_plan")}</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {FEATURES.map((f) => {
@@ -441,7 +413,7 @@ export default function DashboardPage() {
                     {!accessible && (
                       <div className={`rounded-lg px-3 py-2 text-center text-[10px] font-semibold
                         ${f.minPlan === "premium" ? "bg-violet-500/10 text-violet-400 border border-violet-500/20" : "bg-orange-500/10 text-orange-400 border border-orange-500/20"}`}>
-                        Requer plano {f.minPlan === "premium" ? "Premium" : "Pro"} — Clica para ver preços
+                        {t("dash_requires_plan")} {f.minPlan === "premium" ? "Premium" : "Pro"} — {t("dash_click_prices")}
                       </div>
                     )}
                   </a>
@@ -453,10 +425,10 @@ export default function DashboardPage() {
           {/* ── Quick stats ── */}
           <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { value: "15+", label: "Redes blockchain suportadas", icon: "🔗" },
-              { value: "100%", label: "Modo só leitura — sem chaves privadas", icon: "🔒" },
-              { value: "24/7", label: "Preços e mercados em tempo real", icon: "📡" },
-              { value: isPremium ? "€39" : isPro ? "€9,99" : "€0", label: isPremium ? "Plano Premium ativo" : isPro ? "Plano Pro ativo" : "Plano gratuito ativo", icon: isPremium ? "💎" : isPro ? "⭐" : "✨" },
+              { value: "15+", label: t("dash_stat_networks"), icon: "🔗" },
+              { value: "100%", label: t("dash_stat_readonly"), icon: "🔒" },
+              { value: "24/7", label: t("dash_stat_realtime"), icon: "📡" },
+              { value: isPremium ? "€39" : isPro ? "€14,99" : "€0", label: isPremium ? t("dash_stat_plan_premium") : isPro ? t("dash_stat_plan_pro") : t("dash_stat_plan_free"), icon: isPremium ? "💎" : isPro ? "⭐" : "✨" },
             ].map((s) => (
               <div key={s.label} className="rounded-2xl border border-slate-800 bg-slate-900/40 px-5 py-4 flex flex-col gap-1 hover:border-orange-500/30 hover:bg-slate-900/70 transition">
                 <span className="text-2xl">{s.icon}</span>
@@ -472,15 +444,13 @@ export default function DashboardPage() {
               <div className="flex flex-col sm:flex-row sm:items-center gap-5">
                 <div className="flex-1">
                   <p className={`text-xs font-semibold uppercase tracking-widest mb-2 ${isPro ? "text-violet-400" : "text-orange-400"}`}>
-                    {isPro ? "💎 Próximo nível" : "🚀 Começa a investir melhor"}
+                    {isPro ? t("dash_cta_premium_eyebrow") : t("dash_cta_pro_eyebrow")}
                   </p>
                   <h3 className="text-lg font-bold text-white mb-1">
-                    {isPro ? "Upgrade para Premium — desbloqueia o Gestor IA" : "Upgrade para Pro — sem limites"}
+                    {isPro ? t("dash_cta_premium_title") : t("dash_cta_pro_title")}
                   </h3>
                   <p className="text-sm text-slate-400">
-                    {isPro
-                      ? "Com o Premium tens o Gestor Dedicado IA que analisa o teu portfolio real, Smart Money em tempo real, API REST e integração MCP com Claude e Cursor."
-                      : "Com o Pro tens carteiras ilimitadas, CEX integrado, alertas de baleias, histórico de 1 ano, exportações CSV/PDF e briefing IA diário."}
+                    {isPro ? t("dash_cta_premium_desc") : t("dash_cta_pro_desc")}
                   </p>
                   <div className="flex flex-wrap gap-2 mt-3">
                     {(isPro
@@ -493,13 +463,13 @@ export default function DashboardPage() {
                 </div>
                 <div className="shrink-0 text-center">
                   <p className={`text-3xl font-black mb-1 ${isPro ? "text-violet-300" : "text-orange-300"}`}>
-                    {isPro ? "€39" : "€9,99"}<span className="text-sm font-normal text-slate-500">/mês</span>
+                    {isPro ? "€39" : "€14,99"}<span className="text-sm font-normal text-slate-500">{t("dash_per_month")}</span>
                   </p>
                   <a href="/pricing"
                     className={`block w-full rounded-xl px-6 py-3 text-sm font-bold transition ${isPro ? "bg-violet-500 text-white hover:bg-violet-400" : "bg-orange-500 text-slate-950 hover:bg-orange-400"}`}>
-                    {isPro ? "Upgrade para Premium" : "Upgrade para Pro"}
+                    {isPro ? t("dash_upgrade_premium") : t("dash_upgrade_pro")}
                   </a>
-                  <p className="text-[10px] text-slate-600 mt-1.5">Cancela a qualquer momento</p>
+                  <p className="text-[10px] text-slate-600 mt-1.5">{t("dash_cancel_anytime")}</p>
                 </div>
               </div>
             </section>
@@ -507,7 +477,7 @@ export default function DashboardPage() {
 
           {/* ── Tips ── */}
           <section className="rounded-2xl border border-slate-800 bg-slate-900/40 px-6 py-5">
-            <p className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-3">Dicas rápidas</p>
+            <p className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-3">{t("dash_quick_tips")}</p>
             <div className="flex flex-wrap gap-5">
               {[
                 { icon: "🔒", text: t("dash_tip_1") },
