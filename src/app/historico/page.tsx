@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -85,6 +86,7 @@ const saveTxs = (txs: Transaction[]) => {
 
 export default function HistoricoPage() {
   const { isLoading } = useRequireAuth("/login");
+  const { t } = useLanguage();
 
   // transactions state
   const [txs, setTxs] = useState<Transaction[]>([]);
@@ -175,9 +177,9 @@ export default function HistoricoPage() {
     setFormError(null);
     const qty = parseFloat(form.quantity);
     const price = parseFloat(form.priceEur);
-    if (!qty || qty <= 0) { setFormError("Quantidade inválida."); return; }
-    if (!price || price <= 0) { setFormError("Preço inválido."); return; }
-    if (!form.date) { setFormError("Data obrigatória."); return; }
+    if (!qty || qty <= 0) { setFormError(t("hx_qty_invalid")); return; }
+    if (!price || price <= 0) { setFormError(t("hx_price_invalid")); return; }
+    if (!form.date) { setFormError(t("hx_date_required")); return; }
     const assetInfo = ASSET_LIST.find((a) => a.symbol === form.asset) ?? { symbol: form.asset, name: form.asset };
     const tx: Transaction = {
       id: editId ?? crypto.randomUUID(),
@@ -215,7 +217,7 @@ export default function HistoricoPage() {
   };
 
   const handleDelete = (id: string) => {
-    if (!confirm("Eliminar esta transação?")) return;
+    if (!confirm(t("hx_delete_confirm"))) return;
     persist(txs.filter((t) => t.id !== id));
     if (editId === id) {
       setEditId(null);
@@ -232,18 +234,18 @@ export default function HistoricoPage() {
 
           {/* ── Header ── */}
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Portfólio</p>
-            <h1 className="text-2xl font-black text-white mt-0.5">Histórico de Transações</h1>
-            <p className="text-sm text-slate-400 mt-1">Regista compras e vendas manualmente. O P&L realizado é calculado por FIFO.</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{t("hx_eyebrow")}</p>
+            <h1 className="text-2xl font-black text-white mt-0.5">{t("hx_title")}</h1>
+            <p className="text-sm text-slate-400 mt-1">{t("hx_subtitle")}</p>
           </div>
 
           {/* ── Summary cards ── */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              { label: "Total Investido", value: `€ ${fmtEur(summary.invested)}`, color: "text-white" },
-              { label: "Total Vendido", value: `€ ${fmtEur(summary.sold)}`, color: "text-white" },
-              { label: "P&L Realizado", value: `${summary.realizedPnl >= 0 ? "+" : ""}€ ${fmtEur(summary.realizedPnl)}`, color: summary.realizedPnl >= 0 ? "text-emerald-400" : "text-rose-400" },
-              { label: "Transações", value: `${summary.txCount} (${summary.assets} ativos)`, color: "text-slate-300" },
+              { label: t("hx_total_invested"), value: `€ ${fmtEur(summary.invested)}`, color: "text-white" },
+              { label: t("hx_total_sold"), value: `€ ${fmtEur(summary.sold)}`, color: "text-white" },
+              { label: t("hx_pl_realized"), value: `${summary.realizedPnl >= 0 ? "+" : ""}€ ${fmtEur(summary.realizedPnl)}`, color: summary.realizedPnl >= 0 ? "text-emerald-400" : "text-rose-400" },
+              { label: t("hx_transactions"), value: `${summary.txCount} (${summary.assets} ${t("hx_assets_word")})`, color: "text-slate-300" },
             ].map((m) => (
               <div key={m.label} className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3">
                 <p className="text-[10px] uppercase tracking-wider text-slate-500">{m.label}</p>
@@ -281,7 +283,7 @@ export default function HistoricoPage() {
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {/* Asset */}
               <div>
-                <label className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">Ativo</label>
+                <label className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_asset")}</label>
                 <select
                   value={form.asset}
                   onChange={(e) => setForm((f) => ({ ...f, asset: e.target.value }))}
@@ -295,7 +297,7 @@ export default function HistoricoPage() {
 
               {/* Quantity */}
               <div>
-                <label className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">Quantidade</label>
+                <label className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_quantity")}</label>
                 <input
                   type="number"
                   min="0"
@@ -309,7 +311,7 @@ export default function HistoricoPage() {
 
               {/* Price */}
               <div>
-                <label className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">Preço unitário (€)</label>
+                <label className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_unit_price")}</label>
                 <input
                   type="number"
                   min="0"
@@ -323,7 +325,7 @@ export default function HistoricoPage() {
 
               {/* Date */}
               <div>
-                <label className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">Data</label>
+                <label className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_date")}</label>
                 <input
                   type="date"
                   value={form.date}
@@ -334,7 +336,7 @@ export default function HistoricoPage() {
 
               {/* Exchange */}
               <div>
-                <label className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">Exchange / Origem</label>
+                <label className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_exchange_src")}</label>
                 <select
                   value={form.exchange}
                   onChange={(e) => setForm((f) => ({ ...f, exchange: e.target.value }))}
@@ -348,7 +350,7 @@ export default function HistoricoPage() {
 
               {/* Total (read-only) */}
               <div>
-                <label className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">Total</label>
+                <label className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_total")}</label>
                 <div className="flex items-center rounded-xl border border-slate-700 bg-slate-950/30 px-3 py-2 text-sm">
                   <span className={`font-bold ${form.type === "compra" ? "text-emerald-400" : "text-rose-400"}`}>
                     {form.type === "compra" ? "-" : "+"}€ {fmtEur(formTotal)}
@@ -359,10 +361,10 @@ export default function HistoricoPage() {
 
             {/* Notes */}
             <div className="mt-3">
-              <label className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">Notas (opcional)</label>
+              <label className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_notes")}</label>
               <input
                 type="text"
-                placeholder="Ex: DCA mensal, venda parcial, arbitragem..."
+                placeholder={t("hx_notes_ph")}
                 value={form.notes}
                 onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
                 className="w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-200 outline-none focus:border-orange-400"
@@ -381,7 +383,7 @@ export default function HistoricoPage() {
                     : "bg-rose-500/20 border border-rose-500/40 text-rose-300 hover:bg-rose-500/30"
                 }`}
               >
-                {editId ? "Guardar alterações" : form.type === "compra" ? "Registar compra" : "Registar venda"}
+                {editId ? t("hx_save") : form.type === "compra" ? t("hx_reg_buy") : t("hx_reg_sell")}
               </button>
               {editId && (
                 <button
@@ -419,9 +421,9 @@ export default function HistoricoPage() {
                   onChange={(e) => setFilterType(e.target.value as typeof filterType)}
                   className="rounded-full border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-xs text-slate-200 outline-none"
                 >
-                  <option value="todos">Todos os tipos</option>
-                  <option value="compra">Compras</option>
-                  <option value="venda">Vendas</option>
+                  <option value="todos">{t("hx_all_types")}</option>
+                  <option value="compra">{t("hx_buys")}</option>
+                  <option value="venda">{t("hx_sells")}</option>
                 </select>
 
                 {/* Sort */}
@@ -439,14 +441,14 @@ export default function HistoricoPage() {
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
-                      <th className="pb-2 text-left">Data</th>
-                      <th className="pb-2 text-left">Tipo</th>
-                      <th className="pb-2 text-left">Ativo</th>
-                      <th className="pb-2 text-right">Quantidade</th>
-                      <th className="pb-2 text-right">Preço unit.</th>
-                      <th className="pb-2 text-right">Total €</th>
-                      <th className="pb-2 text-left">Exchange</th>
-                      <th className="pb-2 text-left">Notas</th>
+                      <th className="pb-2 text-left">{t("hx_date")}</th>
+                      <th className="pb-2 text-left">{t("hx_col_type")}</th>
+                      <th className="pb-2 text-left">{t("hx_asset")}</th>
+                      <th className="pb-2 text-right">{t("hx_quantity")}</th>
+                      <th className="pb-2 text-right">{t("hx_col_unit")}</th>
+                      <th className="pb-2 text-right">{t("hx_col_total")}</th>
+                      <th className="pb-2 text-left">{t("hx_col_exchange")}</th>
+                      <th className="pb-2 text-left">{t("hx_col_notes")}</th>
                       <th className="pb-2" />
                     </tr>
                   </thead>
@@ -532,7 +534,7 @@ export default function HistoricoPage() {
               </div>
 
               {filtered.length === 0 && (
-                <p className="py-8 text-center text-sm text-slate-500">Nenhuma transação com os filtros selecionados.</p>
+                <p className="py-8 text-center text-sm text-slate-500">{t("hx_no_filtered")}</p>
               )}
             </div>
           )}
@@ -540,8 +542,8 @@ export default function HistoricoPage() {
           {txs.length === 0 && (
             <div className="rounded-2xl border border-dashed border-slate-700 p-12 text-center">
               <p className="text-3xl mb-3">📋</p>
-              <p className="text-sm text-slate-400">Ainda não tens transações registadas.</p>
-              <p className="text-xs text-slate-600 mt-1">Usa o formulário acima para registar a tua primeira compra ou venda.</p>
+              <p className="text-sm text-slate-400">{t("hx_no_tx")}</p>
+              <p className="text-xs text-slate-600 mt-1">{t("hx_no_tx_desc")}</p>
             </div>
           )}
 
@@ -557,7 +559,7 @@ export default function HistoricoPage() {
             if (rows.length === 0) return null;
             return (
               <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-                <h2 className="text-sm font-bold text-white mb-4">Resumo por ativo</h2>
+                <h2 className="text-sm font-bold text-white mb-4">{t("hx_summary_asset")}</h2>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {rows.map(([sym, data]) => (
                     <div key={sym} className="rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
@@ -572,11 +574,11 @@ export default function HistoricoPage() {
                       </div>
                       <div className="mt-2 grid grid-cols-2 gap-1 text-xs">
                         <div>
-                          <p className="text-[10px] text-slate-500">Compras</p>
+                          <p className="text-[10px] text-slate-500">{t("hx_buys")}</p>
                           <p className="text-white font-medium">€ {fmtEur(data.compras)}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-[10px] text-slate-500">Vendas</p>
+                          <p className="text-[10px] text-slate-500">{t("hx_sells")}</p>
                           <p className={data.vendas > 0 ? "text-emerald-300 font-medium" : "text-slate-500"}>
                             {data.vendas > 0 ? `€ ${fmtEur(data.vendas)}` : "—"}
                           </p>
