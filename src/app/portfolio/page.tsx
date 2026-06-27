@@ -474,7 +474,7 @@ export default function PortfolioPage() {
 
       const data = (await response.json()) as { url?: string; error?: string };
       if (!response.ok || !data.url) {
-        throw new Error(data.error ?? "Não foi possível iniciar o pagamento.");
+        throw new Error(data.error ?? t("pf_pay_fail"));
       }
 
       const stripe = await stripePromise;
@@ -482,7 +482,7 @@ export default function PortfolioPage() {
         window.location.href = data.url;
       }
     } catch (error) {
-      setBillingError(error instanceof Error ? error.message : "Erro no pagamento.");
+      setBillingError(error instanceof Error ? error.message : t("pf_pay_error"));
     } finally {
       setIsBillingLoading(false);
     }
@@ -500,11 +500,11 @@ export default function PortfolioPage() {
       .insert({ user_id: userId, data: dataWithTotal });
 
     if (error) {
-      if (!silent) setSaveMessage("Não foi possível salvar o portfólio.");
+      if (!silent) setSaveMessage(t("pf_save_fail"));
       return;
     }
 
-    if (!silent) setSaveMessage("Portfólio salvo com sucesso.");
+    if (!silent) setSaveMessage(t("pf_save_ok"));
 
     const historyFrom2 = isPremium
       ? new Date(0).toISOString()
@@ -682,7 +682,7 @@ export default function PortfolioPage() {
   const cryptoAllocations = useMemo(() => {
     const manualItems = Object.entries(cryptoHoldings).map(([symbol, holding]) => ({
       label: `${symbol} Manual`,
-      symbol: "Manual",
+      symbol: t("pf_manual"),
       value: Number(holding.buyValue ?? 0),
     }));
     const items = [
@@ -692,8 +692,8 @@ export default function PortfolioPage() {
         value: toNumber(wallet.balance),
       })),
       ...manualItems.filter((item) => Number.isFinite(item.value) && item.value > 0),
-      { label: "Stablecoins", symbol: "USDT/USDC", value: stablecoinTotal },
-      ...(snapshotCexEur > 0 ? [{ label: "CEX / Exchange", symbol: "CEX", value: snapshotCexEur }] : []),
+      { label: t("pf_stablecoins"), symbol: t("pf_usdt_usdc"), value: stablecoinTotal },
+      ...(snapshotCexEur > 0 ? [{ label: t("pf_cex"), symbol: "CEX", value: snapshotCexEur }] : []),
       ...(snapshotDefiEur > 0 ? [{ label: "DeFi", symbol: "DeFi", value: snapshotDefiEur }] : []),
     ];
     const total = items.reduce((sum, item) => sum + item.value, 0);
@@ -741,29 +741,29 @@ export default function PortfolioPage() {
     const maxPct = portfolioTotal > 0 ? (maxAlloc / portfolioTotal) * 100 : 100;
     const diversPts = maxPct > 80 ? 5 : maxPct > 60 ? 15 : maxPct > 40 ? 22 : 30;
     score += diversPts;
-    reasons.push({ label: "Diversificação", points: diversPts, max: 30, ok: diversPts >= 22 });
+    reasons.push({ label: t("pf_diversification"), points: diversPts, max: 30, ok: diversPts >= 22 });
 
     const tradPct = portfolioTotal > 0 ? (traditionalTotal / portfolioTotal) * 100 : 0;
     const tradPts = tradPct > 20 ? 20 : tradPct > 10 ? 15 : tradPct > 5 ? 10 : tradPct > 0 ? 5 : 0;
     score += tradPts;
-    reasons.push({ label: "Mix Cripto/Tradicional", points: tradPts, max: 20, ok: tradPts >= 10 });
+    reasons.push({ label: t("pf_mix"), points: tradPts, max: 20, ok: tradPts >= 10 });
 
     const stablePct = portfolioTotal > 0 ? (stablecoinTotal / portfolioTotal) * 100 : 0;
     const stablePts = stablePct >= 5 && stablePct <= 30 ? 10 : stablePct > 0 ? 5 : 0;
     score += stablePts;
-    reasons.push({ label: "Reserva Stablecoin", points: stablePts, max: 10, ok: stablePts >= 5 });
+    reasons.push({ label: t("pf_stable_reserve"), points: stablePts, max: 10, ok: stablePts >= 5 });
 
     const roiPts = advancedMetrics ? (advancedMetrics.roi > 20 ? 20 : advancedMetrics.roi > 10 ? 15 : advancedMetrics.roi > 0 ? 10 : 0) : 0;
     score += roiPts;
-    reasons.push({ label: "Performance (ROI)", points: roiPts, max: 20, ok: roiPts >= 10 });
+    reasons.push({ label: t("pf_perf_roi"), points: roiPts, max: 20, ok: roiPts >= 10 });
 
     const riskPts = advancedMetrics
       ? (advancedMetrics.maxDrawdown > -50 ? 10 : 5) + (advancedMetrics.volatility !== null && advancedMetrics.volatility < 80 ? 10 : advancedMetrics.volatility !== null && advancedMetrics.volatility < 150 ? 5 : 0)
       : 0;
     score += riskPts;
-    reasons.push({ label: "Gestão de Risco", points: riskPts, max: 20, ok: riskPts >= 12 });
+    reasons.push({ label: t("pf_risk_mgmt"), points: riskPts, max: 20, ok: riskPts >= 12 });
 
-    const label = score >= 80 ? "Excelente" : score >= 60 ? "Bom" : score >= 40 ? "Razoável" : "A melhorar";
+    const label = score >= 80 ? t("pf_excellent") : score >= 60 ? "Bom" : score >= 40 ? t("pf_fair") : t("pf_improving");
     const color = score >= 80 ? "text-emerald-400" : score >= 60 ? "text-orange-300" : score >= 40 ? "text-yellow-400" : "text-rose-400";
     return { score, label, color, reasons };
   }, [portfolioTotal, cryptoAllocations, traditionalTotal, stablecoinTotal, advancedMetrics]);
@@ -814,7 +814,7 @@ export default function PortfolioPage() {
                 </p>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-slate-500">PNL posição</p>
+                <p className="text-xs uppercase tracking-[0.3em] text-slate-500">{t("pf_pnl_pos")}</p>
                 <p
                   className={`metric-value mt-2 text-xl font-bold ${
                     pnlTotal >= 0 ? "text-emerald-400" : "text-rose-400"
@@ -858,7 +858,7 @@ export default function PortfolioPage() {
                 <div className="mt-3 rounded-xl border border-orange-500/20 bg-orange-500/5 px-4 py-3">
                   <p className="text-xs font-semibold text-orange-300">📸 Como ativar o PNL histórico</p>
                   <p className="mt-1 text-xs text-slate-400">
-                    Guarda o teu primeiro snapshot para que o sistema comece a calcular lucro/perda ao longo do tempo. Clica em <strong className="text-white">"Salvar snapshot"</strong> abaixo.
+                    Guarda o teu primeiro snapshot para que o sistema comece a calcular lucro/perda ao longo do tempo. Clica em <strong className="text-white">t("pf_save_snapshot")</strong> abaixo.
                   </p>
                 </div>
               ) : (
@@ -928,15 +928,15 @@ export default function PortfolioPage() {
               className="mt-2"
               metrics={[
                 {
-                  label: "Ativos conectados",
+                  label: t("pf_connected_assets"),
                   value: String(wallets.filter(w => Number(w.balance) > 0).length + Object.keys(cryptoHoldings).length + Object.keys(traditionalHoldings).length),
                 },
                 {
-                  label: "Snapshots guardados",
+                  label: t("pf_snapshots_saved"),
                   value: String(snapshots.length),
                 },
                 {
-                  label: "Última atualização",
+                  label: t("pf_last_update"),
                   value: snapshots[0]
                     ? new Date(snapshots[0].created_at).toLocaleDateString("pt-PT", { day: "2-digit", month: "short" })
                     : "—",
@@ -951,13 +951,13 @@ export default function PortfolioPage() {
           {/* Gráfico PNL por período — top-left */}
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
             <div className="mb-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Performance</p>
-              <h2 className="text-base font-bold text-white mt-0.5">PNL por período</h2>
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{t("pf_performance")}</p>
+              <h2 className="text-base font-bold text-white mt-0.5">{t("pf_pnl_period")}</h2>
             </div>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={[
-                { periodo: "Posição", pnl: parseFloat(pnlSummary.position.toFixed(2)) },
-                { periodo: "Hoje", pnl: parseFloat(pnlSummary.today.toFixed(2)) },
+                { periodo: t("pf_position"), pnl: parseFloat(pnlSummary.position.toFixed(2)) },
+                { periodo: t("pf_today"), pnl: parseFloat(pnlSummary.today.toFixed(2)) },
                 { periodo: "30 dias", pnl: parseFloat((pnlSummary.days30 ?? 0).toFixed(2)) },
                 { periodo: "7d (média)", pnl: parseFloat(pnlSummary.daily7d.toFixed(2)) },
               ]} barSize={48}>
@@ -967,7 +967,7 @@ export default function PortfolioPage() {
                 <Tooltip
                   contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  formatter={(v: any) => { const n = typeof v === "number" ? v : 0; return [`€ ${formatValue(Math.abs(n))}`, n >= 0 ? "Lucro" : "Perda"]; }}
+                  formatter={(v: any) => { const n = typeof v === "number" ? v : 0; return [`€ ${formatValue(Math.abs(n))}`, n >= 0 ? t("pf_profit") : t("pf_loss")]; }}
                 />
                 <Bar dataKey="pnl" radius={[6, 6, 0, 0]}>
                   {[pnlSummary.position, pnlSummary.today, pnlSummary.days30 ?? 0, pnlSummary.daily7d].map((v, i) => (
@@ -995,8 +995,8 @@ export default function PortfolioPage() {
                 value: Number(w.balance) * (tokenPrices[w.symbol] ?? 0),
               })),
               ...Object.entries(cryptoHoldings).filter(([,h]) => Number(h.buyValue) > 0).map(([k,h]) => ({ name: k, value: Number(h.buyValue) })),
-              ...(stablecoinTotal > 0 ? [{ name: "Stable", value: stablecoinTotal }] : []),
-              ...(traditionalTotal > 0 ? [{ name: "Trad.", value: traditionalTotal }] : []),
+              ...(stablecoinTotal > 0 ? [{ name: t("pf_stable"), value: stablecoinTotal }] : []),
+              ...(traditionalTotal > 0 ? [{ name: t("pf_trad"), value: traditionalTotal }] : []),
               ...(snapshotCexEur > 0 ? [{ name: "CEX", value: snapshotCexEur }] : []),
               ...(snapshotDefiEur > 0 ? [{ name: "DeFi", value: snapshotDefiEur }] : []),
             ].filter(d => d.value > 0);
@@ -1023,12 +1023,12 @@ export default function PortfolioPage() {
             return (
               <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
                 <div className="mb-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Distribuição</p>
-                  <h2 className="text-base font-bold text-white mt-0.5">Alocação por ativo</h2>
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{t("pf_distribution")}</p>
+                  <h2 className="text-base font-bold text-white mt-0.5">{t("pf_alloc_asset")}</h2>
                 </div>
                 {pieData.length === 0 ? (
                   <div className="flex h-[200px] items-center justify-center">
-                    <p className="text-sm text-slate-500">Sem ativos para mostrar.</p>
+                    <p className="text-sm text-slate-500">{t("pf_no_assets")}</p>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-4">
@@ -1083,10 +1083,10 @@ export default function PortfolioPage() {
               { label: "7D", ms: 7 * 86_400_000 },
               { label: "30D", ms: 30 * 86_400_000 },
               { label: "90D", ms: 90 * 86_400_000 },
-              { label: "Tudo", ms: 0 },
+              { label: t("pf_all"), ms: 0 },
             ] as const;
             type RangeLabel = typeof RANGES[number]["label"];
-            const [chartRange, setChartRange] = useState<RangeLabel>("Tudo");
+            const [chartRange, setChartRange] = useState<RangeLabel>(t("pf_all"));
             const now = Date.now();
             const ms = RANGES.find(r => r.label === chartRange)?.ms ?? 0;
             const chartData = [...snapshotTotals]
@@ -1100,8 +1100,8 @@ export default function PortfolioPage() {
               <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 md:col-span-2">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Histórico</p>
-                    <h2 className="text-base font-bold text-white mt-0.5">Evolução do portfólio</h2>
+                    <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{t("pf_history")}</p>
+                    <h2 className="text-base font-bold text-white mt-0.5">{t("pf_evolution")}</h2>
                   </div>
                   <span className={`text-sm font-bold ${pnlSummary.position >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                     {pnlSummary.position >= 0 ? "+" : ""}€{formatValue(pnlSummary.position)}
@@ -1133,7 +1133,7 @@ export default function PortfolioPage() {
                         contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
                         labelStyle={{ color: "#94a3b8" }}
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        formatter={(v: any) => [`€ ${formatValue(typeof v === "number" ? v : 0)}`, "Valor"]}
+                        formatter={(v: any) => [`€ ${formatValue(typeof v === "number" ? v : 0)}`, t("pf_value")]}
                       />
                       <Area type="monotone" dataKey="valor" stroke="#f97316" strokeWidth={2} fill="url(#colorValor)" dot={chartData.length < 30 ? { fill: "#f97316", r: 3 } : false} />
                     </AreaChart>
@@ -1141,7 +1141,7 @@ export default function PortfolioPage() {
                 ) : (
                   <div className="flex h-[130px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-700">
                     <p className="text-2xl">📸</p>
-                    <p className="text-sm text-slate-400 text-center">Precisas de pelo menos 2 snapshots para ver a evolução.</p>
+                    <p className="text-sm text-slate-400 text-center">{t("pf_need_2_snap")}</p>
                     <p className="text-xs text-slate-500">{snapshotTotals.length}/2 {t("port_snapshots")}</p>
                   </div>
                 )}
@@ -1155,10 +1155,10 @@ export default function PortfolioPage() {
         <section className="grid gap-6 md:grid-cols-[1fr_1.6fr]">
           {/* Score do portfólio */}
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Avaliação</p>
-            <h2 className="text-base font-bold text-white mt-0.5 mb-4">Score do portfólio</h2>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{t("pf_evaluation")}</p>
+            <h2 className="text-base font-bold text-white mt-0.5 mb-4">{t("pf_score")}</h2>
             {portfolioTotal <= 0 ? (
-              <div className="flex h-32 items-center justify-center text-sm text-slate-500">Adiciona ativos para ver o score.</div>
+              <div className="flex h-32 items-center justify-center text-sm text-slate-500">{t("pf_add_for_score")}</div>
             ) : portfolioScore ? (
               <div className="space-y-5 animate-fade-in">
                 {/* Score circular com progress ring */}
@@ -1182,7 +1182,7 @@ export default function PortfolioPage() {
                   </div>
                   <div>
                     <p className={`text-xl font-black ${portfolioScore.color}`}>{portfolioScore.label}</p>
-                    <p className="text-xs text-slate-400 mt-1 leading-relaxed">Diversificação, risco, performance e liquidez.</p>
+                    <p className="text-xs text-slate-400 mt-1 leading-relaxed">{t("pf_score_desc")}</p>
                   </div>
                 </div>
                 {/* Breakdown com barras */}
@@ -1210,13 +1210,13 @@ export default function PortfolioPage() {
           {/* Resumo do portfólio */}
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 flex flex-col gap-5">
             <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Resumo</p>
-              <h2 className="text-base font-bold text-white mt-0.5">Total do portfólio</h2>
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{t("pf_summary")}</p>
+              <h2 className="text-base font-bold text-white mt-0.5">{t("pf_total_portfolio")}</h2>
             </div>
 
             {/* Valor total destacado */}
             <div className="rounded-xl bg-slate-950/60 border border-slate-800 px-5 py-4">
-              <p className="text-xs text-slate-500 mb-1">Valor total</p>
+              <p className="text-xs text-slate-500 mb-1">{t("pf_total_value")}</p>
               <p className="text-3xl font-black text-white tracking-tight">€ {formatValue(portfolioTotal)}</p>
               <p className={`text-sm mt-1 font-semibold ${pnlSummary.today >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                 {pnlSummary.today >= 0 ? "▲" : "▼"} € {formatValue(Math.abs(pnlSummary.today))} hoje
@@ -1226,10 +1226,10 @@ export default function PortfolioPage() {
             {/* Métricas em grid 2x2 */}
             <div className="grid grid-cols-2 gap-3">
               {[
-                { label: "Cripto", value: `€ ${formatValue(cryptoTotal)}`, sub: `${portfolioSplit.crypto}% do total`, color: "text-orange-300" },
-                { label: "Tradicional", value: `€ ${formatValue(traditionalTotal)}`, sub: `${portfolioSplit.traditional}% do total`, color: "text-sky-400" },
+                { label: t("pf_crypto"), value: `€ ${formatValue(cryptoTotal)}`, sub: `${portfolioSplit.crypto}% do total`, color: "text-orange-300" },
+                { label: t("pf_traditional"), value: `€ ${formatValue(traditionalTotal)}`, sub: `${portfolioSplit.traditional}% do total`, color: "text-sky-400" },
                 { label: "PNL 30 dias", value: `${pnlSummary.days30 >= 0 ? "+" : ""}€ ${formatValue(Math.abs(pnlSummary.days30))}`, sub: portfolioTotal > 0 ? `${((pnlSummary.days30 / portfolioTotal) * 100).toLocaleString("pt-PT", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%` : "—", color: pnlSummary.days30 >= 0 ? "text-emerald-400" : "text-rose-400" },
-                { label: "PNL posição", value: `${pnlSummary.position >= 0 ? "+" : ""}€ ${formatValue(Math.abs(pnlSummary.position))}`, sub: advancedMetrics ? `ROI ${advancedMetrics.roi >= 0 ? "+" : ""}${advancedMetrics.roi.toFixed(1)}%` : "—", color: pnlSummary.position >= 0 ? "text-emerald-400" : "text-rose-400" },
+                { label: t("pf_pnl_pos"), value: `${pnlSummary.position >= 0 ? "+" : ""}€ ${formatValue(Math.abs(pnlSummary.position))}`, sub: advancedMetrics ? `ROI ${advancedMetrics.roi >= 0 ? "+" : ""}${advancedMetrics.roi.toFixed(1)}%` : "—", color: pnlSummary.position >= 0 ? "text-emerald-400" : "text-rose-400" },
               ].map(m => (
                 <div key={m.label} className="rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
                   <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">{m.label}</p>
@@ -1242,17 +1242,17 @@ export default function PortfolioPage() {
             {/* Carteiras activas */}
             <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-slate-500">Ativos conectados</p>
+                <p className="text-[10px] uppercase tracking-wider text-slate-500">{t("pf_connected_assets")}</p>
                 <p className="text-base font-bold text-white mt-0.5">
                   {wallets.filter(w => Number(w.balance) > 0).length + Object.keys(cryptoHoldings).length + Object.keys(traditionalHoldings).length}
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] uppercase tracking-wider text-slate-500">Snapshots</p>
+                <p className="text-[10px] uppercase tracking-wider text-slate-500">{t("pf_snapshots")}</p>
                 <p className="text-base font-bold text-white mt-0.5">{snapshots.length}</p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] uppercase tracking-wider text-slate-500">Último snapshot</p>
+                <p className="text-[10px] uppercase tracking-wider text-slate-500">{t("pf_last_snapshot")}</p>
                 <p className="text-base font-bold text-white mt-0.5">
                   {snapshots[0] ? new Date(snapshots[0].created_at).toLocaleDateString("pt-PT", { day: "2-digit", month: "short" }) : "—"}
                 </p>
@@ -1265,8 +1265,8 @@ export default function PortfolioPage() {
         <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Análise</p>
-              <h2 className="text-base font-bold text-white mt-0.5">Métricas avançadas</h2>
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{t("pf_analysis")}</p>
+              <h2 className="text-base font-bold text-white mt-0.5">{t("pf_adv_metrics")}</h2>
             </div>
             <button
               id="btn-export-pdf"
@@ -1287,7 +1287,7 @@ export default function PortfolioPage() {
                 doc.rect(0, 0, 210, 297, "F");
                 doc.setTextColor(255, 255, 255);
 
-                line("OWLFUND", 22, true);
+                line("ChainFolioAI", 22, true);
                 line(`Relatório de Portfólio — ${now}`, 10);
                 spacer(6);
                 doc.setDrawColor(249, 115, 22);
@@ -1295,7 +1295,7 @@ export default function PortfolioPage() {
                 doc.line(15, y, 195, y);
                 spacer(6);
 
-                line("Resumo", 14, true);
+                line(t("pf_summary"), 14, true);
                 spacer(2);
                 line(`Total do portfólio: € ${formatValue(portfolioTotal)}`);
                 line(`Cripto: € ${formatValue(cryptoTotal)} · Tradicional: € ${formatValue(traditionalTotal)}`);
@@ -1309,7 +1309,7 @@ export default function PortfolioPage() {
                 spacer(4);
 
                 if (advancedMetrics) {
-                  line("Métricas avançadas", 14, true);
+                  line(t("pf_adv_metrics"), 14, true);
                   spacer(2);
                   line(`ROI: ${advancedMetrics.roi.toFixed(2)}%`);
                   if (advancedMetrics.cagr !== null) line(`CAGR: ${advancedMetrics.cagr.toFixed(2)}%`);
@@ -1320,7 +1320,7 @@ export default function PortfolioPage() {
                   spacer(4);
                 }
 
-                line("Distribuição", 14, true);
+                line(t("pf_distribution"), 14, true);
                 spacer(2);
                 cryptoAllocations.filter(a => a.value > 0).forEach(a => {
                   line(`${a.label} (${a.symbol}): € ${formatValue(a.value)} · ${a.percent}`);
@@ -1341,8 +1341,8 @@ export default function PortfolioPage() {
 
           {!advancedMetrics ? (
             <div className="rounded-xl border border-dashed border-slate-700 p-6 text-center">
-              <p className="text-sm text-slate-400">Precisas de pelo menos <strong className="text-white">2 snapshots</strong> para calcular métricas avançadas.</p>
-              <p className="text-xs text-slate-500 mt-1">Guarda snapshots periodicamente na secção abaixo.</p>
+              <p className="text-sm text-slate-400">{t("pf_need_at_least")} <strong className="text-white">2 snapshots</strong> para calcular métricas avançadas.</p>
+              <p className="text-xs text-slate-500 mt-1">{t("pf_save_snap_periodic")}</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -1357,7 +1357,7 @@ export default function PortfolioPage() {
                   label: "CAGR",
                   value: `${advancedMetrics.cagr >= 0 ? "+" : ""}${advancedMetrics.cagr.toFixed(2)}%`,
                   color: advancedMetrics.cagr >= 0 ? "text-emerald-400" : "text-rose-400",
-                  hint: "Retorno anual",
+                  hint: t("pf_annual_return"),
                 }] : []),
                 ...(advancedMetrics.sharpe !== null ? [{
                   label: "Sharpe",
@@ -1366,16 +1366,16 @@ export default function PortfolioPage() {
                   hint: ">1 = bom",
                 }] : []),
                 {
-                  label: "Max Drawdown",
+                  label: t("pf_max_drawdown"),
                   value: `${advancedMetrics.maxDrawdown.toFixed(2)}%`,
                   color: "text-rose-400",
-                  hint: "Queda máxima",
+                  hint: t("pf_max_drawdown"),
                 },
                 ...(advancedMetrics.volatility !== null ? [{
-                  label: "Volatilidade",
+                  label: t("pf_volatility"),
                   value: `${advancedMetrics.volatility.toFixed(2)}%`,
                   color: "text-orange-300",
-                  hint: "Anualizada",
+                  hint: t("pf_annualized"),
                 }] : []),
               ].map((m, i) => (
                 <div key={m.label} className={`card-hover rounded-xl border border-slate-700 bg-slate-900/80 p-4 text-center animate-count-up delay-${i * 100}`}>
@@ -1390,7 +1390,7 @@ export default function PortfolioPage() {
 
         <section className="grid gap-6 md:grid-cols-2">
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-            <h2 className="text-lg font-semibold text-white">Carteiras Blockchain</h2>
+            <h2 className="text-lg font-semibold text-white">{t("pf_blockchain_wallets")}</h2>
             <p className="text-sm text-slate-400">
               {t("port_total_assets")}: € {formatValue(cryptoTotal)}
             </p>
@@ -1416,7 +1416,7 @@ export default function PortfolioPage() {
           </div>
 
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-            <h2 className="text-lg font-semibold text-white">Carteiras Tradicional</h2>
+            <h2 className="text-lg font-semibold text-white">{t("pf_traditional_wallets")}</h2>
             <p className="text-sm text-slate-400">
               Ativos totais: € {formatValue(traditionalTotal)}
             </p>
@@ -1459,7 +1459,7 @@ export default function PortfolioPage() {
         </section>
 
         <section className="rounded-2xl border border-orange-500/20 bg-slate-900/60 p-6">
-          <h2 className="text-lg font-semibold text-white">Snapshots e Plano</h2>
+          <h2 className="text-lg font-semibold text-white">{t("pf_snapshots_plan")}</h2>
           {isLoadingAuth ? (
             <p className="mt-2 text-sm text-slate-400">{t("loading")}</p>
           ) : userId ? (
@@ -1490,7 +1490,7 @@ export default function PortfolioPage() {
                     type="button"
                     disabled={isBillingLoading}
                   >
-                    {isBillingLoading ? "A iniciar..." : "✨ Ativar plano Pro"}
+                    {isBillingLoading ? t("pf_starting") : "✨ Ativar plano Pro"}
                   </button>
                 ) : null}
                 <a
@@ -1522,9 +1522,9 @@ export default function PortfolioPage() {
         <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-white">Histórico do portfólio</h2>
+              <h2 className="text-lg font-semibold text-white">{t("pf_portfolio_history")}</h2>
               <p className="text-sm text-slate-400">
-                {isPremium ? "Histórico ilimitado (Plano Premium)." : isPro ? "Últimos 365 dias de snapshots (Plano Pro)." : <>Últimos 30 dias (Plano Gratuito). <a href="/pricing" className="text-orange-400 underline hover:text-orange-300">Pro = 1 ano →</a></>}
+                {isPremium ? t("pf_unlimited_history") : isPro ? "Últimos 365 dias de snapshots (Plano Pro)." : <>{t("pf_30days_free")} <a href="/pricing" className="text-orange-400 underline hover:text-orange-300">{t("pf_pro_1year")}</a></>}
               </p>
             </div>
             <a
@@ -1548,12 +1548,12 @@ export default function PortfolioPage() {
         {/* ── SIMULADOR DE CENÁRIOS ── */}
         <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
           <div className="mb-5">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Simulação</p>
-            <h2 className="text-base font-bold text-white mt-0.5">Simulador de cenários</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Vê o impacto de variações de preço no teu portfólio em tempo real.</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{t("pf_simulation")}</p>
+            <h2 className="text-base font-bold text-white mt-0.5">{t("pf_scenario_sim")}</h2>
+            <p className="text-xs text-slate-400 mt-0.5">{t("pf_sim_desc")}</p>
           </div>
           {portfolioTotal <= 0 ? (
-            <p className="text-sm text-slate-500">Adiciona ativos para usar o simulador.</p>
+            <p className="text-sm text-slate-500">{t("pf_add_for_sim")}</p>
           ) : (
             <ScenarioSimulator
               portfolioTotal={portfolioTotal}
@@ -1567,8 +1567,8 @@ export default function PortfolioPage() {
         {/* ── IA CONTEXTUAL ── */}
         <section className="rounded-2xl border border-orange-500/20 bg-orange-50 dark:bg-gradient-to-br dark:from-orange-500/10 dark:via-slate-900 dark:to-slate-950 p-6">
           <div className="mb-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-orange-600 dark:text-orange-300/80">Inteligência Artificial</p>
-            <h2 className="mt-1 text-base font-bold text-slate-900 dark:text-white">Analisa o teu portfólio</h2>
+            <p className="text-xs uppercase tracking-[0.2em] text-orange-600 dark:text-orange-300/80">{t("pf_ai")}</p>
+            <h2 className="mt-1 text-base font-bold text-slate-900 dark:text-white">{t("pf_analyze_portfolio")}</h2>
             <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
               A IA tem acesso aos teus dados reais — totais, PNL, distribuição e métricas avançadas.
             </p>
@@ -1577,10 +1577,10 @@ export default function PortfolioPage() {
           {/* Sugestões rápidas */}
           <div className="flex flex-wrap gap-2 mb-4">
             {[
-              "Porque caiu o meu portfólio esta semana?",
-              "O meu portfólio está bem diversificado?",
-              "Como interpretar o meu Sharpe Ratio?",
-              "Quais os principais riscos do meu portfólio?",
+              t("pf_q1"),
+              t("pf_q2"),
+              t("pf_q3"),
+              t("pf_q4"),
             ].map((q) => (
               <button
                 key={q}
@@ -1625,17 +1625,17 @@ export default function PortfolioPage() {
                         body: JSON.stringify({ question: aiQuestion.trim(), context }),
                       });
                       const data = (await res.json()) as { reply?: string; error?: string };
-                      if (!res.ok || data.error) { setAiError(data.error ?? "Erro."); return; }
+                      if (!res.ok || data.error) { setAiError(data.error ?? t("pf_error")); return; }
                       setAiReply(data.reply ?? "");
                     } catch (err) {
-                      setAiError(err instanceof Error ? err.message : "Erro.");
+                      setAiError(err instanceof Error ? err.message : t("pf_error"));
                     } finally {
                       setAiLoading(false);
                     }
                   })();
                 }
               }}
-              placeholder="Pergunta sobre o teu portfólio… (Enter para enviar)"
+              placeholder={t("pf_ask_ph")}
               className="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500"
             />
             <button
@@ -1665,22 +1665,22 @@ export default function PortfolioPage() {
                     body: JSON.stringify({ question: aiQuestion.trim(), context }),
                   });
                   const data = (await res.json()) as { reply?: string; error?: string };
-                  if (!res.ok || data.error) { setAiError(data.error ?? "Não foi possível obter resposta. Tenta novamente."); return; }
+                  if (!res.ok || data.error) { setAiError(data.error ?? t("pf_no_response")); return; }
                   setAiReply(data.reply ?? "");
                 } catch (err) {
-                  setAiError(err instanceof Error ? err.message : "Não foi possível obter resposta. Verifica a tua ligação e tenta novamente.");
+                  setAiError(err instanceof Error ? err.message : t("pf_no_response_conn"));
                 } finally {
                   setAiLoading(false);
                 }
               }}
               className="rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-slate-950 hover:bg-orange-400 disabled:opacity-50 transition"
             >
-              {aiLoading ? "…" : "Perguntar"}
+              {aiLoading ? "…" : t("pf_ask")}
             </button>
           </div>
 
           {aiLoading && (
-            <p className="mt-3 text-xs text-slate-500 dark:text-slate-400 animate-pulse">A analisar o teu portfólio…</p>
+            <p className="mt-3 text-xs text-slate-500 dark:text-slate-400 animate-pulse">{t("pf_analyzing")}</p>
           )}
           {aiError && (
             <p className="mt-3 text-xs text-rose-500 dark:text-rose-400">{aiError}</p>
@@ -1696,13 +1696,13 @@ export default function PortfolioPage() {
         {/* ── NOTAS ── */}
         <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
           <div className="mb-3">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Pessoal</p>
-            <h2 className="text-base font-bold text-white mt-0.5">Notas do portfólio</h2>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{t("pf_personal")}</p>
+            <h2 className="text-base font-bold text-white mt-0.5">{t("pf_portfolio_notes")}</h2>
           </div>
           <textarea
             className="w-full rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 placeholder-slate-600 outline-none transition focus:border-orange-400 resize-none"
             rows={4}
-            placeholder="Escreve aqui as tuas notas, estratégia, objetivos ou observações sobre o portfólio..."
+            placeholder={t("pf_notes_ph")}
             value={portfolioNote}
             onChange={(e) => {
               const v = e.target.value;
@@ -1710,7 +1710,7 @@ export default function PortfolioPage() {
               try { localStorage.setItem("portfolio-note", v); } catch {}
             }}
           />
-          <p className="mt-1.5 text-[10px] text-slate-600">Guardado localmente no dispositivo.</p>
+          <p className="mt-1.5 text-[10px] text-slate-600">{t("pf_saved_local")}</p>
         </section>
 
       </main>
