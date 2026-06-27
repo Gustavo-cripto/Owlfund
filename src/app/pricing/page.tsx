@@ -7,86 +7,6 @@ import { createClient } from "@/lib/supabase/client";
 
 // ── Feature comparison table data ─────────────────────────────────────────
 
-const COMPARISON = [
-  {
-    category: "📦 Carteiras & Integração",
-    rows: [
-      { label: "Carteiras on-chain (EVM, SOL, BTC, ADA)", free: "Até 3", pro: "Ilimitado", premium: "Ilimitado" },
-      { label: "CEX (Binance, Kraken, CoinEx)", free: false, pro: true, premium: true },
-      { label: "Hyperliquid Spot + Perp", free: false, pro: true, premium: true },
-      { label: "Cold Wallet só-leitura (Ledger, Trezor…)", free: true, pro: true, premium: true },
-    ],
-  },
-  {
-    category: "📊 Portfolio & Histórico",
-    rows: [
-      { label: "Snapshots automáticos diários", free: false, pro: true, premium: true },
-      { label: "Histórico de valor do portfolio", free: "30 dias", pro: "1 ano+", premium: "Ilimitado" },
-      { label: "Exportação CSV", free: false, pro: true, premium: true },
-      { label: "Relatório PDF automático", free: false, pro: true, premium: "Avançado" },
-    ],
-  },
-  {
-    category: "🐋 Smart Money & On-chain",
-    rows: [
-      { label: "Watchlist de baleias", free: "3 endereços", pro: "Ilimitado", premium: "Ilimitado" },
-      { label: "Histórico de transações baleias", free: "Últimas 10", pro: "Últimas 100", premium: "Ilimitado" },
-      { label: "Alertas de movimentos > $100k", free: false, pro: true, premium: true },
-      { label: "Análise on-chain avançada", free: false, pro: false, premium: true },
-      { label: "Smart Money tracking em tempo real", free: false, pro: false, premium: true },
-      { label: "Alertas WebSocket em tempo real", free: false, pro: false, premium: true },
-    ],
-  },
-  {
-    category: "🤖 IA & Mercado",
-    rows: [
-      { label: "Preços em tempo real", free: true, pro: true, premium: true },
-      { label: "Blocos BTC ao vivo", free: true, pro: true, premium: true },
-      { label: "Notícias ao vivo (RSS)", free: true, pro: true, premium: true },
-      { label: "Análise IA das notícias", free: false, pro: true, premium: true },
-      { label: "Briefing IA diário (cripto & tradicional)", free: false, pro: true, premium: true },
-      { label: "Análise IA do portfolio", free: "1/mês", pro: "Ilimitado", premium: "Ilimitado" },
-      { label: "Chat sobre análise IA (mercado)", free: false, pro: true, premium: true },
-      { label: "Análise preditiva IA on-chain", free: false, pro: false, premium: true },
-    ],
-  },
-  {
-    category: "🧾 Fiscalidade",
-    rows: [
-      { label: "Calculadora de impostos (FIFO)", free: "30 dias", pro: "Ilimitado", premium: "Ilimitado" },
-      { label: "Países suportados", free: "4 (PT/ES/FR/DE)", pro: "8+ países", premium: "Todos" },
-      { label: "Guia de legislação por país", free: true, pro: true, premium: true },
-      { label: "Exportação relatório fiscal PDF", free: false, pro: true, premium: "Multi-formato" },
-      { label: "Relatório fiscal anual automático", free: false, pro: true, premium: true },
-    ],
-  },
-  {
-    category: "📐 Planeamento FIRE",
-    rows: [
-      { label: "Calculadora FIRE", free: true, pro: true, premium: true },
-      { label: "Cenários de simulação", free: "3 cenários", pro: "Ilimitado", premium: "Ilimitado" },
-      { label: "Projeções de portfolio", free: false, pro: true, premium: true },
-    ],
-  },
-  {
-    category: "⚙️ API & Integrações",
-    rows: [
-      { label: "API REST pública", free: false, pro: false, premium: true },
-      { label: "Integração MCP (Claude, Cursor…)", free: false, pro: false, premium: true },
-      { label: "Webhooks de alertas", free: false, pro: false, premium: true },
-    ],
-  },
-  {
-    category: "🎧 Suporte",
-    rows: [
-      { label: "Suporte por email", free: true, pro: true, premium: true },
-      { label: "Suporte prioritário", free: false, pro: true, premium: true },
-      { label: "Gestor de conta dedicado", free: false, pro: false, premium: true },
-      { label: "Acesso antecipado a novas features", free: false, pro: false, premium: true },
-    ],
-  },
-];
-
 function Cell({ value }: { value: boolean | string }) {
   if (value === true) return <span className="text-emerald-400 font-bold">✓</span>;
   if (value === false) return <span className="text-slate-700">—</span>;
@@ -98,6 +18,62 @@ function Cell({ value }: { value: boolean | string }) {
 export default function PricingPage() {
   const { t } = useLanguage();
   const supabase = createClient();
+
+  const COMPARISON = [
+    { category: t("pc_cat_wallets"), rows: [
+      { label: t("pc_r_wallets_onchain"), free: t("pc_up_to_3"), pro: t("pc_unlimited"), premium: t("pc_unlimited") },
+      { label: t("pc_r_cex"), free: false, pro: true, premium: true },
+      { label: t("pc_r_hyperliquid"), free: false, pro: true, premium: true },
+      { label: t("pc_r_cold"), free: true, pro: true, premium: true },
+    ]},
+    { category: t("pc_cat_portfolio"), rows: [
+      { label: t("pc_r_snapshots"), free: false, pro: true, premium: true },
+      { label: t("pc_r_history"), free: t("pc_30_days"), pro: t("pc_1_year"), premium: t("pc_unlimited") },
+      { label: t("pc_r_csv"), free: false, pro: true, premium: true },
+      { label: t("pc_r_pdf_auto"), free: false, pro: true, premium: t("pc_advanced") },
+    ]},
+    { category: t("pc_cat_smart"), rows: [
+      { label: t("pc_r_watchlist"), free: t("pc_3_addr"), pro: t("pc_unlimited"), premium: t("pc_unlimited") },
+      { label: t("pc_r_whale_history"), free: t("pc_last_10"), pro: t("pc_last_100"), premium: t("pc_unlimited") },
+      { label: t("pc_r_alerts_100k"), free: false, pro: true, premium: true },
+      { label: t("pc_r_onchain_adv"), free: false, pro: false, premium: true },
+      { label: t("pc_r_sm_rt"), free: false, pro: false, premium: true },
+      { label: t("pc_r_ws_alerts"), free: false, pro: false, premium: true },
+    ]},
+    { category: t("pc_cat_ai"), rows: [
+      { label: t("pc_r_prices_rt"), free: true, pro: true, premium: true },
+      { label: t("pc_r_btc_blocks"), free: true, pro: true, premium: true },
+      { label: t("pc_r_news_rss"), free: true, pro: true, premium: true },
+      { label: t("pc_r_ai_news"), free: false, pro: true, premium: true },
+      { label: t("pc_r_ai_briefing"), free: false, pro: true, premium: true },
+      { label: t("pc_r_ai_portfolio"), free: t("pc_1_month"), pro: t("pc_unlimited"), premium: t("pc_unlimited") },
+      { label: t("pc_r_ai_chat"), free: false, pro: true, premium: true },
+      { label: t("pc_r_ai_predictive"), free: false, pro: false, premium: true },
+    ]},
+    { category: t("pc_cat_tax"), rows: [
+      { label: t("pc_r_tax_calc"), free: t("pc_30_days"), pro: t("pc_unlimited"), premium: t("pc_unlimited") },
+      { label: t("pc_r_countries"), free: t("pc_4_countries"), pro: t("pc_8_countries"), premium: t("pc_all") },
+      { label: t("pc_r_tax_guide"), free: true, pro: true, premium: true },
+      { label: t("pc_r_tax_pdf"), free: false, pro: true, premium: t("pc_multiformat") },
+      { label: t("pc_r_tax_annual"), free: false, pro: true, premium: true },
+    ]},
+    { category: t("pc_cat_fire"), rows: [
+      { label: t("pc_r_fire_calc"), free: true, pro: true, premium: true },
+      { label: t("pc_r_fire_scen"), free: t("pc_3_scen"), pro: t("pc_unlimited"), premium: t("pc_unlimited") },
+      { label: t("pc_r_fire_proj"), free: false, pro: true, premium: true },
+    ]},
+    { category: t("pc_cat_api"), rows: [
+      { label: t("pc_r_api_rest"), free: false, pro: false, premium: true },
+      { label: t("pc_r_mcp"), free: false, pro: false, premium: true },
+      { label: t("pc_r_webhooks"), free: false, pro: false, premium: true },
+    ]},
+    { category: t("pc_cat_support"), rows: [
+      { label: t("pc_r_support_email"), free: true, pro: true, premium: true },
+      { label: t("pc_r_support_priority"), free: false, pro: true, premium: true },
+      { label: t("pc_r_account_manager"), free: false, pro: false, premium: true },
+      { label: t("pc_r_early_access"), free: false, pro: false, premium: true },
+    ]},
+  ];
   const [isPro, setIsPro] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -306,7 +282,7 @@ export default function PricingPage() {
 
             {/* Detailed comparison table */}
             <div className="space-y-6">
-              <h2 className="text-lg font-bold text-white text-center">Comparação completa de funcionalidades</h2>
+              <h2 className="text-lg font-bold text-white text-center">{t("pc_compare_title")}</h2>
 
               {COMPARISON.map((section) => (
                 <div key={section.category} className="rounded-2xl border border-slate-800 bg-slate-900/40 overflow-hidden">
@@ -317,7 +293,7 @@ export default function PricingPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-slate-800">
-                          <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 w-1/2">Funcionalidade</th>
+                          <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 w-1/2">{t("pc_feature_col")}</th>
                           <th className="text-center px-4 py-3 text-xs font-semibold text-slate-400 w-[16%]">Gratuito</th>
                           <th className="text-center px-4 py-3 text-xs font-semibold text-orange-400 w-[16%]">Pro</th>
                           <th className="text-center px-4 py-3 text-xs font-semibold text-violet-400 w-[16%]">Premium</th>
@@ -348,7 +324,7 @@ export default function PricingPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-800">
-                      <th className="text-left px-6 py-3 text-xs text-slate-400">Funcionalidade</th>
+                      <th className="text-left px-6 py-3 text-xs text-slate-400">{t("pc_feature_col")}</th>
                       <th className="text-center px-4 py-3 text-xs font-semibold text-orange-400">ChainFolioAI Pro</th>
                       <th className="text-center px-4 py-3 text-xs font-semibold text-violet-400">ChainFolioAI Premium</th>
                       <th className="text-center px-4 py-3 text-xs text-slate-500">CoinStats</th>
