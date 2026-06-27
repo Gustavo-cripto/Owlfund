@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import AppShell from "@/components/AppShell";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import { useTheme, type Theme, type Currency, type NumberFormat } from "@/lib/theme/ThemeContext";
 
 type SubscriptionStatus = { status: string; current_period_end: string | null; price_id?: string | null };
@@ -12,6 +13,7 @@ type ApiKey = { id: string; name: string; key_prefix: string; created_at: string
 
 // ── API Keys component ────────────────────────────────────────────────────
 function PremiumApiKeys({ isPremium }: { isPremium: boolean }) {
+  const { t } = useLanguage();
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [newKeyName, setNewKeyName] = useState("");
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
@@ -50,7 +52,7 @@ function PremiumApiKeys({ isPremium }: { isPremium: boolean }) {
   };
 
   const revokeKey = async (id: string) => {
-    if (!confirm("Revogar esta chave? Esta ação é irreversível.")) return;
+    if (!confirm(t("ac_revoke_confirm"))) return;
     const res = await fetch("/api/api-keys", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -67,11 +69,11 @@ function PremiumApiKeys({ isPremium }: { isPremium: boolean }) {
       </div>
       {isPremium ? (
         <div className="space-y-4">
-          <p className="text-xs text-slate-400">Gera chaves API para integrar o ChainFolioAI com ferramentas externas, MCP servers e webhooks.</p>
+          <p className="text-xs text-slate-400">{t("ac_api_desc")}</p>
 
           {revealedKey && (
             <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/30 p-3 space-y-2">
-              <p className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wide">Guarda esta chave — só aparece uma vez</p>
+              <p className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wide">{t("ac_key_once")}</p>
               <div className="flex items-center gap-2">
                 <code className="flex-1 text-xs text-emerald-300 font-mono break-all">{revealedKey}</code>
                 <button type="button" onClick={() => { navigator.clipboard.writeText(revealedKey); }}
@@ -103,23 +105,23 @@ function PremiumApiKeys({ isPremium }: { isPremium: boolean }) {
               ))}
             </div>
           ) : (
-            <p className="text-xs text-slate-500">Nenhuma chave criada ainda.</p>
+            <p className="text-xs text-slate-500">{t("ac_no_keys")}</p>
           )}
 
           <div className="flex gap-2">
             <input type="text" value={newKeyName} onChange={e => setNewKeyName(e.target.value)}
-              placeholder="Nome da chave (ex: MCP Claude)"
+              placeholder={t("ac_key_name_ph")}
               className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-violet-500/50" />
             <button type="button" onClick={createKey} disabled={creating}
               className="shrink-0 rounded-lg border border-violet-500/40 bg-violet-500/10 px-4 py-2 text-xs font-semibold text-violet-300 hover:bg-violet-500/20 disabled:opacity-50 transition">
-              {creating ? "A criar..." : "+ Nova chave"}
+              {creating ? t("ac_creating") : "+ Nova chave"}
             </button>
           </div>
 
-          <p className="text-[10px] text-slate-600">Endpoint base: <code className="text-slate-500">https://owlfund.vercel.app/api/v1/</code> · Cabeçalho: <code className="text-slate-500">Authorization: Bearer owf_live_…</code></p>
+          <p className="text-[10px] text-slate-600">{t("ac_endpoint_base")} <code className="text-slate-500">https://owlfund.vercel.app/api/v1/</code> · Cabeçalho: <code className="text-slate-500">Authorization: Bearer owf_live_…</code></p>
         </div>
       ) : (
-        <p className="text-xs text-slate-500">Acede à API REST do ChainFolioAI, integra com MCP servers e recebe webhooks em tempo real.</p>
+        <p className="text-xs text-slate-500">{t("ac_api_rest_desc")}</p>
       )}
     </div>
   );
@@ -185,13 +187,13 @@ function ThemeCard({ value, current, label, icon, onClick }: {
 }
 
 // ── Section nav ───────────────────────────────────────────────────────────
-const SECTIONS: { key: SettingsSection; label: string; icon: string }[] = [
-  { key: "account",      label: "Conta",          icon: "👤" },
-  { key: "appearance",   label: "Aparência",       icon: "🎨" },
-  { key: "preferences",  label: "Preferências",    icon: "⚙️" },
-  { key: "notifications",label: "Notificações",    icon: "🔔" },
-  { key: "privacy",      label: "Privacidade",     icon: "🔒" },
-  { key: "premium",      label: "Premium",         icon: "💎" },
+const SECTIONS: { key: SettingsSection; labelKey: string; icon: string }[] = [
+  { key: "account",      labelKey: "ac_tab_account",       icon: "👤" },
+  { key: "appearance",   labelKey: "ac_tab_appearance",    icon: "🎨" },
+  { key: "preferences",  labelKey: "ac_tab_preferences",   icon: "⚙️" },
+  { key: "notifications",labelKey: "ac_tab_notifications", icon: "🔔" },
+  { key: "privacy",      labelKey: "ac_tab_privacy",       icon: "🔒" },
+  { key: "premium",      labelKey: "__premium",            icon: "💎" },
 ];
 
 export default function AccountPage() {
@@ -308,8 +310,8 @@ export default function AccountPage() {
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !userId) return;
-    if (file.size > 2 * 1024 * 1024) { alert("Imagem demasiado grande. Máximo 2MB."); return; }
-    if (!file.type.startsWith("image/")) { alert("Ficheiro inválido. Seleciona uma imagem."); return; }
+    if (file.size > 2 * 1024 * 1024) { alert(t("ac_img_too_big")); return; }
+    if (!file.type.startsWith("image/")) { alert(t("ac_file_invalid")); return; }
 
     setAvatarUploading(true);
     try {
@@ -326,7 +328,7 @@ export default function AccountPage() {
       await supabase.from("profiles").upsert({ id: userId, avatar_url: publicUrl });
       setAvatarUrl(publicUrl);
     } catch (err) {
-      alert("Erro ao carregar imagem. Tenta novamente.");
+      alert(t("ac_img_error"));
       console.error(err);
     } finally {
       setAvatarUploading(false);
@@ -369,7 +371,7 @@ export default function AccountPage() {
                       : "text-slate-400 hover:bg-white/5 hover:text-white"
                   }`}>
                   <span className="text-base">{s.icon}</span>
-                  {s.label}
+                  {s.labelKey === "__premium" ? "Premium" : t(s.labelKey as TranslationKey)}
                 </button>
               ))}
             </nav>
@@ -380,7 +382,7 @@ export default function AccountPage() {
               {/* ── Conta ── */}
               {section === "account" && (
                 <div className="space-y-4">
-                  <h2 className="text-base font-bold text-white mb-4">Informações da conta</h2>
+                  <h2 className="text-base font-bold text-white mb-4">{t("ac_account_info")}</h2>
 
                   {/* Avatar */}
                   <div className="flex flex-col items-center gap-3 pb-2">
@@ -390,7 +392,7 @@ export default function AccountPage() {
                         onClick={() => avatarInputRef.current?.click()}
                         disabled={avatarUploading}
                         className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-slate-700 hover:border-orange-500/60 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500/40"
-                        title="Clica para alterar a foto de perfil"
+                        title={t("ac_change_photo")}
                       >
                         {avatarUrl ? (
                           <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
@@ -423,7 +425,7 @@ export default function AccountPage() {
                         </svg>
                       </div>
                     </div>
-                    <p className="text-xs text-slate-500">Clica para alterar · JPG, PNG, WebP · máx. 2MB</p>
+                    <p className="text-xs text-slate-500">{t("ac_change_photo_hint")}</p>
                     <input
                       ref={avatarInputRef}
                       type="file"
@@ -461,19 +463,19 @@ export default function AccountPage() {
                     {/* Free */}
                     <div className={`rounded-xl border p-4 ${currentPlan === "free" ? "border-orange-500/30 bg-orange-500/5" : "border-slate-800 bg-slate-950/40"}`}>
                       <div className="flex items-center justify-between mb-3">
-                        <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Gratuito</p>
-                        {currentPlan === "free" && <span className="text-[10px] bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded-full px-2 py-0.5">Plano atual</span>}
+                        <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("free")}</p>
+                        {currentPlan === "free" && <span className="text-[10px] bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded-full px-2 py-0.5">{t("ac_current_plan")}</span>}
                       </div>
                       <ul className="space-y-1.5 text-xs text-slate-400">
                         {[
-                          "3 carteiras on-chain",
-                          "Preços em tempo real",
-                          "Blocos BTC ao vivo",
-                          "Watchlist (5 baleias)",
-                          "Chat IA (5/mês)",
-                          "Calculadora FIFO",
-                          "Calculadora FIRE básica",
-                          "4 países fiscais",
+                          t("ac_f_wallets"),
+                          t("pc_r_prices_rt"),
+                          t("pc_r_btc_blocks"),
+                          t("ac_f_watchlist"),
+                          t("ac_f_chat"),
+                          t("ac_fifo_calc"),
+                          t("ac_f_fire"),
+                          t("ac_f_countries"),
                         ].map(f => (
                           <li key={f} className="flex gap-2"><span className="text-emerald-400 shrink-0">✓</span>{f}</li>
                         ))}
@@ -488,19 +490,19 @@ export default function AccountPage() {
                       </div>
                       <ul className="space-y-1.5 text-xs text-slate-300">
                         {[
-                          "Tudo do Gratuito",
-                          "Carteiras ilimitadas",
-                          "CEX + hardware wallets",
-                          "Chat IA ilimitado",
-                          "Briefing diário por email",
-                          "Alertas de baleias",
-                          "8+ países fiscais",
-                          "1 ano de histórico",
+                          t("ac_all_free"),
+                          t("ac_p_wallets"),
+                          t("ac_p_cex"),
+                          t("ac_p_chat"),
+                          t("ac_p_briefing"),
+                          t("ac_p_alerts"),
+                          t("ac_p_countries"),
+                          t("ac_p_history"),
                         ].map(f => (
                           <li key={f} className="flex gap-2"><span className="text-orange-400 shrink-0">✓</span>{f}</li>
                         ))}
                       </ul>
-                      <p className="text-xs text-orange-300/60 font-semibold mt-3">€9,99/mês</p>
+                      <p className="text-xs text-orange-300/60 font-semibold mt-3">€14,99/mês</p>
                     </div>
                     {/* Premium */}
                     <div className={`rounded-xl border p-4 ${currentPlan === "premium" ? "border-violet-500/40 bg-violet-500/5" : "border-slate-700 bg-slate-900/40"}`}>
@@ -510,13 +512,13 @@ export default function AccountPage() {
                       </div>
                       <ul className="space-y-1.5 text-xs text-slate-300">
                         {[
-                          "Tudo do Pro",
-                          "Smart Money em tempo real",
-                          "Análise on-chain",
-                          "Exportação fiscal avançada",
+                          t("ac_all_pro"),
+                          t("ac_pr_sm"),
+                          t("ac_pr_onchain"),
+                          t("ac_pr_export"),
                           "API/MCP + webhooks",
-                          "Todos os países fiscais",
-                          "Gestor dedicado",
+                          t("ac_pr_countries"),
+                          t("ac_pr_manager"),
                         ].map(f => (
                           <li key={f} className="flex gap-2"><span className="text-violet-400 shrink-0">✓</span>{f}</li>
                         ))}
@@ -555,7 +557,7 @@ export default function AccountPage() {
                       const res = await fetch("/api/sync-subscription", { method: "POST" });
                       const json = await res.json() as { synced?: boolean; error?: string };
                       if (json.synced) window.location.reload();
-                      else alert(json.error ?? "Nenhuma subscrição Stripe ativa encontrada.");
+                      else alert(json.error ?? t("ac_no_sub"));
                     }} className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-400 hover:text-white transition">
                       Sincronizar plano
                     </button>
@@ -570,15 +572,15 @@ export default function AccountPage() {
               {/* ── Aparência ── */}
               {section === "appearance" && (
                 <div className="space-y-6">
-                  <h2 className="text-base font-bold text-white">Aparência</h2>
+                  <h2 className="text-base font-bold text-white">{t("ac_appearance")}</h2>
 
                   {/* Theme */}
                   <div>
-                    <p className="text-sm font-medium text-slate-300 mb-3">Tema</p>
+                    <p className="text-sm font-medium text-slate-300 mb-3">{t("ac_theme")}</p>
                     <div className="grid grid-cols-3 gap-3">
-                      <ThemeCard value="dark"   current={theme} label="Escuro"  icon="🌑" onClick={() => setSetting("theme", "dark")} />
-                      <ThemeCard value="light"  current={theme} label="Claro"   icon="☀️" onClick={() => setSetting("theme", "light")} />
-                      <ThemeCard value="system" current={theme} label="Sistema"  icon="💻" onClick={() => setSetting("theme", "system")} />
+                      <ThemeCard value="dark"   current={theme} label={t("ac_dark")}  icon="🌑" onClick={() => setSetting("theme", "dark")} />
+                      <ThemeCard value="light"  current={theme} label={t("ac_light")}   icon="☀️" onClick={() => setSetting("theme", "light")} />
+                      <ThemeCard value="system" current={theme} label={t("ac_system")}  icon="💻" onClick={() => setSetting("theme", "system")} />
                     </div>
                     <p className="text-xs text-slate-500 mt-2">
                       {theme === "system" ? "A seguir as preferências do sistema operativo." : theme === "light" ? "Modo claro ativado." : "Modo escuro ativado."}
@@ -587,7 +589,7 @@ export default function AccountPage() {
 
                   {/* Compact mode */}
                   <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
-                    <SettingRow label="Modo compacto" desc="Reduz espaçamento e tamanho de fontes para ver mais informação.">
+                    <SettingRow label={t("ac_compact")} desc={t("ac_compact_desc")}>
                       <Toggle checked={compactMode} onChange={v => setSetting("compactMode", v)} />
                     </SettingRow>
                   </div>
@@ -597,10 +599,10 @@ export default function AccountPage() {
               {/* ── Preferências ── */}
               {section === "preferences" && (
                 <div className="space-y-6">
-                  <h2 className="text-base font-bold text-white">Preferências</h2>
+                  <h2 className="text-base font-bold text-white">{t("ac_preferences")}</h2>
 
                   <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4 divide-y divide-slate-800/60">
-                    <SettingRow label="Moeda de exibição" desc="Converte os valores para a moeda selecionada.">
+                    <SettingRow label={t("ac_display_currency")} desc={t("ac_display_currency_desc")}>
                       <Select<Currency> value={currency} onChange={v => setSetting("currency", v)}
                         options={[
                           { value: "EUR", label: "€ EUR — Euro" },
@@ -609,14 +611,14 @@ export default function AccountPage() {
                           { value: "BTC", label: "₿ BTC — Bitcoin" },
                         ]} />
                     </SettingRow>
-                    <SettingRow label="Formato de números" desc="Estilo de separadores decimais e de milhar.">
+                    <SettingRow label={t("ac_number_format")} desc={t("ac_number_format_desc")}>
                       <Select<NumberFormat> value={numberFormat} onChange={v => setSetting("numberFormat", v)}
                         options={[
                           { value: "pt-PT", label: "1.234,56 (PT)" },
                           { value: "en-US", label: "1,234.56 (EN)" },
                         ]} />
                     </SettingRow>
-                    <SettingRow label="Snapshot automático" desc="Guarda um snapshot diário do portfolio para o histórico PNL.">
+                    <SettingRow label={t("ac_auto_snapshot")} desc={t("ac_auto_snapshot_desc")}>
                       <Toggle checked={autoSnapshot} onChange={v => setSetting("autoSnapshot", v)} />
                     </SettingRow>
                   </div>
@@ -633,22 +635,22 @@ export default function AccountPage() {
               {/* ── Notificações ── */}
               {section === "notifications" && (
                 <div className="space-y-6">
-                  <h2 className="text-base font-bold text-white">Notificações</h2>
+                  <h2 className="text-base font-bold text-white">{t("ac_notifications")}</h2>
 
                   <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4 divide-y divide-slate-800/60">
-                    <SettingRow label="Alertas de baleias" desc="Notificações quando uma baleia na watchlist mover > $100k.">
+                    <SettingRow label={t("ac_whale_alerts")} desc={t("sm2_alerts_appear")}>
                       <Toggle checked={alertsEnabled} onChange={v => setSetting("alertsEnabled", v)} />
                     </SettingRow>
-                    <SettingRow label="Alertas por email" desc="Recebe alertas no email da conta (plano Pro ou Premium).">
+                    <SettingRow label={t("ac_email_alerts")} desc={t("ac_email_alerts_desc")}>
                       <div className="flex items-center gap-2">
                         {!isPro && !isPremium && <span className="text-[10px] text-orange-400 border border-orange-500/30 rounded-full px-2 py-0.5">Pro</span>}
                         <Toggle checked={(isPro || isPremium) && alertsEnabled} onChange={() => { if (!isPro && !isPremium) window.location.href = "/pricing"; }} />
                       </div>
                     </SettingRow>
-                    <SettingRow label="Novos blocos BTC" desc="Animação quando um novo bloco BTC é confirmado.">
+                    <SettingRow label={t("ac_btc_blocks")} desc={t("ac_btc_blocks_desc")}>
                       <Toggle checked={true} onChange={() => {}} />
                     </SettingRow>
-                    <SettingRow label="Variações de preço > 5%" desc="Alerta quando um ativo do portfolio sobe ou desce mais de 5%.">
+                    <SettingRow label={t("ac_price_var")} desc={t("ac_price_var_desc")}>
                       <Toggle checked={isPro || isPremium} onChange={() => { if (!isPro && !isPremium) window.location.href = "/pricing"; }} />
                     </SettingRow>
                   </div>
@@ -657,8 +659,8 @@ export default function AccountPage() {
                     <div className="rounded-xl border border-orange-500/20 bg-orange-500/5 p-4 flex items-center gap-3">
                       <span className="text-2xl">⭐</span>
                       <div className="flex-1">
-                        <p className="text-sm font-semibold text-white">Alertas avançados com Pro</p>
-                        <p className="text-xs text-slate-400">Email, webhooks e mais com o plano Pro.</p>
+                        <p className="text-sm font-semibold text-white">{t("ac_adv_alerts_pro")}</p>
+                        <p className="text-xs text-slate-400">{t("ac_adv_alerts_pro_desc")}</p>
                       </div>
                       <a href="/pricing" className="shrink-0 rounded-full bg-orange-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-orange-400 transition">
                         Upgrade
@@ -674,12 +676,12 @@ export default function AccountPage() {
                           <p className="text-sm font-semibold text-white">🦉 Briefing Diário por Email</p>
                           {!isPro && !isPremium && <span className="text-[10px] border border-orange-500/40 text-orange-400 rounded-full px-2 py-0.5">Pro</span>}
                         </div>
-                        <p className="text-xs text-slate-400 mt-0.5">Recebe análise de mercado gerada por IA todos os dias à hora escolhida.</p>
+                        <p className="text-xs text-slate-400 mt-0.5">{t("ac_briefing_desc")}</p>
                       </div>
                       {isPro || isPremium ? (
                         <Toggle checked={briefingEnabled} onChange={setBriefingEnabled} />
                       ) : (
-                        <a href="/pricing" className="rounded-full bg-orange-500 px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-orange-400 transition">Upgrade →</a>
+                        <a href="/pricing" className="rounded-full bg-orange-500 px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-orange-400 transition">{t("ac_upgrade")}</a>
                       )}
                     </div>
 
@@ -687,7 +689,7 @@ export default function AccountPage() {
                       <div className="space-y-3 pt-2 border-t border-slate-800">
                         {/* Hora */}
                         <div className="flex items-center justify-between">
-                          <p className="text-xs text-slate-400">Hora de envio (UTC)</p>
+                          <p className="text-xs text-slate-400">{t("ac_send_time")}</p>
                           <select
                             value={briefingHour}
                             onChange={(e) => setBriefingHour(Number(e.target.value))}
@@ -700,7 +702,7 @@ export default function AccountPage() {
                         </div>
                         {/* Modo */}
                         <div className="flex items-center justify-between">
-                          <p className="text-xs text-slate-400">Tipo de análise</p>
+                          <p className="text-xs text-slate-400">{t("ac_analysis_type")}</p>
                           <div className="flex gap-1">
                             {(["crypto", "tradicional", "both"] as const).map((m) => (
                               <button
@@ -713,7 +715,7 @@ export default function AccountPage() {
                                     : "border-slate-700 text-slate-400 hover:border-slate-500"
                                 }`}
                               >
-                                {m === "crypto" ? "Cripto" : m === "tradicional" ? "Tradicional" : "Ambos"}
+                                {m === "crypto" ? t("ac_crypto") : m === "tradicional" ? t("ac_traditional") : t("ac_both")}
                               </button>
                             ))}
                           </div>
@@ -741,7 +743,7 @@ export default function AccountPage() {
                       }}
                       className="w-full rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-bold text-slate-950 hover:bg-orange-400 disabled:opacity-50 transition"
                     >
-                      {briefingSaving ? "A guardar…" : briefingSaved ? "✓ Guardado!" : "Guardar Agendamento"}
+                      {briefingSaving ? t("ac_saving") : briefingSaved ? t("ac_saved") : t("ac_save_schedule")}
                     </button>
                   </div>
                 </div>
@@ -750,19 +752,19 @@ export default function AccountPage() {
               {/* ── Privacidade ── */}
               {section === "privacy" && (
                 <div className="space-y-6">
-                  <h2 className="text-base font-bold text-white">Privacidade & Segurança</h2>
+                  <h2 className="text-base font-bold text-white">{t("ac_privacy_security")}</h2>
 
                   <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4 divide-y divide-slate-800/60">
-                    <SettingRow label="Ocultar saldos" desc="Substitui todos os valores monetários por ••••">
+                    <SettingRow label={t("ac_hide_balances")} desc="••••">
                       <Toggle checked={hideBalances} onChange={v => setSetting("hideBalances", v)} />
                     </SettingRow>
-                    <SettingRow label="Acesso só-leitura" desc="As carteiras são ligadas em modo leitura — nunca pedimos chaves privadas.">
+                    <SettingRow label={t("ac_readonly_access")} desc={t("ac_readonly_access")}>
                       <span className="text-xs text-emerald-400 font-semibold">✓ Sempre ativo</span>
                     </SettingRow>
-                    <SettingRow label="Dados armazenados" desc="Snapshots e preferências guardados de forma segura na Supabase.">
+                    <SettingRow label={t("ac_data_stored")} desc={t("ac_data_stored_desc")}>
                       <span className="text-xs text-slate-400">Supabase</span>
                     </SettingRow>
-                    <SettingRow label="Exportar dados" desc="Descarrega todos os teus dados em CSV.">
+                    <SettingRow label={t("ac_export_data")} desc={t("ac_export_data_desc")}>
                       <a href="/portfolio" className="text-xs text-orange-400 hover:text-orange-300 transition">
                         Exportar →
                       </a>
@@ -771,14 +773,14 @@ export default function AccountPage() {
 
                   {/* Danger zone */}
                   <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-4 space-y-3">
-                    <p className="text-sm font-semibold text-rose-400">Zona de perigo</p>
-                    <SettingRow label="Repor definições" desc="Volta a todas as definições para os valores padrão.">
+                    <p className="text-sm font-semibold text-rose-400">{t("ac_danger_zone")}</p>
+                    <SettingRow label={t("ac_reset_settings")} desc={t("ac_reset_settings_desc")}>
                       {resetConfirm ? (
                         <div className="flex gap-2">
                           <button type="button" onClick={() => { resetSettings(); setResetConfirm(false); }}
-                            className="text-xs text-rose-400 hover:text-rose-300 transition font-semibold">Confirmar</button>
+                            className="text-xs text-rose-400 hover:text-rose-300 transition font-semibold">{t("ac_confirm")}</button>
                           <button type="button" onClick={() => setResetConfirm(false)}
-                            className="text-xs text-slate-500 hover:text-white transition">Cancelar</button>
+                            className="text-xs text-slate-500 hover:text-white transition">{t("ac_cancel")}</button>
                         </div>
                       ) : (
                         <button type="button" onClick={() => setResetConfirm(true)}
@@ -787,7 +789,7 @@ export default function AccountPage() {
                         </button>
                       )}
                     </SettingRow>
-                    <SettingRow label="Terminar sessão em todos os dispositivos" desc="Invalida todos os tokens de sessão ativos.">
+                    <SettingRow label={t("ac_logout_all")} desc={t("ac_logout_all_desc")}>
                       <button type="button" onClick={handleLogout}
                         className="text-xs border border-rose-500/30 text-rose-400 rounded-lg px-3 py-1.5 hover:bg-rose-500/10 transition">
                         Sair de tudo
@@ -800,14 +802,14 @@ export default function AccountPage() {
               {/* ── Premium ── */}
               {section === "premium" && (
                 <div className="space-y-6">
-                  <h2 className="text-base font-bold text-white">Funcionalidades Premium</h2>
+                  <h2 className="text-base font-bold text-white">{t("ac_premium_features")}</h2>
 
                   {!isPremium && (
                     <div className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-5 flex flex-col sm:flex-row items-center gap-4">
                       <div className="text-3xl">💎</div>
                       <div className="flex-1">
-                        <p className="text-sm font-bold text-white mb-1">Plano Premium — €39/mês</p>
-                        <p className="text-xs text-slate-400">Smart Money RT, análise on-chain, API/MCP, exportação avançada e gestor dedicado.</p>
+                        <p className="text-sm font-bold text-white mb-1">{t("ac_premium_plan_39")}</p>
+                        <p className="text-xs text-slate-400">{t("ac_premium_plan_desc")}</p>
                       </div>
                       <a href="/pricing" className="shrink-0 rounded-full border border-violet-500/40 bg-violet-500/10 px-5 py-2.5 text-sm font-bold text-violet-300 hover:bg-violet-500/20 transition">
                         Ver Premium →
@@ -823,14 +825,14 @@ export default function AccountPage() {
                     </div>
                     {isPremium ? (
                       <div className="space-y-3">
-                        <p className="text-xs text-slate-400">O teu gestor financeiro com IA — análise de portfolio, planeamento fiscal, FIRE e Smart Money em tempo real.</p>
+                        <p className="text-xs text-slate-400">{t("ac_gestor_desc")}</p>
                         <a href="/gestor"
                           className="inline-flex items-center gap-2 rounded-xl border border-violet-500/40 bg-violet-500/10 px-4 py-2.5 text-sm font-semibold text-violet-200 hover:bg-violet-500/20 transition">
                           🤖 Abrir Gestor Dedicado →
                         </a>
                       </div>
                     ) : (
-                      <p className="text-xs text-slate-500">Assistente IA com acesso completo ao teu portfolio — análise, fiscalidade, FIRE e rebalanceamento.</p>
+                      <p className="text-xs text-slate-500">{t("ac_gestor_desc2")}</p>
                     )}
                   </div>
 
@@ -850,13 +852,13 @@ export default function AccountPage() {
                           Ativo — atualiza cada 60s
                         </span>
                       ) : (
-                        <span className="text-xs text-slate-600">Inativo</span>
+                        <span className="text-xs text-slate-600">{t("ac_inactive")}</span>
                       )}
                     </div>
                     {isPremium ? (
-                      <p className="text-xs text-slate-400 mt-2">Acede à página <a href="/smart-money" className="text-violet-400 hover:underline">Smart Money</a> — a tua watchlist é agora atualizada automaticamente a cada 60 segundos.</p>
+                      <p className="text-xs text-slate-400 mt-2">{t("ac_access_page")} <a href="/smart-money" className="text-violet-400 hover:underline">Smart Money</a> — a tua watchlist é agora atualizada automaticamente a cada 60 segundos.</p>
                     ) : (
-                      <p className="text-xs text-slate-500 mt-2">Dados da watchlist atualizados em tempo real (cada 60s) com o Plano Premium.</p>
+                      <p className="text-xs text-slate-500 mt-2">{t("ac_sm_rt_desc")}</p>
                     )}
                   </div>
                 </div>
