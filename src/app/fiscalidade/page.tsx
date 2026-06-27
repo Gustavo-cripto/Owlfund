@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import { createClient } from "@/lib/supabase/client";
 
 type TradeEntry = {
@@ -46,149 +47,43 @@ const emptyTrade = (): TradeEntry => ({
   exchange: "Binance",
 });
 
-const COUNTRY_LAW = [
-  {
-    code: "PT", flag: "🇵🇹", name: "Portugal",
-    taxShort: "28%", taxLong: "Isento",
-    threshold: "> 365 dias",
-    color: "border-green-500/30 bg-green-500/5",
-    badge: "text-green-400",
-    summary: "Mais-valias cripto com detenção superior a 365 dias são isentas de imposto (desde 2023). Abaixo disso, aplica-se uma taxa de 28% sobre o lucro. Obrigatório declarar no IRS (Anexo G).",
-    keyPoints: [
-      "Taxa 0% para holding > 365 dias",
-      "28% sobre ganhos de curto prazo",
-      "Declarar em Anexo G do IRS",
-      "FIFO obrigatório por defeito",
-      "Lei n.º 24-D/2022, art. 5.º",
-    ],
-    law: "Lei n.º 24-D/2022",
-  },
-  {
-    code: "ES", flag: "🇪🇸", name: "Espanha",
-    taxShort: "19–30%", taxLong: "19–30%",
-    threshold: "Escalonado por ganho",
-    color: "border-yellow-500/30 bg-yellow-500/5",
-    badge: "text-yellow-400",
-    summary: "A Espanha trata as criptomoedas como ativos patrimoniais. As mais-valias são tributadas de forma escalonada: 19% até €6k, 21% de €6k–€50k, 23% de €50k–€200k, 27% de €200k–€300k e 30% acima de €300k (desde 2025). Sem distinção entre curto e longo prazo.",
-    keyPoints: [
-      "19% até €6.000 de ganho",
-      "21% entre €6k e €50k",
-      "23% entre €50k e €200k",
-      "27% entre €200k e €300k",
-      "30% acima de €300k (novo escalão 2025)",
-      "Declarar na IRPF (Renda)",
-    ],
-    law: "LIRPF art. 33–35 (actualizado 2025)",
-  },
-  {
-    code: "FR", flag: "🇫🇷", name: "França",
-    taxShort: "30%", taxLong: "30%",
-    threshold: "Flat tax (PFU)",
-    color: "border-blue-500/30 bg-blue-500/5",
-    badge: "text-blue-400",
-    summary: "A França aplica um 'Prélèvement Forfaitaire Unique' (PFU) de 30% sobre todas as mais-valias cripto, independentemente do período de detenção. Inclui 12,8% de imposto e 17,2% de contribuições sociais.",
-    keyPoints: [
-      "Flat tax de 30% sobre todos os ganhos",
-      "12,8% IR + 17,2% contribuições sociais",
-      "Sem benefício por tempo de detenção",
-      "Declarar na déclaration 2086",
-      "Isenção se ganhos totais < €305/ano",
-    ],
-    law: "CGI art. 150 VH bis",
-  },
-  {
-    code: "DE", flag: "🇩🇪", name: "Alemanha",
-    taxShort: "Taxa marginal (até 45%)", taxLong: "Isento",
-    threshold: "> 365 dias",
-    color: "border-slate-500/30 bg-slate-500/5",
-    badge: "text-slate-400",
-    summary: "A Alemanha é dos países mais favoráveis: ganhos de ativos detidos mais de 1 ano são totalmente isentos. Para detenção inferior, aplica-se a taxa marginal de IRS pessoal (até 45%). Isenção também abaixo de €600 de ganho.",
-    keyPoints: [
-      "Taxa 0% para holding > 1 ano",
-      "Taxa marginal pessoal para < 1 ano",
-      "Isenção se ganhos anuais < €600",
-      "Declarar na Anlage SO do Einkommensteuererklärung",
-      "Regra especial para staking: < 10 anos",
-    ],
-    law: "EStG § 23",
-  },
-  {
-    code: "UK", flag: "🇬🇧", name: "Reino Unido",
-    taxShort: "18–24%", taxLong: "18–24%",
-    threshold: "Por escalão de rendimento",
-    color: "border-purple-500/30 bg-purple-500/5",
-    badge: "text-purple-400",
-    summary: "O HMRC trata cripto como ativos de capital. Após o Autumn Budget de Out 2024, as taxas subiram: 18% para contribuintes de base e 24% para contribuintes superiores. Isenção anual de £3.000 (Annual Exempt Amount 2024/25). Sem distinção temporal.",
-    keyPoints: [
-      "18% para contribuintes básicos (era 10% até Out 2024)",
-      "24% para contribuintes de taxa superior (era 20% até Out 2024)",
-      "Isenção anual de £3.000",
-      "Regras Section 104 pooling (custo médio)",
-      "Declarar via Self Assessment",
-    ],
-    law: "TCGA 1992 / HMRC CG Guidelines (Autumn Budget 2024)",
-  },
-  {
-    code: "US", flag: "🇺🇸", name: "EUA",
-    taxShort: "10–37%", taxLong: "0–20%",
-    threshold: "> 365 dias",
-    color: "border-red-500/30 bg-red-500/5",
-    badge: "text-red-400",
-    summary: "O IRS classifica cripto como 'property'. Ganhos de curto prazo (< 1 ano) são tributados à taxa marginal de rendimento ordinário (até 37%). Longo prazo: 0%, 15% ou 20% dependendo do rendimento. Obrigação adicional de reporte FBAR/FinCEN.",
-    keyPoints: [
-      "0–20% para longo prazo (>1 ano)",
-      "10–37% para curto prazo",
-      "Cada troca de cripto por cripto é evento tributável",
-      "Declarar via Form 8949 + Schedule D",
-      "Staking/mining = rendimento ordinário",
-    ],
-    law: "IRS Notice 2014-21 / Revenue Ruling 2023-14",
-  },
-  {
-    code: "CH", flag: "🇨🇭", name: "Suíça",
-    taxShort: "Isento (private)", taxLong: "Isento",
-    threshold: "Investidores privados",
-    color: "border-red-500/30 bg-red-500/5",
-    badge: "text-red-400",
-    summary: "A Suíça é considerada um paraíso cripto. Para investidores privados, os ganhos de capital são geralmente isentos de imposto federal. Trading frequente pode ser considerado atividade profissional (tributado). O imposto sobre riqueza aplica-se ao valor detido.",
-    keyPoints: [
-      "Ganhos de capital isentos para privados",
-      "Trading profissional = tributado como rendimento",
-      "Imposto sobre a fortuna (0,3–1%) sobre o valor",
-      "Declarar na declaração de impostos cantonal",
-      "Cada cantão tem regras ligeiramente diferentes",
-    ],
-    law: "DBG art. 16 / LIFD",
-  },
-  {
-    code: "AE", flag: "🇦🇪", name: "Dubai / EAU",
-    taxShort: "0%", taxLong: "0%",
-    threshold: "Sem imposto sobre ganhos",
-    color: "border-amber-500/30 bg-amber-500/5",
-    badge: "text-amber-400",
-    summary: "Os Emirados Árabes Unidos não têm imposto sobre o rendimento pessoal nem sobre mais-valias para pessoas singulares. Dubai é uma das jurisdições mais favoráveis do mundo para cripto, com regulação avançada via VARA.",
-    keyPoints: [
-      "0% de imposto sobre ganhos cripto",
-      "0% de imposto sobre rendimento pessoal",
-      "VARA regula exchanges e projetos cripto",
-      "Necessário residência fiscal nos EAU",
-      "Empresas: 9% imposto sobre lucros > AED 375k",
-    ],
-    law: "Federal Decree-Law No. 47 of 2022",
-  },
-];
+type Country = { code: string; flag: string; name: string; taxShort: string; taxLong: string; threshold: string; color: string; badge: string; summary: string; keyPoints: string[]; law: string };
+
+function buildCountryLaw(t: (k: TranslationKey) => string): Country[] {
+  const c = (code: string, flag: string, color: string, badge: string, p: string, law: string): Country => ({
+    code, flag, color, badge, law,
+    name: t(`fc_${p}_name` as TranslationKey),
+    taxShort: t(`fc_${p}_short` as TranslationKey),
+    taxLong: t(`fc_${p}_long` as TranslationKey),
+    threshold: t(`fc_${p}_thr` as TranslationKey),
+    summary: t(`fc_${p}_sum` as TranslationKey),
+    keyPoints: t(`fc_${p}_kp` as TranslationKey).split("\n"),
+  });
+  return [
+    c("PT", "🇵🇹", "border-green-500/30 bg-green-500/5", "text-green-400", "pt", "Lei n.º 24-D/2022"),
+    c("ES", "🇪🇸", "border-yellow-500/30 bg-yellow-500/5", "text-yellow-400", "es", "LIRPF art. 33–35 (2025)"),
+    c("FR", "🇫🇷", "border-blue-500/30 bg-blue-500/5", "text-blue-400", "fr", "CGI art. 150 VH bis"),
+    c("DE", "🇩🇪", "border-slate-500/30 bg-slate-500/5", "text-slate-400", "de", "EStG § 23"),
+    c("UK", "🇬🇧", "border-purple-500/30 bg-purple-500/5", "text-purple-400", "uk", "TCGA 1992 / HMRC (Autumn Budget 2024)"),
+    c("US", "🇺🇸", "border-red-500/30 bg-red-500/5", "text-red-400", "us", "IRS Notice 2014-21 / Rev. Ruling 2023-14"),
+    c("CH", "🇨🇭", "border-red-500/30 bg-red-500/5", "text-red-400", "ch", "DBG art. 16 / LIFD"),
+    c("AE", "🇦🇪", "border-amber-500/30 bg-amber-500/5", "text-amber-400", "ae", "Federal Decree-Law No. 47 of 2022"),
+  ];
+}
 
 function LegislationSection() {
+  const { t } = useLanguage();
   const [selected, setSelected] = useState<string | null>(null);
+  const COUNTRY_LAW = buildCountryLaw(t);
   const selectedCountry = COUNTRY_LAW.find((c) => c.code === selected);
 
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">Guia</p>
-        <h2 className="mt-1 text-xl font-bold text-white">Legislação por País</h2>
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">{t("fc_guide")}</p>
+        <h2 className="mt-1 text-xl font-bold text-white">{t("fc_law_by_country")}</h2>
         <p className="mt-1 text-sm text-slate-400">
-          Resumo do tratamento fiscal de criptomoedas nos principais países. Clica para ver detalhes.
+          {t("fc_law_subtitle")}
         </p>
       </div>
 
@@ -210,15 +105,15 @@ function LegislationSection() {
             </div>
             <div className="space-y-1">
               <div className="flex justify-between text-[10px]">
-                <span className="text-slate-500">Curto prazo</span>
+                <span className="text-slate-500">{t("fc_short_term")}</span>
                 <span className="text-rose-400 font-medium">{c.taxShort}</span>
               </div>
               <div className="flex justify-between text-[10px]">
-                <span className="text-slate-500">Longo prazo</span>
+                <span className="text-slate-500">{t("fc_long_term")}</span>
                 <span className="text-emerald-400 font-medium">{c.taxLong}</span>
               </div>
               <div className="flex justify-between text-[10px]">
-                <span className="text-slate-500">Limiar</span>
+                <span className="text-slate-500">{t("fc_threshold")}</span>
                 <span className="text-slate-400 font-medium text-right">{c.threshold}</span>
               </div>
             </div>
@@ -238,7 +133,7 @@ function LegislationSection() {
           </div>
           <p className="text-sm text-slate-300 leading-relaxed">{selectedCountry.summary}</p>
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Pontos-chave</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t("fc_keypoints")}</p>
             <ul className="space-y-1.5">
               {selectedCountry.keyPoints.map((point) => (
                 <li key={point} className="flex items-start gap-2 text-sm text-slate-300">
@@ -248,7 +143,7 @@ function LegislationSection() {
               ))}
             </ul>
           </div>
-          <p className="text-xs text-slate-600">⚠️ Informação de caráter geral. Consulta sempre um especialista fiscal.</p>
+          <p className="text-xs text-slate-600">{t("fc_general_info")}</p>
         </div>
       )}
     </div>
@@ -257,17 +152,17 @@ function LegislationSection() {
 
 const FREE_COUNTRIES = ["PT", "ES", "FR", "DE"] as const;
 const PRO_COUNTRIES = [
-  { code: "GB", flag: "🇬🇧", label: "Reino Unido" },
-  { code: "NL", flag: "🇳🇱", label: "Países Baixos" },
-  { code: "IT", flag: "🇮🇹", label: "Itália" },
-  { code: "BR", flag: "🇧🇷", label: "Brasil" },
+  { code: "GB", flag: "🇬🇧", labelKey: "fc_uk_name" },
+  { code: "NL", flag: "🇳🇱", labelKey: "fc_nl" },
+  { code: "IT", flag: "🇮🇹", labelKey: "fc_it" },
+  { code: "BR", flag: "🇧🇷", labelKey: "fc_br" },
 ] as const;
 
 const PREMIUM_COUNTRIES = [
-  { code: "US", flag: "🇺🇸", label: "EUA" },
-  { code: "CA", flag: "🇨🇦", label: "Canadá" },
-  { code: "AU", flag: "🇦🇺", label: "Austrália" },
-  { code: "CH", flag: "🇨🇭", label: "Suíça" },
+  { code: "US", flag: "🇺🇸", labelKey: "fc_us_name" },
+  { code: "CA", flag: "🇨🇦", labelKey: "fc_ca" },
+  { code: "AU", flag: "🇦🇺", labelKey: "fc_au" },
+  { code: "CH", flag: "🇨🇭", labelKey: "fc_ch_name" },
 ] as const;
 
 export default function FiscalidadePage() {
@@ -364,12 +259,12 @@ export default function FiscalidadePage() {
 
   const exportCSV = () => {
     const rows = [
-      ["Ativo", "Data compra", "Data venda", "Preço compra", "Preço venda", "Quantidade", "Mais-valia", "Tipo", "Taxa", "Imposto"],
+      [t("fc_col_asset"), t("fc_col_buydate"), t("fc_col_selldate"), t("fc_col_buyprice"), t("fc_col_sellprice"), t("fc_col_qty"), t("fc_col_gain"), t("fc_col_type"), t("fc_col_rate"), t("fc_col_tax")],
       ...taxEvents.map(e => [
         e.asset, e.buyDate, e.sellDate,
         e.buyPrice.toFixed(2), e.sellPrice.toFixed(2),
         e.amount.toFixed(8), e.gain.toFixed(2),
-        e.holding === "longo" ? "Longo prazo" : "Curto prazo",
+        e.holding === "longo" ? t("fc_long_term") : t("fc_short_term"),
         `${(e.taxRate * 100).toFixed(0)}%`,
         (Math.max(0, e.gain) * e.taxRate).toFixed(2),
       ]),
@@ -415,13 +310,13 @@ export default function FiscalidadePage() {
               {PRO_COUNTRIES.map(c => (
                 isPro ? (
                   <button key={c.code} onClick={() => setCountry(c.code)}
-                    title={`${c.flag} ${c.label}`}
+                    title={`${c.flag} ${t(c.labelKey)}`}
                     className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${country === c.code ? "bg-orange-500 text-slate-950" : "border border-slate-700 text-slate-400 hover:border-orange-400/40 hover:text-orange-200"}`}>
                     {c.flag} {c.code}
                   </button>
                 ) : (
                   <a key={c.code} href="/pricing"
-                    title={`${c.flag} ${c.label} — Plano Pro`}
+                    title={`${c.flag} ${t(c.labelKey)} — ${t("fc_plan_pro")}`}
                     className="rounded-lg px-3 py-1.5 text-xs font-bold border border-orange-500/20 text-orange-400/60 hover:border-orange-500/40 transition flex items-center gap-1">
                     {c.flag} {c.code} 🔒
                   </a>
@@ -430,13 +325,13 @@ export default function FiscalidadePage() {
               {PREMIUM_COUNTRIES.map(c => (
                 isPremium ? (
                   <button key={c.code} onClick={() => setCountry(c.code)}
-                    title={`${c.flag} ${c.label}`}
+                    title={`${c.flag} ${t(c.labelKey)}`}
                     className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${country === c.code ? "bg-violet-500 text-white" : "border border-slate-700 text-slate-400 hover:border-violet-400/40 hover:text-violet-200"}`}>
                     {c.flag} {c.code}
                   </button>
                 ) : (
                   <a key={c.code} href="/pricing"
-                    title={`${c.flag} ${c.label} — Plano Premium`}
+                    title={`${c.flag} ${t(c.labelKey)} — ${t("fc_plan_premium")}`}
                     className="rounded-lg px-3 py-1.5 text-xs font-bold border border-violet-500/20 text-violet-400/60 hover:border-violet-500/40 transition flex items-center gap-1">
                     {c.flag} {c.code} 💎
                   </a>
@@ -448,10 +343,10 @@ export default function FiscalidadePage() {
           {/* Regras do país */}
           <div className="rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
-              { label: "Curto prazo (<1 ano)", value: `${(regime.short * 100).toFixed(0)}%`, color: "text-rose-400" },
-              { label: "Longo prazo", value: regime.longLabel, color: "text-emerald-400" },
-              { label: "Método", value: "FIFO", color: "text-orange-300" },
-              { label: "Moeda base", value: "EUR", color: "text-slate-300" },
+              { label: t("fc_short_1y"), value: `${(regime.short * 100).toFixed(0)}%`, color: "text-rose-400" },
+              { label: t("fc_long_term"), value: regime.longLabel, color: "text-emerald-400" },
+              { label: t("fc_method"), value: "FIFO", color: "text-orange-300" },
+              { label: t("fc_base_currency"), value: "EUR", color: "text-slate-300" },
             ].map(item => (
               <div key={item.label} className="text-center">
                 <p className={`text-lg font-bold ${item.color}`}>{item.value}</p>
@@ -519,10 +414,10 @@ export default function FiscalidadePage() {
               {/* Summary cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {[
-                  { label: "Mais-valias totais", value: summary.totalGain, color: summary.totalGain >= 0 ? "text-emerald-400" : "text-rose-400" },
-                  { label: "Isentas (longo prazo)", value: summary.exempt, color: "text-emerald-300" },
-                  { label: "Perdas realizadas", value: summary.losses, color: "text-rose-400" },
-                  { label: "Imposto estimado", value: summary.tax, color: "text-orange-400" },
+                  { label: t("fc_total_gains"), value: summary.totalGain, color: summary.totalGain >= 0 ? "text-emerald-400" : "text-rose-400" },
+                  { label: t("fc_exempt_long"), value: summary.exempt, color: "text-emerald-300" },
+                  { label: t("fc_realized_losses"), value: summary.losses, color: "text-rose-400" },
+                  { label: t("fc_estimated_tax"), value: summary.tax, color: "text-orange-400" },
                 ].map(c => (
                   <div key={c.label} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-center">
                     <p className={`text-xl font-bold ${c.color}`}>{fmtEur(c.value)}</p>
@@ -548,7 +443,7 @@ export default function FiscalidadePage() {
                       </a>
                     )}
                     {isPremium ? (
-                      <button onClick={() => alert("Exportação PDF em desenvolvimento. Disponível em breve!")}
+                      <button onClick={() => alert(t("fc_pdf_soon"))}
                         className="flex items-center gap-2 rounded-xl border border-violet-500/40 bg-violet-500/5 px-3 py-1.5 text-xs font-semibold text-violet-300 hover:bg-violet-500/10 transition">
                         ↓ Exportar PDF (AT)
                       </button>
@@ -564,7 +459,7 @@ export default function FiscalidadePage() {
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="border-b border-slate-800 text-slate-500 text-left">
-                        {["Ativo", "Compra", "Venda", "Qtd", "P.Compra", "P.Venda", "Mais-valia", "Tipo", "Taxa", "Imposto"].map(h => (
+                        {[t("fc_col_asset"), t("fc_col_buy"), t("fc_col_sell"), t("fc_col_qtd"), t("fc_col_buyp"), t("fc_col_sellp"), t("fc_col_gain"), t("fc_col_type"), t("fc_col_rate"), t("fc_col_tax")].map(h => (
                           <th key={h} className="pb-2 pr-4 font-semibold">{h}</th>
                         ))}
                       </tr>
@@ -583,12 +478,12 @@ export default function FiscalidadePage() {
                           </td>
                           <td className="py-2 pr-4">
                             <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${e.holding === "longo" ? "bg-emerald-500/20 text-emerald-400" : "bg-orange-500/20 text-orange-400"}`}>
-                              {e.holding === "longo" ? "Longo" : "Curto"}
+                              {e.holding === "longo" ? t("fc_long") : t("fc_short")}
                             </span>
                           </td>
                           <td className="py-2 pr-4 text-slate-400">{(e.taxRate * 100).toFixed(0)}%</td>
                           <td className={`py-2 font-semibold ${e.gain > 0 && e.taxRate > 0 ? "text-orange-400" : "text-emerald-400"}`}>
-                            {e.gain > 0 && e.taxRate > 0 ? `€ ${(e.gain * e.taxRate).toFixed(2)}` : "Isento"}
+                            {e.gain > 0 && e.taxRate > 0 ? `€ ${(e.gain * e.taxRate).toFixed(2)}` : t("fc_exempt")}
                           </td>
                         </tr>
                       ))}
@@ -600,9 +495,7 @@ export default function FiscalidadePage() {
               {/* Disclaimer */}
               <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4">
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  ⚠️ <strong className="text-slate-400">Aviso legal:</strong> Este cálculo é meramente indicativo com base nas regras gerais de cada país.
-                  Consulta sempre um contabilista ou advogado fiscal para a tua declaração oficial.
-                  Regras PT: Lei n.º 24-D/2022, art. 5.º — mais-valias cripto com detenção &gt;365 dias isentas desde 2023.
+                  ⚠️ <strong className="text-slate-400">{t("fc_legal_notice")}</strong> {t("fc_disclaimer_text")}
                 </p>
               </div>
             </>
