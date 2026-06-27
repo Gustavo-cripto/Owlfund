@@ -1198,6 +1198,33 @@ export default function MercadoPage() {
               ) : null}
             </div>
 
+            {/* Gráfico no topo da secção */}
+            <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Gráfico</p>
+                  <p className="text-sm text-slate-400">
+                    {selectedTraditional
+                      ? selectedTraditional.label
+                      : "Selecione um ativo para ver o gráfico"}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 h-[460px] rounded-xl border border-slate-800 bg-slate-950/50 p-2">
+                {selectedTraditional?.tvSymbol ? (
+                  <TradingViewWidget
+                    key={`${selectedTraditional.tvSymbol}-${traditionalTradingViewInterval}`}
+                    symbol={selectedTraditional.tvSymbol}
+                    interval={traditionalTradingViewInterval}
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-sm text-slate-500">
+                    Sem símbolo disponível para este ativo.
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="mt-5 flex flex-wrap gap-2">
               {traditionalCategories.map((category) => (
                 <button
@@ -1433,31 +1460,6 @@ export default function MercadoPage() {
               </div>
             </div>
 
-            <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Gráfico</p>
-                  <p className="text-sm text-slate-400">
-                    {selectedTraditional
-                      ? selectedTraditional.label
-                      : "Selecione um ativo para ver o gráfico"}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-4 h-[420px] rounded-xl border border-slate-800 bg-slate-950/50 p-2">
-                {selectedTraditional?.tvSymbol ? (
-                  <TradingViewWidget
-                    key={`${selectedTraditional.tvSymbol}-${traditionalTradingViewInterval}`}
-                    symbol={selectedTraditional.tvSymbol}
-                    interval={traditionalTradingViewInterval}
-                  />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-sm text-slate-500">
-                    Sem símbolo disponível para este ativo.
-                  </div>
-                )}
-              </div>
-            </div>
           </section>
         )}
 
