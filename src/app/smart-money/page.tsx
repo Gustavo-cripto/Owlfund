@@ -438,7 +438,7 @@ export default function SmartMoneyPage() {
 
             {/* Header */}
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">Rastreamento</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">{t("sm2_tracking")}</p>
               <div className="flex items-center gap-3 mt-2">
                 <h1 className="text-2xl font-bold text-white">{t("sm_title")}</h1>
                 {isPremium && (
@@ -449,9 +449,7 @@ export default function SmartMoneyPage() {
                 )}
               </div>
               <p className="mt-1 text-sm text-slate-400">
-                {isPremium
-                  ? "Modo tempo real ativo — dados atualizados a cada 60s."
-                  : "Acompanha carteiras de baleias, fundos e traders profissionais."}
+                {isPremium ? t("sm2_rt_active") : t("sm2_subtitle_off")}
               </p>
             </div>
 
@@ -492,15 +490,15 @@ export default function SmartMoneyPage() {
                   <div className="flex flex-wrap gap-3">
                     <select value={newChain} onChange={(e) => setNewChain(e.target.value as "eth" | "sol" | "btc")}
                       className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500">
-                      <option value="eth">EVM (ETH/Polygon/…)</option>
+                      <option value="eth">{t("sm2_tab_evm")}</option>
                       <option value="sol">Solana</option>
                       <option value="btc">Bitcoin</option>
                     </select>
                     <input type="text"
-                      placeholder={newChain === "eth" ? "0x… endereço EVM" : newChain === "btc" ? "1… / 3… / bc1… endereço Bitcoin" : "Endereço Solana base58"}
+                      placeholder={newChain === "eth" ? t("sm2_addr_evm") : newChain === "btc" ? t("sm2_addr_btc") : t("sm2_addr_sol")}
                       value={newAddress} onChange={(e) => setNewAddress(e.target.value)}
                       className="flex-1 min-w-[220px] rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
-                    <input type="text" placeholder="Nome / etiqueta (opcional)"
+                    <input type="text" placeholder={t("sm2_name_ph")}
                       value={newLabel} onChange={(e) => setNewLabel(e.target.value)}
                       className="w-48 rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
                     <button onClick={handleAdd}
@@ -516,19 +514,19 @@ export default function SmartMoneyPage() {
                     <p className="text-xs text-rose-400">
                       {addError}{" "}
                       {addError.includes("upgrade") && (
-                        <a href="/pricing" className="text-orange-400 underline hover:text-orange-300">Upgrade →</a>
+                        <a href="/pricing" className="text-orange-400 underline hover:text-orange-300">{t("sm2_upgrade")}</a>
                       )}
                     </p>
                   )}
                   {!isPro && watchlist.length >= FREE_WHALE_LIMIT && !addError && (
                     <p className="text-xs text-amber-400/80">
                       ⚠️ Limite de {FREE_WHALE_LIMIT} baleias atingido.{" "}
-                      <a href="/pricing" className="text-orange-400 underline hover:text-orange-300">Upgrade para Pro →</a>
+                      <a href="/pricing" className="text-orange-400 underline hover:text-orange-300">{t("sm2_upgrade_pro")}</a>
                     </p>
                   )}
                   {showKnown && (
                     <div className="mt-2 rounded-xl border border-slate-700 bg-slate-800/80 p-4 space-y-2 max-h-80 overflow-y-auto">
-                      <p className="text-xs text-slate-400 mb-3">Clica para adicionar:</p>
+                      <p className="text-xs text-slate-400 mb-3">{t("sm2_click_add")}</p>
                       {KNOWN_WHALES.map((w) => (
                         <button key={w.address} onClick={() => handleAddKnown(w)}
                           disabled={watchlist.some((e) => e.address === w.address)}
@@ -547,8 +545,8 @@ export default function SmartMoneyPage() {
                 {watchlist.length === 0 && (
                   <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-12 text-center">
                     <p className="text-3xl mb-3">🕵️</p>
-                    <p className="text-sm font-semibold text-white">Watchlist vazia</p>
-                    <p className="mt-1 text-xs text-slate-400">Adiciona endereços de baleias ou traders para os rastrear.</p>
+                    <p className="text-sm font-semibold text-white">{t("sm_watchlist_empty")}</p>
+                    <p className="mt-1 text-xs text-slate-400">{t("sm_watchlist_empty_desc")}</p>
                   </div>
                 )}
 
@@ -576,7 +574,7 @@ export default function SmartMoneyPage() {
                               <button type="button"
                                 onClick={() => { setTab("history"); handleHistorySelect(entry.address); }}
                                 className="text-xs text-slate-400 hover:text-orange-300 transition px-2 py-1 rounded-lg hover:bg-slate-800"
-                                title="Ver histórico">
+                                title={t("sm2_view_history")}>
                                 📋
                               </button>
                             )}
@@ -592,7 +590,7 @@ export default function SmartMoneyPage() {
                           ) : data.error ? (
                             <p className="text-xs text-rose-400 py-2">{data.error}</p>
                           ) : data.tokens.length === 0 ? (
-                            <p className="text-xs text-slate-500 py-2">Nenhum token com valor encontrado.</p>
+                            <p className="text-xs text-slate-500 py-2">{t("sm2_no_token")}</p>
                           ) : (
                             <div className="space-y-1">
                               {data.tokens.slice(0, 15).map((token) => (
@@ -634,7 +632,7 @@ export default function SmartMoneyPage() {
                 <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 space-y-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t("sm_history")}</p>
                   {ethWatchlist.length === 0 ? (
-                    <p className="text-sm text-slate-500">Adiciona uma carteira EVM na watchlist para ver o histórico.</p>
+                    <p className="text-sm text-slate-500">{t("sm2_add_evm_hist")}</p>
                   ) : (
                     <>
                       {/* Wallet selector */}
@@ -700,11 +698,11 @@ export default function SmartMoneyPage() {
               <div className="rounded-2xl border border-orange-500/20 bg-orange-500/5 p-8 flex flex-col items-center gap-4 text-center">
                 <div className="text-4xl">🔒</div>
                 <div>
-                  <p className="text-base font-bold text-white mb-1">Alertas de Baleias — Plano Pro</p>
-                  <p className="text-sm text-slate-400">Recebe notificações quando uma baleia move mais de $100k. Disponível no Plano Pro.</p>
+                  <p className="text-base font-bold text-white mb-1">{t("sm2_alerts_pro")}</p>
+                  <p className="text-sm text-slate-400">{t("sm2_alerts_pro_desc")}</p>
                 </div>
                 <a href="/pricing" className="rounded-full bg-orange-500 px-6 py-2.5 text-sm font-bold text-slate-950 hover:bg-orange-400 transition">
-                  Upgrade para Pro →
+                  {t("sm2_upgrade_pro")}
                 </a>
               </div>
             )}
@@ -719,7 +717,7 @@ export default function SmartMoneyPage() {
                     {alerts.length > 0 && (
                       <button type="button" onClick={clearAlerts}
                         className="text-xs text-slate-500 hover:text-rose-400 transition px-3 py-1.5 rounded-lg hover:bg-slate-800">
-                        Limpar tudo
+                        {t("sm2_clear_all")}
                       </button>
                     )}
                   </div>
@@ -727,12 +725,12 @@ export default function SmartMoneyPage() {
                   {alerts.length === 0 ? (
                     <div className="text-center py-10">
                       <p className="text-2xl mb-2">🔔</p>
-                      <p className="text-sm text-slate-400">Nenhum alerta ainda.</p>
+                      <p className="text-sm text-slate-400">{t("sm_no_alerts")}</p>
                       <p className="text-xs text-slate-600 mt-1">
-                        Os alertas aparecem quando uma baleia da watchlist mover &gt; $100k.
+                        {t("sm2_alerts_appear")}
                       </p>
                       {ethWatchlist.length === 0 && (
-                        <p className="text-xs text-slate-600 mt-3">Adiciona carteiras ETH ou BTC à watchlist para receber alertas.</p>
+                        <p className="text-xs text-slate-600 mt-3">{t("sm2_add_whale_alert")}</p>
                       )}
                       {ethWatchlist.length > 0 && (
                         <>
@@ -746,10 +744,10 @@ export default function SmartMoneyPage() {
                               setLastCheckResult("none");
                             }}
                             className="mt-4 px-4 py-2 rounded-xl bg-orange-500/10 border border-orange-500/30 text-orange-400 text-sm hover:bg-orange-500/20 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                            {checkingAlerts ? "A verificar..." : "Verificar agora"}
+                            {checkingAlerts ? t("sm2_checking") : t("sm_check_now")}
                           </button>
                           {lastCheckResult === "none" && !checkingAlerts && (
-                            <p className="text-xs text-slate-500 mt-2">Nenhum movimento acima de $100k encontrado.</p>
+                            <p className="text-xs text-slate-500 mt-2">{t("sm2_no_moves")}</p>
                           )}
                         </>
                       )}
@@ -769,15 +767,15 @@ export default function SmartMoneyPage() {
                 {isPremium ? (
                   <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-5 space-y-3">
                     <div className="flex items-center gap-2">
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-400">Análise On-Chain</p>
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-400">{t("sm2_onchain")}</p>
                       <span className="rounded-full bg-violet-500/20 border border-violet-500/30 px-2 py-0.5 text-[10px] text-violet-300 font-bold">Premium</span>
                     </div>
-                    <p className="text-xs text-slate-400">Métricas on-chain avançadas a chegar ao Plano Premium. Permitem avaliar se o mercado está sobrevalorizado ou subvalorizado.</p>
+                    <p className="text-xs text-slate-400">{t("sm2_onchain_desc")}</p>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       {["MVRV Ratio", "NVT Signal", "Supply in Profit", "Exchange Outflow"].map(m => (
                         <div key={m} className="rounded-xl border border-violet-500/20 bg-slate-950/40 p-3 text-center">
                           <p className="text-xs text-slate-500">{m}</p>
-                          <p className="text-sm text-violet-400 font-bold mt-1 animate-pulse">Em breve</p>
+                          <p className="text-sm text-violet-400 font-bold mt-1 animate-pulse">{t("sm2_soon")}</p>
                         </div>
                       ))}
                     </div>
@@ -786,11 +784,11 @@ export default function SmartMoneyPage() {
                   <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-5 flex flex-col sm:flex-row items-center gap-4">
                     <div className="text-3xl">🔮</div>
                     <div className="flex-1 text-center sm:text-left">
-                      <p className="text-sm font-bold text-white mb-0.5">Análise On-Chain — Plano Premium</p>
-                      <p className="text-xs text-slate-400">MVRV, NVT, Supply in Profit, Exchange Flows e mais com o Premium.</p>
+                      <p className="text-sm font-bold text-white mb-0.5">{t("sm2_onchain_premium")}</p>
+                      <p className="text-xs text-slate-400">{t("sm2_onchain_premium_desc")}</p>
                     </div>
                     <a href="/pricing" className="shrink-0 rounded-full border border-violet-500/40 bg-violet-500/10 px-4 py-2 text-xs font-bold text-violet-300 hover:bg-violet-500/20 transition">
-                      Ver Premium →
+                      {t("sm2_see_premium")}
                     </a>
                   </div>
                 )}
