@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -92,6 +93,7 @@ export default function CexSection({
   formatAddress?: (address: string) => string;
   tokensByAddress?: Record<string, Array<{ address: string; symbol: string; name: string; logo?: string; balance: string; usdValue: number; chain: string }>>;
 }) {
+  const { t } = useLanguage();
   const [coldAddress, setColdAddress] = useState("");
   const [coldNetwork, setColdNetwork] = useState("eth");
   const [coldError, setColdError] = useState<string | null>(null);
@@ -133,7 +135,7 @@ export default function CexSection({
           )
           .catch(() =>
             setCexAccounts((prev) =>
-              prev.map((a) => a.id === s.id ? { ...a, loading: false, error: "Falha ao carregar" } : a)
+              prev.map((a) => a.id === s.id ? { ...a, loading: false, error: t("cx_load_fail") } : a)
             )
           );
       });
@@ -155,7 +157,7 @@ export default function CexSection({
           )
           .catch(() =>
             setHlAccounts((prev) =>
-              prev.map((a) => a.address === s.address ? { ...a, loading: false, error: "Falha ao carregar" } : a)
+              prev.map((a) => a.address === s.address ? { ...a, loading: false, error: t("cx_load_fail") } : a)
             )
           );
       });
@@ -195,7 +197,7 @@ export default function CexSection({
     })
       .then((r) => r.json() as Promise<{ balances?: CexBalance[]; error?: string }>)
       .then((data) => setCexAccounts((prev) => prev.map((a) => a.id === acc.id ? { ...a, loading: false, balances: data.balances ?? [], error: data.error } : a)))
-      .catch(() => setCexAccounts((prev) => prev.map((a) => a.id === acc.id ? { ...a, loading: false, error: "Falha ao atualizar" } : a)));
+      .catch(() => setCexAccounts((prev) => prev.map((a) => a.id === acc.id ? { ...a, loading: false, error: t("cx_update_fail") } : a)));
   };
 
   const refreshHlAccount = (address: string) => {
@@ -207,7 +209,7 @@ export default function CexSection({
     })
       .then((r) => r.json() as Promise<{ spotBalances?: HlBalance[]; perpValue?: number; error?: string }>)
       .then((data) => setHlAccounts((prev) => prev.map((a) => a.address === address ? { ...a, loading: false, spotBalances: data.spotBalances ?? [], perpValue: data.perpValue ?? 0, error: data.error } : a)))
-      .catch(() => setHlAccounts((prev) => prev.map((a) => a.address === address ? { ...a, loading: false, error: "Falha ao atualizar" } : a)));
+      .catch(() => setHlAccounts((prev) => prev.map((a) => a.address === address ? { ...a, loading: false, error: t("cx_update_fail") } : a)));
   };
 
   const accountUsd = (balances: CexBalance[]) =>
@@ -280,7 +282,7 @@ export default function CexSection({
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Exchanges Centralizadas</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{t("cx_cex")}</p>
             <p className="text-sm text-slate-300 mt-0.5">Binance · Kraken · CoinEx — via API Key (read-only)</p>
           </div>
           <button
@@ -312,7 +314,7 @@ export default function CexSection({
             </div>
             <input
               type="text"
-              placeholder="Label (opcional)"
+              placeholder={t("cx_label_opt")}
               value={newLabel}
               onChange={(e) => setNewLabel(e.target.value)}
               className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-orange-500"
@@ -356,7 +358,7 @@ export default function CexSection({
         )}
 
         {cexAccounts.length === 0 && !showAddCex && (
-          <p className="text-xs text-slate-600">Nenhuma exchange ligada ainda.</p>
+          <p className="text-xs text-slate-600">{t("cx_no_exchange")}</p>
         )}
 
         <div className="space-y-3">
@@ -373,10 +375,10 @@ export default function CexSection({
                     onClick={() => refreshAccount(acc)}
                     disabled={acc.loading}
                     className="flex items-center gap-1 rounded-lg border border-slate-700 px-2.5 py-1 text-[11px] font-semibold text-slate-300 hover:border-orange-400/60 hover:text-orange-300 disabled:opacity-40 transition"
-                    title="Atualizar saldos"
+                    title={t("cx_refresh_bal")}
                   >
                     <span className={acc.loading ? "animate-spin" : ""}>↻</span>
-                    {acc.loading ? "A atualizar…" : "Atualizar"}
+                    {acc.loading ? "A atualizar…" : t("cx_refresh")}
                   </button>
                   <button
                     type="button"
@@ -388,7 +390,7 @@ export default function CexSection({
                 </div>
               </div>
               {acc.loading ? (
-                <p className="text-xs text-slate-500 animate-pulse">A carregar saldos…</p>
+                <p className="text-xs text-slate-500 animate-pulse">{t("cx_loading_bal")}</p>
               ) : acc.error ? (
                 <p className="text-xs text-rose-400">{acc.error}</p>
               ) : (
@@ -413,11 +415,11 @@ export default function CexSection({
                   </div>
                   {acc.balances.length > 0 && (
                     <div className="mt-3 flex items-center justify-end gap-1.5">
-                      <span className="text-xs text-slate-500">Total:</span>
+                      <span className="text-xs text-slate-500">{t("cx_total")}</span>
                       <span className="text-sm font-bold text-white">
                         {accountUsd(acc.balances) > 0
                           ? `€ ${(accountUsd(acc.balances) * usdToEur).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                          : <span className="text-slate-600 animate-pulse text-xs">A calcular…</span>}
+                          : <span className="text-slate-600 animate-pulse text-xs">{t("cx_calculating")}</span>}
                       </span>
                     </div>
                   )}
@@ -433,7 +435,7 @@ export default function CexSection({
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Hyperliquid</p>
-            <p className="text-sm text-slate-300 mt-0.5">Spot + Perp — via endereço público (sem chave)</p>
+            <p className="text-sm text-slate-300 mt-0.5">{t("cx_hl_desc")}</p>
           </div>
           <button
             type="button"
@@ -474,7 +476,7 @@ export default function CexSection({
         )}
 
         {hlAccounts.length === 0 && !showAddHl && (
-          <p className="text-xs text-slate-600">Nenhuma conta Hyperliquid adicionada.</p>
+          <p className="text-xs text-slate-600">{t("cx_no_hl")}</p>
         )}
 
         <div className="space-y-3">
@@ -488,10 +490,10 @@ export default function CexSection({
                     onClick={() => refreshHlAccount(acc.address)}
                     disabled={acc.loading}
                     className="flex items-center gap-1 rounded-lg border border-slate-700 px-2.5 py-1 text-[11px] font-semibold text-slate-300 hover:border-orange-400/60 hover:text-orange-300 disabled:opacity-40 transition"
-                    title="Atualizar saldos"
+                    title={t("cx_refresh_bal")}
                   >
                     <span className={acc.loading ? "animate-spin" : ""}>↻</span>
-                    {acc.loading ? "A atualizar…" : "Atualizar"}
+                    {acc.loading ? "A atualizar…" : t("cx_refresh")}
                   </button>
                   <button
                     type="button"
@@ -503,14 +505,14 @@ export default function CexSection({
                 </div>
               </div>
               {acc.loading ? (
-                <p className="text-xs text-slate-500 animate-pulse">A atualizar saldos…</p>
+                <p className="text-xs text-slate-500 animate-pulse">{t("cx_updating_bal")}</p>
               ) : acc.error ? (
                 <p className="text-xs text-rose-400">{acc.error}</p>
               ) : (
                 <div className="space-y-2">
                   {acc.perpValue > 0 && (
                     <div className="rounded-lg bg-orange-500/10 border border-orange-500/20 px-3 py-2 text-xs">
-                      <p className="text-orange-300 font-semibold">Perp Account Value</p>
+                      <p className="text-orange-300 font-semibold">{t("cx_perp_value")}</p>
                       <p className="text-white font-bold">€ {(acc.perpValue * usdToEur).toLocaleString("pt-PT", { minimumFractionDigits: 2 })}</p>
                     </div>
                   )}
@@ -533,7 +535,7 @@ export default function CexSection({
                     })}
                   </div>
                   {acc.spotBalances.length === 0 && acc.perpValue === 0 && (
-                    <p className="text-xs text-slate-600">Sem saldos encontrados.</p>
+                    <p className="text-xs text-slate-600">{t("cx_no_balances")}</p>
                   )}
                 </div>
               )}
@@ -548,24 +550,20 @@ export default function CexSection({
           <span className="text-2xl">🔐</span>
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-400">Ledger &amp; Trezor</p>
-            <p className="text-sm text-slate-300 mt-0.5">Cold wallets — modo seguro só-leitura</p>
+            <p className="text-sm text-slate-300 mt-0.5">{t("cx_cold_subtitle")}</p>
           </div>
         </div>
 
         <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
-          <p className="text-xs text-emerald-200/90 leading-relaxed">
-            🛡️ <strong>Segurança máxima:</strong> só usamos o teu <strong>endereço público</strong>.
-            O dispositivo nunca é ligado ao browser, a seed e as chaves privadas
-            <strong> nunca saem do hardware</strong>. Vês saldos, NFTs e posições DeFi sem qualquer risco.
-          </p>
+          <p className="text-xs text-emerald-200/90 leading-relaxed">{t("cx_security_full")}</p>
         </div>
 
         <div className="space-y-2.5">
-          <p className="text-xs font-semibold text-slate-300">Como adicionar (1 minuto):</p>
+          <p className="text-xs font-semibold text-slate-300">{t("cx_how_add")}</p>
           <div className="space-y-2 text-xs text-slate-400">
-            <p><span className="text-emerald-400 font-semibold">1.</span> Abre o <strong className="text-slate-200">Ledger Live</strong> ou <strong className="text-slate-200">Trezor Suite</strong></p>
-            <p><span className="text-emerald-400 font-semibold">2.</span> Escolhe a conta (ETH, BTC, SOL, ADA…) → <strong className="text-slate-200">Receber</strong> → copia o endereço público</p>
-            <p><span className="text-emerald-400 font-semibold">3.</span> Escolhe a rede abaixo, cola o endereço e clica <strong className="text-slate-200">Adicionar</strong></p>
+            <p><span className="text-emerald-400 font-semibold">1.</span> {t("cx_step1")}</p>
+            <p><span className="text-emerald-400 font-semibold">2.</span> {t("cx_step2a")} <strong className="text-slate-200">{t("cx_receive")}</strong> {t("cx_step2b")}</p>
+            <p><span className="text-emerald-400 font-semibold">3.</span> {t("cx_step3a")} <strong className="text-slate-200">{t("cx_add")}</strong></p>
           </div>
         </div>
 
@@ -594,7 +592,7 @@ export default function CexSection({
               type="text"
               value={coldAddress}
               onChange={(e) => setColdAddress(e.target.value)}
-              placeholder="Cola aqui o endereço público da cold wallet"
+              placeholder={t("cx_paste_addr")}
               className="flex-1 rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-xs text-slate-200 placeholder:text-slate-600 outline-none focus:border-emerald-400"
             />
           </div>
@@ -603,31 +601,27 @@ export default function CexSection({
             onClick={() => {
               setColdError(null);
               setColdSuccess(null);
-              if (!onAddColdWalletAddress) { setColdError("Indisponível."); return; }
+              if (!onAddColdWalletAddress) { setColdError(t("cx_load_fail")); return; }
               const err = onAddColdWalletAddress(coldAddress, coldNetwork);
               if (err) { setColdError(err); return; }
-              setColdSuccess("✓ Endereço adicionado — a ler saldo, NFTs e DeFi…");
+              setColdSuccess("✓ " + t("cx_add_cold"));
               setColdAddress("");
             }}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500/90 px-4 py-3 text-sm font-bold text-slate-950 hover:bg-emerald-400 transition"
           >
             <span>📋</span>
-            <span>Adicionar endereço da cold wallet</span>
+            <span>{t("cx_add_cold")}</span>
           </button>
           {coldError && <p className="text-xs text-rose-400">{coldError}</p>}
           {coldSuccess && <p className="text-xs text-emerald-400">{coldSuccess}</p>}
         </div>
 
-        <p className="text-[10px] text-slate-600 leading-relaxed">
-          Lê automaticamente <strong>saldo, NFTs e posições DeFi</strong> do endereço (ETH, BTC, SOL, ADA e L2s).
-          Como é só-leitura, nunca te pedimos para ligar o dispositivo nem aprovar nada —
-          a tua cold wallet mantém-se 100% offline e segura.
-        </p>
+        <p className="text-[10px] text-slate-600 leading-relaxed">{t("cx_reads_auto")}</p>
 
         {/* Endereços adicionados — ver e remover */}
         {addedAddresses.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-slate-300">Endereços adicionados ({addedAddresses.length})</p>
+            <p className="text-xs font-semibold text-slate-300">{t("cx_added_addrs")} ({addedAddresses.length})</p>
             <div className="space-y-1.5">
               {addedAddresses.map((e) => {
                 const key = `${e.kind}:${e.networkLabel}:${e.address}`;
@@ -645,7 +639,7 @@ export default function CexSection({
                         type="button"
                         onClick={() => setColdShown((prev) => ({ ...prev, [key]: !prev[key] }))}
                         className="rounded-full border border-slate-700 px-2 py-1 text-[10px] text-slate-400 transition hover:border-slate-500 hover:text-slate-200"
-                        title={shown ? "Esconder endereço" : "Ver endereço completo"}
+                        title={shown ? t("cx_hide_addr") : t("cx_show_addr")}
                       >
                         {shown ? "🙈" : "👁"}
                       </button>
@@ -660,22 +654,22 @@ export default function CexSection({
                     {/* Saldo · NFTs · DeFi */}
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pl-1 text-[11px]">
                       <span className="text-slate-400">
-                        <span className="text-slate-500">Saldo:</span>{" "}
+                        <span className="text-slate-500">{t("cx_balance")}</span>{" "}
                         {hasBalance ? (
                           <span className="font-semibold text-slate-200">
                             {Number(e.balance).toLocaleString("en-US", { maximumFractionDigits: 6 })} {e.symbol}
                             {e.fiatUsd != null ? <span className="text-slate-500"> ({fmtUsd(e.fiatUsd)})</span> : null}
                           </span>
                         ) : (
-                          <span className="text-slate-600">a carregar…</span>
+                          <span className="text-slate-600">{t("cx_loading")}</span>
                         )}
                       </span>
                       <span className="text-slate-400">
-                        <span className="text-slate-500">NFTs:</span>{" "}
+                        <span className="text-slate-500">{t("cx_nfts")}</span>{" "}
                         <span className="font-semibold text-slate-200">{e.nftCount != null ? e.nftCount : "—"}</span>
                       </span>
                       <span className="text-slate-400">
-                        <span className="text-slate-500">DeFi:</span>{" "}
+                        <span className="text-slate-500">{t("cx_defi")}</span>{" "}
                         <span className="font-semibold text-emerald-300">{e.defiUsd != null ? fmtUsd(e.defiUsd) : "—"}</span>
                       </span>
                     </div>
@@ -687,7 +681,7 @@ export default function CexSection({
                       if (toks.length === 0) return null;
                       return (
                         <div className="mt-1 space-y-1 rounded-lg border border-slate-800 bg-slate-900/40 px-2.5 py-2">
-                          <p className="text-[10px] uppercase tracking-wider text-slate-500">Tokens ({toks.length})</p>
+                          <p className="text-[10px] uppercase tracking-wider text-slate-500">{t("cx_tokens")} ({toks.length})</p>
                           {toks.map((t) => (
                             <div key={`${t.chain}:${t.address}:${t.symbol}`} className="flex items-center justify-between gap-2 text-[11px]">
                               <span className="truncate text-slate-300">
@@ -707,12 +701,7 @@ export default function CexSection({
         )}
 
         <div className="rounded-xl border border-slate-700/60 bg-slate-950/40 px-4 py-3">
-          <p className="text-[11px] text-slate-400 leading-relaxed">
-            💾 <strong className="text-slate-300">Onde ficam guardados:</strong> os endereços ficam na tua conta
-            (guardados de forma segura no servidor e no teu browser) para os veres em qualquer dispositivo.
-            Guardamos <strong>apenas o endereço público</strong> — nunca chaves privadas nem seed.
-            Podes remover qualquer endereço a qualquer momento.
-          </p>
+          <p className="text-[11px] text-slate-400 leading-relaxed">{t("cx_storage_note")}</p>
         </div>
       </div>
     </div>
