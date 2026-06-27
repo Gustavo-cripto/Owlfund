@@ -5,6 +5,8 @@ import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { createClient } from "@/lib/supabase/client";
 import { loadWalletSnapshot } from "@/lib/wallets/storage";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 type WatchEntry = { address: string; label: string; chain: "eth" | "sol" | "btc" };
 
@@ -25,17 +27,18 @@ type Message = {
 
 type PlanStatus = "loading" | "premium" | "not-premium";
 
-function getQuickActions() {
+function getQuickActions(t: (k: TranslationKey) => string) {
   const year = new Date().getFullYear();
+  const month = new Date().toLocaleString(undefined, { month: "long" });
   return [
-    { icon: "📊", label: "Análise de portfolio", prompt: "Analisa o meu portfolio atual — risco, alocação e recomendações." },
-    { icon: "🧾", label: `Impostos PT ${year}`, prompt: `Qual a minha exposição fiscal estimada em Portugal para ${year}?` },
-    { icon: "📡", label: "Smart Money RT", prompt: "Há movimentos relevantes de baleias na minha watchlist hoje?" },
-    { icon: "🔥", label: "Plano FIRE", prompt: "Simula o meu plano FIRE com base no portfolio atual e projeta a data de independência financeira." },
-    { icon: "⚖️", label: "Rebalancear", prompt: `Recomenda uma estratégia de rebalanceamento para ${new Date().toLocaleString("pt-PT", { month: "long" })} de ${new Date().getFullYear()}.` },
-    { icon: "📄", label: `Relatório fiscal ${year}`, prompt: `Gera um resumo do relatório fiscal ${year} para exportação.` },
-    { icon: "🐋", label: "Análise on-chain", prompt: "Analisa os movimentos on-chain das minhas carteiras." },
-    { icon: "📈", label: "Benchmark", prompt: "Como está o meu portfolio a performar vs BTC, ETH e S&P500?" },
+    { icon: "📊", label: t("gz_qa_portfolio_l"), prompt: t("gz_qa_portfolio_p") },
+    { icon: "🧾", label: `${t("gz_qa_tax_l")} ${year}`, prompt: `${t("gz_qa_tax_p")} ${year}?` },
+    { icon: "📡", label: t("gz_qa_sm_l"), prompt: t("gz_qa_sm_p") },
+    { icon: "🔥", label: t("gz_qa_fire_l"), prompt: t("gz_qa_fire_p") },
+    { icon: "⚖️", label: t("gz_qa_rebal_l"), prompt: `${t("gz_qa_rebal_p")} ${month} ${year}.` },
+    { icon: "📄", label: `${t("gz_qa_report_l")} ${year}`, prompt: t("gz_qa_report_p").replace("{y}", String(year)) },
+    { icon: "🐋", label: t("gz_qa_onchain_l"), prompt: t("gz_qa_onchain_p") },
+    { icon: "📈", label: t("gz_qa_bench_l"), prompt: t("gz_qa_bench_p") },
   ];
 }
 
@@ -54,6 +57,7 @@ function formatMarkdown(text: string): string {
 
 export default function GestorPage() {
   useRequireAuth();
+  const { t } = useLanguage();
   const supabase = createClient();
 
   const [planStatus, setPlanStatus] = useState<PlanStatus>("loading");
@@ -104,7 +108,7 @@ export default function GestorPage() {
       setMessages([{
         id: "welcome",
         role: "assistant",
-        content: "Olá! Sou o teu **Gestor Dedicado IA**. Tenho acesso ao teu portfolio, histórico on-chain e watchlist de baleias em tempo real.\n\nComo posso ajudar-te hoje? Usa as sugestões rápidas ou escreve diretamente.",
+        content: t("gz_welcome"),
         timestamp: new Date(),
       }]);
     }
@@ -174,18 +178,18 @@ export default function GestorPage() {
           <div className="max-w-md w-full text-center space-y-6">
             <div className="w-16 h-16 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center mx-auto text-3xl">🤖</div>
             <div>
-              <h1 className="text-2xl font-bold text-white">Gestor Dedicado IA</h1>
-              <p className="text-slate-400 mt-2 text-sm leading-relaxed">O teu gestor financeiro pessoal com IA, com acesso ao teu portfolio completo, análise fiscal e smart money em tempo real.</p>
+              <h1 className="text-2xl font-bold text-white">{t("df_gestor_l")}</h1>
+              <p className="text-slate-400 mt-2 text-sm leading-relaxed">{t("gz_upsell_desc")}</p>
             </div>
             <div className="rounded-2xl border border-violet-500/30 bg-violet-500/10 p-5 text-left space-y-3">
-              {["Análise de risco e alocação do portfolio","Estimativas fiscais IRS Portugal","Planeamento FIRE personalizado","Smart Money e movimentos de baleias","Estratégias de rebalanceamento","Relatórios exportáveis"].map(f => (
+              {[t("gz_feat_1"),t("gz_feat_2"),t("gz_feat_3"),t("gz_feat_4"),t("gz_feat_5"),t("gz_feat_6")].map(f => (
                 <div key={f} className="flex items-center gap-2 text-sm text-slate-200">
                   <span className="text-violet-400 text-xs">✓</span>{f}
                 </div>
               ))}
             </div>
             <a href="/pricing" className="block w-full rounded-xl bg-violet-500 px-4 py-3 text-sm font-bold text-white hover:bg-violet-400 transition text-center">
-              Upgrade para Premium — €39/mês
+              {t("gz_upgrade")}
             </a>
           </div>
         </div>
@@ -211,12 +215,12 @@ export default function GestorPage() {
         <div className="border-b border-slate-800 bg-slate-950 px-6 py-4 flex items-center gap-4">
           <div className="w-10 h-10 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-lg">🤖</div>
           <div className="flex-1">
-            <p className="text-sm font-semibold text-white">Gestor Dedicado IA</p>
-            <p className="text-xs text-slate-400">ChainFolioAI Premium · acesso completo ao portfolio</p>
+            <p className="text-sm font-semibold text-white">{t("df_gestor_l")}</p>
+            <p className="text-xs text-slate-400">{t("gz_subtitle")}</p>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs text-emerald-400 font-semibold">Online</span>
+            <span className="text-xs text-emerald-400 font-semibold">{t("gz_online")}</span>
           </div>
           <span className="text-[10px] bg-violet-500/20 text-violet-300 border border-violet-500/30 rounded-full px-2 py-0.5 font-semibold">Premium</span>
         </div>
@@ -227,7 +231,7 @@ export default function GestorPage() {
             {/* Portfolio mini-card */}
             {portfolioSummary && (
               <div className="m-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3 space-y-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Portfolio</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("gz_portfolio")}</p>
                 <div className="space-y-1">
                   {portfolioSummary.btc !== "0.0000" && <div className="flex justify-between text-xs"><span className="text-slate-400">BTC</span><span className="text-slate-200">{portfolioSummary.btc}</span></div>}
                   {portfolioSummary.eth !== "0.0000" && <div className="flex justify-between text-xs"><span className="text-slate-400">ETH</span><span className="text-slate-200">{portfolioSummary.eth}</span></div>}
@@ -238,9 +242,9 @@ export default function GestorPage() {
 
             {/* Quick actions */}
             <div className="px-3 pt-2 pb-1">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Sugestões rápidas</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-2">{t("gz_quick")}</p>
               <div className="space-y-1">
-                {getQuickActions().map(a => (
+                {getQuickActions(t).map(a => (
                   <button key={a.label} type="button"
                     onClick={() => sendMessage(a.prompt)}
                     className="w-full text-left rounded-lg px-3 py-2 text-xs text-slate-300 hover:bg-slate-800 hover:text-white transition flex items-center gap-2">
@@ -254,10 +258,10 @@ export default function GestorPage() {
               <button type="button" onClick={() => setMessages([{
                 id: "welcome-reset",
                 role: "assistant",
-                content: "Conversa reiniciada. Como posso ajudar?",
+                content: t("gz_reset"),
                 timestamp: new Date(),
               }])} className="w-full text-xs text-slate-500 hover:text-slate-300 transition py-1">
-                🗑 Limpar conversa
+                {t("gz_clear")}
               </button>
             </div>
           </div>
@@ -266,7 +270,7 @@ export default function GestorPage() {
           <div className="flex-1 flex flex-col overflow-hidden">
             {/* Mobile quick actions */}
             <div className="lg:hidden flex gap-2 overflow-x-auto px-4 py-2 border-b border-slate-800 no-scrollbar">
-              {getQuickActions().slice(0, 4).map(a => (
+              {getQuickActions(t).slice(0, 4).map(a => (
                 <button key={a.label} type="button"
                   onClick={() => sendMessage(a.prompt)}
                   className="flex-shrink-0 rounded-full border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:border-violet-500/50 hover:text-violet-300 transition whitespace-nowrap">
@@ -327,7 +331,7 @@ export default function GestorPage() {
                   value={input}
                   onChange={e => { setInput(e.target.value); autoResize(e.target); }}
                   onKeyDown={handleKeyDown}
-                  placeholder="Pergunta algo ao teu gestor... (Enter para enviar)"
+                  placeholder={t("gz_placeholder")}
                   rows={1}
                   disabled={loading}
                   className="flex-1 resize-none rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-violet-500/60 focus:ring-1 focus:ring-violet-500/20 disabled:opacity-50 transition"
@@ -338,14 +342,14 @@ export default function GestorPage() {
                   onClick={() => sendMessage(input)}
                   disabled={loading || !input.trim()}
                   className="w-11 h-11 rounded-xl bg-violet-600 flex items-center justify-center text-white hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed transition flex-shrink-0"
-                  aria-label="Enviar"
+                  aria-label={t("gz_send")}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
                   </svg>
                 </button>
               </div>
-              <p className="text-center text-[10px] text-slate-600 mt-2">IA com acesso ao teu portfolio · Não constitui aconselhamento financeiro</p>
+              <p className="text-center text-[10px] text-slate-600 mt-2">{t("gz_disclaimer")}</p>
             </div>
           </div>
         </div>
