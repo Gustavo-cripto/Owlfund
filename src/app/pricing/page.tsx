@@ -142,17 +142,17 @@ export default function PricingPage() {
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">ChainFolioAI</p>
               <h1 className="text-4xl font-bold text-white">{t("pricing_title")}</h1>
               <p className="text-slate-400 max-w-xl mx-auto text-sm leading-relaxed">
-                Do investidor casual ao profissional — escolhe o plano certo para o teu nível.
+                {t("pc_subtitle")}
               </p>
             </div>
 
             {/* Stats bar */}
             <div className="flex flex-wrap justify-center gap-6 text-center">
               {[
-                { value: "10+", label: "Blockchains suportadas" },
-                { value: "3 CEXs", label: "Binance · Kraken · CoinEx" },
-                { value: "8+ países", label: "Fiscalidade local" },
-                { value: "API/MCP", label: "Para programadores (Premium)" },
+                { value: "10+", label: t("pc_stat_chains") },
+                { value: "3 CEXs", label: t("pc_stat_cex") },
+                { value: "8+ países", label: t("pc_stat_tax") },
+                { value: "API/MCP", label: t("pc_stat_api") },
               ].map((s) => (
                 <div key={s.label} className="text-center">
                   <p className="text-lg font-bold text-orange-400">{s.value}</p>
@@ -167,23 +167,23 @@ export default function PricingPage() {
               {/* Free */}
               <div className={`rounded-2xl border p-6 space-y-5 ${currentPlan === "free" ? "border-slate-500 bg-slate-800/60" : "border-slate-800 bg-slate-900/60"}`}>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Gratuito</p>
-                  <p className="text-3xl font-bold text-white mt-1">€0 <span className="text-sm font-normal text-slate-500">/ mês</span></p>
-                  <p className="text-xs text-slate-500 mt-1">Para começar a monitorar</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{t("free")}</p>
+                  <p className="text-3xl font-bold text-white mt-1">€0 <span className="text-sm font-normal text-slate-500">{t("pc_per_month")}</span></p>
+                  <p className="text-xs text-slate-500 mt-1">{t("pc_free_tag")}</p>
                 </div>
                 <div className="space-y-2 text-sm">
                   {[
-                    "3 carteiras on-chain",
-                    "Preços em tempo real",
-                    "Blocos BTC ao vivo",
-                    "Notícias ao vivo (RSS)",
-                    "Cold wallets só-leitura (Ledger, Trezor…)",
-                    "Watchlist (3 baleias)",
-                    "1 análise IA do portfolio/mês",
-                    "Histórico 30 dias",
-                    "FIFO últimos 30 dias",
-                    "Calculadora FIRE básica",
-                    "4 países fiscais",
+                    t("pcc_f_wallets"),
+                    t("pc_r_prices_rt"),
+                    t("pc_r_btc_blocks"),
+                    t("pc_r_news_rss"),
+                    t("pc_r_cold"),
+                    t("pcc_f_watchlist"),
+                    t("pcc_f_ai"),
+                    t("pcc_f_history"),
+                    t("pcc_f_fifo"),
+                    t("pcc_f_fire"),
+                    t("pcc_f_countries"),
                   ].map((f) => (
                     <div key={f} className="flex items-center gap-2 text-slate-400">
                       <span className="text-emerald-500 text-xs">✓</span>{f}
@@ -191,7 +191,7 @@ export default function PricingPage() {
                   ))}
                 </div>
                 <a href="/dashboard" className="block w-full text-center rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-300 hover:border-slate-500 hover:text-white transition">
-                  {currentPlan === "free" ? "✓ Plano atual" : "Começar grátis"}
+                  {currentPlan === "free" ? t("pc_current_plan") : t("pc_start_free")}
                 </a>
               </div>
 
@@ -200,41 +200,41 @@ export default function PricingPage() {
                 <div className="absolute top-3 right-3 text-[10px] bg-orange-500 text-slate-950 font-bold px-2 py-0.5 rounded-full">POPULAR</div>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-400">Pro</p>
-                  <p className="text-3xl font-bold text-white mt-1">€14,99 <span className="text-sm font-normal text-slate-500">/ mês</span></p>
-                  <p className="text-xs text-slate-500 mt-1">Para investidores activos</p>
+                  <p className="text-3xl font-bold text-white mt-1">€14,99 <span className="text-sm font-normal text-slate-500">{t("pc_per_month")}</span></p>
+                  <p className="text-xs text-slate-500 mt-1">{t("pc_pro_tag")}</p>
                 </div>
                 <div className="space-y-2 text-sm">
                   {[
-                    "Tudo do Gratuito +",
-                    "Carteiras ilimitadas on-chain",
-                    "CEX: Binance, Kraken, CoinEx",
-                    "Hyperliquid (Spot + Perp)",
-                    "NFTs + posições DeFi de todas as carteiras",
-                    "Snapshots diários automáticos",
-                    "Alertas baleias > $100k + email",
-                    "Análise IA de notícias (tempo real)",
-                    "Briefing IA diário (cripto & tradicional)",
-                    "Análise IA do portfolio ilimitada",
-                    "Exportação CSV + PDF fiscal",
-                    "Histórico 1 ano+",
-                    "8+ países fiscais",
-                    "Suporte prioritário",
-                  ].map((f) => (
-                    <div key={f} className={`flex items-center gap-2 text-sm ${f.startsWith("Tudo") ? "text-orange-300 font-semibold" : "text-slate-200"}`}>
-                      <span className="text-orange-400 text-xs">{f.startsWith("Tudo") ? "" : "✓"}</span>{f}
+                    t("pc_all_free"),
+                    t("pcc_p_wallets"),
+                    t("pcc_p_cex"),
+                    t("pcc_p_hl"),
+                    t("pcc_p_nft"),
+                    t("pcc_p_snap"),
+                    t("pcc_p_alerts"),
+                    t("pcc_p_ainews"),
+                    t("pc_r_ai_briefing"),
+                    t("pcc_p_aiport"),
+                    t("pcc_p_export"),
+                    t("pcc_p_history"),
+                    t("pcc_p_countries"),
+                    t("pc_r_support_priority"),
+                  ].map((f, i) => (
+                    <div key={f} className={`flex items-center gap-2 text-sm ${i === 0 ? "text-orange-300 font-semibold" : "text-slate-200"}`}>
+                      <span className="text-orange-400 text-xs">{i === 0 ? "" : "✓"}</span>{f}
                     </div>
                   ))}
                 </div>
                 {loading ? (
                   <div className="h-10 rounded-xl bg-slate-800 animate-pulse" />
                 ) : currentPlan === "pro" ? (
-                  <div className="text-center py-2.5 text-sm text-emerald-400 font-semibold border border-emerald-500/30 rounded-xl bg-emerald-500/10">✓ Plano atual</div>
+                  <div className="text-center py-2.5 text-sm text-emerald-400 font-semibold border border-emerald-500/30 rounded-xl bg-emerald-500/10">{t("pc_current_plan")}</div>
                 ) : currentPlan === "premium" ? (
-                  <div className="text-center py-2.5 text-sm text-slate-500 border border-slate-700 rounded-xl">Incluído no Premium</div>
+                  <div className="text-center py-2.5 text-sm text-slate-500 border border-slate-700 rounded-xl">{t("pc_included_premium")}</div>
                 ) : (
                   <button type="button" onClick={() => handleUpgrade("pro")}
                     className="w-full rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-bold text-slate-950 hover:bg-orange-400 transition">
-                    Upgrade para Pro
+                    {t("pc_btn_upgrade_pro")}
                   </button>
                 )}
               </div>
@@ -244,37 +244,37 @@ export default function PricingPage() {
                 <div className="absolute top-3 right-3 text-[10px] bg-violet-500 text-white font-bold px-2 py-0.5 rounded-full">PROFISSIONAL</div>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-400">Premium</p>
-                  <p className="text-3xl font-bold text-white mt-1">€39 <span className="text-sm font-normal text-slate-500">/ mês</span></p>
-                  <p className="text-xs text-slate-500 mt-1">Para traders e profissionais</p>
+                  <p className="text-3xl font-bold text-white mt-1">€39 <span className="text-sm font-normal text-slate-500">{t("pc_per_month")}</span></p>
+                  <p className="text-xs text-slate-500 mt-1">{t("pc_premium_tag")}</p>
                 </div>
                 <div className="space-y-2 text-sm">
                   {[
-                    "Tudo do Pro +",
-                    "Smart Money tracking em tempo real",
-                    "Análise on-chain avançada",
-                    "Alertas WebSocket instantâneos",
-                    "Histórico ilimitado",
-                    "Todos os países fiscais",
-                    "Análise preditiva IA on-chain",
-                    "API REST pública",
-                    "Integração MCP (Claude, Cursor…)",
-                    "Webhooks de alertas",
-                    "Gestor Dedicado IA (chat com os teus dados)",
-                    "Acesso antecipado a features",
-                  ].map((f) => (
-                    <div key={f} className={`flex items-center gap-2 text-sm ${f.startsWith("Tudo") ? "text-violet-300 font-semibold" : "text-slate-200"}`}>
-                      <span className="text-violet-400 text-xs">{f.startsWith("Tudo") ? "" : "✓"}</span>{f}
+                    t("pc_all_pro"),
+                    t("pc_r_sm_rt"),
+                    t("pc_r_onchain_adv"),
+                    t("pcc_pr_ws"),
+                    t("pcc_pr_history"),
+                    t("pcc_pr_countries"),
+                    t("pc_r_ai_predictive"),
+                    t("pc_r_api_rest"),
+                    t("pc_r_mcp"),
+                    t("pc_r_webhooks"),
+                    t("pcc_pr_gestor"),
+                    t("pcc_pr_early"),
+                  ].map((f, i) => (
+                    <div key={f} className={`flex items-center gap-2 text-sm ${i === 0 ? "text-violet-300 font-semibold" : "text-slate-200"}`}>
+                      <span className="text-violet-400 text-xs">{i === 0 ? "" : "✓"}</span>{f}
                     </div>
                   ))}
                 </div>
                 {loading ? (
                   <div className="h-10 rounded-xl bg-slate-800 animate-pulse" />
                 ) : currentPlan === "premium" ? (
-                  <div className="text-center py-2.5 text-sm text-emerald-400 font-semibold border border-emerald-500/30 rounded-xl bg-emerald-500/10">✓ Plano atual</div>
+                  <div className="text-center py-2.5 text-sm text-emerald-400 font-semibold border border-emerald-500/30 rounded-xl bg-emerald-500/10">{t("pc_current_plan")}</div>
                 ) : (
                   <button type="button" onClick={() => handleUpgrade("premium")}
                     className="w-full rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-violet-400 transition">
-                    Upgrade para Premium
+                    {t("pc_btn_upgrade_premium")}
                   </button>
                 )}
               </div>
@@ -318,7 +318,7 @@ export default function PricingPage() {
             {/* vs Competitors */}
             <div className="rounded-2xl border border-slate-800 bg-slate-900/40 overflow-hidden">
               <div className="px-6 py-3 bg-slate-900 border-b border-slate-800">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">ChainFolioAI vs Concorrência</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t("pc_vs_title")}</p>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -333,14 +333,14 @@ export default function PricingPage() {
                   </thead>
                   <tbody>
                     {[
-                      ["Preço/mês", "€14,99", "€39", "€19,99", "€14,99"],
-                      ["Carteiras on-chain ilimitadas", "✓", "✓", "✓", "—"],
-                      ["CEX integrado", "✓", "✓", "Parcial", "—"],
-                      ["Smart Money / Baleias", "✓", "✓ Avançado", "Parcial", "—"],
-                      ["Análise on-chain", "—", "✓", "—", "—"],
-                      ["API / MCP", "—", "✓", "—", "—"],
-                      ["Fiscalidade europeia", "8 países", "Todos", "Limitado", "—"],
-                      ["Chat IA portfolio", "✓", "✓", "—", "—"],
+                      [t("pc_vs_price"), "€14,99", "€39", "€19,99", "€14,99"],
+                      [t("pc_vs_wallets"), "✓", "✓", "✓", "—"],
+                      [t("pc_vs_cex"), "✓", "✓", t("pc_partial"), "—"],
+                      [t("pc_vs_sm"), "✓", t("pc_adv_check"), t("pc_partial"), "—"],
+                      [t("pc_vs_onchain"), "—", "✓", "—", "—"],
+                      [t("pc_vs_api"), "—", "✓", "—", "—"],
+                      [t("pc_vs_tax"), t("pc_8c"), t("pc_all"), t("pc_limited"), "—"],
+                      [t("pc_vs_aichat"), "✓", "✓", "—", "—"],
                     ].map(([feature, chainfolioPro, chainfolioPremium, coinStats, delta]) => (
                       <tr key={feature} className="border-b border-slate-800/50 last:border-0 hover:bg-slate-800/20">
                         <td className="px-6 py-2.5 text-slate-300">{feature}</td>
@@ -358,15 +358,15 @@ export default function PricingPage() {
             {/* Sync plan */}
             {userId && currentPlan !== "premium" && (
               <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 text-center space-y-3">
-                <p className="text-sm font-semibold text-white">Já pagaste mas o plano não actualizou?</p>
-                <p className="text-xs text-slate-400">Clica abaixo para sincronizar o teu plano directamente com o Stripe.</p>
+                <p className="text-sm font-semibold text-white">{t("pc_sync_q")}</p>
+                <p className="text-xs text-slate-400">{t("pc_sync_desc")}</p>
                 <button
                   type="button"
                   onClick={handleSyncPlan}
                   disabled={syncing}
                   className="rounded-xl border border-orange-500/40 px-6 py-2.5 text-sm font-semibold text-orange-400 hover:bg-orange-500/10 disabled:opacity-50 transition"
                 >
-                  {syncing ? "A sincronizar…" : "↻ Sincronizar plano"}
+                  {syncing ? t("pc_syncing") : t("pc_sync_btn")}
                 </button>
               </div>
             )}
@@ -374,7 +374,7 @@ export default function PricingPage() {
             {/* Footer note */}
             <div className="text-center space-y-2">
               <p className="text-xs text-slate-600">
-                Pagamento seguro via Stripe · Cancela a qualquer momento · Sem compromisso
+                {t("pc_footer")}
               </p>
             </div>
 
