@@ -83,7 +83,7 @@ export default function FirePage() {
 
           {/* Header */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">Financial Independence</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">{t("fire_eyebrow")}</p>
             <h1 className="mt-2 text-2xl font-bold text-white">{t("fire_title")}</h1>
             <p className="mt-1 text-sm text-slate-400">{t("fire_subtitle")}</p>
           </div>
@@ -102,7 +102,7 @@ export default function FirePage() {
                 <div key={f.key}>
                   <div className="flex justify-between mb-1.5">
                     <label className="text-xs text-slate-400">{f.label}</label>
-                    <span className="text-xs font-bold text-orange-300">{f.key.includes("Return") || f.key.includes("inflation") || f.key.includes("Rate") ? `${f.value}%` : f.key === "currentAge" ? `${f.value} anos` : `€ ${f.value.toLocaleString()}`}</span>
+                    <span className="text-xs font-bold text-orange-300">{f.key.includes("Return") || f.key.includes("inflation") || f.key.includes("Rate") ? `${f.value}%` : f.key === "currentAge" ? `${f.value} ${t("fire_years")}` : `€ ${f.value.toLocaleString()}`}</span>
                   </div>
                   <input type="range" min={f.min} max={f.max} step={f.step} value={f.value}
                     onChange={e => f.set(Number(e.target.value))}
@@ -204,7 +204,7 @@ export default function FirePage() {
                 <div key={f.type} className={`rounded-xl border p-4 ${f.multiplier === 25 ? "border-orange-500/40 bg-orange-500/5" : "border-slate-700 bg-slate-900/40"}`}>
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm font-bold text-white">{f.type}</p>
-                    {f.multiplier === 25 && <span className="text-[10px] rounded-full border border-orange-500/40 px-2 py-0.5 text-orange-400">Em uso</span>}
+                    {f.multiplier === 25 && <span className="text-[10px] rounded-full border border-orange-500/40 px-2 py-0.5 text-orange-400">{t("fire_in_use")}</span>}
                   </div>
                   <p className="text-lg font-black text-orange-300">{fmt(f.target)}</p>
                   <p className="text-xs text-slate-400 mt-1">{f.desc}</p>
