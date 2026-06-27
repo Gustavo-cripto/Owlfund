@@ -339,7 +339,7 @@ function FearGreedWidget({
       </div>
 
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-        <h3 className="text-sm font-semibold text-white">Fear &amp; Greed (ETH + Top 10)</h3>
+        <h3 className="text-sm font-semibold text-white">{t("mc_fg_title")}</h3>
         <p className="mt-1 text-xs text-slate-500">{t("merc_top10")}</p>
         <div className="mt-4 flex flex-col gap-3">
           {top10.length ? (
@@ -581,14 +581,14 @@ export default function MercadoPage() {
           error?: string;
         };
         if (!response.ok || !data.data) {
-          throw new Error(data.error ?? "Não foi possível carregar mercados.");
+          throw new Error(data.error ?? t("mc_err_markets"));
         }
         setRows(data.data);
         setSelected(data.data[0] ?? null);
         setSentimentTop10(data.sentimentTop10 ?? []);
         setPage(0);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Erro ao carregar mercados.");
+        setError(err instanceof Error ? err.message : t("mc_err_markets2"));
       } finally {
         setIsLoading(false);
       }
@@ -603,7 +603,7 @@ export default function MercadoPage() {
       const response = await fetch(`/api/traditional?symbols=${encodeURIComponent(symbol)}`);
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(payload?.error ?? "Falha ao obter cotações.");
+        throw new Error(payload?.error ?? t("mc_err_quotes"));
       }
       const payload = (await response.json()) as { data: TraditionalQuote[] };
       const quote = payload.data?.[0];
@@ -611,7 +611,7 @@ export default function MercadoPage() {
         setTraditionalQuotes((prev) => ({ ...prev, [quote.symbol]: quote }));
       }
     } catch (err) {
-      setTraditionalQuotesError(err instanceof Error ? err.message : "Erro ao obter dados.");
+      setTraditionalQuotesError(err instanceof Error ? err.message : t("mc_err_data"));
     } finally {
       setTraditionalQuoteLoading((prev) => ({ ...prev, [symbol]: false }));
     }
@@ -625,7 +625,7 @@ export default function MercadoPage() {
       );
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(payload?.error ?? "Falha ao obter cotações.");
+        throw new Error(payload?.error ?? t("mc_err_quotes"));
       }
       const payload = (await response.json()) as { data: TraditionalQuote[] };
       const next: Record<string, TraditionalQuote> = {};
@@ -634,7 +634,7 @@ export default function MercadoPage() {
       });
       setTraditionalQuotes(next);
     } catch (err) {
-      setTraditionalQuotesError(err instanceof Error ? err.message : "Erro ao obter dados.");
+      setTraditionalQuotesError(err instanceof Error ? err.message : t("mc_err_data"));
     }
   };
 
@@ -941,11 +941,11 @@ export default function MercadoPage() {
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 pb-20 pt-2 lg:px-8">
         <div className="flex flex-col gap-4">
-          <h1 className="text-3xl font-semibold text-white">Mercado</h1>
+          <h1 className="text-3xl font-semibold text-white">{t("mc_market")}</h1>
           <p className="max-w-2xl text-sm text-slate-400">
             {marketMode === "crypto"
               ? "Dados em tempo real da CoinEx com comparação entre ativos. Clique em um ativo para abrir o gráfico do TradingView."
-              : "Ativos do mercado tradicional com cotações via Alpha Vantage."}
+              : t("mc_trad_desc")}
           </p>
           <div className="flex flex-wrap gap-2">
             <button
@@ -988,9 +988,9 @@ export default function MercadoPage() {
           <section className="mx-auto w-full max-w-6xl rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h2 className="text-lg font-semibold text-white">Gráfico do ativo</h2>
+              <h2 className="text-lg font-semibold text-white">{t("mc_asset_chart")}</h2>
               <p className="text-sm text-slate-400">
-                {selected ? `${selected.name} · ${selected.symbol}` : "Selecione um ativo"}
+                {selected ? `${selected.name} · ${selected.symbol}` : t("mc_select_asset")}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -1030,7 +1030,7 @@ export default function MercadoPage() {
                   chartRef.current?.requestFullscreen?.();
                 }}
               >
-                {isFullscreen ? "Sair do ecrã inteiro" : "Ecrã inteiro"}
+                {isFullscreen ? t("mc_exit_fs") : t("mc_fullscreen")}
               </button>
             </div>
           </div>
@@ -1062,7 +1062,7 @@ export default function MercadoPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-widest text-orange-400">Coinglass</p>
-                    <h3 className="mt-0.5 text-base font-bold text-white">Dados avançados de derivados</h3>
+                    <h3 className="mt-0.5 text-base font-bold text-white">{t("mc_deriv_data")}</h3>
                   </div>
                   <a
                     href="https://www.coinglass.com"
@@ -1081,7 +1081,7 @@ export default function MercadoPage() {
                     className="group flex flex-col gap-3 rounded-xl border border-slate-700 bg-slate-800/50 p-4 transition hover:border-orange-500/40 hover:bg-slate-800">
                     <div className="flex items-start justify-between gap-2">
                       <span className="text-2xl">🔥</span>
-                      <span className="rounded-full bg-slate-700/60 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-400">Real-time</span>
+                      <span className="rounded-full bg-slate-700/60 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-400">{t("mc_realtime")}</span>
                     </div>
                     {/* Bar chart: liquidation spikes */}
                     <svg viewBox="0 0 120 60" className="w-full opacity-70">
@@ -1091,8 +1091,8 @@ export default function MercadoPage() {
                       ))}
                     </svg>
                     <div>
-                      <p className="text-sm font-semibold text-slate-200 group-hover:text-orange-400">Liquidações ↗</p>
-                      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">Volume de liquidações forçadas por exchange e ativo em tempo real.</p>
+                      <p className="text-sm font-semibold text-slate-200 group-hover:text-orange-400">{t("mc_liquidations")}</p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{t("mc_liquidations_desc")}</p>
                     </div>
                   </a>
 
@@ -1115,8 +1115,8 @@ export default function MercadoPage() {
                       <path d="M0,55 L10,48 L20,42 L30,45 L40,36 L50,30 L60,34 L70,24 L80,20 L90,16 L100,12 L110,8 L120,5" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
                     </svg>
                     <div>
-                      <p className="text-sm font-semibold text-slate-200 group-hover:text-orange-400">Open Interest ↗</p>
-                      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">Contratos em aberto por exchange — indica alavancagem no mercado.</p>
+                      <p className="text-sm font-semibold text-slate-200 group-hover:text-orange-400">{t("mc_oi")}</p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{t("mc_oi_desc")}</p>
                     </div>
                   </a>
 
@@ -1125,7 +1125,7 @@ export default function MercadoPage() {
                     className="group flex flex-col gap-3 rounded-xl border border-slate-700 bg-slate-800/50 p-4 transition hover:border-orange-500/40 hover:bg-slate-800">
                     <div className="flex items-start justify-between gap-2">
                       <span className="text-2xl">💸</span>
-                      <span className="rounded-full bg-slate-700/60 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-400">Perpétuo</span>
+                      <span className="rounded-full bg-slate-700/60 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-400">{t("mc_perpetual")}</span>
                     </div>
                     {/* +/- funding rate bars around zero line */}
                     <svg viewBox="0 0 120 60" className="w-full opacity-70">
@@ -1136,8 +1136,8 @@ export default function MercadoPage() {
                       ))}
                     </svg>
                     <div>
-                      <p className="text-sm font-semibold text-slate-200 group-hover:text-orange-400">Funding Rates ↗</p>
-                      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">Taxa de financiamento perpétuo — valores negativos favorecem longs.</p>
+                      <p className="text-sm font-semibold text-slate-200 group-hover:text-orange-400">{t("mc_funding")}</p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{t("mc_funding_desc")}</p>
                     </div>
                   </a>
 
@@ -1146,7 +1146,7 @@ export default function MercadoPage() {
                     className="group flex flex-col gap-3 rounded-xl border border-slate-700 bg-slate-800/50 p-4 transition hover:border-orange-500/40 hover:bg-slate-800">
                     <div className="flex items-start justify-between gap-2">
                       <span className="text-2xl">⚖️</span>
-                      <span className="rounded-full bg-slate-700/60 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-400">Sentimento</span>
+                      <span className="rounded-full bg-slate-700/60 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-400">{t("mc_sentiment")}</span>
                     </div>
                     {/* Stacked horizontal bars */}
                     <svg viewBox="0 0 120 60" className="w-full opacity-70">
@@ -1161,12 +1161,12 @@ export default function MercadoPage() {
                           <text x={long * 1.2 + (100 - long) * 0.6} y={y + 7} textAnchor="middle" fontSize="6" fill="#fff" fontWeight="700">{100 - long}%</text>
                         </g>
                       ))}
-                      <text x="0" y="59" fontSize="6" fill="#22c55e">Long</text>
-                      <text x="100" y="59" fontSize="6" fill="#ef4444">Short</text>
+                      <text x="0" y="59" fontSize="6" fill="#22c55e">{t("mc_long")}</text>
+                      <text x="100" y="59" fontSize="6" fill="#ef4444">{t("mc_short")}</text>
                     </svg>
                     <div>
-                      <p className="text-sm font-semibold text-slate-200 group-hover:text-orange-400">Long/Short ↗</p>
-                      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">Rácio de posições longas vs curtas por exchange e período.</p>
+                      <p className="text-sm font-semibold text-slate-200 group-hover:text-orange-400">{t("mc_longshort")}</p>
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{t("mc_longshort_desc")}</p>
                     </div>
                   </a>
                 </div>
@@ -1188,7 +1188,7 @@ export default function MercadoPage() {
           <section className="mx-auto w-full max-w-6xl rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <h2 className="text-lg font-semibold text-white">Mercado Tradicional</h2>
+                <h2 className="text-lg font-semibold text-white">{t("mc_trad_market")}</h2>
                 <p className="text-sm text-slate-400">
                   Seleciona a categoria e atualiza o preço atual por ativo.
                 </p>
@@ -1202,11 +1202,11 @@ export default function MercadoPage() {
             <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Gráfico</p>
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-500">{t("mc_chart")}</p>
                   <p className="text-sm text-slate-400">
                     {selectedTraditional
                       ? selectedTraditional.label
-                      : "Selecione um ativo para ver o gráfico"}
+                      : t("mc_select_chart")}
                   </p>
                 </div>
               </div>
@@ -1285,7 +1285,7 @@ export default function MercadoPage() {
                             : "border-slate-700 text-slate-200 hover:border-slate-500 hover:text-white"
                         }`}
                       >
-                        {isInPortfolio ? "Na carteira" : "Adicionar"}
+                        {isInPortfolio ? t("mc_in_wallet") : t("mc_add")}
                       </button>
                       <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
                         Preço:{" "}
@@ -1302,7 +1302,7 @@ export default function MercadoPage() {
                         disabled={!asset.alphaSymbol || isQuoteLoading}
                         className="rounded-full border border-orange-400/40 px-3 py-2 text-[11px] font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {isQuoteLoading ? "A atualizar..." : "Atualizar preço"}
+                        {isQuoteLoading ? t("mc_updating") : t("mc_update_price")}
                       </button>
                     </div>
                   </div>
@@ -1318,8 +1318,8 @@ export default function MercadoPage() {
                   </p>
                   <p className="text-sm text-slate-400">
                     {selectedTraditionalAssets.length
-                      ? "Define o valor de compra e a data por ativo."
-                      : "Seleciona ativos para criar a carteira tradicional."}
+                      ? t("mc_set_buy")
+                      : t("mc_select_trad")}
                   </p>
                 </div>
                 <div className="text-right">
@@ -1338,8 +1338,8 @@ export default function MercadoPage() {
                   }
                   className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 outline-none"
                 >
-                  <option value="date">Data de compra</option>
-                  <option value="marketCap">Market cap</option>
+                  <option value="date">{t("mc_buy_date")}</option>
+                  <option value="marketCap">{t("mc_mcap")}</option>
                 </select>
                 <button
                   type="button"
@@ -1354,7 +1354,7 @@ export default function MercadoPage() {
 
               <div className="mt-4 space-y-3">
                 {sortedSelectedTraditional.length === 0 ? (
-                  <p className="text-sm text-slate-500">Nenhum ativo selecionado.</p>
+                  <p className="text-sm text-slate-500">{t("mc_no_asset")}</p>
                 ) : (
                   sortedSelectedTraditional.map((asset) => {
                     const holding = traditionalHoldings[asset.id] ?? {};
@@ -1379,7 +1379,7 @@ export default function MercadoPage() {
                             inputMode="decimal"
                             min="0"
                             step="0.01"
-                            placeholder="Valor de compra"
+                            placeholder={t("mc_buy_value")}
                             value={holding.buyValue ?? ""}
                             onChange={(event) => {
                               const value = event.target.value;
@@ -1414,10 +1414,10 @@ export default function MercadoPage() {
                               }
                               className="bg-transparent text-xs text-slate-200 outline-none"
                             >
-                              <option value="1d">Diário</option>
+                              <option value="1d">{t("mc_daily")}</option>
                               <option value="30d">30 dias</option>
                               <option value="60d">60 dias</option>
-                              <option value="1y">Anual</option>
+                              <option value="1y">{t("mc_annual")}</option>
                             </select>
                             {(() => {
                               const pnl = getTraditionalPnl(asset.id, quote?.changePercent ?? null);
@@ -1443,7 +1443,7 @@ export default function MercadoPage() {
                             disabled={!asset.alphaSymbol || isQuoteLoading}
                             className="rounded-full border border-orange-400/40 px-3 py-2 text-[11px] font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
                           >
-                            {isQuoteLoading ? "A atualizar..." : "Atualizar preço"}
+                            {isQuoteLoading ? t("mc_updating") : t("mc_update_price")}
                           </button>
                           <button
                             type="button"
@@ -1484,14 +1484,14 @@ export default function MercadoPage() {
           <div className="order-1 lg:order-2">
             <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold text-white">Top 200 criptoativos</h2>
+                <h2 className="text-lg font-semibold text-white">{t("mc_top200")}</h2>
                 <span className="text-xs text-slate-500">
                   Fonte: CoinEx · atualização automática
                 </span>
               </div>
 
               {isLoading ? (
-                <p className="mt-6 text-sm text-slate-400">A carregar mercados...</p>
+                <p className="mt-6 text-sm text-slate-400">{t("mc_loading_markets")}</p>
               ) : error ? (
                 <p className="mt-6 text-sm text-rose-300">{error}</p>
               ) : (
@@ -1504,7 +1504,7 @@ export default function MercadoPage() {
                           setQuery(e.target.value);
                           setPage(0);
                         }}
-                        placeholder="Pesquisar (ex: BTC, Ethereum)"
+                        placeholder={t("mc_search_ph")}
                         className="w-full max-w-xs rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:border-slate-600"
                       />
                       <button
@@ -1519,7 +1519,7 @@ export default function MercadoPage() {
                           setPage(0);
                         }}
                       >
-                        {showFavorites ? "A mostrar favoritos" : "Mostrar favoritos"}
+                        {showFavorites ? t("mc_show_fav_on") : t("mc_show_fav")}
                       </button>
                       <div className="flex items-center gap-2">
                         <select
@@ -1527,11 +1527,11 @@ export default function MercadoPage() {
                           onChange={(e) => setSortKey(e.target.value as SortKey)}
                           className="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-xs font-semibold text-slate-200 outline-none focus:border-slate-600"
                         >
-                          <option value="marketCapUsd">Market cap</option>
-                          <option value="volume24hUsd">Volume 24h</option>
+                          <option value="marketCapUsd">{t("mc_mcap")}</option>
+                          <option value="volume24hUsd">{t("mc_sort_vol")}</option>
                           <option value="priceUsd">Preço</option>
                           <option value="change24h">Variação 24h</option>
-                          <option value="symbol">Símbolo</option>
+                          <option value="symbol">{t("mc_sort_symbol")}</option>
                         </select>
                         <button
                           type="button"
@@ -1581,12 +1581,12 @@ export default function MercadoPage() {
                     <thead className="text-xs uppercase tracking-[0.2em] text-slate-500">
                       <tr className="border-b border-slate-800">
                         <th className="px-4 py-3">#</th>
-                        <th className="px-4 py-3">Cripto</th>
-                        <th className="px-4 py-3">Preço (USD)</th>
+                        <th className="px-4 py-3">{t("mc_col_crypto")}</th>
+                        <th className="px-4 py-3">{t("mc_col_price_usd")}</th>
                         <th className="px-4 py-3">Variação 24h</th>
-                        <th className="px-4 py-3">Valor de Mercado (USD)</th>
-                        <th className="px-4 py-3">Volume 24h (USD)</th>
-                        <th className="px-4 py-3" title="Variação de preço nos últimos 7 dias">Tendência (7d)</th>
+                        <th className="px-4 py-3">{t("mc_col_mcap_usd")}</th>
+                        <th className="px-4 py-3">{t("mc_col_vol_usd")}</th>
+                        <th className="px-4 py-3" title="Variação de preço nos últimos 7 dias">{t("mc_col_trend")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1628,7 +1628,7 @@ export default function MercadoPage() {
                                   toggleFavorite(row.symbol);
                                 }}
                                 aria-label={`Favorito ${row.symbol}`}
-                                title={favorites.has(row.symbol) ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                                title={favorites.has(row.symbol) ? t("mc_rm_fav") : t("mc_add_fav")}
                               >
                                 {favorites.has(row.symbol) ? "★" : "☆"}
                               </button>
@@ -1679,9 +1679,9 @@ export default function MercadoPage() {
           <div className="space-y-6">
             <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 space-y-4">
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-orange-400">Briefing Diário</p>
-                <h2 className="text-lg font-bold text-white mt-1">Análise de Mercado com IA</h2>
-                <p className="text-sm text-slate-400 mt-0.5">Powered by Groq · Relatório gerado por IA com base no contexto de mercado</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-orange-400">{t("mc_briefing")}</p>
+                <h2 className="text-lg font-bold text-white mt-1">{t("mc_ai_market")}</h2>
+                <p className="text-sm text-slate-400 mt-0.5">{t("mc_powered")}</p>
               </div>
 
               {/* Tabs crypto/tradicional/diarias */}
@@ -1709,7 +1709,7 @@ export default function MercadoPage() {
                         : "border-slate-700 text-slate-400 hover:border-slate-500"
                     }`}
                   >
-                    {m === "crypto" ? "Cripto" : m === "tradicional" ? "Tradicional" : "📰 Notícias"}
+                    {m === "crypto" ? t("mc_crypto") : m === "tradicional" ? t("mc_traditional") : `📰 ${t("mc_news")}`}
                   </button>
                 ))}
               </div>
@@ -1718,10 +1718,10 @@ export default function MercadoPage() {
               {newsMode === "diarias" && (
                 <div className="space-y-3">
                   {newsItemsLoading && (
-                    <p className="animate-pulse text-sm text-slate-400">A carregar notícias…</p>
+                    <p className="animate-pulse text-sm text-slate-400">{t("mc_loading_news")}</p>
                   )}
                   {!newsItemsLoading && newsItems.length === 0 && (
-                    <p className="text-sm text-slate-500">Sem notícias disponíveis.</p>
+                    <p className="text-sm text-slate-500">{t("mc_no_news")}</p>
                   )}
                   {newsItems.map((item, i) => (
                     <a
@@ -1819,14 +1819,14 @@ export default function MercadoPage() {
                         <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:150ms]"/>
                         <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:300ms]"/>
                       </div>
-                      <p className="text-sm text-slate-400">A analisar notícias com IA…</p>
+                      <p className="text-sm text-slate-400">{t("mc_analyzing_news")}</p>
                     </div>
                   )}
 
                   {newsBriefing && (
                     <div className="rounded-xl border border-orange-500/20 bg-slate-950/60 p-5 space-y-3">
                       <div className="flex items-center justify-between">
-                        <p className="text-xs uppercase tracking-[0.2em] text-orange-400">Análise IA · Notícias</p>
+                        <p className="text-xs uppercase tracking-[0.2em] text-orange-400">{t("mc_ai_news")}</p>
                         <span className="text-[10px] text-slate-500">{newsBriefingDate}</span>
                       </div>
                       <div className="space-y-1">
@@ -1882,7 +1882,7 @@ export default function MercadoPage() {
                 }}
                 className="rounded-xl bg-orange-500 px-6 py-2.5 text-sm font-bold text-slate-950 hover:bg-orange-400 disabled:opacity-50 transition"
               >
-                {newsLoading ? "A gerar briefing…" : "Gerar Briefing Diário"}
+                {newsLoading ? "A gerar briefing…" : t("mc_gen_briefing")}
               </button>
               )}
 
@@ -1892,7 +1892,7 @@ export default function MercadoPage() {
                 <>
                   <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-5 space-y-4">
                     <div className="flex items-center justify-between">
-                      <p className="text-xs text-slate-500">{newsMode === "crypto" ? "Cripto" : "Mercado Tradicional"} · {newsDate}</p>
+                      <p className="text-xs text-slate-500">{newsMode === "crypto" ? t("mc_crypto") : t("mc_mtrad")} · {newsDate}</p>
                       <span className="text-xs text-orange-400 font-semibold">🤖 ChainFolioAI</span>
                     </div>
                     <div className="prose prose-sm prose-invert max-w-none">
@@ -1914,8 +1914,8 @@ export default function MercadoPage() {
                     <div className="flex items-center gap-2">
                       <span className="text-base">💬</span>
                       <div>
-                        <p className="text-sm font-semibold text-white">Perguntas sobre esta análise</p>
-                        <p className="text-xs text-slate-400">Podes fazer perguntas sobre o briefing gerado</p>
+                        <p className="text-sm font-semibold text-white">{t("mc_questions")}</p>
+                        <p className="text-xs text-slate-400">{t("mc_questions_desc")}</p>
                       </div>
                     </div>
 
@@ -1974,10 +1974,10 @@ export default function MercadoPage() {
                             }),
                           });
                           const data = await res.json() as { reply?: string; error?: string };
-                          const reply = data.reply ?? data.error ?? "Erro ao obter resposta.";
+                          const reply = data.reply ?? data.error ?? t("mc_err_response");
                           setChatMessages(prev => [...prev, { role: "assistant", content: reply }]);
                         } catch {
-                          setChatMessages(prev => [...prev, { role: "assistant", content: "Erro de ligação. Tenta novamente." }]);
+                          setChatMessages(prev => [...prev, { role: "assistant", content: t("mc_err_conn") }]);
                         } finally {
                           setChatLoading(false);
                           setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
@@ -1989,7 +1989,7 @@ export default function MercadoPage() {
                         type="text"
                         value={chatInput}
                         onChange={e => setChatInput(e.target.value)}
-                        placeholder="Ex: O que achas do BTC a curto prazo? Por que está o Fear & Greed baixo?"
+                        placeholder={t("mc_chat_ph")}
                         disabled={chatLoading}
                         className="flex-1 rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-orange-500 focus:outline-none disabled:opacity-50"
                       />
