@@ -1583,7 +1583,7 @@ export default function MercadoPage() {
                         <th className="px-4 py-3">#</th>
                         <th className="px-4 py-3">{t("mc_col_crypto")}</th>
                         <th className="px-4 py-3">{t("mc_col_price_usd")}</th>
-                        <th className="px-4 py-3">Variação 24h</th>
+                        <th className="px-4 py-3">{t("mc_sort_change")}</th>
                         <th className="px-4 py-3">{t("mc_col_mcap_usd")}</th>
                         <th className="px-4 py-3">{t("mc_col_vol_usd")}</th>
                         <th className="px-4 py-3" title="Variação de preço nos últimos 7 dias">{t("mc_col_trend")}</th>

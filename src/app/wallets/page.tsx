@@ -2633,7 +2633,7 @@ export default function WalletsPage() {
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 shrink-0">
               <path d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" />
             </svg>
-            <span>Modo só-leitura — o ChainFolioAI consulta saldos públicos da blockchain. Nunca são pedidas chaves privadas nem assinaturas de transações.</span>
+            <span>{t("wl_readonly_banner")}</span>
           </div>
           {isLoadingAuth ? null : isPro ? (
             <p className="text-xs text-emerald-300">
@@ -4219,14 +4219,14 @@ export default function WalletsPage() {
                     ℹ️ Como ligar o Eternl pela primeira vez
                   </summary>
                   <div className="px-4 pb-4 pt-2 space-y-1.5 text-xs text-slate-400">
-                    <p className="font-semibold text-slate-300 mb-2">Antes de clicar "Conectar":</p>
-                    <p>1. Abre o Eternl → clica em <strong className="text-slate-200">Settings</strong> (ícone engrenagem)</p>
-                    <p>2. Vai a <strong className="text-slate-200">dApp Connector</strong></p>
-                    <p>3. Certifica-te que tens uma conta activa listada ali</p>
-                    <p>4. Se não houver nenhuma, cria uma nova conta dApp Connector</p>
-                    <p className="font-semibold text-slate-300 mt-3 mb-1">Depois de clicar "Conectar":</p>
-                    <p>5. Clica no <strong className="text-slate-200">ícone do Eternl</strong> na barra de extensões do Chrome (canto superior direito)</p>
-                    <p>6. Deverá aparecer um pedido pendente → clica <strong className="text-slate-200">Approve</strong></p>
+                    <p className="font-semibold text-slate-300 mb-2">{t("wl_eternl_before")}</p>
+                    <p>1. {t("wl_et_s1")} <strong className="text-slate-200">Settings</strong> {t("wl_et_s1b")}</p>
+                    <p>2. {t("wl_et_s2")} <strong className="text-slate-200">dApp Connector</strong></p>
+                    <p>3. {t("wl_et_s3")}</p>
+                    <p>4. {t("wl_et_s4")}</p>
+                    <p className="font-semibold text-slate-300 mt-3 mb-1">{t("wl_eternl_after")}</p>
+                    <p>5. {t("wl_et_s5")} <strong className="text-slate-200">{t("wl_et_icon")}</strong> {t("wl_et_s5b")}</p>
+                    <p>6. {t("wl_et_s6")} <strong className="text-slate-200">Approve</strong></p>
                   </div>
                 </details>
               )}

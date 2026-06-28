@@ -856,7 +856,7 @@ export default function AccountPage() {
                       )}
                     </div>
                     {isPremium ? (
-                      <p className="text-xs text-slate-400 mt-2">{t("ac_access_page")} <a href="/smart-money" className="text-violet-400 hover:underline">Smart Money</a> — a tua watchlist é agora atualizada automaticamente a cada 60 segundos.</p>
+                      <p className="text-xs text-slate-400 mt-2">{t("ac_access_page")} <a href="/smart-money" className="text-violet-400 hover:underline">Smart Money</a> {t("ac_watchlist_60s")}</p>
                     ) : (
                       <p className="text-xs text-slate-500 mt-2">{t("ac_sm_rt_desc")}</p>
                     )}
