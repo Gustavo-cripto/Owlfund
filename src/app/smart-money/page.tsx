@@ -352,7 +352,7 @@ export default function SmartMoneyPage() {
   const handleAdd = () => {
     setAddError(null);
     const addr = newAddress.trim();
-    if (!addr) { setAddError("Insere um endereço."); return; }
+    if (!addr) { setAddError(t("sm2_enter_addr")); return; }
     if (!isPro && watchlist.length >= FREE_WHALE_LIMIT) {
       setAddError(`Plano Gratuito limitado a ${FREE_WHALE_LIMIT} baleias. Faz upgrade para Pro.`);
       return;

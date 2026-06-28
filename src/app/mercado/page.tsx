@@ -944,7 +944,7 @@ export default function MercadoPage() {
           <h1 className="text-3xl font-semibold text-white">{t("mc_market")}</h1>
           <p className="max-w-2xl text-sm text-slate-400">
             {marketMode === "crypto"
-              ? "Dados em tempo real da CoinEx com comparação entre ativos. Clique em um ativo para abrir o gráfico do TradingView."
+              ? t("mc_coinex_desc")
               : t("mc_trad_desc")}
           </p>
           <div className="flex flex-wrap gap-2">
@@ -1530,7 +1530,7 @@ export default function MercadoPage() {
                           <option value="marketCapUsd">{t("mc_mcap")}</option>
                           <option value="volume24hUsd">{t("mc_sort_vol")}</option>
                           <option value="priceUsd">Preço</option>
-                          <option value="change24h">Variação 24h</option>
+                          <option value="change24h">{t("mc_sort_change")}</option>
                           <option value="symbol">{t("mc_sort_symbol")}</option>
                         </select>
                         <button

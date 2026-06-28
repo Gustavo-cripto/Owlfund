@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -83,6 +84,7 @@ export default function ChatWidget({
   placeholder = "Escreve a tua pergunta...",
   isPro = false,
 }: ChatWidgetProps) {
+  const { t } = useLanguage();
   const pathname = usePathname();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -119,7 +121,17 @@ export default function ChatWidget({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
-  const suggestions = PAGE_SUGGESTIONS[pathname ?? ""] ?? DEFAULT_SUGGESTIONS;
+  const PAGE_SUG: Record<string, string[]> = {
+    "/dashboard":   [t("cw_d1"), t("cw_d2"), t("cw_d3")],
+    "/portfolio":   [t("cw_p1"), t("cw_p2"), t("cw_p3")],
+    "/wallets":     [t("cw_w1"), t("cw_w2"), t("cw_w3")],
+    "/smart-money": [t("cw_sm1"), t("cw_sm2"), t("cw_sm3")],
+    "/mercado":     [t("cw_m1"), t("cw_m2"), t("cw_m3")],
+    "/fiscalidade": [t("cw_fi1"), t("cw_fi2"), t("cw_fi3")],
+    "/fire":        [t("cw_fr1"), t("cw_fr2"), t("cw_fr3")],
+    "/account":     [t("cw_a1"), t("cw_a2"), t("cw_a3")],
+  };
+  const suggestions = PAGE_SUG[pathname ?? ""] ?? [t("cw_d1"), t("cw_def2"), t("cw_def3")];
 
   const sendMessage = async (text: string) => {
     const trimmed = text.trim();
@@ -208,7 +220,7 @@ export default function ChatWidget({
       <div className={`${messagesMaxHeightClassName} space-y-2.5 overflow-y-auto pr-1 scroll-smooth`}>
         {messages.length === 0 ? (
           <div className="space-y-2">
-            <p className="text-xs text-slate-500">Sugestões:</p>
+            <p className="text-xs text-slate-500">{t("cw_suggestions")}</p>
             {suggestions.map((s) => (
               <button
                 key={s}
