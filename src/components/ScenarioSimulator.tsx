@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 type Allocation = { label: string; symbol: string; value: number; percent: string };
 
@@ -23,6 +24,7 @@ const PRESETS: Array<{ label: string; changes: Record<string, number> }> = [
 ];
 
 export default function ScenarioSimulator({ portfolioTotal, allocations, traditionalTotal, stablecoinTotal }: Props) {
+  const { t } = useLanguage();
   const [sliders, setSliders] = useState<Record<string, number>>({});
 
   const cryptoAllocations = allocations.filter(a => a.symbol !== "Stable" && a.symbol !== "Trad." && a.value > 0);
@@ -57,7 +59,7 @@ export default function ScenarioSimulator({ portfolioTotal, allocations, traditi
     <div className="space-y-5">
       {/* Presets */}
       <div>
-        <p className="text-xs text-slate-500 mb-2">Cenários pré-definidos:</p>
+        <p className="text-xs text-slate-500 mb-2">{t("ss_presets")}</p>
         <div className="flex flex-wrap gap-2">
           {PRESETS.map(p => (
             <button
@@ -114,7 +116,7 @@ export default function ScenarioSimulator({ portfolioTotal, allocations, traditi
           return (
             <div className="rounded-xl border border-slate-700 bg-slate-900/80 p-3">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-semibold text-white">Tradicional</span>
+                <span className="text-sm font-semibold text-white">{t("ss_traditional")}</span>
                 <div className="flex items-center gap-2">
                   <span className={`text-xs font-bold ${val > 0 ? "text-emerald-400" : val < 0 ? "text-rose-400" : "text-slate-400"}`}>
                     {val > 0 ? "+" : ""}{val}%
@@ -139,7 +141,7 @@ export default function ScenarioSimulator({ portfolioTotal, allocations, traditi
       {/* Resultado */}
       <div className={`rounded-xl border p-4 flex items-center justify-between ${diff >= 0 ? "border-emerald-500/30 bg-emerald-500/5" : "border-rose-500/30 bg-rose-500/5"}`}>
         <div>
-          <p className="text-xs text-slate-400">Portfólio simulado</p>
+          <p className="text-xs text-slate-400">{t("ss_simulated")}</p>
           <p className="text-2xl font-black text-white mt-0.5">€ {fmt(simulated)}</p>
         </div>
         <div className="text-right">

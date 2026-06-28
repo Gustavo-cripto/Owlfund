@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 export type NftPreview = {
   id: string;
@@ -79,7 +80,7 @@ export default function WalletCard({
   isAvailable,
   onConnect,
   onDisconnect,
-  disconnectLabel = "Desconectar",
+  disconnectLabel,
   onRefresh,
   children,
   allowConnectWhenUnavailable,
@@ -88,6 +89,7 @@ export default function WalletCard({
   extraBalance,
   topContent,
 }: WalletCardProps) {
+  const { t } = useLanguage();
   const [showNfts, setShowNfts] = useState(false);
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
@@ -102,7 +104,7 @@ export default function WalletCard({
               isAvailable ? "bg-emerald-500/20 text-emerald-300" : "bg-rose-500/20 text-rose-300"
             }`}
           >
-            {isAvailable ? "Disponível" : "Indisponível"}
+            {isAvailable ? t("wc_available") : t("wc_unavailable")}
           </span>
           <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold text-sky-300">
             🔒 Só leitura · Sem acesso a fundos
@@ -114,7 +116,7 @@ export default function WalletCard({
       <div className="mt-5 space-y-3 text-sm text-slate-300">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <span className="text-slate-500">Endereço:</span>{" "}
+            <span className="text-slate-500">{t("wc_address")}</span>{" "}
             {address
               ? isAddressVisible
                 ? (addressDisplay ?? formatAddress(address))
@@ -126,29 +128,29 @@ export default function WalletCard({
               type="button"
               onClick={onToggleAddress}
               className="rounded-full border border-slate-700 px-2 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-              title={isAddressVisible ? "Ocultar endereço" : "Mostrar endereço"}
-              aria-label={isAddressVisible ? "Ocultar endereço" : "Mostrar endereço"}
+              title={isAddressVisible ? t("wc_hide_addr") : t("wc_show_addr")}
+              aria-label={isAddressVisible ? t("wc_hide_addr") : t("wc_show_addr")}
             >
               {isAddressVisible ? "🙈" : "👁️"}
             </button>
           ) : null}
         </div>
         <div>
-          <span className="text-slate-500">Saldo:</span>{" "}
+          <span className="text-slate-500">{t("wc_balance")}</span>{" "}
           {balance !== undefined && balance !== null
             ? `${balance} ${balanceUnit ?? ""}`.trim()
             : "—"}
         </div>
         <div>
-          <span className="text-slate-500">Valor:</span>{" "}
+          <span className="text-slate-500">{t("wc_value")}</span>{" "}
           {fiatValueUsd != null
             ? `€ ${(fiatValueUsd * usdToEur).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
             : "—"}
         </div>
         <div className={`flex flex-wrap items-center gap-2 ${hideDefi ? "hidden" : ""}`}>
-          <span className="text-slate-500">DeFi:</span>{" "}
+          <span className="text-slate-500">{t("wc_defi")}</span>{" "}
           {defiLoading
-            ? <span className="animate-pulse">A carregar…</span>
+            ? <span className="animate-pulse">{t("wc_loading")}</span>
             : defiBalanceUsd != null
               ? <span className={defiBalanceUsd >= 0.01 ? "text-emerald-400 font-semibold" : "text-slate-400"}>
                   € {(defiBalanceUsd * usdToEur).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -163,15 +165,15 @@ export default function WalletCard({
                     <a href={`https://defillama.com/portfolio#${address}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-violet-400 hover:text-violet-300 underline underline-offset-2">DeFiLlama ↗</a>
                   </>}
               {onRefreshDefi && (
-                <button type="button" onClick={onRefreshDefi} className="text-slate-600 hover:text-orange-400 transition text-[10px]" title="Atualizar DeFi">↻</button>
+                <button type="button" onClick={onRefreshDefi} className="text-slate-600 hover:text-orange-400 transition text-[10px]" title={t("wc_refresh_defi")}>↻</button>
               )}
             </span>
           )}
         </div>
         <div>
-          <span className="text-slate-500">NFT:</span>{" "}
+          <span className="text-slate-500">{t("wc_nft")}</span>{" "}
           {nftLoading ? (
-            "A carregar..."
+            t("wc_loading2")
           ) : nftCount != null ? (
             <span className="inline-flex items-center gap-2">
               {nftCount} {nftCount === 1 ? "item" : "itens"}
@@ -181,7 +183,7 @@ export default function WalletCard({
                   onClick={() => setShowNfts((v) => !v)}
                   className="rounded-full border border-slate-600 px-2 py-0.5 text-[11px] font-semibold text-slate-300 transition hover:border-slate-500 hover:text-white"
                 >
-                  {showNfts ? "Ocultar" : "Ver"}
+                  {showNfts ? t("wc_hide") : "Ver"}
                 </button>
               ) : null}
             </span>
@@ -191,7 +193,7 @@ export default function WalletCard({
         </div>
         {showNfts && nfts && nfts.length > 0 ? (
           <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-3">
-            <p className="mb-2 text-xs font-semibold text-slate-400">Coleção</p>
+            <p className="mb-2 text-xs font-semibold text-slate-400">{t("wc_collection")}</p>
             <div className="grid max-h-48 grid-cols-4 gap-2 overflow-y-auto sm:grid-cols-5">
               {nfts.slice(0, 20).map((nft) => (
                 <a
@@ -248,7 +250,7 @@ export default function WalletCard({
           onClick={onConnect}
           disabled={isLoading || (!isAvailable && !allowConnectWhenUnavailable)}
         >
-          {isConnected ? "Reconectar" : "Conectar"}
+          {isConnected ? t("wc_reconnect") : t("wc_connect")}
         </button>
         {onDisconnect && isConnected ? (
           <button
@@ -256,7 +258,7 @@ export default function WalletCard({
             onClick={onDisconnect}
             disabled={isLoading}
           >
-            {disconnectLabel}
+            {disconnectLabel ?? t("wc_disconnect")}
           </button>
         ) : null}
         {onRefresh ? (
@@ -268,7 +270,7 @@ export default function WalletCard({
             Atualizar saldo
           </button>
         ) : null}
-        {isLoading ? <span className="text-xs text-slate-500 animate-pulse">{loadingMessage ?? "Carregando..."}</span> : null}
+        {isLoading ? <span className="text-xs text-slate-500 animate-pulse">{loadingMessage ?? t("wc_loading3")}</span> : null}
       </div>
       {children ? <div className="mt-5 space-y-4">{children}</div> : null}
     </div>

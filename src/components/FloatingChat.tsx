@@ -4,11 +4,13 @@ import { useEffect, useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
 import ChatWidget from "@/components/ChatWidget";
 import { createClient } from "@/lib/supabase/client";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 const STORAGE_KEY_OPEN = "owlfund.floatingChat.open.v1";
 const STORAGE_KEY_SEEN = "owlfund.floatingChat.seen.v1";
 
 export default function FloatingChat() {
+  const { t } = useLanguage();
   const pathname = usePathname();
   const supabase = createClient();
   const [isOpen, setIsOpen] = useState(false);
@@ -70,14 +72,14 @@ export default function FloatingChat() {
   }, [pathname]);
 
   const pageLabels: Record<string, string> = {
-    "/dashboard":   "Dashboard",
-    "/portfolio":   "Portfolio",
-    "/wallets":     "Carteiras",
-    "/smart-money": "Smart Money",
-    "/mercado":     "Mercado",
-    "/fiscalidade": "Impostos",
+    "/dashboard":   t("nav_dashboard"),
+    "/portfolio":   t("nav_portfolio"),
+    "/wallets":     t("nav_wallets"),
+    "/smart-money": t("nav_smart_money"),
+    "/mercado":     t("nav_mercado"),
+    "/fiscalidade": t("fch_taxes"),
     "/fire":        "FIRE",
-    "/account":     "Conta",
+    "/account":     t("nav_account"),
   };
   const currentPage = pageLabels[pathname ?? ""] ?? null;
 
@@ -116,7 +118,7 @@ export default function FloatingChat() {
               type="button"
               onClick={() => startTransition(() => setIsOpen(false))}
               className="rounded-full border border-slate-700 bg-slate-900/60 p-1.5 text-slate-400 transition hover:border-slate-500 hover:text-white"
-              aria-label="Fechar chat"
+              aria-label={t("fch_close")}
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -136,11 +138,11 @@ export default function FloatingChat() {
                 messagesMaxHeightClassName="max-h-[52vh]"
                 inputClassName="py-2.5 text-sm"
                 buttonClassName="px-6 py-2.5 text-sm"
-                placeholder="Pergunta sobre o ChainFolioAI ou cripto..."
+                placeholder={t("fch_placeholder")}
                 isPro={isPro}
               />
             )}
-            {!isContentReady && <div className="h-64 flex items-center justify-center"><span className="text-sm text-slate-500 animate-pulse">A carregar Chain...</span></div>}
+            {!isContentReady && <div className="h-64 flex items-center justify-center"><span className="text-sm text-slate-500 animate-pulse">{t("fch_loading")}</span></div>}
           </div>
         </div>
       )}
@@ -150,7 +152,7 @@ export default function FloatingChat() {
         type="button"
         onClick={() => startTransition(() => setIsOpen(prev => !prev))}
         className="pointer-events-auto group relative flex items-center gap-3 rounded-full border border-slate-700 bg-slate-950/90 px-5 py-3 text-sm font-semibold text-slate-100 shadow-2xl shadow-black/40 transition hover:scale-[1.03] hover:border-slate-500 hover:bg-slate-950 active:scale-[0.97]"
-        aria-label={isOpen ? "Minimizar Chain" : "Abrir Chain"}
+        aria-label={isOpen ? t("fch_minimize") : t("fch_open")}
       >
         {/* Glow hover */}
         <span className="pointer-events-none absolute -inset-1 rounded-full bg-orange-500/8 opacity-0 blur transition group-hover:opacity-100" />
@@ -162,7 +164,7 @@ export default function FloatingChat() {
           <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-400 border-2 border-slate-950" />
         </span>
 
-        <span className="hidden sm:inline">Chat</span>
+        <span className="hidden sm:inline">{t("fch_chat")}</span>
 
         {/* Badge "novo" pulsante */}
         {showBadge && !isOpen && (

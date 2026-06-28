@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 type WalletBalance = { label: string; symbol: string; balance?: string; address?: string; network?: string };
@@ -31,11 +32,11 @@ const TIMEFRAMES: { key: TimeFrame; label: string }[] = [
   { key: "tudo", label: "Tudo" },
 ];
 
-const TABS: { key: Tab; label: string }[] = [
-  { key: "overview", label: "Visão geral" },
-  { key: "tokens",   label: "Tokens" },
-  { key: "nfts",     label: "NFTs" },
-  { key: "defi",     label: "DeFi" },
+const TABS: { key: Tab; labelKey: string }[] = [
+  { key: "overview", labelKey: "pcs_overview" },
+  { key: "tokens",   labelKey: "pcs_tokens" },
+  { key: "nfts",     labelKey: "pcs_nfts" },
+  { key: "defi",     labelKey: "pcs_defi" },
 ];
 
 // ── Symbol → chain map ──────────────────────────────────────────────────────
@@ -220,6 +221,7 @@ export default function PortfolioChartSection({
   portfolioTotal, pnlToday, snapshotTotals, historicalPrices,
   wallets, tokenPrices, cryptoTotal,
 }: Props) {
+  const { t } = useLanguage();
   const [tf, setTf] = useState<TimeFrame>("1d");
   const [tab, setTab] = useState<Tab>("overview");
   const [nftData, setNftData] = useState<WalletNfts[]>([]);
@@ -366,12 +368,12 @@ export default function PortfolioChartSection({
 
       {/* ── Tabs ── */}
       <div className="flex gap-0 border-b border-slate-800 mt-6">
-        {TABS.map(({ key, label }) => (
+        {TABS.map(({ key, labelKey }) => (
           <button key={key} type="button" onClick={() => setTab(key)}
             className={`px-4 py-3 text-sm font-medium transition border-b-2 -mb-px flex items-center gap-1.5 ${
               tab === key ? "border-blue-500 text-white" : "border-transparent text-slate-400 hover:text-white"
             }`}>
-            {label}
+            {t(labelKey as Parameters<typeof t>[0])}
             {key === "nfts" && totalNfts > 0 && (
               <span className="text-[10px] bg-slate-700 text-slate-300 rounded-full px-1.5 py-0.5">{totalNfts}</span>
             )}
@@ -386,19 +388,19 @@ export default function PortfolioChartSection({
       {tab === "tokens" && (
         <div className="rounded-b-2xl bg-slate-900/40 border border-t-0 border-slate-800 overflow-hidden">
           <div className="px-4 pt-4 pb-2">
-            <h3 className="text-sm font-bold text-white">Ativos por valor</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Ordenado do maior para o menor saldo</p>
+            <h3 className="text-sm font-bold text-white">{t("pcs_assets_value")}</h3>
+            <p className="text-xs text-slate-500 mt-0.5">{t("pcs_sorted")}</p>
           </div>
           <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-800 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-            <span className="flex-1">Token</span>
-            <span className="w-24 text-right">Preço</span>
-            <span className="w-24 text-right">Saldo</span>
-            <span className="w-24 text-right">Valor</span>
-            <span className="w-28 text-right">L/P não realizado</span>
+            <span className="flex-1">{t("pcs_token")}</span>
+            <span className="w-24 text-right">{t("pcs_price")}</span>
+            <span className="w-24 text-right">{t("pcs_balance")}</span>
+            <span className="w-24 text-right">{t("pcs_value")}</span>
+            <span className="w-28 text-right">{t("pcs_unrealized")}</span>
           </div>
           <div className="px-4">
             {wallets.filter(w => (parseFloat(w.balance ?? "0") || 0) * (priceMap[w.symbol] ?? 0) >= 0.01).length === 0 ? (
-              <p className="text-sm text-slate-500 py-8 text-center">Nenhum token com valor encontrado.<br /><a href="/wallets" className="text-orange-400 underline text-xs">Liga uma carteira →</a></p>
+              <p className="text-sm text-slate-500 py-8 text-center">{t("pcs_no_token")}<br /><a href="/wallets" className="text-orange-400 underline text-xs">{t("pcs_connect_wallet")}</a></p>
             ) : [...wallets]
                 .sort((a, b) => {
                   const va = (parseFloat(a.balance ?? "0") || 0) * (priceMap[a.symbol] ?? 0);
@@ -416,7 +418,7 @@ export default function PortfolioChartSection({
             }, 0);
             return walletTotal > 0 ? (
               <div className="px-4 py-3 border-t border-slate-800 flex items-center justify-between">
-                <span className="text-xs text-slate-500">Total Blockchain</span>
+                <span className="text-xs text-slate-500">{t("pcs_total_blockchain")}</span>
                 <span className="text-sm font-bold text-white">€ {fmtEur(walletTotal)}</span>
               </div>
             ) : null;
@@ -430,8 +432,8 @@ export default function PortfolioChartSection({
           {addressedWallets.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-3xl mb-2">🖼️</p>
-              <p className="text-sm font-semibold text-white">Sem carteiras ligadas</p>
-              <p className="text-xs text-slate-400 mt-1"><a href="/wallets" className="text-orange-400 underline">Liga uma carteira →</a></p>
+              <p className="text-sm font-semibold text-white">{t("pcs_no_wallets")}</p>
+              <p className="text-xs text-slate-400 mt-1"><a href="/wallets" className="text-orange-400 underline">{t("pcs_connect_wallet")}</a></p>
             </div>
           ) : (
             <div className="space-y-6">
@@ -452,7 +454,7 @@ export default function PortfolioChartSection({
                   ) : wd.error ? (
                     <p className="text-xs text-rose-400 py-2">{wd.error}</p>
                   ) : wd.nfts.length === 0 ? (
-                    <p className="text-xs text-slate-500 py-2">Nenhum NFT encontrado nesta carteira.</p>
+                    <p className="text-xs text-slate-500 py-2">{t("pcs_no_nft")}</p>
                   ) : (
                     <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
                       {wd.nfts.map((nft) => (
@@ -473,15 +475,15 @@ export default function PortfolioChartSection({
           {addressedWallets.filter(w => ["ETH", "SOL"].includes(w.symbol)).length === 0 ? (
             <div className="text-center py-8">
               <p className="text-3xl mb-2">⚡</p>
-              <p className="text-sm font-semibold text-white">Sem carteiras ETH/SOL ligadas</p>
-              <p className="text-xs text-slate-400 mt-1"><a href="/wallets" className="text-orange-400 underline">Liga uma carteira →</a></p>
+              <p className="text-sm font-semibold text-white">{t("pcs_no_ethsol")}</p>
+              <p className="text-xs text-slate-400 mt-1"><a href="/wallets" className="text-orange-400 underline">{t("pcs_connect_wallet")}</a></p>
             </div>
           ) : (
             <div className="space-y-4">
               {/* Summary */}
               {totalDefi > 0 && (
                 <div className="flex items-center justify-between rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
-                  <span className="text-sm text-slate-300">Total DeFi</span>
+                  <span className="text-sm text-slate-300">{t("pcs_total_defi")}</span>
                   <span className="text-lg font-black text-emerald-400">€ {fmtEur(totalDefi)}</span>
                 </div>
               )}
@@ -503,7 +505,7 @@ export default function PortfolioChartSection({
                   ) : wd.error ? (
                     <p className="text-xs text-rose-400">{wd.error}</p>
                   ) : wd.total === 0 ? (
-                    <p className="text-xs text-slate-500">Nenhuma posição DeFi encontrada.</p>
+                    <p className="text-xs text-slate-500">{t("pcs_no_defi")}</p>
                   ) : (
                     <div className="space-y-2">
                       {wd.positions.map((pos, i) => (
