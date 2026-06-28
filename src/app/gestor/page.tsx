@@ -57,7 +57,7 @@ function formatMarkdown(text: string): string {
 
 export default function GestorPage() {
   useRequireAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const supabase = createClient();
 
   const [planStatus, setPlanStatus] = useState<PlanStatus>("loading");
@@ -134,7 +134,7 @@ export default function GestorPage() {
       const res = await fetch("/api/gestor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history, watchlist }),
+        body: JSON.stringify({ messages: history, watchlist, lang }),
       });
 
       if (!res.ok) {

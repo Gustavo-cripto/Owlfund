@@ -223,7 +223,10 @@ export async function POST(req: NextRequest) {
     const isPremium = !!premiumPriceId && sub?.price_id === premiumPriceId;
     if (!isPremium) return NextResponse.json({ error: "Requer Plano Premium." }, { status: 403 });
 
-    const body = await req.json() as { messages: Message[]; watchlist?: WatchEntry[] };
+    const body = await req.json() as { messages: Message[]; watchlist?: WatchEntry[]; lang?: string };
+    const lang = body.lang ?? "pt";
+    const LANG_NAME: Record<string, string> = { pt: "português europeu (PT-PT)", en: "English", es: "español", fr: "français" };
+    const langDirective = `\n\nIDIOMA (REGRA ABSOLUTA, ignora o idioma do contexto/portfolio acima): Responde SEMPRE e EXCLUSIVAMENTE em ${LANG_NAME[lang] ?? "português europeu (PT-PT)"}. Toda a tua resposta — títulos, listas e texto — tem de estar nesse idioma, independentemente do idioma em que o contexto do portfolio ou a watchlist estejam escritos.`;
     const messages = (body.messages ?? []).slice(-14).map(m => ({
       role: m.role,
       content: String(m.content ?? "").slice(0, 4000),
@@ -254,7 +257,7 @@ export async function POST(req: NextRequest) {
 
     const portfolioCtx = buildPortfolioContext(snapshotRow?.data as SnapshotData ?? null, sub, prices);
     const watchlistCtx = buildWatchlistContext(watchlist, movementsList);
-    const systemPrompt = `${getGestorSystem()}\n\n${portfolioCtx}${watchlistCtx}`;
+    const systemPrompt = `${getGestorSystem()}\n\n${portfolioCtx}${watchlistCtx}${langDirective}`;
 
     const reply = await callLLM([
       { role: "system", content: systemPrompt },
