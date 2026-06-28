@@ -134,7 +134,7 @@ const formatDateShort = (timestampSec: number) => {
 
 
 function useClassification() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   return (value: string) => {
     switch (value) {
       case "Extreme Fear": return t("merc_extreme_fear");
@@ -216,7 +216,7 @@ function FearGreedWidget({
   onSelectSymbol: (symbol: string) => void;
   selectedSymbol: string | null;
 }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const mapClass = useClassification();
   const now = points[0];
   const yesterday = points[1];
@@ -485,7 +485,7 @@ function TradingViewWidget({
 
 export default function MercadoPage() {
   useRequireAuth("/login");
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [userPlan, setUserPlan] = useState<"free" | "pro" | "premium">("free");
   useEffect(() => {
     fetch("/api/subscription").then(r => r.json()).then((d: { plan?: string }) => {
@@ -1791,7 +1791,7 @@ export default function MercadoPage() {
                             const r = await fetch("/api/news-briefing", {
                               method: "POST",
                               headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ items: newsItems }),
+                              body: JSON.stringify({ items: newsItems, lang }),
                             });
                             const d = await r.json() as { content?: string; error?: string; date?: string };
                             if (!r.ok || d.error) { setNewsBriefingError(d.error ?? "Erro"); return; }
@@ -1868,7 +1868,7 @@ export default function MercadoPage() {
                     const res = await fetch("/api/market-news", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ mode: newsMode }),
+                      body: JSON.stringify({ mode: newsMode, lang }),
                     });
                     const data = await res.json() as { content?: string; error?: string; date?: string };
                     if (!res.ok || data.error) { setNewsError(data.error ?? "Erro"); return; }

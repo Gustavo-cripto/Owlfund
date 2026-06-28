@@ -26,7 +26,8 @@ O utilizador acabou de receber este briefing diário gerado por ti:
 ${briefing}
 --- FIM DO BRIEFING ---
 
-Responde em português europeu de forma clara e concisa. Baseia as tuas respostas no briefing fornecido e no teu conhecimento de mercados. Mantém o tom profissional mas acessível. Não repitas o briefing completo — responde diretamente à pergunta.`;
+Responde de forma clara e concisa. Baseia as tuas respostas no briefing fornecido e no teu conhecimento de mercados. Mantém o tom profissional mas acessível. Não repitas o briefing completo — responde diretamente à pergunta.
+IDIOMA (regra crítica): Responde SEMPRE no mesmo idioma em que o utilizador escreveu a pergunta (inglês→inglês, espanhol→espanhol, francês→francês, português→PT-PT). Deteta o idioma da pergunta; não assumas português por defeito.`;
 
   const groqMessages = [
     { role: "system", content: systemPrompt },

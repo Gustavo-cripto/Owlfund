@@ -89,8 +89,10 @@ async function buildTraditionalContext(): Promise<string> {
 }
 
 export async function POST(request: Request) {
-  const body = await request.json() as { mode?: "crypto" | "tradicional" };
-  const { mode = "crypto" } = body;
+  const body = await request.json() as { mode?: "crypto" | "tradicional"; lang?: string };
+  const { mode = "crypto", lang = "pt" } = body;
+  const LANG_NAME: Record<string, string> = { pt: "português europeu (PT-PT)", en: "English", es: "español", fr: "français" };
+  const langInstruction = `\n\nIDIOMA (regra crítica): Escreve TODO o briefing em ${LANG_NAME[lang] ?? "português europeu (PT-PT)"}, incluindo títulos e secções.`;
 
   const apiKey = (process.env.GROQ_API_KEY ?? "").trim();
   if (!apiKey) return NextResponse.json({ error: "GROQ_API_KEY não configurada." }, { status: 503 });
@@ -172,7 +174,7 @@ Escreve um briefing do mercado tradicional em português europeu.
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model,
-        messages: [{ role: "user", content: prompt }],
+        messages: [{ role: "user", content: prompt + langInstruction }],
         max_tokens: 1500,
         temperature: 0.2,
       }),
