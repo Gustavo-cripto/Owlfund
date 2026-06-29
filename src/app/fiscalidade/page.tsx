@@ -358,7 +358,14 @@ export default function FiscalidadePage() {
     doc.rect(0, 0, W, 3, "F");
     const logo = await loadLogo();
     const logoSize = 20;
-    let y = 12;
+    // Vertically center the content block: estimate its height and offset the top.
+    const pageH = doc.internal.pageSize.getHeight();
+    const estHeight = 151 + taxEvents.length * 9; // header + summary + table + breakdown + notes
+    const usableTop = 8, usableBottom = pageH - 18;
+    const fits = estHeight < usableBottom - usableTop;
+    let y = fits
+      ? Math.min(55, Math.max(14, usableTop + (usableBottom - usableTop - estHeight) / 2))
+      : 12;
     if (logo) {
       doc.addImage(logo, "PNG", cx - logoSize / 2, y, logoSize, logoSize);
       y += logoSize + 5;
