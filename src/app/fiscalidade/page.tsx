@@ -538,6 +538,14 @@ export default function FiscalidadePage() {
                 + {t("add")}
               </button>
             </div>
+            {newTrade.amount > 0 && newTrade.price > 0 && (
+              <p className="mt-3 text-xs text-slate-400">
+                {newTrade.amount} {newTrade.asset || "—"} × € {newTrade.price.toLocaleString("pt-PT")} =
+                <span className="ml-1 font-semibold text-orange-300">
+                  € {(newTrade.amount * newTrade.price).toLocaleString("pt-PT", { maximumFractionDigits: 2 })}
+                </span>
+              </p>
+            )}
           </div>
 
           {/* Transações */}
