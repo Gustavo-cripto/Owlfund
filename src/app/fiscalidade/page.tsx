@@ -323,18 +323,51 @@ export default function FiscalidadePage() {
     URL.revokeObjectURL(url);
   };
 
-  const exportPDF = () => {
+  const loadLogo = (): Promise<string | null> =>
+    new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        try {
+          const size = 128; // downscale to keep the PDF small
+          const canvas = document.createElement("canvas");
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return resolve(null);
+          ctx.drawImage(img, 0, 0, size, size);
+          resolve(canvas.toDataURL("image/png"));
+        } catch {
+          resolve(null);
+        }
+      };
+      img.onerror = () => resolve(null);
+      img.src = "/chainfolioai-icon.png";
+    });
+
+  const exportPDF = async () => {
     const eur = (v: number) => `EUR ${Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     const W = doc.internal.pageSize.getWidth();
     const M = 14;
     let y = 18;
 
-    // Header
+    // Header — top accent bar + brand (logo + name)
     doc.setFillColor(249, 115, 22);
     doc.rect(0, 0, W, 4, "F");
+    const logo = await loadLogo();
+    let titleX = M;
+    if (logo) {
+      doc.addImage(logo, "PNG", M, y - 7, 9, 9);
+      titleX = M + 12;
+    }
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
+    doc.setFontSize(13);
+    doc.setTextColor(249, 115, 22);
+    doc.text("ChainFolioAI", titleX, y - 1.5);
+    y += 6;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(15);
     doc.setTextColor(17, 24, 39);
     doc.text(t("fisc_pdf_title"), M, y);
     y += 7;
