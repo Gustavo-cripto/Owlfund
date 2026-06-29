@@ -73,6 +73,7 @@ function buildCountryLaw(t: (k: TranslationKey) => string): Country[] {
     c("AU", "🇦🇺", "border-sky-500/30 bg-sky-500/5", "text-sky-400", "au", "ITAA 1997 s. 108-5 / ATO (2014–2023)", "premium"),
     c("CH", "🇨🇭", "border-red-500/30 bg-red-500/5", "text-red-400", "ch", "DBG art. 16 / LIFD", "premium"),
     c("AE", "🇦🇪", "border-amber-500/30 bg-amber-500/5", "text-amber-400", "ae", "Federal Decree-Law No. 47 of 2022", "premium"),
+    c("SG", "🇸🇬", "border-red-400/30 bg-red-400/5", "text-red-300", "sg", "Payment Services Act 2019 / IRAS e-Tax Guide", "premium"),
   ];
 }
 
@@ -203,6 +204,7 @@ const PREMIUM_COUNTRIES = [
   { code: "AU", flag: "🇦🇺", labelKey: "fc_au" },
   { code: "CH", flag: "🇨🇭", labelKey: "fc_ch_name" },
   { code: "AE", flag: "🇦🇪", labelKey: "fc_ae_name" },
+  { code: "SG", flag: "🇸🇬", labelKey: "fc_sg_name" },
 ] as const;
 
 export default function FiscalidadePage() {
@@ -245,6 +247,7 @@ export default function FiscalidadePage() {
     AU: { short: 0.45, long: 0.225,longDays: 365, longLabel: "50% desconto (>1 ano)" },
     CH: { short: 0.0,  long: 0.0,  longDays: 0,   longLabel: "Isento (investidor privado)" },
     AE: { short: 0.0,  long: 0.0,  longDays: 0,   longLabel: "0% (sem imposto)" },
+    SG: { short: 0.0,  long: 0.0,  longDays: 0,   longLabel: "0% (investidor privado)" },
   };
   const regime = taxRates[country] ?? taxRates["PT"];
 
