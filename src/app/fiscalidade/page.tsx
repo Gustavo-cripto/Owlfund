@@ -511,7 +511,8 @@ export default function FiscalidadePage() {
 
           {/* Adicionar transação */}
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-4">{t("fisc_add_trade")}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-1">{t("fisc_add_trade")}</p>
+            <p className="text-xs text-slate-500 mb-4">{t("fisc_form_hint")}</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               <select value={newTrade.type} onChange={e => setNewTrade(tr => ({ ...tr, type: e.target.value as "compra" | "venda" }))}
                 className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500">
@@ -605,7 +606,7 @@ export default function FiscalidadePage() {
                         🔒 {t("fisc_export_csv_pro")}
                       </a>
                     )}
-                    {isPremium ? (
+                    {isPro ? (
                       <button onClick={exportPDF}
                         className="flex items-center gap-2 rounded-xl border border-violet-500/40 bg-violet-500/5 px-3 py-1.5 text-xs font-semibold text-violet-300 hover:bg-violet-500/10 transition">
                         ↓ {t("fisc_export_pdf")}
@@ -613,7 +614,7 @@ export default function FiscalidadePage() {
                     ) : (
                       <a href="/pricing"
                         className="flex items-center gap-2 rounded-xl border border-violet-500/20 px-3 py-1.5 text-xs font-semibold text-violet-400/50 hover:border-violet-500/40 hover:text-violet-300 transition">
-                        💎 {t("fisc_export_pdf_premium")}
+                        🔒 {t("fisc_export_pdf_premium")}
                       </a>
                     )}
                   </div>
