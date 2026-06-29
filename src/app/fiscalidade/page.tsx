@@ -47,11 +47,11 @@ const emptyTrade = (): TradeEntry => ({
   exchange: "Binance",
 });
 
-type Country = { code: string; flag: string; name: string; taxShort: string; taxLong: string; threshold: string; color: string; badge: string; summary: string; keyPoints: string[]; law: string };
+type Country = { code: string; flag: string; name: string; taxShort: string; taxLong: string; threshold: string; color: string; badge: string; summary: string; keyPoints: string[]; law: string; plan: "free" | "pro" | "premium" };
 
 function buildCountryLaw(t: (k: TranslationKey) => string): Country[] {
-  const c = (code: string, flag: string, color: string, badge: string, p: string, law: string): Country => ({
-    code, flag, color, badge, law,
+  const c = (code: string, flag: string, color: string, badge: string, p: string, law: string, plan: "free" | "pro" | "premium" = "free"): Country => ({
+    code, flag, color, badge, law, plan,
     name: t(`fc_${p}_name` as TranslationKey),
     taxShort: t(`fc_${p}_short` as TranslationKey),
     taxLong: t(`fc_${p}_long` as TranslationKey),
@@ -64,18 +64,25 @@ function buildCountryLaw(t: (k: TranslationKey) => string): Country[] {
     c("ES", "🇪🇸", "border-yellow-500/30 bg-yellow-500/5", "text-yellow-400", "es", "LIRPF art. 33–35 (2025)"),
     c("FR", "🇫🇷", "border-blue-500/30 bg-blue-500/5", "text-blue-400", "fr", "CGI art. 150 VH bis"),
     c("DE", "🇩🇪", "border-slate-500/30 bg-slate-500/5", "text-slate-400", "de", "EStG § 23"),
-    c("UK", "🇬🇧", "border-purple-500/30 bg-purple-500/5", "text-purple-400", "uk", "TCGA 1992 / HMRC (Autumn Budget 2024)"),
-    c("US", "🇺🇸", "border-red-500/30 bg-red-500/5", "text-red-400", "us", "IRS Notice 2014-21 / Rev. Ruling 2023-14"),
-    c("CH", "🇨🇭", "border-red-500/30 bg-red-500/5", "text-red-400", "ch", "DBG art. 16 / LIFD"),
-    c("AE", "🇦🇪", "border-amber-500/30 bg-amber-500/5", "text-amber-400", "ae", "Federal Decree-Law No. 47 of 2022"),
+    c("GB", "🇬🇧", "border-purple-500/30 bg-purple-500/5", "text-purple-400", "uk", "TCGA 1992 / HMRC (Autumn Budget 2024)", "pro"),
+    c("NL", "🇳🇱", "border-orange-500/30 bg-orange-500/5", "text-orange-400", "nl", "Wet IB 2001, Box 3", "pro"),
+    c("IT", "🇮🇹", "border-green-600/30 bg-green-600/5", "text-green-300", "it", "D.Lgs. 461/1997 / Legge 197/2022", "pro"),
+    c("BR", "🇧🇷", "border-emerald-500/30 bg-emerald-500/5", "text-emerald-400", "br", "IN RFB 1888/2019 / Lei 14.754/2023", "pro"),
+    c("US", "🇺🇸", "border-red-500/30 bg-red-500/5", "text-red-400", "us", "IRS Notice 2014-21 / Rev. Ruling 2023-14", "premium"),
+    c("CA", "🇨🇦", "border-rose-500/30 bg-rose-500/5", "text-rose-400", "ca", "ITA s. 38 / CRA IT-218R", "premium"),
+    c("AU", "🇦🇺", "border-sky-500/30 bg-sky-500/5", "text-sky-400", "au", "ITAA 1997 s. 108-5 / ATO (2014–2023)", "premium"),
+    c("CH", "🇨🇭", "border-red-500/30 bg-red-500/5", "text-red-400", "ch", "DBG art. 16 / LIFD", "premium"),
+    c("AE", "🇦🇪", "border-amber-500/30 bg-amber-500/5", "text-amber-400", "ae", "Federal Decree-Law No. 47 of 2022", "premium"),
   ];
 }
 
-function LegislationSection() {
+function LegislationSection({ isPro, isPremium }: { isPro: boolean; isPremium: boolean }) {
   const { t } = useLanguage();
   const [selected, setSelected] = useState<string | null>(null);
   const COUNTRY_LAW = buildCountryLaw(t);
   const selectedCountry = COUNTRY_LAW.find((c) => c.code === selected);
+  const canView = (plan: "free" | "pro" | "premium") =>
+    plan === "free" || (plan === "pro" && isPro) || (plan === "premium" && isPremium);
 
   return (
     <div className="space-y-6">
@@ -89,36 +96,68 @@ function LegislationSection() {
 
       {/* Country grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {COUNTRY_LAW.map((c) => (
-          <button
-            key={c.code}
-            type="button"
-            onClick={() => setSelected(selected === c.code ? null : c.code)}
-            className={`rounded-2xl border p-4 text-left transition hover:brightness-110 ${c.color} ${selected === c.code ? "ring-2 ring-orange-500/40" : ""}`}
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-2xl">{c.flag}</span>
-              <div>
-                <p className="text-xs font-bold text-white">{c.name}</p>
-                <p className={`text-[10px] font-medium ${c.badge}`}>{c.code}</p>
+        {COUNTRY_LAW.map((c) => {
+          const unlocked = canView(c.plan);
+          return unlocked ? (
+            <button
+              key={c.code}
+              type="button"
+              onClick={() => setSelected(selected === c.code ? null : c.code)}
+              className={`rounded-2xl border p-4 text-left transition hover:brightness-110 ${c.color} ${selected === c.code ? "ring-2 ring-orange-500/40" : ""}`}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-2xl">{c.flag}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-white">{c.name}</p>
+                  <p className={`text-[10px] font-medium ${c.badge}`}>{c.code}</p>
+                </div>
               </div>
-            </div>
-            <div className="space-y-1">
-              <div className="flex justify-between text-[10px]">
-                <span className="text-slate-500">{t("fc_short_term")}</span>
-                <span className="text-rose-400 font-medium">{c.taxShort}</span>
+              <div className="space-y-1">
+                <div className="flex justify-between text-[10px]">
+                  <span className="text-slate-500">{t("fc_short_term")}</span>
+                  <span className="text-rose-400 font-medium">{c.taxShort}</span>
+                </div>
+                <div className="flex justify-between text-[10px]">
+                  <span className="text-slate-500">{t("fc_long_term")}</span>
+                  <span className="text-emerald-400 font-medium">{c.taxLong}</span>
+                </div>
+                <div className="flex justify-between text-[10px]">
+                  <span className="text-slate-500">{t("fc_threshold")}</span>
+                  <span className="text-slate-400 font-medium text-right">{c.threshold}</span>
+                </div>
               </div>
-              <div className="flex justify-between text-[10px]">
-                <span className="text-slate-500">{t("fc_long_term")}</span>
-                <span className="text-emerald-400 font-medium">{c.taxLong}</span>
+            </button>
+          ) : (
+            <a
+              key={c.code}
+              href="/pricing"
+              className={`rounded-2xl border p-4 text-left transition opacity-60 hover:opacity-80 ${c.color}`}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-2xl">{c.flag}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-white">{c.name}</p>
+                  <p className={`text-[10px] font-medium ${c.badge}`}>{c.code}</p>
+                </div>
+                <span className="text-[10px]">{c.plan === "premium" ? "💎" : "🔒"}</span>
               </div>
-              <div className="flex justify-between text-[10px]">
-                <span className="text-slate-500">{t("fc_threshold")}</span>
-                <span className="text-slate-400 font-medium text-right">{c.threshold}</span>
+              <div className="space-y-1">
+                <div className="flex justify-between text-[10px]">
+                  <span className="text-slate-500">{t("fc_short_term")}</span>
+                  <span className="text-rose-400 font-medium">{c.taxShort}</span>
+                </div>
+                <div className="flex justify-between text-[10px]">
+                  <span className="text-slate-500">{t("fc_long_term")}</span>
+                  <span className="text-emerald-400 font-medium">{c.taxLong}</span>
+                </div>
+                <div className="flex justify-between text-[10px]">
+                  <span className="text-slate-500">{t("fc_threshold")}</span>
+                  <span className="text-slate-400 font-medium text-right">{c.threshold}</span>
+                </div>
               </div>
-            </div>
-          </button>
-        ))}
+            </a>
+          );
+        })}
       </div>
 
       {/* Detail panel */}
@@ -163,6 +202,7 @@ const PREMIUM_COUNTRIES = [
   { code: "CA", flag: "🇨🇦", labelKey: "fc_ca" },
   { code: "AU", flag: "🇦🇺", labelKey: "fc_au" },
   { code: "CH", flag: "🇨🇭", labelKey: "fc_ch_name" },
+  { code: "AE", flag: "🇦🇪", labelKey: "fc_ae_name" },
 ] as const;
 
 export default function FiscalidadePage() {
@@ -204,6 +244,7 @@ export default function FiscalidadePage() {
     CA: { short: 0.27, long: 0.27, longDays: 0,   longLabel: "27% (50% inclusion rate)" },
     AU: { short: 0.45, long: 0.225,longDays: 365, longLabel: "50% desconto (>1 ano)" },
     CH: { short: 0.0,  long: 0.0,  longDays: 0,   longLabel: "Isento (investidor privado)" },
+    AE: { short: 0.0,  long: 0.0,  longDays: 0,   longLabel: "0% (sem imposto)" },
   };
   const regime = taxRates[country] ?? taxRates["PT"];
 
@@ -510,7 +551,7 @@ export default function FiscalidadePage() {
           )}
 
           {/* Legislação por país */}
-          <LegislationSection />
+          <LegislationSection isPro={isPro} isPremium={isPremium} />
 
         </main>
       </div>
