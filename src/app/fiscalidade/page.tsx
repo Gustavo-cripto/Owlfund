@@ -324,7 +324,7 @@ export default function FiscalidadePage() {
   };
 
   const exportPDF = () => {
-    const eur = (v: number) => `EUR ${Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const eur = (v: number) => `EUR ${Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     const W = doc.internal.pageSize.getWidth();
     const M = 14;
@@ -434,7 +434,7 @@ export default function FiscalidadePage() {
 
   if (isLoading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-400 animate-pulse">{t("loading")}</p></div>;
 
-  const fmtEur = (v: number) => `€ ${Math.abs(v).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const fmtEur = (v: number) => `€ ${Math.abs(v).toLocaleString("pt-PT", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
   return (
     <AppShell>
@@ -629,7 +629,7 @@ export default function FiscalidadePage() {
                           <td className="py-2 pr-4 text-slate-300">€ {e.buyPrice.toFixed(0)}</td>
                           <td className="py-2 pr-4 text-slate-300">€ {e.sellPrice.toFixed(0)}</td>
                           <td className={`py-2 pr-4 font-semibold ${e.gain >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                            {e.gain >= 0 ? "+" : ""}€ {e.gain.toFixed(2)}
+                            {e.gain >= 0 ? "+" : ""}€ {e.gain.toLocaleString("pt-PT", { maximumFractionDigits: 0 })}
                           </td>
                           <td className="py-2 pr-4">
                             <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${e.holding === "longo" ? "bg-emerald-500/20 text-emerald-400" : "bg-orange-500/20 text-orange-400"}`}>
@@ -638,7 +638,7 @@ export default function FiscalidadePage() {
                           </td>
                           <td className="py-2 pr-4 text-slate-400">{(e.taxRate * 100).toFixed(0)}%</td>
                           <td className={`py-2 font-semibold ${e.gain > 0 && e.taxRate > 0 ? "text-orange-400" : "text-emerald-400"}`}>
-                            {e.gain > 0 && e.taxRate > 0 ? `€ ${(e.gain * e.taxRate).toFixed(2)}` : t("fc_exempt")}
+                            {e.gain > 0 && e.taxRate > 0 ? `€ ${(e.gain * e.taxRate).toLocaleString("pt-PT", { maximumFractionDigits: 0 })}` : t("fc_exempt")}
                           </td>
                         </tr>
                       ))}
