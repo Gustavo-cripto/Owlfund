@@ -358,14 +358,13 @@ export default function FiscalidadePage() {
     doc.rect(0, 0, W, 3, "F");
     const logo = await loadLogo();
     const logoSize = 20;
-    // Vertically center the content block: estimate its height and offset the top.
+    // Keep logo/name at the top; distribute leftover space between sections to fill the page.
     const pageH = doc.internal.pageSize.getHeight();
     const estHeight = 151 + taxEvents.length * 9; // header + summary + table + breakdown + notes
-    const usableTop = 8, usableBottom = pageH - 18;
-    const fits = estHeight < usableBottom - usableTop;
-    let y = fits
-      ? Math.min(55, Math.max(14, usableTop + (usableBottom - usableTop - estHeight) / 2))
-      : 12;
+    const usableBottom = pageH - 18;
+    const leftover = usableBottom - (12 + estHeight);
+    const gap = leftover > 0 ? Math.min(38, leftover / 3) : 0; // spread across 3 boundaries
+    let y = 12;
     if (logo) {
       doc.addImage(logo, "PNG", cx - logoSize / 2, y, logoSize, logoSize);
       y += logoSize + 5;
@@ -410,7 +409,7 @@ export default function FiscalidadePage() {
       doc.setTextColor(107, 114, 128);
       doc.text(c[0], cx, y + 13.5, { align: "center" });
     });
-    y += sumH + 7;
+    y += sumH + 7 + gap;
 
     // Events table
     doc.setFont("helvetica", "bold");
@@ -473,7 +472,7 @@ export default function FiscalidadePage() {
     doc.text(`${t("fisc_pdf_net_taxable")}:`, M, y);
     doc.setTextColor(249, 115, 22);
     doc.text(eur(summary.tax), W - M, y, { align: "right" });
-    y += 10;
+    y += 10 + gap;
 
     if (y > 250) { doc.addPage(); y = 18; }
 
@@ -516,7 +515,7 @@ export default function FiscalidadePage() {
       doc.setTextColor(55, 65, 81);
       doc.text(s[1], bx + (col + 1) * (bw / 2) - 6, sy, { align: "right" });
     });
-    y += bh + 7;
+    y += bh + 7 + gap;
 
     // Notes
     doc.setFont("helvetica", "bold");
