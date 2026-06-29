@@ -6,6 +6,7 @@ import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { createClient } from "@/lib/supabase/client";
+import { jsPDF } from "jspdf";
 
 type TradeEntry = {
   id: string;
@@ -322,6 +323,115 @@ export default function FiscalidadePage() {
     URL.revokeObjectURL(url);
   };
 
+  const exportPDF = () => {
+    const eur = (v: number) => `EUR ${Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const W = doc.internal.pageSize.getWidth();
+    const M = 14;
+    let y = 18;
+
+    // Header
+    doc.setFillColor(249, 115, 22);
+    doc.rect(0, 0, W, 4, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.setTextColor(17, 24, 39);
+    doc.text(t("fisc_pdf_title"), M, y);
+    y += 7;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(107, 114, 128);
+    doc.text(`${t("fisc_pdf_generated")}: ${new Date().toLocaleDateString()}`, M, y);
+    doc.text(`${t("fisc_pdf_country")}: ${country} (${(regime.short * 100).toFixed(0)}% / ${regime.longLabel})`, W - M, y, { align: "right" });
+    y += 9;
+
+    // Summary box
+    doc.setDrawColor(229, 231, 235);
+    doc.setFillColor(249, 250, 251);
+    doc.roundedRect(M, y, W - M * 2, 26, 2, 2, "FD");
+    const cards: Array<[string, string, [number, number, number]]> = [
+      [t("fc_total_gains"), eur(summary.totalGain), summary.totalGain >= 0 ? [16, 185, 129] : [239, 68, 68]],
+      [t("fc_exempt_long"), eur(summary.exempt), [16, 185, 129]],
+      [t("fc_realized_losses"), eur(summary.losses), [239, 68, 68]],
+      [t("fc_estimated_tax"), eur(summary.tax), [249, 115, 22]],
+    ];
+    const colW = (W - M * 2) / 4;
+    cards.forEach((c, i) => {
+      const cx = M + colW * i + colW / 2;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.setTextColor(...c[2]);
+      doc.text(c[1], cx, y + 11, { align: "center" });
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(107, 114, 128);
+      doc.text(c[0], cx, y + 18, { align: "center" });
+    });
+    y += 34;
+
+    // Events table
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(17, 24, 39);
+    doc.text(`${t("fisc_pdf_events")} (${taxEvents.length})`, M, y);
+    y += 6;
+
+    const headers = [t("fc_col_asset"), t("fc_col_buy"), t("fc_col_sell"), t("fc_col_qtd"), t("fc_col_buyp"), t("fc_col_sellp"), t("fc_col_gain"), t("fc_col_type"), t("fc_col_rate"), t("fc_col_tax")];
+    const colsX = [M, M + 16, M + 38, M + 60, M + 78, M + 98, M + 118, M + 142, M + 158, M + 172];
+    doc.setFillColor(243, 244, 246);
+    doc.rect(M, y - 4, W - M * 2, 7, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(75, 85, 99);
+    headers.forEach((h, i) => doc.text(h, colsX[i], y));
+    y += 6;
+
+    doc.setFont("helvetica", "normal");
+    taxEvents.forEach((e, idx) => {
+      if (y > 270) { doc.addPage(); y = 20; }
+      if (idx % 2 === 1) {
+        doc.setFillColor(249, 250, 251);
+        doc.rect(M, y - 4, W - M * 2, 6, "F");
+      }
+      const taxVal = e.gain > 0 && e.taxRate > 0 ? eur(e.gain * e.taxRate) : t("fc_exempt");
+      const cells = [
+        e.asset, e.buyDate, e.sellDate, e.amount.toFixed(4),
+        e.buyPrice.toFixed(0), e.sellPrice.toFixed(0),
+        `${e.gain >= 0 ? "+" : "-"}${eur(e.gain).replace("EUR ", "")}`,
+        e.holding === "longo" ? t("fc_long") : t("fc_short"),
+        `${(e.taxRate * 100).toFixed(0)}%`, taxVal,
+      ];
+      cells.forEach((c, i) => {
+        if (i === 6) doc.setTextColor(...(e.gain >= 0 ? [16, 185, 129] : [239, 68, 68]) as [number, number, number]);
+        else if (i === 9) doc.setTextColor(249, 115, 22);
+        else doc.setTextColor(55, 65, 81);
+        doc.text(String(c), colsX[i], y);
+      });
+      y += 6;
+    });
+
+    // Net taxable total
+    y += 2;
+    doc.setDrawColor(229, 231, 235);
+    doc.line(M, y, W - M, y);
+    y += 6;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(17, 24, 39);
+    doc.text(`${t("fisc_pdf_net_taxable")}:`, M, y);
+    doc.setTextColor(249, 115, 22);
+    doc.text(eur(summary.tax), W - M, y, { align: "right" });
+
+    // Footer
+    const fy = doc.internal.pageSize.getHeight() - 12;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(156, 163, 175);
+    doc.text(t("fisc_pdf_footer"), W / 2, fy, { align: "center", maxWidth: W - M * 2 });
+
+    doc.save(`chainfolioai-report-${country}-${new Date().getFullYear()}.pdf`);
+  };
+
   if (isLoading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-400 animate-pulse">{t("loading")}</p></div>;
 
   const fmtEur = (v: number) => `€ ${Math.abs(v).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -433,7 +543,7 @@ export default function FiscalidadePage() {
           {/* Transações */}
           {trades.length > 0 && (
             <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-4">Transações ({trades.length})</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-4">{t("fisc_transactions")} ({trades.length})</p>
               <div className="space-y-2">
                 {[...trades].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(trade => (
                   <div key={trade.id} className="flex items-center gap-3 rounded-xl border border-slate-800 px-4 py-2.5">
@@ -458,12 +568,13 @@ export default function FiscalidadePage() {
               {/* Summary cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {[
-                  { label: t("fc_total_gains"), value: summary.totalGain, color: summary.totalGain >= 0 ? "text-emerald-400" : "text-rose-400" },
-                  { label: t("fc_exempt_long"), value: summary.exempt, color: "text-emerald-300" },
-                  { label: t("fc_realized_losses"), value: summary.losses, color: "text-rose-400" },
-                  { label: t("fc_estimated_tax"), value: summary.tax, color: "text-orange-400" },
+                  { icon: "📈", label: t("fc_total_gains"), value: summary.totalGain, color: summary.totalGain >= 0 ? "text-emerald-400" : "text-rose-400", highlight: false },
+                  { icon: "✅", label: t("fc_exempt_long"), value: summary.exempt, color: "text-emerald-300", highlight: false },
+                  { icon: "📉", label: t("fc_realized_losses"), value: summary.losses, color: "text-rose-400", highlight: false },
+                  { icon: "🧾", label: t("fc_estimated_tax"), value: summary.tax, color: "text-orange-400", highlight: true },
                 ].map(c => (
-                  <div key={c.label} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-center">
+                  <div key={c.label} className={`rounded-2xl border p-4 text-center ${c.highlight ? "border-orange-500/40 bg-orange-500/10" : "border-slate-800 bg-slate-900/60"}`}>
+                    <p className="text-base mb-1">{c.icon}</p>
                     <p className={`text-xl font-bold ${c.color}`}>{fmtEur(c.value)}</p>
                     <p className="text-xs text-slate-500 mt-1">{c.label}</p>
                   </div>
@@ -473,28 +584,28 @@ export default function FiscalidadePage() {
               {/* Tabela de eventos */}
               <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Eventos fiscais ({taxEvents.length})</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t("fisc_tax_events")} ({taxEvents.length})</p>
                   <div className="flex items-center gap-2">
                     {isPro ? (
                       <button onClick={exportCSV}
                         className="flex items-center gap-2 rounded-xl border border-orange-500/40 px-3 py-1.5 text-xs font-semibold text-orange-300 hover:bg-orange-500/10 transition">
-                        ↓ Exportar CSV (IRS)
+                        ↓ {t("fisc_export_csv")}
                       </button>
                     ) : (
                       <a href="/pricing"
                         className="flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:border-orange-400/40 hover:text-orange-300 transition">
-                        🔒 Exportar CSV (Pro)
+                        🔒 {t("fisc_export_csv_pro")}
                       </a>
                     )}
                     {isPremium ? (
-                      <button onClick={() => alert(t("fc_pdf_soon"))}
+                      <button onClick={exportPDF}
                         className="flex items-center gap-2 rounded-xl border border-violet-500/40 bg-violet-500/5 px-3 py-1.5 text-xs font-semibold text-violet-300 hover:bg-violet-500/10 transition">
-                        ↓ Exportar PDF (AT)
+                        ↓ {t("fisc_export_pdf")}
                       </button>
                     ) : (
                       <a href="/pricing"
                         className="flex items-center gap-2 rounded-xl border border-violet-500/20 px-3 py-1.5 text-xs font-semibold text-violet-400/50 hover:border-violet-500/40 hover:text-violet-300 transition">
-                        💎 PDF Avançado (Premium)
+                        💎 {t("fisc_export_pdf_premium")}
                       </a>
                     )}
                   </div>
