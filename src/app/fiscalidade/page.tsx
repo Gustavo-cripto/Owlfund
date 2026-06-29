@@ -347,41 +347,39 @@ export default function FiscalidadePage() {
 
   const exportPDF = async () => {
     const eur = (v: number) => `EUR ${Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+    const eurN = (v: number) => Math.abs(v).toLocaleString("en-US", { maximumFractionDigits: 0 });
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     const W = doc.internal.pageSize.getWidth();
     const M = 14;
-    let y = 18;
 
-    // Header — top accent bar + brand (logo + name)
+    // Header — top accent bar + brand (large logo + name)
     doc.setFillColor(249, 115, 22);
-    doc.rect(0, 0, W, 4, "F");
+    doc.rect(0, 0, W, 3, "F");
     const logo = await loadLogo();
-    let titleX = M;
+    const logoSize = 17;
+    let brandX = M;
     if (logo) {
-      doc.addImage(logo, "PNG", M, y - 7, 9, 9);
-      titleX = M + 12;
+      doc.addImage(logo, "PNG", M, 8, logoSize, logoSize);
+      brandX = M + logoSize + 4;
     }
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
+    doc.setFontSize(16);
     doc.setTextColor(249, 115, 22);
-    doc.text("ChainFolioAI", titleX, y - 1.5);
-    y += 6;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(15);
+    doc.text("ChainFolioAI", brandX, 15);
+    doc.setFontSize(12);
     doc.setTextColor(17, 24, 39);
-    doc.text(t("fisc_pdf_title"), M, y);
-    y += 7;
+    doc.text(t("fisc_pdf_title"), brandX, 22);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.setTextColor(107, 114, 128);
-    doc.text(`${t("fisc_pdf_generated")}: ${new Date().toLocaleDateString()}`, M, y);
-    doc.text(`${t("fisc_pdf_country")}: ${country} (${(regime.short * 100).toFixed(0)}% / ${regime.longLabel})`, W - M, y, { align: "right" });
-    y += 9;
+    doc.text(`${t("fisc_pdf_generated")}: ${new Date().toLocaleDateString()}  ·  ${t("fisc_pdf_country")}: ${country} (${(regime.short * 100).toFixed(0)}% / ${regime.longLabel})`, brandX, 27);
+    let y = 33;
 
-    // Summary box
+    // Summary box (compact)
     doc.setDrawColor(229, 231, 235);
     doc.setFillColor(249, 250, 251);
-    doc.roundedRect(M, y, W - M * 2, 26, 2, 2, "FD");
+    const sumH = 18;
+    doc.roundedRect(M, y, W - M * 2, sumH, 2, 2, "FD");
     const cards: Array<[string, string, [number, number, number]]> = [
       [t("fc_total_gains"), eur(summary.totalGain), summary.totalGain >= 0 ? [16, 185, 129] : [239, 68, 68]],
       [t("fc_exempt_long"), eur(summary.exempt), [16, 185, 129]],
@@ -392,62 +390,71 @@ export default function FiscalidadePage() {
     cards.forEach((c, i) => {
       const cx = M + colW * i + colW / 2;
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
+      doc.setFontSize(11);
       doc.setTextColor(...c[2]);
-      doc.text(c[1], cx, y + 11, { align: "center" });
+      doc.text(c[1], cx, y + 8, { align: "center" });
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(7);
+      doc.setFontSize(6.5);
       doc.setTextColor(107, 114, 128);
-      doc.text(c[0], cx, y + 18, { align: "center" });
+      doc.text(c[0], cx, y + 13.5, { align: "center" });
     });
-    y += 34;
+    y += sumH + 7;
 
     // Events table
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setTextColor(17, 24, 39);
     doc.text(`${t("fisc_pdf_events")} (${taxEvents.length})`, M, y);
-    y += 6;
+    y += 5;
 
     const headers = [t("fc_col_asset"), t("fc_col_buy"), t("fc_col_sell"), t("fc_col_qtd"), t("fc_col_buyp"), t("fc_col_sellp"), t("fc_col_gain"), t("fc_col_type"), t("fc_col_rate"), t("fc_col_tax")];
-    const colsX = [M, M + 16, M + 38, M + 60, M + 78, M + 98, M + 118, M + 142, M + 158, M + 172];
-    doc.setFillColor(243, 244, 246);
-    doc.rect(M, y - 4, W - M * 2, 7, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(7);
-    doc.setTextColor(75, 85, 99);
-    headers.forEach((h, i) => doc.text(h, colsX[i], y));
-    y += 6;
+    const colsX = [M, M + 16, M + 38, M + 60, M + 80, M + 100, M + 120, M + 143, M + 159, M + 172];
+    const rowH = 9;
+    const drawHead = () => {
+      doc.setFillColor(243, 244, 246);
+      doc.rect(M, y - 4, W - M * 2, 6, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.setTextColor(75, 85, 99);
+      headers.forEach((h, i) => doc.text(h, colsX[i], y));
+      y += 6;
+    };
+    drawHead();
 
-    doc.setFont("helvetica", "normal");
     taxEvents.forEach((e, idx) => {
-      if (y > 270) { doc.addPage(); y = 20; }
+      if (y > 268) { doc.addPage(); y = 16; drawHead(); }
       if (idx % 2 === 1) {
         doc.setFillColor(249, 250, 251);
-        doc.rect(M, y - 4, W - M * 2, 6, "F");
+        doc.rect(M, y - 4, W - M * 2, rowH, "F");
       }
       const taxVal = e.gain > 0 && e.taxRate > 0 ? eur(e.gain * e.taxRate) : t("fc_exempt");
       const cells = [
         e.asset, e.buyDate, e.sellDate, e.amount.toFixed(4),
-        e.buyPrice.toFixed(0), e.sellPrice.toFixed(0),
-        `${e.gain >= 0 ? "+" : "-"}${eur(e.gain).replace("EUR ", "")}`,
+        eurN(e.buyPrice), eurN(e.sellPrice),
+        `${e.gain >= 0 ? "+" : "-"}${eurN(e.gain)}`,
         e.holding === "longo" ? t("fc_long") : t("fc_short"),
         `${(e.taxRate * 100).toFixed(0)}%`, taxVal,
       ];
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
       cells.forEach((c, i) => {
         if (i === 6) doc.setTextColor(...(e.gain >= 0 ? [16, 185, 129] : [239, 68, 68]) as [number, number, number]);
         else if (i === 9) doc.setTextColor(249, 115, 22);
         else doc.setTextColor(55, 65, 81);
         doc.text(String(c), colsX[i], y);
       });
-      y += 6;
+      // Euro value below the quantity
+      doc.setFontSize(6);
+      doc.setTextColor(148, 163, 184);
+      doc.text(`EUR ${eurN(e.amount * e.sellPrice)}`, colsX[3], y + 3.2);
+      y += rowH;
     });
 
     // Net taxable total
-    y += 2;
+    y += 1;
     doc.setDrawColor(229, 231, 235);
     doc.line(M, y, W - M, y);
-    y += 6;
+    y += 5.5;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.setTextColor(17, 24, 39);
@@ -456,7 +463,7 @@ export default function FiscalidadePage() {
     doc.text(eur(summary.tax), W - M, y, { align: "right" });
 
     // Footer
-    const fy = doc.internal.pageSize.getHeight() - 12;
+    const fy = doc.internal.pageSize.getHeight() - 10;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     doc.setTextColor(156, 163, 175);
