@@ -350,30 +350,35 @@ export default function FiscalidadePage() {
     const eurN = (v: number) => Math.abs(v).toLocaleString("en-US", { maximumFractionDigits: 0 });
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     const W = doc.internal.pageSize.getWidth();
+    const cx = W / 2;
     const M = 14;
 
-    // Header — top accent bar + brand (large logo + name)
+    // Header — top accent bar + centered brand (large logo + name)
     doc.setFillColor(249, 115, 22);
     doc.rect(0, 0, W, 3, "F");
     const logo = await loadLogo();
-    const logoSize = 17;
-    let brandX = M;
+    const logoSize = 20;
+    let y = 12;
     if (logo) {
-      doc.addImage(logo, "PNG", M, 8, logoSize, logoSize);
-      brandX = M + logoSize + 4;
+      doc.addImage(logo, "PNG", cx - logoSize / 2, y, logoSize, logoSize);
+      y += logoSize + 5;
+    } else {
+      y += 6;
     }
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
+    doc.setFontSize(17);
     doc.setTextColor(249, 115, 22);
-    doc.text("ChainFolioAI", brandX, 15);
-    doc.setFontSize(12);
+    doc.text("ChainFolioAI", cx, y, { align: "center" });
+    y += 7;
+    doc.setFontSize(13);
     doc.setTextColor(17, 24, 39);
-    doc.text(t("fisc_pdf_title"), brandX, 22);
+    doc.text(t("fisc_pdf_title"), cx, y, { align: "center" });
+    y += 6;
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
+    doc.setFontSize(8.5);
     doc.setTextColor(107, 114, 128);
-    doc.text(`${t("fisc_pdf_generated")}: ${new Date().toLocaleDateString()}  ·  ${t("fisc_pdf_country")}: ${country} (${(regime.short * 100).toFixed(0)}% / ${regime.longLabel})`, brandX, 27);
-    let y = 33;
+    doc.text(`${t("fisc_pdf_generated")}: ${new Date().toLocaleDateString()}  ·  ${t("fisc_pdf_country")}: ${country} (${(regime.short * 100).toFixed(0)}% / ${regime.longLabel})`, cx, y, { align: "center" });
+    y += 8;
 
     // Summary box (compact)
     doc.setDrawColor(229, 231, 235);
@@ -404,7 +409,7 @@ export default function FiscalidadePage() {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.setTextColor(17, 24, 39);
-    doc.text(`${t("fisc_pdf_events")} (${taxEvents.length})`, M, y);
+    doc.text(`${t("fisc_pdf_events")} (${taxEvents.length})`, cx, y, { align: "center" });
     y += 5;
 
     const headers = [t("fc_col_asset"), t("fc_col_buy"), t("fc_col_sell"), t("fc_col_qtd"), t("fc_col_buyp"), t("fc_col_sellp"), t("fc_col_gain"), t("fc_col_type"), t("fc_col_rate"), t("fc_col_tax")];
@@ -461,9 +466,66 @@ export default function FiscalidadePage() {
     doc.text(`${t("fisc_pdf_net_taxable")}:`, M, y);
     doc.setTextColor(249, 115, 22);
     doc.text(eur(summary.tax), W - M, y, { align: "right" });
+    y += 10;
+
+    if (y > 250) { doc.addPage(); y = 18; }
+
+    // Breakdown — fill remaining space with extra detail
+    const invested = taxEvents.reduce((s, e) => s + e.amount * e.buyPrice, 0);
+    const proceeds = taxEvents.reduce((s, e) => s + e.amount * e.sellPrice, 0);
+    const positiveGains = taxEvents.filter(e => e.gain > 0).reduce((s, e) => s + e.gain, 0);
+    const effRate = positiveGains > 0 ? (summary.tax / positiveGains) * 100 : 0;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(17, 24, 39);
+    doc.text(t("fisc_pdf_breakdown"), cx, y, { align: "center" });
+    y += 5;
+
+    const stats: Array<[string, string]> = [
+      [t("fisc_pdf_invested"), eur(invested)],
+      [t("fisc_pdf_proceeds"), eur(proceeds)],
+      [t("fisc_pdf_net_gain"), `${summary.totalGain >= 0 ? "+" : "-"}${eur(summary.totalGain)}`],
+      [t("fisc_pdf_eff_rate"), `${effRate.toFixed(1)}%`],
+      [t("fisc_pdf_num_events"), String(taxEvents.length)],
+      [t("fisc_pdf_method_label"), "FIFO / EUR"],
+    ];
+    const bx = M, bw = W - M * 2;
+    const rowsN = Math.ceil(stats.length / 2);
+    const bh = rowsN * 8 + 4;
+    doc.setDrawColor(229, 231, 235);
+    doc.setFillColor(249, 250, 251);
+    doc.roundedRect(bx, y, bw, bh, 2, 2, "FD");
+    stats.forEach((s, i) => {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const sx = bx + 6 + col * (bw / 2);
+      const sy = y + 7 + row * 8;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(107, 114, 128);
+      doc.text(s[0], sx, sy);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(55, 65, 81);
+      doc.text(s[1], bx + (col + 1) * (bw / 2) - 6, sy, { align: "right" });
+    });
+    y += bh + 7;
+
+    // Notes
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(17, 24, 39);
+    doc.text(t("fisc_pdf_notes"), M, y);
+    y += 4.5;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(107, 114, 128);
+    doc.text(t("fisc_pdf_notes_text"), M, y, { maxWidth: W - M * 2, lineHeightFactor: 1.4 });
 
     // Footer
     const fy = doc.internal.pageSize.getHeight() - 10;
+    doc.setDrawColor(229, 231, 235);
+    doc.line(M, fy - 4, W - M, fy - 4);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     doc.setTextColor(156, 163, 175);
