@@ -6,6 +6,7 @@ import AppShell from "@/components/AppShell";
 import NftImage from "@/components/NftImage";
 import CexSection from "@/components/wallets/CexSection";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import WalletCard from "@/components/wallets/WalletCard";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -289,6 +290,7 @@ export default function WalletsPage() {
   const supabase = useMemo(() => createClient(), []);
   useRequireAuth("/login");
   const { t } = useLanguage();
+  const { format: fmtCur } = useCurrencyFormat();
   const [isClient, setIsClient] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [isPro, setIsPro] = useState(false);
@@ -3335,7 +3337,7 @@ export default function WalletsPage() {
                             ? <span className="animate-pulse">{t("wl_loading")}</span>
                             : itemDefi != null
                               ? <span className={itemDefi >= 0.01 ? "text-emerald-400 font-semibold" : "text-slate-400"}>
-                                  € {(itemDefi * usdToEurRate).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  {fmtCur(itemDefi * usdToEurRate)}
                                 </span>
                               : <span className="text-slate-600 text-[11px]">—</span>}
                           {item.address && (
@@ -3722,7 +3724,7 @@ export default function WalletsPage() {
                               ? <span className="animate-pulse">{t("wl_loading")}</span>
                               : itemDefi != null
                                 ? <span className={itemDefi >= 0.01 ? "text-emerald-400 font-semibold" : "text-slate-400"}>
-                                    € {(itemDefi * usdToEurRate).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    {fmtCur(itemDefi * usdToEurRate)}
                                   </span>
                                 : <span className="text-slate-600 text-[11px]">—</span>}
                             {addr && (
@@ -3770,7 +3772,7 @@ export default function WalletsPage() {
                             <p>{balanceDisplay}{balanceDisplay !== "A carregar..." && balanceDisplay !== "—" ? " SOL" : ""}</p>
                           )}
                           {balanceDisplay != null && balanceDisplay !== "A carregar..." && balanceDisplay !== "—" && getFiatValue("SOL", balanceDisplay) != null ? (
-                            <p className="text-slate-400">€ {((getFiatValue("SOL", balanceDisplay) ?? 0) * usdToEurRate).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                            <p className="text-slate-400">{fmtCur((getFiatValue("SOL", balanceDisplay) ?? 0) * usdToEurRate)}</p>
                           ) : null}
                           {err ? (
                             <p className="text-rose-300" title={err}>{err.length > 40 ? `${err.slice(0, 40)}…` : err}</p>
@@ -4548,11 +4550,7 @@ export default function WalletsPage() {
                 Total (carteiras + DeFi + CEX/HL + manuais)
               </p>
               <p className="text-lg font-semibold text-white">
-                €{" "}
-                {(walletsTotalUsd + (totalDefiUsd + cexHlTotalUsd + coldTokensExtraUsd) * usdToEurRate + cryptoManualTotal).toLocaleString("pt-PT", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
+                {fmtCur(walletsTotalUsd + (totalDefiUsd + cexHlTotalUsd + coldTokensExtraUsd) * usdToEurRate + cryptoManualTotal)}
               </p>
             </div>
           </div>
@@ -4565,25 +4563,25 @@ export default function WalletsPage() {
               <span>
                 <span className="text-slate-500">ETH:</span>{" "}
                 {getFiatValue("ETH", totalEthBalance) != null
-                  ? `€ ${(getFiatValue("ETH", totalEthBalance) ?? 0).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  ? fmtCur(getFiatValue("ETH", totalEthBalance) ?? 0)
                   : "—"}
               </span>
               <span>
                 <span className="text-slate-500">SOL:</span>{" "}
                 {getFiatValue("SOL", totalSolBalance) != null
-                  ? `€ ${(getFiatValue("SOL", totalSolBalance) ?? 0).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  ? fmtCur(getFiatValue("SOL", totalSolBalance) ?? 0)
                   : "—"}
               </span>
               <span>
                 <span className="text-slate-500">BTC:</span>{" "}
                 {getFiatValue("BTC", totalBtcBalance) != null
-                  ? `€ ${(getFiatValue("BTC", totalBtcBalance) ?? 0).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  ? fmtCur(getFiatValue("BTC", totalBtcBalance) ?? 0)
                   : "—"}
               </span>
               <span>
                 <span className="text-slate-500">ADA:</span>{" "}
                 {getFiatValue("ADA", totalAdaBalance) != null
-                  ? `€ ${(getFiatValue("ADA", totalAdaBalance) ?? 0).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  ? fmtCur(getFiatValue("ADA", totalAdaBalance) ?? 0)
                   : "—"}
               </span>
             </div>
@@ -4591,20 +4589,20 @@ export default function WalletsPage() {
               <span>
                 <span className="text-slate-500">{t("wl_total_wallets")}</span>{" "}
                 <span className="font-semibold text-white">
-                  € {(walletsTotalUsd + cexHlTotalUsd * usdToEurRate).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {fmtCur(walletsTotalUsd + cexHlTotalUsd * usdToEurRate)}
                 </span>
               </span>
               <span>
                 <span className="text-slate-500">DeFi:</span>{" "}
                 <span className="font-semibold text-white">
-                  € {(totalDefiUsd * usdToEurRate).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {fmtCur(totalDefiUsd * usdToEurRate)}
                 </span>
               </span>
               {cexHlTotalUsd > 0 && (
                 <span>
                   <span className="text-slate-500">CEX / HL:</span>{" "}
                   <span className="font-semibold text-white">
-                    € {(cexHlTotalUsd * usdToEurRate).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {fmtCur(cexHlTotalUsd * usdToEurRate)}
                   </span>
                 </span>
               )}
@@ -4723,7 +4721,7 @@ export default function WalletsPage() {
                           : <p className="text-slate-300 tabular-nums">{balNum > 0 ? balNum.toFixed(symbol === "BTC" ? 8 : 4) : "—"} {symbol}</p>
                         }
                         {fiatEur != null && fiatEur > 0 && (
-                          <p className="text-slate-500">€ {fiatEur.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                          <p className="text-slate-500">{fmtCur(fiatEur)}</p>
                         )}
                       </div>
                       <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
@@ -4773,7 +4771,7 @@ export default function WalletsPage() {
                     <div>
                       <p className="text-slate-300 tabular-nums">{bal ?? "—"} {e.symbol}</p>
                       {fiatEur != null && (
-                        <p className="text-slate-500">€ {fiatEur.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                        <p className="text-slate-500">{fmtCur(fiatEur)}</p>
                       )}
                     </div>
                     <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">

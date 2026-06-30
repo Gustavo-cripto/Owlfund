@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -94,6 +95,7 @@ export default function CexSection({
   tokensByAddress?: Record<string, Array<{ address: string; symbol: string; name: string; logo?: string; balance: string; usdValue: number; chain: string }>>;
 }) {
   const { t } = useLanguage();
+  const { format: fmtCur } = useCurrencyFormat();
   const [coldAddress, setColdAddress] = useState("");
   const [coldNetwork, setColdNetwork] = useState("eth");
   const [coldError, setColdError] = useState<string | null>(null);
@@ -405,7 +407,7 @@ export default function CexSection({
                           <p className="text-slate-400">{fmt(b.total)}</p>
                           {valueEur != null && valueEur > 0.001 && (
                             <p className="text-[11px] text-emerald-400/80 mt-0.5">
-                              € {valueEur.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              {fmtCur(valueEur)}
                             </p>
                           )}
                           {b.locked > 0 && <p className="text-[10px] text-slate-600">Locked: {fmt(b.locked)}</p>}
@@ -418,7 +420,7 @@ export default function CexSection({
                       <span className="text-xs text-slate-500">{t("cx_total")}</span>
                       <span className="text-sm font-bold text-white">
                         {accountUsd(acc.balances) > 0
-                          ? `€ ${(accountUsd(acc.balances) * usdToEur).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          ? fmtCur(accountUsd(acc.balances) * usdToEur)
                           : <span className="text-slate-600 animate-pulse text-xs">{t("cx_calculating")}</span>}
                       </span>
                     </div>
@@ -513,7 +515,7 @@ export default function CexSection({
                   {acc.perpValue > 0 && (
                     <div className="rounded-lg bg-orange-500/10 border border-orange-500/20 px-3 py-2 text-xs">
                       <p className="text-orange-300 font-semibold">{t("cx_perp_value")}</p>
-                      <p className="text-white font-bold">€ {(acc.perpValue * usdToEur).toLocaleString("pt-PT", { minimumFractionDigits: 2 })}</p>
+                      <p className="text-white font-bold">{fmtCur(acc.perpValue * usdToEur)}</p>
                     </div>
                   )}
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -527,7 +529,7 @@ export default function CexSection({
                           <p className="text-slate-400">{fmt(b.total)}</p>
                           {valueEur != null && valueEur > 0.001 && (
                             <p className="text-[11px] text-emerald-400/80 mt-0.5">
-                              € {valueEur.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              {fmtCur(valueEur)}
                             </p>
                           )}
                         </div>
