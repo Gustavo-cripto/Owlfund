@@ -3386,7 +3386,7 @@ export default function WalletsPage() {
                           </p>
                         )}
                         {balanceDisplay != null && balanceDisplay !== "A carregar..." && balanceDisplay !== "—" && getFiatValue("ETH", balanceDisplay) != null ? (
-                          <p className="text-slate-400">${getFiatValue("ETH", balanceDisplay)!.toFixed(2)}</p>
+                          <p className="text-slate-400">{fmtCur((getFiatValue("ETH", balanceDisplay) ?? 0) * usdToEurRate)}</p>
                         ) : null}
                         {err ? (
                           <p className="text-rose-300" title={err}>
@@ -4113,7 +4113,7 @@ export default function WalletsPage() {
                           </p>
                         )}
                         {balanceDisplay != null && balanceDisplay !== "A carregar..." && balanceDisplay !== "—" && getFiatValue("BTC", balanceDisplay) != null ? (
-                          <p className="text-slate-400">${getFiatValue("BTC", balanceDisplay)!.toFixed(2)}</p>
+                          <p className="text-slate-400">{fmtCur((getFiatValue("BTC", balanceDisplay) ?? 0) * usdToEurRate)}</p>
                         ) : null}
                         {err ? (
                           <p className="text-rose-300" title={err}>
@@ -4482,7 +4482,7 @@ export default function WalletsPage() {
                           </p>
                         )}
                         {balanceDisplay != null && balanceDisplay !== "A carregar..." && balanceDisplay !== "—" && getFiatValue("ADA", balanceDisplay) != null ? (
-                          <p className="text-slate-400">${getFiatValue("ADA", balanceDisplay)!.toFixed(2)}</p>
+                          <p className="text-slate-400">{fmtCur((getFiatValue("ADA", balanceDisplay) ?? 0) * usdToEurRate)}</p>
                         ) : null}
                         {error ? (
                           <p className="text-rose-300" title={error}>
@@ -4550,7 +4550,7 @@ export default function WalletsPage() {
                 Total (carteiras + DeFi + CEX/HL + manuais)
               </p>
               <p className="text-lg font-semibold text-white">
-                {fmtCur(walletsTotalUsd + (totalDefiUsd + cexHlTotalUsd + coldTokensExtraUsd) * usdToEurRate + cryptoManualTotal)}
+                {fmtCur((walletsTotalUsd + totalDefiUsd + cexHlTotalUsd + coldTokensExtraUsd) * usdToEurRate + cryptoManualTotal)}
               </p>
             </div>
           </div>
@@ -4563,25 +4563,25 @@ export default function WalletsPage() {
               <span>
                 <span className="text-slate-500">ETH:</span>{" "}
                 {getFiatValue("ETH", totalEthBalance) != null
-                  ? fmtCur(getFiatValue("ETH", totalEthBalance) ?? 0)
+                  ? fmtCur((getFiatValue("ETH", totalEthBalance) ?? 0) * usdToEurRate)
                   : "—"}
               </span>
               <span>
                 <span className="text-slate-500">SOL:</span>{" "}
                 {getFiatValue("SOL", totalSolBalance) != null
-                  ? fmtCur(getFiatValue("SOL", totalSolBalance) ?? 0)
+                  ? fmtCur((getFiatValue("SOL", totalSolBalance) ?? 0) * usdToEurRate)
                   : "—"}
               </span>
               <span>
                 <span className="text-slate-500">BTC:</span>{" "}
                 {getFiatValue("BTC", totalBtcBalance) != null
-                  ? fmtCur(getFiatValue("BTC", totalBtcBalance) ?? 0)
+                  ? fmtCur((getFiatValue("BTC", totalBtcBalance) ?? 0) * usdToEurRate)
                   : "—"}
               </span>
               <span>
                 <span className="text-slate-500">ADA:</span>{" "}
                 {getFiatValue("ADA", totalAdaBalance) != null
-                  ? fmtCur(getFiatValue("ADA", totalAdaBalance) ?? 0)
+                  ? fmtCur((getFiatValue("ADA", totalAdaBalance) ?? 0) * usdToEurRate)
                   : "—"}
               </span>
             </div>
@@ -4589,7 +4589,7 @@ export default function WalletsPage() {
               <span>
                 <span className="text-slate-500">{t("wl_total_wallets")}</span>{" "}
                 <span className="font-semibold text-white">
-                  {fmtCur(walletsTotalUsd + cexHlTotalUsd * usdToEurRate)}
+                  {fmtCur((walletsTotalUsd + cexHlTotalUsd) * usdToEurRate)}
                 </span>
               </span>
               <span>
@@ -4703,7 +4703,8 @@ export default function WalletsPage() {
               return entries.map(({ key, symbol, label, network, balance, source, onRemove }) => {
                 const market = cryptoPrices[symbol];
                 const balNum = balance !== null && balance !== "—" ? parseFloat(balance) || 0 : 0;
-                const fiatEur = getFiatValue(symbol, balance);
+                const fiatUsd = getFiatValue(symbol, balance);
+                const fiatEur = fiatUsd != null ? fiatUsd * usdToEurRate : null;
                 return (
                   <div
                     key={key}
