@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 
 export type NftPreview = {
   id: string;
@@ -90,6 +91,7 @@ export default function WalletCard({
   topContent,
 }: WalletCardProps) {
   const { t } = useLanguage();
+  const { format: fmtCur } = useCurrencyFormat();
   const [showNfts, setShowNfts] = useState(false);
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
@@ -144,7 +146,7 @@ export default function WalletCard({
         <div>
           <span className="text-slate-500">{t("wc_value")}</span>{" "}
           {fiatValueUsd != null
-            ? `€ ${(fiatValueUsd * usdToEur).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+            ? fmtCur(fiatValueUsd * usdToEur)
             : "—"}
         </div>
         <div className={`flex flex-wrap items-center gap-2 ${hideDefi ? "hidden" : ""}`}>
@@ -153,7 +155,7 @@ export default function WalletCard({
             ? <span className="animate-pulse">{t("wc_loading")}</span>
             : defiBalanceUsd != null
               ? <span className={defiBalanceUsd >= 0.01 ? "text-emerald-400 font-semibold" : "text-slate-400"}>
-                  € {(defiBalanceUsd * usdToEur).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {fmtCur(defiBalanceUsd * usdToEur)}
                 </span>
               : <span className="text-slate-600 text-[11px]">—</span>}
           {address && balanceUnit !== "BTC" && balanceUnit !== "ADA" && (
