@@ -290,7 +290,7 @@ export default function WalletsPage() {
   const supabase = useMemo(() => createClient(), []);
   useRequireAuth("/login");
   const { t } = useLanguage();
-  const { format: fmtCur } = useCurrencyFormat();
+  const { format: fmtCur, symbol: curSym, currency: curCode, rate: curRate } = useCurrencyFormat();
   const [isClient, setIsClient] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [isPro, setIsPro] = useState(false);
@@ -2311,12 +2311,14 @@ export default function WalletsPage() {
       return;
     }
     if (!Number.isFinite(amount) || amount <= 0) {
-      setManualCryptoAssetError("Insere uma quantidade em USD válida.");
+      setManualCryptoAssetError(`Insere um valor em ${curCode} válido.`);
       return;
     }
     updateCryptoHolding(symbol, {
       buyDate: manualCryptoAssetDate || undefined,
-      buyValue: amount,
+      // Store invested value in EUR (totals are in EUR); convert from the
+      // selected display currency the user typed in.
+      buyValue: amount / (curRate || 1),
     });
     setManualCryptoAssetSymbol("");
     setManualCryptoAssetDate("");
@@ -2857,7 +2859,7 @@ export default function WalletsPage() {
         <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
           <h3 className="text-sm font-semibold text-white">{t("wl_manual_crypto")}</h3>
           <p className="mt-1 text-xs text-slate-500">
-            Escolhe o ativo, data de compra e valor investido em <span className="text-slate-300 font-medium">USD ($)</span>. O ativo aparece na Carteira Cripto em baixo.
+            Escolhe o ativo, data de compra e valor investido em <span className="text-slate-300 font-medium">{curCode} ({curSym})</span>. O ativo aparece na Carteira Cripto em baixo.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <div className="relative min-w-[220px]" ref={manualCryptoSelectRef}>
@@ -2932,7 +2934,7 @@ export default function WalletsPage() {
               onChange={(e) => setManualCryptoAssetDate(e.target.value)}
             />
             <div className="relative">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">$</span>
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">{curSym}</span>
               <input
                 type="number"
                 min={0}
@@ -2942,7 +2944,7 @@ export default function WalletsPage() {
                 value={manualCryptoAssetAmountUsd}
                 onChange={(e) => setManualCryptoAssetAmountUsd(e.target.value)}
               />
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-500">USD</span>
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-500">{curCode}</span>
             </div>
             <button
               type="button"
