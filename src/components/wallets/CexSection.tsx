@@ -539,6 +539,21 @@ export default function CexSection({
                   {acc.spotBalances.length === 0 && acc.perpValue === 0 && (
                     <p className="text-xs text-slate-600">{t("cx_no_balances")}</p>
                   )}
+                  {(() => {
+                    const STABLES = new Set(["USDC", "USDT", "DAI", "BUSD", "USDE"]);
+                    const spotUsd = acc.spotBalances.reduce((s, b) => {
+                      const priceUsd = STABLES.has(b.coin) ? 1 : (tokenPricesUsd[b.coin] ?? 0);
+                      return s + (b.total > 0 && priceUsd > 0 ? b.total * priceUsd : 0);
+                    }, 0);
+                    const totalUsd = acc.perpValue + spotUsd;
+                    if (totalUsd <= 0) return null;
+                    return (
+                      <div className="mt-1 flex items-center justify-end gap-1.5 border-t border-slate-800 pt-2">
+                        <span className="text-xs text-slate-500">{t("cx_total")}</span>
+                        <span className="text-sm font-bold text-white">{fmtCur(totalUsd * usdToEur)}</span>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>
