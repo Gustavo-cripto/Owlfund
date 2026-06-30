@@ -19,6 +19,7 @@ import { getSolBalance } from "@/lib/wallets/solana";
 import { getBtcBalanceFromAddress } from "@/lib/wallets/bitcoin";
 import { getAdaBalanceByAddress } from "@/lib/wallets/cardano";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
+import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import { traditionalAssets } from "@/lib/traditional/assets";
 import { loadTraditionalHoldings, type TraditionalHoldings } from "@/lib/traditional/storage";
 import { loadCryptoHoldings, loadStablecoinEntries, type CryptoHoldings, type StablecoinEntry } from "@/lib/crypto/storage";
@@ -182,11 +183,6 @@ const formatValue = (value: number) => {
   });
 };
 
-const formatSignedCurrency = (value: number) => {
-  const sign = value >= 0 ? "+" : "-";
-  return `${sign} € ${formatValue(Math.abs(value))}`;
-};
-
 const getPercent = (value: number, total: number): string => {
   if (!total || total <= 0) return "0";
   return String(Math.round((value / total) * 100));
@@ -235,6 +231,7 @@ export default function PortfolioPage() {
   const supabase = createClient();
   useRequireAuth("/login");
   const { t } = useLanguage();
+  const { format: fmt, formatSigned: fmtSigned, convert: fx, symbol: curSym } = useCurrencyFormat();
   const [wallets, setWallets] = useState<WalletBalance[]>([]);
   const [tokenPrices, setTokenPrices] = useState<TokenPrices>({});
   const [historicalPrices, setHistoricalPrices] = useState<HistoricalPrices>({ "1d": {}, "7d": {}, "30d": {} });
@@ -810,7 +807,7 @@ export default function PortfolioPage() {
                   Valor total
                 </p>
                 <p className="metric-value mt-2 text-4xl font-black text-white">
-                  € {formatValue(portfolioTotal)}
+                  {fmt(portfolioTotal)}
                 </p>
               </div>
               <div>
@@ -820,7 +817,7 @@ export default function PortfolioPage() {
                     pnlTotal >= 0 ? "text-emerald-400" : "text-rose-400"
                   }`}
                 >
-                  {formatSignedCurrency(pnlTotal)}
+                  {fmtSigned(pnlTotal)}
                 </p>
               </div>
             </div>
@@ -831,13 +828,13 @@ export default function PortfolioPage() {
                 <span
                   className={pnlSummary.position >= 0 ? "text-emerald-300" : "text-rose-300"}
                 >
-                  {formatSignedCurrency(pnlSummary.position)}
+                  {fmtSigned(pnlSummary.position)}
                 </span>
               </div>
               <div className="flex items-center justify-between text-sm text-slate-300">
                 <span>{t("port_pnl_today")}</span>
                 <span className={pnlSummary.today >= 0 ? "text-emerald-300" : "text-rose-300"}>
-                  {formatSignedCurrency(pnlSummary.today)}
+                  {fmtSigned(pnlSummary.today)}
                 </span>
               </div>
               <div className="flex items-center justify-between text-sm text-slate-300">
@@ -845,13 +842,13 @@ export default function PortfolioPage() {
                 <span
                   className={pnlSummary.days30 >= 0 ? "text-emerald-300" : "text-rose-300"}
                 >
-                  {formatSignedCurrency(pnlSummary.days30)}
+                  {fmtSigned(pnlSummary.days30)}
                 </span>
               </div>
               <div className="flex items-center justify-between text-sm text-slate-300">
                 <span>{t("port_pnl_7d")}</span>
                 <span className={pnlSummary.daily7d >= 0 ? "text-emerald-300" : "text-rose-300"}>
-                  {formatSignedCurrency(pnlSummary.daily7d)}
+                  {fmtSigned(pnlSummary.daily7d)}
                 </span>
               </div>
               {snapshotTotals.length === 0 ? (
@@ -908,13 +905,13 @@ export default function PortfolioPage() {
                 <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
                   <p className="text-sm font-semibold text-white">{t("port_blockchain")}</p>
                   <p className="text-xs text-slate-500">
-                    € {formatValue(cryptoTotal)} · {portfolioSplit.crypto}%
+                    {fmt(cryptoTotal)} · {portfolioSplit.crypto}%
                   </p>
                 </div>
                 <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
                   <p className="text-sm font-semibold text-white">{t("port_traditional")}</p>
                   <p className="text-xs text-slate-500">
-                    € {formatValue(traditionalTotal)} · {portfolioSplit.traditional}%
+                    {fmt(traditionalTotal)} · {portfolioSplit.traditional}%
                   </p>
                 </div>
               </div>
@@ -963,11 +960,11 @@ export default function PortfolioPage() {
               ]} barSize={48}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                 <XAxis dataKey="periodo" tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={v => `€${v}`} width={55} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={v => `${curSym}${Math.round(fx(v))}`} width={55} axisLine={false} tickLine={false} />
                 <Tooltip
                   contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  formatter={(v: any) => { const n = typeof v === "number" ? v : 0; return [`€ ${formatValue(Math.abs(n))}`, n >= 0 ? t("pf_profit") : t("pf_loss")]; }}
+                  formatter={(v: any) => { const n = typeof v === "number" ? v : 0; return [fmt(Math.abs(n)), n >= 0 ? t("pf_profit") : t("pf_loss")]; }}
                 />
                 <Bar dataKey="pnl" radius={[6, 6, 0, 0]}>
                   {[pnlSummary.position, pnlSummary.today, pnlSummary.days30 ?? 0, pnlSummary.daily7d].map((v, i) => (
@@ -1053,7 +1050,7 @@ export default function PortfolioPage() {
                           formatter={(v: any) => {
                             const val = typeof v === "number" ? v : 0;
                             const pct = total > 0 ? ((val / total) * 100).toLocaleString("pt-PT", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : "0,0";
-                            return [`€ ${formatValue(val)} · ${pct}%`, ""];
+                            return [`${fmt(val)} · ${pct}%`, ""];
                           }}
                         />
                       </PieChart>
@@ -1064,7 +1061,7 @@ export default function PortfolioPage() {
                         <div key={entry.name} className="flex items-center gap-2 min-w-0">
                           <span className="shrink-0 h-2.5 w-2.5 rounded-full" style={{ background: assetColor(entry.name) }} />
                           <span className="text-xs text-slate-300 font-medium truncate">{entry.name}</span>
-                          <span className="ml-auto text-xs text-slate-400 shrink-0">€ {formatValue(entry.value)}</span>
+                          <span className="ml-auto text-xs text-slate-400 shrink-0">{fmt(entry.value)}</span>
                         </div>
                       ))}
                     </div>
@@ -1104,7 +1101,7 @@ export default function PortfolioPage() {
                     <h2 className="text-base font-bold text-white mt-0.5">{t("pf_evolution")}</h2>
                   </div>
                   <span className={`text-sm font-bold ${pnlSummary.position >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                    {pnlSummary.position >= 0 ? "+" : ""}€{formatValue(pnlSummary.position)}
+                    {fmtSigned(pnlSummary.position)}
                   </span>
                 </div>
                 <div className="flex gap-1 mb-3">
@@ -1128,12 +1125,12 @@ export default function PortfolioPage() {
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                       <XAxis dataKey="data" tick={{ fill: "#64748b", fontSize: 11 }} />
-                      <YAxis tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={v => `€${v}`} width={60} />
+                      <YAxis tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={v => `${curSym}${Math.round(fx(v))}`} width={60} />
                       <Tooltip
                         contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
                         labelStyle={{ color: "#94a3b8" }}
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        formatter={(v: any) => [`€ ${formatValue(typeof v === "number" ? v : 0)}`, t("pf_value")]}
+                        formatter={(v: any) => [fmt(typeof v === "number" ? v : 0), t("pf_value")]}
                       />
                       <Area type="monotone" dataKey="valor" stroke="#f97316" strokeWidth={2} fill="url(#colorValor)" dot={chartData.length < 30 ? { fill: "#f97316", r: 3 } : false} />
                     </AreaChart>
@@ -1217,19 +1214,19 @@ export default function PortfolioPage() {
             {/* Valor total destacado */}
             <div className="rounded-xl bg-slate-950/60 border border-slate-800 px-5 py-4">
               <p className="text-xs text-slate-500 mb-1">{t("pf_total_value")}</p>
-              <p className="text-3xl font-black text-white tracking-tight">€ {formatValue(portfolioTotal)}</p>
+              <p className="text-3xl font-black text-white tracking-tight">{fmt(portfolioTotal)}</p>
               <p className={`text-sm mt-1 font-semibold ${pnlSummary.today >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                {pnlSummary.today >= 0 ? "▲" : "▼"} € {formatValue(Math.abs(pnlSummary.today))} hoje
+                {pnlSummary.today >= 0 ? "▲" : "▼"} {fmt(Math.abs(pnlSummary.today))} hoje
               </p>
             </div>
 
             {/* Métricas em grid 2x2 */}
             <div className="grid grid-cols-2 gap-3">
               {[
-                { label: t("pf_crypto"), value: `€ ${formatValue(cryptoTotal)}`, sub: `${portfolioSplit.crypto}% do total`, color: "text-orange-300" },
-                { label: t("pf_traditional"), value: `€ ${formatValue(traditionalTotal)}`, sub: `${portfolioSplit.traditional}% do total`, color: "text-sky-400" },
-                { label: "PNL 30 dias", value: `${pnlSummary.days30 >= 0 ? "+" : ""}€ ${formatValue(Math.abs(pnlSummary.days30))}`, sub: portfolioTotal > 0 ? `${((pnlSummary.days30 / portfolioTotal) * 100).toLocaleString("pt-PT", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%` : "—", color: pnlSummary.days30 >= 0 ? "text-emerald-400" : "text-rose-400" },
-                { label: t("pf_pnl_pos"), value: `${pnlSummary.position >= 0 ? "+" : ""}€ ${formatValue(Math.abs(pnlSummary.position))}`, sub: advancedMetrics ? `ROI ${advancedMetrics.roi >= 0 ? "+" : ""}${advancedMetrics.roi.toFixed(1)}%` : "—", color: pnlSummary.position >= 0 ? "text-emerald-400" : "text-rose-400" },
+                { label: t("pf_crypto"), value: fmt(cryptoTotal), sub: `${portfolioSplit.crypto}% do total`, color: "text-orange-300" },
+                { label: t("pf_traditional"), value: fmt(traditionalTotal), sub: `${portfolioSplit.traditional}% do total`, color: "text-sky-400" },
+                { label: "PNL 30 dias", value: fmtSigned(pnlSummary.days30), sub: portfolioTotal > 0 ? `${((pnlSummary.days30 / portfolioTotal) * 100).toLocaleString("pt-PT", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%` : "—", color: pnlSummary.days30 >= 0 ? "text-emerald-400" : "text-rose-400" },
+                { label: t("pf_pnl_pos"), value: fmtSigned(pnlSummary.position), sub: advancedMetrics ? `ROI ${advancedMetrics.roi >= 0 ? "+" : ""}${advancedMetrics.roi.toFixed(1)}%` : "—", color: pnlSummary.position >= 0 ? "text-emerald-400" : "text-rose-400" },
               ].map(m => (
                 <div key={m.label} className="rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
                   <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">{m.label}</p>
@@ -1297,15 +1294,15 @@ export default function PortfolioPage() {
 
                 line(t("pf_summary"), 14, true);
                 spacer(2);
-                line(`Total do portfólio: € ${formatValue(portfolioTotal)}`);
-                line(`Cripto: € ${formatValue(cryptoTotal)} · Tradicional: € ${formatValue(traditionalTotal)}`);
+                line(`Total do portfólio: ${curSym} ${formatValue(fx(portfolioTotal))}`);
+                line(`Cripto: ${curSym} ${formatValue(fx(cryptoTotal))} · Tradicional: ${curSym} ${formatValue(fx(traditionalTotal))}`);
                 spacer(4);
 
                 line("PNL", 14, true);
                 spacer(2);
-                line(`Posição: € ${formatValue(pnlSummary.position >= 0 ? pnlSummary.position : -pnlSummary.position)} ${pnlSummary.position >= 0 ? "(ganho)" : "(perda)"}`);
-                line(`Hoje: € ${formatValue(Math.abs(pnlSummary.today))}`);
-                line(`30 dias: € ${formatValue(Math.abs(pnlSummary.days30 ?? 0))}`);
+                line(`Posição: ${curSym} ${formatValue(fx(pnlSummary.position >= 0 ? pnlSummary.position : -pnlSummary.position))} ${pnlSummary.position >= 0 ? "(ganho)" : "(perda)"}`);
+                line(`Hoje: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.today)))}`);
+                line(`30 dias: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.days30 ?? 0)))}`);
                 spacer(4);
 
                 if (advancedMetrics) {
@@ -1323,7 +1320,7 @@ export default function PortfolioPage() {
                 line(t("pf_distribution"), 14, true);
                 spacer(2);
                 cryptoAllocations.filter(a => a.value > 0).forEach(a => {
-                  line(`${a.label} (${a.symbol}): € ${formatValue(a.value)} · ${a.percent}`);
+                  line(`${a.label} (${a.symbol}): ${curSym} ${formatValue(fx(a.value))} · ${a.percent}`);
                 });
                 spacer(6);
 
@@ -1392,7 +1389,7 @@ export default function PortfolioPage() {
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
             <h2 className="text-lg font-semibold text-white">{t("pf_blockchain_wallets")}</h2>
             <p className="text-sm text-slate-400">
-              {t("port_total_assets")}: € {formatValue(cryptoTotal)}
+              {t("port_total_assets")}: {fmt(cryptoTotal)}
             </p>
 
             <div className="mt-6 space-y-4">
@@ -1418,7 +1415,7 @@ export default function PortfolioPage() {
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
             <h2 className="text-lg font-semibold text-white">{t("pf_traditional_wallets")}</h2>
             <p className="text-sm text-slate-400">
-              Ativos totais: € {formatValue(traditionalTotal)}
+              Ativos totais: {fmt(traditionalTotal)}
             </p>
             <div className="mt-6 space-y-4">
               {traditionalAllocations.categories.length === 0 ? (
@@ -1449,7 +1446,7 @@ export default function PortfolioPage() {
                       className="flex items-center justify-between text-xs text-slate-400"
                     >
                       <span>{item.label}</span>
-                      <span>€ {formatValue(item.value)}</span>
+                      <span>{fmt(item.value)}</span>
                     </div>
                   ))}
                 </div>

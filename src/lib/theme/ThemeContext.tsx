@@ -26,20 +26,43 @@ const DEFAULTS: AppSettings = {
   compactMode: false,
 };
 
+// EUR-based FX rates: how much 1 EUR is worth in each currency.
+export type FxRates = Record<Currency, number>;
+const STATIC_RATES: FxRates = { EUR: 1, USD: 1.08, GBP: 0.86, BTC: 0.0000107 };
+
 type ThemeContextValue = AppSettings & {
   setSetting: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
   resetSettings: () => void;
+  rates: FxRates;
 };
 
 const ThemeContext = createContext<ThemeContextValue>({
   ...DEFAULTS,
   setSetting: () => {},
   resetSettings: () => {},
+  rates: STATIC_RATES,
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<AppSettings>(DEFAULTS);
   const [mounted, setMounted] = useState(false);
+  const [rates, setRates] = useState<FxRates>(STATIC_RATES);
+
+  // Fetch live FX rates on mount and refresh every 60s.
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/fx");
+        if (!res.ok) return;
+        const json = (await res.json()) as { rates?: Partial<FxRates> };
+        if (active && json.rates) setRates((prev) => ({ ...prev, ...json.rates }));
+      } catch { /* keep previous rates */ }
+    };
+    load();
+    const id = setInterval(load, 60_000);
+    return () => { active = false; clearInterval(id); };
+  }, []);
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -100,7 +123,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <ThemeContext.Provider value={{ ...settings, setSetting, resetSettings }}>
+    <ThemeContext.Provider value={{ ...settings, setSetting, resetSettings, rates }}>
       {children}
     </ThemeContext.Provider>
   );
@@ -109,16 +132,19 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 export const useTheme = () => useContext(ThemeContext);
 
 // ── Currency formatting helper ────────────────────────────────────────────
-const EUR_TO: Record<Currency, number> = { EUR: 1, USD: 1.08, GBP: 0.86, BTC: 0.0000107 };
 const CURRENCY_SYMBOL: Record<Currency, string> = { EUR: "€", USD: "$", GBP: "£", BTC: "₿" };
 
 export function useCurrencyFormat() {
-  const { currency, numberFormat, hideBalances } = useTheme();
+  const { currency, numberFormat, hideBalances, rates } = useTheme();
+  const rate = rates[currency] ?? 1;
+  const sym = CURRENCY_SYMBOL[currency];
+
+  // Convert an EUR amount into the selected currency (no formatting).
+  const convert = (eurValue: number): number => eurValue * rate;
 
   const format = (eurValue: number, opts?: { compact?: boolean; decimals?: number }): string => {
     if (hideBalances) return "••••";
-    const converted = eurValue * (EUR_TO[currency] ?? 1);
-    const sym = CURRENCY_SYMBOL[currency];
+    const converted = eurValue * rate;
 
     if (opts?.compact) {
       if (Math.abs(converted) >= 1_000_000) return `${sym} ${(converted / 1_000_000).toFixed(2)}M`;
@@ -133,5 +159,12 @@ export function useCurrencyFormat() {
     return `${sym} ${formatted}`;
   };
 
-  return { format, symbol: CURRENCY_SYMBOL[currency], currency, hideBalances };
+  // Like format() but with a leading +/- sign (for PNL values).
+  const formatSigned = (eurValue: number, opts?: { compact?: boolean; decimals?: number }): string => {
+    if (hideBalances) return "••••";
+    const sign = eurValue >= 0 ? "+" : "-";
+    return `${sign} ${format(Math.abs(eurValue), opts)}`;
+  };
+
+  return { format, formatSigned, convert, symbol: sym, currency, rate, hideBalances };
 }

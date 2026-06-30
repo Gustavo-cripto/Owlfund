@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 type WalletBalance = { label: string; symbol: string; balance?: string; address?: string; network?: string };
@@ -137,17 +138,19 @@ function buildChartData(
 
 // ── Custom Tooltip ──────────────────────────────────────────────────────────
 function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) {
+  const { format: fmt } = useCurrencyFormat();
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 shadow-xl">
       <p className="text-xs text-slate-400">{label}</p>
-      <p className="text-sm font-bold text-white">€ {fmtEur(payload[0].value)}</p>
+      <p className="text-sm font-bold text-white">{fmt(payload[0].value)}</p>
     </div>
   );
 }
 
 // ── Token row ───────────────────────────────────────────────────────────────
 function TokenRow({ wallet, price, pnlToday, total }: { wallet: WalletBalance; price: number; pnlToday: number; total: number }) {
+  const { format: fmt, formatSigned: fmtSigned } = useCurrencyFormat();
   const balanceNum = parseFloat(wallet.balance ?? "0") || 0;
   const value = balanceNum * price;
   if (value < 0.01) return null;
@@ -166,19 +169,19 @@ function TokenRow({ wallet, price, pnlToday, total }: { wallet: WalletBalance; p
         </p>
       </div>
       <div className="w-24 text-right">
-        <p className="text-sm text-slate-300">{price > 0 ? `€ ${price >= 1000 ? (price/1000).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })+"K" : fmtEur(price)}` : "—"}</p>
+        <p className="text-sm text-slate-300">{price > 0 ? fmt(price, { compact: price >= 1000 }) : "—"}</p>
       </div>
       <div className="w-24 text-right">
         <p className="text-sm text-slate-300">{balanceNum.toFixed(4)} {wallet.symbol}</p>
       </div>
       <div className="w-24 text-right">
-        <p className="text-sm font-semibold text-white">€ {fmtEur(value)}</p>
+        <p className="text-sm font-semibold text-white">{fmt(value)}</p>
       </div>
       <div className="w-28 text-right">
         {pnlPct !== 0 ? (
           <>
             <p className={`text-sm font-semibold ${pnlEur >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-              {pnlEur >= 0 ? "+" : ""}€ {fmtEur(Math.abs(pnlEur))}
+              {fmtSigned(pnlEur)}
             </p>
             <p className={`text-xs ${pnlPct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
               {pnlPct >= 0 ? "▲" : "▼"} {Math.abs(pnlPct).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
@@ -222,6 +225,8 @@ export default function PortfolioChartSection({
   wallets, tokenPrices, cryptoTotal,
 }: Props) {
   const { t } = useLanguage();
+  const { format: fmt } = useCurrencyFormat();
+  const fmtCompact = (v: number) => fmt(v, { compact: true });
   const [tf, setTf] = useState<TimeFrame>("1d");
   const [tab, setTab] = useState<Tab>("overview");
   const [nftData, setNftData] = useState<WalletNfts[]>([]);
@@ -331,10 +336,10 @@ export default function PortfolioChartSection({
       {/* ── Chart Card ── */}
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden">
         <div className="px-6 pt-6 pb-2">
-          <p className="text-4xl font-black text-white tracking-tight">€ {fmtEur(portfolioTotal)}</p>
+          <p className="text-4xl font-black text-white tracking-tight">{fmt(portfolioTotal)}</p>
           <div className="flex items-center gap-1.5 mt-1.5">
             <span className={`text-sm ${isUp ? "text-emerald-400" : "text-rose-400"}`}>
-              {isUp ? "▲" : "▼"} € {fmtEur(Math.abs(pnlToday))} ({Math.abs(pnlPct).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%) hoje
+              {isUp ? "▲" : "▼"} {fmt(Math.abs(pnlToday))} ({Math.abs(pnlPct).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%) hoje
             </span>
           </div>
         </div>
@@ -349,7 +354,7 @@ export default function PortfolioChartSection({
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
               <XAxis dataKey="time" tick={{ fill: "#64748b", fontSize: 10 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-              <YAxis tick={{ fill: "#64748b", fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={fmtEurCompact} width={72} />
+              <YAxis tick={{ fill: "#64748b", fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={fmtCompact} width={72} />
               <Tooltip content={<CustomTooltip />} />
               <Area type="monotone" dataKey="value" stroke={chartColor} strokeWidth={2} fill="url(#portGrad)"
                 dot={false} activeDot={{ r: 4, fill: chartColor, stroke: "#0f172a", strokeWidth: 2 }} />
@@ -419,7 +424,7 @@ export default function PortfolioChartSection({
             return walletTotal > 0 ? (
               <div className="px-4 py-3 border-t border-slate-800 flex items-center justify-between">
                 <span className="text-xs text-slate-500">{t("pcs_total_blockchain")}</span>
-                <span className="text-sm font-bold text-white">€ {fmtEur(walletTotal)}</span>
+                <span className="text-sm font-bold text-white">{fmt(walletTotal)}</span>
               </div>
             ) : null;
           })()}

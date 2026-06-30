@@ -1,4 +1,5 @@
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 
 type Metric = { label: string; value: string };
 
@@ -9,14 +10,6 @@ type PnlSummaryCardProps = {
   daily7d: number;
   metrics?: Metric[];
   className?: string;
-};
-
-const formatValue = (value: number) =>
-  value.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-const formatSigned = (value: number) => {
-  const sign = value >= 0 ? "+" : "-";
-  return `${sign} € ${formatValue(Math.abs(value))}`;
 };
 
 const defaultMetrics: Metric[] = [
@@ -34,6 +27,7 @@ export default function PnlSummaryCard({
   className = "",
 }: PnlSummaryCardProps) {
   const { t } = useLanguage();
+  const { formatSigned } = useCurrencyFormat();
   return (
     <div
       className={`rounded-3xl border border-orange-500/20 bg-gradient-to-br from-orange-500/20 via-slate-900 to-slate-950 p-6 ${className}`}
