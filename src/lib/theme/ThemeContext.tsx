@@ -166,5 +166,10 @@ export function useCurrencyFormat() {
     return `${sign} ${format(Math.abs(eurValue), opts)}`;
   };
 
-  return { format, formatSigned, convert, symbol: sym, currency, rate, hideBalances };
+  // Format a USD-denominated amount (e.g. DeFi/CEX values) in the selected currency.
+  const usdToEur = rates.USD ? 1 / rates.USD : 1;
+  const formatUsd = (usdValue: number, opts?: { compact?: boolean; decimals?: number }): string =>
+    format(usdValue * usdToEur, opts);
+
+  return { format, formatSigned, formatUsd, convert, usdToEur, symbol: sym, currency, rate, hideBalances };
 }

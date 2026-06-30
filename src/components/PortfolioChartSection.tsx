@@ -81,15 +81,6 @@ type DefiPosition = { name: string; usd: number };
 type WalletNfts = { address: string; chain: string; label: string; nfts: NftItem[]; loading: boolean; error?: string };
 type WalletDefi = { address: string; chain: string; label: string; total: number; positions: DefiPosition[]; loading: boolean; error?: string };
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-function fmtEur(v: number) {
-  return v.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-function fmtEurCompact(v: number) {
-  if (v >= 1_000_000) return `€ ${(v / 1_000_000).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}M`;
-  if (v >= 1_000)     return `€ ${(v / 1_000).toLocaleString("pt-PT", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}K`;
-  return `€ ${fmtEur(v)}`;
-}
 
 function buildChartData(
   tf: TimeFrame,
@@ -225,8 +216,9 @@ export default function PortfolioChartSection({
   wallets, tokenPrices, cryptoTotal,
 }: Props) {
   const { t } = useLanguage();
-  const { format: fmt } = useCurrencyFormat();
+  const { format: fmt, formatUsd: fmtUsd } = useCurrencyFormat();
   const fmtCompact = (v: number) => fmt(v, { compact: true });
+  const fmtUsdCompact = (v: number) => fmtUsd(v, { compact: true });
   const [tf, setTf] = useState<TimeFrame>("1d");
   const [tab, setTab] = useState<Tab>("overview");
   const [nftData, setNftData] = useState<WalletNfts[]>([]);
@@ -383,7 +375,7 @@ export default function PortfolioChartSection({
               <span className="text-[10px] bg-slate-700 text-slate-300 rounded-full px-1.5 py-0.5">{totalNfts}</span>
             )}
             {key === "defi" && totalDefi > 0 && (
-              <span className="text-[10px] bg-emerald-500/20 text-emerald-400 rounded-full px-1.5 py-0.5">€{fmtEurCompact(totalDefi).replace("€ ","")}</span>
+              <span className="text-[10px] bg-emerald-500/20 text-emerald-400 rounded-full px-1.5 py-0.5">{fmtUsdCompact(totalDefi)}</span>
             )}
           </button>
         ))}
@@ -489,7 +481,7 @@ export default function PortfolioChartSection({
               {totalDefi > 0 && (
                 <div className="flex items-center justify-between rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
                   <span className="text-sm text-slate-300">{t("pcs_total_defi")}</span>
-                  <span className="text-lg font-black text-emerald-400">€ {fmtEur(totalDefi)}</span>
+                  <span className="text-lg font-black text-emerald-400">{fmtUsd(totalDefi)}</span>
                 </div>
               )}
 
@@ -500,7 +492,7 @@ export default function PortfolioChartSection({
                     <span className="text-[10px] text-slate-600 font-mono">{wd.address.slice(0, 6)}…{wd.address.slice(-4)}</span>
                     <span className="text-[10px] border border-slate-700 text-slate-500 rounded px-1">{wd.chain.toUpperCase()}</span>
                     {wd.total > 0 && (
-                      <span className="ml-auto text-sm font-bold text-emerald-400">€ {fmtEur(wd.total)}</span>
+                      <span className="ml-auto text-sm font-bold text-emerald-400">{fmtUsd(wd.total)}</span>
                     )}
                   </div>
                   {wd.loading ? (
@@ -519,7 +511,7 @@ export default function PortfolioChartSection({
                             <div className="h-6 w-6 rounded-full bg-violet-500/20 flex items-center justify-center text-xs">⚡</div>
                             <span className="text-sm text-slate-300">{pos.name}</span>
                           </div>
-                          <span className="text-sm font-semibold text-emerald-400">€ {fmtEur(pos.usd)}</span>
+                          <span className="text-sm font-semibold text-emerald-400">{fmtUsd(pos.usd)}</span>
                         </div>
                       ))}
                     </div>
