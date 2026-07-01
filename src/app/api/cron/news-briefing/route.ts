@@ -126,15 +126,16 @@ export async function GET(request: Request) {
   const supabase = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
   const resend = new Resend(resendKey);
 
-  const { data: allUsers } = await supabase
+  // Contas Hobby só permitem 1 cron/dia — não é possível respeitar a hora
+  // escolhida por cada utilizador, por isso enviamos a todos os que têm o
+  // briefing ativo nesta única execução diária.
+  const { data: users } = await supabase
     .from("news_briefing_schedule")
     .select("user_id, email, mode, hour_utc")
     .eq("enabled", true);
 
-  const users = (allUsers ?? []).filter((u) => (u.hour_utc ?? 7) === currentHour);
-
-  if (users.length === 0) {
-    return NextResponse.json({ sent: 0, hour: currentHour, matching: 0, totalEnabled: allUsers?.length ?? 0 });
+  if (!users || users.length === 0) {
+    return NextResponse.json({ sent: 0, hour: currentHour });
   }
 
   const date = new Date().toLocaleDateString("pt-PT", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
