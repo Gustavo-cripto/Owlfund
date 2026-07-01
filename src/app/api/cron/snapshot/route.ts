@@ -62,7 +62,8 @@ export async function GET(request: Request) {
   // Usar admin client (bypassa RLS) — justificado: cron legítimo com secret verificado
   const { data: profiles, error: profilesError } = await supabase
     .from("profiles")
-    .select("id");
+    .select("id, auto_snapshot")
+    .neq("auto_snapshot", false);
 
   if (profilesError) {
     console.error("[cron/snapshot] DB error:", profilesError.code);

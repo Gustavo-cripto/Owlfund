@@ -222,6 +222,7 @@ export default function AccountPage() {
   const [briefingMode, setBriefingMode] = useState<"crypto" | "tradicional" | "both">("crypto");
   const [briefingSaving, setBriefingSaving] = useState(false);
   const [briefingSaved, setBriefingSaved] = useState(false);
+  const [briefingError, setBriefingError] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -230,10 +231,13 @@ export default function AccountPage() {
       if (!user) { window.location.href = "/login"; return; }
       setEmail(user.email ?? null);
       setUserId(user.id);
-      // Carregar avatar
+      // Carregar avatar + preferências
       const { data: profile } = await supabase
-        .from("profiles").select("avatar_url").eq("id", user.id).maybeSingle();
+        .from("profiles").select("avatar_url, auto_snapshot").eq("id", user.id).maybeSingle();
       if (profile?.avatar_url) setAvatarUrl(profile.avatar_url);
+      if (profile && profile.auto_snapshot !== null && profile.auto_snapshot !== undefined) {
+        setSetting("autoSnapshot", profile.auto_snapshot);
+      }
       const { data: subData } = await supabase
         .from("subscriptions").select("status, current_period_end, price_id")
         .eq("user_id", user.id).eq("status", "active").order("current_period_end", { ascending: false }).limit(1).maybeSingle();
@@ -619,7 +623,10 @@ export default function AccountPage() {
                         ]} />
                     </SettingRow>
                     <SettingRow label={t("ac_auto_snapshot")} desc={t("ac_auto_snapshot_desc")}>
-                      <Toggle checked={autoSnapshot} onChange={v => setSetting("autoSnapshot", v)} />
+                      <Toggle checked={autoSnapshot} onChange={v => {
+                        setSetting("autoSnapshot", v);
+                        if (userId) supabase.from("profiles").upsert({ id: userId, auto_snapshot: v });
+                      }} />
                     </SettingRow>
                   </div>
 
@@ -730,21 +737,32 @@ export default function AccountPage() {
                       onClick={async () => {
                         setBriefingSaving(true);
                         setBriefingSaved(false);
+                        setBriefingError(null);
                         const { data: sessionData } = await supabase.auth.getSession();
                         const token = sessionData.session?.access_token ?? "";
-                        await fetch("/api/news-briefing-schedule", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                          body: JSON.stringify({ enabled: briefingEnabled, hour_utc: briefingHour, mode: briefingMode }),
-                        });
+                        try {
+                          const res = await fetch("/api/news-briefing-schedule", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                            body: JSON.stringify({ enabled: briefingEnabled, hour_utc: briefingHour, mode: briefingMode }),
+                          });
+                          if (!res.ok) {
+                            const err = await res.json().catch(() => ({})) as { error?: string };
+                            setBriefingError(err.error ?? `Erro ao guardar (${res.status})`);
+                          } else {
+                            setBriefingSaved(true);
+                            setTimeout(() => setBriefingSaved(false), 3000);
+                          }
+                        } catch {
+                          setBriefingError("Erro de rede ao guardar.");
+                        }
                         setBriefingSaving(false);
-                        setBriefingSaved(true);
-                        setTimeout(() => setBriefingSaved(false), 3000);
                       }}
                       className="w-full rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-bold text-slate-950 hover:bg-orange-400 disabled:opacity-50 transition"
                     >
                       {briefingSaving ? t("ac_saving") : briefingSaved ? t("ac_saved") : t("ac_save_schedule")}
                     </button>
+                    {briefingError && <p className="text-xs text-red-400">{briefingError}</p>}
                   </div>
                 </div>
               )}

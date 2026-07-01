@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/news-briefing",
-      "schedule": "0 7 * * *"
+      "schedule": "0 * * * *"
     }
   ]
 }
