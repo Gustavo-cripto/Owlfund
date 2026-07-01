@@ -475,6 +475,30 @@ export default function DashboardPage() {
             </section>
           )}
 
+          {/* ── Como Funciona ── */}
+          <section>
+            <div className="mb-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/70">{t("dash_how_title")}</p>
+              <h2 className="mt-1.5 text-xl font-bold text-white">{t("dash_how_subtitle")}</h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[
+                { icon: "🦉", title: t("dash_how_1_title"), desc: t("dash_how_1_desc") },
+                { icon: "🔗", title: t("dash_how_2_title"), desc: t("dash_how_2_desc") },
+                { icon: "📡", title: t("dash_how_3_title"), desc: t("dash_how_3_desc") },
+                { icon: "🤖", title: t("dash_how_4_title"), desc: t("dash_how_4_desc") },
+                { icon: "🔒", title: t("dash_how_5_title"), desc: t("dash_how_5_desc") },
+                { icon: "💎", title: t("dash_how_6_title"), desc: t("dash_how_6_desc") },
+              ].map((item) => (
+                <div key={item.title} className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5 flex flex-col gap-2">
+                  <span className="text-2xl">{item.icon}</span>
+                  <h3 className="text-sm font-bold text-white">{item.title}</h3>
+                  <p className="text-xs text-slate-400 leading-relaxed">{item.desc}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
           {/* ── Tips ── */}
           <section className="rounded-2xl border border-slate-800 bg-slate-900/40 px-6 py-5">
             <p className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-3">{t("dash_quick_tips")}</p>
