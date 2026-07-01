@@ -950,7 +950,7 @@ export const translations = {
     fisc_disclaimer: "Informação de caráter geral. Consulta sempre um especialista fiscal para a tua declaração oficial.",
 
     // ── FIRE ──
-    fire_title: "FIRE Calculator",
+    fire_title: "Calculadora FIRE",
     fire_subtitle: "Financial Independence, Retire Early — calcula quando podes ser financeiramente livre.",
     fire_params: "Parâmetros",
     fire_monthly_expenses: "Despesas mensais (€)",

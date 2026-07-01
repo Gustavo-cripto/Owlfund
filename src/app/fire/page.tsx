@@ -19,8 +19,6 @@ export default function FirePage() {
   const [annualReturn, setAnnualReturn] = useState(7); // % ao ano
   const [inflationRate, setInflationRate] = useState(3); // %
   const [currentAge, setCurrentAge] = useState(30);
-  const [retirementAge, setRetirementAge] = useState(45);
-
 
   const [portfolioOverride, setPortfolioOverride] = useState<string>("");
 
@@ -70,7 +68,8 @@ export default function FirePage() {
 
   if (isLoading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-400 animate-pulse">{t("loading")}</p></div>;
 
-  const fmt = (v: number) => v >= 1_000_000 ? `€ ${(v / 1_000_000).toFixed(2)}M` : v >= 1_000 ? `€ ${(v / 1_000).toFixed(1)}K` : `€ ${Math.round(v)}`;
+  const trim = (v: number) => Number.isInteger(v) ? v.toFixed(0) : v.toFixed(1);
+  const fmt = (v: number) => v >= 1_000_000 ? `€ ${trim(v / 1_000_000)}M` : v >= 1_000 ? `€ ${trim(v / 1_000)}K` : `€ ${Math.round(v)}`;
 
   return (
     <AppShell>
@@ -125,7 +124,7 @@ export default function FirePage() {
           <div className="grid gap-4 sm:grid-cols-3">
             {[
               { label: t("fire_target"), value: fmt(fireTarget), sub: t("fire_target_rule"), color: "text-orange-300" },
-              { label: yearsToFire === 0 ? t("fire_already_fire") : yearsToFire !== null ? `${yearsToFire} ${t("fire_years")}` : "—", value: fireYear ? `${fireYear}` : "—", sub: fireAge ? `${t("fire_retire_at")} ${fireAge}` : "—", color: yearsToFire === 0 ? "text-emerald-400" : "text-white" },
+              { label: yearsToFire === 0 ? t("fire_already_fire") : t("fire_years_to_fire"), value: yearsToFire === 0 ? "🎉" : yearsToFire !== null ? `${yearsToFire} ${t("fire_years")}` : "—", sub: fireAge !== null && fireYear !== null ? `${t("fire_retire_at")} ${fireAge} · ${fireYear}` : "—", color: yearsToFire === 0 ? "text-emerald-400" : "text-white" },
               { label: t("fire_real_return"), value: `${realReturn > 0 ? "+" : ""}${(realReturn * 100).toFixed(1)}%`, sub: `${annualReturn}% − ${inflationRate}%`, color: realReturn > 0 ? "text-emerald-400" : "text-rose-400" },
             ].map(c => (
               <div key={c.label} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 text-center">
