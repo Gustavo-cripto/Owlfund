@@ -92,11 +92,11 @@ export default function FirePage() {
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-5">{t("fire_params")}</p>
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {[
-                { label: t("fire_monthly_expenses"), key: "monthlyExpenses", value: monthlyExpenses, set: setMonthlyExpenses, min: 500, max: 20000, step: 100 },
-                { label: t("fire_monthly_investment"), key: "monthlyInvestment", value: monthlyInvestment, set: setMonthlyInvestment, min: 0, max: 10000, step: 50 },
-                { label: t("fire_annual_return"), key: "annualReturn", value: annualReturn, set: setAnnualReturn, min: 1, max: 20, step: 0.5 },
-                { label: t("fire_inflation"), key: "inflationRate", value: inflationRate, set: setInflationRate, min: 0, max: 10, step: 0.5 },
-                { label: t("fire_current_age"), key: "currentAge", value: currentAge, set: setCurrentAge, min: 18, max: 70, step: 1 },
+                { label: t("fire_monthly_expenses"), key: "monthlyExpenses", value: monthlyExpenses, set: setMonthlyExpenses, min: 500, max: 20000, step: 100, hint: t("fire_hint_expenses") },
+                { label: t("fire_monthly_investment"), key: "monthlyInvestment", value: monthlyInvestment, set: setMonthlyInvestment, min: 0, max: 10000, step: 50, hint: t("fire_hint_investment") },
+                { label: t("fire_annual_return"), key: "annualReturn", value: annualReturn, set: setAnnualReturn, min: 1, max: 20, step: 0.5, hint: t("fire_hint_return") },
+                { label: t("fire_inflation"), key: "inflationRate", value: inflationRate, set: setInflationRate, min: 0, max: 10, step: 0.5, hint: t("fire_hint_inflation") },
+                { label: t("fire_current_age"), key: "currentAge", value: currentAge, set: setCurrentAge, min: 18, max: 70, step: 1, hint: t("fire_hint_age") },
               ].map(f => (
                 <div key={f.key}>
                   <div className="flex justify-between mb-1.5">
@@ -109,6 +109,7 @@ export default function FirePage() {
                   <div className="flex justify-between text-[9px] text-slate-600 mt-0.5">
                     <span>{f.min}</span><span>{f.max}</span>
                   </div>
+                  <p className="text-[10px] leading-snug text-slate-500 mt-1.5">{f.hint}</p>
                 </div>
               ))}
               <div>
@@ -116,6 +117,7 @@ export default function FirePage() {
                 <input type="number" placeholder="Ex: 50000" value={portfolioOverride}
                   onChange={e => setPortfolioOverride(e.target.value)}
                   className="w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+                <p className="text-[10px] leading-snug text-slate-500 mt-1.5">{t("fire_hint_portfolio")}</p>
               </div>
             </div>
           </div>
