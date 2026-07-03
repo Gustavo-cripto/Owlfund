@@ -120,19 +120,39 @@ export default function FirePage() {
             </div>
           </div>
 
-          {/* Resultado FIRE */}
-          <div className="grid gap-4 sm:grid-cols-3">
-            {[
-              { label: t("fire_target"), value: fmt(fireTarget), sub: t("fire_target_rule"), color: "text-orange-300" },
-              { label: yearsToFire === 0 ? t("fire_already_fire") : t("fire_years_to_fire"), value: yearsToFire === 0 ? "🎉" : yearsToFire !== null ? `${yearsToFire} ${t("fire_years")}` : "—", sub: fireAge !== null && fireYear !== null ? `${t("fire_retire_at")} ${fireAge} · ${fireYear}` : "—", color: yearsToFire === 0 ? "text-emerald-400" : "text-white" },
-              { label: t("fire_real_return"), value: `${realReturn > 0 ? "+" : ""}${(realReturn * 100).toFixed(1)}%`, sub: `${annualReturn}% − ${inflationRate}%`, color: realReturn > 0 ? "text-emerald-400" : "text-rose-400" },
-            ].map(c => (
-              <div key={c.label} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 text-center">
-                <p className="text-xs text-slate-500 mb-1">{c.label}</p>
-                <p className={`text-2xl font-black ${c.color}`}>{c.value}</p>
-                <p className="text-[11px] text-slate-500 mt-1">{c.sub}</p>
-              </div>
-            ))}
+          {/* Resultado — resposta clara em destaque */}
+          <div className="rounded-2xl border border-orange-500/30 bg-gradient-to-br from-orange-500/10 via-slate-900/60 to-slate-900/60 p-7 text-center">
+            {realReturn <= 0 ? (
+              <p className="mx-auto max-w-md text-sm text-rose-300">{t("fire_impossible")}</p>
+            ) : yearsToFire === 0 ? (
+              <p className="text-3xl font-black text-emerald-400">{t("fire_already_fire")}</p>
+            ) : (
+              <>
+                <p className="text-sm text-slate-300">{t("fire_answer_lead")}</p>
+                <p className="mt-2 text-5xl font-black leading-none text-white sm:text-6xl">
+                  {yearsToFire}
+                  <span className="ml-2 text-2xl font-bold text-orange-300 sm:text-3xl">{t("fire_years")}</span>
+                </p>
+                <p className="mt-3 text-sm text-slate-400">
+                  {t("fire_retire_at")} <span className="font-semibold text-slate-200">{fireAge} {t("fire_years")}</span>
+                  {" · "}{fireYear}
+                </p>
+              </>
+            )}
+          </div>
+
+          {/* Detalhes de apoio */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 text-center">
+              <p className="text-xs text-slate-500 mb-1">{t("fire_target")}</p>
+              <p className="text-2xl font-black text-orange-300">{fmt(fireTarget)}</p>
+              <p className="text-[11px] text-slate-500 mt-1">{t("fire_target_rule")}</p>
+            </div>
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 text-center">
+              <p className="text-xs text-slate-500 mb-1">{t("fire_real_return")}</p>
+              <p className={`text-2xl font-black ${realReturn > 0 ? "text-emerald-400" : "text-rose-400"}`}>{realReturn > 0 ? "+" : ""}{(realReturn * 100).toFixed(1)}%</p>
+              <p className="text-[11px] text-slate-500 mt-1">{t("fire_real_return_sub")}</p>
+            </div>
           </div>
 
           {/* Gráfico de projeção */}

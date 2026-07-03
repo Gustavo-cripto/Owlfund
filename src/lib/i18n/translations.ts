@@ -1103,6 +1103,9 @@ export const translations = {
     fire_retire_at: "Reforma aos",
     fire_patrimony: "Património",
     fire_goal: "Objetivo FIRE",
+    fire_answer_lead: "Atinges a independência financeira em",
+    fire_real_return_sub: "Crescimento real, já acima da inflação",
+    fire_impossible: "O retorno esperado não cobre a inflação. Aumenta o retorno ou reduz a inflação para veres uma projeção.",
 
     // ── Account ──
     acc_title: "Conta",
@@ -2246,6 +2249,9 @@ export const translations = {
     fire_retire_at: "Retire at",
     fire_patrimony: "Wealth",
     fire_goal: "FIRE Target",
+    fire_answer_lead: "You reach financial independence in",
+    fire_real_return_sub: "Real growth, already above inflation",
+    fire_impossible: "Your expected return doesn't beat inflation. Raise the return or lower inflation to see a projection.",
 
     acc_title: "Account",
     acc_subtitle: "Manage your access, plan and account details.",
@@ -3386,6 +3392,9 @@ export const translations = {
     fire_retire_at: "Jubilación a los",
     fire_patrimony: "Patrimonio",
     fire_goal: "Objetivo FIRE",
+    fire_answer_lead: "Alcanzas la independencia financiera en",
+    fire_real_return_sub: "Crecimiento real, ya por encima de la inflación",
+    fire_impossible: "El retorno esperado no supera la inflación. Aumenta el retorno o reduce la inflación para ver una proyección.",
 
     acc_title: "Cuenta",
     acc_subtitle: "Gestiona tu acceso, plan e información de la cuenta.",
@@ -4526,6 +4535,9 @@ export const translations = {
     fire_retire_at: "Retraite à",
     fire_patrimony: "Patrimoine",
     fire_goal: "Objectif FIRE",
+    fire_answer_lead: "Tu atteins l'indépendance financière dans",
+    fire_real_return_sub: "Croissance réelle, déjà au-dessus de l'inflation",
+    fire_impossible: "Le rendement attendu ne dépasse pas l'inflation. Augmente le rendement ou réduis l'inflation pour voir une projection.",
 
     acc_title: "Compte",
     acc_subtitle: "Gérez votre accès, offre et informations de compte.",
