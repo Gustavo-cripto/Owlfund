@@ -694,19 +694,10 @@ export default function AccountPage() {
 
                     {(isPro || isPremium) && briefingEnabled && (
                       <div className="space-y-3 pt-2 border-t border-slate-800">
-                        {/* Hora */}
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs text-slate-400">{t("ac_send_time")}</p>
-                          <select
-                            value={briefingHour}
-                            onChange={(e) => setBriefingHour(Number(e.target.value))}
-                            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-orange-500"
-                          >
-                            {Array.from({ length: 24 }, (_, i) => (
-                              <option key={i} value={i}>{String(i).padStart(2, "0")}:00 UTC</option>
-                            ))}
-                          </select>
-                        </div>
+                        {/* Hora de envio — fixa no plano atual */}
+                        <p className="flex items-center gap-1.5 text-xs text-slate-500">
+                          <span>🕗</span>{t("ac_send_time_fixed")}
+                        </p>
                         {/* Modo */}
                         <div className="flex items-center justify-between">
                           <p className="text-xs text-slate-400">{t("ac_analysis_type")}</p>
