@@ -1,25 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import AppHeader from "@/components/AppHeader";
+import AppShell from "@/components/AppShell";
 import PnlSummaryCard from "@/components/PnlSummaryCard";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
-
-const TICKER_DATA = [
-  { symbol: "BTC",   price: "€ 91.240", change: "+2,4%", up: true  },
-  { symbol: "ETH",   price: "€ 3.180",  change: "+1,8%", up: true  },
-  { symbol: "SOL",   price: "€ 148",    change: "-0,6%", up: false },
-  { symbol: "ADA",   price: "€ 0,42",   change: "+3,1%", up: true  },
-  { symbol: "BNB",   price: "€ 548",    change: "+0,9%", up: true  },
-  { symbol: "AAPL",  price: "€ 211",    change: "+0,4%", up: true  },
-  { symbol: "NVDA",  price: "€ 876",    change: "+1,2%", up: true  },
-  { symbol: "S&P 500", price: "€ 5.248",change: "-0,2%", up: false },
-  { symbol: "DOGE",  price: "€ 0,138",  change: "+5,2%", up: true  },
-  { symbol: "LINK",  price: "€ 13,40",  change: "+1,1%", up: true  },
-  { symbol: "TSLA",  price: "€ 248",    change: "-1,3%", up: false },
-  { symbol: "GOLD",  price: "€ 2.890",  change: "+0,3%", up: true  },
-];
 
 const FEATURES = [
   { icon: "📊", t: "lp_f1_t", d: "lp_f1_d" },
@@ -67,13 +52,13 @@ export default function Home() {
 
   if (showAppView) {
     return (
-      <div className="relative min-h-screen bg-slate-950 text-slate-100">
-        <div className="pointer-events-none absolute inset-0 opacity-70" style={{ backgroundImage: "url(/hwvtot_2f4227d5a6869b1ae946ecac3e2712c2a84b9f59.jpeg)", backgroundRepeat: "no-repeat", backgroundPosition: "center", backgroundSize: "contain" }} aria-hidden />
-        <div className="pointer-events-none absolute inset-0 bg-slate-950/25" aria-hidden />
-        <div className="relative z-10">
-          <AppHeader variant="app" title="ChainFolioAI Portfolio" subtitle={t("lp_user_area")} />
-          <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-24 pt-4">
-            <section className="grid gap-6 md:grid-cols-[1.1fr_0.9fr] md:items-start">
+      <AppShell>
+        <div className="relative min-h-full">
+          <div className="pointer-events-none absolute inset-0 opacity-70" style={{ backgroundImage: "url(/hwvtot_2f4227d5a6869b1ae946ecac3e2712c2a84b9f59.jpeg)", backgroundRepeat: "no-repeat", backgroundPosition: "center", backgroundSize: "contain" }} aria-hidden />
+          <div className="pointer-events-none absolute inset-0 bg-slate-950/25" aria-hidden />
+          <div className="relative z-10">
+            <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-24 pt-8">
+              <section className="grid gap-6 md:grid-cols-[1.1fr_0.9fr] md:items-start">
               <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
                 <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">{t("lp_logged_area")}</p>
                 <h1 className="mt-3 text-3xl font-semibold text-white">Atalhos rápidos do ChainFolioAI</h1>
@@ -91,14 +76,16 @@ export default function Home() {
                   <p className="text-xs text-slate-500">{t("lp_help_desc")}</p>
                 </div>
               </div>
-            </section>
-          </main>
+              </section>
+            </main>
+          </div>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
   return (
+    <AppShell>
     <div className="relative min-h-screen bg-slate-950 text-slate-100 overflow-x-hidden">
 
       {/* Background glows */}
@@ -108,22 +95,7 @@ export default function Home() {
         <div className="absolute bottom-0 right-0 w-[500px] h-[400px] rounded-full bg-slate-700/20 blur-[100px]" />
       </div>
 
-      <div className="relative z-10">
-        <AppHeader variant="public" title="ChainFolioAI Portfolio" />
-
-        {/* Live price ticker — CSS animation, sem JS */}
-        <div className="border-b border-slate-800/60 bg-slate-900/50 py-2.5 overflow-hidden select-none">
-          <div className="flex animate-ticker" style={{ width: "max-content" }}>
-            {[...TICKER_DATA, ...TICKER_DATA].map((t, i) => (
-              <span key={i} className="inline-flex items-center gap-2 mx-8 text-xs font-mono whitespace-nowrap">
-                <span className="font-bold text-slate-300 tracking-wide">{t.symbol}</span>
-                <span className="text-slate-400">{t.price}</span>
-                <span className={`font-semibold ${t.up ? "text-emerald-400" : "text-rose-400"}`}>{t.change}</span>
-                <span className="text-slate-700">·</span>
-              </span>
-            ))}
-          </div>
-        </div>
+      <div className="relative z-10 pt-8">
 
         {/* HERO */}
         <section className="mx-auto flex w-full max-w-6xl flex-col items-center gap-12 px-6 pb-16 pt-16 md:flex-row md:pt-24">
@@ -272,5 +244,6 @@ export default function Home() {
         </footer>
       </div>
     </div>
+    </AppShell>
   );
 }
