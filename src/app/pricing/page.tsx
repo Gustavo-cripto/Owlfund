@@ -79,6 +79,7 @@ export default function PricingPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [billingInterval, setBillingInterval] = useState<"month" | "year">("month");
 
   useEffect(() => {
     const load = async () => {
@@ -119,13 +120,21 @@ export default function PricingPage() {
     const res = await fetch("/api/stripe/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${accessToken}` },
-      body: JSON.stringify({ userId, plan }),
+      body: JSON.stringify({ userId, plan, interval: billingInterval }),
     });
-    const data = (await res.json()) as { url?: string };
+    const data = (await res.json()) as { url?: string; error?: string };
     if (data.url) window.location.href = data.url;
+    else if (data.error) alert(data.error);
   };
 
   const currentPlan = isPremium ? "premium" : isPro ? "pro" : "free";
+  const annual = billingInterval === "year";
+  // Preços por plano/intervalo. Anual ≈ 2 meses grátis face ao mensal.
+  const priceLabel = (plan: "free" | "pro" | "premium") => {
+    if (plan === "free") return "€0";
+    if (plan === "pro") return annual ? "€149" : "€14,99";
+    return annual ? "€390" : "€39";
+  };
 
   return (
     <AppShell>
@@ -176,6 +185,21 @@ export default function PricingPage() {
               ))}
             </div>
 
+            {/* Monthly / Annual toggle */}
+            <div className="flex justify-center">
+              <div className="inline-flex items-center gap-1 rounded-full border border-slate-800 bg-slate-900/60 p-1">
+                <button type="button" onClick={() => setBillingInterval("month")}
+                  className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${billingInterval === "month" ? "bg-orange-500 text-slate-950" : "text-slate-400 hover:text-white"}`}>
+                  {t("pc_monthly")}
+                </button>
+                <button type="button" onClick={() => setBillingInterval("year")}
+                  className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold transition ${billingInterval === "year" ? "bg-orange-500 text-slate-950" : "text-slate-400 hover:text-white"}`}>
+                  {t("pc_annual")}
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${billingInterval === "year" ? "bg-slate-950/20 text-slate-950" : "bg-emerald-500/20 text-emerald-300"}`}>{t("pc_save_2months")}</span>
+                </button>
+              </div>
+            </div>
+
             {/* 3 Plan Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
@@ -183,7 +207,7 @@ export default function PricingPage() {
               <div className={`rounded-2xl border p-6 space-y-5 ${currentPlan === "free" ? "border-slate-500 bg-slate-800/60" : "border-slate-800 bg-slate-900/60"}`}>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{t("free")}</p>
-                  <p className="text-3xl font-bold text-white mt-1">€0 <span className="text-sm font-normal text-slate-500">{t("pc_per_month")}</span></p>
+                  <p className="text-3xl font-bold text-white mt-1">{priceLabel("free")} <span className="text-sm font-normal text-slate-500">{annual ? t("pc_per_year") : t("pc_per_month")}</span></p>
                   <p className="text-xs text-slate-500 mt-1">{t("pc_free_tag")}</p>
                   <p className="mt-3 text-xs leading-relaxed text-slate-400"><span className="font-semibold text-slate-300">{t("pc_for_label")}:</span> {t("pc_for_free")}</p>
                 </div>
@@ -216,7 +240,7 @@ export default function PricingPage() {
                 <div className="absolute top-3 right-3 text-[10px] bg-orange-500 text-slate-950 font-bold px-2 py-0.5 rounded-full">POPULAR</div>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-400">Pro</p>
-                  <p className="text-3xl font-bold text-white mt-1">€14,99 <span className="text-sm font-normal text-slate-500">{t("pc_per_month")}</span></p>
+                  <p className="text-3xl font-bold text-white mt-1">{priceLabel("pro")} <span className="text-sm font-normal text-slate-500">{annual ? t("pc_per_year") : t("pc_per_month")}</span></p>
                   <p className="text-xs text-slate-500 mt-1">{t("pc_pro_tag")}</p>
                   <p className="mt-3 text-xs leading-relaxed text-slate-300"><span className="font-semibold text-orange-300">{t("pc_for_label")}:</span> {t("pc_for_pro")}</p>
                 </div>
@@ -261,7 +285,7 @@ export default function PricingPage() {
                 <div className="absolute top-3 right-3 text-[10px] bg-violet-500 text-white font-bold px-2 py-0.5 rounded-full">PROFISSIONAL</div>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-400">Premium</p>
-                  <p className="text-3xl font-bold text-white mt-1">€39 <span className="text-sm font-normal text-slate-500">{t("pc_per_month")}</span></p>
+                  <p className="text-3xl font-bold text-white mt-1">{priceLabel("premium")} <span className="text-sm font-normal text-slate-500">{annual ? t("pc_per_year") : t("pc_per_month")}</span></p>
                   <p className="text-xs text-slate-500 mt-1">{t("pc_premium_tag")}</p>
                   <p className="mt-3 text-xs leading-relaxed text-slate-300"><span className="font-semibold text-violet-300">{t("pc_for_label")}:</span> {t("pc_for_premium")}</p>
                 </div>

@@ -51,13 +51,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body2 = await request.json().catch(() => ({})) as { userId?: string; plan?: string };
+  const body2 = await request.json().catch(() => ({})) as { userId?: string; plan?: string; interval?: string };
   const plan = body2.plan ?? "pro";
+  const annual = body2.interval === "year";
+
   const priceId = plan === "premium"
-    ? (process.env.STRIPE_PREMIUM_PRICE_ID ?? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID)
-    : process.env.STRIPE_PRICE_ID;
+    ? (annual
+        ? process.env.STRIPE_PREMIUM_PRICE_ID_ANNUAL
+        : (process.env.STRIPE_PREMIUM_PRICE_ID ?? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID))
+    : (annual ? process.env.STRIPE_PRICE_ID_ANNUAL : process.env.STRIPE_PRICE_ID);
   if (!priceId) {
-    return NextResponse.json({ error: "Stripe price não configurado." }, { status: 503 });
+    return NextResponse.json(
+      { error: annual ? "Preço anual não configurado." : "Stripe price não configurado." },
+      { status: 503 },
+    );
   }
 
   const stripe = getStripe();
