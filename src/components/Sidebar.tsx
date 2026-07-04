@@ -1,10 +1,10 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
-import type { Lang } from "@/lib/i18n/translations";
+import type { Lang, TranslationKey } from "@/lib/i18n/translations";
 
 const LANGS: { code: Lang; flag: string; label: string }[] = [
   { code: "pt", flag: "🇵🇹", label: "PT" },
@@ -178,6 +178,24 @@ export default function Sidebar() {
 
   const expanded = hovered;
 
+  // Visitantes sem sessão veem um menu mínimo: página inicial + como funciona.
+  const homeIcon = (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 9.5 12 3l9 6.5" /><path d="M5 10v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V10" /><path d="M9 21v-6h6v6" />
+    </svg>
+  );
+  const howIcon = (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  );
+  const navList: { href: string; labelKey: TranslationKey; icon: ReactNode }[] = isLoggedIn
+    ? NAV_ITEMS_KEYS.map((i) => ({ href: i.href, labelKey: i.labelKey, icon: NAV_ITEMS.find((n) => n.href === i.href)?.icon }))
+    : [
+        { href: "/", labelKey: "nav_home", icon: homeIcon },
+        { href: "/#como-funciona", labelKey: "dash_how_title", icon: howIcon },
+      ];
+
   return (
     <>
       {/* ── Mobile top bar ── */}
@@ -207,19 +225,16 @@ export default function Sidebar() {
       {/* ── Mobile dropdown ── */}
       {mobileOpen && (
         <nav className="xl:hidden bg-black border-b border-white/[0.06] px-3 py-3 grid grid-cols-2 gap-1">
-          {NAV_ITEMS_KEYS.map((item) => {
-            const icon = NAV_ITEMS.find((n) => n.href === item.href)?.icon;
-            return (
-              <a key={item.href} href={item.href}
-                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition ${
-                  isActive(item.href) ? "bg-white/10 text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"
-                }`}
-              >
-                <span className={isActive(item.href) ? "text-orange-400" : "text-slate-500"}>{icon}</span>
-                {t(item.labelKey)}
-              </a>
-            );
-          })}
+          {navList.map((item) => (
+            <a key={item.href} href={item.href}
+              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition ${
+                isActive(item.href) ? "bg-white/10 text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"
+              }`}
+            >
+              <span className={isActive(item.href) ? "text-orange-400" : "text-slate-500"}>{item.icon}</span>
+              {t(item.labelKey)}
+            </a>
+          ))}
           <div className="col-span-2 mt-1 pt-2 border-t border-white/[0.06] flex items-center justify-between px-2">
             <div className="flex gap-1.5">
               {LANGS.map((l) => (
@@ -271,8 +286,7 @@ export default function Sidebar() {
             </p>
           )}
           <ul className="space-y-1">
-            {NAV_ITEMS_KEYS.map((item) => {
-              const icon = NAV_ITEMS.find((n) => n.href === item.href)?.icon;
+            {navList.map((item) => {
               const label = t(item.labelKey);
               return (
                 <li key={item.href}>
@@ -288,7 +302,7 @@ export default function Sidebar() {
                     }`}
                   >
                     <span className={`shrink-0 ${isActive(item.href) ? "text-orange-400" : "text-slate-500"}`}>
-                      {icon}
+                      {item.icon}
                     </span>
                     <span className={`transition-all duration-200 overflow-hidden whitespace-nowrap text-[15px] ${expanded ? "opacity-100 w-auto" : "opacity-0 w-0"}`}>
                       {label}

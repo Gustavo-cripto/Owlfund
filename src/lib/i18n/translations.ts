@@ -3,6 +3,7 @@ export type Lang = "pt" | "en" | "es" | "fr";
 export const translations = {
   pt: {
     // ── Sidebar / Nav ──
+    nav_home: "Página inicial",
     nav_dashboard: "Dashboard",
     nav_portfolio: "Portfolio",
     nav_wallets: "Carteiras",
@@ -1163,6 +1164,7 @@ export const translations = {
   },
 
   en: {
+    nav_home: "Home",
     nav_dashboard: "Dashboard",
     nav_portfolio: "Portfolio",
     nav_wallets: "Wallets",
@@ -2313,6 +2315,7 @@ export const translations = {
   },
 
   es: {
+    nav_home: "Inicio",
     nav_dashboard: "Panel",
     nav_portfolio: "Cartera",
     nav_wallets: "Monederos",
@@ -3463,6 +3466,7 @@ export const translations = {
   },
 
   fr: {
+    nav_home: "Accueil",
     nav_dashboard: "Tableau de bord",
     nav_portfolio: "Portefeuille",
     nav_wallets: "Portefeuilles",
