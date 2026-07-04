@@ -158,6 +158,15 @@ export default function PricingPage() {
               </p>
             </div>
 
+            {/* Intro — como escolher */}
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 max-w-3xl mx-auto">
+              <h2 className="text-sm font-bold text-white mb-3">{t("pc_intro_title")}</h2>
+              <div className="space-y-2.5 text-sm text-slate-300 leading-relaxed">
+                <p>{t("pc_intro_1")}</p>
+                <p>{t("pc_intro_2")}</p>
+              </div>
+            </div>
+
             {/* Stats bar */}
             <div className="flex flex-wrap justify-center gap-6 text-center">
               {[

@@ -87,6 +87,16 @@ export default function FirePage() {
             <p className="mt-1 text-sm text-slate-400">{t("fire_subtitle")}</p>
           </div>
 
+          {/* Explicação */}
+          <div className="rounded-2xl border border-orange-500/20 bg-orange-500/5 p-6">
+            <h2 className="text-sm font-bold text-white mb-3">{t("fire_intro_title")}</h2>
+            <div className="space-y-2.5 text-sm text-slate-300 leading-relaxed">
+              <p>{t("fire_intro_1")}</p>
+              <p>{t("fire_intro_2")}</p>
+              <p>{t("fire_intro_3")}</p>
+            </div>
+          </div>
+
           {/* Inputs */}
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-5">{t("fire_params")}</p>
