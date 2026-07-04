@@ -483,7 +483,7 @@ export default function DashboardPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {[
-                { icon: "🦉", title: t("dash_how_1_title"), desc: t("dash_how_1_desc") },
+                { icon: "/chainfolioai-icon.png", title: t("dash_how_1_title"), desc: t("dash_how_1_desc") },
                 { icon: "🔗", title: t("dash_how_2_title"), desc: t("dash_how_2_desc") },
                 { icon: "📡", title: t("dash_how_3_title"), desc: t("dash_how_3_desc") },
                 { icon: "🤖", title: t("dash_how_4_title"), desc: t("dash_how_4_desc") },
@@ -491,7 +491,9 @@ export default function DashboardPage() {
                 { icon: "💎", title: t("dash_how_6_title"), desc: t("dash_how_6_desc") },
               ].map((item) => (
                 <div key={item.title} className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5 flex flex-col gap-2">
-                  <span className="text-2xl">{item.icon}</span>
+                  {item.icon.startsWith("/")
+                    ? <img src={item.icon} alt="" className="h-8 w-8 rounded-lg object-cover" />
+                    : <span className="text-2xl">{item.icon}</span>}
                   <h3 className="text-sm font-bold text-white">{item.title}</h3>
                   <p className="text-xs text-slate-400 leading-relaxed">{item.desc}</p>
                 </div>

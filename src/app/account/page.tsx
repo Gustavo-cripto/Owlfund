@@ -680,7 +680,7 @@ export default function AccountPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-semibold text-white">🦉 Briefing Diário por Email</p>
+                          <p className="flex items-center gap-1.5 text-sm font-semibold text-white"><img src="/chainfolioai-icon.png" alt="" className="h-4 w-4 rounded-full object-cover" /> Briefing Diário por Email</p>
                           {!isPro && !isPremium && <span className="text-[10px] border border-orange-500/40 text-orange-400 rounded-full px-2 py-0.5">Pro</span>}
                         </div>
                         <p className="text-xs text-slate-400 mt-0.5">{t("ac_briefing_desc")}</p>

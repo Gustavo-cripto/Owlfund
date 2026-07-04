@@ -84,8 +84,9 @@ function buildEmailHtml(briefing: string, mode: string, date: string): string {
 <body style="background:#0f172a;font-family:system-ui,sans-serif;padding:0;margin:0">
   <div style="max-width:600px;margin:0 auto;padding:32px 24px">
     <div style="text-align:center;margin-bottom:24px">
+      <img src="https://owlfund.vercel.app/chainfolioai-icon.png" alt="ChainFolioAI" width="48" height="48" style="border-radius:12px;object-fit:cover;margin-bottom:8px" />
       <p style="color:#f97316;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;margin:0">ChainFolioAI</p>
-      <h1 style="color:#fff;font-size:22px;margin:8px 0">🦉 Briefing ${mode === "crypto" ? "Cripto" : "Tradicional"}</h1>
+      <h1 style="color:#fff;font-size:22px;margin:8px 0">Briefing ${mode === "crypto" ? "Cripto" : "Tradicional"}</h1>
       <p style="color:#64748b;font-size:12px;margin:0">${date}</p>
     </div>
     <div style="background:#1e293b;border-radius:16px;padding:24px;border:1px solid #334155">
@@ -158,7 +159,7 @@ export async function GET(request: Request) {
       const { error } = await resend.emails.send({
         from: "Owlfund <briefing@owlfund.app>",
         to: user.email,
-        subject: `🦉 Briefing ${mode === "crypto" ? "Cripto" : "Mercado Tradicional"} — ${date}`,
+        subject: `Briefing ${mode === "crypto" ? "Cripto" : "Mercado Tradicional"} — ${date}`,
         html,
       });
 

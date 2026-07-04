@@ -1684,7 +1684,7 @@ export default function PortfolioPage() {
           )}
           {aiReply && (
             <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/80">
-              <p className="text-xs text-orange-500 dark:text-orange-300/80 font-semibold mb-2">🦉 Owl — Assistente IA</p>
+              <p className="flex items-center gap-1.5 text-xs text-orange-500 dark:text-orange-300/80 font-semibold mb-2"><img src="/chainfolioai-icon.png" alt="" className="h-4 w-4 rounded-full object-cover" /> ChainFolioAI — Assistente IA</p>
               <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">{aiReply}</p>
             </div>
           )}

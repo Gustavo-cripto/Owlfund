@@ -101,7 +101,7 @@ export default function Home() {
         <section className="mx-auto flex w-full max-w-6xl flex-col items-center gap-12 px-6 pb-16 pt-16 md:flex-row md:pt-24">
           <div className="flex-1 space-y-7">
             <div className="animate-fade-in-up inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-4 py-1.5 text-xs font-bold text-orange-300 uppercase tracking-widest">
-              🦉 Plataforma gratuita · Beta aberto
+              <img src="/chainfolioai-icon.png" alt="" className="h-4 w-4 rounded-full object-cover" /> Plataforma gratuita · Beta aberto
             </div>
             <h1 className="animate-fade-in-up delay-100 text-4xl font-bold leading-tight text-white md:text-5xl lg:text-6xl">
               O teu portfólio<br />
@@ -186,7 +186,7 @@ export default function Home() {
           </div>
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {([
-              { icon: "🦉", tKey: "dash_how_1_title", dKey: "dash_how_1_desc" },
+              { icon: "/chainfolioai-icon.png", tKey: "dash_how_1_title", dKey: "dash_how_1_desc" },
               { icon: "🔗", tKey: "dash_how_2_title", dKey: "dash_how_2_desc" },
               { icon: "📡", tKey: "dash_how_3_title", dKey: "dash_how_3_desc" },
               { icon: "🤖", tKey: "dash_how_4_title", dKey: "dash_how_4_desc" },
@@ -194,7 +194,11 @@ export default function Home() {
               { icon: "💎", tKey: "dash_how_6_title", dKey: "dash_how_6_desc" },
             ] as const).map((item, i) => (
               <div key={item.tKey} className={`card-hover rounded-2xl border border-slate-800 bg-slate-900/60 p-6 animate-fade-in-up delay-${Math.min(i * 100, 500)}`}>
-                <div className="mb-4 text-3xl leading-none">{item.icon}</div>
+                <div className="mb-4 text-3xl leading-none">
+                  {item.icon.startsWith("/")
+                    ? <img src={item.icon} alt="" className="h-9 w-9 rounded-lg object-cover" />
+                    : item.icon}
+                </div>
                 <h3 className="text-base font-bold text-white">{t(item.tKey)}</h3>
                 <p className="mt-2 text-sm text-slate-400 leading-relaxed">{t(item.dKey)}</p>
               </div>
@@ -208,7 +212,7 @@ export default function Home() {
             {/* glow decorativo */}
             <div className="animate-glow-pulse pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-orange-500/10 blur-[80px]" aria-hidden />
             <div className="relative">
-              <div className="mb-5 text-5xl">🦉</div>
+              <img src="/chainfolioai-icon.png" alt="" className="mb-5 mx-auto h-16 w-16 rounded-2xl object-cover" />
               <h2 className="text-3xl font-bold text-white md:text-4xl">{t("lp_ready")}</h2>
               <p className="mt-4 text-slate-400 max-w-sm mx-auto">Junta-te à comunidade ChainFolioAI. Grátis para sempre no plano base.</p>
               <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
@@ -228,7 +232,7 @@ export default function Home() {
         <footer className="border-t border-slate-900 bg-slate-950/80 py-10">
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-6 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-3">
-              <span className="text-2xl">🦉</span>
+              <img src="/chainfolioai-icon.png" alt="" className="h-8 w-8 rounded-lg object-cover" />
               <div>
                 <p className="font-bold text-white">ChainFolioAI</p>
                 <p className="text-xs text-slate-500">{t("lp_tagline")}</p>
