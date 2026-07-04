@@ -231,8 +231,10 @@ export default function Sidebar() {
                 </button>
               ))}
             </div>
-            {isLoggedIn && (
+            {isLoggedIn ? (
               <button type="button" onClick={handleLogout} className="text-xs text-slate-500 hover:text-white transition">{t("logout")}</button>
+            ) : (
+              <a href="/login" className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-orange-400 transition">{t("lp_login")}</a>
             )}
           </div>
         </nav>
@@ -323,7 +325,7 @@ export default function Sidebar() {
           {expanded && email && (
             <p className="text-[11px] text-slate-600 truncate mb-2 px-1 whitespace-nowrap">{email}</p>
           )}
-          {isLoggedIn && (
+          {isLoggedIn ? (
             <button
               type="button"
               onClick={handleLogout}
@@ -339,6 +341,21 @@ export default function Sidebar() {
                 {t("logout")}
               </span>
             </button>
+          ) : (
+            <a
+              href="/login"
+              title={!expanded ? t("lp_login") : undefined}
+              className={`w-full flex items-center rounded-xl bg-orange-500 font-bold text-slate-950 hover:bg-orange-400 transition ${
+                expanded ? "gap-2.5 px-3 py-2.5" : "justify-center py-3 px-0"
+              }`}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" /><polyline points="10 17 15 12 10 7" /><line x1="15" y1="12" x2="3" y2="12" />
+              </svg>
+              <span className={`transition-all duration-200 overflow-hidden whitespace-nowrap text-sm ${expanded ? "opacity-100 w-auto" : "opacity-0 w-0"}`}>
+                {t("lp_login")}
+              </span>
+            </a>
           )}
         </div>
       </aside>
