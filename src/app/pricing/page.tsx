@@ -161,6 +161,21 @@ export default function PricingPage() {
               ))}
             </div>
 
+            {/* Trust bar */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { icon: "🔒", label: t("pc_trust_readonly") },
+                { icon: "↩️", label: t("pc_trust_cancel") },
+                { icon: "💳", label: t("pc_trust_nocard") },
+                { icon: "🔐", label: t("pc_trust_stripe") },
+              ].map((item) => (
+                <div key={item.label} className="flex items-center gap-2.5 rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2.5">
+                  <span className="text-lg shrink-0">{item.icon}</span>
+                  <span className="text-[11px] leading-snug text-slate-400">{item.label}</span>
+                </div>
+              ))}
+            </div>
+
             {/* 3 Plan Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
@@ -170,6 +185,7 @@ export default function PricingPage() {
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{t("free")}</p>
                   <p className="text-3xl font-bold text-white mt-1">€0 <span className="text-sm font-normal text-slate-500">{t("pc_per_month")}</span></p>
                   <p className="text-xs text-slate-500 mt-1">{t("pc_free_tag")}</p>
+                  <p className="mt-3 text-xs leading-relaxed text-slate-400"><span className="font-semibold text-slate-300">{t("pc_for_label")}:</span> {t("pc_for_free")}</p>
                 </div>
                 <div className="space-y-2 text-sm">
                   {[
@@ -202,6 +218,7 @@ export default function PricingPage() {
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-400">Pro</p>
                   <p className="text-3xl font-bold text-white mt-1">€14,99 <span className="text-sm font-normal text-slate-500">{t("pc_per_month")}</span></p>
                   <p className="text-xs text-slate-500 mt-1">{t("pc_pro_tag")}</p>
+                  <p className="mt-3 text-xs leading-relaxed text-slate-300"><span className="font-semibold text-orange-300">{t("pc_for_label")}:</span> {t("pc_for_pro")}</p>
                 </div>
                 <div className="space-y-2 text-sm">
                   {[
@@ -246,6 +263,7 @@ export default function PricingPage() {
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-400">Premium</p>
                   <p className="text-3xl font-bold text-white mt-1">€39 <span className="text-sm font-normal text-slate-500">{t("pc_per_month")}</span></p>
                   <p className="text-xs text-slate-500 mt-1">{t("pc_premium_tag")}</p>
+                  <p className="mt-3 text-xs leading-relaxed text-slate-300"><span className="font-semibold text-violet-300">{t("pc_for_label")}:</span> {t("pc_for_premium")}</p>
                 </div>
                 <div className="space-y-2 text-sm">
                   {[
@@ -370,6 +388,26 @@ export default function PricingPage() {
                 </button>
               </div>
             )}
+
+            {/* FAQ */}
+            <div className="space-y-4">
+              <h2 className="text-lg font-bold text-white text-center">{t("pc_faq_title")}</h2>
+              <div className="grid gap-3 md:grid-cols-2">
+                {[
+                  { q: t("pc_faq_q1"), a: t("pc_faq_a1") },
+                  { q: t("pc_faq_q2"), a: t("pc_faq_a2") },
+                  { q: t("pc_faq_q3"), a: t("pc_faq_a3") },
+                  { q: t("pc_faq_q4"), a: t("pc_faq_a4") },
+                  { q: t("pc_faq_q5"), a: t("pc_faq_a5") },
+                  { q: t("pc_faq_q6"), a: t("pc_faq_a6") },
+                ].map((item) => (
+                  <div key={item.q} className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
+                    <p className="text-sm font-semibold text-white">{item.q}</p>
+                    <p className="mt-2 text-xs leading-relaxed text-slate-400">{item.a}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             {/* Footer note */}
             <div className="text-center space-y-2">
