@@ -135,6 +135,9 @@ export default function PricingPage() {
     if (plan === "pro") return annual ? "€149" : "€14,99";
     return annual ? "€390" : "€39";
   };
+  // Poupança anual vs 12× mensal (Pro: 179,88−149; Premium: 468−390).
+  const annualSaving = (plan: "pro" | "premium") =>
+    plan === "pro" ? 31 : 78;
 
   return (
     <AppShell>
@@ -241,6 +244,11 @@ export default function PricingPage() {
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-400">Pro</p>
                   <p className="text-3xl font-bold text-white mt-1">{priceLabel("pro")} <span className="text-sm font-normal text-slate-500">{annual ? t("pc_per_year") : t("pc_per_month")}</span></p>
+                  {annual && (
+                    <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-300">
+                      💸 {t("pc_save_2months")} · {t("pc_you_save")} €{annualSaving("pro")} {t("pc_per_year_short")}
+                    </p>
+                  )}
                   <p className="text-xs text-slate-500 mt-1">{t("pc_pro_tag")}</p>
                   <p className="mt-3 text-xs leading-relaxed text-slate-300"><span className="font-semibold text-orange-300">{t("pc_for_label")}:</span> {t("pc_for_pro")}</p>
                 </div>
@@ -286,6 +294,11 @@ export default function PricingPage() {
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-400">Premium</p>
                   <p className="text-3xl font-bold text-white mt-1">{priceLabel("premium")} <span className="text-sm font-normal text-slate-500">{annual ? t("pc_per_year") : t("pc_per_month")}</span></p>
+                  {annual && (
+                    <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-300">
+                      💸 {t("pc_save_2months")} · {t("pc_you_save")} €{annualSaving("premium")} {t("pc_per_year_short")}
+                    </p>
+                  )}
                   <p className="text-xs text-slate-500 mt-1">{t("pc_premium_tag")}</p>
                   <p className="mt-3 text-xs leading-relaxed text-slate-300"><span className="font-semibold text-violet-300">{t("pc_for_label")}:</span> {t("pc_for_premium")}</p>
                 </div>
