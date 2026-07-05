@@ -22,9 +22,12 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [isError, setIsError] = useState(false);
   const [mode, setMode] = useState<"login" | "signup">("login");
 
   useEffect(() => {
@@ -44,17 +47,22 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
     };
   }, [supabase, nextParam]);
 
+  const fail = (msg: string) => {
+    setMessage(msg);
+    setIsError(true);
+  };
+
   const validateCredentials = () => {
     const nextEmail = email.trim();
     const nextPassword = password.trim();
 
     if (!nextEmail || !nextPassword) {
-      setMessage("Preenche email e senha.");
+      fail("Preenche o email e a senha.");
       return null;
     }
 
     if (nextPassword.length < 6) {
-      setMessage("A senha deve ter pelo menos 6 caracteres.");
+      fail("A senha deve ter pelo menos 6 caracteres.");
       return null;
     }
 
@@ -62,9 +70,9 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
   };
 
   const handleEmailLogin = async () => {
-    setMode("login");
     setLoading(true);
     setMessage(null);
+    setIsError(false);
 
     const creds = validateCredentials();
     if (!creds) {
@@ -74,9 +82,9 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
 
     const { error } = await supabase.auth.signInWithPassword(creds);
     if (error) {
-      setMessage(error.message || "Não foi possível entrar. Verifica os dados.");
+      fail(error.message || "Não foi possível entrar. Verifica os dados.");
     } else {
-      setMessage("Login realizado. Redirecionando...");
+      setMessage("Login realizado. A redirecionar...");
       window.location.href = getRedirectUrl(nextParam);
     }
 
@@ -84,9 +92,9 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
   };
 
   const handleSignUp = async () => {
-    setMode("signup");
     setLoading(true);
     setMessage(null);
+    setIsError(false);
 
     const origin = window.location.origin;
     const creds = validateCredentials();
@@ -97,13 +105,13 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
 
     const nextConfirm = confirmPassword.trim();
     if (!nextConfirm) {
-      setMessage("Confirma a senha.");
+      fail("Confirma a senha.");
       setLoading(false);
       return;
     }
 
     if (creds.password !== nextConfirm) {
-      setMessage("As senhas não coincidem.");
+      fail("As senhas não coincidem.");
       setLoading(false);
       return;
     }
@@ -115,17 +123,19 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
       },
     });
     if (error) {
-      setMessage(error.message || "Não foi possível criar a conta.");
+      fail(error.message || "Não foi possível criar a conta.");
     } else {
-      setMessage("Conta criada. Verifica o email para confirmar.");
+      setMessage("Conta criada! Verifica o teu email para confirmar.");
+      setIsError(false);
     }
 
     setLoading(false);
   };
 
   const handleGoogle = async () => {
-    setLoading(true);
+    setGoogleLoading(true);
     setMessage(null);
+    setIsError(false);
 
     const origin = window.location.origin;
     const state = nextParam ? `next:${nextParam.startsWith("/") ? nextParam : `/${nextParam}`}` : undefined;
@@ -138,96 +148,157 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
     });
 
     if (error) {
-      setMessage(error.message || "Não foi possível iniciar com Google.");
-      setLoading(false);
+      fail(error.message || "Não foi possível iniciar sessão com Google.");
+      setGoogleLoading(false);
     }
   };
 
+  const handleSubmit = () => (mode === "login" ? handleEmailLogin() : handleSignUp());
+  const busy = loading || googleLoading || isCheckingSession;
+
+  const inputClass =
+    "w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 outline-none transition focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40";
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <main className="mx-auto flex w-full max-w-md flex-col gap-6 px-6 pb-20 pt-12">
+    <div className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
+      {/* Background glows */}
+      <div className="pointer-events-none absolute inset-0" aria-hidden>
+        <div className="absolute -top-40 left-1/2 h-[420px] w-[620px] -translate-x-1/2 rounded-full bg-orange-500/10 blur-[130px]" />
+        <div className="absolute bottom-0 right-0 h-[360px] w-[420px] rounded-full bg-slate-700/20 blur-[110px]" />
+      </div>
+
+      <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-6 px-6 py-12">
         <a
-          className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 transition hover:text-slate-200"
+          className="mx-auto text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 transition hover:text-slate-200"
           href="/"
         >
-          Voltar para início
+          ← Voltar para início
         </a>
-        <div className="space-y-2">
-          <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">
-            Acesso
-          </p>
-          <h1 className="text-3xl font-semibold text-white">
-            {mode === "signup" ? "Criar conta na ChainFolioAI" : "Entrar na ChainFolioAI"}
-          </h1>
-          <p className="text-sm text-slate-400">
-            Use email e senha ou faça login com Google.
-          </p>
+
+        {/* Brand */}
+        <div className="flex flex-col items-center gap-3 text-center">
+          <img
+            src="/chainfolioai-icon.png"
+            alt="ChainFolioAI"
+            className="h-16 w-16 rounded-2xl border border-white/10 object-cover shadow-lg shadow-black/40"
+          />
+          <div>
+            <h1 className="text-2xl font-bold text-white">
+              {mode === "signup" ? "Cria a tua conta" : "Bem-vindo de volta"}
+            </h1>
+            <p className="mt-1 text-sm text-slate-400">
+              {mode === "signup"
+                ? "Grátis para começar — sem cartão."
+                : "Entra na tua conta ChainFolioAI."}
+            </p>
+          </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-          <div className="space-y-4">
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl shadow-black/30 backdrop-blur">
+          {/* Mode switcher */}
+          <div className="mb-5 grid grid-cols-2 gap-1 rounded-full border border-slate-800 bg-slate-950 p-1">
+            {(["login", "signup"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => { setMode(m); setMessage(null); setIsError(false); }}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  mode === m ? "bg-orange-500 text-slate-950" : "text-slate-400 hover:text-white"
+                }`}
+              >
+                {m === "login" ? "Entrar" : "Criar conta"}
+              </button>
+            ))}
+          </div>
+
+          <div className="space-y-3">
             <input
-              className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-orange-400"
+              className={inputClass}
               placeholder="Email"
               type="email"
+              autoComplete="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && mode === "login") handleSubmit(); }}
             />
-            <input
-              className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-orange-400"
-              placeholder="Senha"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-            />
+            <div className="relative">
+              <input
+                className={`${inputClass} pr-16`}
+                placeholder="Senha"
+                type={showPassword ? "text" : "password"}
+                autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && mode === "login") handleSubmit(); }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-500 transition hover:text-slate-200"
+              >
+                {showPassword ? "Esconder" : "Mostrar"}
+              </button>
+            </div>
             {mode === "signup" ? (
               <input
-                className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-200 outline-none transition focus:border-orange-400"
+                className={inputClass}
                 placeholder="Confirmar senha"
-                type="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
               />
             ) : null}
           </div>
 
-          {message ? <p className="mt-4 text-sm text-orange-200">{message}</p> : null}
+          {message ? (
+            <p
+              className={`mt-4 rounded-lg border px-3 py-2 text-sm ${
+                isError
+                  ? "border-red-500/30 bg-red-500/10 text-red-300"
+                  : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+              }`}
+            >
+              {message}
+            </p>
+          ) : null}
 
-          <div className="mt-6 flex flex-col gap-3">
-            <button
-              className={
-                mode === "login"
-                  ? "rounded-full bg-orange-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-70"
-                  : "rounded-full border border-slate-700 px-6 py-3 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
-              }
-              onClick={handleEmailLogin}
-              disabled={loading || isCheckingSession}
-              type="button"
-            >
-              Entrar
-            </button>
-            <button
-              className={
-                mode === "signup"
-                  ? "rounded-full bg-orange-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-70"
-                  : "rounded-full border border-slate-700 px-6 py-3 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
-              }
-              onClick={handleSignUp}
-              disabled={loading || isCheckingSession}
-              type="button"
-            >
-              Criar conta
-            </button>
-            <button
-              className="rounded-full border border-orange-400/40 px-6 py-3 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
-              onClick={handleGoogle}
-              disabled={loading || isCheckingSession}
-              type="button"
-            >
-              Entrar com Google
-            </button>
+          <button
+            className="mt-5 w-full rounded-full bg-orange-500 px-6 py-3 text-sm font-bold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={handleSubmit}
+            disabled={busy}
+            type="button"
+          >
+            {loading ? "Aguarda..." : mode === "login" ? "Entrar" : "Criar conta"}
+          </button>
+
+          {/* Divider */}
+          <div className="my-5 flex items-center gap-3">
+            <div className="h-px flex-1 bg-slate-800" />
+            <span className="text-xs text-slate-500">ou</span>
+            <div className="h-px flex-1 bg-slate-800" />
           </div>
+
+          {/* Google */}
+          <button
+            className="flex w-full items-center justify-center gap-3 rounded-full border border-slate-700 bg-slate-950 px-6 py-3 text-sm font-semibold text-slate-100 transition hover:border-slate-500 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={handleGoogle}
+            disabled={busy}
+            type="button"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden>
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1Z" />
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z" />
+              <path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84Z" />
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.3 9.14 5.38 12 5.38Z" />
+            </svg>
+            {googleLoading ? "A ligar ao Google..." : "Continuar com Google"}
+          </button>
         </div>
+
+        <p className="text-center text-xs text-slate-600">
+          Ao continuar, concordas em usar o ChainFolioAI em modo só-leitura.
+        </p>
       </main>
     </div>
   );
