@@ -23,6 +23,14 @@ export function useRequireAuth(redirectTo: string = "/login") {
         return;
       }
 
+      // Se a conta tem 2FA ativo mas a sessão ainda é aal1, exige o desafio no login.
+      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (!isMounted) return;
+      if (aal && aal.nextLevel === "aal2" && aal.currentLevel === "aal1") {
+        window.location.href = "/login";
+        return;
+      }
+
       setUserId(user.id);
       setIsLoading(false);
     };

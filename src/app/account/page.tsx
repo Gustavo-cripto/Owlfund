@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import AppShell from "@/components/AppShell";
+import TwoFactorSetup from "@/components/TwoFactorSetup";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import type { TranslationKey } from "@/lib/i18n/translations";
@@ -779,6 +780,9 @@ export default function AccountPage() {
                       </a>
                     </SettingRow>
                   </div>
+
+                  {/* 2FA */}
+                  <TwoFactorSetup />
 
                   {/* Danger zone */}
                   <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-4 space-y-3">

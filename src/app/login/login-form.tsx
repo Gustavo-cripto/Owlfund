@@ -29,6 +29,21 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
   const [message, setMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
   const [mode, setMode] = useState<"login" | "signup">("login");
+  const [showMfa, setShowMfa] = useState(false);
+  const [mfaCode, setMfaCode] = useState("");
+
+  // Após autenticar, se a conta tiver 2FA ativo mas a sessão ainda for aal1,
+  // mostra o desafio do código; caso contrário redireciona.
+  const finishOrChallenge = async () => {
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aal && aal.nextLevel === "aal2" && aal.currentLevel === "aal1") {
+      setShowMfa(true);
+      setIsCheckingSession(false);
+      setLoading(false);
+      return;
+    }
+    window.location.href = getRedirectUrl(nextParam);
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -36,7 +51,7 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
     supabase.auth.getSession().then(({ data }: { data: { session: unknown } }) => {
       if (!isMounted) return;
       if (data.session) {
-        window.location.href = getRedirectUrl(nextParam);
+        finishOrChallenge();
         return;
       }
       setIsCheckingSession(false);
@@ -45,6 +60,7 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
     return () => {
       isMounted = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase, nextParam]);
 
   const fail = (msg: string) => {
@@ -83,12 +99,40 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
     const { error } = await supabase.auth.signInWithPassword(creds);
     if (error) {
       fail(error.message || "Não foi possível entrar. Verifica os dados.");
+      setLoading(false);
     } else {
-      setMessage("Login realizado. A redirecionar...");
-      window.location.href = getRedirectUrl(nextParam);
+      await finishOrChallenge();
     }
+  };
 
-    setLoading(false);
+  const submitMfa = async () => {
+    setLoading(true);
+    setMessage(null);
+    setIsError(false);
+    const { data: factors } = await supabase.auth.mfa.listFactors();
+    const totp = factors?.totp?.find((f: { id: string; status: string }) => f.status === "verified");
+    if (!totp) {
+      fail("Fator de 2FA não encontrado.");
+      setLoading(false);
+      return;
+    }
+    const { data: challenge, error: cErr } = await supabase.auth.mfa.challenge({ factorId: totp.id });
+    if (cErr || !challenge) {
+      fail(cErr?.message ?? "Não foi possível iniciar o desafio 2FA.");
+      setLoading(false);
+      return;
+    }
+    const { error: vErr } = await supabase.auth.mfa.verify({
+      factorId: totp.id,
+      challengeId: challenge.id,
+      code: mfaCode.trim(),
+    });
+    if (vErr) {
+      fail("Código inválido. Verifica na app e tenta de novo.");
+      setLoading(false);
+      return;
+    }
+    window.location.href = getRedirectUrl(nextParam);
   };
 
   const handleSignUp = async () => {
@@ -184,16 +228,52 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
           />
           <div>
             <h1 className="text-2xl font-bold text-white">
-              {mode === "signup" ? "Cria a tua conta" : "Bem-vindo de volta"}
+              {showMfa ? "Verificação em duas etapas" : mode === "signup" ? "Cria a tua conta" : "Bem-vindo de volta"}
             </h1>
             <p className="mt-1 text-sm text-slate-400">
-              {mode === "signup"
+              {showMfa
+                ? "Introduz o código de 6 dígitos da tua app autenticadora."
+                : mode === "signup"
                 ? "Grátis para começar — sem cartão."
                 : "Entra na tua conta ChainFolioAI."}
             </p>
           </div>
         </div>
 
+        {showMfa && (
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl shadow-black/30 backdrop-blur space-y-4">
+            <input
+              inputMode="numeric"
+              maxLength={6}
+              autoFocus
+              value={mfaCode}
+              onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ""))}
+              onKeyDown={(e) => { if (e.key === "Enter" && mfaCode.length === 6) submitMfa(); }}
+              placeholder="000000"
+              className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-center text-lg tracking-[0.5em] text-white outline-none transition focus:border-orange-400"
+            />
+            {message ? (
+              <p className={`rounded-lg border px-3 py-2 text-sm ${isError ? "border-red-500/30 bg-red-500/10 text-red-300" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"}`}>{message}</p>
+            ) : null}
+            <button
+              type="button"
+              onClick={submitMfa}
+              disabled={loading || mfaCode.length !== 6}
+              className="w-full rounded-full bg-orange-500 px-6 py-3 text-sm font-bold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loading ? "A verificar..." : "Verificar"}
+            </button>
+            <button
+              type="button"
+              onClick={async () => { await supabase.auth.signOut(); setShowMfa(false); setMfaCode(""); setMessage(null); }}
+              className="w-full text-center text-xs text-slate-500 transition hover:text-slate-200"
+            >
+              Usar outra conta
+            </button>
+          </div>
+        )}
+
+        {!showMfa && (
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl shadow-black/30 backdrop-blur">
           {/* Mode switcher */}
           <div className="mb-5 grid grid-cols-2 gap-1 rounded-full border border-slate-800 bg-slate-950 p-1">
@@ -295,6 +375,7 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
             {googleLoading ? "A ligar ao Google..." : "Continuar com Google"}
           </button>
         </div>
+        )}
 
         <p className="text-center text-xs text-slate-600">
           Ao continuar, concordas em usar o ChainFolioAI em modo só-leitura.
