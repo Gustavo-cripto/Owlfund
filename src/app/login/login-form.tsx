@@ -31,6 +31,8 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [showMfa, setShowMfa] = useState(false);
   const [mfaCode, setMfaCode] = useState("");
+  const [recoveryMode, setRecoveryMode] = useState(false);
+  const [recoveryCode, setRecoveryCode] = useState("");
 
   // Após autenticar, se a conta tiver 2FA ativo mas a sessão ainda for aal1,
   // mostra o desafio do código; caso contrário redireciona.
@@ -132,6 +134,27 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
       setLoading(false);
       return;
     }
+    window.location.href = getRedirectUrl(nextParam);
+  };
+
+  const submitRecovery = async () => {
+    setLoading(true);
+    setMessage(null);
+    setIsError(false);
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token ?? "";
+    const res = await fetch("/api/mfa/recover", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ code: recoveryCode }),
+    });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({})) as { error?: string };
+      fail(j.error ?? "Código de recuperação inválido.");
+      setLoading(false);
+      return;
+    }
+    // 2FA foi removido; a sessão aal1 já é suficiente.
     window.location.href = getRedirectUrl(nextParam);
   };
 
@@ -263,30 +286,48 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
 
         {showMfa && (
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl shadow-black/30 backdrop-blur space-y-4">
-            <input
-              inputMode="numeric"
-              maxLength={6}
-              autoFocus
-              value={mfaCode}
-              onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ""))}
-              onKeyDown={(e) => { if (e.key === "Enter" && mfaCode.length === 6) submitMfa(); }}
-              placeholder="000000"
-              className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-center text-lg tracking-[0.5em] text-white outline-none transition focus:border-orange-400"
-            />
+            {recoveryMode ? (
+              <input
+                autoFocus
+                value={recoveryCode}
+                onChange={(e) => setRecoveryCode(e.target.value.toUpperCase())}
+                onKeyDown={(e) => { if (e.key === "Enter" && recoveryCode.trim()) submitRecovery(); }}
+                placeholder="XXXX-XXXX"
+                className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-center text-lg tracking-[0.2em] text-white outline-none transition focus:border-orange-400"
+              />
+            ) : (
+              <input
+                inputMode="numeric"
+                maxLength={6}
+                autoFocus
+                value={mfaCode}
+                onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ""))}
+                onKeyDown={(e) => { if (e.key === "Enter" && mfaCode.length === 6) submitMfa(); }}
+                placeholder="000000"
+                className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-center text-lg tracking-[0.5em] text-white outline-none transition focus:border-orange-400"
+              />
+            )}
             {message ? (
               <p className={`rounded-lg border px-3 py-2 text-sm ${isError ? "border-red-500/30 bg-red-500/10 text-red-300" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"}`}>{message}</p>
             ) : null}
             <button
               type="button"
-              onClick={submitMfa}
-              disabled={loading || mfaCode.length !== 6}
+              onClick={recoveryMode ? submitRecovery : submitMfa}
+              disabled={loading || (recoveryMode ? !recoveryCode.trim() : mfaCode.length !== 6)}
               className="w-full rounded-full bg-orange-500 px-6 py-3 text-sm font-bold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? "A verificar..." : "Verificar"}
             </button>
             <button
               type="button"
-              onClick={async () => { await supabase.auth.signOut(); setShowMfa(false); setMfaCode(""); setMessage(null); }}
+              onClick={() => { setRecoveryMode((v) => !v); setMessage(null); setIsError(false); }}
+              className="w-full text-center text-xs text-orange-300/80 transition hover:text-orange-200"
+            >
+              {recoveryMode ? "← Usar código da app autenticadora" : "Perdi o acesso? Usar código de recuperação"}
+            </button>
+            <button
+              type="button"
+              onClick={async () => { await supabase.auth.signOut(); setShowMfa(false); setMfaCode(""); setRecoveryCode(""); setRecoveryMode(false); setMessage(null); }}
               className="w-full text-center text-xs text-slate-500 transition hover:text-slate-200"
             >
               Usar outra conta

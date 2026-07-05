@@ -23,6 +23,20 @@ export default function TwoFactorSetup() {
 
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<Msg>(null);
+  const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
+
+  const fetchRecoveryCodes = async () => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token ?? "";
+    const res = await fetch("/api/mfa/recovery-codes", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const j = (await res.json()) as { codes?: string[] };
+      setRecoveryCodes(j.codes ?? null);
+    }
+  };
 
   const loadFactors = async () => {
     setLoading(true);
@@ -92,6 +106,14 @@ export default function TwoFactorSetup() {
     resetEnroll();
     setMsg({ text: t("ac_2fa_ok_on"), error: false });
     await loadFactors();
+    await fetchRecoveryCodes();
+    setBusy(false);
+  };
+
+  const regenerateCodes = async () => {
+    setBusy(true);
+    setMsg(null);
+    await fetchRecoveryCodes();
     setBusy(false);
   };
 
@@ -106,6 +128,7 @@ export default function TwoFactorSetup() {
       return;
     }
     setMsg({ text: t("ac_2fa_ok_off"), error: false });
+    setRecoveryCodes(null);
     await loadFactors();
     setBusy(false);
   };
@@ -177,6 +200,37 @@ export default function TwoFactorSetup() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Recovery codes (shown once, right after generating) */}
+      {recoveryCodes && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
+          <div>
+            <p className="text-sm font-semibold text-amber-300">🔑 {t("ac_2fa_codes_title")}</p>
+            <p className="text-xs text-slate-400 mt-1 leading-relaxed">{t("ac_2fa_codes_desc")}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2 rounded-lg bg-slate-950/60 p-3 font-mono text-sm text-slate-200">
+            {recoveryCodes.map((c) => <span key={c} className="tracking-wider">{c}</span>)}
+          </div>
+          <div className="flex gap-2">
+            <button type="button"
+              onClick={() => { navigator.clipboard?.writeText(recoveryCodes.join("\n")); }}
+              className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:border-slate-500 transition">
+              {t("ac_2fa_codes_copy")}
+            </button>
+            <button type="button" onClick={() => setRecoveryCodes(null)}
+              className="rounded-lg bg-emerald-500/20 border border-emerald-500/40 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/30 transition">
+              {t("ac_2fa_codes_saved")}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {enrolled && !recoveryCodes && !enrolling && (
+        <button type="button" onClick={regenerateCodes} disabled={busy}
+          className="text-xs text-slate-400 hover:text-orange-300 disabled:opacity-50 transition">
+          {t("ac_2fa_codes_regen")}
+        </button>
       )}
 
       {msg && (
