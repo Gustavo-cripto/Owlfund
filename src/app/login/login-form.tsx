@@ -197,6 +197,27 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
     }
   };
 
+  const handleReset = async () => {
+    const nextEmail = email.trim();
+    if (!nextEmail) {
+      fail("Escreve o teu email primeiro e depois clica em \"Esqueceste a senha?\".");
+      return;
+    }
+    setLoading(true);
+    setMessage(null);
+    setIsError(false);
+    const { error } = await supabase.auth.resetPasswordForEmail(nextEmail, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (error) {
+      fail(error.message || "Não foi possível enviar o email.");
+    } else {
+      setMessage("Email enviado! Verifica a tua caixa de entrada para redefinir a senha.");
+      setIsError(false);
+    }
+    setLoading(false);
+  };
+
   const handleSubmit = () => (mode === "login" ? handleEmailLogin() : handleSignUp());
   const busy = loading || googleLoading || isCheckingSession;
 
@@ -330,6 +351,17 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
               />
             ) : null}
           </div>
+
+          {mode === "login" && (
+            <button
+              type="button"
+              onClick={handleReset}
+              disabled={busy}
+              className="mt-2 text-xs text-slate-400 transition hover:text-orange-300 disabled:opacity-50"
+            >
+              Esqueceste a senha?
+            </button>
+          )}
 
           {message ? (
             <p
