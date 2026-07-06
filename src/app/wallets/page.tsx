@@ -68,6 +68,7 @@ import {
   loadStablecoinEntries,
   saveCryptoHoldings,
   saveStablecoinEntries,
+  cryptoHoldingValueEur,
   type CryptoHoldings,
   type StablecoinEntry,
 } from "@/lib/crypto/storage";
@@ -463,6 +464,7 @@ export default function WalletsPage() {
   const [manualCryptoAssetSymbol, setManualCryptoAssetSymbol] = useState("");
   const [manualCryptoAssetDate, setManualCryptoAssetDate] = useState("");
   const [manualCryptoAssetAmountUsd, setManualCryptoAssetAmountUsd] = useState("");
+  const [manualCryptoAssetQty, setManualCryptoAssetQty] = useState("");
   const [manualCryptoAssetError, setManualCryptoAssetError] = useState<string | null>(null);
   const [manualCryptoSelectOpen, setManualCryptoSelectOpen] = useState(false);
   const [manualCryptoFilter, setManualCryptoFilter] = useState("");
@@ -1284,7 +1286,7 @@ export default function WalletsPage() {
 
   const updateCryptoHolding = (
     symbol: string,
-    next: { buyValue?: number; buyDate?: string }
+    next: { buyValue?: number; buyDate?: string; quantity?: number }
   ) => {
     setCryptoHoldings((prev) => {
       const nextHoldings = {
@@ -1316,11 +1318,12 @@ export default function WalletsPage() {
   const selectedCryptoSymbols = useMemo(() => Object.keys(cryptoHoldings), [cryptoHoldings]);
 
   const cryptoManualTotal = useMemo(() => {
-    return Object.values(cryptoHoldings).reduce((sum, holding) => {
-      const value = Number(holding.buyValue ?? 0);
-      return Number.isFinite(value) ? sum + value : sum;
+    return Object.entries(cryptoHoldings).reduce((sum, [symbol, holding]) => {
+      const priceUsd = cryptoPrices[symbol]?.priceUsd;
+      const priceEur = priceUsd ? priceUsd * usdToEurRate : undefined;
+      return sum + cryptoHoldingValueEur(holding, priceEur);
     }, 0);
-  }, [cryptoHoldings]);
+  }, [cryptoHoldings, cryptoPrices, usdToEurRate]);
 
   const walletsTotalUsd = useMemo(() => {
     const eth = getFiatValue("ETH", totalEthBalance) ?? 0;
@@ -2320,15 +2323,20 @@ export default function WalletsPage() {
       setManualCryptoAssetError(`Insere um valor em ${curCode} válido.`);
       return;
     }
+    const qtyRaw = manualCryptoAssetQty.trim();
+    const qty = qtyRaw === "" ? undefined : Number(qtyRaw);
     updateCryptoHolding(symbol, {
       buyDate: manualCryptoAssetDate || undefined,
       // Store invested value in EUR (totals are in EUR); convert from the
       // selected display currency the user typed in.
       buyValue: amount / (curRate || 1),
+      // Optional: number of coins → lets the value track the current market price.
+      quantity: qty != null && Number.isFinite(qty) && qty > 0 ? qty : undefined,
     });
     setManualCryptoAssetSymbol("");
     setManualCryptoAssetDate("");
     setManualCryptoAssetAmountUsd("");
+    setManualCryptoAssetQty("");
   };
 
   const stablecoinSymbolOptions = useMemo(() => Object.keys(STABLECOIN_TOKEN_ADDRESSES), []);
@@ -2952,6 +2960,17 @@ export default function WalletsPage() {
               />
               <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-500">{curCode}</span>
             </div>
+            <input
+              type="number"
+              min={0}
+              step="any"
+              inputMode="decimal"
+              title={t("wl_qty_hint")}
+              className="w-32 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none placeholder:text-slate-500 transition focus:border-orange-400"
+              placeholder={`${t("wl_quantity")} (opc.)`}
+              value={manualCryptoAssetQty}
+              onChange={(e) => setManualCryptoAssetQty(e.target.value)}
+            />
             <button
               type="button"
               className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
@@ -4858,6 +4877,14 @@ export default function WalletsPage() {
               sortedCryptoSymbols.map((symbol) => {
                 const holding = cryptoHoldings[symbol] ?? {};
                 const market = cryptoPrices[symbol];
+                const priceEur = market?.priceUsd ? market.priceUsd * usdToEurRate : undefined;
+                const qty = Number(holding.quantity ?? 0);
+                const marketValueEur = qty > 0 && priceEur ? qty * priceEur : undefined;
+                const investedEur = Number(holding.buyValue ?? 0);
+                const pnlEur =
+                  marketValueEur != null && investedEur > 0 ? marketValueEur - investedEur : undefined;
+                const pnlPct =
+                  pnlEur != null && investedEur > 0 ? (pnlEur / investedEur) * 100 : undefined;
                 return (
                   <div
                     key={symbol}
@@ -4887,6 +4914,25 @@ export default function WalletsPage() {
                         />
                       </div>
                       <div className="flex flex-col gap-0.5">
+                        <label className="text-[10px] text-slate-600 px-1" title={t("wl_qty_hint")}>{t("wl_quantity")}</label>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          min="0"
+                          step="any"
+                          placeholder="Ex: 0.5"
+                          title={t("wl_qty_hint")}
+                          value={holding.quantity ?? ""}
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            updateCryptoHolding(symbol, {
+                              quantity: value === "" ? undefined : Number(value),
+                            });
+                          }}
+                          className="w-28 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-0.5">
                         <label className="text-[10px] text-slate-600 px-1">{t("wl_buy_date")}</label>
                         <input
                           type="date"
@@ -4910,6 +4956,25 @@ export default function WalletsPage() {
                             : "—"}
                         </span>
                       </span>
+                      {marketValueEur != null ? (
+                        <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
+                          {t("wl_market_value")}:{" "}
+                          <span className="font-semibold text-white">{fmtCur(marketValueEur)}</span>
+                        </span>
+                      ) : null}
+                      {pnlEur != null ? (
+                        <span
+                          className={`rounded-full border px-3 py-2 text-xs font-semibold ${
+                            pnlEur >= 0
+                              ? "border-emerald-800/50 bg-emerald-950/30 text-emerald-300"
+                              : "border-rose-800/50 bg-rose-950/30 text-rose-300"
+                          }`}
+                        >
+                          {t("wl_pnl")}: {pnlEur >= 0 ? "+" : ""}
+                          {fmtCur(pnlEur)}
+                          {pnlPct != null ? ` (${pnlEur >= 0 ? "+" : ""}${pnlPct.toFixed(1)}%)` : ""}
+                        </span>
+                      ) : null}
                       <button
                         type="button"
                         onClick={() => toggleCryptoHolding(symbol)}

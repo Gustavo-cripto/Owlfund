@@ -97,11 +97,16 @@ export default function DashboardPage() {
         const snapshot = loadWalletSnapshot();
         const prices = await fetchPrices();
         const usdToEur = typeof prices.usdToEur === "number" && prices.usdToEur > 0 ? prices.usdToEur : 0.92;
-        // Ativos manuais: preferir o localStorage (mesmo dispositivo); senão o snapshot (cross-device).
+        // Ativos manuais: o snapshot guarda já o valor de mercado (quantidade × preço,
+        // calculado na página de Carteiras que tem os preços). Preferir esse; cair no
+        // valor investido do localStorage só quando o snapshot ainda não existe.
         const manualLocal = Object.values(loadCryptoHoldings()).reduce(
           (s, h) => s + (Number.isFinite(Number(h.buyValue)) ? Number(h.buyValue) : 0), 0,
         );
-        const manualEur = manualLocal > 0 ? manualLocal : (snapshot.manualEur ?? 0);
+        const manualEur =
+          typeof snapshot.manualEur === "number" && snapshot.manualEur > 0
+            ? snapshot.manualEur
+            : manualLocal;
         // Ativos que não são carteiras on-chain: CEX/DeFi (USD) + manuais (EUR).
         const extras = ((snapshot.cexUsd ?? 0) + (snapshot.defiUsd ?? 0)) * usdToEur + manualEur;
         const onChainCount =

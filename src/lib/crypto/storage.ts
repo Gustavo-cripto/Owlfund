@@ -1,9 +1,27 @@
 export type CryptoHolding = {
+  /** Valor investido (custo) em EUR. */
   buyValue?: number;
   buyDate?: string;
+  /** Quantidade de moedas detidas. Se preenchido, o valor atual passa a ser
+   *  calculado por quantidade × preço de mercado (em vez do valor investido). */
+  quantity?: number;
 };
 
 export type CryptoHoldings = Record<string, CryptoHolding>;
+
+/**
+ * Valor de mercado atual (em EUR) de um registo manual.
+ * Usa quantidade × preço quando ambos existem; caso contrário cai no valor investido.
+ */
+export const cryptoHoldingValueEur = (
+  holding: CryptoHolding,
+  priceEur?: number
+): number => {
+  const qty = Number(holding.quantity ?? 0);
+  if (qty > 0 && priceEur && priceEur > 0) return qty * priceEur;
+  const invested = Number(holding.buyValue ?? 0);
+  return Number.isFinite(invested) ? invested : 0;
+};
 
 const STORAGE_KEY = "owlfund.crypto.holdings.v1";
 

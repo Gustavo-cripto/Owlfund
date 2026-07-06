@@ -259,12 +259,14 @@ export default function PortfolioPage() {
   const [portfolioNote, setPortfolioNote] = useState("");
   const [snapshotCexUsd, setSnapshotCexUsd] = useState(0);
   const [snapshotDefiUsd, setSnapshotDefiUsd] = useState(0);
+  const [snapshotManualEur, setSnapshotManualEur] = useState<number | null>(null);
   const [usdToEur, setUsdToEur] = useState(0.92); // fallback ~0.92
 
   useEffect(() => {
     const snap = loadWalletSnapshot();
     if (typeof snap.cexUsd === "number") setSnapshotCexUsd(snap.cexUsd);
     if (typeof snap.defiUsd === "number") setSnapshotDefiUsd(snap.defiUsd);
+    if (typeof snap.manualEur === "number") setSnapshotManualEur(snap.manualEur);
   }, []);
 
   // Buscar benchmark + crypto prices via proxy server-side (evita rate limits CoinGecko)
@@ -542,11 +544,15 @@ export default function PortfolioPage() {
   const snapshotDefiEur = snapshotDefiUsd * usdToEur;
 
   const manualCryptoTotal = useMemo(() => {
+    // O snapshot guarda o valor de mercado dos manuais (quantidade × preço), calculado
+    // na página de Carteiras onde há preços por símbolo. Preferimo-lo aqui para o total
+    // refletir o mercado; caímos no valor investido quando o snapshot ainda não existe.
+    if (snapshotManualEur != null && snapshotManualEur > 0) return snapshotManualEur;
     return Object.values(cryptoHoldings).reduce((sum, holding) => {
       const value = Number(holding.buyValue ?? 0);
       return Number.isFinite(value) ? sum + value : sum;
     }, 0);
-  }, [cryptoHoldings]);
+  }, [snapshotManualEur, cryptoHoldings]);
 
   const cryptoTotal = useMemo(() => sumCrypto(wallets, tokenPrices) + manualCryptoTotal + snapshotCexEur + snapshotDefiEur, [wallets, tokenPrices, manualCryptoTotal, snapshotCexEur, snapshotDefiEur]);
   const stablecoinTotal = useMemo(() => {
