@@ -15,6 +15,8 @@ export type WalletSnapshot = {
   other?: StoredWalletEntry[];
   cexUsd?: number;
   defiUsd?: number;
+  /** Total dos ativos registados manualmente (já em EUR). */
+  manualEur?: number;
 };
 
 const STORAGE_KEY = "portfolio-wallets";
@@ -36,6 +38,7 @@ const normalizeSnapshot = (value: unknown): WalletSnapshot => {
     other: normalizeEntry(raw.other),
     cexUsd: typeof raw.cexUsd === "number" ? raw.cexUsd : undefined,
     defiUsd: typeof raw.defiUsd === "number" ? raw.defiUsd : undefined,
+    manualEur: typeof raw.manualEur === "number" ? raw.manualEur : undefined,
   };
 };
 
@@ -69,5 +72,6 @@ export const updateWalletSnapshot = (patch: WalletSnapshot) => {
   });
   if (typeof patch.cexUsd === "number") next.cexUsd = patch.cexUsd;
   if (typeof patch.defiUsd === "number") next.defiUsd = patch.defiUsd;
+  if (typeof patch.manualEur === "number") next.manualEur = patch.manualEur;
   saveWalletSnapshot(next);
 };

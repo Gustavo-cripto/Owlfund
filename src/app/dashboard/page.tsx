@@ -5,6 +5,7 @@ import AppShell from "@/components/AppShell";
 import PnlSummaryCard from "@/components/PnlSummaryCard";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { loadWalletSnapshot, type WalletSnapshot } from "@/lib/wallets/storage";
+import { loadCryptoHoldings } from "@/lib/crypto/storage";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 
@@ -94,15 +95,25 @@ export default function DashboardPage() {
       setIsPnlLoading(true);
       try {
         const snapshot = loadWalletSnapshot();
-        const hasAny =
+        const prices = await fetchPrices();
+        const usdToEur = typeof prices.usdToEur === "number" && prices.usdToEur > 0 ? prices.usdToEur : 0.92;
+        // Ativos manuais: preferir o localStorage (mesmo dispositivo); senão o snapshot (cross-device).
+        const manualLocal = Object.values(loadCryptoHoldings()).reduce(
+          (s, h) => s + (Number.isFinite(Number(h.buyValue)) ? Number(h.buyValue) : 0), 0,
+        );
+        const manualEur = manualLocal > 0 ? manualLocal : (snapshot.manualEur ?? 0);
+        // Ativos que não são carteiras on-chain: CEX/DeFi (USD) + manuais (EUR).
+        const extras = ((snapshot.cexUsd ?? 0) + (snapshot.defiUsd ?? 0)) * usdToEur + manualEur;
+        const onChainCount =
           (snapshot.eth?.length ?? 0) + (snapshot.sol?.length ?? 0) +
-          (snapshot.btc?.length ?? 0) + (snapshot.ada?.length ?? 0) > 0;
+          (snapshot.btc?.length ?? 0) + (snapshot.ada?.length ?? 0);
+        const hasAny = onChainCount > 0 || extras > 0;
         if (mountedRef.current) setHasWallets(hasAny);
         if (!hasAny) { if (mountedRef.current) setIsPnlLoading(false); return; }
 
-        const prices = await fetchPrices();
-        const total = calcTotal(snapshot, prices);
-        if (mountedRef.current) setCurrentTotal(total);
+        const onChainTotal = calcTotal(snapshot, prices);
+        const total = onChainTotal; // usado para o PNL (movimento de preços on-chain)
+        if (mountedRef.current) setCurrentTotal(onChainTotal + extras);
 
         const { data: authData } = await supabase.auth.getUser();
         const userId = authData.user?.id;
@@ -138,8 +149,9 @@ export default function DashboardPage() {
         const oldest = snapshots[snapshots.length - 1];
         if (oldest && mountedRef.current) {
           const storedTotal = (oldest.data as WalletSnapshot & { _totalEur?: number })._totalEur;
-          const baseTotal = storedTotal ?? calcTotal(oldest.data, prices);
-          setPnlPosition(total - baseTotal);
+          // _totalEur guardado já inclui manuais/CEX/DeFi; comparar total completo com total completo.
+          const baseTotal = storedTotal ?? (calcTotal(oldest.data, prices) + extras);
+          setPnlPosition((onChainTotal + extras) - baseTotal);
         }
       } catch { /* silencioso */ }
       finally { if (mountedRef.current) setIsPnlLoading(false); }

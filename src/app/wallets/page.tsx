@@ -1374,6 +1374,12 @@ export default function WalletsPage() {
     updateWalletSnapshot({ cexUsd: cexHlTotalUsd, defiUsd: totalDefiUsd });
   }, [cexHlTotalUsd, totalDefiUsd]);
 
+  useEffect(() => {
+    // Persistir os ativos manuais (em EUR) no snapshot, para contarem no
+    // dashboard, nos snapshots da Supabase e noutros dispositivos.
+    updateWalletSnapshot({ manualEur: cryptoManualTotal });
+  }, [cryptoManualTotal]);
+
   const sortedCryptoSymbols = useMemo(() => {
     const dir = cryptoSortDir === "asc" ? 1 : -1;
     return [...selectedCryptoSymbols].sort((a, b) => {
