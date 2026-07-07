@@ -2766,305 +2766,6 @@ export default function WalletsPage() {
             </div>
           </section>
         )}
-        <section id="manual-address-section" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 scroll-mt-24">
-          <h3 className="text-sm font-semibold text-white">{t("wl_add_manual")}</h3>
-          <p className="mt-1 text-xs text-slate-500">
-            Escolhe a rede e insere o endereço. ETH, SOL, BTC e ADA mostram saldo. Outras redes ficam em tracking.
-          </p>
-          <div className="mt-3 flex flex-wrap items-end gap-2">
-            <div className="relative min-w-[200px]" ref={manualAddNetworkRef}>
-              <button
-                type="button"
-                className="flex w-full min-w-[200px] items-center justify-between gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-left text-xs text-slate-200 outline-none transition focus:border-orange-400"
-                onClick={() => setManualAddNetworkOpen((o) => !o)}
-              >
-                <span className="truncate">
-                  {MANUAL_ADD_NETWORKS.find((n) => n.id === manualAddNetwork)?.label ?? manualAddNetwork}
-                </span>
-                <span className="text-slate-500">{manualAddNetworkOpen ? "▲" : "▼"}</span>
-              </button>
-              {manualAddNetworkOpen ? (
-                <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[260px] rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
-                  <input
-                    type="text"
-                    className="w-full border-b border-slate-700 bg-slate-900/80 px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none"
-                    placeholder={t("wl_search_network")}
-                    value={manualAddNetworkFilter}
-                    onChange={(e) => setManualAddNetworkFilter(e.target.value)}
-                    onKeyDown={(e) => e.stopPropagation()}
-                  />
-                  <div className="max-h-[300px] overflow-y-auto py-1">
-                    {(() => {
-                      const filtered = MANUAL_ADD_NETWORKS.filter(
-                        (net) =>
-                          !manualAddNetworkFilter.trim() ||
-                          net.label.toLowerCase().includes(manualAddNetworkFilter.trim().toLowerCase()) ||
-                          net.id.toLowerCase().includes(manualAddNetworkFilter.trim().toLowerCase())
-                      );
-                      const groups: string[] = [];
-                      return filtered.map((net) => {
-                        const showGroup = net.group && !groups.includes(net.group) && !manualAddNetworkFilter.trim();
-                        if (showGroup && net.group) groups.push(net.group);
-                        return (
-                          <div key={net.id}>
-                            {showGroup && (
-                              <p className="px-3 pt-2 pb-1 text-[9px] font-bold uppercase tracking-widest text-slate-600">{net.group}</p>
-                            )}
-                            <button
-                              type="button"
-                              className="flex w-full cursor-pointer items-center gap-2 px-3 py-1.5 text-left text-xs text-slate-200 hover:bg-slate-800 transition-colors"
-                              onClick={() => {
-                                setManualAddNetwork(net.id);
-                                setManualAddNetworkOpen(false);
-                                setManualAddNetworkFilter("");
-                              }}
-                            >
-                              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{
-                                background: net.group === "EVM L1" ? "#f97316" :
-                                            net.group === "EVM L2" ? "#3b82f6" :
-                                            net.group === "Bitcoin" ? "#eab308" :
-                                            net.group === "Solana" ? "#a855f7" :
-                                            net.group === "Cardano" ? "#06b6d4" : "#64748b"
-                              }} />
-                              {net.label}
-                            </button>
-                          </div>
-                        );
-                      });
-                    })()}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-            <input
-              className="min-w-[200px] flex-1 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
-              placeholder={
-                MANUAL_ADD_TO_EVM_NETWORK[manualAddNetwork]
-                  ? "Endereço 0x... (EVM/L2)"
-                  : MANUAL_ADD_TO_SOL_NETWORK[manualAddNetwork]
-                    ? "Endereço Solana (base58)"
-                    : manualAddNetwork === "btc"
-                      ? "Endereço BTC"
-                      : manualAddNetwork === "ada"
-                        ? "Endereço addr1... ou stake1..."
-                        : "Endereço (suporte em breve)"
-              }
-              value={manualAddAddress}
-              onChange={(e) => setManualAddAddress(e.target.value)}
-            />
-            <input
-              className="w-32 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200 outline-none placeholder:text-slate-500"
-              placeholder={t("wl_name_opt")}
-              value={manualAddLabel}
-              onChange={(e) => setManualAddLabel(e.target.value)}
-            />
-            <button
-              type="button"
-              className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
-              onClick={handleManualAddAddress}
-            >
-              Adicionar
-            </button>
-          </div>
-          {manualAddError ? (
-            <p className="mt-2 text-xs text-rose-300">{manualAddError}</p>
-          ) : null}
-        </section>
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-          <h3 className="text-sm font-semibold text-white">{t("wl_manual_crypto")}</h3>
-          <p className="mt-1 text-xs text-slate-500">
-            Escolhe o ativo, data de compra e valor investido em <span className="text-slate-300 font-medium">{curCode} ({curSym})</span>. O ativo aparece na Carteira Cripto em baixo.
-          </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <div className="relative min-w-[220px]" ref={manualCryptoSelectRef}>
-              <button
-                type="button"
-                className="flex w-full items-center justify-between gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-left text-xs text-slate-200 outline-none transition focus:border-orange-400"
-                onClick={() => setManualCryptoSelectOpen((o) => !o)}
-              >
-                <span className="truncate">
-                  {manualCryptoAssetSymbol
-                    ? (() => {
-                        const list = cryptoSelectList.length > 0 ? cryptoSelectList : marketRows.map((r) => ({ symbol: r.symbol, name: r.name }));
-                        const name = list.find((r) => r.symbol === manualCryptoAssetSymbol)?.name;
-                        return name ? `${manualCryptoAssetSymbol} · ${name}` : manualCryptoAssetSymbol;
-                      })()
-                    : "Selecionar cripto"}
-                </span>
-                <span className="text-slate-500">{manualCryptoSelectOpen ? "▲" : "▼"}</span>
-              </button>
-              {manualCryptoSelectOpen ? (
-                <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[280px] rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
-                  <input
-                    type="text"
-                    className="w-full border-b border-slate-700 bg-slate-900/80 px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none"
-                    placeholder={t("wl_search_symbol")}
-                    value={manualCryptoFilter}
-                    onChange={(e) => setManualCryptoFilter(e.target.value)}
-                    onKeyDown={(e) => e.stopPropagation()}
-                  />
-                  <div className="max-h-[280px] overflow-y-auto py-1">
-                    {cryptoPricesLoading && cryptoSelectList.length === 0 && marketRows.length === 0 ? (
-                      <p className="px-3 py-4 text-center text-xs text-slate-500">{t("wl_loading_api")}</p>
-                    ) : (() => {
-                      const list = cryptoSelectList.length > 0 ? cryptoSelectList : marketRows.map((r) => ({ symbol: r.symbol, name: r.name }));
-                      const filtered = list.filter(
-                        (row) =>
-                          !manualCryptoFilter.trim() ||
-                          row.symbol.toLowerCase().includes(manualCryptoFilter.trim().toLowerCase()) ||
-                          (row.name && row.name.toLowerCase().includes(manualCryptoFilter.trim().toLowerCase()))
-                      );
-                      if (filtered.length === 0) {
-                        return (
-                          <p className="px-3 py-4 text-center text-xs text-slate-500">
-                            {list.length === 0 ? "A carregar lista da API..." : "Nenhum ativo encontrado"}
-                          </p>
-                        );
-                      }
-                      return filtered.map((row) => (
-                        <button
-                          key={row.symbol}
-                          type="button"
-                          className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-xs text-slate-200 hover:bg-slate-800"
-                          onClick={() => {
-                            setManualCryptoAssetSymbol(row.symbol);
-                            setManualCryptoSelectOpen(false);
-                            setManualCryptoFilter("");
-                          }}
-                        >
-                          <span className="font-medium">{row.symbol}</span>
-                          {row.name ? <span className="text-slate-500">{row.name}</span> : null}
-                        </button>
-                      ));
-                    })()}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-            <input
-              type="date"
-              className="rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
-              value={manualCryptoAssetDate}
-              onChange={(e) => setManualCryptoAssetDate(e.target.value)}
-            />
-            <div className="relative">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">{curSym}</span>
-              <input
-                type="number"
-                min={0}
-                step={0.01}
-                className="w-36 rounded-full border border-slate-800 bg-slate-950/60 pl-7 pr-12 py-2 text-xs text-slate-200 outline-none placeholder:text-slate-500 transition focus:border-orange-400"
-                placeholder={t("wl_value")}
-                value={manualCryptoAssetAmountUsd}
-                onChange={(e) => setManualCryptoAssetAmountUsd(e.target.value)}
-              />
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-500">{curCode}</span>
-            </div>
-            <input
-              type="number"
-              min={0}
-              step="any"
-              inputMode="decimal"
-              title={t("wl_qty_hint")}
-              className="w-32 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none placeholder:text-slate-500 transition focus:border-orange-400"
-              placeholder={`${t("wl_quantity")} (opc.)`}
-              value={manualCryptoAssetQty}
-              onChange={(e) => setManualCryptoAssetQty(e.target.value)}
-            />
-            <button
-              type="button"
-              className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
-              onClick={handleManualAddCryptoAsset}
-            >
-              Adicionar
-            </button>
-          </div>
-          {manualCryptoAssetError ? (
-            <p className="mt-2 text-xs text-rose-300">{manualCryptoAssetError}</p>
-          ) : null}
-        </section>
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-          <h3 className="text-sm font-semibold text-white">{t("wl_stablecoins_addr")}</h3>
-          <p className="mt-1 text-xs text-slate-500">
-            Escolhe uma ou várias stablecoins e adiciona um endereço EVM. O saldo aparece aqui e no Portfolio. (Saldo por endereço disponível em Ethereum.)
-          </p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-[auto_1fr_auto] sm:items-center">
-            <select
-              className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200 outline-none focus:border-orange-400"
-              value={stablecoinAddSymbol}
-              onChange={(e) => setStablecoinAddSymbol(e.target.value)}
-            >
-              {stablecoinSymbolOptions.map((sym) => (
-                <option key={sym} value={sym}>{sym}</option>
-              ))}
-            </select>
-            <input
-              type="text"
-              className="min-w-0 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-orange-400"
-              placeholder={`Endereço de ${stablecoinAddSymbol} (0x...)`}
-              value={stablecoinAddAddress}
-              onChange={(e) => setStablecoinAddAddress(e.target.value)}
-            />
-            <button
-              type="button"
-              className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
-              onClick={handleAddStablecoinEntry}
-            >
-              Adicionar
-            </button>
-          </div>
-          {stablecoinAddError ? (
-            <p className="mt-2 text-xs text-rose-300">{stablecoinAddError}</p>
-          ) : null}
-          {stablecoinEntries.length > 0 ? (
-            <div className="mt-4 overflow-x-auto">
-              <table className="w-full min-w-[320px] text-left text-xs text-slate-300">
-                <thead>
-                  <tr className="border-b border-slate-700 text-slate-500">
-                    <th className="py-2 pr-2 font-medium">{t("wl_stablecoin")}</th>
-                    <th className="py-2 pr-2 font-medium">{t("wl_address")}</th>
-                    <th className="py-2 pr-2 text-right font-medium">{t("wl_balance")}</th>
-                    <th className="w-20 py-2"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stablecoinEntries.map((e) => (
-                    <tr key={e.id} className="border-b border-slate-800/80">
-                      <td className="py-2 pr-2 font-medium text-white">{e.symbol}</td>
-                      <td className="max-w-[140px] truncate py-2 pr-2 font-mono text-slate-400" title={e.address}>
-                        {e.address.slice(0, 6)}…{e.address.slice(-4)}
-                      </td>
-                      <td className="py-2 pr-2 text-right tabular-nums">
-                        {stablecoinBalancesLoading[e.id] ? "A carregar…" : (stablecoinBalances[e.id] ?? "—")}
-                      </td>
-                      <td className="py-2">
-                        <button
-                          type="button"
-                          className="rounded-full border border-rose-400/40 px-2 py-1 text-[11px] font-semibold text-rose-200 transition hover:border-rose-400 hover:text-white"
-                          onClick={() => {
-                            setStablecoinEntries((prev) => prev.filter((x) => x.id !== e.id));
-                            setStablecoinBalances((prev) => {
-                              const next = { ...prev };
-                              delete next[e.id];
-                              return next;
-                            });
-                            setStablecoinBalancesLoading((prev) => {
-                              const next = { ...prev };
-                              delete next[e.id];
-                              return next;
-                            });
-                          }}
-                        >
-                          Remover
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
-        </section>
         <div className="grid gap-6 md:grid-cols-2">
           <WalletCard
             title="Ethereum"
@@ -5366,6 +5067,305 @@ export default function WalletsPage() {
             </div>
           </div>
         )}
+        <section id="manual-address-section" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 scroll-mt-24">
+          <h3 className="text-sm font-semibold text-white">{t("wl_add_manual")}</h3>
+          <p className="mt-1 text-xs text-slate-500">
+            Escolhe a rede e insere o endereço. ETH, SOL, BTC e ADA mostram saldo. Outras redes ficam em tracking.
+          </p>
+          <div className="mt-3 flex flex-wrap items-end gap-2">
+            <div className="relative min-w-[200px]" ref={manualAddNetworkRef}>
+              <button
+                type="button"
+                className="flex w-full min-w-[200px] items-center justify-between gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-left text-xs text-slate-200 outline-none transition focus:border-orange-400"
+                onClick={() => setManualAddNetworkOpen((o) => !o)}
+              >
+                <span className="truncate">
+                  {MANUAL_ADD_NETWORKS.find((n) => n.id === manualAddNetwork)?.label ?? manualAddNetwork}
+                </span>
+                <span className="text-slate-500">{manualAddNetworkOpen ? "▲" : "▼"}</span>
+              </button>
+              {manualAddNetworkOpen ? (
+                <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[260px] rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
+                  <input
+                    type="text"
+                    className="w-full border-b border-slate-700 bg-slate-900/80 px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none"
+                    placeholder={t("wl_search_network")}
+                    value={manualAddNetworkFilter}
+                    onChange={(e) => setManualAddNetworkFilter(e.target.value)}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  />
+                  <div className="max-h-[300px] overflow-y-auto py-1">
+                    {(() => {
+                      const filtered = MANUAL_ADD_NETWORKS.filter(
+                        (net) =>
+                          !manualAddNetworkFilter.trim() ||
+                          net.label.toLowerCase().includes(manualAddNetworkFilter.trim().toLowerCase()) ||
+                          net.id.toLowerCase().includes(manualAddNetworkFilter.trim().toLowerCase())
+                      );
+                      const groups: string[] = [];
+                      return filtered.map((net) => {
+                        const showGroup = net.group && !groups.includes(net.group) && !manualAddNetworkFilter.trim();
+                        if (showGroup && net.group) groups.push(net.group);
+                        return (
+                          <div key={net.id}>
+                            {showGroup && (
+                              <p className="px-3 pt-2 pb-1 text-[9px] font-bold uppercase tracking-widest text-slate-600">{net.group}</p>
+                            )}
+                            <button
+                              type="button"
+                              className="flex w-full cursor-pointer items-center gap-2 px-3 py-1.5 text-left text-xs text-slate-200 hover:bg-slate-800 transition-colors"
+                              onClick={() => {
+                                setManualAddNetwork(net.id);
+                                setManualAddNetworkOpen(false);
+                                setManualAddNetworkFilter("");
+                              }}
+                            >
+                              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{
+                                background: net.group === "EVM L1" ? "#f97316" :
+                                            net.group === "EVM L2" ? "#3b82f6" :
+                                            net.group === "Bitcoin" ? "#eab308" :
+                                            net.group === "Solana" ? "#a855f7" :
+                                            net.group === "Cardano" ? "#06b6d4" : "#64748b"
+                              }} />
+                              {net.label}
+                            </button>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+            <input
+              className="min-w-[200px] flex-1 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
+              placeholder={
+                MANUAL_ADD_TO_EVM_NETWORK[manualAddNetwork]
+                  ? "Endereço 0x... (EVM/L2)"
+                  : MANUAL_ADD_TO_SOL_NETWORK[manualAddNetwork]
+                    ? "Endereço Solana (base58)"
+                    : manualAddNetwork === "btc"
+                      ? "Endereço BTC"
+                      : manualAddNetwork === "ada"
+                        ? "Endereço addr1... ou stake1..."
+                        : "Endereço (suporte em breve)"
+              }
+              value={manualAddAddress}
+              onChange={(e) => setManualAddAddress(e.target.value)}
+            />
+            <input
+              className="w-32 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200 outline-none placeholder:text-slate-500"
+              placeholder={t("wl_name_opt")}
+              value={manualAddLabel}
+              onChange={(e) => setManualAddLabel(e.target.value)}
+            />
+            <button
+              type="button"
+              className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
+              onClick={handleManualAddAddress}
+            >
+              Adicionar
+            </button>
+          </div>
+          {manualAddError ? (
+            <p className="mt-2 text-xs text-rose-300">{manualAddError}</p>
+          ) : null}
+        </section>
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+          <h3 className="text-sm font-semibold text-white">{t("wl_manual_crypto")}</h3>
+          <p className="mt-1 text-xs text-slate-500">
+            Escolhe o ativo, data de compra e valor investido em <span className="text-slate-300 font-medium">{curCode} ({curSym})</span>. O ativo aparece na Carteira Cripto em baixo.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[220px]" ref={manualCryptoSelectRef}>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-left text-xs text-slate-200 outline-none transition focus:border-orange-400"
+                onClick={() => setManualCryptoSelectOpen((o) => !o)}
+              >
+                <span className="truncate">
+                  {manualCryptoAssetSymbol
+                    ? (() => {
+                        const list = cryptoSelectList.length > 0 ? cryptoSelectList : marketRows.map((r) => ({ symbol: r.symbol, name: r.name }));
+                        const name = list.find((r) => r.symbol === manualCryptoAssetSymbol)?.name;
+                        return name ? `${manualCryptoAssetSymbol} · ${name}` : manualCryptoAssetSymbol;
+                      })()
+                    : "Selecionar cripto"}
+                </span>
+                <span className="text-slate-500">{manualCryptoSelectOpen ? "▲" : "▼"}</span>
+              </button>
+              {manualCryptoSelectOpen ? (
+                <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[280px] rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
+                  <input
+                    type="text"
+                    className="w-full border-b border-slate-700 bg-slate-900/80 px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none"
+                    placeholder={t("wl_search_symbol")}
+                    value={manualCryptoFilter}
+                    onChange={(e) => setManualCryptoFilter(e.target.value)}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  />
+                  <div className="max-h-[280px] overflow-y-auto py-1">
+                    {cryptoPricesLoading && cryptoSelectList.length === 0 && marketRows.length === 0 ? (
+                      <p className="px-3 py-4 text-center text-xs text-slate-500">{t("wl_loading_api")}</p>
+                    ) : (() => {
+                      const list = cryptoSelectList.length > 0 ? cryptoSelectList : marketRows.map((r) => ({ symbol: r.symbol, name: r.name }));
+                      const filtered = list.filter(
+                        (row) =>
+                          !manualCryptoFilter.trim() ||
+                          row.symbol.toLowerCase().includes(manualCryptoFilter.trim().toLowerCase()) ||
+                          (row.name && row.name.toLowerCase().includes(manualCryptoFilter.trim().toLowerCase()))
+                      );
+                      if (filtered.length === 0) {
+                        return (
+                          <p className="px-3 py-4 text-center text-xs text-slate-500">
+                            {list.length === 0 ? "A carregar lista da API..." : "Nenhum ativo encontrado"}
+                          </p>
+                        );
+                      }
+                      return filtered.map((row) => (
+                        <button
+                          key={row.symbol}
+                          type="button"
+                          className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-xs text-slate-200 hover:bg-slate-800"
+                          onClick={() => {
+                            setManualCryptoAssetSymbol(row.symbol);
+                            setManualCryptoSelectOpen(false);
+                            setManualCryptoFilter("");
+                          }}
+                        >
+                          <span className="font-medium">{row.symbol}</span>
+                          {row.name ? <span className="text-slate-500">{row.name}</span> : null}
+                        </button>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+            <input
+              type="date"
+              className="rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
+              value={manualCryptoAssetDate}
+              onChange={(e) => setManualCryptoAssetDate(e.target.value)}
+            />
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">{curSym}</span>
+              <input
+                type="number"
+                min={0}
+                step={0.01}
+                className="w-36 rounded-full border border-slate-800 bg-slate-950/60 pl-7 pr-12 py-2 text-xs text-slate-200 outline-none placeholder:text-slate-500 transition focus:border-orange-400"
+                placeholder={t("wl_value")}
+                value={manualCryptoAssetAmountUsd}
+                onChange={(e) => setManualCryptoAssetAmountUsd(e.target.value)}
+              />
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-500">{curCode}</span>
+            </div>
+            <input
+              type="number"
+              min={0}
+              step="any"
+              inputMode="decimal"
+              title={t("wl_qty_hint")}
+              className="w-32 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none placeholder:text-slate-500 transition focus:border-orange-400"
+              placeholder={`${t("wl_quantity")} (opc.)`}
+              value={manualCryptoAssetQty}
+              onChange={(e) => setManualCryptoAssetQty(e.target.value)}
+            />
+            <button
+              type="button"
+              className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
+              onClick={handleManualAddCryptoAsset}
+            >
+              Adicionar
+            </button>
+          </div>
+          {manualCryptoAssetError ? (
+            <p className="mt-2 text-xs text-rose-300">{manualCryptoAssetError}</p>
+          ) : null}
+        </section>
+        <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+          <h3 className="text-sm font-semibold text-white">{t("wl_stablecoins_addr")}</h3>
+          <p className="mt-1 text-xs text-slate-500">
+            Escolhe uma ou várias stablecoins e adiciona um endereço EVM. O saldo aparece aqui e no Portfolio. (Saldo por endereço disponível em Ethereum.)
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-[auto_1fr_auto] sm:items-center">
+            <select
+              className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200 outline-none focus:border-orange-400"
+              value={stablecoinAddSymbol}
+              onChange={(e) => setStablecoinAddSymbol(e.target.value)}
+            >
+              {stablecoinSymbolOptions.map((sym) => (
+                <option key={sym} value={sym}>{sym}</option>
+              ))}
+            </select>
+            <input
+              type="text"
+              className="min-w-0 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-orange-400"
+              placeholder={`Endereço de ${stablecoinAddSymbol} (0x...)`}
+              value={stablecoinAddAddress}
+              onChange={(e) => setStablecoinAddAddress(e.target.value)}
+            />
+            <button
+              type="button"
+              className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
+              onClick={handleAddStablecoinEntry}
+            >
+              Adicionar
+            </button>
+          </div>
+          {stablecoinAddError ? (
+            <p className="mt-2 text-xs text-rose-300">{stablecoinAddError}</p>
+          ) : null}
+          {stablecoinEntries.length > 0 ? (
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full min-w-[320px] text-left text-xs text-slate-300">
+                <thead>
+                  <tr className="border-b border-slate-700 text-slate-500">
+                    <th className="py-2 pr-2 font-medium">{t("wl_stablecoin")}</th>
+                    <th className="py-2 pr-2 font-medium">{t("wl_address")}</th>
+                    <th className="py-2 pr-2 text-right font-medium">{t("wl_balance")}</th>
+                    <th className="w-20 py-2"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stablecoinEntries.map((e) => (
+                    <tr key={e.id} className="border-b border-slate-800/80">
+                      <td className="py-2 pr-2 font-medium text-white">{e.symbol}</td>
+                      <td className="max-w-[140px] truncate py-2 pr-2 font-mono text-slate-400" title={e.address}>
+                        {e.address.slice(0, 6)}…{e.address.slice(-4)}
+                      </td>
+                      <td className="py-2 pr-2 text-right tabular-nums">
+                        {stablecoinBalancesLoading[e.id] ? "A carregar…" : (stablecoinBalances[e.id] ?? "—")}
+                      </td>
+                      <td className="py-2">
+                        <button
+                          type="button"
+                          className="rounded-full border border-rose-400/40 px-2 py-1 text-[11px] font-semibold text-rose-200 transition hover:border-rose-400 hover:text-white"
+                          onClick={() => {
+                            setStablecoinEntries((prev) => prev.filter((x) => x.id !== e.id));
+                            setStablecoinBalances((prev) => {
+                              const next = { ...prev };
+                              delete next[e.id];
+                              return next;
+                            });
+                            setStablecoinBalancesLoading((prev) => {
+                              const next = { ...prev };
+                              delete next[e.id];
+                              return next;
+                            });
+                          }}
+                        >
+                          Remover
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </section>
         {/* ── CEX + Hyperliquid + Ledger ── */}
         {isPro ? (
           <CexSection
