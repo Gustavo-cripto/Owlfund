@@ -28,6 +28,15 @@ const STATS = [
   { value: "100%", k: "lp_st4" },
 ] as const;
 
+const TOOLS = [
+  { icon: "📊", t: "lp_t1_t", d: "lp_t1_d" },
+  { icon: "🤖", t: "lp_t2_t", d: "lp_t2_d" },
+  { icon: "🧮", t: "lp_t3_t", d: "lp_t3_d" },
+  { icon: "🔥", t: "lp_t4_t", d: "lp_t4_d" },
+  { icon: "🐋", t: "lp_t5_t", d: "lp_t5_d" },
+  { icon: "🌐", t: "lp_t6_t", d: "lp_t6_d" },
+] as const;
+
 export default function Home() {
   const { t } = useLanguage();
   const supabase = createClient();
@@ -109,7 +118,7 @@ export default function Home() {
               num só lugar
             </h1>
             <p className="animate-fade-in-up delay-200 max-w-lg text-lg text-slate-300">
-              Conecta carteiras blockchain, acompanha ações e vê o teu PNL em tempo real. Simples, rápido e seguro.
+              Carteiras, exchanges e ativos manuais num só painel. PNL em tempo real, métricas avançadas (ROI, Sharpe, drawdown), fiscalidade e um assistente de IA que conhece o teu portfólio.
             </p>
             <div className="animate-fade-in-up delay-300 flex flex-wrap gap-4">
               <a href="/login" className="rounded-full bg-orange-500 px-8 py-3.5 text-base font-bold text-slate-950 shadow-lg shadow-orange-500/25 transition hover:bg-orange-400 hover:scale-[1.03] hover:shadow-orange-400/30 active:scale-[0.98]">
@@ -156,6 +165,29 @@ export default function Home() {
                 <p className="mt-2 text-sm text-slate-400 leading-relaxed">{t(f.d)}</p>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* ANÁLISE & GESTÃO — ferramentas específicas */}
+        <section id="ferramentas" className="border-t border-slate-800/50 bg-slate-900/40 py-20">
+          <div className="mx-auto w-full max-w-6xl px-6">
+            <div className="mb-14 text-center animate-fade-in-up">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">{t("lp_tools_tag")}</p>
+              <h2 className="mt-3 text-3xl font-bold text-white md:text-4xl">{t("lp_tools_title")}</h2>
+              <p className="mt-3 text-slate-400 max-w-2xl mx-auto">{t("lp_tools_sub")}</p>
+            </div>
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {TOOLS.map((f, i) => (
+                <div
+                  key={f.t}
+                  className={`card-hover rounded-2xl border border-slate-800 bg-slate-950/50 p-6 animate-fade-in-up delay-${Math.min(i * 100, 500)}`}
+                >
+                  <div className="mb-4 text-3xl leading-none">{f.icon}</div>
+                  <h3 className="text-base font-bold text-white">{t(f.t)}</h3>
+                  <p className="mt-2 text-sm text-slate-400 leading-relaxed">{t(f.d)}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -240,6 +272,7 @@ export default function Home() {
             </div>
             <div className="flex gap-6 text-sm text-slate-500">
               <a href="#recursos" className="transition hover:text-slate-300">{t("lp_features")}</a>
+              <a href="#ferramentas" className="transition hover:text-slate-300">{t("lp_tools_tag")}</a>
               <a href="#como-funciona" className="transition hover:text-slate-300">{t("lp_how_works")}</a>
               <a href="/login" className="transition hover:text-slate-300">{t("lp_login")}</a>
             </div>
