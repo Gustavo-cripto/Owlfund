@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { generateAiChat, friendlyAiError, errorStatus, type ChatMessage } from "@/lib/ai/groq";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -9,42 +10,9 @@ const premiumPriceId = process.env.STRIPE_PREMIUM_PRICE_ID ?? process.env.NEXT_P
 
 type Message = { role: "user" | "assistant"; content: string };
 
-// ── LLM helpers (same providers as /api/chat) ────────────────────────────────
-
-const hasOpenAi = () => Boolean((process.env.OPENAI_API_KEY ?? "").trim());
-const hasGroq = () => Boolean((process.env.GROQ_API_KEY ?? "").trim());
-const hasXai = () => Boolean((process.env.XAI_API_KEY ?? "").trim());
-
-async function callLLM(messages: Array<{ role: string; content: string }>): Promise<string> {
-  if (hasGroq()) {
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile", temperature: 0.65, max_tokens: 1024, messages }),
-      signal: AbortSignal.timeout(25000),
-    });
-    if (res.ok) { const d = await res.json() as { choices: [{ message: { content: string } }] }; return d.choices[0].message.content; }
-  }
-  if (hasXai()) {
-    const res = await fetch("https://api.x.ai/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${process.env.XAI_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: process.env.XAI_MODEL ?? "grok-3-mini", temperature: 0.65, max_tokens: 1024, messages }),
-      signal: AbortSignal.timeout(25000),
-    });
-    if (res.ok) { const d = await res.json() as { choices: [{ message: { content: string } }] }; return d.choices[0].message.content; }
-  }
-  if (hasOpenAi()) {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: process.env.OPENAI_MODEL ?? "gpt-4o-mini", temperature: 0.65, max_tokens: 1024, messages }),
-      signal: AbortSignal.timeout(25000),
-    });
-    if (res.ok) { const d = await res.json() as { choices: [{ message: { content: string } }] }; return d.choices[0].message.content; }
-  }
-  throw new Error("Nenhum provider LLM disponível.");
-}
+// ── LLM (Groq → OpenAI → xAI, com fallback e erros tipados) ──────────────────
+const callLLM = (messages: ChatMessage[]) =>
+  generateAiChat(messages, { maxTokens: 1024, temperature: 0.65 });
 
 // ── Portfolio context builder ─────────────────────────────────────────────────
 
@@ -206,6 +174,7 @@ REGRAS:
 // ── Route handler ─────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  let lang = "pt";
   try {
     const cookieStore = await cookies();
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
@@ -223,8 +192,9 @@ export async function POST(req: NextRequest) {
     const isPremium = !!premiumPriceId && sub?.price_id === premiumPriceId;
     if (!isPremium) return NextResponse.json({ error: "Requer Plano Premium." }, { status: 403 });
 
-    const body = await req.json() as { messages: Message[]; watchlist?: WatchEntry[]; lang?: string };
-    const lang = body.lang ?? "pt";
+    const body = await req.json() as { messages: Message[]; watchlist?: WatchEntry[]; lang?: string; portfolio?: string };
+    lang = body.lang ?? "pt";
+    const clientPortfolio = typeof body.portfolio === "string" ? body.portfolio.slice(0, 3000) : "";
     const LANG_NAME: Record<string, string> = { pt: "português europeu (PT-PT)", en: "English", es: "español", fr: "français" };
     const langDirective = `\n\nIDIOMA (REGRA ABSOLUTA, ignora o idioma do contexto/portfolio acima): Responde SEMPRE e EXCLUSIVAMENTE em ${LANG_NAME[lang] ?? "português europeu (PT-PT)"}. Toda a tua resposta — títulos, listas e texto — tem de estar nesse idioma, independentemente do idioma em que o contexto do portfolio ou a watchlist estejam escritos.`;
     const messages = (body.messages ?? []).slice(-14).map(m => ({
@@ -255,7 +225,12 @@ export async function POST(req: NextRequest) {
 
     const movementsList = movements.status === "fulfilled" ? movements.value : [];
 
-    const portfolioCtx = buildPortfolioContext(snapshotRow?.data as SnapshotData ?? null, sub, prices);
+    // Preferir o resumo enviado pelo cliente (inclui ativos manuais, CEX, DeFi,
+    // stablecoins e tradicional lidos do localStorage). Cair no snapshot da
+    // Supabase só quando o cliente não envia nada.
+    const portfolioCtx = clientPortfolio
+      ? `=== DADOS DO PORTFOLIO DO UTILIZADOR (tempo real, inclui ativos adicionados manualmente) ===\n${clientPortfolio}`
+      : buildPortfolioContext(snapshotRow?.data as SnapshotData ?? null, sub, prices);
     const watchlistCtx = buildWatchlistContext(watchlist, movementsList);
     const systemPrompt = `${getGestorSystem()}\n\n${portfolioCtx}${watchlistCtx}${langDirective}`;
 
@@ -267,6 +242,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ reply });
   } catch (err) {
     console.error("[gestor]", err);
+    const status = errorStatus(err);
+    if (status !== undefined) {
+      // Falha de provider de IA (ex.: Groq rate-limited) → mensagem amigável.
+      return NextResponse.json(
+        { error: friendlyAiError(status, lang) },
+        { status: status === 429 ? 429 : 502 },
+      );
+    }
     return NextResponse.json({ error: "Erro interno." }, { status: 500 });
   }
 }

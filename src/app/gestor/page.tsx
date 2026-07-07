@@ -5,6 +5,7 @@ import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { createClient } from "@/lib/supabase/client";
 import { loadWalletSnapshot } from "@/lib/wallets/storage";
+import { buildPortfolioSummaryText } from "@/lib/portfolio/summaryText";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import type { TranslationKey } from "@/lib/i18n/translations";
 
@@ -131,10 +132,16 @@ export default function GestorPage() {
     try {
       const history = [...messages, userMsg].slice(-14).map(m => ({ role: m.role, content: m.content }));
       const watchlist = loadWatchlist();
+      let portfolio: string | null = null;
+      try {
+        portfolio = await buildPortfolioSummaryText();
+      } catch {
+        portfolio = null;
+      }
       const res = await fetch("/api/gestor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history, watchlist, lang }),
+        body: JSON.stringify({ messages: history, watchlist, lang, portfolio: portfolio ?? undefined }),
       });
 
       if (!res.ok) {

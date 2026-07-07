@@ -21,7 +21,7 @@ export class AiError extends Error {
   }
 }
 
-type ChatMessage = { role: "user" | "system"; content: string };
+export type ChatMessage = { role: "user" | "system" | "assistant"; content: string };
 
 type ProviderResult =
   | { ok: true; content: string }
@@ -79,7 +79,20 @@ export async function generateAiText(opts: {
   maxTokens: number;
   temperature: number;
 }): Promise<string> {
-  const messages: ChatMessage[] = [{ role: "user", content: opts.prompt }];
+  return generateAiChat([{ role: "user", content: opts.prompt }], {
+    maxTokens: opts.maxTokens,
+    temperature: opts.temperature,
+  });
+}
+
+/**
+ * Como generateAiText, mas aceita um array de mensagens (system + histórico
+ * user/assistant) — para chats multi-turno (ex.: /api/gestor, /api/chat).
+ */
+export async function generateAiChat(
+  messages: ChatMessage[],
+  opts: { maxTokens: number; temperature: number },
+): Promise<string> {
   let lastStatus: number | undefined;
 
   const groqKey = (process.env.GROQ_API_KEY ?? "").trim();
