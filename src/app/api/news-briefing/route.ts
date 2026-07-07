@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-
-const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+import { unstable_cache } from "next/cache";
+import { callGroq, friendlyAiError, errorStatus } from "@/lib/ai/groq";
 
 type NewsItem = {
   title: string;
@@ -10,16 +10,18 @@ type NewsItem = {
   category?: string;
 };
 
-export async function POST(request: Request) {
-  const body = await request.json() as { items?: NewsItem[]; lang?: string };
-  const items = (body.items ?? []).slice(0, 20);
-  const lang = body.lang ?? "pt";
+/**
+ * Gera o briefing de notícias, em cache (Data Cache do Next/Vercel) por conjunto de
+ * notícias + idioma durante 45 min. Enquanto as notícias forem as mesmas, todos os
+ * utilizadores partilham o mesmo briefing — poupa tokens do Groq. Lança em caso de
+ * erro (erros não ficam em cache).
+ */
+const generateNewsBriefing = unstable_cache(
+  async (items: NewsItem[], lang: string): Promise<{ content: string; date: string }> => {
   const LANG_NAME: Record<string, string> = { pt: "português europeu (PT-PT)", en: "English", es: "español", fr: "français" };
   const langInstruction = `\n\nIDIOMA (regra crítica): Escreve TODO o briefing em ${LANG_NAME[lang] ?? "português europeu (PT-PT)"}, incluindo títulos e secções.`;
 
   const apiKey = (process.env.GROQ_API_KEY ?? "").trim();
-  if (!apiKey) return NextResponse.json({ error: "GROQ_API_KEY não configurada." }, { status: 503 });
-
   const model = (process.env.GROQ_MODEL ?? "").trim() || "llama-3.3-70b-versatile";
   const today = new Date().toISOString().split("T")[0];
   const time = new Date().toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Lisbon" });
@@ -69,27 +71,35 @@ Com base nestas notícias reais, escreve um BRIEFING COMPLETO em português euro
 ---
 *Análise gerada por ChainFolioAI com base em notícias reais de ${today} ${time}*`;
 
-  try {
-    const res = await fetch(GROQ_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: "user", content: prompt + langInstruction }],
-        max_tokens: 2000,
-        temperature: 0.25,
-      }),
+    const content = await callGroq({
+      apiKey,
+      model,
+      prompt: prompt + langInstruction,
+      maxTokens: 2000,
+      temperature: 0.25,
     });
+    return { content, date: `${today} ${time}` };
+  },
+  ["news-briefing-v1"],
+  { revalidate: 2700 },
+);
 
-    if (!res.ok) {
-      const err = await res.text();
-      return NextResponse.json({ error: `Groq: ${err}` }, { status: 502 });
-    }
+export async function POST(request: Request) {
+  const body = await request.json() as { items?: NewsItem[]; lang?: string };
+  const items = (body.items ?? []).slice(0, 20);
+  const lang = body.lang ?? "pt";
 
-    const data = await res.json() as { choices: { message: { content: string } }[] };
-    const content = data.choices[0]?.message?.content ?? "";
-    return NextResponse.json({ content, date: `${today} ${time}` });
+  const apiKey = (process.env.GROQ_API_KEY ?? "").trim();
+  if (!apiKey) return NextResponse.json({ error: "GROQ_API_KEY não configurada." }, { status: 503 });
+
+  try {
+    const result = await generateNewsBriefing(items, lang);
+    return NextResponse.json(result);
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Erro" }, { status: 500 });
+    const status = errorStatus(err);
+    return NextResponse.json(
+      { error: friendlyAiError(status, lang) },
+      { status: status === 429 ? 429 : 502 },
+    );
   }
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-
-const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+import { unstable_cache } from "next/cache";
+import { callGroq, friendlyAiError, errorStatus } from "@/lib/ai/groq";
 
 const COINGECKO_IDS: Record<string, string> = {
   BTC: "bitcoin", ETH: "ethereum", SOL: "solana",
@@ -88,14 +88,19 @@ async function buildTraditionalContext(): Promise<string> {
   return lines.join("\n");
 }
 
-export async function POST(request: Request) {
-  const body = await request.json() as { mode?: "crypto" | "tradicional"; lang?: string };
-  const { mode = "crypto", lang = "pt" } = body;
+type MarketMode = "crypto" | "tradicional";
+
+/**
+ * Gera o briefing de mercado, em cache (Data Cache do Next/Vercel) por modo+idioma
+ * durante 45 min. A análise é igual para todos os utilizadores, por isso o cache
+ * evita gerar de novo a cada clique e poupa tokens do Groq. Lança em caso de erro
+ * (erros não ficam em cache).
+ */
+const generateMarketBriefing = unstable_cache(
+  async (mode: MarketMode, lang: string): Promise<{ content: string; mode: MarketMode; date: string }> => {
+  const apiKey = (process.env.GROQ_API_KEY ?? "").trim();
   const LANG_NAME: Record<string, string> = { pt: "português europeu (PT-PT)", en: "English", es: "español", fr: "français" };
   const langInstruction = `\n\nIDIOMA (regra crítica): Escreve TODO o briefing em ${LANG_NAME[lang] ?? "português europeu (PT-PT)"}, incluindo títulos e secções.`;
-
-  const apiKey = (process.env.GROQ_API_KEY ?? "").trim();
-  if (!apiKey) return NextResponse.json({ error: "GROQ_API_KEY não configurada." }, { status: 503 });
 
   const model = (process.env.GROQ_MODEL ?? "").trim() || "llama-3.3-70b-versatile";
   const today = new Date().toISOString().split("T")[0];
@@ -168,27 +173,34 @@ Escreve um briefing do mercado tradicional em português europeu.
 ## 🎯 Perspetiva
 [Outlook para os próximos dias]`;
 
-  try {
-    const res = await fetch(GROQ_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: "user", content: prompt + langInstruction }],
-        max_tokens: 1500,
-        temperature: 0.2,
-      }),
+    const content = await callGroq({
+      apiKey,
+      model,
+      prompt: prompt + langInstruction,
+      maxTokens: 1500,
+      temperature: 0.2,
     });
+    return { content, mode, date: `${today} ${time}` };
+  },
+  ["market-news-briefing-v1"],
+  { revalidate: 2700 },
+);
 
-    if (!res.ok) {
-      const err = await res.text();
-      return NextResponse.json({ error: `Groq: ${err}` }, { status: 502 });
-    }
+export async function POST(request: Request) {
+  const body = await request.json() as { mode?: MarketMode; lang?: string };
+  const { mode = "crypto", lang = "pt" } = body;
 
-    const data = await res.json() as { choices: { message: { content: string } }[] };
-    const content = data.choices[0]?.message?.content ?? "";
-    return NextResponse.json({ content, mode, date: `${today} ${time}` });
+  const apiKey = (process.env.GROQ_API_KEY ?? "").trim();
+  if (!apiKey) return NextResponse.json({ error: "GROQ_API_KEY não configurada." }, { status: 503 });
+
+  try {
+    const result = await generateMarketBriefing(mode, lang);
+    return NextResponse.json(result);
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Erro" }, { status: 500 });
+    const status = errorStatus(err);
+    return NextResponse.json(
+      { error: friendlyAiError(status, lang) },
+      { status: status === 429 ? 429 : 502 },
+    );
   }
 }
