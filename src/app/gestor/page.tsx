@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { loadWalletSnapshot } from "@/lib/wallets/storage";
 import { buildPortfolioSummaryText } from "@/lib/portfolio/summaryText";
 import { loadNickname } from "@/lib/user/nickname";
+import { escapeHtml } from "@/lib/utils/html";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import type { TranslationKey } from "@/lib/i18n/translations";
 
@@ -45,7 +46,7 @@ function getQuickActions(t: (k: TranslationKey) => string) {
 }
 
 function formatMarkdown(text: string): string {
-  return text
+  return escapeHtml(text)
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/\*(.+?)\*/g, "<em>$1</em>")
     .replace(/^### (.+)$/gm, '<p style="font-size:13px;font-weight:500;margin:10px 0 4px">$1</p>')

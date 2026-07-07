@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 export async function GET(request: Request) {
+  // Segredo obrigatório via env var (fail-closed): sem SETUP_DB_SECRET a rota fica bloqueada.
+  const expected = (process.env.SETUP_DB_SECRET ?? "").trim();
   const secret = new URL(request.url).searchParams.get("secret");
-  if (secret !== "owlfund-migrate-2026") {
+  if (!expected || secret !== expected) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

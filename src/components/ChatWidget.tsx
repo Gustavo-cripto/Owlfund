@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { buildPortfolioSummaryText } from "@/lib/portfolio/summaryText";
 import { loadNickname } from "@/lib/user/nickname";
+import { escapeHtml } from "@/lib/utils/html";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -62,8 +63,7 @@ function renderMarkdown(text: string) {
   const lines = text.split("\n");
   return lines.map((line, i) => {
     const isBullet = /^[-•*]\s/.test(line);
-    const content = line
-      .replace(/^[-•*]\s/, "")
+    const content = escapeHtml(line.replace(/^[-•*]\s/, ""))
       .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
       .replace(/\*(.+?)\*/g, "<em>$1</em>")
       .replace(/`(.+?)`/g, "<code class=\"bg-slate-800 px-1 rounded text-orange-300 text-xs\">$1</code>");

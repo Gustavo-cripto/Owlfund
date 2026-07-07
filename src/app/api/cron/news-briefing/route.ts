@@ -104,15 +104,18 @@ function buildEmailHtml(briefing: string, mode: string, date: string): string {
 }
 
 export async function GET(request: Request) {
-  // Vercel cron jobs send Authorization: Bearer {CRON_SECRET}
-  const cronSecret = process.env.CRON_SECRET ?? "";
-  if (cronSecret) {
-    const authHeader = request.headers.get("authorization") ?? "";
-    const querySecret = new URL(request.url).searchParams.get("secret") ?? "";
-    const isVercelCron = request.headers.get("x-vercel-cron") === "1";
-    if (!isVercelCron && authHeader !== `Bearer ${cronSecret}` && querySecret !== cronSecret) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  // CRON_SECRET é obrigatório (fail-closed). O Vercel cron envia
+  // Authorization: Bearer {CRON_SECRET} quando a env var está definida.
+  // Não confiar no header x-vercel-cron (é falsificável por qualquer cliente).
+  const cronSecret = (process.env.CRON_SECRET ?? "").trim();
+  if (!cronSecret) {
+    console.error("[cron/news-briefing] CRON_SECRET não configurado — endpoint bloqueado.");
+    return NextResponse.json({ error: "CRON_SECRET não configurado." }, { status: 503 });
+  }
+  const authHeader = request.headers.get("authorization") ?? "";
+  const querySecret = new URL(request.url).searchParams.get("secret") ?? "";
+  if (authHeader !== `Bearer ${cronSecret}` && querySecret !== cronSecret) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
