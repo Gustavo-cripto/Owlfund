@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { buildPortfolioSummaryText } from "@/lib/portfolio/summaryText";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -150,6 +151,15 @@ export default function ChatWidget({
     setIsLoading(true);
 
     try {
+      // Resumo do portfolio completo (on-chain + CEX + DeFi + manuais + stablecoins
+      // + tradicional) para o assistente conhecer os ativos reais do utilizador.
+      let portfolio: string | null = null;
+      try {
+        portfolio = await buildPortfolioSummaryText();
+      } catch {
+        portfolio = null;
+      }
+
       const controller = new AbortController();
       const timeoutId = window.setTimeout(() => controller.abort(), 25000);
       const response = await fetch("/api/chat", {
@@ -158,6 +168,7 @@ export default function ChatWidget({
         body: JSON.stringify({
           messages: nextMessages,
           pageContext: pathname ?? undefined,
+          portfolio: portfolio ?? undefined,
         }),
         signal: controller.signal,
       }).finally(() => window.clearTimeout(timeoutId));

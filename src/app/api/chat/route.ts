@@ -168,10 +168,14 @@ const pickProvider = (): ProviderName => {
   return "openai";
 };
 
-const toChatMessages = (recentMessages: IncomingMessage[], pageContext?: string) => {
-  const systemContent = pageContext
-    ? `${SYSTEM_PROMPT}\n\nCONTEXTO ATUAL: O utilizador está na página ${pageContext}.`
-    : SYSTEM_PROMPT;
+const toChatMessages = (recentMessages: IncomingMessage[], pageContext?: string, portfolio?: string) => {
+  let systemContent = SYSTEM_PROMPT;
+  if (portfolio) {
+    systemContent += `\n\nPORTFÓLIO REAL DO UTILIZADOR (dados em tempo real — inclui carteiras on-chain, exchanges, DeFi e ativos adicionados manualmente). Usa estes valores para responder a qualquer pergunta sobre "o meu portfolio", saldo total, alocação ou PNL. NÃO peças ao utilizador para adicionar carteiras se estes dados existirem:\n${portfolio}`;
+  }
+  if (pageContext) {
+    systemContent += `\n\nCONTEXTO ATUAL: O utilizador está na página ${pageContext}.`;
+  }
   return [
     { role: "system", content: systemContent },
     // Remover campo 'context' das mensagens antes de enviar à API
@@ -471,9 +475,9 @@ export async function POST(request: Request) {
     }
   } catch { /* fail open */ }
 
-  let body: { messages?: IncomingMessage[]; pageContext?: string } | null = null;
+  let body: { messages?: IncomingMessage[]; pageContext?: string; portfolio?: string } | null = null;
   try {
-    body = (await request.json()) as { messages?: IncomingMessage[]; pageContext?: string };
+    body = (await request.json()) as { messages?: IncomingMessage[]; pageContext?: string; portfolio?: string };
   } catch {
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
@@ -481,6 +485,9 @@ export async function POST(request: Request) {
   const incoming = body?.messages ?? [];
   const pageContext = typeof body?.pageContext === "string"
     ? body.pageContext.slice(0, 200)  // limitar comprimento
+    : undefined;
+  const portfolio = typeof body?.portfolio === "string"
+    ? body.portfolio.slice(0, 3000)  // limitar comprimento
     : undefined;
 
   // Limitar tamanho das mensagens para prevenir abuso
@@ -490,7 +497,7 @@ export async function POST(request: Request) {
   })) as IncomingMessage[];
 
   try {
-    const messages = toChatMessages(recentMessages, pageContext);
+    const messages = toChatMessages(recentMessages, pageContext, portfolio);
     const provider = pickProvider();
     const forcedProvider = getForcedProvider();
 
