@@ -37,6 +37,26 @@ const TOOLS = [
   { icon: "🌐", t: "lp_t6_t", d: "lp_t6_d" },
 ] as const;
 
+const PLANS = [
+  { name: "Free", price: "€0", paid: false, popular: false, desc: "lp_plan_free_desc", feats: ["lp_plan_free_1", "lp_plan_free_2", "lp_plan_free_3", "lp_plan_free_4"] },
+  { name: "Pro", price: "€14.99", paid: true, popular: true, desc: "lp_plan_pro_desc", feats: ["lp_plan_pro_1", "lp_plan_pro_2", "lp_plan_pro_3", "lp_plan_pro_4"] },
+  { name: "Premium", price: "€39", paid: true, popular: false, desc: "lp_plan_prem_desc", feats: ["lp_plan_prem_1", "lp_plan_prem_2", "lp_plan_prem_3", "lp_plan_prem_4"] },
+] as const;
+
+const ALLOC = [
+  { sym: "BTC", pct: "48%", cls: "bg-orange-400" },
+  { sym: "ETH", pct: "27%", cls: "bg-sky-400" },
+  { sym: "SOL", pct: "15%", cls: "bg-violet-400" },
+  { sym: "ADA", pct: "10%", cls: "bg-slate-500" },
+] as const;
+
+const PREVIEW_BARS = [40, 55, 48, 70, 62, 85, 78, 96] as const;
+const SECURITY = [
+  { icon: "👁️", t: "lp_sec_1_t", d: "lp_sec_1_d" },
+  { icon: "🔑", t: "lp_sec_2_t", d: "lp_sec_2_d" },
+  { icon: "🛡️", t: "lp_sec_3_t", d: "lp_sec_3_d" },
+] as const;
+
 export default function Home() {
   const { t } = useLanguage();
   const supabase = createClient();
@@ -147,6 +167,61 @@ export default function Home() {
           </div>
         </section>
 
+        {/* PRODUCT PREVIEW — mockup do painel */}
+        <section className="mx-auto w-full max-w-5xl px-6 py-16">
+          <div className="mb-10 text-center animate-fade-in-up">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">{t("lp_preview_tag")}</p>
+            <h2 className="mt-3 text-3xl font-bold text-white md:text-4xl">{t("lp_preview_title")}</h2>
+            <p className="mt-2 text-slate-400">{t("lp_preview_sub")}</p>
+          </div>
+          <div className="animate-scale-in overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70 shadow-2xl shadow-black/40">
+            {/* barra de janela */}
+            <div className="flex items-center gap-1.5 border-b border-slate-800 bg-slate-950/60 px-4 py-3">
+              <span className="h-3 w-3 rounded-full bg-rose-500/70" />
+              <span className="h-3 w-3 rounded-full bg-amber-500/70" />
+              <span className="h-3 w-3 rounded-full bg-emerald-500/70" />
+              <span className="ml-3 text-xs text-slate-500">chainfolioai · dashboard</span>
+            </div>
+            {/* tiles de métricas */}
+            <div className="grid gap-4 p-5 sm:grid-cols-3">
+              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+                <p className="text-[11px] uppercase tracking-wide text-slate-500">{t("lp_pv_total")}</p>
+                <p className="mt-1 text-2xl font-black text-white">€ 61 240</p>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+                <p className="text-[11px] uppercase tracking-wide text-slate-500">{t("lp_pv_pnl")}</p>
+                <p className="mt-1 text-2xl font-black text-emerald-400">+ € 3 480</p>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+                <p className="text-[11px] uppercase tracking-wide text-slate-500">Sharpe</p>
+                <p className="mt-1 text-2xl font-black text-white">1.87</p>
+              </div>
+            </div>
+            {/* gráfico + alocação */}
+            <div className="grid gap-4 px-5 pb-5 sm:grid-cols-[1.4fr_1fr]">
+              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+                <div className="flex h-32 items-end gap-2">
+                  {PREVIEW_BARS.map((h, i) => (
+                    <div key={i} className="flex-1 rounded-t bg-gradient-to-t from-orange-500/30 to-orange-400" style={{ height: `${h}%` }} />
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+                <p className="mb-3 text-[11px] uppercase tracking-wide text-slate-500">{t("lp_pv_alloc")}</p>
+                <div className="space-y-2.5">
+                  {ALLOC.map((a) => (
+                    <div key={a.sym} className="flex items-center gap-2 text-sm">
+                      <span className={`h-2.5 w-2.5 rounded-full ${a.cls}`} />
+                      <span className="text-slate-300">{a.sym}</span>
+                      <span className="ml-auto font-semibold text-slate-400">{a.pct}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* FEATURES */}
         <section id="recursos" className="mx-auto w-full max-w-6xl px-6 py-20">
           <div className="mb-14 text-center animate-fade-in-up">
@@ -188,6 +263,62 @@ export default function Home() {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* PLANOS */}
+        <section id="planos" className="mx-auto w-full max-w-6xl px-6 py-20">
+          <div className="mb-14 text-center animate-fade-in-up">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">{t("lp_plans_tag")}</p>
+            <h2 className="mt-3 text-3xl font-bold text-white md:text-4xl">{t("lp_plans_title")}</h2>
+            <p className="mt-3 text-slate-400 max-w-xl mx-auto">{t("lp_plans_sub")}</p>
+          </div>
+          <div className="grid gap-5 md:grid-cols-3 md:items-start">
+            {PLANS.map((p, i) => (
+              <div
+                key={p.name}
+                className={`card-hover relative rounded-2xl border p-7 animate-fade-in-up delay-${i * 100 + 100} ${
+                  p.popular
+                    ? "border-orange-500/50 bg-gradient-to-br from-slate-900 to-slate-950 md:-mt-2 md:shadow-xl md:shadow-orange-500/10"
+                    : "border-slate-800 bg-slate-900/60"
+                }`}
+              >
+                {p.popular && (
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-orange-500 px-3 py-1 text-[11px] font-bold text-slate-950">
+                    {t("lp_plan_popular")}
+                  </span>
+                )}
+                <h3 className="text-lg font-bold text-white">{p.name}</h3>
+                <p className="mt-1 text-sm text-slate-400">{t(p.desc)}</p>
+                <p className="mt-4 flex items-baseline gap-1">
+                  <span className="text-3xl font-black text-white">{p.price}</span>
+                  {p.paid && <span className="text-sm text-slate-500">{t("lp_plan_mo")}</span>}
+                </p>
+                <ul className="mt-5 space-y-2.5">
+                  {p.feats.map((f) => (
+                    <li key={f} className="flex items-start gap-2 text-sm text-slate-300">
+                      <span className="mt-0.5 text-orange-400">✓</span>
+                      <span>{t(f)}</span>
+                    </li>
+                  ))}
+                </ul>
+                <a
+                  href={p.paid ? "/pricing" : "/login"}
+                  className={`mt-6 block rounded-full px-5 py-3 text-center text-sm font-bold transition ${
+                    p.popular
+                      ? "bg-orange-500 text-slate-950 hover:bg-orange-400"
+                      : "border border-slate-700 text-slate-200 hover:border-slate-500 hover:text-white"
+                  }`}
+                >
+                  {p.paid ? t("lp_plan_choose") : t("lp_plan_cta")}
+                </a>
+              </div>
+            ))}
+          </div>
+          <div className="mt-8 text-center">
+            <a href="/pricing" className="text-sm font-semibold text-orange-300/90 transition hover:text-orange-200">
+              {t("lp_plan_see_all")} →
+            </a>
           </div>
         </section>
 
@@ -238,6 +369,27 @@ export default function Home() {
           </div>
         </section>
 
+        {/* SEGURANÇA */}
+        <section id="seguranca" className="mx-auto w-full max-w-6xl px-6 py-20">
+          <div className="mb-12 text-center animate-fade-in-up">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-300/80">{t("lp_sec_tag")}</p>
+            <h2 className="mt-3 text-3xl font-bold text-white md:text-4xl">{t("lp_sec_title")}</h2>
+            <p className="mt-3 text-slate-400 max-w-2xl mx-auto">{t("lp_sec_sub")}</p>
+          </div>
+          <div className="grid gap-5 md:grid-cols-3">
+            {SECURITY.map((s, i) => (
+              <div
+                key={s.t}
+                className={`card-hover rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-6 animate-fade-in-up delay-${i * 100 + 100}`}
+              >
+                <div className="mb-4 text-3xl leading-none">{s.icon}</div>
+                <h3 className="text-base font-bold text-white">{t(s.t)}</h3>
+                <p className="mt-2 text-sm text-slate-400 leading-relaxed">{t(s.d)}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
         {/* CTA FINAL */}
         <section className="mx-auto w-full max-w-3xl px-6 py-24 text-center">
           <div className="animate-scale-in rounded-3xl border border-orange-500/20 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 p-10 shadow-2xl shadow-black/40 relative overflow-hidden">
@@ -273,6 +425,7 @@ export default function Home() {
             <div className="flex gap-6 text-sm text-slate-500">
               <a href="#recursos" className="transition hover:text-slate-300">{t("lp_features")}</a>
               <a href="#ferramentas" className="transition hover:text-slate-300">{t("lp_tools_tag")}</a>
+              <a href="#planos" className="transition hover:text-slate-300">{t("lp_plans_tag")}</a>
               <a href="#como-funciona" className="transition hover:text-slate-300">{t("lp_how_works")}</a>
               <a href="/login" className="transition hover:text-slate-300">{t("lp_login")}</a>
             </div>
