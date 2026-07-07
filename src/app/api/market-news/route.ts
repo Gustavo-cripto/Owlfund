@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { unstable_cache } from "next/cache";
-import { callGroq, friendlyAiError, errorStatus } from "@/lib/ai/groq";
+import { generateAiText, friendlyAiError, errorStatus, hasAnyAiProvider } from "@/lib/ai/groq";
 
 const COINGECKO_IDS: Record<string, string> = {
   BTC: "bitcoin", ETH: "ethereum", SOL: "solana",
@@ -98,11 +98,9 @@ type MarketMode = "crypto" | "tradicional";
  */
 const generateMarketBriefing = unstable_cache(
   async (mode: MarketMode, lang: string): Promise<{ content: string; mode: MarketMode; date: string }> => {
-  const apiKey = (process.env.GROQ_API_KEY ?? "").trim();
   const LANG_NAME: Record<string, string> = { pt: "português europeu (PT-PT)", en: "English", es: "español", fr: "français" };
   const langInstruction = `\n\nIDIOMA (regra crítica): Escreve TODO o briefing em ${LANG_NAME[lang] ?? "português europeu (PT-PT)"}, incluindo títulos e secções.`;
 
-  const model = (process.env.GROQ_MODEL ?? "").trim() || "llama-3.3-70b-versatile";
   const today = new Date().toISOString().split("T")[0];
   const time = new Date().toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Lisbon" });
 
@@ -173,9 +171,7 @@ Escreve um briefing do mercado tradicional em português europeu.
 ## 🎯 Perspetiva
 [Outlook para os próximos dias]`;
 
-    const content = await callGroq({
-      apiKey,
-      model,
+    const content = await generateAiText({
       prompt: prompt + langInstruction,
       maxTokens: 1500,
       temperature: 0.2,
@@ -190,8 +186,7 @@ export async function POST(request: Request) {
   const body = await request.json() as { mode?: MarketMode; lang?: string };
   const { mode = "crypto", lang = "pt" } = body;
 
-  const apiKey = (process.env.GROQ_API_KEY ?? "").trim();
-  if (!apiKey) return NextResponse.json({ error: "GROQ_API_KEY não configurada." }, { status: 503 });
+  if (!hasAnyAiProvider()) return NextResponse.json({ error: "Serviço de IA não configurado." }, { status: 503 });
 
   try {
     const result = await generateMarketBriefing(mode, lang);

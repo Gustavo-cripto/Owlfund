@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { unstable_cache } from "next/cache";
-import { callGroq, friendlyAiError, errorStatus } from "@/lib/ai/groq";
+import { generateAiText, friendlyAiError, errorStatus, hasAnyAiProvider } from "@/lib/ai/groq";
 
 type NewsItem = {
   title: string;
@@ -21,8 +21,6 @@ const generateNewsBriefing = unstable_cache(
   const LANG_NAME: Record<string, string> = { pt: "português europeu (PT-PT)", en: "English", es: "español", fr: "français" };
   const langInstruction = `\n\nIDIOMA (regra crítica): Escreve TODO o briefing em ${LANG_NAME[lang] ?? "português europeu (PT-PT)"}, incluindo títulos e secções.`;
 
-  const apiKey = (process.env.GROQ_API_KEY ?? "").trim();
-  const model = (process.env.GROQ_MODEL ?? "").trim() || "llama-3.3-70b-versatile";
   const today = new Date().toISOString().split("T")[0];
   const time = new Date().toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Lisbon" });
 
@@ -71,9 +69,7 @@ Com base nestas notícias reais, escreve um BRIEFING COMPLETO em português euro
 ---
 *Análise gerada por ChainFolioAI com base em notícias reais de ${today} ${time}*`;
 
-    const content = await callGroq({
-      apiKey,
-      model,
+    const content = await generateAiText({
       prompt: prompt + langInstruction,
       maxTokens: 2000,
       temperature: 0.25,
@@ -89,8 +85,7 @@ export async function POST(request: Request) {
   const items = (body.items ?? []).slice(0, 20);
   const lang = body.lang ?? "pt";
 
-  const apiKey = (process.env.GROQ_API_KEY ?? "").trim();
-  if (!apiKey) return NextResponse.json({ error: "GROQ_API_KEY não configurada." }, { status: 503 });
+  if (!hasAnyAiProvider()) return NextResponse.json({ error: "Serviço de IA não configurado." }, { status: 503 });
 
   try {
     const result = await generateNewsBriefing(items, lang);
