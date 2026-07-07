@@ -51,6 +51,13 @@ const ALLOC = [
 ] as const;
 
 const PREVIEW_BARS = [40, 55, 48, 70, 62, 85, 78, 96] as const;
+const DATA_SOURCES = ["CoinGecko", "CoinEx", "Moralis", "mempool.space", "Blockfrost", "Shyft"] as const;
+const PREVIEW_METRICS = [
+  { k: "ROI", v: "+38.4%", cls: "text-emerald-400" },
+  { k: "CAGR", v: "+22.1%", cls: "text-emerald-400" },
+  { k: "Max DD", v: "-19.6%", cls: "text-rose-400" },
+  { k: "Vol.", v: "34.2%", cls: "text-slate-200" },
+] as const;
 const SECURITY = [
   { icon: "👁️", t: "lp_sec_1_t", d: "lp_sec_1_d" },
   { icon: "🔑", t: "lp_sec_2_t", d: "lp_sec_2_d" },
@@ -140,6 +147,7 @@ export default function Home() {
             <p className="animate-fade-in-up delay-200 max-w-lg text-lg text-slate-300">
               Carteiras, exchanges e ativos manuais num só painel. PNL em tempo real, métricas avançadas (ROI, Sharpe, drawdown), fiscalidade e um assistente de IA que conhece o teu portfólio.
             </p>
+            <p className="animate-fade-in-up delay-200 text-sm font-semibold text-orange-300/90">{t("lp_audience")}</p>
             <div className="animate-fade-in-up delay-300 flex flex-wrap gap-4">
               <a href="/login" className="rounded-full bg-orange-500 px-8 py-3.5 text-base font-bold text-slate-950 shadow-lg shadow-orange-500/25 transition hover:bg-orange-400 hover:scale-[1.03] hover:shadow-orange-400/30 active:scale-[0.98]">
                 Começar grátis →
@@ -164,6 +172,21 @@ export default function Home() {
                 <div className="mt-1.5 text-sm text-slate-400">{t(s.k)}</div>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* DADOS & CONFIANÇA */}
+        <section className="mx-auto w-full max-w-5xl px-6 pt-16">
+          <div className="animate-fade-in-up rounded-2xl border border-slate-800 bg-slate-900/50 p-8 text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">{t("lp_data_tag")}</p>
+            <h2 className="mt-3 text-2xl font-bold text-white md:text-3xl">{t("lp_data_title")}</h2>
+            <p className="mx-auto mt-3 max-w-2xl text-slate-400">{t("lp_data_sub")}</p>
+            <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">{t("lp_data_sources")}</p>
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+              {DATA_SOURCES.map((s) => (
+                <span key={s} className="text-sm font-semibold text-slate-400">{s}</span>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -197,8 +220,17 @@ export default function Home() {
                 <p className="mt-1 text-2xl font-black text-white">1.87</p>
               </div>
             </div>
+            {/* métricas de análise */}
+            <div className="grid grid-cols-2 gap-3 px-5 sm:grid-cols-4">
+              {PREVIEW_METRICS.map((m) => (
+                <div key={m.k} className="rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-wide text-slate-500">{m.k}</p>
+                  <p className={`text-base font-bold ${m.cls}`}>{m.v}</p>
+                </div>
+              ))}
+            </div>
             {/* gráfico + alocação */}
-            <div className="grid gap-4 px-5 pb-5 sm:grid-cols-[1.4fr_1fr]">
+            <div className="grid gap-4 px-5 py-5 sm:grid-cols-[1.4fr_1fr]">
               <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
                 <div className="flex h-32 items-end gap-2">
                   {PREVIEW_BARS.map((h, i) => (
