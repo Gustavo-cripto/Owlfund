@@ -7,6 +7,7 @@ import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { loadWalletSnapshot, type WalletSnapshot } from "@/lib/wallets/storage";
 import { loadCryptoHoldings } from "@/lib/crypto/storage";
 import { createClient } from "@/lib/supabase/client";
+import { loadNickname, saveNickname, nicknameFromMetadata } from "@/lib/user/nickname";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 type TokenPrices = Record<string, number>;
@@ -63,6 +64,7 @@ export default function DashboardPage() {
   const [currentTotal, setCurrentTotal] = useState(0);
   const [isPnlLoading, setIsPnlLoading] = useState(true);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [nickname, setNickname] = useState<string>("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [plan, setPlan] = useState<Plan>("free");
   const mountedRef = useRef(true);
@@ -72,10 +74,22 @@ export default function DashboardPage() {
     return () => { mountedRef.current = false; };
   }, []);
 
+  // Nickname: leitura instantânea do localStorage
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }: { data: { user: { id?: string; email?: string } | null } }) => {
+    const n = loadNickname();
+    if (n) setNickname(n);
+  }, []);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data }: { data: { user: { id?: string; email?: string; user_metadata?: Record<string, unknown> } | null } }) => {
       if (!mountedRef.current) return;
       setUserEmail(data.user?.email ?? null);
+      // Sincroniza o nickname do user_metadata (cross-device) e faz cache local
+      const metaNick = nicknameFromMetadata(data.user?.user_metadata);
+      if (metaNick) {
+        saveNickname(metaNick);
+        if (mountedRef.current) setNickname(metaNick);
+      }
       if (data.user?.id) {
         const { data: profile } = await supabase
           .from("profiles").select("avatar_url").eq("id", data.user.id).maybeSingle();
@@ -179,7 +193,7 @@ export default function DashboardPage() {
     return t("dash_greeting_evening");
   };
 
-  const firstName = userEmail?.split("@")[0] ?? "Investor";
+  const firstName = nickname || userEmail?.split("@")[0] || "Investor";
   const isPro = plan === "pro" || plan === "premium";
   const isPremium = plan === "premium";
 

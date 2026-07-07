@@ -17,9 +17,10 @@ type PortfolioContext = {
 type Body = {
   question: string;
   context: PortfolioContext;
+  nickname?: string;
 };
 
-function buildSystemPrompt(ctx: PortfolioContext): string {
+function buildSystemPrompt(ctx: PortfolioContext, nickname = ""): string {
   const fmt = (n: number) =>
     n.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const sign = (n: number) => (n >= 0 ? `+€ ${fmt(n)}` : `-€ ${fmt(Math.abs(n))}`);
@@ -40,7 +41,11 @@ function buildSystemPrompt(ctx: PortfolioContext): string {
     .filter(Boolean)
     .join("\n  ");
 
-  return `Tu és o assistente IA — analista financeiro pessoal do utilizador no ChainFolioAI. Tens acesso em tempo real aos dados do portfólio dele:
+  const nameLine = nickname
+    ? `\nO utilizador chama-se ${nickname} — trata-o por esse nome de forma natural. Não inventes outro nome.`
+    : "";
+
+  return `Tu és o assistente IA — analista financeiro pessoal do utilizador no ChainFolioAI. Tens acesso em tempo real aos dados do portfólio dele:${nameLine}
 
 PORTFÓLIO ATUAL:
   Total: € ${fmt(ctx.totalEur)}
@@ -130,7 +135,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
 
-  const { question, context } = body ?? {};
+  const { question, context, nickname } = body ?? {};
   if (!question?.trim()) {
     return NextResponse.json({ error: "Pergunta obrigatória." }, { status: 400 });
   }
@@ -139,7 +144,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const system = buildSystemPrompt(context);
+    const system = buildSystemPrompt(context, typeof nickname === "string" ? nickname.trim().slice(0, 40) : "");
     const reply = await callAI(system, question.trim());
     return NextResponse.json({ reply });
   } catch (err) {

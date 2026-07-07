@@ -1,23 +1,29 @@
 import { NextResponse } from "next/server";
-
-const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+import { generateAiChat, friendlyAiError, errorStatus, hasAnyAiProvider, type ChatMessage } from "@/lib/ai/groq";
 
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
 export async function POST(request: Request) {
-  const apiKey = (process.env.GROQ_API_KEY ?? "").trim();
-  if (!apiKey) return NextResponse.json({ error: "GROQ_API_KEY não configurada." }, { status: 503 });
+  if (!hasAnyAiProvider()) return NextResponse.json({ error: "Serviço de IA não configurado." }, { status: 503 });
 
   const body = await request.json() as {
     briefing: string;
     mode: "crypto" | "tradicional";
     messages: ChatMsg[];
+    nickname?: string;
+    lang?: string;
   };
 
   const { briefing, mode, messages } = body;
   if (!briefing || !messages?.length) {
     return NextResponse.json({ error: "Dados inválidos." }, { status: 400 });
   }
+  const nickname = typeof body.nickname === "string" ? body.nickname.trim().slice(0, 40) : "";
+  const lang = typeof body.lang === "string" ? body.lang : "pt";
+
+  const nameDirective = nickname
+    ? `\n\nNOME DO UTILIZADOR: chama-se ${nickname}. Trata-o por esse nome de forma natural. Não inventes outro nome.`
+    : "";
 
   const systemPrompt = `És o assistente financeiro da ChainFolioAI, especializado em mercados ${mode === "crypto" ? "cripto" : "tradicionais"}.
 O utilizador acabou de receber este briefing diário gerado por ti:
@@ -26,31 +32,22 @@ O utilizador acabou de receber este briefing diário gerado por ti:
 ${briefing}
 --- FIM DO BRIEFING ---
 
-Responde de forma clara e concisa. Baseia as tuas respostas no briefing fornecido e no teu conhecimento de mercados. Mantém o tom profissional mas acessível. Não repitas o briefing completo — responde diretamente à pergunta.
+Responde de forma clara e concisa. Baseia as tuas respostas no briefing fornecido e no teu conhecimento de mercados. Mantém o tom profissional mas acessível. Não repitas o briefing completo — responde diretamente à pergunta.${nameDirective}
 IDIOMA (regra crítica): Responde SEMPRE no mesmo idioma em que o utilizador escreveu a pergunta (inglês→inglês, espanhol→espanhol, francês→francês, português→PT-PT). Deteta o idioma da pergunta; não assumas português por defeito.`;
 
-  const groqMessages = [
+  const chatMessages: ChatMessage[] = [
     { role: "system", content: systemPrompt },
-    ...messages.map(m => ({ role: m.role, content: m.content })),
+    ...messages.map((m) => ({ role: m.role, content: m.content })),
   ];
 
-  const res = await fetch(GROQ_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
-      messages: groqMessages,
-      max_tokens: 600,
-      temperature: 0.4,
-    }),
-  });
-
-  if (!res.ok) {
-    const err = await res.text();
-    return NextResponse.json({ error: "Erro Groq: " + err.slice(0, 200) }, { status: 500 });
+  try {
+    const reply = await generateAiChat(chatMessages, { maxTokens: 600, temperature: 0.4 });
+    return NextResponse.json({ reply: reply || "Sem resposta." });
+  } catch (err) {
+    const status = errorStatus(err);
+    return NextResponse.json(
+      { error: friendlyAiError(status, lang) },
+      { status: status === 429 ? 429 : 502 },
+    );
   }
-
-  const data = await res.json() as { choices: { message: { content: string } }[] };
-  const reply = data.choices[0]?.message?.content ?? "Sem resposta.";
-  return NextResponse.json({ reply });
 }

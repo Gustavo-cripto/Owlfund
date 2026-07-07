@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { buildPortfolioSummaryText } from "@/lib/portfolio/summaryText";
+import { loadNickname } from "@/lib/user/nickname";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -169,6 +170,7 @@ export default function ChatWidget({
           messages: nextMessages,
           pageContext: pathname ?? undefined,
           portfolio: portfolio ?? undefined,
+          nickname: loadNickname() || undefined,
         }),
         signal: controller.signal,
       }).finally(() => window.clearTimeout(timeoutId));

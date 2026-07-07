@@ -23,6 +23,7 @@ import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import { traditionalAssets } from "@/lib/traditional/assets";
 import { loadTraditionalHoldings, type TraditionalHoldings } from "@/lib/traditional/storage";
 import { loadCryptoHoldings, loadStablecoinEntries, type CryptoHoldings, type StablecoinEntry } from "@/lib/crypto/storage";
+import { loadNickname } from "@/lib/user/nickname";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ""
@@ -1625,7 +1626,7 @@ export default function PortfolioPage() {
                       const res = await fetch("/api/portfolio-ai", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ question: aiQuestion.trim(), context }),
+                        body: JSON.stringify({ question: aiQuestion.trim(), context, nickname: loadNickname() || undefined }),
                       });
                       const data = (await res.json()) as { reply?: string; error?: string };
                       if (!res.ok || data.error) { setAiError(data.error ?? t("pf_error")); return; }
@@ -1665,7 +1666,7 @@ export default function PortfolioPage() {
                   const res = await fetch("/api/portfolio-ai", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ question: aiQuestion.trim(), context }),
+                    body: JSON.stringify({ question: aiQuestion.trim(), context, nickname: loadNickname() || undefined }),
                   });
                   const data = (await res.json()) as { reply?: string; error?: string };
                   if (!res.ok || data.error) { setAiError(data.error ?? t("pf_no_response")); return; }

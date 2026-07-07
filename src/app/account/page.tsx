@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import AppShell from "@/components/AppShell";
 import TwoFactorSetup from "@/components/TwoFactorSetup";
 import { createClient } from "@/lib/supabase/client";
+import { loadNickname, saveNickname, nicknameFromMetadata } from "@/lib/user/nickname";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { useTheme, type Theme, type Currency, type NumberFormat } from "@/lib/theme/ThemeContext";
@@ -224,6 +225,26 @@ export default function AccountPage() {
   const [briefingSaving, setBriefingSaving] = useState(false);
   const [briefingSaved, setBriefingSaved] = useState(false);
   const [briefingError, setBriefingError] = useState<string | null>(null);
+  // Nickname
+  const [nickname, setNickname] = useState("");
+  const [nicknameSaving, setNicknameSaving] = useState(false);
+  const [nicknameSaved, setNicknameSaved] = useState(false);
+
+  const handleSaveNickname = async () => {
+    setNicknameSaving(true);
+    setNicknameSaved(false);
+    try {
+      const v = nickname.trim().slice(0, 40);
+      saveNickname(v);
+      await supabase.auth.updateUser({ data: { nickname: v } });
+      setNicknameSaved(true);
+      setTimeout(() => setNicknameSaved(false), 2000);
+    } catch {
+      // ignore
+    } finally {
+      setNicknameSaving(false);
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -232,6 +253,9 @@ export default function AccountPage() {
       if (!user) { window.location.href = "/login"; return; }
       setEmail(user.email ?? null);
       setUserId(user.id);
+      // Nickname: user_metadata (cross-device) com fallback ao cache local
+      const nick = nicknameFromMetadata(user.user_metadata) || loadNickname();
+      if (nick) { setNickname(nick); saveNickname(nick); }
       // Carregar avatar + preferências
       const { data: profile } = await supabase
         .from("profiles").select("avatar_url, auto_snapshot").eq("id", user.id).maybeSingle();
@@ -444,6 +468,26 @@ export default function AccountPage() {
                   <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4 space-y-3">
                     <SettingRow label={t("acc_email")}>
                       <span className="text-sm text-slate-400">{email ?? "—"}</span>
+                    </SettingRow>
+                    <SettingRow label={t("ac_nickname")} desc={t("ac_nickname_desc")}>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={nickname}
+                          onChange={(e) => setNickname(e.target.value)}
+                          maxLength={40}
+                          placeholder={t("ac_nickname_ph")}
+                          className="w-40 rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-100 outline-none focus:border-orange-400"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleSaveNickname}
+                          disabled={nicknameSaving}
+                          className="rounded-lg border border-orange-400/40 px-3 py-1.5 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white disabled:opacity-50"
+                        >
+                          {nicknameSaved ? t("ac_nickname_saved") : nicknameSaving ? t("ac_saving") : t("ac_nickname_save")}
+                        </button>
+                      </div>
                     </SettingRow>
                     <SettingRow label={t("acc_plan")}>
                       {loading ? (

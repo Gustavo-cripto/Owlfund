@@ -192,9 +192,10 @@ export async function POST(req: NextRequest) {
     const isPremium = !!premiumPriceId && sub?.price_id === premiumPriceId;
     if (!isPremium) return NextResponse.json({ error: "Requer Plano Premium." }, { status: 403 });
 
-    const body = await req.json() as { messages: Message[]; watchlist?: WatchEntry[]; lang?: string; portfolio?: string };
+    const body = await req.json() as { messages: Message[]; watchlist?: WatchEntry[]; lang?: string; portfolio?: string; nickname?: string };
     lang = body.lang ?? "pt";
     const clientPortfolio = typeof body.portfolio === "string" ? body.portfolio.slice(0, 3000) : "";
+    const nickname = typeof body.nickname === "string" ? body.nickname.trim().slice(0, 40) : "";
     const LANG_NAME: Record<string, string> = { pt: "português europeu (PT-PT)", en: "English", es: "español", fr: "français" };
     const langDirective = `\n\nIDIOMA (REGRA ABSOLUTA, ignora o idioma do contexto/portfolio acima): Responde SEMPRE e EXCLUSIVAMENTE em ${LANG_NAME[lang] ?? "português europeu (PT-PT)"}. Toda a tua resposta — títulos, listas e texto — tem de estar nesse idioma, independentemente do idioma em que o contexto do portfolio ou a watchlist estejam escritos.`;
     const messages = (body.messages ?? []).slice(-14).map(m => ({
@@ -232,7 +233,10 @@ export async function POST(req: NextRequest) {
       ? `=== DADOS DO PORTFOLIO DO UTILIZADOR (tempo real, inclui ativos adicionados manualmente) ===\n${clientPortfolio}`
       : buildPortfolioContext(snapshotRow?.data as SnapshotData ?? null, sub, prices);
     const watchlistCtx = buildWatchlistContext(watchlist, movementsList);
-    const systemPrompt = `${getGestorSystem()}\n\n${portfolioCtx}${watchlistCtx}${langDirective}`;
+    const nameDirective = nickname
+      ? `\n\nNOME DO UTILIZADOR: chama-se ${nickname}. Trata-o por esse nome de forma natural e amigável. Não inventes outro nome.`
+      : "";
+    const systemPrompt = `${getGestorSystem()}\n\n${portfolioCtx}${watchlistCtx}${nameDirective}${langDirective}`;
 
     const reply = await callLLM([
       { role: "system", content: systemPrompt },

@@ -6,6 +6,7 @@ import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { createClient } from "@/lib/supabase/client";
 import { loadWalletSnapshot } from "@/lib/wallets/storage";
 import { buildPortfolioSummaryText } from "@/lib/portfolio/summaryText";
+import { loadNickname } from "@/lib/user/nickname";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import type { TranslationKey } from "@/lib/i18n/translations";
 
@@ -141,7 +142,7 @@ export default function GestorPage() {
       const res = await fetch("/api/gestor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history, watchlist, lang, portfolio: portfolio ?? undefined }),
+        body: JSON.stringify({ messages: history, watchlist, lang, portfolio: portfolio ?? undefined, nickname: loadNickname() || undefined }),
       });
 
       if (!res.ok) {

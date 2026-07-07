@@ -168,8 +168,11 @@ const pickProvider = (): ProviderName => {
   return "openai";
 };
 
-const toChatMessages = (recentMessages: IncomingMessage[], pageContext?: string, portfolio?: string) => {
+const toChatMessages = (recentMessages: IncomingMessage[], pageContext?: string, portfolio?: string, nickname?: string) => {
   let systemContent = SYSTEM_PROMPT;
+  if (nickname) {
+    systemContent += `\n\nNOME DO UTILIZADOR: chama-se ${nickname}. Trata-o por esse nome de forma natural e amigável (ex.: cumprimenta-o pelo nome). Não inventes outro nome.`;
+  }
   if (portfolio) {
     systemContent += `\n\nPORTFÓLIO REAL DO UTILIZADOR (dados em tempo real — inclui carteiras on-chain, exchanges, DeFi e ativos adicionados manualmente). Usa estes valores para responder a qualquer pergunta sobre "o meu portfolio", saldo total, alocação ou PNL. NÃO peças ao utilizador para adicionar carteiras se estes dados existirem:\n${portfolio}`;
   }
@@ -475,9 +478,9 @@ export async function POST(request: Request) {
     }
   } catch { /* fail open */ }
 
-  let body: { messages?: IncomingMessage[]; pageContext?: string; portfolio?: string } | null = null;
+  let body: { messages?: IncomingMessage[]; pageContext?: string; portfolio?: string; nickname?: string } | null = null;
   try {
-    body = (await request.json()) as { messages?: IncomingMessage[]; pageContext?: string; portfolio?: string };
+    body = (await request.json()) as { messages?: IncomingMessage[]; pageContext?: string; portfolio?: string; nickname?: string };
   } catch {
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
@@ -489,6 +492,9 @@ export async function POST(request: Request) {
   const portfolio = typeof body?.portfolio === "string"
     ? body.portfolio.slice(0, 3000)  // limitar comprimento
     : undefined;
+  const nickname = typeof body?.nickname === "string"
+    ? body.nickname.trim().slice(0, 40)
+    : undefined;
 
   // Limitar tamanho das mensagens para prevenir abuso
   const recentMessages = incoming.slice(-12).map(m => ({
@@ -497,7 +503,7 @@ export async function POST(request: Request) {
   })) as IncomingMessage[];
 
   try {
-    const messages = toChatMessages(recentMessages, pageContext, portfolio);
+    const messages = toChatMessages(recentMessages, pageContext, portfolio, nickname);
     const provider = pickProvider();
     const forcedProvider = getForcedProvider();
 

@@ -5,6 +5,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import AppShell from "@/components/AppShell";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
+import { loadNickname } from "@/lib/user/nickname";
 import {
   traditionalAssets,
   traditionalCategories,
@@ -1971,6 +1972,8 @@ export default function MercadoPage() {
                               briefing: newsContent,
                               mode: newsMode,
                               messages: newMessages,
+                              nickname: loadNickname() || undefined,
+                              lang,
                             }),
                           });
                           const data = await res.json() as { reply?: string; error?: string };
