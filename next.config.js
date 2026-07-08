@@ -68,6 +68,12 @@ const securityHeaders = [
       "worker-src 'self' blob:",
       // WebAssembly (Cardano)
       "wasm-src 'self'",
+      // Bloqueia plugins (<object>/<embed>) — não usados
+      "object-src 'none'",
+      // Impede injeção de <base> (roubo de URLs relativas)
+      "base-uri 'self'",
+      // Anti-clickjacking moderno (complementa X-Frame-Options)
+      "frame-ancestors 'self'",
     ].join("; "),
   },
 ];
@@ -75,6 +81,8 @@ const securityHeaders = [
 const nextConfig = {
   outputFileTracingRoot: __dirname,
   staticPageGenerationTimeout: 180,
+  // Esconde o header "X-Powered-By: Next.js" (menos info para atacantes)
+  poweredByHeader: false,
   eslint: {
     ignoreDuringBuilds: true,
   },

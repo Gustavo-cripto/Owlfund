@@ -66,8 +66,9 @@ export async function GET(request: Request) {
     const data = await fetchTwelveData(symbols, apiKey);
     return NextResponse.json({ data, errors: [], skipped: [] });
   } catch (err) {
+    console.error("[traditional]", err instanceof Error ? err.message : err);
     return NextResponse.json(
-      { error: String(err), data: [], errors: [] },
+      { error: "Não foi possível obter os dados de mercado.", data: [], errors: [] },
       { status: 502 }
     );
   }

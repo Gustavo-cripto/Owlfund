@@ -148,8 +148,10 @@ export async function POST(request: Request) {
     const reply = await callAI(system, question.trim());
     return NextResponse.json({ reply });
   } catch (err) {
+    // Log interno; nunca expor detalhes do erro ao cliente.
+    console.error("[portfolio-ai]", err instanceof Error ? err.message : err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Erro na IA." },
+      { error: "Não foi possível gerar a análise agora. Tenta novamente." },
       { status: 503 }
     );
   }

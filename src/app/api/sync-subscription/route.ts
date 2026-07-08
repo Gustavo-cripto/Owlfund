@@ -67,8 +67,9 @@ export async function POST() {
 
     return NextResponse.json({ synced: true, price_id: priceId, status: sub.status });
   } catch (err) {
+    console.error("[sync-subscription]", err instanceof Error ? err.message : err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Sync failed" },
+      { error: "Não foi possível sincronizar a subscrição." },
       { status: 500 }
     );
   }
