@@ -79,6 +79,15 @@ const FAQ = [
   { q: "lp_faq_5_q", a: "lp_faq_5_a" },
 ] as const;
 
+const COMPARISON = [
+  { l: "lp_cmp_r1_l", a: "lp_cmp_r1_a", b: "lp_cmp_r1_b", c: "lp_cmp_r1_c" },
+  { l: "lp_cmp_r2_l", a: "lp_cmp_r2_a", b: "lp_cmp_r2_b", c: "lp_cmp_r2_c" },
+  { l: "lp_cmp_r3_l", a: "lp_cmp_r3_a", b: "lp_cmp_r3_b", c: "lp_cmp_r3_c" },
+  { l: "lp_cmp_r4_l", a: "lp_cmp_r4_a", b: "lp_cmp_r4_b", c: "lp_cmp_r4_c" },
+  { l: "lp_cmp_r5_l", a: "lp_cmp_r5_a", b: "lp_cmp_r5_b", c: "lp_cmp_r5_c" },
+  { l: "lp_cmp_r6_l", a: "lp_cmp_r6_a", b: "lp_cmp_r6_b", c: "lp_cmp_r6_c" },
+] as const;
+
 export default function Home() {
   const { t } = useLanguage();
   const supabase = createClient();
@@ -313,6 +322,47 @@ export default function Home() {
           </div>
         </section>
 
+        {/* COMPARAÇÃO — Porquê o ChainFolioAI */}
+        <section id="comparacao" className="mx-auto w-full max-w-5xl px-6 py-20">
+          <div className="mb-14 text-center animate-fade-in-up">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">{t("lp_cmp_tag")}</p>
+            <h2 className="mt-3 text-3xl font-bold text-white md:text-4xl">{t("lp_cmp_title")}</h2>
+            <p className="mt-3 text-slate-400 max-w-2xl mx-auto">{t("lp_cmp_sub")}</p>
+          </div>
+          <div className="animate-scale-in overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/50">
+            <table className="w-full min-w-[640px] border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-slate-800">
+                  <th className="px-5 py-4 text-left font-semibold text-slate-400"></th>
+                  <th className="px-4 py-4 text-center font-semibold text-slate-400">{t("lp_cmp_col_sheet")}</th>
+                  <th className="px-4 py-4 text-center font-semibold text-slate-400">{t("lp_cmp_col_generic")}</th>
+                  <th className="px-4 py-4 text-center font-bold text-orange-300">
+                    <span className="inline-flex items-center gap-2">
+                      <img src="/chainfolioai-icon.png" alt="" className="h-5 w-5 rounded object-cover" />
+                      ChainFolioAI
+                    </span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {COMPARISON.map((r) => (
+                  <tr key={r.l} className="border-b border-slate-800/60 last:border-0">
+                    <td className="px-5 py-4 text-left font-medium text-slate-200">{t(r.l)}</td>
+                    <td className="px-4 py-4 text-center text-slate-500">{t(r.a)}</td>
+                    <td className="px-4 py-4 text-center text-slate-400">{t(r.b)}</td>
+                    <td className="bg-orange-500/[0.06] px-4 py-4 text-center font-semibold text-orange-200">{t(r.c)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-8 text-center">
+            <a href="/login" className="rounded-full bg-orange-500 px-8 py-3.5 text-base font-bold text-slate-950 shadow-lg shadow-orange-500/25 transition hover:bg-orange-400 hover:scale-[1.03] active:scale-[0.98] inline-block">
+              {t("lp_plan_cta")}
+            </a>
+          </div>
+        </section>
+
         {/* PLANOS */}
         <section id="planos" className="mx-auto w-full max-w-6xl px-6 py-20">
           <div className="mb-14 text-center animate-fade-in-up">
@@ -519,7 +569,10 @@ export default function Home() {
               <a href="#ferramentas" className="transition hover:text-slate-300">{t("lp_tools_tag")}</a>
               <a href="#planos" className="transition hover:text-slate-300">{t("lp_plans_tag")}</a>
               <a href="#instituicoes" className="transition hover:text-slate-300">{t("lp_inst_tag")}</a>
+              <a href="#comparacao" className="transition hover:text-slate-300">{t("lp_cmp_tag")}</a>
               <a href="#faq" className="transition hover:text-slate-300">{t("lp_faq_tag")}</a>
+              <a href="/privacidade" className="transition hover:text-slate-300">{t("legal_privacy_short")}</a>
+              <a href="/termos" className="transition hover:text-slate-300">{t("legal_terms_short")}</a>
               <a href="/login" className="transition hover:text-slate-300">{t("lp_login")}</a>
             </div>
             <p className="text-xs text-slate-600">© 2025 ChainFolioAI · Todos os direitos reservados</p>
