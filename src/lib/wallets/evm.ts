@@ -142,6 +142,28 @@ export const isEvmWalletAvailable = (id: EvmProviderId): boolean => {
 
 export const isMetaMaskAvailable = () => !!getMetaMaskProvider();
 
+/**
+ * Pede as contas forçando SEMPRE o popup da carteira, mesmo que o site já
+ * esteja autorizado. `wallet_requestPermissions` reabre o prompt de ligação /
+ * seleção de conta (é o que a Uniswap e afins fazem) — ao contrário de
+ * `eth_requestAccounts`, que devolve a conta em silêncio quando já autorizado.
+ * Carteiras que não suportem o método caem para `eth_requestAccounts`.
+ */
+const requestAccountsWithPrompt = async (provider: NonNullable<EvmProvider>): Promise<string[]> => {
+  try {
+    await provider.request({
+      method: "wallet_requestPermissions",
+      params: [{ eth_accounts: {} }],
+    });
+  } catch (err) {
+    const code = err && typeof err === "object" && "code" in err ? (err as { code: number }).code : undefined;
+    // 4001 = utilizador recusou o pedido — propagar (não religar em silêncio).
+    if (code === 4001) throw err;
+    // Outros erros (método não suportado, etc.) — continuar para eth_requestAccounts.
+  }
+  return (await provider.request({ method: "eth_requestAccounts" })) as string[];
+};
+
 export const connectMetaMask = async () => {
   const provider = getMetaMaskProvider();
   if (!provider) {
@@ -161,9 +183,7 @@ export const connectMetaMask = async () => {
     }
   }
 
-  const accounts = (await provider.request({
-    method: "eth_requestAccounts",
-  })) as string[];
+  const accounts = await requestAccountsWithPrompt(provider);
 
   const address = accounts?.[0];
   if (!address) {
@@ -190,9 +210,7 @@ export const connectEvmProvider = async (provider?: EvmProvider) => {
       // ignore
     }
   }
-  const accounts = (await provider.request({
-    method: "eth_requestAccounts",
-  })) as string[];
+  const accounts = await requestAccountsWithPrompt(provider);
   const address = accounts?.[0];
   if (!address) {
     throw new Error("Nenhuma conta retornada pela carteira.");

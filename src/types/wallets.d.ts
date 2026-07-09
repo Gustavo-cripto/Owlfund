@@ -8,7 +8,8 @@ declare global {
     };
     solana?: {
       isPhantom?: boolean;
-      connect: () => Promise<{ publicKey?: { toString: () => string } }>;
+      connect: (opts?: { onlyIfTrusted?: boolean }) => Promise<{ publicKey?: { toString: () => string } }>;
+      disconnect?: () => Promise<void>;
     };
     solflare?: {
       isSolflare?: boolean;

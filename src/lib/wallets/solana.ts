@@ -55,10 +55,14 @@ export const isSolanaWalletAvailable = (id: SolanaWalletId): boolean => {
 };
 
 export const connectPhantom = async (): Promise<string> => {
-  if (!window.solana?.isPhantom) {
+  const provider = window.solana;
+  if (!provider?.isPhantom) {
     throw new Error("Phantom não está disponível. Instala a extensão Phantom.");
   }
-  const response = await window.solana.connect();
+  // Força o popup de aprovação mesmo que o site já seja "trusted": desliga a
+  // sessão atual antes de voltar a ligar (senão o Phantom religa em silêncio).
+  try { await provider.disconnect?.(); } catch { /* ignore */ }
+  const response = await provider.connect();
   const address = response?.publicKey?.toString();
   if (!address) throw new Error("Nenhuma conta retornada pelo Phantom.");
   return address;
