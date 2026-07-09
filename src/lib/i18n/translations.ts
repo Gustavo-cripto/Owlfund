@@ -1282,6 +1282,33 @@ export const translations = {
     lang_en: "English",
     lang_es: "Español",
     lang_fr: "Français",
+
+    // ── Landing · Para instituições ──
+    lp_inst_tag: "Para equipas e instituições",
+    lp_inst_title: "Feito para quem gere capital a sério",
+    lp_inst_sub: "Do investidor individual à family office: automação por API e MCP, relatórios prontos para contabilidade e fiscalidade, cobertura multi-ativo e privacidade em conformidade com o RGPD.",
+    lp_inst_1_t: "API & MCP para automação",
+    lp_inst_1_d: "Liga o ChainFolioAI aos teus fluxos com a nossa API e servidor MCP. Integra o portefólio no teu assistente de IA, em dashboards internos ou pipelines de dados — sem exportações manuais.",
+    lp_inst_2_t: "Relatórios exportáveis",
+    lp_inst_2_d: "Extratos de PNL, ganhos e perdas realizados e mapa de posições prontos a entregar ao contabilista ou a usar na declaração fiscal. Fecha o ano sem folhas de cálculo dispersas.",
+    lp_inst_3_t: "Multi-ativo e multi-carteira",
+    lp_inst_3_d: "Cripto, exchanges e ativos tradicionais lado a lado, com carteiras e contas ilimitadas agregadas numa visão consolidada. Ideal para equipas que acompanham vários mandatos.",
+    lp_inst_4_t: "Privacidade e RGPD",
+    lp_inst_4_d: "100% só-leitura, sem custódia e sem acesso a chaves privadas. Os teus dados ficam encriptados e sob o teu controlo, com processamento em conformidade com o RGPD europeu.",
+
+    // ── Landing · FAQ ──
+    lp_faq_tag: "Perguntas frequentes",
+    lp_faq_title: "Tudo o que precisas de saber",
+    lp_faq_1_q: "O ChainFolioAI é seguro?",
+    lp_faq_1_a: "Sim. A plataforma é 100% só-leitura: lemos os teus saldos a partir de endereços públicos e de chaves de API só-leitura. Nunca movemos fundos, nunca assinamos transações e nunca temos acesso às tuas chaves privadas ou seed.",
+    lp_faq_2_q: "Guardam as minhas chaves privadas?",
+    lp_faq_2_a: "Não, nunca. Não pedimos nem armazenamos chaves privadas ou frases-semente. Basta o endereço público da carteira ou uma chave de API só de leitura para veres tudo agregado.",
+    lp_faq_3_q: "Que redes e exchanges são suportadas?",
+    lp_faq_3_a: "Bitcoin, Ethereum e redes EVM, Solana, Cardano e mais de 15 fontes de dados, além de exchanges e ativos tradicionais que podes adicionar manualmente. Estamos sempre a alargar a cobertura.",
+    lp_faq_4_q: "É mesmo grátis?",
+    lp_faq_4_a: "Sim. O plano Free é gratuito para sempre e cobre o essencial para acompanhares o teu portefólio. Os planos Pro e Premium desbloqueiam métricas avançadas, IA e limites maiores quando precisares.",
+    lp_faq_5_q: "Preciso de conhecimentos técnicos?",
+    lp_faq_5_a: "Não. Colas um endereço ou ligas uma exchange e o painel monta-se sozinho — PNL, alocação e métricas em segundos. O assistente de IA responde às tuas dúvidas em linguagem natural.",
   },
 
   en: {
@@ -2554,6 +2581,33 @@ export const translations = {
     lang_en: "English",
     lang_es: "Español",
     lang_fr: "Français",
+
+    // ── Landing · For institutions ──
+    lp_inst_tag: "For teams & institutions",
+    lp_inst_title: "Built for people who manage capital seriously",
+    lp_inst_sub: "From individual investors to family offices: API and MCP automation, reports ready for accounting and tax, multi-asset coverage and privacy compliant with GDPR.",
+    lp_inst_1_t: "API & MCP automation",
+    lp_inst_1_d: "Connect ChainFolioAI to your workflows with our API and MCP server. Plug your portfolio into your AI assistant, internal dashboards or data pipelines — no manual exports.",
+    lp_inst_2_t: "Exportable reports",
+    lp_inst_2_d: "PNL statements, realized gains and losses and a full position map, ready to hand to your accountant or use in your tax return. Close the year without scattered spreadsheets.",
+    lp_inst_3_t: "Multi-asset & multi-wallet",
+    lp_inst_3_d: "Crypto, exchanges and traditional assets side by side, with unlimited wallets and accounts aggregated into a single consolidated view. Ideal for teams tracking multiple mandates.",
+    lp_inst_4_t: "Privacy & GDPR",
+    lp_inst_4_d: "100% read-only, non-custodial and no access to private keys. Your data stays encrypted and under your control, processed in compliance with European GDPR.",
+
+    // ── Landing · FAQ ──
+    lp_faq_tag: "Frequently asked questions",
+    lp_faq_title: "Everything you need to know",
+    lp_faq_1_q: "Is ChainFolioAI safe?",
+    lp_faq_1_a: "Yes. The platform is 100% read-only: we read your balances from public addresses and read-only API keys. We never move funds, never sign transactions and never have access to your private keys or seed.",
+    lp_faq_2_q: "Do you store my private keys?",
+    lp_faq_2_a: "No, never. We don't ask for or store private keys or seed phrases. All you need is a public wallet address or a read-only API key to see everything aggregated.",
+    lp_faq_3_q: "Which networks and exchanges are supported?",
+    lp_faq_3_a: "Bitcoin, Ethereum and EVM networks, Solana, Cardano and 15+ data sources, plus exchanges and traditional assets you can add manually. We're constantly expanding coverage.",
+    lp_faq_4_q: "Is it really free?",
+    lp_faq_4_a: "Yes. The Free plan is free forever and covers the essentials to track your portfolio. The Pro and Premium plans unlock advanced metrics, AI and higher limits whenever you need them.",
+    lp_faq_5_q: "Do I need technical knowledge?",
+    lp_faq_5_a: "No. Paste an address or connect an exchange and the dashboard builds itself — PNL, allocation and metrics in seconds. The AI assistant answers your questions in plain language.",
   },
 
   es: {
@@ -3826,6 +3880,33 @@ export const translations = {
     lang_en: "English",
     lang_es: "Español",
     lang_fr: "Français",
+
+    // ── Landing · Para instituciones ──
+    lp_inst_tag: "Para equipos e instituciones",
+    lp_inst_title: "Creado para quienes gestionan capital en serio",
+    lp_inst_sub: "Del inversor individual a la family office: automatización por API y MCP, informes listos para contabilidad y fiscalidad, cobertura multiactivo y privacidad conforme al RGPD.",
+    lp_inst_1_t: "API y MCP para automatizar",
+    lp_inst_1_d: "Conecta ChainFolioAI a tus flujos con nuestra API y servidor MCP. Integra la cartera en tu asistente de IA, paneles internos o pipelines de datos, sin exportaciones manuales.",
+    lp_inst_2_t: "Informes exportables",
+    lp_inst_2_d: "Extractos de PNL, ganancias y pérdidas realizadas y un mapa completo de posiciones, listos para tu contable o para la declaración fiscal. Cierra el año sin hojas de cálculo dispersas.",
+    lp_inst_3_t: "Multiactivo y multicartera",
+    lp_inst_3_d: "Cripto, exchanges y activos tradicionales lado a lado, con carteras y cuentas ilimitadas agregadas en una vista consolidada. Ideal para equipos que siguen varios mandatos.",
+    lp_inst_4_t: "Privacidad y RGPD",
+    lp_inst_4_d: "100% de solo lectura, sin custodia y sin acceso a claves privadas. Tus datos permanecen cifrados y bajo tu control, con procesamiento conforme al RGPD europeo.",
+
+    // ── Landing · FAQ ──
+    lp_faq_tag: "Preguntas frecuentes",
+    lp_faq_title: "Todo lo que necesitas saber",
+    lp_faq_1_q: "¿ChainFolioAI es seguro?",
+    lp_faq_1_a: "Sí. La plataforma es 100% de solo lectura: leemos tus saldos desde direcciones públicas y claves de API de solo lectura. Nunca movemos fondos, nunca firmamos transacciones y nunca tenemos acceso a tus claves privadas ni a tu seed.",
+    lp_faq_2_q: "¿Guardáis mis claves privadas?",
+    lp_faq_2_a: "No, nunca. No pedimos ni almacenamos claves privadas ni frases semilla. Solo necesitas la dirección pública de la cartera o una clave de API de solo lectura para verlo todo agregado.",
+    lp_faq_3_q: "¿Qué redes y exchanges son compatibles?",
+    lp_faq_3_a: "Bitcoin, Ethereum y redes EVM, Solana, Cardano y más de 15 fuentes de datos, además de exchanges y activos tradicionales que puedes añadir manualmente. Ampliamos la cobertura constantemente.",
+    lp_faq_4_q: "¿Es realmente gratis?",
+    lp_faq_4_a: "Sí. El plan Free es gratis para siempre y cubre lo esencial para seguir tu cartera. Los planes Pro y Premium desbloquean métricas avanzadas, IA y límites mayores cuando los necesites.",
+    lp_faq_5_q: "¿Necesito conocimientos técnicos?",
+    lp_faq_5_a: "No. Pegas una dirección o conectas un exchange y el panel se monta solo: PNL, asignación y métricas en segundos. El asistente de IA responde a tus dudas en lenguaje natural.",
   },
 
   fr: {
@@ -5098,6 +5179,33 @@ export const translations = {
     lang_en: "English",
     lang_es: "Español",
     lang_fr: "Français",
+
+    // ── Landing · Pour les institutions ──
+    lp_inst_tag: "Pour les équipes et institutions",
+    lp_inst_title: "Conçu pour ceux qui gèrent des capitaux sérieusement",
+    lp_inst_sub: "De l'investisseur particulier au family office : automatisation par API et MCP, rapports prêts pour la comptabilité et la fiscalité, couverture multi-actifs et confidentialité conforme au RGPD.",
+    lp_inst_1_t: "API et MCP pour automatiser",
+    lp_inst_1_d: "Connectez ChainFolioAI à vos flux avec notre API et notre serveur MCP. Intégrez le portefeuille à votre assistant IA, à vos tableaux de bord internes ou à vos pipelines de données, sans exports manuels.",
+    lp_inst_2_t: "Rapports exportables",
+    lp_inst_2_d: "Relevés de PNL, plus-values et moins-values réalisées et cartographie complète des positions, prêts pour votre comptable ou votre déclaration fiscale. Clôturez l'année sans feuilles de calcul éparpillées.",
+    lp_inst_3_t: "Multi-actifs et multi-portefeuilles",
+    lp_inst_3_d: "Crypto, exchanges et actifs traditionnels côte à côte, avec portefeuilles et comptes illimités agrégés dans une vue consolidée. Idéal pour les équipes qui suivent plusieurs mandats.",
+    lp_inst_4_t: "Confidentialité et RGPD",
+    lp_inst_4_d: "100% en lecture seule, sans conservation et sans accès aux clés privées. Vos données restent chiffrées et sous votre contrôle, avec un traitement conforme au RGPD européen.",
+
+    // ── Landing · FAQ ──
+    lp_faq_tag: "Questions fréquentes",
+    lp_faq_title: "Tout ce que vous devez savoir",
+    lp_faq_1_q: "ChainFolioAI est-il sûr ?",
+    lp_faq_1_a: "Oui. La plateforme est 100% en lecture seule : nous lisons vos soldes à partir d'adresses publiques et de clés d'API en lecture seule. Nous ne déplaçons jamais de fonds, ne signons jamais de transactions et n'avons jamais accès à vos clés privées ni à votre seed.",
+    lp_faq_2_q: "Conservez-vous mes clés privées ?",
+    lp_faq_2_a: "Non, jamais. Nous ne demandons ni ne stockons de clés privées ou de phrases de récupération. Il suffit d'une adresse publique de portefeuille ou d'une clé d'API en lecture seule pour tout voir agrégé.",
+    lp_faq_3_q: "Quels réseaux et exchanges sont pris en charge ?",
+    lp_faq_3_a: "Bitcoin, Ethereum et réseaux EVM, Solana, Cardano et plus de 15 sources de données, ainsi que des exchanges et actifs traditionnels que vous pouvez ajouter manuellement. Nous élargissons sans cesse la couverture.",
+    lp_faq_4_q: "Est-ce vraiment gratuit ?",
+    lp_faq_4_a: "Oui. L'offre Free est gratuite pour toujours et couvre l'essentiel pour suivre votre portefeuille. Les offres Pro et Premium débloquent des métriques avancées, l'IA et des limites plus élevées quand vous en avez besoin.",
+    lp_faq_5_q: "Faut-il des connaissances techniques ?",
+    lp_faq_5_a: "Non. Vous collez une adresse ou connectez un exchange et le tableau de bord se construit tout seul : PNL, allocation et métriques en quelques secondes. L'assistant IA répond à vos questions en langage naturel.",
   },
 } satisfies Record<Lang, Record<string, string>>;
 

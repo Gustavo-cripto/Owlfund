@@ -64,6 +64,21 @@ const SECURITY = [
   { icon: "🛡️", t: "lp_sec_3_t", d: "lp_sec_3_d" },
 ] as const;
 
+const INSTITUTIONS = [
+  { icon: "🔌", t: "lp_inst_1_t", d: "lp_inst_1_d" },
+  { icon: "📄", t: "lp_inst_2_t", d: "lp_inst_2_d" },
+  { icon: "🧩", t: "lp_inst_3_t", d: "lp_inst_3_d" },
+  { icon: "🇪🇺", t: "lp_inst_4_t", d: "lp_inst_4_d" },
+] as const;
+
+const FAQ = [
+  { q: "lp_faq_1_q", a: "lp_faq_1_a" },
+  { q: "lp_faq_2_q", a: "lp_faq_2_a" },
+  { q: "lp_faq_3_q", a: "lp_faq_3_a" },
+  { q: "lp_faq_4_q", a: "lp_faq_4_a" },
+  { q: "lp_faq_5_q", a: "lp_faq_5_a" },
+] as const;
+
 export default function Home() {
   const { t } = useLanguage();
   const supabase = createClient();
@@ -422,6 +437,51 @@ export default function Home() {
           </div>
         </section>
 
+        {/* PARA EQUIPAS E INSTITUIÇÕES */}
+        <section id="instituicoes" className="border-t border-slate-800/50 bg-slate-900/40 py-20">
+          <div className="mx-auto w-full max-w-6xl px-6">
+            <div className="mb-14 text-center animate-fade-in-up">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">{t("lp_inst_tag")}</p>
+              <h2 className="mt-3 text-3xl font-bold text-white md:text-4xl">{t("lp_inst_title")}</h2>
+              <p className="mt-3 text-slate-400 max-w-2xl mx-auto">{t("lp_inst_sub")}</p>
+            </div>
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+              {INSTITUTIONS.map((f, i) => (
+                <div
+                  key={f.t}
+                  className={`card-hover rounded-2xl border border-slate-800 bg-slate-950/50 p-6 animate-fade-in-up delay-${Math.min(i * 100, 500)}`}
+                >
+                  <div className="mb-4 text-3xl leading-none">{f.icon}</div>
+                  <h3 className="text-base font-bold text-white">{t(f.t)}</h3>
+                  <p className="mt-2 text-sm text-slate-400 leading-relaxed">{t(f.d)}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* FAQ */}
+        <section id="faq" className="mx-auto w-full max-w-3xl px-6 py-20">
+          <div className="mb-12 text-center animate-fade-in-up">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">{t("lp_faq_tag")}</p>
+            <h2 className="mt-3 text-3xl font-bold text-white md:text-4xl">{t("lp_faq_title")}</h2>
+          </div>
+          <div className="space-y-3">
+            {FAQ.map((f, i) => (
+              <details
+                key={f.q}
+                className={`group card-hover rounded-2xl border border-slate-800 bg-slate-900/60 p-6 animate-fade-in-up delay-${Math.min(i * 100, 500)}`}
+              >
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-base font-bold text-white">
+                  <span>{t(f.q)}</span>
+                  <span className="text-orange-400 transition-transform duration-200 group-open:rotate-45">+</span>
+                </summary>
+                <p className="mt-3 text-sm text-slate-400 leading-relaxed">{t(f.a)}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+
         {/* CTA FINAL */}
         <section className="mx-auto w-full max-w-3xl px-6 py-24 text-center">
           <div className="animate-scale-in rounded-3xl border border-orange-500/20 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 p-10 shadow-2xl shadow-black/40 relative overflow-hidden">
@@ -458,7 +518,8 @@ export default function Home() {
               <a href="#recursos" className="transition hover:text-slate-300">{t("lp_features")}</a>
               <a href="#ferramentas" className="transition hover:text-slate-300">{t("lp_tools_tag")}</a>
               <a href="#planos" className="transition hover:text-slate-300">{t("lp_plans_tag")}</a>
-              <a href="#como-funciona" className="transition hover:text-slate-300">{t("lp_how_works")}</a>
+              <a href="#instituicoes" className="transition hover:text-slate-300">{t("lp_inst_tag")}</a>
+              <a href="#faq" className="transition hover:text-slate-300">{t("lp_faq_tag")}</a>
               <a href="/login" className="transition hover:text-slate-300">{t("lp_login")}</a>
             </div>
             <p className="text-xs text-slate-600">© 2025 ChainFolioAI · Todos os direitos reservados</p>
