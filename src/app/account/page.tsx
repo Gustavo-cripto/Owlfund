@@ -229,6 +229,48 @@ export default function AccountPage() {
   const [nickname, setNickname] = useState("");
   const [nicknameSaving, setNicknameSaving] = useState(false);
   const [nicknameSaved, setNicknameSaved] = useState(false);
+  // Uso & limites
+  const [usage, setUsage] = useState<{ aiUsed: number; aiLimit: number; snapshots: number; wallets: number } | null>(null);
+  // Mudar palavra-passe
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwMsg, setPwMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  // Apagar conta
+  const [deleteInput, setDeleteInput] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleChangePassword = async () => {
+    setPwMsg(null);
+    if (newPassword.length < 8) { setPwMsg({ type: "err", text: t("ac_password_short") }); return; }
+    if (newPassword !== confirmPassword) { setPwMsg({ type: "err", text: t("ac_password_mismatch") }); return; }
+    setPwSaving(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) setPwMsg({ type: "err", text: t("ac_password_error") });
+      else { setPwMsg({ type: "ok", text: t("ac_password_saved") }); setNewPassword(""); setConfirmPassword(""); }
+    } catch {
+      setPwMsg({ type: "err", text: t("ac_password_error") });
+    } finally {
+      setPwSaving(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteInput.trim().toUpperCase() !== t("ac_delete_word").toUpperCase()) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch("/api/account/delete", { method: "POST" });
+      if (!res.ok) { setDeleteError(t("ac_delete_error")); setDeleting(false); return; }
+      await supabase.auth.signOut();
+      window.location.href = "/";
+    } catch {
+      setDeleteError(t("ac_delete_error"));
+      setDeleting(false);
+    }
+  };
 
   const handleSaveNickname = async () => {
     setNicknameSaving(true);
@@ -267,6 +309,11 @@ export default function AccountPage() {
         .from("subscriptions").select("status, current_period_end, price_id")
         .eq("user_id", user.id).eq("status", "active").order("current_period_end", { ascending: false }).limit(1).maybeSingle();
       setSubscription(subData ?? null);
+      // Uso & limites (não bloqueia o carregamento)
+      fetch("/api/usage")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((u: { aiUsed: number; aiLimit: number; snapshots: number; wallets: number } | null) => { if (u) setUsage(u); })
+        .catch(() => {});
       // Fetch plan from server-side API (avoids NEXT_PUBLIC env var issue)
       try {
         const planRes = await fetch("/api/subscription");
@@ -505,6 +552,27 @@ export default function AccountPage() {
                         <span className="text-sm text-slate-400">{periodEnd}</span>
                       </SettingRow>
                     )}
+                  </div>
+
+                  {/* Uso este mês */}
+                  <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+                    <p className="text-sm font-semibold text-white mb-3">{t("ac_usage_title")}</p>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-center">
+                        <p className="text-lg font-black text-white">
+                          {isPro || isPremium ? t("ac_usage_unlimited") : `${usage?.aiUsed ?? 0}/${usage?.aiLimit ?? 1}`}
+                        </p>
+                        <p className="text-[11px] text-slate-500 mt-1">{t("ac_usage_ai")}</p>
+                      </div>
+                      <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-center">
+                        <p className="text-lg font-black text-white">{usage?.wallets ?? 0}</p>
+                        <p className="text-[11px] text-slate-500 mt-1">{t("ac_usage_wallets")}</p>
+                      </div>
+                      <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-center">
+                        <p className="text-lg font-black text-white">{usage?.snapshots ?? 0}</p>
+                        <p className="text-[11px] text-slate-500 mt-1">{t("ac_usage_snapshots")}</p>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Plan cards */}
@@ -825,6 +893,27 @@ export default function AccountPage() {
                     </SettingRow>
                   </div>
 
+                  {/* Mudar palavra-passe */}
+                  <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4 space-y-3">
+                    <div>
+                      <p className="text-sm font-medium text-white">{t("ac_change_password")}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{t("ac_change_password_desc")}</p>
+                    </div>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder={t("ac_new_password_ph")} autoComplete="new-password"
+                        className="flex-1 rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 outline-none focus:border-orange-400" />
+                      <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder={t("ac_confirm_password_ph")} autoComplete="new-password"
+                        className="flex-1 rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 outline-none focus:border-orange-400" />
+                      <button type="button" onClick={handleChangePassword} disabled={pwSaving || !newPassword}
+                        className="shrink-0 rounded-lg border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white disabled:opacity-50">
+                        {pwSaving ? t("ac_saving") : t("ac_password_save")}
+                      </button>
+                    </div>
+                    {pwMsg && <p className={`text-xs ${pwMsg.type === "ok" ? "text-emerald-400" : "text-rose-400"}`}>{pwMsg.text}</p>}
+                  </div>
+
                   {/* 2FA */}
                   <TwoFactorSetup />
 
@@ -852,6 +941,23 @@ export default function AccountPage() {
                         Sair de tudo
                       </button>
                     </SettingRow>
+
+                    {/* Apagar conta (irreversível) */}
+                    <div className="pt-3 border-t border-rose-500/20 space-y-2">
+                      <p className="text-sm font-medium text-white">{t("ac_delete_account")}</p>
+                      <p className="text-xs text-slate-500">{t("ac_delete_account_desc")}</p>
+                      <div className="flex flex-col gap-2 pt-1 sm:flex-row">
+                        <input type="text" value={deleteInput} onChange={(e) => setDeleteInput(e.target.value)}
+                          placeholder={t("ac_delete_confirm_label")}
+                          className="flex-1 rounded-lg border border-rose-500/30 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 outline-none focus:border-rose-500" />
+                        <button type="button" onClick={handleDeleteAccount}
+                          disabled={deleting || deleteInput.trim().toUpperCase() !== t("ac_delete_word").toUpperCase()}
+                          className="shrink-0 rounded-lg bg-rose-500/90 px-4 py-2 text-xs font-bold text-white transition hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-40">
+                          {deleting ? t("ac_deleting") : t("ac_delete_button")}
+                        </button>
+                      </div>
+                      {deleteError && <p className="text-xs text-rose-400">{deleteError}</p>}
+                    </div>
                   </div>
                 </div>
               )}
