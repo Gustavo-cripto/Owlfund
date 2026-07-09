@@ -74,6 +74,7 @@ const INSTITUTIONS = [
 const FAQ = [
   { q: "lp_faq_1_q", a: "lp_faq_1_a" },
   { q: "lp_faq_2_q", a: "lp_faq_2_a" },
+  { q: "lp_faq_6_q", a: "lp_faq_6_a" },
   { q: "lp_faq_3_q", a: "lp_faq_3_a" },
   { q: "lp_faq_4_q", a: "lp_faq_4_a" },
   { q: "lp_faq_5_q", a: "lp_faq_5_a" },

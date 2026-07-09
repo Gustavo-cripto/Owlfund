@@ -612,7 +612,7 @@ export const translations = {
     lp_plan_see_all: "Ver todos os planos",
     lp_sec_tag: "Segurança",
     lp_sec_title: "Os teus fundos nunca saem do teu controlo",
-    lp_sec_sub: "O ChainFolioAI foi desenhado para acompanhar, não para tocar. Nunca movemos, assinamos nem negociamos o que quer que seja.",
+    lp_sec_sub: "O ChainFolioAI foi desenhado para acompanhar, não para tocar. Nunca movemos, assinamos nem negociamos o que quer que seja — e podes revogar o acesso na tua carteira a qualquer momento.",
     lp_sec_1_t: "Modo só-leitura",
     lp_sec_1_d: "Adicionas apenas endereços públicos. A app lê saldos e movimentos — nunca pode enviar, assinar ou negociar nada.",
     lp_sec_2_t: "Nunca pedimos chaves privadas",
@@ -1309,6 +1309,8 @@ export const translations = {
     lp_faq_4_a: "Sim. O plano Free é gratuito para sempre e cobre o essencial para acompanhares o teu portefólio. Os planos Pro e Premium desbloqueiam métricas avançadas, IA e limites maiores quando precisares.",
     lp_faq_5_q: "Preciso de conhecimentos técnicos?",
     lp_faq_5_a: "Não. Colas um endereço ou ligas uma exchange e o painel monta-se sozinho — PNL, alocação e métricas em segundos. O assistente de IA responde às tuas dúvidas em linguagem natural.",
+    lp_faq_6_q: "As minhas carteiras ou fundos ficam em risco?",
+    lp_faq_6_a: "Não. A ligação é só de leitura: partilhas apenas o endereço público e a app lê saldos. Para mover fundos seria preciso assinares uma transação — algo que nunca te pedimos. As chaves privadas nunca saem da tua carteira, e podes revogar o acesso na carteira a qualquer momento.",
 
     // ── Landing · Comparação ──
     lp_cmp_tag: "Comparação",
@@ -1996,7 +1998,7 @@ export const translations = {
     lp_plan_see_all: "See all plans",
     lp_sec_tag: "Security",
     lp_sec_title: "Your funds never leave your control",
-    lp_sec_sub: "ChainFolioAI is built to track, not to touch. We never move, sign or trade anything.",
+    lp_sec_sub: "ChainFolioAI is built to track, not to touch. We never move, sign or trade anything — and you can revoke access in your wallet at any time.",
     lp_sec_1_t: "Read-only mode",
     lp_sec_1_d: "You only add public addresses. The app reads balances and movements — it can never send, sign or trade.",
     lp_sec_2_t: "We never ask for private keys",
@@ -2687,6 +2689,8 @@ export const translations = {
     lp_faq_4_a: "Yes. The Free plan is free forever and covers the essentials to track your portfolio. The Pro and Premium plans unlock advanced metrics, AI and higher limits whenever you need them.",
     lp_faq_5_q: "Do I need technical knowledge?",
     lp_faq_5_a: "No. Paste an address or connect an exchange and the dashboard builds itself — PNL, allocation and metrics in seconds. The AI assistant answers your questions in plain language.",
+    lp_faq_6_q: "Are my wallets or funds at risk?",
+    lp_faq_6_a: "No. The connection is read-only: you only share your public address and the app reads balances. Moving funds would require you to sign a transaction — something we never ask for. Private keys never leave your wallet, and you can revoke access in your wallet at any time.",
 
     // ── Landing · Comparison ──
     lp_cmp_tag: "Comparison",
@@ -3374,7 +3378,7 @@ export const translations = {
     lp_plan_see_all: "Ver todos los planes",
     lp_sec_tag: "Seguridad",
     lp_sec_title: "Tus fondos nunca salen de tu control",
-    lp_sec_sub: "ChainFolioAI está diseñado para seguir, no para tocar. Nunca movemos, firmamos ni operamos nada.",
+    lp_sec_sub: "ChainFolioAI está diseñado para seguir, no para tocar. Nunca movemos, firmamos ni operamos nada — y puedes revocar el acceso en tu cartera en cualquier momento.",
     lp_sec_1_t: "Modo solo lectura",
     lp_sec_1_d: "Solo añades direcciones públicas. La app lee saldos y movimientos — nunca puede enviar, firmar ni operar.",
     lp_sec_2_t: "Nunca pedimos claves privadas",
@@ -4065,6 +4069,8 @@ export const translations = {
     lp_faq_4_a: "Sí. El plan Free es gratis para siempre y cubre lo esencial para seguir tu cartera. Los planes Pro y Premium desbloquean métricas avanzadas, IA y límites mayores cuando los necesites.",
     lp_faq_5_q: "¿Necesito conocimientos técnicos?",
     lp_faq_5_a: "No. Pegas una dirección o conectas un exchange y el panel se monta solo: PNL, asignación y métricas en segundos. El asistente de IA responde a tus dudas en lenguaje natural.",
+    lp_faq_6_q: "¿Mis carteras o fondos corren peligro?",
+    lp_faq_6_a: "No. La conexión es de solo lectura: solo compartes tu dirección pública y la app lee saldos. Para mover fondos habría que firmar una transacción, algo que nunca te pedimos. Las claves privadas nunca salen de tu cartera, y puedes revocar el acceso en tu cartera en cualquier momento.",
 
     // ── Landing · Comparación ──
     lp_cmp_tag: "Comparación",
@@ -4752,7 +4758,7 @@ export const translations = {
     lp_plan_see_all: "Voir toutes les offres",
     lp_sec_tag: "Sécurité",
     lp_sec_title: "Tes fonds ne quittent jamais ton contrôle",
-    lp_sec_sub: "ChainFolioAI est conçu pour suivre, pas pour toucher. Nous ne déplaçons, ne signons ni ne tradons jamais rien.",
+    lp_sec_sub: "ChainFolioAI est conçu pour suivre, pas pour toucher. Nous ne déplaçons, ne signons ni ne tradons jamais rien — et vous pouvez révoquer l'accès dans votre portefeuille à tout moment.",
     lp_sec_1_t: "Mode lecture seule",
     lp_sec_1_d: "Tu n'ajoutes que des adresses publiques. L'app lit les soldes et les mouvements — elle ne peut jamais envoyer, signer ou trader.",
     lp_sec_2_t: "Jamais de clés privées demandées",
@@ -5443,6 +5449,8 @@ export const translations = {
     lp_faq_4_a: "Oui. L'offre Free est gratuite pour toujours et couvre l'essentiel pour suivre votre portefeuille. Les offres Pro et Premium débloquent des métriques avancées, l'IA et des limites plus élevées quand vous en avez besoin.",
     lp_faq_5_q: "Faut-il des connaissances techniques ?",
     lp_faq_5_a: "Non. Vous collez une adresse ou connectez un exchange et le tableau de bord se construit tout seul : PNL, allocation et métriques en quelques secondes. L'assistant IA répond à vos questions en langage naturel.",
+    lp_faq_6_q: "Mes portefeuilles ou mes fonds sont-ils en danger ?",
+    lp_faq_6_a: "Non. La connexion est en lecture seule : vous ne partagez que votre adresse publique et l'app lit les soldes. Déplacer des fonds nécessiterait de signer une transaction — ce que nous ne demandons jamais. Les clés privées ne quittent jamais votre portefeuille, et vous pouvez révoquer l'accès dans votre portefeuille à tout moment.",
 
     // ── Landing · Comparaison ──
     lp_cmp_tag: "Comparaison",
