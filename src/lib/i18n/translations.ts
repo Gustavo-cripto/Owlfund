@@ -1347,6 +1347,7 @@ export const translations = {
     legal_privacy_short: "Privacidade",
     legal_terms_short: "Termos",
     legal_back_home: "← Voltar à página inicial",
+    lp_how_see_detail: "Ver como funciona em detalhe →",
 
     // ── Política de Privacidade ──
     pp_title: "Política de Privacidade",
@@ -2724,6 +2725,7 @@ export const translations = {
     legal_privacy_short: "Privacy",
     legal_terms_short: "Terms",
     legal_back_home: "← Back to home",
+    lp_how_see_detail: "See how it works in detail →",
 
     // ── Privacy Policy ──
     pp_title: "Privacy Policy",
@@ -4101,6 +4103,7 @@ export const translations = {
     legal_privacy_short: "Privacidad",
     legal_terms_short: "Términos",
     legal_back_home: "← Volver al inicio",
+    lp_how_see_detail: "Ver cómo funciona en detalle →",
 
     // ── Política de Privacidad ──
     pp_title: "Política de Privacidad",
@@ -5478,6 +5481,7 @@ export const translations = {
     legal_privacy_short: "Confidentialité",
     legal_terms_short: "Conditions",
     legal_back_home: "← Retour à l'accueil",
+    lp_how_see_detail: "Voir comment ça marche en détail →",
 
     // ── Politique de Confidentialité ──
     pp_title: "Politique de Confidentialité",

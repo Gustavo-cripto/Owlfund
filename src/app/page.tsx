@@ -435,34 +435,11 @@ export default function Home() {
                 </div>
               ))}
             </div>
-          </div>
-        </section>
-
-        {/* HOW IT WORKS — full explainer */}
-        <section className="mx-auto w-full max-w-6xl px-6 py-20">
-          <div className="mb-14 text-center animate-fade-in-up">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">{t("dash_how_title")}</p>
-            <h2 className="mt-3 text-3xl font-bold text-white md:text-4xl">{t("dash_how_subtitle")}</h2>
-          </div>
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {([
-              { icon: "/chainfolioai-icon.png", tKey: "dash_how_1_title", dKey: "dash_how_1_desc" },
-              { icon: "🔗", tKey: "dash_how_2_title", dKey: "dash_how_2_desc" },
-              { icon: "📡", tKey: "dash_how_3_title", dKey: "dash_how_3_desc" },
-              { icon: "🤖", tKey: "dash_how_4_title", dKey: "dash_how_4_desc" },
-              { icon: "🔒", tKey: "dash_how_5_title", dKey: "dash_how_5_desc" },
-              { icon: "💎", tKey: "dash_how_6_title", dKey: "dash_how_6_desc" },
-            ] as const).map((item, i) => (
-              <div key={item.tKey} className={`card-hover rounded-2xl border border-slate-800 bg-slate-900/60 p-6 animate-fade-in-up delay-${Math.min(i * 100, 500)}`}>
-                <div className="mb-4 text-3xl leading-none">
-                  {item.icon.startsWith("/")
-                    ? <img src={item.icon} alt="" className="h-9 w-9 rounded-lg object-cover" />
-                    : item.icon}
-                </div>
-                <h3 className="text-base font-bold text-white">{t(item.tKey)}</h3>
-                <p className="mt-2 text-sm text-slate-400 leading-relaxed">{t(item.dKey)}</p>
-              </div>
-            ))}
+            <div className="mt-10 text-center">
+              <a href="/como-funciona" className="text-sm font-semibold text-orange-300/90 transition hover:text-orange-200">
+                {t("lp_how_see_detail")}
+              </a>
+            </div>
           </div>
         </section>
 
@@ -570,6 +547,7 @@ export default function Home() {
               <a href="#planos" className="transition hover:text-slate-300">{t("lp_plans_tag")}</a>
               <a href="#instituicoes" className="transition hover:text-slate-300">{t("lp_inst_tag")}</a>
               <a href="#comparacao" className="transition hover:text-slate-300">{t("lp_cmp_tag")}</a>
+              <a href="/como-funciona" className="transition hover:text-slate-300">{t("dash_how_title")}</a>
               <a href="#faq" className="transition hover:text-slate-300">{t("lp_faq_tag")}</a>
               <a href="/privacidade" className="transition hover:text-slate-300">{t("legal_privacy_short")}</a>
               <a href="/termos" className="transition hover:text-slate-300">{t("legal_terms_short")}</a>

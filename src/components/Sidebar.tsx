@@ -193,7 +193,7 @@ export default function Sidebar() {
     ? NAV_ITEMS_KEYS.map((i) => ({ href: i.href, labelKey: i.labelKey, icon: NAV_ITEMS.find((n) => n.href === i.href)?.icon }))
     : [
         { href: "/", labelKey: "nav_home", icon: homeIcon },
-        { href: "/#como-funciona", labelKey: "dash_how_title", icon: howIcon },
+        { href: "/como-funciona", labelKey: "dash_how_title", icon: howIcon },
       ];
 
   return (
