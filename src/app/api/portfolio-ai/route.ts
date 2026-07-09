@@ -1,4 +1,19 @@
 import { NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+import { rateLimit, clientIp } from "@/lib/utils/rateLimit";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+
+async function getAuthUser() {
+  const cookieStore = await cookies();
+  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: { get: (name) => cookieStore.get(name)?.value, set: () => {}, remove: () => {} },
+  });
+  const { data } = await supabase.auth.getUser();
+  return data.user ?? null;
+}
 
 type PortfolioContext = {
   totalEur: number;
@@ -128,6 +143,15 @@ async function callAI(system: string, question: string): Promise<string> {
 }
 
 export async function POST(request: Request) {
+  // Rate limit por IP (trava abuso/custo de IA)
+  if (!rateLimit(`portfolio-ai:${clientIp(request)}`, 20, 60_000)) {
+    return NextResponse.json({ error: "Demasiados pedidos. Tenta novamente em 1 minuto." }, { status: 429 });
+  }
+
+  // Exigir sessão — endpoint usado apenas na página de portefólio (autenticada)
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+
   let body: Body | null = null;
   try {
     body = (await request.json()) as Body;

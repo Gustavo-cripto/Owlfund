@@ -1,9 +1,33 @@
 import { NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 import { generateAiChat, friendlyAiError, errorStatus, hasAnyAiProvider, type ChatMessage } from "@/lib/ai/groq";
+import { rateLimit, clientIp } from "@/lib/utils/rateLimit";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+
+async function getAuthUser() {
+  const cookieStore = await cookies();
+  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: { get: (name) => cookieStore.get(name)?.value, set: () => {}, remove: () => {} },
+  });
+  const { data } = await supabase.auth.getUser();
+  return data.user ?? null;
+}
 
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
 export async function POST(request: Request) {
+  // Rate limit por IP (trava abuso/custo de IA)
+  if (!rateLimit(`market-chat:${clientIp(request)}`, 20, 60_000)) {
+    return NextResponse.json({ error: "Demasiados pedidos. Tenta novamente em 1 minuto." }, { status: 429 });
+  }
+
+  // Exigir sessão — a página /mercado já exige login (useRequireAuth)
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+
   if (!hasAnyAiProvider()) return NextResponse.json({ error: "Serviço de IA não configurado." }, { status: 503 });
 
   const body = await request.json() as {
