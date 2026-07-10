@@ -202,7 +202,7 @@ const SECTIONS: { key: SettingsSection; labelKey: string; icon: string }[] = [
 
 export default function AccountPage() {
   const supabase = createClient();
-  const { t } = useLanguage();
+  const { t, lang, setLang } = useLanguage();
   const {
     theme, currency, hideBalances, numberFormat,
     alertsEnabled, autoSnapshot, compactMode,
@@ -211,6 +211,8 @@ export default function AccountPage() {
 
   const [email, setEmail] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [memberSince, setMemberSince] = useState<string | null>(null);
+  const [loginProvider, setLoginProvider] = useState<string | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
   const [serverPlan, setServerPlan] = useState<"free" | "pro" | "premium" | null>(null);
   const [loading, setLoading] = useState(true);
@@ -319,6 +321,8 @@ export default function AccountPage() {
       if (!user) { window.location.href = "/login"; return; }
       setEmail(user.email ?? null);
       setUserId(user.id);
+      setMemberSince(user.created_at ?? null);
+      setLoginProvider((user.app_metadata as { provider?: string } | undefined)?.provider ?? null);
       // Nickname: user_metadata (cross-device) com fallback ao cache local
       const nick = nicknameFromMetadata(user.user_metadata) || loadNickname();
       if (nick) { setNickname(nick); saveNickname(nick); }
@@ -540,6 +544,12 @@ export default function AccountPage() {
                     <SettingRow label={t("acc_email")}>
                       <span className="text-sm text-slate-400">{email ?? "—"}</span>
                     </SettingRow>
+                    <SettingRow label={t("ac_member_since")}>
+                      <span className="text-sm text-slate-400">{memberSince ? new Date(memberSince).toLocaleDateString() : "—"}</span>
+                    </SettingRow>
+                    <SettingRow label={t("ac_login_method")}>
+                      <span className="text-sm capitalize text-slate-400">{loginProvider ?? "—"}</span>
+                    </SettingRow>
                     <SettingRow label={t("ac_nickname")} desc={t("ac_nickname_desc")}>
                       <div className="flex items-center gap-2">
                         <input
@@ -728,8 +738,20 @@ export default function AccountPage() {
                     </p>
                   </div>
 
-                  {/* Compact mode */}
-                  <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+                  {/* Idioma + modo compacto */}
+                  <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4 divide-y divide-slate-800/60">
+                    <SettingRow label={t("lang_label")} desc={t("ac_language_desc")}>
+                      <Select<typeof lang>
+                        value={lang}
+                        onChange={setLang}
+                        options={[
+                          { value: "pt", label: t("lang_pt") },
+                          { value: "en", label: t("lang_en") },
+                          { value: "es", label: t("lang_es") },
+                          { value: "fr", label: t("lang_fr") },
+                        ]}
+                      />
+                    </SettingRow>
                     <SettingRow label={t("ac_compact")} desc={t("ac_compact_desc")}>
                       <Toggle checked={compactMode} onChange={v => setSetting("compactMode", v)} />
                     </SettingRow>

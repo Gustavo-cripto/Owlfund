@@ -1383,6 +1383,9 @@ export const translations = {
     ac_export_error: "Não foi possível exportar. Tenta novamente.",
     ac_support: "Suporte & feedback",
     ac_support_hint: "Fala connosco pelo chat no canto inferior direito.",
+    ac_language_desc: "Escolhe o idioma da aplicação.",
+    ac_member_since: "Membro desde",
+    ac_login_method: "Método de login",
 
     // ── Política de Privacidade ──
     pp_title: "Política de Privacidade",
@@ -2796,6 +2799,9 @@ export const translations = {
     ac_export_error: "Could not export. Please try again.",
     ac_support: "Support & feedback",
     ac_support_hint: "Talk to us via the chat in the bottom-right corner.",
+    ac_language_desc: "Choose the app language.",
+    ac_member_since: "Member since",
+    ac_login_method: "Login method",
 
     // ── Privacy Policy ──
     pp_title: "Privacy Policy",
@@ -4209,6 +4215,9 @@ export const translations = {
     ac_export_error: "No se pudo exportar. Inténtalo de nuevo.",
     ac_support: "Soporte y feedback",
     ac_support_hint: "Habla con nosotros en el chat de la esquina inferior derecha.",
+    ac_language_desc: "Elige el idioma de la aplicación.",
+    ac_member_since: "Miembro desde",
+    ac_login_method: "Método de inicio de sesión",
 
     // ── Política de Privacidad ──
     pp_title: "Política de Privacidad",
@@ -5622,6 +5631,9 @@ export const translations = {
     ac_export_error: "Export impossible. Veuillez réessayer.",
     ac_support: "Support et feedback",
     ac_support_hint: "Contactez-nous via le chat en bas à droite.",
+    ac_language_desc: "Choisissez la langue de l'application.",
+    ac_member_since: "Membre depuis",
+    ac_login_method: "Méthode de connexion",
 
     // ── Politique de Confidentialité ──
     pp_title: "Politique de Confidentialité",

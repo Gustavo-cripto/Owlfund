@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { createClient } from "@/lib/supabase/server";
 
-const ALLOWED_NEXT_PATHS = ["/dashboard", "/wallets", "/portfolio", "/market"];
+const ALLOWED_NEXT_PATHS = ["/dashboard", "/wallets", "/portfolio", "/mercado"];
 
 function getAllowedRedirect(stateParam: string | null, origin: string): string {
   if (!stateParam || !stateParam.startsWith("next:")) {
