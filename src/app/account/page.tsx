@@ -13,6 +13,8 @@ type SubscriptionStatus = { status: string; current_period_end: string | null; p
 type SettingsSection = "account" | "appearance" | "preferences" | "notifications" | "privacy" | "premium";
 type ApiKey = { id: string; name: string; key_prefix: string; created_at: string; last_used_at: string | null; is_active: boolean };
 
+const APP_VERSION = "0.1.0";
+
 // ── API Keys component ────────────────────────────────────────────────────
 function PremiumApiKeys({ isPremium }: { isPremium: boolean }) {
   const { t } = useLanguage();
@@ -269,6 +271,28 @@ export default function AccountPage() {
     } catch {
       setDeleteError(t("ac_delete_error"));
       setDeleting(false);
+    }
+  };
+
+  const [exporting, setExporting] = useState(false);
+  const handleExportData = async () => {
+    setExporting(true);
+    try {
+      const res = await fetch("/api/account/export");
+      if (!res.ok) throw new Error("export failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `chainfolioai-dados-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert(t("ac_export_error"));
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -887,9 +911,10 @@ export default function AccountPage() {
                       <span className="text-xs text-slate-400">Supabase</span>
                     </SettingRow>
                     <SettingRow label={t("ac_export_data")} desc={t("ac_export_data_desc")}>
-                      <a href="/portfolio" className="text-xs text-orange-400 hover:text-orange-300 transition">
-                        Exportar →
-                      </a>
+                      <button type="button" onClick={handleExportData} disabled={exporting}
+                        className="text-xs text-orange-400 hover:text-orange-300 transition disabled:opacity-50">
+                        {exporting ? t("ac_saving") : t("ac_export_btn")}
+                      </button>
                     </SettingRow>
                   </div>
 
@@ -1028,6 +1053,19 @@ export default function AccountPage() {
               )}
 
             </div>
+          </div>
+
+          {/* Rodapé — suporte & versão */}
+          <div className="mt-8 flex flex-col items-center gap-2 border-t border-slate-800/60 pt-6 text-center sm:flex-row sm:justify-between">
+            <button
+              type="button"
+              title={t("ac_support_hint")}
+              onClick={() => { try { window.dispatchEvent(new Event("chainfolio:open-chat")); } catch { /* ignore */ } }}
+              className="text-xs font-semibold text-orange-300/90 transition hover:text-orange-200"
+            >
+              {t("ac_support")} 💬
+            </button>
+            <p className="text-[11px] text-slate-600">ChainFolioAI v{APP_VERSION}</p>
           </div>
         </main>
       </div>

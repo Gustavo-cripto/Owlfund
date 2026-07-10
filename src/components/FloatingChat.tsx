@@ -64,6 +64,13 @@ export default function FloatingChat() {
     return () => window.clearTimeout(t);
   }, [isOpen]);
 
+  // Permite abrir o chat a partir de outros pontos (ex.: botão de Suporte nas definições)
+  useEffect(() => {
+    const open = () => setIsOpen(true);
+    window.addEventListener("chainfolio:open-chat", open);
+    return () => window.removeEventListener("chainfolio:open-chat", open);
+  }, []);
+
   // Fechar ao navegar em mobile (viewport < 640px)
   useEffect(() => {
     if (typeof window !== "undefined" && window.innerWidth < 640) {

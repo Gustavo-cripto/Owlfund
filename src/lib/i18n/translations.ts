@@ -1373,6 +1373,10 @@ export const translations = {
     ac_delete_button: "Apagar a minha conta",
     ac_deleting: "A apagar...",
     ac_delete_error: "Erro ao apagar a conta. Tenta novamente.",
+    ac_export_btn: "Exportar JSON",
+    ac_export_error: "Não foi possível exportar. Tenta novamente.",
+    ac_support: "Suporte & feedback",
+    ac_support_hint: "Fala connosco pelo chat no canto inferior direito.",
 
     // ── Política de Privacidade ──
     pp_title: "Política de Privacidade",
@@ -2776,6 +2780,10 @@ export const translations = {
     ac_delete_button: "Delete my account",
     ac_deleting: "Deleting...",
     ac_delete_error: "Error deleting the account. Please try again.",
+    ac_export_btn: "Export JSON",
+    ac_export_error: "Could not export. Please try again.",
+    ac_support: "Support & feedback",
+    ac_support_hint: "Talk to us via the chat in the bottom-right corner.",
 
     // ── Privacy Policy ──
     pp_title: "Privacy Policy",
@@ -4179,6 +4187,10 @@ export const translations = {
     ac_delete_button: "Eliminar mi cuenta",
     ac_deleting: "Eliminando...",
     ac_delete_error: "Error al eliminar la cuenta. Inténtalo de nuevo.",
+    ac_export_btn: "Exportar JSON",
+    ac_export_error: "No se pudo exportar. Inténtalo de nuevo.",
+    ac_support: "Soporte y feedback",
+    ac_support_hint: "Habla con nosotros en el chat de la esquina inferior derecha.",
 
     // ── Política de Privacidad ──
     pp_title: "Política de Privacidad",
@@ -5582,6 +5594,10 @@ export const translations = {
     ac_delete_button: "Supprimer mon compte",
     ac_deleting: "Suppression...",
     ac_delete_error: "Erreur lors de la suppression du compte. Veuillez réessayer.",
+    ac_export_btn: "Exporter JSON",
+    ac_export_error: "Export impossible. Veuillez réessayer.",
+    ac_support: "Support et feedback",
+    ac_support_hint: "Contactez-nous via le chat en bas à droite.",
 
     // ── Politique de Confidentialité ──
     pp_title: "Politique de Confidentialité",
