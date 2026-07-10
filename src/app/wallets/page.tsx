@@ -287,6 +287,56 @@ const MANUAL_ADD_NETWORKS: Array<{ id: string; label: string; group?: string }> 
   { id: "icp",       label: "Internet Computer (ICP)",  group: "Outros" },
 ];
 
+// Nome de carteira editável inline (✏️). O endereço nunca é mostrado — a carteira
+// é identificada por este nome.
+function EditableName({
+  current, display, onSave, placeholder,
+}: {
+  current: string;
+  display: React.ReactNode;
+  onSave: (value: string) => void;
+  placeholder: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(current);
+  if (editing) {
+    return (
+      <span className="inline-flex items-center gap-1 align-middle">
+        <input
+          autoFocus
+          value={draft}
+          maxLength={64}
+          placeholder={placeholder}
+          onChange={(e) => setDraft(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === "Enter") { onSave(draft); setEditing(false); }
+            if (e.key === "Escape") setEditing(false);
+          }}
+          className="w-36 rounded border border-slate-600 bg-slate-950 px-1.5 py-0.5 text-xs text-slate-100 outline-none focus:border-orange-400"
+        />
+        <button type="button" onClick={(e) => { e.stopPropagation(); onSave(draft); setEditing(false); }} className="text-[11px] text-emerald-400 hover:text-emerald-300">✓</button>
+        <button type="button" onClick={(e) => { e.stopPropagation(); setEditing(false); }} className="text-[11px] text-slate-500 hover:text-slate-300">✕</button>
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 align-middle">
+      {display}
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setDraft(current); setEditing(true); }}
+        className="text-[10px] text-slate-500 transition hover:text-orange-400"
+        title={placeholder}
+        aria-label={placeholder}
+      >
+        ✏️
+      </button>
+    </span>
+  );
+}
+
 export default function WalletsPage() {
   const supabase = useMemo(() => createClient(), []);
   useRequireAuth("/login");
@@ -2140,6 +2190,19 @@ export default function WalletsPage() {
 
   /** Adiciona um endereço a tracking (saldo + NFTs + DeFi automáticos via useEffect).
    *  Devolve string de erro ou null em sucesso. Usado pelo form manual e pela cold wallet. */
+  const renameWallet = (kind: "eth" | "sol" | "btc" | "ada" | "other", address: string | undefined, rawLabel: string) => {
+    if (!address) return;
+    const label = sanitizeLabel(rawLabel) || undefined;
+    const apply = (list: StoredWalletEntry[]) => list.map((w) => (w.address === address ? { ...w, label } : w));
+    let eth = ethWallets, sol = solWallets, btc = btcWallets, ada = adaWallets, other = otherWallets;
+    if (kind === "eth") { eth = apply(ethWallets); setEthWallets(eth); }
+    else if (kind === "sol") { sol = apply(solWallets); setSolWallets(sol); }
+    else if (kind === "btc") { btc = apply(btcWallets); setBtcWallets(btc); }
+    else if (kind === "ada") { ada = apply(adaWallets); setAdaWallets(ada); }
+    else { other = apply(otherWallets); setOtherWallets(other); }
+    updateWalletSnapshot({ eth, sol, btc, ada, other });
+  };
+
   const addManualAddress = (addressArg: string, networkId: string, labelArg?: string, source: "cold" | "manual" = "manual"): string | null => {
     const trimmed = addressArg.trim();
     const label = labelArg && labelArg.trim() ? sanitizeLabel(labelArg) : undefined;
@@ -2762,7 +2825,12 @@ export default function WalletsPage() {
                 >
                   <div className="space-y-0.5">
                     <p className="font-semibold text-white text-[11px]">
-                      {item.label && item.label !== item.network ? item.label : (item.network ?? "—")}
+                      <EditableName
+                        current={item.label && item.label !== item.network ? item.label : ""}
+                        display={item.label && item.label !== item.network ? item.label : (item.network ?? "—")}
+                        onSave={(v) => renameWallet("other", item.address, v)}
+                        placeholder={t("wc_name_ph")}
+                      />
                       <span className="ml-2 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">{item.network}</span>
                     </p>
                     <div className="flex items-center gap-2">
@@ -3063,7 +3131,12 @@ export default function WalletsPage() {
                       <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="space-y-1">
                         <p className="font-semibold text-white">
-                          {item.label ?? item.network ?? "Ethereum"}
+                          <EditableName
+                            current={item.label ?? ""}
+                            display={item.label ?? item.network ?? "Ethereum"}
+                            onSave={(v) => renameWallet("eth", item.address, v)}
+                            placeholder={t("wc_name_ph")}
+                          />
                           {item.label && item.network && (
                             <span className="ml-1.5 text-[10px] font-normal text-slate-500">{item.network}</span>
                           )}
@@ -3457,9 +3530,12 @@ export default function WalletsPage() {
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div className="space-y-1">
                           <p className="font-semibold text-white">
-                            {item.label && solWalletOptions.some((o) => o.label === item.label)
-                              ? item.label
-                              : (item.network ?? "Solana")}
+                            <EditableName
+                              current={item.label ?? ""}
+                              display={item.label ?? item.network ?? "Solana"}
+                              onSave={(v) => renameWallet("sol", item.address, v)}
+                              placeholder={t("wc_name_ph")}
+                            />
                             {isConnected ? (
                               <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">{t("wl_connected")}</span>
                             ) : (
@@ -3797,7 +3873,12 @@ export default function WalletsPage() {
                       <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="space-y-1">
                         <p className="font-semibold text-white">
-                          {item.label ?? item.network ?? "Bitcoin"}
+                          <EditableName
+                            current={item.label ?? ""}
+                            display={item.label ?? item.network ?? "Bitcoin"}
+                            onSave={(v) => renameWallet("btc", item.address, v)}
+                            placeholder={t("wc_name_ph")}
+                          />
                           {isConnected ? (
                             <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
                               Conectada
@@ -4209,7 +4290,12 @@ export default function WalletsPage() {
                     >
                       <div className="space-y-1">
                         <p className="font-semibold text-white">
-                          {item.network ?? "Cardano"}
+                          <EditableName
+                            current={item.label ?? ""}
+                            display={item.label ?? item.network ?? "Cardano"}
+                            onSave={(v) => renameWallet("ada", item.address, v)}
+                            placeholder={t("wc_name_ph")}
+                          />
                           {isConnected ? (
                             <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
                               Conectada
