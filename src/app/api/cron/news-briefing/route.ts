@@ -160,7 +160,7 @@ export async function GET(request: Request) {
       const html = buildEmailHtml(briefing, mode, date);
 
       const { error } = await resend.emails.send({
-        from: "Owlfund <briefing@owlfund.app>",
+        from: "ChainFolioAI <briefing@owlfund.app>",
         to: user.email,
         subject: `Briefing ${mode === "crypto" ? "Cripto" : "Mercado Tradicional"} — ${date}`,
         html,
