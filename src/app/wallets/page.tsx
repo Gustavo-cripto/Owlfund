@@ -401,6 +401,9 @@ export default function WalletsPage() {
   const [adaNewError, setAdaNewError] = useState<string | null>(null);
   const [adaShowMain, setAdaShowMain] = useState(false);
   const [adaShown, setAdaShown] = useState<Record<string, boolean>>({});
+  // Endereços escondidos por omissão (privacidade): "outras redes" e stablecoins.
+  const [otherShown, setOtherShown] = useState<Record<string, boolean>>({});
+  const [stableShown, setStableShown] = useState<Record<string, boolean>>({});
   const [selectedAdaProvider, setSelectedAdaProvider] = useState<CardanoWalletId>("eternl");
   const [showAdaNetworks, setShowAdaNetworks] = useState(false);
   const [adaNewNetworkId, setAdaNewNetworkId] = useState<string>("cardano");
@@ -2748,7 +2751,22 @@ export default function WalletsPage() {
                       {item.label && item.label !== item.network ? item.label : (item.network ?? "—")}
                       <span className="ml-2 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">{item.network}</span>
                     </p>
-                    <p className="text-slate-500 font-mono text-[11px] break-all">{item.address}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-slate-500 font-mono text-[11px] break-all">
+                        {otherShown[item.address ?? ""]
+                          ? item.address
+                          : <span className="tracking-widest text-slate-600 select-none">••••••••</span>}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setOtherShown((prev) => ({ ...prev, [item.address ?? ""]: !prev[item.address ?? ""] }))}
+                        className="shrink-0 rounded-full border border-slate-700 px-2 py-0.5 text-[10px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                        title={otherShown[item.address ?? ""] ? t("wc_hide_addr") : t("wc_show_addr")}
+                        aria-label={otherShown[item.address ?? ""] ? t("wc_hide_addr") : t("wc_show_addr")}
+                      >
+                        {otherShown[item.address ?? ""] ? "🙈" : "👁️"}
+                      </button>
+                    </div>
                   </div>
                   <button
                     type="button"
@@ -2797,6 +2815,7 @@ export default function WalletsPage() {
             isLoading={ethLoading}
             error={ethError}
             onConnect={handleEthConnect}
+            onConnectAnother={handleEthConnect}
             onDisconnect={handleEthDisconnect}
             onRefresh={handleEthRefresh}
             onToggleAddress={() => setEthShowMain((prev) => !prev)}
@@ -3200,6 +3219,7 @@ export default function WalletsPage() {
             isLoading={solLoading}
             error={solError}
             onConnect={handleSolConnect}
+            onConnectAnother={handleSolConnect}
             onDisconnect={handleSolDisconnect}
             onRefresh={handleSolRefresh}
             onToggleAddress={() => setSolShowMain((prev) => !prev)}
@@ -3568,6 +3588,7 @@ export default function WalletsPage() {
             isLoading={btcLoading}
             error={btcError}
             onConnect={handleBtcConnect}
+            onConnectAnother={handleBtcConnect}
             onDisconnect={handleBtcDisconnect}
             onRefresh={handleBtcRefresh}
             allowConnectWhenUnavailable
@@ -3936,6 +3957,7 @@ export default function WalletsPage() {
             loadingMessage={adaLoadingMsg}
             error={adaError}
             onConnect={handleAdaConnect}
+            onConnectAnother={handleAdaConnect}
             onDisconnect={handleAdaDisconnect}
             onRefresh={handleAdaRefresh}
             onToggleAddress={() => setAdaShowMain((prev) => !prev)}
@@ -5332,8 +5354,21 @@ export default function WalletsPage() {
                   {stablecoinEntries.map((e) => (
                     <tr key={e.id} className="border-b border-slate-800/80">
                       <td className="py-2 pr-2 font-medium text-white">{e.symbol}</td>
-                      <td className="max-w-[140px] truncate py-2 pr-2 font-mono text-slate-400" title={e.address}>
-                        {e.address.slice(0, 6)}…{e.address.slice(-4)}
+                      <td className="max-w-[170px] py-2 pr-2 font-mono text-slate-400">
+                        <span className="inline-flex items-center gap-1.5">
+                          {stableShown[e.id]
+                            ? <span className="truncate">{e.address.slice(0, 6)}…{e.address.slice(-4)}</span>
+                            : <span className="tracking-widest text-slate-600 select-none">••••••••</span>}
+                          <button
+                            type="button"
+                            onClick={() => setStableShown((prev) => ({ ...prev, [e.id]: !prev[e.id] }))}
+                            className="shrink-0 rounded-full border border-slate-700 px-1.5 py-0.5 text-[10px] text-slate-200 transition hover:border-slate-500 hover:text-white"
+                            title={stableShown[e.id] ? t("wc_hide_addr") : t("wc_show_addr")}
+                            aria-label={stableShown[e.id] ? t("wc_hide_addr") : t("wc_show_addr")}
+                          >
+                            {stableShown[e.id] ? "🙈" : "👁️"}
+                          </button>
+                        </span>
                       </td>
                       <td className="py-2 pr-2 text-right tabular-nums">
                         {stablecoinBalancesLoading[e.id] ? "A carregar…" : (stablecoinBalances[e.id] ?? "—")}
@@ -5375,7 +5410,6 @@ export default function WalletsPage() {
             coldWalletNetworks={MANUAL_ADD_NETWORKS}
             addedAddresses={coldWalletEntries}
             onRemoveAddress={removeManualAddress}
-            formatAddress={formatAddress}
             tokensByAddress={coldTokensByAddr}
           />
         ) : (

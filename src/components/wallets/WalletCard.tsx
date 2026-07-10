@@ -37,6 +37,8 @@ type WalletCardProps = {
   isConnected: boolean;
   isAvailable: boolean;
   onConnect: () => void;
+  /** Liga uma carteira/conta adicional nesta rede (abre a carteira para escolher outra conta). */
+  onConnectAnother?: () => void;
   onDisconnect?: () => void;
   disconnectLabel?: string;
   onRefresh?: () => void;
@@ -80,6 +82,7 @@ export default function WalletCard({
   isConnected,
   isAvailable,
   onConnect,
+  onConnectAnother,
   onDisconnect,
   disconnectLabel,
   onRefresh,
@@ -254,6 +257,16 @@ export default function WalletCard({
         >
           {isConnected ? t("wc_reconnect") : t("wc_connect")}
         </button>
+        {onConnectAnother && isConnected ? (
+          <button
+            className="rounded-full border border-orange-400/40 bg-orange-500/10 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={onConnectAnother}
+            disabled={isLoading || (!isAvailable && !allowConnectWhenUnavailable)}
+            title={t("wc_connect_another_hint")}
+          >
+            + {t("wc_connect_another")}
+          </button>
+        ) : null}
         {onDisconnect && isConnected ? (
           <button
             className="rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"

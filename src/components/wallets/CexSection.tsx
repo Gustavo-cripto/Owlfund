@@ -78,7 +78,6 @@ export default function CexSection({
   coldWalletNetworks = [],
   addedAddresses = [],
   onRemoveAddress,
-  formatAddress = (a: string) => a,
   tokensByAddress = {},
 }: {
   onTotalChange?: (usd: number) => void;
@@ -91,7 +90,6 @@ export default function CexSection({
     nftCount?: number | null; defiUsd?: number | null;
   }>;
   onRemoveAddress?: (address: string, kind: "eth" | "sol" | "btc" | "ada" | "other", networkLabel: string) => void;
-  formatAddress?: (address: string) => string;
   tokensByAddress?: Record<string, Array<{ address: string; symbol: string; name: string; logo?: string; balance: string; usdValue: number; chain: string }>>;
 }) {
   const { t } = useLanguage();
@@ -650,7 +648,7 @@ export default function CexSection({
                     <div className="flex items-center gap-2">
                       <span className="rounded-md bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-slate-300">{e.networkLabel}</span>
                       <span className="flex-1 truncate font-mono text-[11px] text-slate-400">
-                        {shown ? e.address : formatAddress(e.address)}
+                        {shown ? e.address : <span className="tracking-widest text-slate-600 select-none">••••••••</span>}
                       </span>
                       <button
                         type="button"
