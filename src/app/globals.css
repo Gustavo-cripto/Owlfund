@@ -131,10 +131,20 @@ body.theme-light .bg-slate-950\/60,
 body.theme-light .min-h-screen.bg-slate-950 { background-color: #f1f5f9 !important; }
 
 body.theme-light .bg-slate-900,
+body.theme-light .bg-slate-900\/30,
 body.theme-light .bg-slate-900\/40,
 body.theme-light .bg-slate-900\/50,
 body.theme-light .bg-slate-900\/60,
 body.theme-light .bg-slate-900\/70 { background-color: #ffffff !important; }
+
+/* Cartões com gradiente escuro (passos 01/02/03, plano popular, CTA final,
+   blocos BTC "PRÓXIMO"): sem esta regra o fundo fica escuro mas o texto é
+   invertido para escuro → ilegível. Cobre qualquer direção de gradiente; os
+   gradientes laranja usam from-orange-* e não são afetados. */
+body.theme-light .from-slate-900 {
+  background-image: none !important;
+  background-color: #ffffff !important;
+}
 
 body.theme-light .bg-black { background-color: #1e293b !important; }
 body.theme-light .bg-slate-800 { background-color: #e2e8f0 !important; }
@@ -157,6 +167,13 @@ body.theme-light .border-white\/\[0\.06\] { border-color: rgba(0,0,0,0.08) !impo
 body.theme-light .text-white,
 body.theme-light .text-slate-100,
 body.theme-light .text-slate-200 { color: #0f172a !important; }
+
+/* Laranjas demasiado claros para fundo branco (ex.: coluna ChainFolioAI da
+   comparação usa text-orange-200; alguns realces usam orange-300). */
+body.theme-light .text-orange-200 { color: #b45309 !important; }
+body.theme-light .text-orange-300,
+body.theme-light .text-orange-300\/80,
+body.theme-light .text-orange-300\/90 { color: #c2410c !important; }
 
 body.theme-light .text-slate-300 { color: #1e293b !important; }
 body.theme-light .text-slate-400 { color: #475569 !important; }
