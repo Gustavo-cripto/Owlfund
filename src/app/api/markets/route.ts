@@ -101,11 +101,24 @@ const STABLE_SYMBOLS = new Set([
   "PYUSD",
   "USDP",
   "EURC",
+  "GUSD",
+  "FRAX",
 ]);
+
+// Stablecoins que caem abaixo do top-250 por capitalização e por isso não vêm na
+// lista principal do CoinGecko — pedidas à parte para poderem ser registadas como
+// posição manual.
+const EXTRA_STABLE_IDS = [
+  "paxos-standard", // USDP
+  "euro-coin",      // EURC
+  "binance-usd",    // BUSD
+  "gemini-dollar",  // GUSD
+  "frax",           // FRAX
+];
 
 export async function GET() {
   try {
-    const [coinexResponse, coingeckoResponse, coingeckoTopResponse] = await Promise.all([
+    const [coinexResponse, coingeckoResponse, coingeckoTopResponse, coingeckoExtraResponse] = await Promise.all([
       fetch("https://api.coinex.com/v2/spot/ticker"),
       fetch(
         "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1"
@@ -113,6 +126,9 @@ export async function GET() {
       fetch(
         // fetch more and then filter (avoid stablecoins / missing markets)
         "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&sparkline=true"
+      ),
+      fetch(
+        `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${EXTRA_STABLE_IDS.join(",")}`
       ),
     ]);
 
@@ -132,6 +148,11 @@ export async function GET() {
 
     const coingeckoTopPayload = coingeckoTopResponse.ok
       ? ((await coingeckoTopResponse.json()) as CoinGeckoRow[])
+      : [];
+
+    // Falha aqui não deve partir a rota — apenas ficamos sem estas estáveis extra.
+    const coingeckoExtraPayload = coingeckoExtraResponse.ok
+      ? await coingeckoExtraResponse.json().catch(() => [] as CoinGeckoRow[]) as CoinGeckoRow[]
       : [];
 
     const coingeckoMap = new Map(
@@ -191,17 +212,32 @@ export async function GET() {
     // como posição manual. A tabela de mercado (`data`) e o sentimento continuam
     // sem elas. O preço vai aqui porque alguns ativos (ex.: USDT) não têm par na
     // CoinEx e por isso não aparecem em `data`.
-    const selectList = coingeckoPayload
-      .filter((row) => row.symbol)
-      .slice(0, 250)
-      .map((row) => ({
-        symbol: row.symbol.toUpperCase(),
-        name: row.name ?? row.symbol,
-        priceUsd: typeof row.current_price === "number" ? row.current_price : null,
-        marketCapUsd: row.market_cap ?? null,
-      }));
+    const toSelectEntry = (row: CoinGeckoRow) => ({
+      symbol: row.symbol.toUpperCase(),
+      name: row.name ?? row.symbol,
+      priceUsd: typeof row.current_price === "number" ? row.current_price : null,
+      marketCapUsd: row.market_cap ?? null,
+    });
 
-    return NextResponse.json({ data: rows, sentimentTop10, selectList });
+    // Desduplicado por símbolo: o CoinGecko devolve tickers repetidos (ex.: USDF é
+    // usado por "Falcon USD" e "Aster USDF"), o que daria chaves repetidas no
+    // dropdown. Como vem ordenado por capitalização, o primeiro é o dominante.
+    // As estáveis extra entram no fim, se ainda não existirem.
+    const bySymbol = new Map<string, ReturnType<typeof toSelectEntry>>();
+    for (const row of coingeckoPayload.filter((r) => r.symbol).slice(0, 250)) {
+      const entry = toSelectEntry(row);
+      if (!bySymbol.has(entry.symbol)) bySymbol.set(entry.symbol, entry);
+    }
+    for (const row of coingeckoExtraPayload.filter((r) => r?.symbol)) {
+      const entry = toSelectEntry(row);
+      if (!bySymbol.has(entry.symbol)) bySymbol.set(entry.symbol, entry);
+    }
+
+    return NextResponse.json({
+      data: rows,
+      sentimentTop10,
+      selectList: [...bySymbol.values()],
+    });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Erro inesperado." },
