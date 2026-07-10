@@ -399,6 +399,15 @@ export default function AccountPage() {
     window.location.href = "/";
   };
 
+  const [signoutOthersDone, setSignoutOthersDone] = useState(false);
+  const handleSignOutOthers = async () => {
+    try {
+      await supabase.auth.signOut({ scope: "others" });
+      setSignoutOthersDone(true);
+      setTimeout(() => setSignoutOthersDone(false), 3000);
+    } catch { /* ignore */ }
+  };
+
   const handleManageBilling = async () => {
     if (!userId) return;
     setBillingError(null);
@@ -936,6 +945,12 @@ export default function AccountPage() {
                       <button type="button" onClick={handleExportData} disabled={exporting}
                         className="text-xs text-orange-400 hover:text-orange-300 transition disabled:opacity-50">
                         {exporting ? t("ac_saving") : t("ac_export_btn")}
+                      </button>
+                    </SettingRow>
+                    <SettingRow label={t("ac_signout_others")} desc={t("ac_signout_others_desc")}>
+                      <button type="button" onClick={handleSignOutOthers}
+                        className="rounded-lg border border-slate-600/40 px-3 py-1.5 text-xs text-slate-300 transition hover:border-slate-400 hover:text-white">
+                        {signoutOthersDone ? t("ac_signout_others_done") : t("ac_signout_others_btn")}
                       </button>
                     </SettingRow>
                   </div>

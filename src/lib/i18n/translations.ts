@@ -1386,6 +1386,10 @@ export const translations = {
     ac_language_desc: "Escolhe o idioma da aplicação.",
     ac_member_since: "Membro desde",
     ac_login_method: "Método de login",
+    ac_signout_others: "Sessões noutros dispositivos",
+    ac_signout_others_desc: "Mantém esta sessão e termina todas as outras.",
+    ac_signout_others_btn: "Terminar outras",
+    ac_signout_others_done: "Terminadas ✓",
 
     // ── Política de Privacidade ──
     pp_title: "Política de Privacidade",
@@ -2802,6 +2806,10 @@ export const translations = {
     ac_language_desc: "Choose the app language.",
     ac_member_since: "Member since",
     ac_login_method: "Login method",
+    ac_signout_others: "Sessions on other devices",
+    ac_signout_others_desc: "Keep this session and end all the others.",
+    ac_signout_others_btn: "End others",
+    ac_signout_others_done: "Ended ✓",
 
     // ── Privacy Policy ──
     pp_title: "Privacy Policy",
@@ -4218,6 +4226,10 @@ export const translations = {
     ac_language_desc: "Elige el idioma de la aplicación.",
     ac_member_since: "Miembro desde",
     ac_login_method: "Método de inicio de sesión",
+    ac_signout_others: "Sesiones en otros dispositivos",
+    ac_signout_others_desc: "Mantén esta sesión y cierra todas las demás.",
+    ac_signout_others_btn: "Cerrar otras",
+    ac_signout_others_done: "Cerradas ✓",
 
     // ── Política de Privacidad ──
     pp_title: "Política de Privacidad",
@@ -5634,6 +5646,10 @@ export const translations = {
     ac_language_desc: "Choisissez la langue de l'application.",
     ac_member_since: "Membre depuis",
     ac_login_method: "Méthode de connexion",
+    ac_signout_others: "Sessions sur d'autres appareils",
+    ac_signout_others_desc: "Conserve cette session et termine toutes les autres.",
+    ac_signout_others_btn: "Terminer les autres",
+    ac_signout_others_done: "Terminées ✓",
 
     // ── Politique de Confidentialité ──
     pp_title: "Politique de Confidentialité",
