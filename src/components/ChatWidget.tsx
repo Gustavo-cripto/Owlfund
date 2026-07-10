@@ -10,6 +10,7 @@ import { escapeHtml } from "@/lib/utils/html";
 type ChatMessage = {
   role: "user" | "assistant";
   content: string;
+  ts?: number;
 };
 
 type ChatWidgetProps = {
@@ -18,8 +19,8 @@ type ChatWidgetProps = {
   title?: string;
   subtitle?: string;
   assistantLabel?: string;
+  assistantAvatar?: string;
   inputClassName?: string;
-  buttonClassName?: string;
   placeholder?: string;
   isPro?: boolean;
 };
@@ -40,23 +41,10 @@ function incrementChatCount() {
   catch { /* ignore */ }
 }
 
-// Sugestões por página
-const PAGE_SUGGESTIONS: Record<string, string[]> = {
-  "/dashboard":    ["Como funciona o ChainFolioAI?", "Como adiciono uma carteira?", "O que é o PNL?"],
-  "/portfolio":    ["Explica o meu Score de portfólio", "O que é o Sharpe Ratio?", "Como guardar um snapshot?"],
-  "/wallets":      ["Como conecto o MetaMask?", "O que é o WalletConnect?", "A carteira é segura?"],
-  "/smart-money":  ["O que é Smart Money?", "Quem é o Vitalik?", "Como interpretar movimentos de baleias?"],
-  "/mercado":      ["O que está a mexer com o BTC hoje?", "Explica o RSI", "O que é market cap?"],
-  "/fiscalidade":  ["Como funciona o FIFO?", "Quando pago impostos em Portugal?", "O que é mais-valia cripto?"],
-  "/fire":         ["O que é a regra dos 4%?", "Como calcular o meu número FIRE?", "O que é CAGR?"],
-  "/account":      ["Como funciona o plano Pro?", "Como cancelar a subscrição?", "O que inclui o plano gratuito?"],
-};
-
-const DEFAULT_SUGGESTIONS = [
-  "Como funciona o ChainFolioAI?",
-  "O que está a mexer com o BTC?",
-  "Como adiciono uma carteira cripto?",
-];
+function formatTime(ts: number): string {
+  try { return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
+  catch { return ""; }
+}
 
 // Renderiza texto com **bold**, *italic* e listas
 function renderMarkdown(text: string) {
@@ -80,9 +68,8 @@ export default function ChatWidget({
   messagesMaxHeightClassName = "max-h-56",
   title = "Chat IA",
   subtitle = "Pergunta sobre o mercado e a plataforma.",
-  assistantLabel = "Chain",
+  assistantAvatar = "/chain-icon.jpg",
   inputClassName = "",
-  buttonClassName = "",
   placeholder = "Escreve a tua pergunta...",
   isPro = false,
 }: ChatWidgetProps) {
@@ -93,11 +80,12 @@ export default function ChatWidget({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [chatCount, setChatCount] = useState(0);
+  const [nick, setNick] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Carregar contador mensal
   useEffect(() => {
     setChatCount(getChatCount());
+    setNick(loadNickname() || "");
   }, []);
 
   // Carregar histórico do localStorage
@@ -145,7 +133,7 @@ export default function ChatWidget({
       return;
     }
 
-    const nextMessages: ChatMessage[] = [...messages, { role: "user", content: trimmed }];
+    const nextMessages: ChatMessage[] = [...messages, { role: "user", content: trimmed, ts: Date.now() }];
     setMessages(nextMessages);
     setInput("");
     setError(null);
@@ -184,7 +172,7 @@ export default function ChatWidget({
       const reply = typeof data.reply === "string" ? data.reply : "";
       if (!reply) throw new Error("Resposta vazia da IA.");
 
-      setMessages(prev => [...prev, { role: "assistant", content: reply }]);
+      setMessages(prev => [...prev, { role: "assistant", content: reply, ts: Date.now() }]);
       if (!isPro) {
         incrementChatCount();
         setChatCount(getChatCount());
@@ -209,90 +197,120 @@ export default function ChatWidget({
     try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
   };
 
+  const limitReached = !isPro && chatCount >= FREE_CHAT_LIMIT;
+
   const content = (
     <div className="flex flex-col gap-3">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">{title}</p>
-          <p className="text-sm text-slate-400">{subtitle}</p>
+      {/* Header (só em modo standalone; dentro do FloatingChat o painel já tem cabeçalho) */}
+      {withContainer && (
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">{title}</p>
+            <p className="text-sm text-slate-400">{subtitle}</p>
+          </div>
         </div>
-        {messages.length > 0 && (
+      )}
+
+      {/* Barra de ações */}
+      {messages.length > 0 && (
+        <div className="flex justify-end">
           <button
             type="button"
             onClick={clearHistory}
-            className="text-[10px] text-slate-600 hover:text-slate-400 transition"
-            title="Limpar conversa"
+            className="flex items-center gap-1 rounded-full border border-slate-800 px-2.5 py-1 text-[10px] text-slate-500 transition hover:border-slate-600 hover:text-slate-300"
+            title={t("cw_clear_btn")}
           >
-            Limpar
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+            </svg>
+            {t("cw_clear_btn")}
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Messages */}
-      <div className={`${messagesMaxHeightClassName} space-y-2.5 overflow-y-auto pr-1 scroll-smooth`}>
+      {/* Mensagens */}
+      <div className={`${messagesMaxHeightClassName} space-y-3 overflow-y-auto pr-1 scroll-smooth`}>
         {messages.length === 0 ? (
-          <div className="space-y-2">
-            <p className="text-xs text-slate-500">{t("cw_suggestions")}</p>
-            {suggestions.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => sendMessage(s)}
-                className="block w-full rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 text-left text-xs text-slate-300 transition hover:border-orange-500/30 hover:text-white hover:bg-slate-800/60"
-              >
-                {s}
-              </button>
-            ))}
+          /* Estado de boas-vindas */
+          <div className="flex flex-col items-center gap-4 px-1 py-2 text-center">
+            <div className="relative animate-fade-in-up">
+              <img src={assistantAvatar} alt="" className="h-16 w-16 rounded-2xl border border-slate-700 object-cover shadow-lg shadow-black/40" />
+              <span className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-slate-950 bg-emerald-400" />
+            </div>
+            <div className="animate-fade-in-up delay-100">
+              <p className="text-base font-bold text-white">
+                {t("cw_greeting_hi")}{nick ? ` ${nick}` : ""}! 👋
+              </p>
+              <p className="mt-1 text-xs text-slate-400">{t("cw_greeting_intro")}</p>
+            </div>
+            <div className="w-full space-y-2 pt-1">
+              <p className="text-left text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("cw_suggestions")}</p>
+              {suggestions.map((s, i) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => sendMessage(s)}
+                  className={`group flex w-full items-center gap-2.5 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2.5 text-left text-xs text-slate-300 transition hover:border-orange-500/40 hover:bg-slate-800/60 hover:text-white animate-fade-in-up delay-${Math.min(i * 100 + 100, 400)}`}
+                >
+                  <span className="text-sm">💬</span>
+                  <span className="flex-1">{s}</span>
+                  <span className="text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-orange-400">→</span>
+                </button>
+              ))}
+            </div>
           </div>
         ) : (
           messages.map((msg, i) => (
-            <div
-              key={i}
-              className={`rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
-                msg.role === "user"
-                  ? "ml-8 bg-orange-500/15 text-slate-100 border border-orange-500/20"
-                  : "mr-4 bg-slate-800/60 text-slate-200 border border-slate-700/50"
-              }`}
-            >
-              <span className="mb-1 block text-[9px] uppercase tracking-[0.25em] text-slate-500">
-                {msg.role === "user" ? "Tu" : assistantLabel}
-              </span>
-              <div className="space-y-0.5">
-                {renderMarkdown(msg.content)}
+            <div key={i} className={`flex items-end gap-2 animate-fade-in-up ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
+              {/* Avatar */}
+              {msg.role === "assistant" ? (
+                <img src={assistantAvatar} alt="" className="h-7 w-7 flex-shrink-0 rounded-full border border-slate-700 object-cover" />
+              ) : (
+                <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-orange-500/30 bg-orange-500/15 text-[10px] font-bold text-orange-300">
+                  {nick ? nick[0].toUpperCase() : "🙂"}
+                </span>
+              )}
+              {/* Bolha */}
+              <div className={`flex max-w-[80%] flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
+                <div className={`px-3.5 py-2.5 text-sm leading-relaxed ${
+                  msg.role === "user"
+                    ? "rounded-2xl rounded-br-md border border-orange-500/25 bg-orange-500/15 text-slate-100"
+                    : "rounded-2xl rounded-bl-md border border-slate-700/50 bg-slate-800/70 text-slate-200"
+                }`}>
+                  <div className="space-y-0.5">{renderMarkdown(msg.content)}</div>
+                </div>
+                {msg.ts ? <span className="mt-0.5 px-1 text-[9px] text-slate-600">{formatTime(msg.ts)}</span> : null}
               </div>
             </div>
           ))
         )}
 
-        {/* Typing indicator */}
+        {/* Indicador de "a escrever" */}
         {isLoading && (
-          <div className="mr-4 rounded-2xl border border-slate-700/50 bg-slate-800/60 px-3.5 py-3">
-            <span className="mb-1 block text-[9px] uppercase tracking-[0.25em] text-slate-500">{assistantLabel}</span>
-            <div className="flex items-center gap-1 pt-0.5">
-              {[0, 1, 2].map(n => (
-                <span
-                  key={n}
-                  className="h-1.5 w-1.5 rounded-full bg-orange-400"
-                  style={{ animation: `bounce 1.2s ease-in-out ${n * 0.2}s infinite` }}
-                />
-              ))}
+          <div className="flex items-end gap-2 animate-fade-in-up">
+            <img src={assistantAvatar} alt="" className="h-7 w-7 flex-shrink-0 rounded-full border border-slate-700 object-cover" />
+            <div className="rounded-2xl rounded-bl-md border border-slate-700/50 bg-slate-800/70 px-4 py-3">
+              <div className="flex items-center gap-1">
+                {[0, 1, 2].map(n => (
+                  <span key={n} className="h-1.5 w-1.5 rounded-full bg-orange-400" style={{ animation: `bounce 1.2s ease-in-out ${n * 0.2}s infinite` }} />
+                ))}
+              </div>
             </div>
           </div>
         )}
 
-        {!isPro && chatCount >= FREE_CHAT_LIMIT ? (
-          <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 px-3 py-3 text-xs space-y-1">
-            <p className="text-orange-300 font-semibold">🔒 Limite de {FREE_CHAT_LIMIT} chats/mês atingido</p>
+        {limitReached ? (
+          <div className="space-y-1 rounded-xl border border-orange-500/30 bg-orange-500/5 px-3 py-3 text-xs">
+            <p className="font-semibold text-orange-300">🔒 Limite de {FREE_CHAT_LIMIT} chats/mês atingido</p>
             <p className="text-slate-400">Faz upgrade para Pro e tem chats ilimitados.</p>
-            <a href="/pricing" className="inline-block mt-1 rounded-full bg-orange-500 px-4 py-1.5 text-xs font-bold text-slate-950 hover:bg-orange-400 transition">
+            <a href="/pricing" className="mt-1 inline-block rounded-full bg-orange-500 px-4 py-1.5 text-xs font-bold text-slate-950 transition hover:bg-orange-400">
               Upgrade para Pro →
             </a>
           </div>
         ) : (
           <>
-            {!isPro && (
-              <p className="text-[10px] text-slate-600 text-right">
+            {!isPro && messages.length > 0 && (
+              <p className="text-right text-[10px] text-slate-600">
                 Chats este mês: <span className={chatCount >= FREE_CHAT_LIMIT - 1 ? "text-amber-400" : "text-slate-500"}>{chatCount}/{FREE_CHAT_LIMIT}</span>
               </p>
             )}
@@ -306,23 +324,35 @@ export default function ChatWidget({
       </div>
 
       {/* Input */}
-      <div className="flex gap-2">
+      <div className="flex items-center gap-2 border-t border-slate-800/60 pt-3">
         <input
           className={`flex-1 rounded-full border border-slate-800 bg-slate-950 px-4 py-2 text-sm text-slate-200 outline-none transition focus:border-orange-400 placeholder:text-slate-600 ${inputClassName}`}
           placeholder={placeholder}
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          disabled={isLoading || (!isPro && chatCount >= FREE_CHAT_LIMIT)}
+          disabled={isLoading || limitReached}
           maxLength={1000}
         />
         <button
           type="button"
-          className={`flex-shrink-0 rounded-full bg-orange-500 px-5 py-2 text-sm font-semibold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-60 ${buttonClassName}`}
+          aria-label={t("cw_send_aria")}
+          title={t("cw_send_aria")}
+          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-orange-500 text-slate-950 transition hover:scale-105 hover:bg-orange-400 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
           onClick={() => sendMessage(input)}
-          disabled={isLoading || !input.trim()}
+          disabled={isLoading || !input.trim() || limitReached}
         >
-          {isLoading ? "..." : "Enviar"}
+          {isLoading ? (
+            <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4z" />
+            </svg>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
+            </svg>
+          )}
         </button>
       </div>
     </div>

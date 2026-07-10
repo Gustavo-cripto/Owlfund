@@ -117,7 +117,7 @@ export default function FloatingChat() {
               <div className="min-w-0">
                 <p className="text-base font-bold text-white leading-tight">Chain</p>
                 <p className="text-[11px] text-slate-400 leading-tight">
-                  {currentPage ? `Estás em: ${currentPage}` : "Assistente ChainFolioAI · Mercados cripto"}
+                  {currentPage ? `${t("fch_youre_on")}: ${currentPage}` : t("fch_status_default")}
                 </p>
               </div>
             </div>
@@ -144,7 +144,6 @@ export default function FloatingChat() {
                 assistantLabel="Chain"
                 messagesMaxHeightClassName="max-h-[52vh]"
                 inputClassName="py-2.5 text-sm"
-                buttonClassName="px-6 py-2.5 text-sm"
                 placeholder={t("fch_placeholder")}
                 isPro={isPro}
               />
