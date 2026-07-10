@@ -126,42 +126,37 @@ const snapshotToWallets = (snapshot: WalletSnapshot, _prices?: TokenPrices): Wal
 
   return [
   // Each ETH wallet entry as its own row (mainnet + L2s) — balance is raw token amount
-  ...dedup(snapshot.eth).map((entry) => ({
-    label: entry.label || (entry.address ? `${entry.address.slice(0, 6)}…${entry.address.slice(-4)}` : "Ethereum"),
+  // Nome amigável (nunca o endereço): a carteira é identificada pelo label
+  // escolhido ou por "<Rede> #n". Privacidade: o endereço nunca é mostrado aqui.
+  ...dedup(snapshot.eth).map((entry, i) => ({
+    label: entry.label || `${entry.network ?? "Ethereum"} #${i + 1}`,
     symbol: "ETH",
     balance: String(Number(entry.balance ?? 0)),
     address: entry.address,
     network: entry.network ?? "Ethereum",
   })),
-  ...dedup(snapshot.sol).map((entry) => ({
-    label: entry.label || (entry.address ? `${entry.address.slice(0, 6)}…${entry.address.slice(-4)}` : "Solana"),
+  ...dedup(snapshot.sol).map((entry, i) => ({
+    label: entry.label || `Solana #${i + 1}`,
     symbol: "SOL",
     balance: String(Number(entry.balance ?? 0)),
     address: entry.address,
     network: "Solana",
   })),
-  ...dedup(snapshot.btc).map((entry) => ({
-    label: entry.label || (entry.address ? `${entry.address.slice(0, 6)}…${entry.address.slice(-4)}` : "Bitcoin"),
+  ...dedup(snapshot.btc).map((entry, i) => ({
+    label: entry.label || `Bitcoin #${i + 1}`,
     symbol: "BTC",
     balance: String(Number(entry.balance ?? 0)),
     address: entry.address,
     network: "Bitcoin",
   })),
-  ...dedup(snapshot.ada).map((entry) => ({
-    label: entry.label || (entry.address ? `${entry.address.slice(0, 6)}…${entry.address.slice(-4)}` : "Cardano"),
+  ...dedup(snapshot.ada).map((entry, i) => ({
+    label: entry.label || `Cardano #${i + 1}`,
     symbol: "ADA",
     balance: String(Number(entry.balance ?? 0)),
     address: entry.address,
     network: "Cardano",
   })),
   ]};
-
-
-const formatAddress = (address?: string) => {
-  if (!address) return "—";
-  if (address.length <= 12) return address;
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
-};
 
 const sumCrypto = (balances: WalletBalance[], prices: TokenPrices = {}) => {
   return balances.reduce((sum, item) => {
@@ -188,6 +183,10 @@ const getPercent = (value: number, total: number): string => {
   if (!total || total <= 0) return "0";
   return String(Math.round((value / total) * 100));
 };
+
+const STABLE_SYMBOLS = new Set([
+  "USDT", "USDC", "DAI", "BUSD", "TUSD", "FDUSD", "USDE", "PYUSD", "USDP", "EURC", "GUSD", "FRAX",
+]);
 
 function SnapshotList({ snapshots, onRestore }: { snapshots: SnapshotRow[]; onRestore: (row: SnapshotRow) => void }) {
   const [expanded, setExpanded] = useState(false);
@@ -559,6 +558,16 @@ export default function PortfolioPage() {
   const stablecoinTotal = useMemo(() => {
     return stablecoinEntries.reduce((sum, e) => sum + (parseFloat(e.balance ?? "0") || 0), 0);
   }, [stablecoinEntries]);
+  // Stablecoins registadas como "cripto manual" (ex.: USDT no seletor de ativos)
+  // também contam como reserva estável no Score — sem afetar o total (já estão
+  // incluídas em cryptoTotal, aqui só são reclassificadas para a % de reserva).
+  const manualStableEur = useMemo(() => {
+    return Object.entries(cryptoHoldings).reduce((sum, [symbol, holding]) => {
+      if (!STABLE_SYMBOLS.has(symbol.toUpperCase())) return sum;
+      const value = Number(holding.buyValue ?? 0);
+      return Number.isFinite(value) ? sum + value : sum;
+    }, 0);
+  }, [cryptoHoldings]);
   const traditionalTotal = useMemo(() => {
     return Object.values(traditionalHoldings).reduce((sum, holding) => {
       const value = Number(holding.buyValue ?? 0);
@@ -752,7 +761,8 @@ export default function PortfolioPage() {
     score += tradPts;
     reasons.push({ label: t("pf_mix"), points: tradPts, max: 20, ok: tradPts >= 10 });
 
-    const stablePct = portfolioTotal > 0 ? (stablecoinTotal / portfolioTotal) * 100 : 0;
+    const stableValue = stablecoinTotal + manualStableEur;
+    const stablePct = portfolioTotal > 0 ? (stableValue / portfolioTotal) * 100 : 0;
     const stablePts = stablePct >= 5 && stablePct <= 30 ? 10 : stablePct > 0 ? 5 : 0;
     score += stablePts;
     reasons.push({ label: t("pf_stable_reserve"), points: stablePts, max: 10, ok: stablePts >= 5 });
@@ -770,7 +780,7 @@ export default function PortfolioPage() {
     const label = score >= 80 ? t("pf_excellent") : score >= 60 ? "Bom" : score >= 40 ? t("pf_fair") : t("pf_improving");
     const color = score >= 80 ? "text-emerald-400" : score >= 60 ? "text-orange-300" : score >= 40 ? "text-yellow-400" : "text-rose-400";
     return { score, label, color, reasons };
-  }, [portfolioTotal, cryptoAllocations, traditionalTotal, stablecoinTotal, advancedMetrics]);
+  }, [portfolioTotal, cryptoAllocations, traditionalTotal, stablecoinTotal, manualStableEur, advancedMetrics]);
 
   const portfolioSplit = useMemo(() => {
     const total = cryptoTotal + traditionalTotal;
