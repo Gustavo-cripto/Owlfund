@@ -641,7 +641,12 @@ export default function CexSection({
               {addedAddresses.map((e) => {
                 const key = `${e.kind}:${e.networkLabel}:${e.address}`;
                 const shown = !!coldShown[key];
-                const hasBalance = e.balance != null && Number(e.balance) > 0;
+                // Distinguir os três estados. Um saldo de 0 é um valor válido (não é
+                // "a carregar"), e uma consulta falhada grava "—" (Number → NaN).
+                // Redes sem leitura de saldo vêm sem símbolo.
+                const balanceNum = e.balance == null ? null : Number(e.balance);
+                const balanceReady = balanceNum != null && Number.isFinite(balanceNum);
+                const balanceUnavailable = !balanceReady && (e.balance != null || !e.symbol);
                 const fmtUsd = (v: number) => `$${v.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
                 return (
                   <div key={key} className="rounded-xl border border-slate-700/60 bg-slate-950/40 px-3 py-2.5 space-y-2">
@@ -670,11 +675,13 @@ export default function CexSection({
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pl-1 text-[11px]">
                       <span className="text-slate-400">
                         <span className="text-slate-500">{t("cx_balance")}</span>{" "}
-                        {hasBalance ? (
+                        {balanceReady ? (
                           <span className="font-semibold text-slate-200">
-                            {Number(e.balance).toLocaleString("en-US", { maximumFractionDigits: 6 })} {e.symbol}
+                            {balanceNum.toLocaleString("en-US", { maximumFractionDigits: 6 })} {e.symbol}
                             {e.fiatUsd != null ? <span className="text-slate-500"> ({fmtUsd(e.fiatUsd)})</span> : null}
                           </span>
+                        ) : balanceUnavailable ? (
+                          <span className="text-slate-600">—</span>
                         ) : (
                           <span className="text-slate-600">{t("cx_loading")}</span>
                         )}
