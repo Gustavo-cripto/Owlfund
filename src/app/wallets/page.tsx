@@ -975,7 +975,7 @@ export default function WalletsPage() {
       }
       const payload = (await response.json()) as {
         data?: MarketRow[];
-        selectList?: Array<{ symbol: string; name: string }>;
+        selectList?: Array<{ symbol: string; name: string; priceUsd?: number | null; marketCapUsd?: number | null }>;
       };
       setMarketRows(payload.data ?? []);
       setCryptoSelectList(payload.selectList ?? []);
@@ -1015,6 +1015,20 @@ export default function WalletsPage() {
               });
             }
           } catch { /* ignore, use what we have */ }
+          // Fallback final: preço vindo do selectList (CoinGecko). Cobre ativos sem
+          // par na CoinEx e por isso ausentes de `data` — ex.: USDT e outras estáveis.
+          missing.forEach((sym) => {
+            if (map[sym]) return;
+            const info = payload.selectList?.find((r) => r.symbol === sym);
+            if (info && typeof info.priceUsd === "number" && info.priceUsd > 0) {
+              map[sym] = {
+                symbol: sym,
+                name: info.name,
+                priceUsd: info.priceUsd,
+                marketCapUsd: info.marketCapUsd ?? null,
+              };
+            }
+          });
         }
         setCryptoPrices(map);
       }

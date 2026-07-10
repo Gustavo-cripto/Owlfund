@@ -11,6 +11,7 @@ type CoinGeckoRow = {
   id?: string;
   symbol: string;
   name: string;
+  current_price?: number | null;
   market_cap: number | null;
   sparkline_in_7d?: { price?: number[] };
 };
@@ -185,13 +186,19 @@ export async function GET() {
       .filter((row) => rows.some((marketRow) => marketRow.symbol === row.symbol))
       .slice(0, 10);
 
-    // Lista completa para dropdown "Por ativos cripto manual" (~200 criptos, sem estáveis)
+    // Lista completa para o dropdown "Por ativos cripto manual" (~250 criptos).
+    // Inclui stablecoins (USDT, USDC, DAI…): o utilizador pode querer registá-las
+    // como posição manual. A tabela de mercado (`data`) e o sentimento continuam
+    // sem elas. O preço vai aqui porque alguns ativos (ex.: USDT) não têm par na
+    // CoinEx e por isso não aparecem em `data`.
     const selectList = coingeckoPayload
-      .filter((row) => row.symbol && !STABLE_SYMBOLS.has(row.symbol.toUpperCase()))
+      .filter((row) => row.symbol)
       .slice(0, 250)
       .map((row) => ({
         symbol: row.symbol.toUpperCase(),
         name: row.name ?? row.symbol,
+        priceUsd: typeof row.current_price === "number" ? row.current_price : null,
+        marketCapUsd: row.market_cap ?? null,
       }));
 
     return NextResponse.json({ data: rows, sentimentTop10, selectList });
