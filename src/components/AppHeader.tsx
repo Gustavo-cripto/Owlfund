@@ -52,6 +52,7 @@ export default function AppHeader({
     if (stored === "light" || stored === "dark") {
       setTheme(stored);
       document.body?.classList.toggle("theme-light", stored === "light");
+      document.documentElement.classList.toggle("dark", stored === "dark");
       return;
     }
     if (typeof window !== "undefined") {
@@ -59,6 +60,7 @@ export default function AppHeader({
       const next = prefersLight ? "light" : "dark";
       setTheme(next);
       document.body?.classList.toggle("theme-light", next === "light");
+      document.documentElement.classList.toggle("dark", next === "dark");
     }
   }, []);
 
@@ -80,6 +82,7 @@ export default function AppHeader({
     const next = theme === "dark" ? "light" : "dark";
     setTheme(next);
     document.body?.classList.toggle("theme-light", next === "light");
+    document.documentElement.classList.toggle("dark", next === "dark");
     localStorage.setItem("theme", next);
   };
 

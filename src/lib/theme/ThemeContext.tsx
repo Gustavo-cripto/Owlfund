@@ -90,6 +90,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const resolved = resolveTheme();
     document.body.classList.toggle("theme-light", resolved === "light");
     document.body.classList.toggle("theme-dark", resolved === "dark");
+    // Tailwind `dark:` variants use darkMode:"class" — mirror the resolved
+    // theme onto <html> so those variants (portfolio AI card, etc.) activate.
+    document.documentElement.classList.toggle("dark", resolved === "dark");
 
     // Listen for system changes when in "system" mode
     if (settings.theme === "system") {
@@ -97,6 +100,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       const handler = (e: MediaQueryListEvent) => {
         document.body.classList.toggle("theme-light", e.matches);
         document.body.classList.toggle("theme-dark", !e.matches);
+        document.documentElement.classList.toggle("dark", !e.matches);
       };
       mq.addEventListener("change", handler);
       return () => mq.removeEventListener("change", handler);
