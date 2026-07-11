@@ -301,7 +301,7 @@ export default function GestorPage() {
                   </div>
                   <div className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                     msg.role === "user"
-                      ? "bg-violet-600 text-white rounded-tr-sm"
+                      ? "keep-dark bg-violet-600 text-white rounded-tr-sm"
                       : "bg-slate-900 border border-slate-800 text-slate-200 rounded-tl-sm"
                   }`}>
                     {msg.role === "assistant"

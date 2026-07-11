@@ -341,6 +341,15 @@ body.theme-light .keep-dark .text-amber-300,
 body.theme-light .keep-dark .text-amber-200,
 body.theme-light .keep-dark .text-yellow-400 { color: #fbbf24 !important; }
 
+/* Cartão-herói do FIRE: gradiente escuro→claro que fica cinza-médio no modo
+   claro e deixa o texto pouco legível. Torna-o um cartão claro com realce
+   laranja (o texto invertido já fica escuro e lê-se bem). */
+body.theme-light .fire-hero {
+  background-image: none !important;
+  background-color: #fff7ed !important;
+  border-color: rgba(249,115,22,0.35) !important;
+}
+
 /* Sidebar stays dark (intentional) */
 body.theme-light aside { background-color: #1e293b !important; }
 body.theme-light aside .text-slate-400 { color: #94a3b8 !important; }

@@ -85,7 +85,7 @@ export default function ScenarioSimulator({ portfolioTotal, allocations, traditi
           const val = sliders[alloc.symbol] ?? 0;
           const newVal = alloc.value * (1 + val / 100);
           return (
-            <div key={alloc.symbol} className="rounded-xl border border-slate-700 bg-slate-900/80 p-3">
+            <div key={alloc.symbol} className="keep-dark rounded-xl border border-slate-700 bg-slate-900/80 p-3">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-semibold text-white">{alloc.symbol}</span>
                 <div className="flex items-center gap-2">
@@ -114,7 +114,7 @@ export default function ScenarioSimulator({ portfolioTotal, allocations, traditi
           const val = sliders["traditional"] ?? 0;
           const newVal = traditionalTotal * (1 + val / 100);
           return (
-            <div className="rounded-xl border border-slate-700 bg-slate-900/80 p-3">
+            <div className="keep-dark rounded-xl border border-slate-700 bg-slate-900/80 p-3">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-semibold text-white">{t("ss_traditional")}</span>
                 <div className="flex items-center gap-2">

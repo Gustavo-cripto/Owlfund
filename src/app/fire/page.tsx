@@ -133,7 +133,7 @@ export default function FirePage() {
           </div>
 
           {/* Resultado — resposta clara em destaque */}
-          <div className="rounded-2xl border border-orange-500/30 bg-gradient-to-br from-orange-500/10 via-slate-900/60 to-slate-900/60 p-7 text-center">
+          <div className="fire-hero rounded-2xl border border-orange-500/30 bg-gradient-to-br from-orange-500/10 via-slate-900/60 to-slate-900/60 p-7 text-center">
             {realReturn <= 0 ? (
               <p className="mx-auto max-w-md text-sm text-rose-300">{t("fire_impossible")}</p>
             ) : yearsToFire === 0 ? (

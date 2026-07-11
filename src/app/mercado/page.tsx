@@ -996,7 +996,7 @@ export default function MercadoPage() {
             </div>
             <div className="flex flex-wrap items-center gap-3">
               {/* timeframe bar removed (use chart internal controls) */}
-              <div className="flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/80 px-2 py-1 text-xs font-semibold text-slate-200">
+              <div className="keep-dark flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/80 px-2 py-1 text-xs font-semibold text-slate-200">
                 <button
                   type="button"
                   className={`rounded-full px-3 py-1 transition ${
@@ -1022,7 +1022,7 @@ export default function MercadoPage() {
               </div>
               <button
                 type="button"
-                className="rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                className="keep-dark rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
                 onClick={() => {
                   if (document.fullscreenElement) {
                     document.exitFullscreen();
