@@ -30,7 +30,7 @@ export default function PnlSummaryCard({
   const { formatSigned } = useCurrencyFormat();
   return (
     <div
-      className={`rounded-3xl border border-orange-500/20 bg-gradient-to-br from-orange-500/20 via-slate-900 to-slate-950 p-6 ${className}`}
+      className={`pnl-card rounded-3xl border border-orange-500/20 bg-gradient-to-br from-orange-500/20 via-slate-900 to-slate-950 p-6 ${className}`}
     >
       <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-6">
         <p className="text-xs uppercase tracking-[0.3em] text-slate-500">{t("pnl_summary")}</p>

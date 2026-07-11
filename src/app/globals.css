@@ -200,6 +200,17 @@ body.theme-light .bg-slate-900.border-slate-700 {
   border-color: #e2e8f0 !important;
 }
 
+/* Cartão de resumo PNL: mockup/destaque deliberadamente escuro (com glow
+   laranja) — não deve seguir o modo claro. Reafirma o estilo escuro dentro
+   dele (maior especificidade que as regras genéricas acima). */
+body.theme-light .pnl-card .bg-slate-950\/80 { background-color: rgba(2,6,23,0.8) !important; }
+body.theme-light .pnl-card .bg-slate-900\/70 { background-color: rgba(30,41,59,0.7) !important; }
+body.theme-light .pnl-card .text-white { color: #f8fafc !important; }
+body.theme-light .pnl-card .text-slate-400 { color: #94a3b8 !important; }
+body.theme-light .pnl-card .text-slate-500 { color: #64748b !important; }
+body.theme-light .pnl-card .text-orange-300 { color: #fdba74 !important; }
+body.theme-light .pnl-card .border-slate-800 { border-color: #1e293b !important; }
+
 /* Sidebar stays dark (intentional) */
 body.theme-light aside { background-color: #1e293b !important; }
 body.theme-light aside .text-slate-400 { color: #94a3b8 !important; }
