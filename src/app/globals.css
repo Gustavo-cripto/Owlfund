@@ -126,6 +126,7 @@ body.theme-light {
 
 /* Backgrounds */
 body.theme-light .bg-slate-950,
+body.theme-light .bg-slate-950\/40,
 body.theme-light .bg-slate-950\/50,
 body.theme-light .bg-slate-950\/60,
 body.theme-light .min-h-screen.bg-slate-950 { background-color: #f1f5f9 !important; }
@@ -135,7 +136,18 @@ body.theme-light .bg-slate-900\/30,
 body.theme-light .bg-slate-900\/40,
 body.theme-light .bg-slate-900\/50,
 body.theme-light .bg-slate-900\/60,
-body.theme-light .bg-slate-900\/70 { background-color: #ffffff !important; }
+body.theme-light .bg-slate-900\/70,
+body.theme-light .bg-slate-900\/80,
+body.theme-light .bg-slate-950\/80 { background-color: #ffffff !important; }
+
+/* Superfícies escuras que devem manter-se escuras reafirmam-no (maior
+   especificidade que as regras genéricas acima): rodapé, painel/lançador do
+   chat, cartão PNL e o seletor de gráfico do mercado. */
+body.theme-light .keep-dark.bg-slate-950\/80,
+body.theme-light .keep-dark .bg-slate-950\/80,
+body.theme-light .pnl-card .bg-slate-950\/80 { background-color: rgba(2,6,23,0.9) !important; }
+body.theme-light .keep-dark.bg-slate-900\/80,
+body.theme-light .keep-dark .bg-slate-900\/80 { background-color: rgba(15,23,42,0.85) !important; }
 
 /* Cartões com gradiente escuro (passos 01/02/03, plano popular, CTA final,
    blocos BTC "PRÓXIMO"): sem esta regra o fundo fica escuro mas o texto é

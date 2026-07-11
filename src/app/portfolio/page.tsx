@@ -1392,7 +1392,7 @@ export default function PortfolioPage() {
                   hint: t("pf_annualized"),
                 }] : []),
               ].map((m, i) => (
-                <div key={m.label} className={`keep-dark card-hover rounded-xl border border-slate-700 bg-slate-900/80 p-4 text-center animate-count-up delay-${i * 100}`}>
+                <div key={m.label} className={`card-hover rounded-xl border border-slate-700 bg-slate-900/80 p-4 text-center animate-count-up delay-${i * 100}`}>
                   <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-2">{m.label}</p>
                   <p className={`metric-value text-2xl font-black ${m.color}`}>{m.value}</p>
                   <p className="text-[10px] text-slate-600 mt-1.5">{m.hint}</p>
