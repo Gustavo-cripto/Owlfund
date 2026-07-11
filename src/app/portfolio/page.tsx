@@ -1579,11 +1579,11 @@ export default function PortfolioPage() {
         </section>
 
         {/* ── IA CONTEXTUAL ── */}
-        <section className="rounded-2xl border border-orange-500/20 bg-orange-50 dark:bg-gradient-to-br dark:from-orange-500/10 dark:via-slate-900 dark:to-slate-950 p-6">
+        <section className="rounded-2xl border border-orange-500/20 bg-orange-50 dark:bg-slate-950 dark:bg-gradient-to-br dark:from-orange-500/5 dark:via-slate-900 dark:to-slate-950 p-6">
           <div className="mb-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-orange-600 dark:text-orange-300/80">{t("pf_ai")}</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-orange-600 dark:text-orange-300">{t("pf_ai")}</p>
             <h2 className="mt-1 text-base font-bold text-slate-900 dark:text-white">{t("pf_analyze_portfolio")}</h2>
-            <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
+            <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">
               A IA tem acesso aos teus dados reais — totais, PNL, distribuição e métricas avançadas.
             </p>
           </div>
