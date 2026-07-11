@@ -341,6 +341,16 @@ body.theme-light .keep-dark .text-amber-300,
 body.theme-light .keep-dark .text-amber-200,
 body.theme-light .keep-dark .text-yellow-400 { color: #fbbf24 !important; }
 
+/* Botões/badges de fundo sólido saturado (violeta = Premium, rosa = perigo)
+   com texto/ícone branco: o texto-branco era invertido para escuro → ilegível
+   sobre o fundo colorido. Mantém o branco (cobre também ícones via currentColor). */
+body.theme-light .bg-violet-500.text-white,
+body.theme-light .bg-violet-600.text-white,
+body.theme-light .bg-rose-500.text-white,
+body.theme-light .bg-rose-600.text-white,
+body.theme-light .bg-emerald-500.text-white,
+body.theme-light .bg-emerald-600.text-white { color: #f8fafc !important; }
+
 /* Cartão-herói do FIRE: gradiente escuro→claro que fica cinza-médio no modo
    claro e deixa o texto pouco legível. Torna-o um cartão claro com realce
    laranja (o texto invertido já fica escuro e lê-se bem). */
