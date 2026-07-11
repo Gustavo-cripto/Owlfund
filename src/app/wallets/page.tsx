@@ -5189,6 +5189,7 @@ export default function WalletsPage() {
             </div>
           </div>
         )}
+        {walletMode === "web3" && (<>
         <section id="manual-address-section" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 scroll-mt-24">
           <h3 className="text-sm font-semibold text-white">{t("wl_add_manual")}</h3>
           <p className="mt-1 text-xs text-slate-500">
@@ -5526,6 +5527,7 @@ export default function WalletsPage() {
             </div>
           </div>
         )}
+        </>)}
       </main>
     </div>
     </AppShell>
