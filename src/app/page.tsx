@@ -533,7 +533,7 @@ export default function Home() {
         </section>
 
         {/* FOOTER */}
-        <footer className="border-t border-slate-900 bg-slate-950/80 py-10">
+        <footer className="keep-dark border-t border-slate-900 bg-slate-950/80 py-10">
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-6 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-3">
               <img src="/chainfolioai-icon.png" alt="" className="h-8 w-8 rounded-lg object-cover" />

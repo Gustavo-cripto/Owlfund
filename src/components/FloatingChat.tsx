@@ -157,7 +157,7 @@ export default function FloatingChat() {
       <button
         type="button"
         onClick={() => startTransition(() => setIsOpen(prev => !prev))}
-        className="pointer-events-auto group relative flex items-center gap-3 rounded-full border border-slate-700 bg-slate-950/90 px-5 py-3 text-sm font-semibold text-slate-100 shadow-2xl shadow-black/40 transition hover:scale-[1.03] hover:border-slate-500 hover:bg-slate-950 active:scale-[0.97]"
+        className="keep-dark pointer-events-auto group relative flex items-center gap-3 rounded-full border border-slate-700 bg-slate-950/90 px-5 py-3 text-sm font-semibold text-slate-100 shadow-2xl shadow-black/40 transition hover:scale-[1.03] hover:border-slate-500 hover:bg-slate-950 active:scale-[0.97]"
         aria-label={isOpen ? t("fch_minimize") : t("fch_open")}
       >
         {/* Glow hover */}

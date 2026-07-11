@@ -178,7 +178,7 @@ body.theme-light .text-orange-300\/90 { color: #c2410c !important; }
 body.theme-light .text-slate-300 { color: #1e293b !important; }
 body.theme-light .text-slate-400 { color: #475569 !important; }
 body.theme-light .text-slate-500 { color: #64748b !important; }
-body.theme-light .text-slate-600 { color: #94a3b8 !important; }
+body.theme-light .text-slate-600 { color: #64748b !important; }
 
 /* Inputs */
 body.theme-light input,
@@ -242,6 +242,104 @@ body.theme-light .keep-dark input {
   border-color: #334155 !important;
   color: #e2e8f0 !important;
 }
+/* Barra de blocos BTC: widget de dados sempre escuro. O contentor tem
+   bg-slate-950/50 (não coberto acima) e os cartões "próximos" usam
+   from-slate-900 → sem estas regras o fundo aclara mas o texto (keep-dark)
+   mantém-se claro → ilegível. Reafirma fundos escuros dentro de .keep-dark. */
+body.theme-light .keep-dark.bg-slate-950\/50 { background-color: #020617 !important; }
+body.theme-light .keep-dark .bg-slate-900\/40 { background-color: rgba(30,41,59,0.4) !important; }
+body.theme-light .keep-dark .from-slate-900 {
+  background-image: linear-gradient(to bottom, #0f172a, #020617) !important;
+  background-color: #0f172a !important;
+}
+
+/* keep-dark aplicado ao próprio elemento (não só a descendentes): ex. o botão
+   flutuante do chat tem `keep-dark` e `text-slate-100` na mesma tag, por isso
+   os seletores descendentes acima não o apanham. */
+body.theme-light .keep-dark.text-white { color: #f8fafc !important; }
+body.theme-light .keep-dark.text-slate-100,
+body.theme-light .keep-dark.text-slate-200 { color: #e2e8f0 !important; }
+body.theme-light .keep-dark.text-slate-300 { color: #cbd5e1 !important; }
+
+/* ── Cores semânticas (ganho/perda/realce) em fundo claro ──────────────────
+   Os tons -400/-300 são vibrantes mas de baixo contraste sobre branco. Em modo
+   claro escurecem para legibilidade (WCAG); em superfícies escuras (.keep-dark
+   e .pnl-card) reafirmam-se brilhantes logo a seguir. */
+body.theme-light .text-emerald-400,
+body.theme-light .text-emerald-400\/80,
+body.theme-light .text-emerald-500,
+body.theme-light .text-green-400 { color: #059669 !important; }
+body.theme-light .text-emerald-300,
+body.theme-light .text-emerald-300\/80,
+body.theme-light .text-emerald-200,
+body.theme-light .text-emerald-200\/90,
+body.theme-light .text-green-300 { color: #047857 !important; }
+body.theme-light .text-rose-400,
+body.theme-light .text-rose-500,
+body.theme-light .text-red-400 { color: #e11d48 !important; }
+body.theme-light .text-rose-300,
+body.theme-light .text-rose-200,
+body.theme-light .text-red-300 { color: #be123c !important; }
+body.theme-light .text-orange-400,
+body.theme-light .text-orange-400\/90,
+body.theme-light .text-orange-400\/70,
+body.theme-light .text-orange-400\/60 { color: #ea580c !important; }
+
+/* Reafirmação brilhante em superfícies deliberadamente escuras */
+body.theme-light .keep-dark .text-emerald-400,
+body.theme-light .pnl-card .text-emerald-400,
+body.theme-light .keep-dark .text-green-400 { color: #34d399 !important; }
+body.theme-light .keep-dark .text-emerald-500 { color: #10b981 !important; }
+body.theme-light .keep-dark .text-emerald-300,
+body.theme-light .pnl-card .text-emerald-300,
+body.theme-light .keep-dark .text-emerald-200,
+body.theme-light .keep-dark .text-green-300 { color: #6ee7b7 !important; }
+body.theme-light .keep-dark .text-rose-400,
+body.theme-light .pnl-card .text-rose-400,
+body.theme-light .keep-dark .text-red-400 { color: #fb7185 !important; }
+body.theme-light .keep-dark .text-rose-300,
+body.theme-light .pnl-card .text-rose-300,
+body.theme-light .keep-dark .text-rose-200,
+body.theme-light .keep-dark .text-red-300 { color: #fda4af !important; }
+body.theme-light .keep-dark .text-orange-400,
+body.theme-light .pnl-card .text-orange-400 { color: #fb923c !important; }
+
+/* Cores de realce/marca (violeta = Premium, azul/ciano/âmbar = destaques).
+   Mesmo princípio: escurecer sobre claro, reafirmar brilhante sobre escuro. */
+body.theme-light .text-violet-400,
+body.theme-light .text-violet-400\/60,
+body.theme-light .text-violet-400\/50 { color: #7c3aed !important; }
+body.theme-light .text-violet-300,
+body.theme-light .text-violet-300\/60,
+body.theme-light .text-violet-200 { color: #6d28d9 !important; }
+body.theme-light .text-sky-400,
+body.theme-light .text-blue-400 { color: #2563eb !important; }
+body.theme-light .text-sky-300,
+body.theme-light .text-blue-300 { color: #1d4ed8 !important; }
+body.theme-light .text-teal-400 { color: #0d9488 !important; }
+body.theme-light .text-teal-300 { color: #0f766e !important; }
+body.theme-light .text-amber-400,
+body.theme-light .text-amber-400\/80,
+body.theme-light .text-amber-300,
+body.theme-light .text-amber-200,
+body.theme-light .text-amber-200\/90,
+body.theme-light .text-yellow-400 { color: #b45309 !important; }
+
+body.theme-light .keep-dark .text-violet-400,
+body.theme-light .pnl-card .text-violet-400 { color: #a78bfa !important; }
+body.theme-light .keep-dark .text-violet-300,
+body.theme-light .pnl-card .text-violet-300,
+body.theme-light .keep-dark .text-violet-200 { color: #c4b5fd !important; }
+body.theme-light .keep-dark .text-sky-400,
+body.theme-light .keep-dark .text-blue-400 { color: #38bdf8 !important; }
+body.theme-light .keep-dark .text-sky-300,
+body.theme-light .keep-dark .text-blue-300 { color: #7dd3fc !important; }
+body.theme-light .keep-dark .text-teal-400 { color: #2dd4bf !important; }
+body.theme-light .keep-dark .text-teal-300 { color: #5eead4 !important; }
+body.theme-light .keep-dark .text-amber-400,
+body.theme-light .keep-dark .text-amber-300,
+body.theme-light .keep-dark .text-amber-200,
+body.theme-light .keep-dark .text-yellow-400 { color: #fbbf24 !important; }
 
 /* Sidebar stays dark (intentional) */
 body.theme-light aside { background-color: #1e293b !important; }

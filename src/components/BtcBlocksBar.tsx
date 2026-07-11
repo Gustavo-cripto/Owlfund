@@ -202,7 +202,7 @@ export default function BtcBlocksBar() {
   };
 
   return (
-    <div className="border-b border-slate-800/60 bg-slate-950/50 select-none shrink-0">
+    <div className="keep-dark border-b border-slate-800/60 bg-slate-950/50 select-none shrink-0">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 pt-2.5 pb-1.5">
         <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-orange-400/90">₿ Blocos BTC</span>

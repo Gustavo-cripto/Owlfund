@@ -199,7 +199,7 @@ export default function Sidebar() {
   return (
     <>
       {/* ── Mobile top bar ── */}
-      <header className="xl:hidden flex items-center justify-between px-4 py-3 bg-black border-b border-white/[0.06]">
+      <header className="keep-dark xl:hidden flex items-center justify-between px-4 py-3 bg-black border-b border-white/[0.06]">
         <a href="/dashboard" className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0">
             <img src="/chainfolioai-icon.png" alt="ChainFolioAI" className="w-10 h-10 object-cover " />
@@ -224,7 +224,7 @@ export default function Sidebar() {
 
       {/* ── Mobile dropdown ── */}
       {mobileOpen && (
-        <nav className="xl:hidden bg-black border-b border-white/[0.06] px-3 py-3 grid grid-cols-2 gap-1">
+        <nav className="keep-dark xl:hidden bg-black border-b border-white/[0.06] px-3 py-3 grid grid-cols-2 gap-1">
           {navList.map((item) => (
             <a key={item.href} href={item.href}
               className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition ${
