@@ -89,6 +89,51 @@ const COMPARISON = [
   { l: "lp_cmp_r6_l", a: "lp_cmp_r6_a", b: "lp_cmp_r6_b", c: "lp_cmp_r6_c" },
 ] as const;
 
+const SCREENSHOTS = [
+  { src: "/screenshots/dashboard.png", t: "lp_shot_dash_t", d: "lp_shot_dash_d" },
+  { src: "/screenshots/portfolio.png", t: "lp_shot_pf_t", d: "lp_shot_pf_d" },
+  { src: "/screenshots/market.png", t: "lp_shot_mkt_t", d: "lp_shot_mkt_d" },
+  { src: "/screenshots/wallets.png", t: "lp_shot_wal_t", d: "lp_shot_wal_d" },
+] as const;
+
+// Secção "Vê por dentro": mostra apenas os screenshots que existem em
+// /public/screenshots/. Se nenhum carregar, a secção fica escondida (não
+// parte o site enquanto as imagens não forem adicionadas).
+function AppScreenshots() {
+  const { t } = useLanguage();
+  const [loaded, setLoaded] = useState<Record<string, boolean>>({});
+  const anyLoaded = Object.values(loaded).some(Boolean);
+  return (
+    <section id="ver-por-dentro" className={`mx-auto w-full max-w-6xl px-6 py-20 ${anyLoaded ? "" : "hidden"}`}>
+      <div className="mb-14 text-center animate-fade-in-up">
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">{t("lp_shot_tag")}</p>
+        <h2 className="mt-3 text-3xl font-bold text-white md:text-4xl">{t("lp_shot_title")}</h2>
+      </div>
+      <div className="grid gap-6 md:grid-cols-2">
+        {SCREENSHOTS.map((s) => (
+          <figure
+            key={s.src}
+            className={`card-hover overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60 ${loaded[s.src] ? "" : "hidden"}`}
+          >
+            <img
+              src={s.src}
+              alt={t(s.t)}
+              loading="lazy"
+              onLoad={() => setLoaded((p) => ({ ...p, [s.src]: true }))}
+              onError={() => setLoaded((p) => ({ ...p, [s.src]: false }))}
+              className="w-full border-b border-slate-800 object-cover"
+            />
+            <figcaption className="p-5">
+              <h3 className="text-base font-bold text-white">{t(s.t)}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-slate-400">{t(s.d)}</p>
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function Home() {
   const { t } = useLanguage();
   const supabase = createClient();
@@ -278,6 +323,9 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        {/* SCREENSHOTS REAIS (aparece só quando há imagens em /public/screenshots) */}
+        <AppScreenshots />
 
         {/* FEATURES */}
         <section id="recursos" className="mx-auto w-full max-w-6xl px-6 py-20">
