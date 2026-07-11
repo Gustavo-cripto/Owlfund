@@ -96,7 +96,7 @@ export default function FloatingChat() {
       {/* Chat panel */}
       {isOpen && (
         <div
-          className="pointer-events-auto relative w-[92vw] max-w-[460px] overflow-hidden rounded-3xl border border-slate-700/80 bg-slate-950/92 shadow-2xl shadow-black/50 backdrop-blur"
+          className="keep-dark pointer-events-auto relative w-[92vw] max-w-[460px] overflow-hidden rounded-3xl border border-slate-700/80 bg-slate-950/92 shadow-2xl shadow-black/50 backdrop-blur"
           style={{ animation: "chat-pop 0.25s ease both" }}
         >
           {/* Background decorativo */}

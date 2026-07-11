@@ -211,6 +211,38 @@ body.theme-light .pnl-card .text-slate-500 { color: #64748b !important; }
 body.theme-light .pnl-card .text-orange-300 { color: #fdba74 !important; }
 body.theme-light .pnl-card .border-slate-800 { border-color: #1e293b !important; }
 
+/* Áreas deliberadamente escuras (ex.: painel do chat flutuante) — não devem
+   seguir o modo claro. Reafirma o estilo escuro dentro de .keep-dark. */
+body.theme-light .keep-dark.bg-slate-950\/92,
+body.theme-light .keep-dark .bg-slate-950,
+body.theme-light .keep-dark .bg-slate-950\/40,
+body.theme-light .keep-dark .bg-slate-950\/60 { background-color: #020617 !important; }
+body.theme-light .keep-dark .bg-slate-900,
+body.theme-light .keep-dark .bg-slate-900\/50,
+body.theme-light .keep-dark .bg-slate-900\/60,
+body.theme-light .keep-dark .bg-slate-900\/70 { background-color: rgba(15,23,42,0.6) !important; }
+body.theme-light .keep-dark .bg-slate-800,
+body.theme-light .keep-dark .bg-slate-800\/40,
+body.theme-light .keep-dark .bg-slate-800\/60,
+body.theme-light .keep-dark .bg-slate-800\/70 { background-color: rgba(30,41,59,0.7) !important; }
+body.theme-light .keep-dark .text-white { color: #f8fafc !important; }
+body.theme-light .keep-dark .text-slate-100,
+body.theme-light .keep-dark .text-slate-200 { color: #e2e8f0 !important; }
+body.theme-light .keep-dark .text-slate-300 { color: #cbd5e1 !important; }
+body.theme-light .keep-dark .text-slate-400 { color: #94a3b8 !important; }
+body.theme-light .keep-dark .text-slate-500 { color: #64748b !important; }
+body.theme-light .keep-dark .text-slate-600 { color: #475569 !important; }
+body.theme-light .keep-dark .border-slate-800,
+body.theme-light .keep-dark .border-slate-800\/60 { border-color: #1e293b !important; }
+body.theme-light .keep-dark .border-slate-700,
+body.theme-light .keep-dark .border-slate-700\/50,
+body.theme-light .keep-dark .border-slate-700\/80 { border-color: #334155 !important; }
+body.theme-light .keep-dark input {
+  background-color: #020617 !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+
 /* Sidebar stays dark (intentional) */
 body.theme-light aside { background-color: #1e293b !important; }
 body.theme-light aside .text-slate-400 { color: #94a3b8 !important; }
