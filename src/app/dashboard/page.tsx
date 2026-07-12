@@ -9,6 +9,7 @@ import { loadCryptoHoldings } from "@/lib/crypto/storage";
 import { createClient } from "@/lib/supabase/client";
 import { loadNickname, saveNickname, nicknameFromMetadata } from "@/lib/user/nickname";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { useTheme } from "@/lib/theme/ThemeContext";
 
 type TokenPrices = Record<string, number>;
 type SnapshotRow = { id: number; created_at: string; data: WalletSnapshot };
@@ -55,6 +56,7 @@ export default function DashboardPage() {
   const { isLoading } = useRequireAuth("/login");
   const supabase = createClient();
   const { t } = useLanguage();
+  const { hideBalances } = useTheme();
 
   const [pnlPosition, setPnlPosition] = useState(0);
   const [pnlToday, setPnlToday] = useState(0);
@@ -352,7 +354,7 @@ export default function DashboardPage() {
                   days30={pnl30d}
                   daily7d={pnlDaily7d}
                   metrics={[
-                    { label: t("total"), value: `€ ${currentTotal.toLocaleString("pt-PT", { maximumFractionDigits: 0 })}` },
+                    { label: t("total"), value: hideBalances ? "••••" : `€ ${currentTotal.toLocaleString("pt-PT", { maximumFractionDigits: 0 })}` },
                     { label: t("nav_wallets"), value: "✓" },
                     { label: "Live", value: "↻" },
                   ]}
