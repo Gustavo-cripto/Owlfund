@@ -200,7 +200,7 @@ export default function WalletCard({
             "—"
           )}
         </div>
-        {showNfts && nfts && nfts.length > 0 ? (
+        {!hideBalances && showNfts && nfts && nfts.length > 0 ? (
           <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-3">
             <p className="mb-2 text-xs font-semibold text-slate-400">{t("wc_collection")}</p>
             <div className="grid max-h-48 grid-cols-4 gap-2 overflow-y-auto sm:grid-cols-5">
