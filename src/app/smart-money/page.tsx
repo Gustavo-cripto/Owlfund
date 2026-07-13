@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { useTheme } from "@/lib/theme/ThemeContext";
 import { createClient } from "@/lib/supabase/client";
 
 const STORAGE_KEY = "smart-money-watchlist";
@@ -225,6 +226,7 @@ const FREE_WHALE_LIMIT = 3;
 export default function SmartMoneyPage() {
   const { isLoading, userId } = useRequireAuth("/login");
   const { t } = useLanguage();
+  const { hideBalances } = useTheme();
   const [isPro, setIsPro] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
   const [tab, setTab] = useState<"watchlist" | "history" | "alerts">("watchlist");
@@ -568,7 +570,7 @@ export default function SmartMoneyPage() {
                           </div>
                           <div className="flex items-center gap-3">
                             {data && !data.loading && !data.error && (
-                              <span className="text-sm font-bold text-emerald-400">{formatUsd(data.totalUsd)}</span>
+                              <span className="text-sm font-bold text-emerald-400">{hideBalances ? "••••" : formatUsd(data.totalUsd)}</span>
                             )}
                             {entry.chain === "eth" && (
                               <button type="button"
@@ -608,8 +610,8 @@ export default function SmartMoneyPage() {
                                     </div>
                                   </div>
                                   <div className="text-right">
-                                    <p className="text-sm font-semibold text-emerald-400">{formatUsd(token.usdValue)}</p>
-                                    {token.usdPrice > 0 && <p className="text-xs text-slate-500">@ {formatUsd(token.usdPrice)}</p>}
+                                    <p className="text-sm font-semibold text-emerald-400">{hideBalances ? "••••" : formatUsd(token.usdValue)}</p>
+                                    {!hideBalances && token.usdPrice > 0 && <p className="text-xs text-slate-500">@ {formatUsd(token.usdPrice)}</p>}
                                   </div>
                                 </div>
                               ))}

@@ -4469,7 +4469,7 @@ export default function WalletsPage() {
               <span>
                 <span className="text-slate-500">NFTs:</span>{" "}
                 <span className="font-semibold text-white">
-                  {totalNftCount} {totalNftCount === 1 ? "item" : "itens"}
+                  {hideBalances ? "••••" : <>{totalNftCount} {totalNftCount === 1 ? "item" : "itens"}</>}
                 </span>
               </span>
             </div>
@@ -4577,7 +4577,9 @@ export default function WalletsPage() {
                     </div>
                     <div className="flex flex-wrap items-center gap-3 text-right">
                       <div>
-                        {balance === null
+                        {hideBalances
+                          ? <p className="text-slate-300 tabular-nums">••••</p>
+                          : balance === null
                           ? <p className="text-slate-500 italic">{t("wl_loading")}</p>
                           : <p className="text-slate-300 tabular-nums">{balNum > 0 ? balNum.toFixed(symbol === "BTC" ? 8 : 4) : "—"} {symbol}</p>
                         }
@@ -4731,7 +4733,7 @@ export default function WalletsPage() {
                       <div className="flex flex-col gap-0.5">
                         <label className="text-[10px] text-slate-600 px-1">{t("wl_invested_eur")}</label>
                         <input
-                          type="number"
+                          type={hideBalances ? "password" : "number"}
                           inputMode="decimal"
                           min="0"
                           step="0.01"
@@ -4749,7 +4751,7 @@ export default function WalletsPage() {
                       <div className="flex flex-col gap-0.5">
                         <label className="text-[10px] text-slate-600 px-1" title={t("wl_qty_hint")}>{t("wl_quantity")}</label>
                         <input
-                          type="number"
+                          type={hideBalances ? "password" : "number"}
                           inputMode="decimal"
                           min="0"
                           step="any"

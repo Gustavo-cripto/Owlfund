@@ -5,6 +5,7 @@ import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { useTheme } from "@/lib/theme/ThemeContext";
 
 // Regra dos 4% (Trinity Study): patrimônio necessário = despesas anuais × 25
 const FIRE_MULTIPLE = 25;
@@ -12,6 +13,7 @@ const FIRE_MULTIPLE = 25;
 export default function FirePage() {
   const { isLoading } = useRequireAuth("/login");
   const { t } = useLanguage();
+  const { hideBalances } = useTheme();
 
   // Inputs do utilizador
   const [monthlyExpenses, setMonthlyExpenses] = useState(2000);
@@ -69,7 +71,7 @@ export default function FirePage() {
   if (isLoading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-400 animate-pulse">{t("loading")}</p></div>;
 
   const trim = (v: number) => Number.isInteger(v) ? v.toFixed(0) : v.toFixed(1);
-  const fmt = (v: number) => v >= 1_000_000 ? `€ ${trim(v / 1_000_000)}M` : v >= 1_000 ? `€ ${trim(v / 1_000)}K` : `€ ${Math.round(v)}`;
+  const fmt = (v: number) => hideBalances ? "••••" : v >= 1_000_000 ? `€ ${trim(v / 1_000_000)}M` : v >= 1_000 ? `€ ${trim(v / 1_000)}K` : `€ ${Math.round(v)}`;
 
   return (
     <AppShell>
@@ -111,7 +113,7 @@ export default function FirePage() {
                 <div key={f.key}>
                   <div className="flex justify-between mb-1.5">
                     <label className="text-xs text-slate-400">{f.label}</label>
-                    <span className="text-xs font-bold text-orange-300">{f.key.includes("Return") || f.key.includes("inflation") || f.key.includes("Rate") ? `${f.value}%` : f.key === "currentAge" ? `${f.value} ${t("fire_years")}` : `€ ${f.value.toLocaleString()}`}</span>
+                    <span className="text-xs font-bold text-orange-300">{f.key.includes("Return") || f.key.includes("inflation") || f.key.includes("Rate") ? `${f.value}%` : f.key === "currentAge" ? `${f.value} ${t("fire_years")}` : hideBalances ? "••••" : `€ ${f.value.toLocaleString()}`}</span>
                   </div>
                   <input type="range" min={f.min} max={f.max} step={f.step} value={f.value}
                     onChange={e => f.set(Number(e.target.value))}
@@ -186,7 +188,7 @@ export default function FirePage() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                   <XAxis dataKey="idade" tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={v => `${v}a`} />
-                  <YAxis tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={v => v >= 1000000 ? `€${(v/1000000).toFixed(1)}M` : `€${(v/1000).toFixed(0)}K`} width={70} />
+                  <YAxis tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={v => hideBalances ? "" : v >= 1000000 ? `€${(v/1000000).toFixed(1)}M` : `€${(v/1000).toFixed(0)}K`} width={70} />
                   <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }} labelStyle={{ color: "#94a3b8" }}
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     formatter={(v: any, name: any) => [fmt(typeof v === "number" ? v : 0), name === "patrimonio" ? t("fire_patrimony") : t("fire_goal")]} />
