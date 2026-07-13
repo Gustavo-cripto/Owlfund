@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { useTheme } from "@/lib/theme/ThemeContext";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { createClient } from "@/lib/supabase/client";
 import { jsPDF } from "jspdf";
@@ -211,6 +212,7 @@ const PREMIUM_COUNTRIES = [
 export default function FiscalidadePage() {
   const { isLoading, userId } = useRequireAuth("/login");
   const { t } = useLanguage();
+  const { hideBalances } = useTheme();
   const [isPro, setIsPro] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
   const [trades, setTrades] = useState<TradeEntry[]>([]);
@@ -692,7 +694,7 @@ export default function FiscalidadePage() {
                 ].map(c => (
                   <div key={c.label} className={`rounded-2xl border p-4 text-center ${c.highlight ? "border-orange-500/40 bg-orange-500/10" : "border-slate-800 bg-slate-900/60"}`}>
                     <p className="text-base mb-1">{c.icon}</p>
-                    <p className={`text-xl font-bold ${c.color}`}>{fmtEur(c.value)}</p>
+                    <p className={`text-xl font-bold ${c.color}`}>{hideBalances ? "••••" : fmtEur(c.value)}</p>
                     <p className="text-xs text-slate-500 mt-1">{c.label}</p>
                   </div>
                 ))}

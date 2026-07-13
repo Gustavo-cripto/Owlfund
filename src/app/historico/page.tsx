@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { useTheme } from "@/lib/theme/ThemeContext";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -87,6 +88,7 @@ const saveTxs = (txs: Transaction[]) => {
 export default function HistoricoPage() {
   const { isLoading } = useRequireAuth("/login");
   const { t } = useLanguage();
+  const { hideBalances } = useTheme();
 
   // transactions state
   const [txs, setTxs] = useState<Transaction[]>([]);
@@ -242,9 +244,9 @@ export default function HistoricoPage() {
           {/* ── Summary cards ── */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              { label: t("hx_total_invested"), value: `€ ${fmtEur(summary.invested)}`, color: "text-white" },
-              { label: t("hx_total_sold"), value: `€ ${fmtEur(summary.sold)}`, color: "text-white" },
-              { label: t("hx_pl_realized"), value: `${summary.realizedPnl >= 0 ? "+" : ""}€ ${fmtEur(summary.realizedPnl)}`, color: summary.realizedPnl >= 0 ? "text-emerald-400" : "text-rose-400" },
+              { label: t("hx_total_invested"), value: hideBalances ? "••••" : `€ ${fmtEur(summary.invested)}`, color: "text-white" },
+              { label: t("hx_total_sold"), value: hideBalances ? "••••" : `€ ${fmtEur(summary.sold)}`, color: "text-white" },
+              { label: t("hx_pl_realized"), value: hideBalances ? "••••" : `${summary.realizedPnl >= 0 ? "+" : ""}€ ${fmtEur(summary.realizedPnl)}`, color: summary.realizedPnl >= 0 ? "text-emerald-400" : "text-rose-400" },
               { label: t("hx_transactions"), value: `${summary.txCount} (${summary.assets} ${t("hx_assets_word")})`, color: "text-slate-300" },
             ].map((m) => (
               <div key={m.label} className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3">
