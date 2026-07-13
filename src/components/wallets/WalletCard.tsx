@@ -94,7 +94,7 @@ export default function WalletCard({
   topContent,
 }: WalletCardProps) {
   const { t } = useLanguage();
-  const { format: fmtCur } = useCurrencyFormat();
+  const { format: fmtCur, hideBalances } = useCurrencyFormat();
   const [showNfts, setShowNfts] = useState(false);
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
@@ -142,9 +142,11 @@ export default function WalletCard({
         </div>
         <div>
           <span className="text-slate-500">{t("wc_balance")}</span>{" "}
-          {balance !== undefined && balance !== null
-            ? `${balance} ${balanceUnit ?? ""}`.trim()
-            : "—"}
+          {hideBalances
+            ? "••••"
+            : balance !== undefined && balance !== null
+              ? `${balance} ${balanceUnit ?? ""}`.trim()
+              : "—"}
         </div>
         <div>
           <span className="text-slate-500">{t("wc_value")}</span>{" "}
@@ -177,7 +179,9 @@ export default function WalletCard({
         </div>
         <div>
           <span className="text-slate-500">{t("wc_nft")}</span>{" "}
-          {nftLoading ? (
+          {hideBalances ? (
+            "••••"
+          ) : nftLoading ? (
             t("wc_loading2")
           ) : nftCount != null ? (
             <span className="inline-flex items-center gap-2">
@@ -241,7 +245,7 @@ export default function WalletCard({
         {extraBalance ? (
           <div>
             <span className="text-slate-500">{extraBalance.label}</span>{" "}
-            {extraBalance.content}
+            {hideBalances ? "••••" : extraBalance.content}
           </div>
         ) : null}
         {error ? <p className="text-xs text-rose-300">{error}</p> : null}

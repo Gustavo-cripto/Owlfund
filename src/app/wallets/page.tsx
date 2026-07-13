@@ -341,7 +341,9 @@ export default function WalletsPage() {
   const supabase = useMemo(() => createClient(), []);
   useRequireAuth("/login");
   const { t } = useLanguage();
-  const { format: fmtCur, symbol: curSym, currency: curCode, rate: curRate } = useCurrencyFormat();
+  const { format: fmtCur, symbol: curSym, currency: curCode, rate: curRate, hideBalances } = useCurrencyFormat();
+  // Esconde qualquer saldo/quantidade/NFT quando a opção "esconder saldos" está ativa.
+  const maskBal = (node: React.ReactNode): React.ReactNode => (hideBalances ? "••••" : node);
   const [isClient, setIsClient] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [isPro, setIsPro] = useState(false);
@@ -3189,13 +3191,15 @@ export default function WalletsPage() {
                         </p>
                         <p className="text-slate-500">
                           NFT:{" "}
-                          {itemNftLoading
+                          {hideBalances
+                            ? "••••"
+                            : itemNftLoading
                             ? "A carregar..."
                             : itemNftCount != null
                               ? `${itemNftCount} ${itemNftCount === 1 ? "item" : "itens"}`
                               : "—"}
                         </p>
-                        {itemNfts.length > 0 && (
+                        {!hideBalances && itemNfts.length > 0 && (
                           <div className="mt-1 grid grid-cols-4 gap-1 max-w-[160px]">
                             {itemNfts.slice(0, 8).map((nft) => (
                               <a
@@ -3216,7 +3220,7 @@ export default function WalletsPage() {
                       <div className="text-right">
                         {balanceDisplay != null && (
                           <p>
-                            {balanceDisplay} {balanceDisplay !== "A carregar..." && balanceDisplay !== "—" ? "ETH" : ""}
+                            {hideBalances ? "••••" : <>{balanceDisplay} {balanceDisplay !== "A carregar..." && balanceDisplay !== "—" ? "ETH" : ""}</>}
                           </p>
                         )}
                         {balanceDisplay != null && balanceDisplay !== "A carregar..." && balanceDisplay !== "—" && getFiatValue("ETH", balanceDisplay) != null ? (
@@ -3581,13 +3585,15 @@ export default function WalletsPage() {
                           {/* NFT */}
                           <p className="text-slate-500">
                             NFT:{" "}
-                            {itemNftLoading
+                            {hideBalances
+                              ? "••••"
+                              : itemNftLoading
                               ? "A carregar..."
                               : itemNftCount != null
                                 ? `${itemNftCount} ${itemNftCount === 1 ? "item" : "itens"}`
                                 : "—"}
                           </p>
-                          {itemNfts.length > 0 && (
+                          {!hideBalances && itemNfts.length > 0 && (
                             <div className="mt-1 grid grid-cols-4 gap-1 max-w-[160px]">
                               {itemNfts.slice(0, 8).map((nft) => (
                                 <a
@@ -3607,7 +3613,7 @@ export default function WalletsPage() {
                         </div>
                         <div className="text-right shrink-0">
                           {balanceDisplay != null && (
-                            <p>{balanceDisplay}{balanceDisplay !== "A carregar..." && balanceDisplay !== "—" ? " SOL" : ""}</p>
+                            <p>{hideBalances ? "••••" : <>{balanceDisplay}{balanceDisplay !== "A carregar..." && balanceDisplay !== "—" ? " SOL" : ""}</>}</p>
                           )}
                           {balanceDisplay != null && balanceDisplay !== "A carregar..." && balanceDisplay !== "—" && getFiatValue("SOL", balanceDisplay) != null ? (
                             <p className="text-slate-400">{fmtCur((getFiatValue("SOL", balanceDisplay) ?? 0) * usdToEurRate)}</p>
@@ -3906,13 +3912,15 @@ export default function WalletsPage() {
                           <>
                             <p className="text-slate-500">
                               NFT (Ordinals):{" "}
-                              {itemNftLoading
+                              {hideBalances
+                                ? "••••"
+                                : itemNftLoading
                                 ? "A carregar..."
                                 : itemNftCount != null
                                   ? `${itemNftCount} ${itemNftCount === 1 ? "item" : "itens"}`
                                   : "—"}
                             </p>
-                            {itemNfts.length > 0 && (
+                            {!hideBalances && itemNfts.length > 0 && (
                               <div className="mt-1 grid grid-cols-4 gap-1 max-w-[160px]">
                                 {itemNfts.slice(0, 8).map((nft) => (
                                   <a
@@ -3933,7 +3941,7 @@ export default function WalletsPage() {
                             )}
                           </>
                         )}
-                        {isBtcNative && (
+                        {isBtcNative && !hideBalances && (
                           <>
                             {btcRunesLoading[addr] ? (
                               <p className="text-[10px] text-slate-500">{t("wl_runes_loading")}</p>
@@ -3953,7 +3961,7 @@ export default function WalletsPage() {
                       <div className="text-right">
                         {balanceDisplay != null && (
                           <p>
-                            {balanceDisplay} {balanceDisplay !== "A carregar..." && balanceDisplay !== "—" ? "BTC" : ""}
+                            {hideBalances ? "••••" : <>{balanceDisplay} {balanceDisplay !== "A carregar..." && balanceDisplay !== "—" ? "BTC" : ""}</>}
                           </p>
                         )}
                         {balanceDisplay != null && balanceDisplay !== "A carregar..." && balanceDisplay !== "—" && getFiatValue("BTC", balanceDisplay) != null ? (
@@ -4325,10 +4333,12 @@ export default function WalletsPage() {
                       <div className="text-right">
                         {balanceDisplay != null && (
                           <p>
+                            {hideBalances ? "••••" : <>
                             {balanceDisplay}{" "}
                             {balanceDisplay !== "A carregar..." && balanceDisplay !== "—"
                               ? "ADA"
                               : ""}
+                            </>}
                           </p>
                         )}
                         {balanceDisplay != null && balanceDisplay !== "A carregar..." && balanceDisplay !== "—" && getFiatValue("ADA", balanceDisplay) != null ? (
@@ -4620,7 +4630,7 @@ export default function WalletsPage() {
                   </div>
                   <div className="flex flex-wrap items-center gap-3 text-right">
                     <div>
-                      <p className="text-slate-300 tabular-nums">{bal ?? "—"} {e.symbol}</p>
+                      <p className="text-slate-300 tabular-nums">{hideBalances ? "••••" : <>{bal ?? "—"} {e.symbol}</>}</p>
                       {fiatEur != null && (
                         <p className="text-slate-500">{fmtCur(fiatEur)}</p>
                       )}

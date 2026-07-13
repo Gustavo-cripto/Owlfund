@@ -231,7 +231,7 @@ export default function PortfolioPage() {
   const supabase = createClient();
   useRequireAuth("/login");
   const { t } = useLanguage();
-  const { format: fmt, formatSigned: fmtSigned, convert: fx, symbol: curSym } = useCurrencyFormat();
+  const { format: fmt, formatSigned: fmtSigned, convert: fx, symbol: curSym, hideBalances } = useCurrencyFormat();
   const [wallets, setWallets] = useState<WalletBalance[]>([]);
   const [tokenPrices, setTokenPrices] = useState<TokenPrices>({});
   const [historicalPrices, setHistoricalPrices] = useState<HistoricalPrices>({ "1d": {}, "7d": {}, "30d": {} });
@@ -977,7 +977,7 @@ export default function PortfolioPage() {
               ]} barSize={48}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                 <XAxis dataKey="periodo" tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={v => `${curSym}${Math.round(fx(v))}`} width={55} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={v => hideBalances ? "" : `${curSym}${Math.round(fx(v))}`} width={55} axisLine={false} tickLine={false} />
                 <Tooltip
                   contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1142,7 +1142,7 @@ export default function PortfolioPage() {
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                       <XAxis dataKey="data" tick={{ fill: "#64748b", fontSize: 11 }} />
-                      <YAxis tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={v => `${curSym}${Math.round(fx(v))}`} width={60} />
+                      <YAxis tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={v => hideBalances ? "" : `${curSym}${Math.round(fx(v))}`} width={60} />
                       <Tooltip
                         contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
                         labelStyle={{ color: "#94a3b8" }}
