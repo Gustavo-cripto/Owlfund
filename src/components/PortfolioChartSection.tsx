@@ -141,7 +141,7 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 
 // ── Token row ───────────────────────────────────────────────────────────────
 function TokenRow({ wallet, price, pnlToday, total }: { wallet: WalletBalance; price: number; pnlToday: number; total: number }) {
-  const { format: fmt, formatSigned: fmtSigned } = useCurrencyFormat();
+  const { format: fmt, formatSigned: fmtSigned, hideBalances } = useCurrencyFormat();
   const balanceNum = parseFloat(wallet.balance ?? "0") || 0;
   const value = balanceNum * price;
   if (value < 0.01) return null;
@@ -163,7 +163,7 @@ function TokenRow({ wallet, price, pnlToday, total }: { wallet: WalletBalance; p
         <p className="text-sm text-slate-300">{price > 0 ? fmt(price, { compact: price >= 1000 }) : "—"}</p>
       </div>
       <div className="w-24 text-right">
-        <p className="text-sm text-slate-300">{balanceNum.toFixed(4)} {wallet.symbol}</p>
+        <p className="text-sm text-slate-300">{hideBalances ? "••••" : <>{balanceNum.toFixed(4)} {wallet.symbol}</>}</p>
       </div>
       <div className="w-24 text-right">
         <p className="text-sm font-semibold text-white">{fmt(value)}</p>
@@ -216,7 +216,7 @@ export default function PortfolioChartSection({
   wallets, tokenPrices, cryptoTotal,
 }: Props) {
   const { t } = useLanguage();
-  const { format: fmt, formatUsd: fmtUsd } = useCurrencyFormat();
+  const { format: fmt, formatUsd: fmtUsd, hideBalances } = useCurrencyFormat();
   const fmtCompact = (v: number) => fmt(v, { compact: true });
   const fmtUsdCompact = (v: number) => fmtUsd(v, { compact: true });
   const [tf, setTf] = useState<TimeFrame>("1d");
@@ -372,7 +372,7 @@ export default function PortfolioChartSection({
             }`}>
             {t(labelKey as Parameters<typeof t>[0])}
             {key === "nfts" && totalNfts > 0 && (
-              <span className="text-[10px] bg-slate-700 text-slate-300 rounded-full px-1.5 py-0.5">{totalNfts}</span>
+              <span className="text-[10px] bg-slate-700 text-slate-300 rounded-full px-1.5 py-0.5">{hideBalances ? "••••" : totalNfts}</span>
             )}
             {key === "defi" && totalDefi > 0 && (
               <span className="text-[10px] bg-emerald-500/20 text-emerald-400 rounded-full px-1.5 py-0.5">{fmtUsdCompact(totalDefi)}</span>
@@ -426,7 +426,12 @@ export default function PortfolioChartSection({
       {/* ── Tab: NFTs ── */}
       {tab === "nfts" && (
         <div className="rounded-b-2xl bg-slate-900/40 border border-t-0 border-slate-800 p-4">
-          {addressedWallets.length === 0 ? (
+          {hideBalances ? (
+            <div className="text-center py-8">
+              <p className="text-3xl mb-2">🙈</p>
+              <p className="text-sm font-semibold tracking-widest text-slate-400 select-none">••••</p>
+            </div>
+          ) : addressedWallets.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-3xl mb-2">🖼️</p>
               <p className="text-sm font-semibold text-white">{t("pcs_no_wallets")}</p>
