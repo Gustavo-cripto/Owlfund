@@ -16,12 +16,16 @@ const CARDS: { icon: string; tKey: TranslationKey; dKey: TranslationKey }[] = [
 
 // Percurso ferramenta a ferramenta. A imagem só aparece se existir em
 // /public/screenshots/; se faltar, a linha fica só com o texto (sem partir a página).
+// A ordem do array é a ordem no ecrã — os números das chaves (cf_tN) são a ordem
+// em que foram criadas, por isso não têm de coincidir.
 const TOOLS: { img: string; t: TranslationKey; d: TranslationKey; b: TranslationKey[] }[] = [
   { img: "/screenshots/dashboard.png",   t: "cf_t1_t", d: "cf_t1_d", b: ["cf_t1_b1", "cf_t1_b2", "cf_t1_b3"] },
   { img: "/screenshots/portfolio.png",   t: "cf_t2_t", d: "cf_t2_d", b: ["cf_t2_b1", "cf_t2_b2", "cf_t2_b3"] },
   { img: "/screenshots/wallets.png",     t: "cf_t3_t", d: "cf_t3_d", b: ["cf_t3_b1", "cf_t3_b2", "cf_t3_b3"] },
   { img: "/screenshots/market.png",      t: "cf_t4_t", d: "cf_t4_d", b: ["cf_t4_b1", "cf_t4_b2", "cf_t4_b3"] },
+  { img: "/screenshots/smart-money.png", t: "cf_t7_t", d: "cf_t7_d", b: ["cf_t7_b1", "cf_t7_b2", "cf_t7_b3"] },
   { img: "/screenshots/fiscalidade.png", t: "cf_t5_t", d: "cf_t5_d", b: ["cf_t5_b1", "cf_t5_b2", "cf_t5_b3"] },
+  { img: "/screenshots/fire.png",        t: "cf_t8_t", d: "cf_t8_d", b: ["cf_t8_b1", "cf_t8_b2", "cf_t8_b3"] },
   { img: "/screenshots/chat.png",        t: "cf_t6_t", d: "cf_t6_d", b: ["cf_t6_b1", "cf_t6_b2", "cf_t6_b3"] },
 ];
 
