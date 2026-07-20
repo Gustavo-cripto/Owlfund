@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 
 type Allocation = { label: string; symbol: string; value: number; percent: string };
 
@@ -25,6 +26,7 @@ const PRESETS: Array<{ label: string; changes: Record<string, number> }> = [
 
 export default function ScenarioSimulator({ portfolioTotal, allocations, traditionalTotal, stablecoinTotal }: Props) {
   const { t } = useLanguage();
+  const { format: fmt, formatSigned: fmtSigned } = useCurrencyFormat();
   const [sliders, setSliders] = useState<Record<string, number>>({});
 
   const cryptoAllocations = allocations.filter(a => a.symbol !== "Stable" && a.symbol !== "Trad." && a.value > 0);
@@ -52,8 +54,6 @@ export default function ScenarioSimulator({ portfolioTotal, allocations, traditi
     if (changes.traditional !== undefined) next["traditional"] = changes.traditional;
     setSliders(next);
   };
-
-  const fmt = (v: number) => v.toLocaleString("pt-PT", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
   return (
     <div className="space-y-5">
@@ -92,7 +92,7 @@ export default function ScenarioSimulator({ portfolioTotal, allocations, traditi
                   <span className={`text-xs font-bold ${val > 0 ? "text-emerald-400" : val < 0 ? "text-rose-400" : "text-slate-400"}`}>
                     {val > 0 ? "+" : ""}{val}%
                   </span>
-                  <span className="text-xs text-slate-500">→ € {fmt(newVal)}</span>
+                  <span className="text-xs text-slate-500">→ {fmt(newVal, { decimals: 0 })}</span>
                 </div>
               </div>
               <input
@@ -121,7 +121,7 @@ export default function ScenarioSimulator({ portfolioTotal, allocations, traditi
                   <span className={`text-xs font-bold ${val > 0 ? "text-emerald-400" : val < 0 ? "text-rose-400" : "text-slate-400"}`}>
                     {val > 0 ? "+" : ""}{val}%
                   </span>
-                  <span className="text-xs text-slate-500">→ € {fmt(newVal)}</span>
+                  <span className="text-xs text-slate-500">→ {fmt(newVal, { decimals: 0 })}</span>
                 </div>
               </div>
               <input
@@ -142,11 +142,11 @@ export default function ScenarioSimulator({ portfolioTotal, allocations, traditi
       <div className={`rounded-xl border p-4 flex items-center justify-between ${diff >= 0 ? "border-emerald-500/30 bg-emerald-500/5" : "border-rose-500/30 bg-rose-500/5"}`}>
         <div>
           <p className="text-xs text-slate-400">{t("ss_simulated")}</p>
-          <p className="text-2xl font-black text-white mt-0.5">€ {fmt(simulated)}</p>
+          <p className="text-2xl font-black text-white mt-0.5">{fmt(simulated, { decimals: 0 })}</p>
         </div>
         <div className="text-right">
           <p className={`text-xl font-bold ${diff >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-            {diff >= 0 ? "+" : ""}€ {fmt(diff)}
+            {fmtSigned(diff, { decimals: 0 })}
           </p>
           <p className={`text-sm font-semibold ${diff >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
             {diffPct >= 0 ? "+" : ""}{diffPct.toFixed(1)}%

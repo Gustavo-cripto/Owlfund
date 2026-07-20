@@ -9,6 +9,7 @@ import { buildPortfolioSummaryText } from "@/lib/portfolio/summaryText";
 import { loadNickname } from "@/lib/user/nickname";
 import { escapeHtml } from "@/lib/utils/html";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import type { TranslationKey } from "@/lib/i18n/translations";
 
 type WatchEntry = { address: string; label: string; chain: "eth" | "sol" | "btc" };
@@ -61,6 +62,7 @@ function formatMarkdown(text: string): string {
 export default function GestorPage() {
   useRequireAuth();
   const { t, lang } = useLanguage();
+  const { hideBalances } = useCurrencyFormat();
   const supabase = createClient();
 
   const [planStatus, setPlanStatus] = useState<PlanStatus>("loading");
@@ -242,9 +244,9 @@ export default function GestorPage() {
               <div className="m-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3 space-y-2">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("gz_portfolio")}</p>
                 <div className="space-y-1">
-                  {portfolioSummary.btc !== "0.0000" && <div className="flex justify-between text-xs"><span className="text-slate-400">BTC</span><span className="text-slate-200">{portfolioSummary.btc}</span></div>}
-                  {portfolioSummary.eth !== "0.0000" && <div className="flex justify-between text-xs"><span className="text-slate-400">ETH</span><span className="text-slate-200">{portfolioSummary.eth}</span></div>}
-                  {portfolioSummary.sol !== "0.00" && <div className="flex justify-between text-xs"><span className="text-slate-400">SOL</span><span className="text-slate-200">{portfolioSummary.sol}</span></div>}
+                  {portfolioSummary.btc !== "0.0000" && <div className="flex justify-between text-xs"><span className="text-slate-400">BTC</span><span className="text-slate-200">{hideBalances ? "••••" : portfolioSummary.btc}</span></div>}
+                  {portfolioSummary.eth !== "0.0000" && <div className="flex justify-between text-xs"><span className="text-slate-400">ETH</span><span className="text-slate-200">{hideBalances ? "••••" : portfolioSummary.eth}</span></div>}
+                  {portfolioSummary.sol !== "0.00" && <div className="flex justify-between text-xs"><span className="text-slate-400">SOL</span><span className="text-slate-200">{hideBalances ? "••••" : portfolioSummary.sol}</span></div>}
                 </div>
               </div>
             )}

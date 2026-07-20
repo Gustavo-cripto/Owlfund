@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import AppShell from "@/components/AppShell";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { loadNickname } from "@/lib/user/nickname";
 import {
@@ -487,6 +488,7 @@ function TradingViewWidget({
 export default function MercadoPage() {
   useRequireAuth("/login");
   const { t, lang } = useLanguage();
+  const { format: fmtCur } = useCurrencyFormat();
   const [userPlan, setUserPlan] = useState<"free" | "pro" | "premium">("free");
   useEffect(() => {
     fetch("/api/subscription").then(r => r.json()).then((d: { plan?: string }) => {
@@ -1326,7 +1328,7 @@ export default function MercadoPage() {
                 <div className="text-right">
                   <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Total</p>
                   <p className="text-lg font-semibold text-white">
-                    € {traditionalTotal.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {fmtCur(traditionalTotal)}
                   </p>
                 </div>
               </div>
