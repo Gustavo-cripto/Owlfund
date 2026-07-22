@@ -139,7 +139,7 @@ export default function AppHeader({
         <nav className="hidden xl:flex items-center flex-1 justify-center">
           {variant === "public" ? (
             <div className="flex items-center gap-0.5 rounded-full border border-slate-800 bg-slate-900/40 p-1 backdrop-blur">
-              {[{ href: "#recursos", label: "Recursos" }, { href: "#fluxo", label: "Fluxo" }, { href: "#contato", label: "Contato" }].map((item) => (
+              {[{ href: "#ferramentas", label: "Recursos" }, { href: "#comparacao", label: "Comparação" }, { href: "#planos", label: "Planos" }].map((item) => (
                 <span key={item.href} className={gradientFrame}>
                   <a className={navLinkClass(item.href)} href={item.href}>{item.label}</a>
                 </span>

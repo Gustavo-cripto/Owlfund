@@ -6,15 +6,6 @@ import PnlSummaryCard from "@/components/PnlSummaryCard";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 
-const FEATURES = [
-  { icon: "📊", t: "lp_f1_t", d: "lp_f1_d" },
-  { icon: "🔗", t: "lp_f2_t", d: "lp_f2_d" },
-  { icon: "📈", t: "lp_f3_t", d: "lp_f3_d" },
-  { icon: "🌍", t: "lp_f4_t", d: "lp_f4_d" },
-  { icon: "🔒", t: "lp_f5_t", d: "lp_f5_d" },
-  { icon: "🌙", t: "lp_f6_t", d: "lp_f6_d" },
-] as const;
-
 const STEPS = [
   { num: "01", t: "lp_s1_t", d: "lp_s1_d" },
   { num: "02", t: "lp_s2_t", d: "lp_s2_d" },
@@ -327,27 +318,6 @@ export default function Home() {
         {/* SCREENSHOTS REAIS (aparece só quando há imagens em /public/screenshots) */}
         <AppScreenshots />
 
-        {/* FEATURES */}
-        <section id="recursos" className="mx-auto w-full max-w-6xl px-6 py-20">
-          <div className="mb-14 text-center animate-fade-in-up">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">{t("lp_features")}</p>
-            <h2 className="mt-3 text-3xl font-bold text-white md:text-4xl">{t("lp_all_you_need")}</h2>
-            <p className="mt-3 text-slate-400 max-w-xl mx-auto">{t("lp_single_platform")}</p>
-          </div>
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map((f, i) => (
-              <div
-                key={f.t}
-                className={`card-hover rounded-2xl border border-slate-800 bg-slate-900/60 p-6 animate-fade-in-up delay-${Math.min(i * 100, 500)}`}
-              >
-                <div className="mb-4 text-3xl leading-none">{f.icon}</div>
-                <h3 className="text-base font-bold text-white">{t(f.t)}</h3>
-                <p className="mt-2 text-sm text-slate-400 leading-relaxed">{t(f.d)}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
         {/* ANÁLISE & GESTÃO — ferramentas específicas */}
         <section id="ferramentas" className="border-t border-slate-800/50 bg-slate-900/40 py-20">
           <div className="mx-auto w-full max-w-6xl px-6">
@@ -591,7 +561,6 @@ export default function Home() {
               </div>
             </div>
             <div className="flex gap-6 text-sm text-slate-500">
-              <a href="#recursos" className="transition hover:text-slate-300">{t("lp_features")}</a>
               <a href="#ferramentas" className="transition hover:text-slate-300">{t("lp_tools_tag")}</a>
               <a href="#planos" className="transition hover:text-slate-300">{t("lp_plans_tag")}</a>
               <a href="#instituicoes" className="transition hover:text-slate-300">{t("lp_inst_tag")}</a>
