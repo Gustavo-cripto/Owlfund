@@ -138,6 +138,9 @@ function PremiumApiKeys({ isPremium }: { isPremium: boolean }) {
                 </li>
               ))}
             </ul>
+            <p className="text-[10px] text-slate-600 pt-1">
+              MCP (Claude, Cursor…): <code className="text-slate-500">https://owlfund.vercel.app/api/mcp</code> · mesma chave no cabeçalho <code className="text-slate-500">Authorization</code>. Ferramentas: <code className="text-slate-500">get_portfolio</code>, <code className="text-slate-500">get_wallets</code>.
+            </p>
           </div>
         </div>
       ) : (

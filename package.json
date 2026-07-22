@@ -11,6 +11,7 @@
   "dependencies": {
     "@emurgo/cardano-serialization-lib-browser": "^15.0.3",
     "@fabianbormann/cardano-peer-connect": "^1.2.19",
+    "@modelcontextprotocol/sdk": "^1.26.0",
     "@solana/web3.js": "^1.98.4",
     "@stripe/stripe-js": "^8.6.4",
     "@supabase/ssr": "^0.8.0",
@@ -19,6 +20,7 @@
     "@vercel/speed-insights": "^1.3.1",
     "@walletconnect/ethereum-provider": "^2.23.9",
     "jspdf": "^4.2.1",
+    "mcp-handler": "^1.1.0",
     "next": "15.5.9",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -26,7 +28,8 @@
     "resend": "^6.12.4",
     "sats-connect": "^4.2.1",
     "stripe": "^20.2.0",
-    "viem": "^2.44.4"
+    "viem": "^2.44.4",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/node": "^20",

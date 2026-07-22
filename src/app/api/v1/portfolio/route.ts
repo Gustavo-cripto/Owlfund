@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateApiKey } from "@/lib/api/auth";
-import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { getPortfolio } from "@/lib/api/data";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,26 +10,5 @@ export async function GET(req: NextRequest) {
   const auth = await authenticateApiKey(req);
   if (!auth.ok) return auth.response;
 
-  const admin = getSupabaseAdmin();
-
-  const [{ data: snaps }, { count }] = await Promise.all([
-    admin
-      .from("portfolio_snapshots")
-      .select("created_at, data")
-      .eq("user_id", auth.userId)
-      .order("created_at", { ascending: false })
-      .limit(1),
-    admin
-      .from("portfolio_snapshots")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", auth.userId),
-  ]);
-
-  const latest = snaps?.[0] ?? null;
-
-  return NextResponse.json({
-    updatedAt: latest?.created_at ?? null,
-    snapshotCount: count ?? 0,
-    portfolio: latest?.data ?? null,
-  });
+  return NextResponse.json(await getPortfolio(auth.userId));
 }
