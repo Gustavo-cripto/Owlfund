@@ -5,6 +5,7 @@ import AppShell from "@/components/AppShell";
 import PnlSummaryCard from "@/components/PnlSummaryCard";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { btnPrimary, btnSecondary } from "@/lib/ui/buttons";
 
 const STEPS = [
   { num: "01", t: "lp_s1_t", d: "lp_s1_d" },
@@ -161,8 +162,8 @@ export default function Home() {
                 <h1 className="mt-3 text-3xl font-semibold text-white">Atalhos rápidos do ChainFolioAI</h1>
                 <p className="mt-2 text-sm text-slate-400">{t("lp_logged_desc")}</p>
                 <div className="mt-6 flex flex-wrap gap-3">
-                  {([[t("lp_open_dashboard"),"/dashboard","bg-orange-500 text-slate-950 hover:bg-orange-400"],["Portfolio","/portfolio","border border-orange-400/40 text-orange-200 hover:border-orange-400"],["Carteiras","/wallets","border border-slate-700 text-slate-200 hover:border-slate-500"],["Mercado","/mercado","border border-slate-700 text-slate-200 hover:border-slate-500"]] as [string,string,string][]).map(([label, href, cls]) => (
-                    <a key={href} className={`rounded-full px-6 py-3 text-center text-sm font-semibold transition ${cls}`} href={href}>{label}</a>
+                  {([[t("lp_open_dashboard"),"/dashboard",btnPrimary],["Portfolio","/portfolio",btnSecondary],["Carteiras","/wallets",btnSecondary],["Mercado","/mercado",btnSecondary]] as [string,string,string][]).map(([label, href, cls]) => (
+                    <a key={href} className={`${cls} px-6 py-3 text-sm`} href={href}>{label}</a>
                   ))}
                 </div>
               </div>
@@ -210,10 +211,10 @@ export default function Home() {
             </p>
             <p className="animate-fade-in-up delay-200 text-sm font-semibold text-orange-300/90">{t("lp_audience")}</p>
             <div className="animate-fade-in-up delay-300 flex flex-wrap gap-4">
-              <a href="/login" className="rounded-full bg-orange-500 px-8 py-3.5 text-base font-bold text-slate-950 shadow-lg shadow-orange-500/25 transition hover:bg-orange-400 hover:scale-[1.03] hover:shadow-orange-400/30 active:scale-[0.98]">
+              <a href="/login" className={`${btnPrimary} px-8 py-3.5 text-base`}>
                 Começar grátis →
               </a>
-              <a href="#como-funciona" className="rounded-full border border-slate-700 px-8 py-3.5 text-base font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white hover:scale-[1.02] active:scale-[0.98]">
+              <a href="#como-funciona" className={`${btnSecondary} px-8 py-3.5 text-base`}>
                 Como funciona
               </a>
             </div>
@@ -376,7 +377,7 @@ export default function Home() {
             </table>
           </div>
           <div className="mt-8 text-center">
-            <a href="/login" className="rounded-full bg-orange-500 px-8 py-3.5 text-base font-bold text-slate-950 shadow-lg shadow-orange-500/25 transition hover:bg-orange-400 hover:scale-[1.03] active:scale-[0.98] inline-block">
+            <a href="/login" className={`${btnPrimary} px-8 py-3.5 text-base`}>
               {t("lp_plan_cta")}
             </a>
           </div>
@@ -420,11 +421,7 @@ export default function Home() {
                 </ul>
                 <a
                   href={p.paid ? "/pricing" : "/login"}
-                  className={`mt-6 block rounded-full px-5 py-3 text-center text-sm font-bold transition ${
-                    p.popular
-                      ? "bg-orange-500 text-slate-950 hover:bg-orange-400"
-                      : "border border-slate-700 text-slate-200 hover:border-slate-500 hover:text-white"
-                  }`}
+                  className={`${p.popular ? btnPrimary : btnSecondary} mt-6 w-full px-5 py-3 text-sm`}
                 >
                   {p.paid ? t("lp_plan_choose") : t("lp_plan_cta")}
                 </a>
@@ -538,10 +535,10 @@ export default function Home() {
               <h2 className="text-3xl font-bold text-white md:text-4xl">{t("lp_ready")}</h2>
               <p className="mt-4 text-slate-400 max-w-sm mx-auto">Junta-te à comunidade ChainFolioAI. Grátis para sempre no plano base.</p>
               <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-                <a href="/login" className="w-full rounded-full bg-orange-500 px-10 py-4 text-base font-bold text-slate-950 shadow-lg shadow-orange-500/25 transition hover:bg-orange-400 hover:scale-[1.03] active:scale-[0.97] sm:w-auto">
+                <a href="/login" className={`${btnPrimary} w-full px-10 py-4 text-base sm:w-auto`}>
                   Criar conta grátis
                 </a>
-                <a href="/login" className="w-full rounded-full border border-slate-700 px-10 py-4 text-base font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white sm:w-auto">
+                <a href="/login" className={`${btnSecondary} w-full px-10 py-4 text-base sm:w-auto`}>
                   Já tenho conta →
                 </a>
               </div>
