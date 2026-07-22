@@ -123,7 +123,22 @@ function PremiumApiKeys({ isPremium }: { isPremium: boolean }) {
             </button>
           </div>
 
-          <p className="text-[10px] text-slate-600">{t("ac_endpoint_base")} <code className="text-slate-500">https://owlfund.vercel.app/api/v1/</code> · Cabeçalho: <code className="text-slate-500">Authorization: Bearer owf_live_…</code></p>
+          <div className="space-y-1.5 border-t border-slate-800 pt-3">
+            <p className="text-[10px] text-slate-600">{t("ac_endpoint_base")} <code className="text-slate-500">https://owlfund.vercel.app/api/v1/</code> · Cabeçalho: <code className="text-slate-500">Authorization: Bearer owf_live_…</code></p>
+            <ul className="space-y-1">
+              {[
+                ["GET", "/api/v1", "índice"],
+                ["GET", "/api/v1/portfolio", "último snapshot do portefólio"],
+                ["GET", "/api/v1/wallets", "carteiras e endereços ligados"],
+              ].map(([method, path, desc]) => (
+                <li key={path} className="flex items-baseline gap-2 text-[10px] text-slate-500">
+                  <span className="font-mono font-semibold text-emerald-400/80">{method}</span>
+                  <code className="text-slate-400">{path}</code>
+                  <span className="text-slate-600">— {desc}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       ) : (
         <p className="text-xs text-slate-500">{t("ac_api_rest_desc")}</p>
