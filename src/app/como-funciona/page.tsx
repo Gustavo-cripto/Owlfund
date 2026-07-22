@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { btnPrimary } from "@/lib/ui/buttons";
 import AppShell from "@/components/AppShell";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import type { TranslationKey } from "@/lib/i18n/translations";
@@ -110,7 +111,7 @@ export default function HowItWorksPage() {
           <div className="mt-20 text-center">
             <a
               href="/login"
-              className="inline-block rounded-full bg-orange-500 px-8 py-3.5 text-base font-bold text-slate-950 shadow-lg shadow-orange-500/25 transition hover:bg-orange-400 hover:scale-[1.03] active:scale-[0.98]"
+              className={`${btnPrimary} px-8 py-3.5 text-base`}
             >
               {t("lp_plan_cta")}
             </a>

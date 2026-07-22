@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { btnPrimary } from "@/lib/ui/buttons";
 
 import AppShell from "@/components/AppShell";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -1883,7 +1884,7 @@ export default function MercadoPage() {
                     setNewsLoading(false);
                   }
                 }}
-                className="rounded-xl bg-orange-500 px-6 py-2.5 text-sm font-bold text-slate-950 hover:bg-orange-400 disabled:opacity-50 transition"
+                className={`${btnPrimary} px-6 py-2.5 text-sm`}
               >
                 {newsLoading ? "A gerar briefing…" : t("mc_gen_briefing")}
               </button>
@@ -2001,7 +2002,7 @@ export default function MercadoPage() {
                       <button
                         type="submit"
                         disabled={chatLoading || !chatInput.trim()}
-                        className="rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-bold text-slate-950 hover:bg-orange-400 disabled:opacity-40 transition"
+                        className={`${btnPrimary} px-4 py-2.5 text-sm`}
                       >
                         Enviar
                       </button>

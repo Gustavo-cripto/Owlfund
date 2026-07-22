@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { btnPrimary } from "@/lib/ui/buttons";
 import AppShell from "@/components/AppShell";
 import TwoFactorSetup from "@/components/TwoFactorSetup";
 import { createClient } from "@/lib/supabase/client";
@@ -706,7 +707,7 @@ export default function AccountPage() {
                         </a>
                       </>
                     ) : (
-                      <a href="/pricing" className="rounded-full bg-orange-500 px-5 py-2.5 text-sm font-bold text-slate-950 hover:bg-orange-400 transition">
+                      <a href="/pricing" className={`${btnPrimary} px-5 py-2.5 text-sm`}>
                         {t("acc_upgrade")}
                       </a>
                     )}
@@ -837,7 +838,7 @@ export default function AccountPage() {
                         <p className="text-sm font-semibold text-white">{t("ac_adv_alerts_pro")}</p>
                         <p className="text-xs text-slate-400">{t("ac_adv_alerts_pro_desc")}</p>
                       </div>
-                      <a href="/pricing" className="shrink-0 rounded-full bg-orange-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-orange-400 transition">
+                      <a href="/pricing" className={`${btnPrimary} shrink-0 px-4 py-2 text-xs`}>
                         Upgrade
                       </a>
                     </div>
@@ -856,7 +857,7 @@ export default function AccountPage() {
                       {isPro || isPremium ? (
                         <Toggle checked={briefingEnabled} onChange={setBriefingEnabled} />
                       ) : (
-                        <a href="/pricing" className="rounded-full bg-orange-500 px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-orange-400 transition">{t("ac_upgrade")}</a>
+                        <a href="/pricing" className={`${btnPrimary} px-3 py-1.5 text-xs`}>{t("ac_upgrade")}</a>
                       )}
                     </div>
 
@@ -917,7 +918,7 @@ export default function AccountPage() {
                         }
                         setBriefingSaving(false);
                       }}
-                      className="w-full rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-bold text-slate-950 hover:bg-orange-400 disabled:opacity-50 transition"
+                      className={`${btnPrimary} w-full px-4 py-2.5 text-sm`}
                     >
                       {briefingSaving ? t("ac_saving") : briefingSaved ? t("ac_saved") : t("ac_save_schedule")}
                     </button>

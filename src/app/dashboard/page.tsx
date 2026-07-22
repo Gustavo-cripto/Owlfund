@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { btnPrimary } from "@/lib/ui/buttons";
 import AppShell from "@/components/AppShell";
 import PnlSummaryCard from "@/components/PnlSummaryCard";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
@@ -343,7 +344,7 @@ export default function DashboardPage() {
                     <p className="text-sm font-semibold text-white">{t("dash_no_wallets")}</p>
                     <p className="text-xs text-slate-400 mt-0.5">{t("dash_no_wallets_desc")}</p>
                   </div>
-                  <a href="/wallets" className="rounded-full bg-orange-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-orange-400 transition">
+                  <a href="/wallets" className={`${btnPrimary} px-4 py-2 text-xs`}>
                     {t("dash_connect_wallets")}
                   </a>
                 </div>

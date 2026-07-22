@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { btnPrimary } from "@/lib/ui/buttons";
 
 import { createClient } from "@/lib/supabase/client";
 
@@ -314,7 +315,7 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
               type="button"
               onClick={recoveryMode ? submitRecovery : submitMfa}
               disabled={loading || (recoveryMode ? !recoveryCode.trim() : mfaCode.length !== 6)}
-              className="w-full rounded-full bg-orange-500 px-6 py-3 text-sm font-bold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-60"
+              className={`${btnPrimary} w-full px-6 py-3 text-sm`}
             >
               {loading ? "A verificar..." : "Verificar"}
             </button>
@@ -417,7 +418,7 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
           ) : null}
 
           <button
-            className="mt-5 w-full rounded-full bg-orange-500 px-6 py-3 text-sm font-bold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-60"
+            className={`${btnPrimary} mt-5 w-full px-6 py-3 text-sm`}
             onClick={handleSubmit}
             disabled={busy}
             type="button"

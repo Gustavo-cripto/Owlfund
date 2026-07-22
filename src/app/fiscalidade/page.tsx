@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { btnPrimary } from "@/lib/ui/buttons";
 import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -645,7 +646,7 @@ export default function FiscalidadePage() {
                 if (!newTrade.asset || newTrade.amount <= 0 || newTrade.price <= 0) return;
                 setTrades(prev => [...prev, { ...newTrade, id: crypto.randomUUID() }]);
                 setNewTrade(emptyTrade());
-              }} className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-orange-400 transition">
+              }} className={`${btnPrimary} px-4 py-2 text-sm`}>
                 + {t("add")}
               </button>
             </div>

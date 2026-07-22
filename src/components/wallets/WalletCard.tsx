@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { btnPrimary } from "@/lib/ui/buttons";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 
@@ -255,7 +256,7 @@ export default function WalletCard({
 
       <div className="mt-5 flex flex-wrap gap-3">
         <button
-          className="rounded-full bg-orange-500 px-4 py-2 text-xs font-semibold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-60"
+          className={`${btnPrimary} px-4 py-2 text-xs`}
           onClick={onConnect}
           disabled={isLoading || (!isAvailable && !allowConnectWhenUnavailable)}
         >

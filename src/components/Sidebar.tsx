@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { btnPrimary } from "@/lib/ui/buttons";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -249,7 +250,7 @@ export default function Sidebar() {
             {isLoggedIn ? (
               <button type="button" onClick={handleLogout} className="text-xs text-slate-500 hover:text-white transition">{t("logout")}</button>
             ) : (
-              <a href="/login" className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-orange-400 transition">{t("lp_login")}</a>
+              <a href="/login" className={`${btnPrimary} px-3 py-1.5 text-xs`}>{t("lp_login")}</a>
             )}
           </div>
         </nav>

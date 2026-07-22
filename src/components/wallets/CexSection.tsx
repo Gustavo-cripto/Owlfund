@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { btnPrimary } from "@/lib/ui/buttons";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 
@@ -342,7 +343,7 @@ export default function CexSection({
                 type="button"
                 onClick={addCex}
                 disabled={!newKey || !newSecret}
-                className="rounded-lg bg-orange-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-orange-400 disabled:opacity-40 transition"
+                className={`${btnPrimary} px-4 py-2 text-xs`}
               >
                 Ligar
               </button>
@@ -460,7 +461,7 @@ export default function CexSection({
                 type="button"
                 onClick={addHyperliquid}
                 disabled={!newHlAddress.startsWith("0x")}
-                className="rounded-lg bg-orange-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-orange-400 disabled:opacity-40 transition"
+                className={`${btnPrimary} px-4 py-2 text-xs`}
               >
                 Carregar
               </button>

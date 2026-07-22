@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { btnPrimary } from "@/lib/ui/buttons";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { loadStripe } from "@stripe/stripe-js";
 import {
@@ -1491,7 +1492,7 @@ export default function PortfolioPage() {
               ) : null}
               <div className="flex flex-col gap-3 sm:flex-row">
                 <button
-                  className="rounded-full bg-orange-500 px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-orange-400"
+                  className={`${btnPrimary} px-6 py-3 text-sm`}
                   onClick={() => handleSaveSnapshot(false)}
                   type="button"
                 >
@@ -1687,7 +1688,7 @@ export default function PortfolioPage() {
                   setAiLoading(false);
                 }
               }}
-              className="rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-slate-950 hover:bg-orange-400 disabled:opacity-50 transition"
+              className={`${btnPrimary} px-5 py-2.5 text-sm`}
             >
               {aiLoading ? "…" : t("pf_ask")}
             </button>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { btnPrimary } from "@/lib/ui/buttons";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 
@@ -157,7 +158,7 @@ export default function TwoFactorSetup() {
             </button>
           ) : (
             <button type="button" onClick={startEnroll} disabled={busy}
-              className="shrink-0 rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-orange-400 disabled:opacity-50 transition">
+              className={`${btnPrimary} shrink-0 px-3 py-1.5 text-xs`}>
               {t("ac_2fa_enable")}
             </button>
           )
@@ -190,7 +191,7 @@ export default function TwoFactorSetup() {
                 className="w-32 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-center text-sm tracking-[0.3em] text-white outline-none focus:border-orange-400"
               />
               <button type="button" onClick={confirmEnroll} disabled={busy || code.length !== 6}
-                className="rounded-lg bg-orange-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-orange-400 disabled:opacity-50 transition">
+                className={`${btnPrimary} px-4 py-2 text-xs`}>
                 {t("ac_2fa_confirm")}
               </button>
               <button type="button" onClick={() => { resetEnroll(); setMsg(null); }} disabled={busy}

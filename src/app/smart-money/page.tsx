@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { btnPrimary } from "@/lib/ui/buttons";
 import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -504,7 +505,7 @@ export default function SmartMoneyPage() {
                       value={newLabel} onChange={(e) => setNewLabel(e.target.value)}
                       className="w-48 rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
                     <button onClick={handleAdd}
-                      className="rounded-xl bg-orange-500 px-5 py-2 text-sm font-bold text-slate-950 hover:bg-orange-400 transition">
+                      className={`${btnPrimary} px-5 py-2 text-sm`}>
                       + {t("add")}
                     </button>
                     <button onClick={() => setShowKnown((v) => !v)}
@@ -703,7 +704,7 @@ export default function SmartMoneyPage() {
                   <p className="text-base font-bold text-white mb-1">{t("sm2_alerts_pro")}</p>
                   <p className="text-sm text-slate-400">{t("sm2_alerts_pro_desc")}</p>
                 </div>
-                <a href="/pricing" className="rounded-full bg-orange-500 px-6 py-2.5 text-sm font-bold text-slate-950 hover:bg-orange-400 transition">
+                <a href="/pricing" className={`${btnPrimary} px-6 py-2.5 text-sm`}>
                   {t("sm2_upgrade_pro")}
                 </a>
               </div>

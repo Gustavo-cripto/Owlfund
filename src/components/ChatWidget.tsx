@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { btnPrimary } from "@/lib/ui/buttons";
 import { usePathname } from "next/navigation";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { buildPortfolioSummaryText } from "@/lib/portfolio/summaryText";
@@ -303,7 +304,7 @@ export default function ChatWidget({
           <div className="space-y-1 rounded-xl border border-orange-500/30 bg-orange-500/5 px-3 py-3 text-xs">
             <p className="font-semibold text-orange-300">🔒 Limite de {FREE_CHAT_LIMIT} chats/mês atingido</p>
             <p className="text-slate-400">Faz upgrade para Pro e tem chats ilimitados.</p>
-            <a href="/pricing" className="mt-1 inline-block rounded-full bg-orange-500 px-4 py-1.5 text-xs font-bold text-slate-950 transition hover:bg-orange-400">
+            <a href="/pricing" className={`${btnPrimary} mt-1 px-4 py-1.5 text-xs`}>
               Upgrade para Pro →
             </a>
           </div>

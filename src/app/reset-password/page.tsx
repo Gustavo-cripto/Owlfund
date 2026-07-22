@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { btnPrimary } from "@/lib/ui/buttons";
 import { createClient } from "@/lib/supabase/client";
 
 export default function ResetPasswordPage() {
@@ -93,7 +94,7 @@ export default function ResetPasswordPage() {
           ) : !ready ? (
             <div className="space-y-3 text-center">
               <p className="text-sm text-red-300">O link é inválido ou expirou.</p>
-              <a href="/login" className="inline-block rounded-full bg-orange-500 px-6 py-2.5 text-sm font-bold text-slate-950 hover:bg-orange-400 transition">
+              <a href="/login" className={`${btnPrimary} px-6 py-2.5 text-sm`}>
                 Voltar ao login
               </a>
             </div>
@@ -128,7 +129,7 @@ export default function ResetPasswordPage() {
                 <p className={`rounded-lg border px-3 py-2 text-sm ${isError ? "border-red-500/30 bg-red-500/10 text-red-300" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"}`}>{message}</p>
               ) : null}
               <button type="button" onClick={submit} disabled={loading || done}
-                className="w-full rounded-full bg-orange-500 px-6 py-3 text-sm font-bold text-slate-950 transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-60">
+                className={`${btnPrimary} w-full px-6 py-3 text-sm`}>
                 {loading ? "A guardar..." : "Redefinir senha"}
               </button>
             </div>

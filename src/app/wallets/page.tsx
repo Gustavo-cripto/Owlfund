@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from "react";
+import { btnPrimary } from "@/lib/ui/buttons";
 
 import AppShell from "@/components/AppShell";
 import NftImage from "@/components/NftImage";
@@ -2803,7 +2804,7 @@ export default function WalletsPage() {
                 </button>
                 <button
                   type="button"
-                  className="rounded-full bg-orange-500 px-4 py-2 text-xs font-semibold text-slate-950 transition hover:bg-orange-400"
+                  className={`${btnPrimary} px-4 py-2 text-xs`}
                   onClick={handleConfirm}
                 >
                   Confirmar
@@ -4912,7 +4913,7 @@ export default function WalletsPage() {
                     setCustomAssets((prev) => prev.some((a) => a.id === ticker) ? prev : [...prev, newAsset]);
                     setCustomTickerInput("");
                   }}
-                  className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-orange-400 transition"
+                  className={`${btnPrimary} px-4 py-2 text-sm`}
                 >
                   Adicionar
                 </button>
@@ -5533,7 +5534,7 @@ export default function WalletsPage() {
                 <p className="text-base font-bold text-white mb-1">{t("wl_cex_hw_pro")}</p>
                 <p className="text-sm text-slate-400">{t("wl_cex_hw_desc")}</p>
               </div>
-              <a href="/pricing" className="shrink-0 rounded-full bg-orange-500 px-5 py-2.5 text-sm font-bold text-slate-950 hover:bg-orange-400 transition">
+              <a href="/pricing" className={`${btnPrimary} shrink-0 px-5 py-2.5 text-sm`}>
                 Upgrade para Pro →
               </a>
             </div>
