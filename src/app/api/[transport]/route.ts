@@ -4,6 +4,7 @@ import { z } from "zod";
 import { checkApiKey } from "@/lib/api/auth";
 import { getPortfolio, getWallets } from "@/lib/api/data";
 import { scanWatchlist, type WatchEntry } from "@/lib/api/whales";
+import { getMarket } from "@/lib/api/market";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -59,6 +60,18 @@ const handler = createMcpHandler(
           label: w.label ?? "",
         }));
         const data = await scanWatchlist(watchlist);
+        return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+      },
+    );
+
+    server.tool(
+      "get_market",
+      "Devolve os principais criptoativos por capitalização de mercado (preço, market cap, volume, variação 24h e 7d).",
+      {
+        limit: z.number().int().min(1).max(250).optional().describe("Quantos ativos devolver (1–250, por omissão 50)."),
+      },
+      async (args) => {
+        const data = await getMarket(args.limit ?? 50);
         return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
       },
     );
