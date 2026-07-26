@@ -335,7 +335,7 @@ export default function CexSection({
               className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-orange-500 font-mono"
             />
             {newExchange === "coinex" && (
-              <p className="text-[10px] text-orange-400">CoinEx: o campo "Access ID" é o que aparece como chave na página de API Keys. O "Secret Key" é a chave de assinatura.</p>
+              <p className="text-[10px] text-orange-400">CoinEx: o campo “Access ID” é o que aparece como chave na página de API Keys. O “Secret Key” é a chave de assinatura.</p>
             )}
             <p className="text-[10px] text-slate-600">⚠️ Usa apenas chaves read-only. Nunca partilhes chaves com permissão de trade/withdrawal.</p>
             <div className="flex gap-2">

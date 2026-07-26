@@ -242,6 +242,8 @@ export default function PortfolioPage() {
   const [cryptoHoldings, setCryptoHoldings] = useState<CryptoHoldings>({});
   const [stablecoinEntries, setStablecoinEntries] = useState<StablecoinEntry[]>([]);
   const [snapshots, setSnapshots] = useState<SnapshotRow[]>([]);
+  // Intervalo do gráfico PNL histórico (içado para cá — hooks não podem viver no IIFE do gráfico).
+  const [chartRange, setChartRange] = useState<string>(t("pf_all"));
   const [isSnapshotsLoading, setIsSnapshotsLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -873,7 +875,7 @@ export default function PortfolioPage() {
                 <div className="mt-3 rounded-xl border border-orange-500/20 bg-orange-500/5 px-4 py-3">
                   <p className="text-xs font-semibold text-orange-300">📸 Como ativar o PNL histórico</p>
                   <p className="mt-1 text-xs text-slate-400">
-                    Guarda o teu primeiro snapshot para que o sistema comece a calcular lucro/perda ao longo do tempo. Clica em <strong className="text-white">t("pf_save_snapshot")</strong> abaixo.
+                    Guarda o teu primeiro snapshot para que o sistema comece a calcular lucro/perda ao longo do tempo. Clica em <strong className="text-white">{t("pf_save_snapshot")}</strong> abaixo.
                   </p>
                 </div>
               ) : (
@@ -1100,8 +1102,6 @@ export default function PortfolioPage() {
               { label: "90D", ms: 90 * 86_400_000 },
               { label: t("pf_all"), ms: 0 },
             ] as const;
-            type RangeLabel = typeof RANGES[number]["label"];
-            const [chartRange, setChartRange] = useState<RangeLabel>(t("pf_all"));
             const now = Date.now();
             const ms = RANGES.find(r => r.label === chartRange)?.ms ?? 0;
             const chartData = [...snapshotTotals]

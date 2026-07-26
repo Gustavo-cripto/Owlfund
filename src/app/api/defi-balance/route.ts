@@ -379,7 +379,7 @@ async function fetchSolanaDefiFromTokenAccounts(
 
   // 2. Get prices from Jupiter
   const mints = defiHoldings.map((h) => h.mint).join(",");
-  let prices: Record<string, number> = {};
+  const prices: Record<string, number> = {};
   try {
     const priceRes = await fetch(`${JUPITER_PRICE}?ids=${mints}`, {
       signal: AbortSignal.timeout(8_000),
@@ -1639,7 +1639,7 @@ export async function GET(request: Request) {
   }
 
   const hasAnyKey = moralisKey || shyftKey;
-  let fallbackMsg = hasAnyKey
+  const fallbackMsg = hasAnyKey
     ? lastError ?? "Falha ao consultar DeFi."
     : "Para DeFi Solana: SHYFT_API_KEY (shyft.to/get-api-key). Para ETH: MORALIS_API_KEY.";
 

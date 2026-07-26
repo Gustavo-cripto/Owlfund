@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import type { TranslationKey } from "@/lib/i18n/translations";
@@ -24,9 +25,9 @@ export default function PrivacyPage() {
     <AppShell>
       <div className="min-h-screen bg-slate-950 text-slate-100">
         <main className="mx-auto w-full max-w-3xl px-6 py-16">
-          <a href="/" className="text-sm text-orange-300/90 transition hover:text-orange-200">
+          <Link href="/" className="text-sm text-orange-300/90 transition hover:text-orange-200">
             {t("legal_back_home")}
-          </a>
+          </Link>
 
           <h1 className="mt-6 text-3xl font-bold text-white md:text-4xl">{t("pp_title")}</h1>
           <p className="mt-2 text-xs text-slate-500">

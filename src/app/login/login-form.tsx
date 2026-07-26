@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { btnPrimary } from "@/lib/ui/buttons";
 
 import { createClient } from "@/lib/supabase/client";
@@ -257,12 +258,12 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
       </div>
 
       <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-6 px-6 py-12">
-        <a
+        <Link
           className="mx-auto text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 transition hover:text-slate-200"
           href="/"
         >
           ← Voltar para início
-        </a>
+        </Link>
 
         {/* Brand */}
         <div className="flex flex-col items-center gap-3 text-center">

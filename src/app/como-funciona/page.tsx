@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { btnPrimary } from "@/lib/ui/buttons";
 import AppShell from "@/components/AppShell";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -70,9 +71,9 @@ export default function HowItWorksPage() {
     <AppShell>
       <div className="min-h-screen bg-slate-950 text-slate-100">
         <main className="mx-auto w-full max-w-6xl px-6 py-16">
-          <a href="/" className="text-sm text-orange-300/90 transition hover:text-orange-200">
+          <Link href="/" className="text-sm text-orange-300/90 transition hover:text-orange-200">
             {t("legal_back_home")}
-          </a>
+          </Link>
 
           <div className="mt-8 text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">{t("dash_how_title")}</p>
