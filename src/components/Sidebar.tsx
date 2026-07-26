@@ -26,6 +26,7 @@ const NAV_ITEMS_KEYS = [
   { href: "/fire",        labelKey: "nav_fire" },
   { href: "/pricing",     labelKey: "nav_pricing" },
   { href: "/account",     labelKey: "nav_account" },
+  { href: "/account?section=api", labelKey: "nav_api" },
 ] as const;
 
 // Keep legacy constant for icon lookup
@@ -130,6 +131,15 @@ const NAV_ITEMS = [
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+      </svg>
+    ),
+  },
+  {
+    href: "/account?section=api",
+    label: "API & MCP",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" />
       </svg>
     ),
   },

@@ -14,6 +14,7 @@ export const translations = {
     nav_historico: "Histórico",
     nav_fire: "FIRE",
     nav_account: "Conta",
+    nav_api: "API & MCP",
     nav_pricing: "Planos",
     logout: "Sair",
 
@@ -404,6 +405,7 @@ export const translations = {
     ac_tab_preferences: "Preferências",
     ac_tab_notifications: "Notificações",
     ac_tab_privacy: "Privacidade",
+    ac_tab_api: "API & MCP",
     ac_img_too_big: "Imagem demasiado grande. Máximo 2MB.",
     ac_file_invalid: "Ficheiro inválido. Seleciona uma imagem.",
     ac_img_error: "Erro ao carregar imagem. Tenta novamente.",
@@ -1484,6 +1486,7 @@ export const translations = {
     nav_fiscalidade: "Taxes",
     nav_fire: "FIRE",
     nav_account: "Account",
+    nav_api: "API & MCP",
     nav_pricing: "Plans",
     logout: "Log out",
 
@@ -1870,6 +1873,7 @@ export const translations = {
     ac_tab_preferences: "Preferences",
     ac_tab_notifications: "Notifications",
     ac_tab_privacy: "Privacy",
+    ac_tab_api: "API & MCP",
     ac_img_too_big: "Image too large. Maximum 2MB.",
     ac_file_invalid: "Invalid file. Select an image.",
     ac_img_error: "Error uploading image. Try again.",
@@ -2944,6 +2948,7 @@ export const translations = {
     nav_fiscalidade: "Impuestos",
     nav_fire: "FIRE",
     nav_account: "Cuenta",
+    nav_api: "API & MCP",
     nav_pricing: "Planes",
     logout: "Cerrar sesión",
 
@@ -3330,6 +3335,7 @@ export const translations = {
     ac_tab_preferences: "Preferencias",
     ac_tab_notifications: "Notificaciones",
     ac_tab_privacy: "Privacidad",
+    ac_tab_api: "API & MCP",
     ac_img_too_big: "Imagen demasiado grande. Máximo 2MB.",
     ac_file_invalid: "Archivo inválido. Selecciona una imagen.",
     ac_img_error: "Error al cargar la imagen. Inténtalo de nuevo.",
@@ -4404,6 +4410,7 @@ export const translations = {
     nav_fiscalidade: "Fiscalité",
     nav_fire: "FIRE",
     nav_account: "Compte",
+    nav_api: "API & MCP",
     nav_pricing: "Offres",
     logout: "Se déconnecter",
 
@@ -4790,6 +4797,7 @@ export const translations = {
     ac_tab_preferences: "Préférences",
     ac_tab_notifications: "Notifications",
     ac_tab_privacy: "Confidentialité",
+    ac_tab_api: "API & MCP",
     ac_img_too_big: "Image trop grande. Maximum 2 Mo.",
     ac_file_invalid: "Fichier invalide. Sélectionnez une image.",
     ac_img_error: "Erreur lors du chargement de l'image. Réessayez.",

@@ -11,7 +11,7 @@ import type { TranslationKey } from "@/lib/i18n/translations";
 import { useTheme, type Theme, type Currency, type NumberFormat } from "@/lib/theme/ThemeContext";
 
 type SubscriptionStatus = { status: string; current_period_end: string | null; price_id?: string | null };
-type SettingsSection = "account" | "appearance" | "preferences" | "notifications" | "privacy" | "premium";
+type SettingsSection = "account" | "appearance" | "preferences" | "notifications" | "privacy" | "premium" | "api";
 type ApiKey = { id: string; name: string; key_prefix: string; created_at: string; last_used_at: string | null; is_active: boolean };
 
 const APP_VERSION = "0.1.0";
@@ -216,6 +216,7 @@ const SECTIONS: { key: SettingsSection; labelKey: string; icon: string }[] = [
   { key: "preferences",  labelKey: "ac_tab_preferences",   icon: "⚙️" },
   { key: "notifications",labelKey: "ac_tab_notifications", icon: "🔔" },
   { key: "privacy",      labelKey: "ac_tab_privacy",       icon: "🔒" },
+  { key: "api",          labelKey: "ac_tab_api",           icon: "🔌" },
   { key: "premium",      labelKey: "__premium",            icon: "💎" },
 ];
 
@@ -241,6 +242,13 @@ export default function AccountPage() {
   const [billingError, setBillingError] = useState<string | null>(null);
   const [section, setSection] = useState<SettingsSection>("account");
   const [resetConfirm, setResetConfirm] = useState(false);
+
+  // Abre a aba indicada no URL (?section=api), p.ex. vindo do menu "API & MCP".
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get("section");
+    const valid: SettingsSection[] = ["account", "appearance", "preferences", "notifications", "privacy", "api", "premium"];
+    if (wanted && (valid as string[]).includes(wanted)) setSection(wanted as SettingsSection);
+  }, []);
   // Briefing agendado
   const [briefingEnabled, setBriefingEnabled] = useState(false);
   const [briefingHour, setBriefingHour] = useState(7);
@@ -1044,6 +1052,13 @@ export default function AccountPage() {
               )}
 
               {/* ── Premium ── */}
+              {section === "api" && (
+                <div className="space-y-6">
+                  <h2 className="text-base font-bold text-white">API & MCP</h2>
+                  <PremiumApiKeys isPremium={isPremium} />
+                </div>
+              )}
+
               {section === "premium" && (
                 <div className="space-y-6">
                   <h2 className="text-base font-bold text-white">{t("ac_premium_features")}</h2>
@@ -1079,9 +1094,6 @@ export default function AccountPage() {
                       <p className="text-xs text-slate-500">{t("ac_gestor_desc2")}</p>
                     )}
                   </div>
-
-                  {/* API Keys */}
-                  <PremiumApiKeys isPremium={isPremium} />
 
                   {/* Smart Money RT status */}
                   <div className={`rounded-xl border p-5 ${isPremium ? "border-slate-700 bg-slate-900/40" : "border-violet-500/10 bg-slate-950/40"}`}>
