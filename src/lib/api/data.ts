@@ -1,13 +1,13 @@
+import { createHash } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 // Leituras dos dados do utilizador, partilhadas pela API REST e pelo MCP.
 
-// Por segurança/privacidade, os endereços de carteira nunca saem inteiros na
-// API — devolvemos só uma forma truncada (ex.: "0x1a2b3c…7f8e"), suficiente
-// para distinguir carteiras sem expor o endereço completo.
+// Segurança máxima: o endereço real NUNCA sai na API. Devolvemos um pseudónimo
+// estável derivado por hash (não reversível) — não revela nenhum caractere do
+// endereço, mas é sempre o mesmo para a mesma carteira, para o bot as distinguir.
 function maskAddress(value: string): string {
-  if (value.length <= 12) return "…";
-  return `${value.slice(0, 6)}…${value.slice(-4)}`;
+  return `wallet_${createHash("sha256").update(value).digest("hex").slice(0, 10)}`;
 }
 
 // Percorre a estrutura (qualquer forma) e mascara todos os campos "address".
