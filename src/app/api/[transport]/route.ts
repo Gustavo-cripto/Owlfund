@@ -1,7 +1,9 @@
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
+import { z } from "zod";
 import { checkApiKey } from "@/lib/api/auth";
 import { getPortfolio, getWallets } from "@/lib/api/data";
+import { scanWatchlist, type WatchEntry } from "@/lib/api/whales";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -31,6 +33,32 @@ const handler = createMcpHandler(
         const userId = (extra?.authInfo?.extra?.userId as string | undefined) ?? "";
         if (!userId) return { content: [{ type: "text", text: "Não autenticado." }], isError: true };
         const data = await getWallets(userId);
+        return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+      },
+    );
+
+    server.tool(
+      "get_whale_activity",
+      "Varre os endereços dados e devolve os movimentos on-chain recentes (transferências grandes, acumulação). Suporta ETH e BTC.",
+      {
+        watchlist: z
+          .array(z.object({
+            address: z.string(),
+            chain: z.enum(["eth", "btc", "sol"]),
+            label: z.string().optional(),
+          }))
+          .max(10)
+          .describe("Endereços a vigiar (máx. 10)."),
+      },
+      async (args, extra) => {
+        const userId = (extra?.authInfo?.extra?.userId as string | undefined) ?? "";
+        if (!userId) return { content: [{ type: "text", text: "Não autenticado." }], isError: true };
+        const watchlist: WatchEntry[] = (args.watchlist ?? []).map((w) => ({
+          address: w.address,
+          chain: w.chain,
+          label: w.label ?? "",
+        }));
+        const data = await scanWatchlist(watchlist);
         return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
       },
     );

@@ -15,6 +15,7 @@ export async function GET() {
       { method: "GET", path: "/api/v1", description: "Este índice." },
       { method: "GET", path: "/api/v1/portfolio", description: "Último snapshot do portefólio: saldos por rede, CEX, DeFi e ativos manuais." },
       { method: "GET", path: "/api/v1/wallets", description: "Carteiras e endereços ligados à tua conta." },
+      { method: "GET", path: "/api/v1/whales", description: "Movimentos on-chain recentes dos endereços dados (?watchlist=<JSON>). ETH e BTC." },
     ],
   });
 }
