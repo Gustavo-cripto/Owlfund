@@ -257,6 +257,20 @@ export default function SmartMoneyPage() {
     saveWatchlist(watchlist);
   }, [watchlist]);
 
+  // Sincroniza a watchlist para o servidor (só Premium) para os webhooks a
+  // poderem varrer com a app fechada.
+  useEffect(() => {
+    if (!hydratedRef.current || !isPremium) return;
+    const t = setTimeout(() => {
+      void fetch("/api/smart-money/watchlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ watchlist: watchlist.map((e) => ({ address: e.address, chain: e.chain, label: e.label })) }),
+      }).catch(() => {});
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [watchlist, isPremium]);
+
   // Verificar subscrição via API server-side (evita dependência de NEXT_PUBLIC env var no cliente)
   useEffect(() => {
     if (!userId) return;

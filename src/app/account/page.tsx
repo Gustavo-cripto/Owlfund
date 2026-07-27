@@ -153,6 +153,72 @@ function PremiumApiKeys({ isPremium }: { isPremium: boolean }) {
   );
 }
 
+// ── Webhook de alertas (Premium) ──────────────────────────────────────────
+function WebhookConfig({ isPremium }: { isPremium: boolean }) {
+  const [url, setUrl] = useState("");
+  const [secret, setSecret] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isPremium) { setLoading(false); return; }
+    fetch("/api/webhooks")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.webhook) { setUrl(d.webhook.url ?? ""); setSecret(d.webhook.secret ?? null); } })
+      .finally(() => setLoading(false));
+  }, [isPremium]);
+
+  const save = async () => {
+    setSaving(true); setMsg(null);
+    const res = await fetch("/api/webhooks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
+    const d = await res.json().catch(() => ({}));
+    if (res.ok) { setSecret(d.webhook?.secret ?? secret); setMsg("Guardado."); } else { setMsg(d.error ?? "Erro."); }
+    setSaving(false);
+  };
+  const remove = async () => {
+    await fetch("/api/webhooks", { method: "DELETE" });
+    setUrl(""); setSecret(null); setMsg("Removido.");
+  };
+
+  return (
+    <div className={`rounded-xl border p-5 space-y-3 ${isPremium ? "border-slate-700 bg-slate-900/40" : "border-violet-500/10 bg-slate-950/40"}`}>
+      <div className="flex items-center gap-2">
+        <p className="text-sm font-semibold text-white">🔔 Webhook de alertas</p>
+        {!isPremium && <span className="text-[10px] border border-violet-500/40 text-violet-400 rounded-full px-2 py-0.5">Premium</span>}
+      </div>
+      {isPremium ? (
+        <div className="space-y-3">
+          <p className="text-xs text-slate-400">Recebe um POST assinado quando uma baleia da tua watchlist faz um movimento grande — mesmo com a app fechada.</p>
+          {!loading && (
+            <>
+              <div className="flex gap-2">
+                <input type="url" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://o-teu-servidor.com/webhook"
+                  className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-violet-500/50" />
+                <button type="button" onClick={save} disabled={saving}
+                  className="shrink-0 rounded-lg border border-violet-500/40 bg-violet-500/10 px-4 py-2 text-xs font-semibold text-violet-300 hover:bg-violet-500/20 disabled:opacity-50 transition">
+                  {saving ? "A guardar…" : "Guardar"}
+                </button>
+              </div>
+              {secret && (
+                <div className="rounded-lg bg-slate-950 border border-slate-800 p-3 space-y-1">
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wide">Segredo (verifica a assinatura HMAC-SHA256)</p>
+                  <code className="block text-[10px] text-emerald-300 font-mono break-all">{secret}</code>
+                  <p className="text-[10px] text-slate-600">Cabeçalho: <code className="text-slate-500">X-ChainFolioAI-Signature: sha256=…</code></p>
+                </div>
+              )}
+              {msg && <p className="text-[10px] text-slate-400">{msg}</p>}
+              {url && <button type="button" onClick={remove} className="text-[10px] text-rose-400 hover:text-rose-300 transition">Remover webhook</button>}
+            </>
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-slate-500">Disponível no plano Premium.</p>
+      )}
+    </div>
+  );
+}
+
 // ── Toggle switch ─────────────────────────────────────────────────────────
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -1059,6 +1125,7 @@ export default function AccountPage() {
                 <div className="space-y-6">
                   <h2 className="text-base font-bold text-white">API & MCP</h2>
                   <PremiumApiKeys isPremium={isPremium} />
+                  <WebhookConfig isPremium={isPremium} />
                 </div>
               )}
 
