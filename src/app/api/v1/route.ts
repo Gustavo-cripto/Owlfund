@@ -10,7 +10,7 @@ export async function GET() {
     version: "v1",
     documentation: "https://owlfund.vercel.app/account",
     authentication:
-      "Bearer token — cabeçalho 'Authorization: Bearer owf_live_…'. Gera chaves em Conta → API & MCP (plano Premium).",
+      "Bearer token — cabeçalho 'Authorization: Bearer cfa_live_…'. Gera chaves em Conta → API & MCP (plano Premium).",
     endpoints: [
       { method: "GET", path: "/api/v1", description: "Este índice." },
       { method: "GET", path: "/api/v1/portfolio", description: "Último snapshot do portefólio: saldos por rede, CEX, DeFi e ativos manuais." },

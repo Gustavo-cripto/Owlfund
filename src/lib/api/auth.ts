@@ -9,8 +9,9 @@ const premiumPriceId =
   process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID ??
   "";
 
-// Formato da chave gerada em /api/api-keys: owf_live_<40 hex>.
-const KEY_RE = /^owf_live_[a-f0-9]{40}$/i;
+// Formato da chave: cfa_live_<40 hex> (ChainFolioAI). Aceita também o prefixo
+// antigo owf_live_ para não invalidar chaves já geradas.
+const KEY_RE = /^(cfa|owf)_live_[a-f0-9]{40}$/i;
 
 // Rate limit: pedidos por chave numa janela fixa.
 const RATE_LIMIT = 60;
@@ -21,7 +22,7 @@ export type KeyCheck =
   | { ok: false; reason: "invalid" | "premium" | "unavailable" | "rate_limited" };
 
 /**
- * Núcleo de validação de uma chave `owf_live_…`, partilhado pela API REST e pelo MCP.
+ * Núcleo de validação de uma chave `cfa_live_…`, partilhado pela API REST e pelo MCP.
  * Usa o cliente admin (service role) porque quem chama não tem sessão por cookie.
  * Confirma que a chave existe, está ativa e que o dono ainda é Premium.
  */
@@ -79,7 +80,7 @@ export type AuthResult =
   | { ok: false; response: NextResponse };
 
 /**
- * Valida o cabeçalho `Authorization: Bearer owf_live_…` de um pedido à API REST,
+ * Valida o cabeçalho `Authorization: Bearer cfa_live_…` de um pedido à API REST,
  * devolvendo uma resposta de erro pronta (401 / 403 / 503) quando falha.
  */
 export async function authenticateApiKey(req: NextRequest): Promise<AuthResult> {
@@ -105,7 +106,7 @@ export async function authenticateApiKey(req: NextRequest): Promise<AuthResult> 
       { error: "service_unavailable", message: "Serviço temporariamente indisponível." }, { status: 503 }) };
   }
   const res = apiJson(
-    { error: "invalid_key", message: "Chave de API em falta, inválida ou revogada. Usa: Authorization: Bearer owf_live_…" },
+    { error: "invalid_key", message: "Chave de API em falta, inválida ou revogada. Usa: Authorization: Bearer cfa_live_…" },
     { status: 401 });
   res.headers.set("WWW-Authenticate", 'Bearer realm="ChainFolioAI API"');
   return { ok: false, response: res };

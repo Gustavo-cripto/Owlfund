@@ -11,7 +11,7 @@ export const maxDuration = 60;
 
 // Servidor MCP (Model Context Protocol) — expõe os dados ChainFolioAI a
 // agentes de IA (Claude, Cursor, …). Streamable HTTP em /api/mcp.
-// Autenticado pela mesma chave `owf_live_…` da API REST.
+// Autenticado pela mesma chave `cfa_live_…` da API REST.
 const handler = createMcpHandler(
   (server) => {
     server.tool(

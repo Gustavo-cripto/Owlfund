@@ -57,10 +57,10 @@ export async function POST(req: NextRequest) {
     .select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("is_active", true);
   if ((count ?? 0) >= 5) return NextResponse.json({ error: "Máximo de 5 chaves atingido." }, { status: 400 });
 
-  // Generate key: owf_live_<32 random hex>
-  const rawKey = `owf_live_${randomBytes(20).toString("hex")}`;
+  // Generate key: cfa_live_<40 hex> (cfa = ChainFolioAI)
+  const rawKey = `cfa_live_${randomBytes(20).toString("hex")}`;
   const keyHash = createHash("sha256").update(rawKey).digest("hex");
-  const keyPrefix = rawKey.slice(0, 16); // "owf_live_" + first 7 chars
+  const keyPrefix = rawKey.slice(0, 16); // "cfa_live_" + first 7 chars
 
   const { data: inserted, error } = await supabaseAdmin.from("api_keys").insert({
     user_id: user.id,

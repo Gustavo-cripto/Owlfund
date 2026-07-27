@@ -39,7 +39,7 @@ const ENDPOINTS: Endpoint[] = [
     path: "/api/v1/portfolio",
     desc: "Último snapshot do portefólio: saldos por rede, CEX, DeFi e ativos manuais.",
     example: `curl ${BASE}/api/v1/portfolio \\
-  -H "Authorization: Bearer owf_live_…"`,
+  -H "Authorization: Bearer cfa_live_…"`,
     response: `{
   "updatedAt": "2026-07-27T00:00:00Z",
   "snapshotCount": 365,
@@ -55,7 +55,7 @@ const ENDPOINTS: Endpoint[] = [
     path: "/api/v1/wallets",
     desc: "Carteiras e endereços ligados à conta.",
     example: `curl ${BASE}/api/v1/wallets \\
-  -H "Authorization: Bearer owf_live_…"`,
+  -H "Authorization: Bearer cfa_live_…"`,
     response: `{
   "updatedAt": "2026-07-27T00:00:00Z",
   "wallets": {
@@ -69,7 +69,7 @@ const ENDPOINTS: Endpoint[] = [
     path: "/api/v1/whales",
     desc: "Movimentos on-chain recentes dos endereços dados. Parâmetro watchlist = array JSON url-encoded de { address, chain, label }. Máx. 10, chains eth/btc/sol.",
     example: `curl ${BASE}/api/v1/whales \\
-  -H "Authorization: Bearer owf_live_…" \\
+  -H "Authorization: Bearer cfa_live_…" \\
   --data-urlencode 'watchlist=[{"address":"0x…","chain":"eth","label":"Baleia"}]' -G`,
     response: `{
   "movements": [{ "address": "0x…", "label": "Baleia", "chain": "eth", "type": "large_transfer", "description": "1250.00 USDC", "timestamp": 1769… }],
@@ -82,7 +82,7 @@ const ENDPOINTS: Endpoint[] = [
     path: "/api/v1/market",
     desc: "Top criptoativos por capitalização. Parâmetro limit = 1–250 (por omissão 50).",
     example: `curl "${BASE}/api/v1/market?limit=5" \\
-  -H "Authorization: Bearer owf_live_…"`,
+  -H "Authorization: Bearer cfa_live_…"`,
     response: `{
   "coins": [{ "rank": 1, "symbol": "BTC", "name": "Bitcoin", "priceUsd": 64000, "marketCap": 1.29e12, "change24h": -0.2, "change7d": 1.5 }],
   "count": 5,
@@ -112,7 +112,7 @@ export default function DevelopersPage() {
               Gera uma chave em <Link href="/account?section=api" className="text-orange-300 hover:text-orange-200">Conta → API & MCP</Link>{" "}
               (só aparece uma vez). Envia-a no cabeçalho de cada pedido:
             </p>
-            <Code>{`Authorization: Bearer owf_live_…`}</Code>
+            <Code>{`Authorization: Bearer cfa_live_…`}</Code>
             <p className="mt-3 text-sm text-slate-400">Base: <code className="text-slate-300">{BASE}/api/v1</code></p>
           </section>
 
@@ -141,7 +141,7 @@ export default function DevelopersPage() {
             <h2 className="text-lg font-bold text-white">MCP (Claude, Cursor…)</h2>
             <p className="mt-2 text-sm leading-relaxed text-slate-400">
               O servidor MCP vive em <code className="text-slate-300">{BASE}/api/mcp</code> (Streamable HTTP), autenticado pela mesma chave.
-              Liga-o como servidor MCP remoto no teu cliente, com o cabeçalho <code className="text-slate-300">Authorization: Bearer owf_live_…</code>.
+              Liga-o como servidor MCP remoto no teu cliente, com o cabeçalho <code className="text-slate-300">Authorization: Bearer cfa_live_…</code>.
               Ganhas as ferramentas:
             </p>
             <ul className="mt-3 space-y-1 text-sm text-slate-300">

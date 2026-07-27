@@ -124,7 +124,7 @@ function PremiumApiKeys({ isPremium }: { isPremium: boolean }) {
           </div>
 
           <div className="space-y-1.5 border-t border-slate-800 pt-3">
-            <p className="text-[10px] text-slate-600">{t("ac_endpoint_base")} <code className="text-slate-500">https://owlfund.vercel.app/api/v1/</code> · Cabeçalho: <code className="text-slate-500">Authorization: Bearer owf_live_…</code></p>
+            <p className="text-[10px] text-slate-600">{t("ac_endpoint_base")} <code className="text-slate-500">https://owlfund.vercel.app/api/v1/</code> · Cabeçalho: <code className="text-slate-500">Authorization: Bearer cfa_live_…</code></p>
             <ul className="space-y-1">
               {[
                 ["GET", "/api/v1", "índice"],
