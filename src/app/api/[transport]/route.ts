@@ -6,6 +6,7 @@ import { getPortfolio, getWallets } from "@/lib/api/data";
 import { scanWatchlist, type WatchEntry } from "@/lib/api/whales";
 import { getMarket } from "@/lib/api/market";
 import { getKnownWhales } from "@/lib/api/known-whales";
+import { getFearGreed, getAsset, computeFire, getNews, getBtcBlocks } from "@/lib/api/investing";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -84,6 +85,70 @@ const handler = createMcpHandler(
       async () => {
         const whales = getKnownWhales();
         return { content: [{ type: "text", text: JSON.stringify({ whales, count: whales.length }, null, 2) }] };
+      },
+    );
+
+    server.tool(
+      "get_fear_greed",
+      "Índice Fear & Greed do mercado cripto (valor atual 0–100, classificação, e histórico recente).",
+      {},
+      async () => {
+        const data = await getFearGreed();
+        return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+      },
+    );
+
+    server.tool(
+      "get_asset",
+      "Preço, capitalização, volume e variação (24h/7d) de um criptoativo pelo símbolo (ex.: btc, eth, sol).",
+      { symbol: z.string().describe("Símbolo do ativo, ex.: btc") },
+      async (args) => {
+        const asset = await getAsset(args.symbol);
+        return { content: [{ type: "text", text: asset ? JSON.stringify(asset, null, 2) : `Ativo não encontrado: ${args.symbol}` }], isError: !asset };
+      },
+    );
+
+    server.tool(
+      "get_fire",
+      "Calcula os anos até à independência financeira (regra dos 4%) a partir de despesas, poupança, retorno e idade.",
+      {
+        monthlyExpenses: z.number().describe("Despesas mensais"),
+        monthlyInvestment: z.number().describe("Poupança/investimento mensal"),
+        annualReturn: z.number().optional().describe("Retorno anual esperado em % (def. 7)"),
+        inflation: z.number().optional().describe("Inflação anual em % (def. 3)"),
+        currentAge: z.number().optional().describe("Idade atual (def. 30)"),
+        currentPortfolio: z.number().optional().describe("Património atual (def. 0)"),
+      },
+      async (args) => {
+        const result = computeFire({
+          monthlyExpenses: args.monthlyExpenses,
+          monthlyInvestment: args.monthlyInvestment,
+          annualReturn: args.annualReturn ?? 7,
+          inflation: args.inflation ?? 3,
+          currentAge: args.currentAge ?? 30,
+          currentPortfolio: args.currentPortfolio ?? 0,
+        });
+        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+      },
+    );
+
+    server.tool(
+      "get_news",
+      "Últimas notícias de cripto (CoinDesk, CoinTelegraph): título, fonte, link e data.",
+      { limit: z.number().int().min(1).max(30).optional().describe("Quantas notícias (def. 15)") },
+      async (args) => {
+        const news = await getNews(args.limit ?? 15);
+        return { content: [{ type: "text", text: JSON.stringify({ news, count: news.length }, null, 2) }] };
+      },
+    );
+
+    server.tool(
+      "get_btc_blocks",
+      "Blocos Bitcoin recentes (altura, nº de transações, taxa mediana, pool) e taxas recomendadas da mempool.",
+      {},
+      async () => {
+        const data = await getBtcBlocks();
+        return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
       },
     );
   },

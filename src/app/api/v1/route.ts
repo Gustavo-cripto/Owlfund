@@ -18,6 +18,11 @@ export async function GET() {
       { method: "GET", path: "/api/v1/whales", description: "Movimentos on-chain recentes dos endereços dados (?watchlist=<JSON>). ETH e BTC." },
       { method: "GET", path: "/api/v1/market", description: "Top criptoativos por capitalização (?limit=N, 1–250). Preço, market cap, volume, variação 24h/7d." },
       { method: "GET", path: "/api/v1/known-whales", description: "Baleias conhecidas pré-carregadas (exchanges, fundos, figuras, governos)." },
+      { method: "GET", path: "/api/v1/price", description: "Preço e variação de um criptoativo (?symbol=btc)." },
+      { method: "GET", path: "/api/v1/fear-greed", description: "Índice Fear & Greed (atual + histórico)." },
+      { method: "GET", path: "/api/v1/news", description: "Últimas notícias de cripto (?limit=N)." },
+      { method: "GET", path: "/api/v1/btc-blocks", description: "Blocos Bitcoin recentes + taxas da mempool." },
+      { method: "GET", path: "/api/v1/fire", description: "Anos até à independência financeira (regra dos 4%)." },
     ],
   });
 }

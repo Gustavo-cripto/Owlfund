@@ -133,6 +133,11 @@ function PremiumApiKeys({ isPremium }: { isPremium: boolean }) {
                 ["GET", "/api/v1/whales", "movimentos on-chain (?watchlist=…)"],
                 ["GET", "/api/v1/market", "top criptoativos (?limit=N)"],
                 ["GET", "/api/v1/known-whales", "baleias conhecidas pré-carregadas"],
+                ["GET", "/api/v1/price", "preço de um ativo (?symbol=btc)"],
+                ["GET", "/api/v1/fear-greed", "índice Fear & Greed"],
+                ["GET", "/api/v1/news", "últimas notícias (?limit=N)"],
+                ["GET", "/api/v1/btc-blocks", "blocos BTC + taxas"],
+                ["GET", "/api/v1/fire", "anos até independência financeira"],
               ].map(([method, path, desc]) => (
                 <li key={path} className="flex items-baseline gap-2 text-[10px] text-slate-500">
                   <span className="font-mono font-semibold text-emerald-400/80">{method}</span>
@@ -142,7 +147,7 @@ function PremiumApiKeys({ isPremium }: { isPremium: boolean }) {
               ))}
             </ul>
             <p className="text-[10px] text-slate-600 pt-1">
-              MCP (Claude, Cursor…): <code className="text-slate-500">https://owlfund.vercel.app/api/mcp</code> · mesma chave no cabeçalho <code className="text-slate-500">Authorization</code>. Ferramentas: <code className="text-slate-500">get_portfolio</code>, <code className="text-slate-500">get_wallets</code>, <code className="text-slate-500">get_whale_activity</code>, <code className="text-slate-500">get_market</code>, <code className="text-slate-500">list_known_whales</code>.
+              MCP (Claude, Cursor…): <code className="text-slate-500">https://owlfund.vercel.app/api/mcp</code> · mesma chave no cabeçalho <code className="text-slate-500">Authorization</code>. Ferramentas: <code className="text-slate-500">get_portfolio</code>, <code className="text-slate-500">get_wallets</code>, <code className="text-slate-500">get_whale_activity</code>, <code className="text-slate-500">get_market</code>, <code className="text-slate-500">list_known_whales</code>, <code className="text-slate-500">get_asset</code>, <code className="text-slate-500">get_fear_greed</code>, <code className="text-slate-500">get_news</code>, <code className="text-slate-500">get_btc_blocks</code>, <code className="text-slate-500">get_fire</code>.
             </p>
             <a href="/developers" className="inline-block pt-1 text-[10px] font-semibold text-orange-300/90 hover:text-orange-200">Ver documentação completa →</a>
           </div>

@@ -100,6 +100,46 @@ const ENDPOINTS: Endpoint[] = [
   "count": 50
 }`,
   },
+  {
+    method: "GET",
+    path: "/api/v1/price",
+    desc: "Preço, capitalização, volume e variação (24h/7d) de um criptoativo pelo símbolo.",
+    example: `curl "${BASE}/api/v1/price?symbol=btc" \\
+  -H "Authorization: Bearer cfa_live_…"`,
+    response: `{ "symbol": "BTC", "name": "Bitcoin", "priceUsd": 64000, "change24h": -0.2, "change7d": 1.5, "rank": 1 }`,
+  },
+  {
+    method: "GET",
+    path: "/api/v1/fear-greed",
+    desc: "Índice Fear & Greed do mercado cripto — valor atual (0–100) e histórico recente.",
+    example: `curl ${BASE}/api/v1/fear-greed \\
+  -H "Authorization: Bearer cfa_live_…"`,
+    response: `{ "now": { "value": 29, "classification": "Fear", "timestamp": 1769… }, "history": [ … ] }`,
+  },
+  {
+    method: "GET",
+    path: "/api/v1/news",
+    desc: "Últimas notícias de cripto (CoinDesk, CoinTelegraph). Parâmetro limit = 1–30.",
+    example: `curl "${BASE}/api/v1/news?limit=10" \\
+  -H "Authorization: Bearer cfa_live_…"`,
+    response: `{ "news": [{ "title": "…", "url": "https://…", "source": "CoinDesk", "publishedAt": "2026-07-27T…" }], "count": 10 }`,
+  },
+  {
+    method: "GET",
+    path: "/api/v1/btc-blocks",
+    desc: "Blocos Bitcoin recentes (altura, nº de transações, taxa mediana, pool) e taxas recomendadas da mempool.",
+    example: `curl ${BASE}/api/v1/btc-blocks \\
+  -H "Authorization: Bearer cfa_live_…"`,
+    response: `{ "blocks": [{ "height": 958892, "txCount": 4448, "medianFee": 2, "pool": "Foundry USA" }], "fees": { "fastestFee": 3 } }`,
+  },
+  {
+    method: "GET",
+    path: "/api/v1/fire",
+    desc: "Anos até à independência financeira (regra dos 4%). Parâmetros: monthlyExpenses, monthlyInvestment, annualReturn, inflation, currentAge, currentPortfolio.",
+    example: `curl "${BASE}/api/v1/fire?monthlyExpenses=2000&monthlyInvestment=500&annualReturn=7&inflation=3&currentAge=30" \\
+  -H "Authorization: Bearer cfa_live_…"`,
+    response: `{ "fireTarget": 600000, "realReturnPct": 4, "yearsToFire": 41, "retirementAge": 71, "retirementYear": 2067 }`,
+  },
 ];
 
 export default function DevelopersPage() {
@@ -161,6 +201,11 @@ export default function DevelopersPage() {
               <li>• <code className="text-slate-400">get_whale_activity</code> — movimentos de endereços (argumento watchlist)</li>
               <li>• <code className="text-slate-400">get_market</code> — top criptoativos (argumento limit)</li>
               <li>• <code className="text-slate-400">list_known_whales</code> — baleias conhecidas pré-carregadas</li>
+              <li>• <code className="text-slate-400">get_asset</code> — preço de um ativo (argumento symbol)</li>
+              <li>• <code className="text-slate-400">get_fear_greed</code> — índice Fear & Greed</li>
+              <li>• <code className="text-slate-400">get_news</code> — últimas notícias (argumento limit)</li>
+              <li>• <code className="text-slate-400">get_btc_blocks</code> — blocos Bitcoin + taxas</li>
+              <li>• <code className="text-slate-400">get_fire</code> — anos até à independência financeira</li>
             </ul>
 
             <p className="mt-6 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Ligar no Claude Code / Claude Desktop</p>
