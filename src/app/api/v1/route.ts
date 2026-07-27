@@ -23,6 +23,7 @@ export async function GET() {
       { method: "GET", path: "/api/v1/news", description: "Últimas notícias de cripto (?limit=N)." },
       { method: "GET", path: "/api/v1/btc-blocks", description: "Blocos Bitcoin recentes + taxas da mempool." },
       { method: "GET", path: "/api/v1/fire", description: "Anos até à independência financeira (regra dos 4%)." },
+      { method: "POST", path: "/api/v1/chat", description: "Pergunta à IA sobre o teu portefólio ({ message }). Máx. 50/dia por conta." },
     ],
   });
 }

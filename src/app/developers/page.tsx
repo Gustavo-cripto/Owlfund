@@ -140,6 +140,16 @@ const ENDPOINTS: Endpoint[] = [
   -H "Authorization: Bearer cfa_live_…"`,
     response: `{ "fireTarget": 600000, "realReturnPct": 4, "yearsToFire": 41, "retirementAge": 71, "retirementYear": 2067 }`,
   },
+  {
+    method: "POST",
+    path: "/api/v1/chat",
+    desc: "Assistente de IA que responde sobre o teu portefólio real. Não dá ordens de compra/venda. Máx. 50 mensagens/dia por conta.",
+    example: `curl -X POST ${BASE}/api/v1/chat \\
+  -H "Authorization: Bearer cfa_live_…" \\
+  -H "Content-Type: application/json" \\
+  -d '{"message":"Como está diversificado o meu portefólio?"}'`,
+    response: `{ "reply": "O teu portefólio está concentrado em… (análise). Não é conselho de compra/venda." }`,
+  },
 ];
 
 export default function DevelopersPage() {
@@ -206,6 +216,7 @@ export default function DevelopersPage() {
               <li>• <code className="text-slate-400">get_news</code> — últimas notícias (argumento limit)</li>
               <li>• <code className="text-slate-400">get_btc_blocks</code> — blocos Bitcoin + taxas</li>
               <li>• <code className="text-slate-400">get_fire</code> — anos até à independência financeira</li>
+              <li>• <code className="text-slate-400">ask_ai</code> — pergunta à IA sobre o teu portefólio (máx. 50/dia)</li>
             </ul>
 
             <p className="mt-6 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Ligar no Claude Code / Claude Desktop</p>

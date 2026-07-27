@@ -7,6 +7,8 @@ import { scanWatchlist, type WatchEntry } from "@/lib/api/whales";
 import { getMarket } from "@/lib/api/market";
 import { getKnownWhales } from "@/lib/api/known-whales";
 import { getFearGreed, getAsset, computeFire, getNews, getBtcBlocks } from "@/lib/api/investing";
+import { askAI } from "@/lib/api/ai";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -149,6 +151,35 @@ const handler = createMcpHandler(
       async () => {
         const data = await getBtcBlocks();
         return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+      },
+    );
+
+    server.tool(
+      "ask_ai",
+      "Pergunta em linguagem natural ao assistente de IA sobre o teu portefólio real (análise, contexto, riscos). Não dá ordens de compra/venda. Limite diário por conta.",
+      { question: z.string().describe("A pergunta sobre o portefólio ou o mercado.") },
+      async (args, extra) => {
+        const userId = (extra?.authInfo?.extra?.userId as string | undefined) ?? "";
+        if (!userId) return { content: [{ type: "text", text: "Não autenticado." }], isError: true };
+        const question = (args.question ?? "").trim().slice(0, 1000);
+        if (!question) return { content: [{ type: "text", text: "Pergunta vazia." }], isError: true };
+
+        const admin = getSupabaseAdmin();
+        try {
+          const { data, error } = await admin.rpc("api_rate_check", {
+            p_key_hash: `${userId}:chat`, p_limit: 50, p_window_seconds: 86400,
+          });
+          if (!error && data === false) return { content: [{ type: "text", text: "Limite diário de 50 mensagens atingido." }], isError: true };
+        } catch { /* função ainda não migrada → deixa passar */ }
+
+        const portfolio = await getPortfolio(userId);
+        const system = [
+          "És o assistente de IA do ChainFolioAI. Responde conciso sobre o portefólio real do utilizador.",
+          "Nunca dás ordens de compra ou venda — apresentas cenários, riscos e contexto.",
+          `Dados do portefólio (JSON): ${JSON.stringify(portfolio)}`,
+        ].join("\n");
+        const reply = await askAI([{ role: "system", content: system }, { role: "user", content: question }]);
+        return { content: [{ type: "text", text: reply ?? "Assistente de IA indisponível de momento." }], isError: !reply };
       },
     );
   },
