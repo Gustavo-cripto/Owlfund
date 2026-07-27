@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { apiJson } from "@/lib/api/response";
 
 // Preço Premium (o acesso à API/MCP é uma funcionalidade Premium).
 const premiumPriceId =
@@ -72,14 +73,14 @@ export async function authenticateApiKey(req: NextRequest): Promise<AuthResult> 
   if (check.ok) return { ok: true, userId: check.userId };
 
   if (check.reason === "premium") {
-    return { ok: false, response: NextResponse.json(
+    return { ok: false, response: apiJson(
       { error: "premium_required", message: "O acesso à API requer um plano Premium ativo." }, { status: 403 }) };
   }
   if (check.reason === "unavailable") {
-    return { ok: false, response: NextResponse.json(
+    return { ok: false, response: apiJson(
       { error: "service_unavailable", message: "Serviço temporariamente indisponível." }, { status: 503 }) };
   }
-  const res = NextResponse.json(
+  const res = apiJson(
     { error: "invalid_key", message: "Chave de API em falta, inválida ou revogada. Usa: Authorization: Bearer owf_live_…" },
     { status: 401 });
   res.headers.set("WWW-Authenticate", 'Bearer realm="ChainFolioAI API"');

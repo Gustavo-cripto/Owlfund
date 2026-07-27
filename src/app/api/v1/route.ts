@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
+import { apiJson } from "@/lib/api/response";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // Índice de descoberta da API pública (sem autenticação).
 export async function GET() {
-  return NextResponse.json({
+  return apiJson({
     name: "ChainFolioAI API",
     version: "v1",
     documentation: "https://owlfund.vercel.app/account",

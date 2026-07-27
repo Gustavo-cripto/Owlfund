@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { authenticateApiKey } from "@/lib/api/auth";
 import { getMarket } from "@/lib/api/market";
+import { apiJson } from "@/lib/api/response";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,5 +12,5 @@ export async function GET(req: NextRequest) {
   if (!auth.ok) return auth.response;
 
   const limit = Number(req.nextUrl.searchParams.get("limit") ?? "50");
-  return NextResponse.json(await getMarket(limit));
+  return apiJson(await getMarket(limit));
 }
