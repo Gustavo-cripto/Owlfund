@@ -87,8 +87,9 @@ export async function GET(request: Request) {
       });
       const signature = createHmac("sha256", cfg.secret).update(payload).digest("hex");
 
+      let delivered = false;
       try {
-        await fetch(cfg.url, {
+        const res = await fetch(cfg.url, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -98,13 +99,18 @@ export async function GET(request: Request) {
           body: payload,
           signal: AbortSignal.timeout(5000),
         });
-        sent++;
+        delivered = res.ok;
+        if (delivered) sent++;
       } catch {
         // falha de rede do recetor — não bloqueia os outros
       }
 
-      // Regista para não reenviar (mesmo que o POST tenha falhado, evita spam).
-      await admin.from("whale_alert_log").insert({ user_id: cfg.user_id, dedup_key: dedupKey });
+      // Só marca como enviado se o recetor confirmou (2xx). Assim um recetor em
+      // downtime não perde o alerta — reenvia no próximo cron até entregar. O
+      // movimento sai da janela de scan naturalmente, por isso não há retry infinito.
+      if (delivered) {
+        await admin.from("whale_alert_log").insert({ user_id: cfg.user_id, dedup_key: dedupKey });
+      }
     }
   }
 

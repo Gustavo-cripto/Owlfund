@@ -1,14 +1,12 @@
 import { NextRequest } from "next/server";
 import { authenticateApiKey } from "@/lib/api/auth";
-import { scanWatchlist, type WatchEntry } from "@/lib/api/whales";
+import { scanWatchlist, ADDRESS_RE, type WatchEntry } from "@/lib/api/whales";
 import { apiJson } from "@/lib/api/response";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const CHAINS = new Set(["eth", "btc", "sol"]);
-// Endereços são alfanuméricos (0x-hex, base58, bech32). Rejeita tudo o resto.
-const ADDRESS_RE = /^[a-zA-Z0-9]{10,120}$/;
 
 type ParseResult =
   | { ok: true; watchlist: WatchEntry[] }

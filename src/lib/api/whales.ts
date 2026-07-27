@@ -3,6 +3,15 @@
 
 export type WatchEntry = { address: string; label: string; chain: "eth" | "sol" | "btc" };
 
+// Endereços são alfanuméricos (0x-hex, base58, bech32). Rejeita tudo o resto —
+// em especial `/`, `?`, `.` que poderiam manipular o path dos pedidos upstream.
+// Fonte única, partilhada pela rota REST (/api/v1/whales) e pelo tool MCP.
+export const ADDRESS_RE = /^[a-zA-Z0-9]{10,120}$/;
+
+export function isValidAddress(value: unknown): value is string {
+  return typeof value === "string" && ADDRESS_RE.test(value);
+}
+
 export type Movement = {
   address: string;
   label: string;
@@ -18,7 +27,7 @@ export async function fetchEthMovements(address: string, label: string): Promise
     const apiKey = process.env.MORALIS_API_KEY ?? "";
     if (!apiKey) return [];
     const res = await fetch(
-      `https://deep-index.moralis.io/api/v2.2/${address}/erc20/transfers?chain=eth&limit=5`,
+      `https://deep-index.moralis.io/api/v2.2/${encodeURIComponent(address)}/erc20/transfers?chain=eth&limit=5`,
       { headers: { "X-API-Key": apiKey }, signal: AbortSignal.timeout(6000) },
     );
     if (!res.ok) return [];
@@ -44,7 +53,7 @@ export async function fetchEthMovements(address: string, label: string): Promise
 export async function fetchBtcMovements(address: string, label: string): Promise<Movement[]> {
   try {
     const res = await fetch(
-      `https://mempool.space/api/address/${address}/txs`,
+      `https://mempool.space/api/address/${encodeURIComponent(address)}/txs`,
       { signal: AbortSignal.timeout(6000) },
     );
     if (!res.ok) return [];
@@ -66,7 +75,9 @@ export async function fetchBtcMovements(address: string, label: string): Promise
 
 /** Varre uma watchlist (máx. 10 endereços) e devolve os movimentos mais recentes. */
 export async function scanWatchlist(watchlist: WatchEntry[]): Promise<{ movements: Movement[]; scanned: number }> {
-  const entries = watchlist.slice(0, 10);
+  // Defesa em profundidade: descarta endereços malformados antes de os usar em
+  // URLs upstream, mesmo que a validação do chamador tenha falhado ou faltado.
+  const entries = watchlist.filter((e) => isValidAddress(e.address)).slice(0, 10);
   if (!entries.length) return { movements: [], scanned: 0 };
 
   const results = await Promise.allSettled(
