@@ -31,7 +31,7 @@ const LARGE_TRANSFER_USD = 100_000;
 const STABLECOINS = new Set(["USDT", "USDC", "DAI", "BUSD", "TUSD", "USDP", "FDUSD", "PYUSD", "GUSD", "USDD", "FRAX", "LUSD"]);
 const ETH_SYMBOLS = new Set(["ETH", "WETH"]);
 
-export type UsdPrices = { btc: number | null; eth: number | null };
+export type UsdPrices = { btc: number | null; eth: number | null; sol: number | null };
 
 // Cache de processo (best-effort; por instância serverless) para não chamar o
 // CoinGecko uma vez por endereço quando o cron varre muitos utilizadores.
@@ -40,15 +40,15 @@ const PRICE_TTL_MS = 60_000;
 
 async function getUsdPrices(): Promise<UsdPrices> {
   if (priceCache && Date.now() - priceCache.at < PRICE_TTL_MS) return priceCache.prices;
-  let prices: UsdPrices = { btc: null, eth: null };
+  let prices: UsdPrices = { btc: null, eth: null, sol: null };
   try {
     const res = await fetch(
-      "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd",
+      "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd",
       { signal: AbortSignal.timeout(6000) },
     );
     if (res.ok) {
-      const j = await res.json() as { bitcoin?: { usd?: number }; ethereum?: { usd?: number } };
-      prices = { btc: j.bitcoin?.usd ?? null, eth: j.ethereum?.usd ?? null };
+      const j = await res.json() as { bitcoin?: { usd?: number }; ethereum?: { usd?: number }; solana?: { usd?: number } };
+      prices = { btc: j.bitcoin?.usd ?? null, eth: j.ethereum?.usd ?? null, sol: j.solana?.usd ?? null };
     }
   } catch { /* mantém null → tokens ficam sem valor USD confirmado */ }
   priceCache = { at: Date.now(), prices };
@@ -127,6 +127,67 @@ export async function fetchBtcMovements(address: string, label: string, prices: 
   } catch { return []; }
 }
 
+// RPCs públicos da Solana (sem chave), os mesmos usados na rota sol-balance.
+const SOL_RPCS = [
+  "https://api.mainnet-beta.solana.com",
+  "https://solana.publicnode.com",
+  "https://solana-rpc.publicnode.com",
+];
+
+// Chama um método JSON-RPC da Solana, tentando os RPCs por ordem até um responder.
+async function solRpc<T>(method: string, params: unknown[]): Promise<T | null> {
+  for (const rpc of SOL_RPCS) {
+    try {
+      const res = await fetch(rpc, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+        signal: AbortSignal.timeout(6000),
+      });
+      if (!res.ok) continue;
+      const data = await res.json() as { result?: T; error?: unknown };
+      if (data.error || data.result == null) continue;
+      return data.result;
+    } catch { /* tenta o próximo RPC */ }
+  }
+  return null;
+}
+
+export async function fetchSolMovements(address: string, label: string, prices: UsdPrices): Promise<Movement[]> {
+  try {
+    // 1) assinatura mais recente do endereço
+    const sigs = await solRpc<Array<{ signature: string; blockTime: number | null }>>(
+      "getSignaturesForAddress", [address, { limit: 3 }],
+    );
+    const latest = sigs?.[0];
+    if (!latest?.signature) return [];
+
+    // 2) a transação, para medir a variação de saldo em SOL do endereço
+    type Tx = {
+      meta?: { preBalances?: number[]; postBalances?: number[] };
+      transaction?: { message?: { accountKeys?: Array<string | { pubkey?: string }> } };
+    };
+    const tx = await solRpc<Tx>("getTransaction", [latest.signature, { maxSupportedTransactionVersion: 0, encoding: "jsonParsed" }]);
+    if (!tx?.meta?.preBalances || !tx.meta.postBalances) return [];
+
+    const keys = (tx.transaction?.message?.accountKeys ?? []).map((k) => (typeof k === "string" ? k : k.pubkey ?? ""));
+    const idx = keys.indexOf(address);
+    if (idx < 0) return [];
+
+    const solDelta = Math.abs((tx.meta.postBalances[idx] ?? 0) - (tx.meta.preBalances[idx] ?? 0)) / 1e9;
+    if (solDelta < 0.01) return [];
+
+    const usdValue = prices.sol != null ? solDelta * prices.sol : null;
+    return [{
+      address, label, chain: "sol",
+      type: classify(usdValue),
+      description: withUsd(`${solDelta.toFixed(4)} SOL`, usdValue),
+      usdValue,
+      timestamp: (latest.blockTime ?? Date.now() / 1000) * 1000,
+    }];
+  } catch { return []; }
+}
+
 /** Varre uma watchlist (máx. 10 endereços) e devolve os movimentos mais recentes. */
 export async function scanWatchlist(watchlist: WatchEntry[]): Promise<{ movements: Movement[]; scanned: number }> {
   // Defesa em profundidade: descarta endereços malformados antes de os usar em
@@ -141,6 +202,7 @@ export async function scanWatchlist(watchlist: WatchEntry[]): Promise<{ movement
     entries.map((entry) => {
       if (entry.chain === "btc") return fetchBtcMovements(entry.address, entry.label, prices);
       if (entry.chain === "eth") return fetchEthMovements(entry.address, entry.label, prices);
+      if (entry.chain === "sol") return fetchSolMovements(entry.address, entry.label, prices);
       return Promise.resolve([] as Movement[]);
     }),
   );

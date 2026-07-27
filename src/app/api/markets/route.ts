@@ -118,7 +118,7 @@ const EXTRA_STABLE_IDS = [
 
 export async function GET() {
   try {
-    const [coinexResponse, coingeckoResponse, coingeckoTopResponse, coingeckoExtraResponse] = await Promise.all([
+    const [coinexResponse, coingeckoResponse, coingeckoTopResponse, coingeckoExtraResponse, coingeckoGlobalResponse] = await Promise.all([
       fetch("https://api.coinex.com/v2/spot/ticker"),
       fetch(
         "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1"
@@ -130,6 +130,8 @@ export async function GET() {
       fetch(
         `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${EXTRA_STABLE_IDS.join(",")}`
       ),
+      // Dados globais: dominância BTC/ETH, capitalização total e variação 24h.
+      fetch("https://api.coingecko.com/api/v3/global"),
     ]);
 
     const coinexPayload = coinexResponse.ok
@@ -233,10 +235,25 @@ export async function GET() {
       if (!bySymbol.has(entry.symbol)) bySymbol.set(entry.symbol, entry);
     }
 
+    // Dados globais (dominância + cap total). Falha aqui não parte a rota.
+    type GlobalPayload = { data?: { total_market_cap?: { usd?: number }; market_cap_change_percentage_24h_usd?: number; market_cap_percentage?: { btc?: number; eth?: number } } };
+    const globalPayload = coingeckoGlobalResponse.ok
+      ? await coingeckoGlobalResponse.json().catch(() => ({}) as GlobalPayload) as GlobalPayload
+      : {} as GlobalPayload;
+    const global = globalPayload.data
+      ? {
+          totalMarketCapUsd: globalPayload.data.total_market_cap?.usd ?? null,
+          marketCapChange24h: globalPayload.data.market_cap_change_percentage_24h_usd ?? null,
+          btcDominance: globalPayload.data.market_cap_percentage?.btc ?? null,
+          ethDominance: globalPayload.data.market_cap_percentage?.eth ?? null,
+        }
+      : null;
+
     return NextResponse.json({
       data: rows,
       sentimentTop10,
       selectList: [...bySymbol.values()],
+      global,
     });
   } catch (error) {
     return NextResponse.json(

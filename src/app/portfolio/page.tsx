@@ -1283,6 +1283,7 @@ export default function PortfolioPage() {
               <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{t("pf_analysis")}</p>
               <h2 className="text-base font-bold text-white mt-0.5">{t("pf_adv_metrics")}</h2>
             </div>
+            <div className="flex items-center gap-2">
             <button
               id="btn-export-pdf"
               onClick={async () => {
@@ -1352,6 +1353,44 @@ export default function PortfolioPage() {
             >
               ↓ Exportar PDF
             </button>
+            <button
+              id="btn-export-csv"
+              onClick={() => {
+                const n = (v: number) => Number(v ?? 0).toFixed(2);
+                const rows: string[][] = [
+                  ["Secção", "Métrica", "Valor"],
+                  ["Resumo", `Total (${curSym})`, n(fx(portfolioTotal))],
+                  ["Resumo", "Cripto", n(fx(cryptoTotal))],
+                  ["Resumo", "Tradicional", n(fx(traditionalTotal))],
+                  ["PNL", "Posição", n(fx(pnlSummary.position))],
+                  ["PNL", "Hoje", n(fx(pnlSummary.today))],
+                  ["PNL", "30 dias", n(fx(pnlSummary.days30 ?? 0))],
+                ];
+                if (advancedMetrics) {
+                  rows.push(["Métricas", "ROI %", advancedMetrics.roi.toFixed(2)]);
+                  if (advancedMetrics.cagr !== null) rows.push(["Métricas", "CAGR %", advancedMetrics.cagr.toFixed(2)]);
+                  if (advancedMetrics.sharpe !== null) rows.push(["Métricas", "Sharpe", advancedMetrics.sharpe.toFixed(2)]);
+                  rows.push(["Métricas", "Max Drawdown %", advancedMetrics.maxDrawdown.toFixed(2)]);
+                  if (advancedMetrics.volatility !== null) rows.push(["Métricas", "Volatilidade %", advancedMetrics.volatility.toFixed(2)]);
+                  rows.push(["Métricas", "Período (dias)", String(advancedMetrics.days)]);
+                }
+                cryptoAllocations.filter((a) => a.value > 0).forEach((a) => {
+                  rows.push(["Alocação", `${a.label} (${a.symbol})`, n(fx(a.value))]);
+                });
+                const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+                const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `chainfolioai-portfolio-${new Date().toISOString().slice(0, 10)}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="flex items-center gap-2 rounded-xl border border-slate-600/50 px-4 py-2 text-sm font-semibold text-slate-300 hover:bg-slate-700/30 transition"
+            >
+              ↓ Exportar CSV
+            </button>
+            </div>
           </div>
 
           {!advancedMetrics ? (

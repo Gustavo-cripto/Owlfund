@@ -518,6 +518,10 @@ export default function MercadoPage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [rows, setRows] = useState<MarketRow[]>([]);
   const [selected, setSelected] = useState<MarketRow | null>(null);
+  const [marketGlobal, setMarketGlobal] = useState<{
+    totalMarketCapUsd: number | null; marketCapChange24h: number | null;
+    btcDominance: number | null; ethDominance: number | null;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const chartRef = useRef<HTMLDivElement | null>(null);
@@ -582,6 +586,10 @@ export default function MercadoPage() {
         const data = (await response.json()) as {
           data?: MarketRow[];
           sentimentTop10?: SentimentRow[];
+          global?: {
+            totalMarketCapUsd: number | null; marketCapChange24h: number | null;
+            btcDominance: number | null; ethDominance: number | null;
+          } | null;
           error?: string;
         };
         if (!response.ok || !data.data) {
@@ -590,6 +598,7 @@ export default function MercadoPage() {
         setRows(data.data);
         setSelected(data.data[0] ?? null);
         setSentimentTop10(data.sentimentTop10 ?? []);
+        setMarketGlobal(data.global ?? null);
         setPage(0);
       } catch (err) {
         setError(err instanceof Error ? err.message : t("mc_err_markets2"));
@@ -1465,6 +1474,29 @@ export default function MercadoPage() {
             </div>
 
           </section>
+        )}
+
+        {marketMode === "crypto" && marketGlobal && (
+          <div className="mx-auto mb-6 w-full max-w-6xl">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl border border-slate-800 bg-slate-900/60 px-5 py-3 text-sm">
+              {marketGlobal.totalMarketCapUsd != null && (
+                <span className="text-slate-300">
+                  {t("mc_total_cap")}: <b className="text-white">${(marketGlobal.totalMarketCapUsd / 1e12).toFixed(2)}T</b>
+                  {marketGlobal.marketCapChange24h != null && (
+                    <span className={marketGlobal.marketCapChange24h >= 0 ? "ml-1 text-emerald-400" : "ml-1 text-rose-400"}>
+                      ({marketGlobal.marketCapChange24h >= 0 ? "+" : ""}{marketGlobal.marketCapChange24h.toFixed(2)}%)
+                    </span>
+                  )}
+                </span>
+              )}
+              {marketGlobal.btcDominance != null && (
+                <span className="text-slate-300">{t("mc_btc_dom")}: <b className="text-amber-400">{marketGlobal.btcDominance.toFixed(1)}%</b></span>
+              )}
+              {marketGlobal.ethDominance != null && (
+                <span className="text-slate-300">ETH: <b className="text-indigo-300">{marketGlobal.ethDominance.toFixed(1)}%</b></span>
+              )}
+            </div>
+          </div>
         )}
 
         {marketMode === "crypto" && chartSource !== "coinglass" ? (

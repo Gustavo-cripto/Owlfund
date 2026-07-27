@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { generateAiChat, friendlyAiError, errorStatus, type ChatMessage } from "@/lib/ai/groq";
+import { scanWatchlist, type WatchEntry, type Movement } from "@/lib/api/whales";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -27,55 +28,9 @@ type SnapshotData = {
   _totalEur?: number;
 };
 
-type WatchEntry = { address: string; label: string; chain: "eth" | "sol" | "btc" };
-type Movement = { address: string; label: string; chain: string; type: string; description: string; usdValue: number; timestamp: number };
-
-// ── On-chain movement fetchers (reused from /api/smart-money-rt) ──────────────
-
-async function fetchBtcMovements(address: string, label: string): Promise<Movement[]> {
-  try {
-    const res = await fetch(`https://mempool.space/api/address/${address}/txs`, { signal: AbortSignal.timeout(5000) });
-    if (!res.ok) return [];
-    const txs = await res.json() as Array<{ status: { block_time: number }; vout: Array<{ value: number }> }>;
-    if (!txs?.length) return [];
-    const latest = txs[0];
-    const btcValue = (latest.vout ?? []).reduce((s, o) => s + (o.value ?? 0), 0) / 1e8;
-    if (btcValue < 0.01) return [];
-    return [{ address, label, chain: "btc", type: btcValue > 1 ? "large_transfer" : "accumulation",
-      description: `${btcValue.toFixed(4)} BTC`, usdValue: 0,
-      timestamp: (latest.status?.block_time ?? Date.now() / 1000) * 1000 }];
-  } catch { return []; }
-}
-
-async function fetchEthMovements(address: string, label: string): Promise<Movement[]> {
-  try {
-    const apiKey = process.env.MORALIS_API_KEY ?? "";
-    if (!apiKey) return [];
-    const res = await fetch(`https://deep-index.moralis.io/api/v2.2/${address}/erc20/transfers?chain=eth&limit=5`,
-      { headers: { "X-API-Key": apiKey }, signal: AbortSignal.timeout(5000) });
-    if (!res.ok) return [];
-    const data = await res.json() as { result?: Array<{ value: string; token_decimals: string; token_symbol: string; block_timestamp: string }> };
-    return (data.result ?? []).slice(0, 2).map(tx => {
-      const amount = parseInt(tx.value ?? "0") / Math.pow(10, parseInt(tx.token_decimals ?? "18"));
-      return { address, label, chain: "eth", type: amount > 100000 ? "large_transfer" : "accumulation",
-        description: `${amount.toFixed(2)} ${tx.token_symbol}`, usdValue: 0,
-        timestamp: new Date(tx.block_timestamp).getTime() };
-    }).filter(m => parseFloat(m.description) > 0);
-  } catch { return []; }
-}
-
-async function fetchWatchlistMovements(watchlist: WatchEntry[]): Promise<Movement[]> {
-  if (!watchlist.length) return [];
-  const results = await Promise.allSettled(
-    watchlist.slice(0, 8).map(e => {
-      if (e.chain === "btc") return fetchBtcMovements(e.address, e.label);
-      if (e.chain === "eth") return fetchEthMovements(e.address, e.label);
-      return Promise.resolve([] as Movement[]);
-    })
-  );
-  return results.flatMap(r => r.status === "fulfilled" ? r.value : [])
-    .sort((a, b) => b.timestamp - a.timestamp).slice(0, 15);
-}
+// Deteção de movimentos on-chain (ETH via Moralis, BTC via mempool, SOL via RPC)
+// é agora a partilhada de @/lib/api/whales (scanWatchlist) — inclui SOL e a
+// validação/valorização em USD, sem cópias divergentes aqui.
 
 function buildWatchlistContext(watchlist: WatchEntry[], movements: Movement[]): string {
   if (!watchlist.length) return "";
@@ -213,7 +168,7 @@ export async function POST(req: NextRequest) {
         .order("created_at", { ascending: false }).limit(1).maybeSingle(),
       fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,cardano&vs_currencies=eur",
         { signal: AbortSignal.timeout(5000) }),
-      fetchWatchlistMovements(watchlist),
+      scanWatchlist(watchlist),
     ]);
 
     const snapshotRow = snapshotResult.status === "fulfilled" ? snapshotResult.value.data : null;
@@ -224,7 +179,7 @@ export async function POST(req: NextRequest) {
       prices = Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, v.eur ?? 0]));
     }
 
-    const movementsList = movements.status === "fulfilled" ? movements.value : [];
+    const movementsList = movements.status === "fulfilled" ? movements.value.movements : [];
 
     // Preferir o resumo enviado pelo cliente (inclui ativos manuais, CEX, DeFi,
     // stablecoins e tradicional lidos do localStorage). Cair no snapshot da
