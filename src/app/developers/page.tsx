@@ -89,6 +89,17 @@ const ENDPOINTS: Endpoint[] = [
   "source": "coingecko"
 }`,
   },
+  {
+    method: "GET",
+    path: "/api/v1/known-whales",
+    desc: "Baleias conhecidas pré-carregadas (exchanges, fundos, figuras públicas, governos). Usa os endereços como input do /whales.",
+    example: `curl ${BASE}/api/v1/known-whales \\
+  -H "Authorization: Bearer cfa_live_…"`,
+    response: `{
+  "whales": [{ "address": "0x47ac…D503", "label": "Binance Cold Wallet", "chain": "eth" }],
+  "count": 50
+}`,
+  },
 ];
 
 export default function DevelopersPage() {
@@ -149,7 +160,22 @@ export default function DevelopersPage() {
               <li>• <code className="text-slate-400">get_wallets</code> — as tuas carteiras</li>
               <li>• <code className="text-slate-400">get_whale_activity</code> — movimentos de endereços (argumento watchlist)</li>
               <li>• <code className="text-slate-400">get_market</code> — top criptoativos (argumento limit)</li>
+              <li>• <code className="text-slate-400">list_known_whales</code> — baleias conhecidas pré-carregadas</li>
             </ul>
+
+            <p className="mt-6 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Ligar no Claude Code / Claude Desktop</p>
+            <Code>{`claude mcp add --transport http chainfolioai ${BASE}/api/mcp \\
+  --header "Authorization: Bearer cfa_live_…"`}</Code>
+
+            <p className="mt-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Ligar no Cursor (~/.cursor/mcp.json)</p>
+            <Code>{`{
+  "mcpServers": {
+    "chainfolioai": {
+      "url": "${BASE}/api/mcp",
+      "headers": { "Authorization": "Bearer cfa_live_…" }
+    }
+  }
+}`}</Code>
           </section>
 
           {/* Erros + limites */}

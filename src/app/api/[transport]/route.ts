@@ -5,6 +5,7 @@ import { checkApiKey } from "@/lib/api/auth";
 import { getPortfolio, getWallets } from "@/lib/api/data";
 import { scanWatchlist, type WatchEntry } from "@/lib/api/whales";
 import { getMarket } from "@/lib/api/market";
+import { getKnownWhales } from "@/lib/api/known-whales";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -73,6 +74,16 @@ const handler = createMcpHandler(
       async (args) => {
         const data = await getMarket(args.limit ?? 50);
         return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+      },
+    );
+
+    server.tool(
+      "list_known_whales",
+      "Lista as baleias conhecidas pré-carregadas (exchanges, fundos, figuras públicas, governos) com endereço e cadeia. Usa os endereços como input do get_whale_activity.",
+      {},
+      async () => {
+        const whales = getKnownWhales();
+        return { content: [{ type: "text", text: JSON.stringify({ whales, count: whales.length }, null, 2) }] };
       },
     );
   },
