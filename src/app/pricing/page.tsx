@@ -39,7 +39,6 @@ export default function PricingPage() {
       { label: t("pc_r_alerts_100k"), free: false, pro: true, premium: true },
       { label: t("pc_r_onchain_adv"), free: false, pro: false, premium: true },
       { label: t("pc_r_sm_rt"), free: false, pro: false, premium: true },
-      { label: t("pc_r_ws_alerts"), free: false, pro: false, premium: true },
     ]},
     { category: t("pc_cat_ai"), rows: [
       { label: t("pc_r_prices_rt"), free: true, pro: true, premium: true },
@@ -49,7 +48,6 @@ export default function PricingPage() {
       { label: t("pc_r_ai_briefing"), free: false, pro: true, premium: true },
       { label: t("pc_r_ai_portfolio"), free: t("pc_1_month"), pro: t("pc_unlimited"), premium: t("pc_unlimited") },
       { label: t("pc_r_ai_chat"), free: false, pro: true, premium: true },
-      { label: t("pc_r_ai_predictive"), free: false, pro: false, premium: true },
     ]},
     { category: t("pc_cat_tax"), rows: [
       { label: t("pc_r_tax_calc"), free: t("pc_30_days"), pro: t("pc_unlimited"), premium: t("pc_unlimited") },
@@ -317,10 +315,8 @@ export default function PricingPage() {
                     t("pc_all_pro"),
                     t("pc_r_sm_rt"),
                     t("pc_r_onchain_adv"),
-                    t("pcc_pr_ws"),
                     t("pcc_pr_history"),
                     t("pcc_pr_countries"),
-                    t("pc_r_ai_predictive"),
                     t("pc_r_api_rest"),
                     t("pc_r_mcp"),
                     t("pc_r_webhooks"),
