@@ -12,9 +12,13 @@ const premiumPriceId =
 // Formato da chave gerada em /api/api-keys: owf_live_<40 hex>.
 const KEY_RE = /^owf_live_[a-f0-9]{40}$/i;
 
+// Rate limit: pedidos por chave numa janela fixa.
+const RATE_LIMIT = 60;
+const RATE_WINDOW_SECONDS = 60;
+
 export type KeyCheck =
   | { ok: true; userId: string }
-  | { ok: false; reason: "invalid" | "premium" | "unavailable" };
+  | { ok: false; reason: "invalid" | "premium" | "unavailable" | "rate_limited" };
 
 /**
  * Núcleo de validação de uma chave `owf_live_…`, partilhado pela API REST e pelo MCP.
@@ -51,6 +55,19 @@ export async function checkApiKey(token: string): Promise<KeyCheck> {
   const isPremium = !!premiumPriceId && sub?.price_id === premiumPriceId;
   if (!isPremium) return { ok: false, reason: "premium" };
 
+  // Rate limit por chave (janela fixa). Falha ABERTO se a migração/RPC ainda
+  // não existir — assim é seguro publicar antes de correr supabase-rate-limits.sql.
+  try {
+    const { data, error } = await admin.rpc("api_rate_check", {
+      p_key_hash: keyHash,
+      p_limit: RATE_LIMIT,
+      p_window_seconds: RATE_WINDOW_SECONDS,
+    });
+    if (!error && data === false) return { ok: false, reason: "rate_limited" };
+  } catch {
+    // tabela/função ainda não existe → deixa passar
+  }
+
   // Regista o uso sem bloquear a resposta.
   void admin.from("api_keys").update({ last_used_at: new Date().toISOString() }).eq("key_hash", keyHash);
 
@@ -72,6 +89,13 @@ export async function authenticateApiKey(req: NextRequest): Promise<AuthResult> 
   const check = await checkApiKey(token);
   if (check.ok) return { ok: true, userId: check.userId };
 
+  if (check.reason === "rate_limited") {
+    const res = apiJson(
+      { error: "rate_limited", message: `Demasiados pedidos. Limite: ${RATE_LIMIT} por ${RATE_WINDOW_SECONDS}s.` },
+      { status: 429 });
+    res.headers.set("Retry-After", String(RATE_WINDOW_SECONDS));
+    return { ok: false, response: res };
+  }
   if (check.reason === "premium") {
     return { ok: false, response: apiJson(
       { error: "premium_required", message: "O acesso à API requer um plano Premium ativo." }, { status: 403 }) };
