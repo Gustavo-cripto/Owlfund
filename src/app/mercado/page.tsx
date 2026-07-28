@@ -695,8 +695,9 @@ function LiquidationsFeed({ symbol }: { symbol: string }) {
   );
 }
 
-function DerivativesPanel({ data, loading, symbol }: { data: DerivData | null; loading: boolean; symbol: string }) {
+function DerivativesPanel({ data, loading, symbol, marketFg }: { data: DerivData | null; loading: boolean; symbol: string; marketFg?: { value: number; classification: string } | null }) {
   const { t } = useLanguage();
+  const mapClass = useClassification();
   const oiVals = (data?.oi ?? []).map((p) => p.v);
   const cvdVals = (data?.cvd ?? []).map((p) => p.v);
   const fundingVals = (data?.funding ?? []).map((p) => p.v);
@@ -725,6 +726,18 @@ function DerivativesPanel({ data, loading, symbol }: { data: DerivData | null; l
           Abrir Coinglass ↗
         </a>
       </div>
+
+      {marketFg && (
+        <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-white">🌍 {t("merc_fear_greed")}</p>
+            <p className="text-lg font-bold text-orange-300">{marketFg.value}</p>
+          </div>
+          <div className="mt-2"><FearGreedGauge value={marketFg.value} /></div>
+          <p className="mt-1 text-center text-xs font-semibold text-slate-300">{mapClass(marketFg.classification)}</p>
+          <p className="mt-1 text-center text-[10px] text-slate-500">{t("mc_fg_market")}</p>
+        </div>
+      )}
 
       {data && (
         <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4">
@@ -1479,6 +1492,7 @@ export default function MercadoPage() {
                 data={derivatives}
                 loading={derivativesLoading}
                 symbol={selected?.symbol ?? "BTC"}
+                marketFg={fearGreedPoints[0] ? { value: fearGreedPoints[0].value, classification: fearGreedPoints[0].classification } : null}
               />
             )}
           </div>
