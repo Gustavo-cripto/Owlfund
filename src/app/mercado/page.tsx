@@ -1788,7 +1788,8 @@ export default function MercadoPage() {
         )}
 
         {marketMode === "crypto" ? (
-        <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[420px_1fr]">
+        <div className={`mx-auto grid w-full max-w-6xl gap-6 ${chartSource === "coinglass" ? "lg:grid-cols-[420px_1fr]" : ""}`}>
+          {chartSource === "coinglass" && (
           <aside className="order-2 lg:order-1">
             <FearGreedWidget
               points={fearGreedPoints}
@@ -1805,6 +1806,7 @@ export default function MercadoPage() {
               communitySentiment={communitySentiment}
             />
           </aside>
+          )}
 
           <div className="order-1 lg:order-2">
             <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
