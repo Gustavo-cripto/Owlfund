@@ -48,6 +48,9 @@ type DerivData = {
   cvd: { t: number; v: number }[];
   taker: { t: number; buy: number; sell: number }[];
   candles: Candle[];
+  putCall: { t: number; oi: number; vol: number }[];
+  score: number;
+  rsi: number | null;
 };
 
 type TraditionalQuote = {
@@ -620,6 +623,70 @@ function DerivMiniChart({ values, color, id }: { values: number[]; color: string
   );
 }
 
+type Liq = { id: number; side: "long" | "short"; usd: number; price: number; t: number };
+function LiquidationsFeed({ symbol }: { symbol: string }) {
+  const { t } = useLanguage();
+  const [liqs, setLiqs] = useState<Liq[]>([]);
+  const [status, setStatus] = useState<"connecting" | "live" | "error">("connecting");
+
+  useEffect(() => {
+    setLiqs([]);
+    setStatus("connecting");
+    const sym = `${symbol.toLowerCase()}usdt`;
+    let ws: WebSocket | null = null;
+    let idc = 0;
+    try {
+      ws = new WebSocket(`wss://fstream.binance.com/ws/${sym}@forceOrder`);
+      ws.onopen = () => setStatus("live");
+      ws.onerror = () => setStatus("error");
+      ws.onmessage = (ev: MessageEvent) => {
+        try {
+          const m = JSON.parse(ev.data as string) as { o?: { S?: string; q?: string; p?: string; ap?: string; T?: number } };
+          const o = m?.o;
+          if (!o) return;
+          const qty = Number(o.q ?? 0);
+          const price = Number(o.ap ?? o.p ?? 0);
+          if (!(qty > 0) || !(price > 0)) return;
+          const side: "long" | "short" = o.S === "SELL" ? "long" : "short"; // SELL forceOrder = long liquidado
+          setLiqs((prev) => [{ id: idc++, side, usd: qty * price, price, t: Number(o.T) || Date.now() }, ...prev].slice(0, 12));
+        } catch { /* ignora mensagens inválidas */ }
+      };
+    } catch {
+      setStatus("error");
+    }
+    return () => { try { ws?.close(); } catch { /* noop */ } };
+  }, [symbol]);
+
+  return (
+    <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold text-white">🔥 {t("mc_liq_live")}</p>
+        <div className="flex items-center gap-2">
+          <span className={`h-2 w-2 rounded-full ${status === "live" ? "bg-emerald-400" : status === "error" ? "bg-rose-400" : "bg-amber-400 animate-pulse"}`} />
+          <a href={`https://www.coinglass.com/LiquidationData`} target="_blank" rel="noopener noreferrer" className="text-[11px] font-semibold text-orange-300 hover:text-orange-200">Coinglass ↗</a>
+        </div>
+      </div>
+      <div className="mt-3 max-h-40 space-y-1 overflow-y-auto">
+        {liqs.length === 0 ? (
+          <p className="py-4 text-center text-[11px] text-slate-500">
+            {status === "error" ? t("mc_liq_note") : t("mc_liq_waiting")}
+          </p>
+        ) : (
+          liqs.map((l) => (
+            <div key={l.id} className="flex items-center justify-between rounded-md bg-slate-950/40 px-2.5 py-1.5 text-[11px]">
+              <span className={`font-semibold ${l.side === "long" ? "text-rose-400" : "text-emerald-400"}`}>
+                {l.side === "long" ? t("mc_long") : t("mc_short")}
+              </span>
+              <span className="font-mono text-slate-200">${l.usd >= 1000 ? `${(l.usd / 1000).toFixed(1)}k` : l.usd.toFixed(0)}</span>
+              <span className="text-slate-500">@ ${l.price.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 function DerivativesPanel({ data, loading, symbol }: { data: DerivData | null; loading: boolean; symbol: string }) {
   const { t } = useLanguage();
   const oiVals = (data?.oi ?? []).map((p) => p.v);
@@ -633,6 +700,8 @@ function DerivativesPanel({ data, loading, symbol }: { data: DerivData | null; l
   const latestTaker = data?.taker[data.taker.length - 1];
   const takerBuyPct = latestTaker && latestTaker.buy + latestTaker.sell > 0
     ? (latestTaker.buy / (latestTaker.buy + latestTaker.sell)) * 100 : null;
+  const pcVals = (data?.putCall ?? []).map((p) => p.oi);
+  const latestPc = pcVals[pcVals.length - 1];
   const compact = (n: number | undefined) =>
     n == null || Number.isNaN(n) ? "—" : new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 2 }).format(n);
 
@@ -648,6 +717,20 @@ function DerivativesPanel({ data, loading, symbol }: { data: DerivData | null; l
           Abrir Coinglass ↗
         </a>
       </div>
+
+      {data && (
+        <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-white">{t("mc_sentiment_score")}</p>
+            <p className={`text-lg font-bold ${data.score >= 55 ? "text-emerald-300" : data.score <= 45 ? "text-rose-300" : "text-slate-200"}`}>{data.score}/100</p>
+          </div>
+          <div className="mt-2"><FearGreedGauge value={data.score} /></div>
+          <p className={`mt-1 text-center text-xs font-semibold ${data.score >= 55 ? "text-emerald-400" : data.score <= 45 ? "text-rose-400" : "text-slate-400"}`}>
+            {data.score >= 55 ? t("mc_score_bull") : data.score <= 45 ? t("mc_score_bear") : t("mc_score_neutral")}
+          </p>
+          <p className="mt-1 text-center text-[10px] text-slate-500">Long/Short · Funding · CVD · Taker · RSI · Put/Call</p>
+        </div>
+      )}
 
       {data && data.candles.length > 1 && (
         <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-3">
@@ -738,18 +821,23 @@ function DerivativesPanel({ data, loading, symbol }: { data: DerivData | null; l
             ) : <div className="mt-3 h-12" />}
             <p className="mt-2 text-[11px] text-slate-500">{t("mc_taker_desc")}</p>
           </div>
+
+          {/* Put/Call Ratio (opções) */}
+          <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-white">🎯 {t("mc_putcall")}</p>
+              <p className={`text-sm font-bold ${latestPc == null ? "text-slate-400" : latestPc < 1 ? "text-emerald-300" : "text-rose-300"}`}>
+                {latestPc == null ? "—" : latestPc.toFixed(2)}
+              </p>
+            </div>
+            <div className="mt-3"><DerivMiniChart values={pcVals} color={latestPc != null && latestPc < 1 ? "#22c55e" : "#ef4444"} id="pc-real-grad" /></div>
+            <p className="mt-2 text-[11px] text-slate-500">{t("mc_putcall_desc")}</p>
+          </div>
         </div>
       )}
 
-      {/* Liquidações — sem fonte gratuita, link para a Coinglass */}
-      <a href="https://www.coinglass.com/LiquidationData" target="_blank" rel="noopener noreferrer"
-        className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/50 px-4 py-3 transition hover:border-orange-500/40">
-        <div>
-          <p className="text-sm font-semibold text-slate-200">🔥 {t("mc_liquidations")}</p>
-          <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500">{t("mc_liq_note")}</p>
-        </div>
-        <span className="whitespace-nowrap text-xs font-semibold text-orange-300">Coinglass ↗</span>
-      </a>
+      {/* Liquidações ao vivo (websocket, corre no browser do utilizador) */}
+      <LiquidationsFeed symbol={symbol} />
     </div>
   );
 }

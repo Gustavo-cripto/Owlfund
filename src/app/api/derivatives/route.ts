@@ -17,26 +17,46 @@ async function okx<T = string[]>(url: string): Promise<T[]> {
   }
 }
 
-// GET /api/derivatives?symbol=BTC — Open Interest, Long/Short, Funding e CVD, tudo da OKX.
+const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
+
+// RSI simples a partir dos fechos (ordem cronológica).
+function rsi(closes: number[], period = 14): number | null {
+  if (closes.length < period + 1) return null;
+  let gain = 0, loss = 0;
+  for (let i = 1; i <= period; i++) {
+    const d = closes[i] - closes[i - 1];
+    if (d >= 0) gain += d; else loss -= d;
+  }
+  gain /= period; loss /= period;
+  for (let i = period + 1; i < closes.length; i++) {
+    const d = closes[i] - closes[i - 1];
+    gain = (gain * (period - 1) + Math.max(d, 0)) / period;
+    loss = (loss * (period - 1) + Math.max(-d, 0)) / period;
+  }
+  if (loss === 0) return 100;
+  return clamp(100 - 100 / (1 + gain / loss), 0, 100);
+}
+
+// GET /api/derivatives?symbol=BTC — OI, Long/Short, Funding, CVD, Taker, velas,
+// Put/Call (OKX) + um score de sentimento composto 0–100.
 export async function GET(req: NextRequest) {
   const base = (req.nextUrl.searchParams.get("symbol") ?? "BTC")
     .toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12) || "BTC";
   const inst = `${base}-USDT-SWAP`;
-  const RUBIK = "https://www.okx.com/api/v5/rubik/stat/contracts";
+  const RUBIK = "https://www.okx.com/api/v5/rubik/stat";
 
-  const [oiRaw, lsRaw, fundRaw, takerRaw, candlesRaw] = await Promise.all([
-    okx<string[]>(`${RUBIK}/open-interest-volume?ccy=${base}&period=1H`),
-    okx<string[]>(`${RUBIK}/long-short-account-ratio?ccy=${base}&period=1H`),
+  const [oiRaw, lsRaw, fundRaw, takerRaw, candlesRaw, pcRaw] = await Promise.all([
+    okx<string[]>(`${RUBIK}/contracts/open-interest-volume?ccy=${base}&period=1H`),
+    okx<string[]>(`${RUBIK}/contracts/long-short-account-ratio?ccy=${base}&period=1H`),
     okx<{ fundingRate: string; fundingTime: string }>(`https://www.okx.com/api/v5/public/funding-rate-history?instId=${inst}&limit=48`),
-    okx<string[]>(`https://www.okx.com/api/v5/rubik/stat/taker-volume?ccy=${base}&instType=SPOT&period=1H`),
+    okx<string[]>(`${RUBIK}/taker-volume?ccy=${base}&instType=SPOT&period=1H`),
     okx<string[]>(`https://www.okx.com/api/v5/market/candles?instId=${inst}&bar=1H&limit=48`),
+    okx<string[]>(`${RUBIK}/option/open-interest-volume-ratio?ccy=${base}&period=8H`),
   ]);
 
   // A OKX devolve do mais recente para o mais antigo → invertemos e ficamos com ~48h.
-  // OI: [ts, oiUsd, vol]
   const oi: Point[] = oiRaw.map((r) => ({ t: Number(r[0]), v: Number(r[1]) })).reverse().slice(-48);
 
-  // Long/Short: [ts, ratio] onde ratio = longs/shorts → convertemos em % buy/sell.
   const longShort = lsRaw
     .map((r) => {
       const ratio = Number(r[1]);
@@ -46,27 +66,46 @@ export async function GET(req: NextRequest) {
     .reverse()
     .slice(-48);
 
-  // Funding: {fundingRate, fundingTime} (decimal → %).
   const funding: Point[] = fundRaw
     .map((r) => ({ t: Number(r.fundingTime), v: Number(r.fundingRate) * 100 }))
     .reverse();
 
-  // Taker volume [ts, sellVol, buyVol] das últimas ~48h.
   const takerAsc = [...takerRaw].reverse().slice(-48);
   const taker = takerAsc.map((r) => ({ t: Number(r[0]), buy: Number(r[2]), sell: Number(r[1]) }));
 
-  // CVD: acumula (buy - sell) sobre a mesma janela.
   let cum = 0;
   const cvd: Point[] = taker.map((r) => {
     cum += r.buy - r.sell;
     return { t: r.t, v: cum };
   });
 
-  // Velas de preço [ts, o, h, l, c, vol].
   const candles = candlesRaw
     .map((r) => ({ t: Number(r[0]), o: Number(r[1]), h: Number(r[2]), l: Number(r[3]), c: Number(r[4]), vol: Number(r[5]) }))
     .reverse()
     .slice(-48);
 
-  return NextResponse.json({ symbol: base, oi, longShort, funding, cvd, taker, candles });
+  // Put/Call [ts, oiRatio, volRatio] — rácio puts/calls (>1 = mais puts = bearish).
+  const putCall = pcRaw
+    .map((r) => ({ t: Number(r[0]), oi: Number(r[1]), vol: Number(r[2]) }))
+    .reverse()
+    .slice(-48);
+
+  // ── Score de sentimento composto (0–100; 50 = neutro) ──────────────────────
+  const rsiVal = rsi(candles.map((c) => c.c));
+  const lastLs = longShort[longShort.length - 1];
+  const lastTaker = taker[taker.length - 1];
+  const lastFunding = funding[funding.length - 1]?.v ?? 0;
+  const lastPc = putCall[putCall.length - 1]?.oi ?? 1;
+
+  const cLs = lastLs ? lastLs.buy : 50;
+  const cTaker = lastTaker && lastTaker.buy + lastTaker.sell > 0 ? (lastTaker.buy / (lastTaker.buy + lastTaker.sell)) * 100 : 50;
+  const cRsi = rsiVal ?? 50;
+  const cCvd = cvd.length > 1 ? (cvd[cvd.length - 1].v >= cvd[0].v ? 65 : 35) : 50;
+  const cFunding = clamp(50 + lastFunding * 4000, 25, 75); // funding + = longs a pagar (levemente bullish)
+  const cPutCall = clamp(50 + (1 - lastPc) * 40, 0, 100);   // <1 = mais calls = bullish
+
+  const parts = [cLs, cTaker, cRsi, cCvd, cFunding, cPutCall];
+  const score = Math.round(parts.reduce((a, b) => a + b, 0) / parts.length);
+
+  return NextResponse.json({ symbol: base, oi, longShort, funding, cvd, taker, candles, putCall, score, rsi: rsiVal });
 }
