@@ -1744,32 +1744,32 @@ export default function MercadoPage() {
                 <p className="mt-6 text-sm text-rose-300">{error}</p>
               ) : (
                 <div className="mt-6">
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/40 p-3">
-                    <div className="flex flex-1 flex-wrap items-center gap-3">
-                      <input
-                        value={query}
-                        onChange={(e) => {
-                          setQuery(e.target.value);
-                          setPage(0);
-                        }}
-                        placeholder={t("mc_search_ph")}
-                        className="w-full max-w-xs rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:border-slate-600"
-                      />
-                      <button
-                        type="button"
-                        className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
-                          showFavorites
-                            ? "border-slate-600 bg-slate-800 text-white"
-                            : "border-slate-700 bg-slate-950/80 text-slate-200 hover:border-slate-500 hover:text-white"
-                        }`}
-                        onClick={() => {
-                          setShowFavorites((v) => !v);
-                          setPage(0);
-                        }}
-                      >
-                        {showFavorites ? t("mc_show_fav_on") : t("mc_show_fav")}
-                      </button>
-                      <div className="flex items-center gap-2">
+                  <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-3">
+                    <input
+                      value={query}
+                      onChange={(e) => {
+                        setQuery(e.target.value);
+                        setPage(0);
+                      }}
+                      placeholder={t("mc_search_ph")}
+                      className="w-full rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:border-slate-600"
+                    />
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                            showFavorites
+                              ? "border-slate-600 bg-slate-800 text-white"
+                              : "border-slate-700 bg-slate-950/80 text-slate-200 hover:border-slate-500 hover:text-white"
+                          }`}
+                          onClick={() => {
+                            setShowFavorites((v) => !v);
+                            setPage(0);
+                          }}
+                        >
+                          {showFavorites ? t("mc_show_fav_on") : t("mc_show_fav")}
+                        </button>
                         <select
                           value={sortKey}
                           onChange={(e) => setSortKey(e.target.value as SortKey)}
@@ -1789,14 +1789,14 @@ export default function MercadoPage() {
                           {sortDir === "asc" ? "Asc" : "Desc"}
                         </button>
                       </div>
+                      <p className="text-xs text-slate-400">
+                        Mostrando{" "}
+                        <span className="font-semibold text-slate-200">{pageRange.total ? pageRange.start + 1 : 0}</span>
+                        {"–"}
+                        <span className="font-semibold text-slate-200">{pageRange.end}</span> de{" "}
+                        <span className="font-semibold text-slate-200">{pageRange.total}</span>
+                      </p>
                     </div>
-                    <p className="text-xs text-slate-400">
-                      Mostrando{" "}
-                      <span className="font-semibold text-slate-200">{pageRange.total ? pageRange.start + 1 : 0}</span>
-                      {"–"}
-                      <span className="font-semibold text-slate-200">{pageRange.end}</span> de{" "}
-                      <span className="font-semibold text-slate-200">{pageRange.total}</span>
-                    </p>
                   </div>
 
                   <div className="flex flex-wrap items-center justify-between gap-3">
