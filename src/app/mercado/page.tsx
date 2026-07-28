@@ -39,6 +39,14 @@ type MarketRow = {
   sparkline?: number[];
 };
 
+type DerivData = {
+  symbol: string;
+  oi: { t: number; v: number }[];
+  longShort: { t: number; buy: number; sell: number }[];
+  funding: { t: number; v: number }[];
+  cvd: { t: number; v: number }[];
+};
+
 type TraditionalQuote = {
   symbol: string;
   price: number | null;
@@ -555,6 +563,129 @@ function TradingViewWidget({
   return <div id={containerId} className="h-full w-full" />;
 }
 
+function DerivMiniChart({ values, color, id }: { values: number[]; color: string; id: string }) {
+  if (!values || values.length < 2) return <div className="h-12 w-full rounded bg-slate-950/40" />;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const W = 120, H = 48;
+  const coords = values.map((v, i) => [(i / (values.length - 1)) * W, H - ((v - min) / range) * H] as const);
+  const line = coords.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+  const area = `0,${H} ${line} ${W},${H}`;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="h-12 w-full" preserveAspectRatio="none" aria-hidden>
+      <defs>
+        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.35" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={area} fill={`url(#${id})`} />
+      <polyline points={line} fill="none" stroke={color} strokeWidth="1.4" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function DerivativesPanel({ data, loading, symbol }: { data: DerivData | null; loading: boolean; symbol: string }) {
+  const { t } = useLanguage();
+  const oiVals = (data?.oi ?? []).map((p) => p.v);
+  const cvdVals = (data?.cvd ?? []).map((p) => p.v);
+  const fundingVals = (data?.funding ?? []).map((p) => p.v);
+  const latestLs = data?.longShort[data.longShort.length - 1];
+  const latestOi = oiVals[oiVals.length - 1];
+  const latestCvd = cvdVals[cvdVals.length - 1];
+  const latestFunding = fundingVals[fundingVals.length - 1];
+  const cvdUp = cvdVals.length > 1 ? cvdVals[cvdVals.length - 1] >= cvdVals[0] : true;
+  const compact = (n: number | undefined) =>
+    n == null || Number.isNaN(n) ? "—" : new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 2 }).format(n);
+
+  return (
+    <div className="flex h-full w-full flex-col gap-4 overflow-y-auto rounded-xl border border-slate-800 bg-slate-900/40 p-6">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-orange-400">{t("mc_deriv_data")}</p>
+          <h3 className="mt-0.5 text-base font-bold text-white">{symbol} · <span className="text-sm font-normal text-slate-400">Bybit + OKX</span></h3>
+        </div>
+        <a href="https://www.coinglass.com" target="_blank" rel="noopener noreferrer"
+          className="rounded-full border border-orange-500/40 bg-orange-500/10 px-4 py-1.5 text-xs font-semibold text-orange-300 transition hover:bg-orange-500/20">
+          Abrir Coinglass ↗
+        </a>
+      </div>
+
+      {loading && !data ? (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {[0, 1, 2, 3].map((i) => <div key={i} className="h-40 animate-pulse rounded-xl bg-slate-800/40" />)}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {/* Open Interest */}
+          <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-white">📊 {t("mc_oi")}</p>
+              <p className="text-sm font-bold text-blue-300">{compact(latestOi)}</p>
+            </div>
+            <div className="mt-3"><DerivMiniChart values={oiVals} color="#3b82f6" id="oi-real-grad" /></div>
+            <p className="mt-2 text-[11px] text-slate-500">{t("mc_oi_desc")}</p>
+          </div>
+
+          {/* Long/Short */}
+          <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-white">⚖️ {t("mc_longshort")}</p>
+              <p className="text-sm font-bold text-slate-200">{latestLs ? `${latestLs.buy.toFixed(0)}/${latestLs.sell.toFixed(0)}` : "—"}</p>
+            </div>
+            {latestLs ? (
+              <>
+                <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-slate-800">
+                  <div className="bg-emerald-500" style={{ width: `${latestLs.buy}%` }} />
+                  <div className="bg-rose-500" style={{ width: `${latestLs.sell}%` }} />
+                </div>
+                <div className="mt-1 flex justify-between text-[11px] font-semibold">
+                  <span className="text-emerald-400">{t("mc_long")} {latestLs.buy.toFixed(1)}%</span>
+                  <span className="text-rose-400">{latestLs.sell.toFixed(1)}% {t("mc_short")}</span>
+                </div>
+              </>
+            ) : <div className="mt-3 h-12" />}
+            <p className="mt-2 text-[11px] text-slate-500">{t("mc_longshort_desc")}</p>
+          </div>
+
+          {/* Funding */}
+          <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-white">💸 {t("mc_funding")}</p>
+              <p className={`text-sm font-bold ${latestFunding == null ? "text-slate-400" : latestFunding >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                {latestFunding == null ? "—" : `${latestFunding >= 0 ? "+" : ""}${latestFunding.toFixed(4)}%`}
+              </p>
+            </div>
+            <div className="mt-3"><DerivMiniChart values={fundingVals} color={latestFunding != null && latestFunding < 0 ? "#ef4444" : "#22c55e"} id="funding-real-grad" /></div>
+            <p className="mt-2 text-[11px] text-slate-500">{t("mc_funding_desc")}</p>
+          </div>
+
+          {/* CVD */}
+          <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-white">🌊 CVD</p>
+              <p className={`text-sm font-bold ${cvdUp ? "text-emerald-300" : "text-rose-300"}`}>{compact(latestCvd)}</p>
+            </div>
+            <div className="mt-3"><DerivMiniChart values={cvdVals} color={cvdUp ? "#22c55e" : "#ef4444"} id="cvd-real-grad" /></div>
+            <p className="mt-2 text-[11px] text-slate-500">{t("mc_cvd_desc")}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Liquidações — sem fonte gratuita, link para a Coinglass */}
+      <a href="https://www.coinglass.com/LiquidationData" target="_blank" rel="noopener noreferrer"
+        className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/50 px-4 py-3 transition hover:border-orange-500/40">
+        <div>
+          <p className="text-sm font-semibold text-slate-200">🔥 {t("mc_liquidations")}</p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-slate-500">{t("mc_liq_note")}</p>
+        </div>
+        <span className="whitespace-nowrap text-xs font-semibold text-orange-300">Coinglass ↗</span>
+      </a>
+    </div>
+  );
+}
+
 export default function MercadoPage() {
   useRequireAuth("/login");
   const { t, lang } = useLanguage();
@@ -593,6 +724,9 @@ export default function MercadoPage() {
   } | null>(null);
   const [communitySentiment, setCommunitySentiment] = useState<{ up: number | null; down: number | null } | null>(null);
   const sentimentCacheRef = useRef<Record<string, { up: number | null; down: number | null }>>({});
+  const [derivatives, setDerivatives] = useState<DerivData | null>(null);
+  const [derivativesLoading, setDerivativesLoading] = useState(false);
+  const derivativesCacheRef = useRef<Record<string, DerivData>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const chartRef = useRef<HTMLDivElement | null>(null);
@@ -698,6 +832,22 @@ export default function MercadoPage() {
       .catch(() => { if (!cancelled) setCommunitySentiment(null); });
     return () => { cancelled = true; };
   }, [selected?.id]);
+
+  // Derivados nativos (Bybit + OKX) do ativo selecionado, quando a aba Coinglass está ativa.
+  useEffect(() => {
+    if (chartSource !== "coinglass") return;
+    const base = selected?.symbol ?? "BTC";
+    const cached = derivativesCacheRef.current[base];
+    if (cached) { setDerivatives(cached); return; }
+    let cancelled = false;
+    setDerivativesLoading(true);
+    fetch(`/api/derivatives?symbol=${encodeURIComponent(base)}`)
+      .then((r) => r.json())
+      .then((d: DerivData) => { if (cancelled) return; derivativesCacheRef.current[base] = d; setDerivatives(d); })
+      .catch(() => { if (!cancelled) setDerivatives(null); })
+      .finally(() => { if (!cancelled) setDerivativesLoading(false); });
+    return () => { cancelled = true; };
+  }, [chartSource, selected?.symbol]);
 
   const refreshTraditionalQuote = async (symbol?: string) => {
     if (!symbol) return;
@@ -1159,129 +1309,11 @@ export default function MercadoPage() {
                 interval={tradingViewInterval}
               />
             ) : (
-              /* Coinglass doesn't allow iframe embedding — curated links */
-              <div className="flex h-full w-full flex-col gap-5 overflow-y-auto rounded-xl border border-slate-800 bg-slate-900/40 p-6">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-widest text-orange-400">Coinglass</p>
-                    <h3 className="mt-0.5 text-base font-bold text-white">{t("mc_deriv_data")}</h3>
-                  </div>
-                  <a
-                    href="https://www.coinglass.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded-full border border-orange-500/40 bg-orange-500/10 px-4 py-1.5 text-xs font-semibold text-orange-300 transition hover:bg-orange-500/20"
-                  >
-                    Abrir Coinglass ↗
-                  </a>
-                </div>
-
-                {/* 4 main cards */}
-                <div className="grid flex-1 grid-cols-2 gap-3 sm:grid-cols-4">
-                  {/* Liquidações */}
-                  <a href="https://www.coinglass.com/LiquidationData" target="_blank" rel="noopener noreferrer"
-                    className="group flex flex-col gap-3 rounded-xl border border-slate-700 bg-slate-800/50 p-4 transition hover:border-orange-500/40 hover:bg-slate-800">
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="text-2xl">🔥</span>
-                      <span className="rounded-full bg-slate-700/60 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-400">{t("mc_realtime")}</span>
-                    </div>
-                    {/* Bar chart: liquidation spikes */}
-                    <svg viewBox="0 0 120 60" className="w-full opacity-70">
-                      {[8,14,22,10,38,18,52,28,16,44,20,30].map((h, i) => (
-                        <rect key={i} x={i * 10 + 1} y={60 - h} width={8} height={h}
-                          fill={h > 35 ? "#ef4444" : "#f97316"} rx="2" opacity={0.7 + (i % 3) * 0.1} />
-                      ))}
-                    </svg>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-200 group-hover:text-orange-400">{t("mc_liquidations")}</p>
-                      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{t("mc_liquidations_desc")}</p>
-                    </div>
-                  </a>
-
-                  {/* Open Interest */}
-                  <a href={`https://www.coinglass.com/openInterest/${selected?.market?.replace("USDT","") ?? "BTC"}`} target="_blank" rel="noopener noreferrer"
-                    className="group flex flex-col gap-3 rounded-xl border border-slate-700 bg-slate-800/50 p-4 transition hover:border-orange-500/40 hover:bg-slate-800">
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="text-2xl">📊</span>
-                      <span className="rounded-full bg-slate-700/60 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-400">{selected?.market?.replace("USDT","") ?? "BTC"}</span>
-                    </div>
-                    {/* Area chart: open interest curve */}
-                    <svg viewBox="0 0 120 60" className="w-full opacity-70">
-                      <defs>
-                        <linearGradient id="oi-grad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.5" />
-                          <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
-                        </linearGradient>
-                      </defs>
-                      <path d="M0,55 L10,48 L20,42 L30,45 L40,36 L50,30 L60,34 L70,24 L80,20 L90,16 L100,12 L110,8 L120,5 L120,60 L0,60 Z" fill="url(#oi-grad)" />
-                      <path d="M0,55 L10,48 L20,42 L30,45 L40,36 L50,30 L60,34 L70,24 L80,20 L90,16 L100,12 L110,8 L120,5" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" />
-                    </svg>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-200 group-hover:text-orange-400">{t("mc_oi")}</p>
-                      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{t("mc_oi_desc")}</p>
-                    </div>
-                  </a>
-
-                  {/* Funding Rates */}
-                  <a href="https://www.coinglass.com/FundingRate" target="_blank" rel="noopener noreferrer"
-                    className="group flex flex-col gap-3 rounded-xl border border-slate-700 bg-slate-800/50 p-4 transition hover:border-orange-500/40 hover:bg-slate-800">
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="text-2xl">💸</span>
-                      <span className="rounded-full bg-slate-700/60 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-400">{t("mc_perpetual")}</span>
-                    </div>
-                    {/* +/- funding rate bars around zero line */}
-                    <svg viewBox="0 0 120 60" className="w-full opacity-70">
-                      <line x1="0" y1="30" x2="120" y2="30" stroke="#334155" strokeWidth="1" />
-                      {[6,-4,8,3,-6,10,5,-3,12,7,-5,9].map((v, i) => (
-                        <rect key={i} x={i * 10 + 1} y={v > 0 ? 30 - v * 1.8 : 30} width={8}
-                          height={Math.abs(v) * 1.8} fill={v > 0 ? "#22c55e" : "#ef4444"} rx="2" opacity="0.8" />
-                      ))}
-                    </svg>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-200 group-hover:text-orange-400">{t("mc_funding")}</p>
-                      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{t("mc_funding_desc")}</p>
-                    </div>
-                  </a>
-
-                  {/* Long/Short */}
-                  <a href="https://www.coinglass.com/LongShortRatio" target="_blank" rel="noopener noreferrer"
-                    className="group flex flex-col gap-3 rounded-xl border border-slate-700 bg-slate-800/50 p-4 transition hover:border-orange-500/40 hover:bg-slate-800">
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="text-2xl">⚖️</span>
-                      <span className="rounded-full bg-slate-700/60 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-400">{t("mc_sentiment")}</span>
-                    </div>
-                    {/* Stacked horizontal bars */}
-                    <svg viewBox="0 0 120 60" className="w-full opacity-70">
-                      {[
-                        { long: 62, y: 5 }, { long: 55, y: 17 }, { long: 48, y: 29 },
-                        { long: 58, y: 41 },
-                      ].map(({ long, y }, i) => (
-                        <g key={i}>
-                          <rect x={0} y={y} width={long * 1.2} height={9} fill="#22c55e" rx="2" opacity="0.75" />
-                          <rect x={long * 1.2} y={y} width={(100 - long) * 1.2} height={9} fill="#ef4444" rx="2" opacity="0.75" />
-                          <text x={long * 0.6} y={y + 7} textAnchor="middle" fontSize="6" fill="#fff" fontWeight="700">{long}%</text>
-                          <text x={long * 1.2 + (100 - long) * 0.6} y={y + 7} textAnchor="middle" fontSize="6" fill="#fff" fontWeight="700">{100 - long}%</text>
-                        </g>
-                      ))}
-                      <text x="0" y="59" fontSize="6" fill="#22c55e">{t("mc_long")}</text>
-                      <text x="100" y="59" fontSize="6" fill="#ef4444">{t("mc_short")}</text>
-                    </svg>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-200 group-hover:text-orange-400">{t("mc_longshort")}</p>
-                      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{t("mc_longshort_desc")}</p>
-                    </div>
-                  </a>
-                </div>
-
-                {/* Info strip */}
-                <div className="rounded-lg border border-slate-800 bg-slate-950/50 px-4 py-3">
-                  <p className="text-[11px] leading-relaxed text-slate-500">
-                    A Coinglass não permite incorporação externa. Clica em qualquer card para abrir directamente na plataforma.
-                    Os dados incluem todas as principais exchanges (Binance, Bybit, OKX, dYdX e outras).
-                  </p>
-                </div>
-              </div>
+              <DerivativesPanel
+                data={derivatives}
+                loading={derivativesLoading}
+                symbol={selected?.symbol ?? "BTC"}
+              />
             )}
           </div>
         </section>
