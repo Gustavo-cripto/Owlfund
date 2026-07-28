@@ -28,6 +28,7 @@ type MarketRow = {
   market: string;
   symbol: string;
   name: string;
+  id?: string | null;
   priceUsd: number;
   change1h: number | null;
   change24h: number;
@@ -216,12 +217,14 @@ function FearGreedWidget({
   top10,
   onSelectSymbol,
   selectedSymbol,
+  communitySentiment,
 }: {
   points: FearGreedPoint[];
   timeUntilUpdateSec: number | null;
   top10: SentimentRow[];
   onSelectSymbol: (symbol: string) => void;
   selectedSymbol: string | null;
+  communitySentiment?: { up: number | null; down: number | null } | null;
 }) {
   const { t, lang } = useLanguage();
   const mapClass = useClassification();
@@ -285,6 +288,34 @@ function FearGreedWidget({
 
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
         <h3 className="text-sm font-semibold text-white">{t("merc_historical")}</h3>
+
+        {points.length > 3 && (() => {
+          const series = [...points].reverse(); // mais antigo → mais recente
+          const W = 100, H = 34;
+          const coords = series.map((p, i) => [(i / (series.length - 1)) * W, H - (p.value / 100) * H] as const);
+          const line = coords.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+          const area = `0,${H} ${line} ${W},${H}`;
+          const gid = "fng-hist-grad";
+          return (
+            <div className="mt-4">
+              <svg viewBox={`0 0 ${W} ${H}`} className="h-16 w-full" preserveAspectRatio="none" aria-hidden>
+                <defs>
+                  <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.35" />
+                    <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                <polygon points={area} fill={`url(#${gid})`} />
+                <polyline points={line} fill="none" stroke="#f59e0b" strokeWidth="1.2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+              </svg>
+              <div className="mt-1 flex justify-between text-[10px] text-slate-500">
+                <span>{series.length}d</span>
+                <span>{t("merc_now")}</span>
+              </div>
+            </div>
+          );
+        })()}
+
         <div className="mt-4 flex flex-col gap-3">
           {rows.map((row) => (
             <div key={row.label} className="flex items-center justify-between gap-3">
@@ -342,6 +373,23 @@ function FearGreedWidget({
 
         {selected && (
           <p className="mt-2 text-sm font-semibold text-white">{selected.label}</p>
+        )}
+
+        {selectedSymbol && communitySentiment?.up != null && (
+          <div className="mt-4 border-t border-slate-800 pt-4">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-400">{t("mc_community_sentiment")}</span>
+              <span className="text-slate-500">CoinGecko</span>
+            </div>
+            <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-slate-800">
+              <div className="bg-emerald-500" style={{ width: `${communitySentiment.up}%` }} />
+              <div className="bg-rose-500" style={{ width: `${communitySentiment.down ?? 100 - communitySentiment.up}%` }} />
+            </div>
+            <div className="mt-1 flex justify-between text-xs font-semibold">
+              <span className="text-emerald-400">▲ {Math.round(communitySentiment.up)}%</span>
+              <span className="text-rose-400">{Math.round(communitySentiment.down ?? 100 - communitySentiment.up)}% ▼</span>
+            </div>
+          </div>
         )}
       </div>
 
@@ -543,6 +591,8 @@ export default function MercadoPage() {
     totalMarketCapUsd: number | null; marketCapChange24h: number | null;
     btcDominance: number | null; ethDominance: number | null;
   } | null>(null);
+  const [communitySentiment, setCommunitySentiment] = useState<{ up: number | null; down: number | null } | null>(null);
+  const sentimentCacheRef = useRef<Record<string, { up: number | null; down: number | null }>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const chartRef = useRef<HTMLDivElement | null>(null);
@@ -629,6 +679,25 @@ export default function MercadoPage() {
     };
     load();
   }, []);
+
+  // Sentimento da comunidade (CoinGecko) do ativo selecionado, com cache por id.
+  useEffect(() => {
+    const id = selected?.id;
+    if (!id) { setCommunitySentiment(null); return; }
+    const cached = sentimentCacheRef.current[id];
+    if (cached) { setCommunitySentiment(cached); return; }
+    let cancelled = false;
+    fetch(`/api/coin-sentiment?id=${encodeURIComponent(id)}`)
+      .then((r) => r.json())
+      .then((d: { up?: number | null; down?: number | null }) => {
+        if (cancelled) return;
+        const v = { up: d.up ?? null, down: d.down ?? null };
+        sentimentCacheRef.current[id] = v;
+        setCommunitySentiment(v);
+      })
+      .catch(() => { if (!cancelled) setCommunitySentiment(null); });
+    return () => { cancelled = true; };
+  }, [selected?.id]);
 
   const refreshTraditionalQuote = async (symbol?: string) => {
     if (!symbol) return;
@@ -772,7 +841,7 @@ export default function MercadoPage() {
   useEffect(() => {
     const loadFearGreed = async () => {
       try {
-        const response = await fetch("https://api.alternative.me/fng/?limit=32&format=json");
+        const response = await fetch("https://api.alternative.me/fng/?limit=90&format=json");
         const payload = (await response.json()) as { data?: FearGreedApiRow[] };
         const data = payload.data ?? [];
         const points = data
@@ -1535,6 +1604,7 @@ export default function MercadoPage() {
                 }
               }}
               selectedSymbol={selected?.symbol ?? null}
+              communitySentiment={communitySentiment}
             />
           </aside>
 

@@ -186,6 +186,7 @@ export async function GET() {
           market,
           symbol,
           name,
+          id: row.id ?? null,
           priceUsd: Number.isFinite(last) ? last : 0,
           change1h: row.price_change_percentage_1h_in_currency ?? null,
           change24h: Number.isFinite(change24h) ? change24h : 0,
