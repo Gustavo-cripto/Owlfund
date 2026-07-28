@@ -1337,22 +1337,24 @@ export default function MercadoPage() {
                   }`}
                   onClick={() => setChartSource("coinglass")}
                 >
-                  Coinglass
+                  {t("mc_tab_sentiment")}
                 </button>
               </div>
-              <button
-                type="button"
-                className="keep-dark rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                onClick={() => {
-                  if (document.fullscreenElement) {
-                    document.exitFullscreen();
-                    return;
-                  }
-                  chartRef.current?.requestFullscreen?.();
-                }}
-              >
-                {isFullscreen ? t("mc_exit_fs") : t("mc_fullscreen")}
-              </button>
+              {chartSource === "tradingview" && (
+                <button
+                  type="button"
+                  className="keep-dark rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                  onClick={() => {
+                    if (document.fullscreenElement) {
+                      document.exitFullscreen();
+                      return;
+                    }
+                    chartRef.current?.requestFullscreen?.();
+                  }}
+                >
+                  {isFullscreen ? t("mc_exit_fs") : t("mc_fullscreen")}
+                </button>
+              )}
             </div>
           </div>
           <div
