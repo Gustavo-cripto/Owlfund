@@ -1956,7 +1956,7 @@ export default function MercadoPage() {
                       if (m === "diarias" && newsItems.length === 0) {
                         setNewsItemsLoading(true);
                         try {
-                          const r = await fetch("/api/news");
+                          const r = await fetch(`/api/news?lang=${lang}`);
                           const d = await r.json() as { items?: NewsItem[] };
                           setNewsItems(d.items ?? []);
                         } catch { /* ignore */ } finally {
@@ -2024,7 +2024,7 @@ export default function MercadoPage() {
                         onClick={async () => {
                           setNewsItemsLoading(true);
                           try {
-                            const r = await fetch("/api/news");
+                            const r = await fetch(`/api/news?lang=${lang}`);
                             const d = await r.json() as { items?: NewsItem[] };
                             setNewsItems(d.items ?? []);
                             setNewsBriefing(null);
