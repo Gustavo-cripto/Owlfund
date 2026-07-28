@@ -303,21 +303,20 @@ function FearGreedWidget({
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
         <h3 className="text-sm font-semibold text-white">{t("merc_historical")}</h3>
 
-        {points.length > 7 && (() => {
-          // Velas semanais do Fear & Greed: OHLC a partir dos valores diários
-          // (abertura = 1º dia da semana, máx/mín = extremos, fecho = último).
+        {points.length > 2 && (() => {
+          // Velas diárias do Fear & Greed: como só há 1 valor por dia, usa-se a
+          // técnica padrão — abertura = valor de ontem, fecho = valor de hoje.
+          // O corpo = variação do dia (verde sobe / vermelho desce); sem pavios.
           const series = [...points].reverse(); // mais antigo → mais recente
           const fgCandles: Candle[] = [];
-          for (let i = 0; i < series.length; i += 7) {
-            const chunk = series.slice(i, i + 7);
-            if (chunk.length < 2) continue;
-            const vals = chunk.map((p) => p.value);
+          for (let i = 1; i < series.length; i++) {
+            const o = series[i - 1].value;
+            const c = series[i].value;
             fgCandles.push({
-              t: chunk[chunk.length - 1].timestampSec,
-              o: chunk[0].value,
-              c: chunk[chunk.length - 1].value,
-              h: Math.max(...vals),
-              l: Math.min(...vals),
+              t: series[i].timestampSec,
+              o, c,
+              h: Math.max(o, c),
+              l: Math.min(o, c),
               vol: 0,
             });
           }
@@ -325,7 +324,7 @@ function FearGreedWidget({
             <div className="mt-4">
               <CandleChart candles={fgCandles} showVolume={false} heightClass="h-24" />
               <div className="mt-1 flex justify-between text-[10px] text-slate-500">
-                <span>{fgCandles.length} sem</span>
+                <span>{fgCandles.length}d</span>
                 <span>{t("merc_now")}</span>
               </div>
             </div>
