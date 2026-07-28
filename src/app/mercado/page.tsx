@@ -39,12 +39,15 @@ type MarketRow = {
   sparkline?: number[];
 };
 
+type Candle = { t: number; o: number; h: number; l: number; c: number; vol: number };
 type DerivData = {
   symbol: string;
   oi: { t: number; v: number }[];
   longShort: { t: number; buy: number; sell: number }[];
   funding: { t: number; v: number }[];
   cvd: { t: number; v: number }[];
+  taker: { t: number; buy: number; sell: number }[];
+  candles: Candle[];
 };
 
 type TraditionalQuote = {
@@ -563,6 +566,37 @@ function TradingViewWidget({
   return <div id={containerId} className="h-full w-full" />;
 }
 
+function CandleChart({ candles }: { candles: Candle[] }) {
+  if (!candles || candles.length < 2) return <div className="h-48 w-full rounded bg-slate-950/40" />;
+  const max = Math.max(...candles.map((c) => c.h));
+  const min = Math.min(...candles.map((c) => c.l));
+  const range = max - min || 1;
+  const maxVol = Math.max(...candles.map((c) => c.vol)) || 1;
+  const W = 300, H = 150, volH = 34, priceH = H - volH - 6;
+  const n = candles.length;
+  const cw = W / n;
+  const y = (p: number) => priceH - ((p - min) / range) * priceH;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="h-48 w-full" preserveAspectRatio="none" aria-hidden>
+      {candles.map((c, i) => {
+        const x = i * cw + cw / 2;
+        const up = c.c >= c.o;
+        const color = up ? "#22c55e" : "#ef4444";
+        const bodyTop = y(Math.max(c.o, c.c));
+        const bodyH = Math.max(0.6, y(Math.min(c.o, c.c)) - bodyTop);
+        const vh = (c.vol / maxVol) * volH;
+        return (
+          <g key={c.t}>
+            <line x1={x} y1={y(c.h)} x2={x} y2={y(c.l)} stroke={color} strokeWidth="0.7" vectorEffect="non-scaling-stroke" />
+            <rect x={i * cw + cw * 0.18} y={bodyTop} width={cw * 0.64} height={bodyH} fill={color} />
+            <rect x={i * cw + cw * 0.18} y={priceH + 6 + (volH - vh)} width={cw * 0.64} height={vh} fill={color} opacity="0.4" />
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 function DerivMiniChart({ values, color, id }: { values: number[]; color: string; id: string }) {
   if (!values || values.length < 2) return <div className="h-12 w-full rounded bg-slate-950/40" />;
   const min = Math.min(...values);
@@ -596,6 +630,9 @@ function DerivativesPanel({ data, loading, symbol }: { data: DerivData | null; l
   const latestCvd = cvdVals[cvdVals.length - 1];
   const latestFunding = fundingVals[fundingVals.length - 1];
   const cvdUp = cvdVals.length > 1 ? cvdVals[cvdVals.length - 1] >= cvdVals[0] : true;
+  const latestTaker = data?.taker[data.taker.length - 1];
+  const takerBuyPct = latestTaker && latestTaker.buy + latestTaker.sell > 0
+    ? (latestTaker.buy / (latestTaker.buy + latestTaker.sell)) * 100 : null;
   const compact = (n: number | undefined) =>
     n == null || Number.isNaN(n) ? "—" : new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 2 }).format(n);
 
@@ -612,6 +649,16 @@ function DerivativesPanel({ data, loading, symbol }: { data: DerivData | null; l
         </a>
       </div>
 
+      {data && data.candles.length > 1 && (
+        <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-3">
+          <div className="mb-1 flex items-center justify-between px-1">
+            <p className="text-xs font-semibold text-slate-300">{symbol}/USDT · 1H</p>
+            <p className="text-[10px] text-slate-500">OKX</p>
+          </div>
+          <CandleChart candles={data.candles} />
+        </div>
+      )}
+
       {loading && !data ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {[0, 1, 2, 3].map((i) => <div key={i} className="h-40 animate-pulse rounded-xl bg-slate-800/40" />)}
@@ -621,7 +668,7 @@ function DerivativesPanel({ data, loading, symbol }: { data: DerivData | null; l
           {/* Open Interest */}
           <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-white">📊 {t("mc_oi")}</p>
+              <a href={`https://www.coinglass.com/openInterest/${symbol}`} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-white transition hover:text-orange-300">📊 {t("mc_oi")} ↗</a>
               <p className="text-sm font-bold text-blue-300">{compact(latestOi)}</p>
             </div>
             <div className="mt-3"><DerivMiniChart values={oiVals} color="#3b82f6" id="oi-real-grad" /></div>
@@ -631,7 +678,7 @@ function DerivativesPanel({ data, loading, symbol }: { data: DerivData | null; l
           {/* Long/Short */}
           <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-white">⚖️ {t("mc_longshort")}</p>
+              <a href="https://www.coinglass.com/LongShortRatio" target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-white transition hover:text-orange-300">⚖️ {t("mc_longshort")} ↗</a>
               <p className="text-sm font-bold text-slate-200">{latestLs ? `${latestLs.buy.toFixed(0)}/${latestLs.sell.toFixed(0)}` : "—"}</p>
             </div>
             {latestLs ? (
@@ -652,7 +699,7 @@ function DerivativesPanel({ data, loading, symbol }: { data: DerivData | null; l
           {/* Funding */}
           <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-white">💸 {t("mc_funding")}</p>
+              <a href="https://www.coinglass.com/FundingRate" target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-white transition hover:text-orange-300">💸 {t("mc_funding")} ↗</a>
               <p className={`text-sm font-bold ${latestFunding == null ? "text-slate-400" : latestFunding >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
                 {latestFunding == null ? "—" : `${latestFunding >= 0 ? "+" : ""}${latestFunding.toFixed(4)}%`}
               </p>
@@ -669,6 +716,27 @@ function DerivativesPanel({ data, loading, symbol }: { data: DerivData | null; l
             </div>
             <div className="mt-3"><DerivMiniChart values={cvdVals} color={cvdUp ? "#22c55e" : "#ef4444"} id="cvd-real-grad" /></div>
             <p className="mt-2 text-[11px] text-slate-500">{t("mc_cvd_desc")}</p>
+          </div>
+
+          {/* Taker buy/sell */}
+          <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-white">🅣 {t("mc_taker")}</p>
+              <p className="text-sm font-bold text-slate-200">{takerBuyPct == null ? "—" : `${takerBuyPct.toFixed(0)}/${(100 - takerBuyPct).toFixed(0)}`}</p>
+            </div>
+            {takerBuyPct != null ? (
+              <>
+                <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-slate-800">
+                  <div className="bg-emerald-500" style={{ width: `${takerBuyPct}%` }} />
+                  <div className="bg-rose-500" style={{ width: `${100 - takerBuyPct}%` }} />
+                </div>
+                <div className="mt-1 flex justify-between text-[11px] font-semibold">
+                  <span className="text-emerald-400">Buy {takerBuyPct.toFixed(1)}%</span>
+                  <span className="text-rose-400">{(100 - takerBuyPct).toFixed(1)}% Sell</span>
+                </div>
+              </>
+            ) : <div className="mt-3 h-12" />}
+            <p className="mt-2 text-[11px] text-slate-500">{t("mc_taker_desc")}</p>
           </div>
         </div>
       )}

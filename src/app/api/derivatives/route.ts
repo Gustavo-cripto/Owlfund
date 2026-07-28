@@ -24,11 +24,12 @@ export async function GET(req: NextRequest) {
   const inst = `${base}-USDT-SWAP`;
   const RUBIK = "https://www.okx.com/api/v5/rubik/stat/contracts";
 
-  const [oiRaw, lsRaw, fundRaw, takerRaw] = await Promise.all([
+  const [oiRaw, lsRaw, fundRaw, takerRaw, candlesRaw] = await Promise.all([
     okx<string[]>(`${RUBIK}/open-interest-volume?ccy=${base}&period=1H`),
     okx<string[]>(`${RUBIK}/long-short-account-ratio?ccy=${base}&period=1H`),
     okx<{ fundingRate: string; fundingTime: string }>(`https://www.okx.com/api/v5/public/funding-rate-history?instId=${inst}&limit=48`),
     okx<string[]>(`https://www.okx.com/api/v5/rubik/stat/taker-volume?ccy=${base}&instType=SPOT&period=1H`),
+    okx<string[]>(`https://www.okx.com/api/v5/market/candles?instId=${inst}&bar=1H&limit=48`),
   ]);
 
   // A OKX devolve do mais recente para o mais antigo → invertemos e ficamos com ~48h.
@@ -50,13 +51,22 @@ export async function GET(req: NextRequest) {
     .map((r) => ({ t: Number(r.fundingTime), v: Number(r.fundingRate) * 100 }))
     .reverse();
 
-  // CVD: taker-volume [ts, sellVol, buyVol] das últimas ~48h, acumulando (buy - sell).
+  // Taker volume [ts, sellVol, buyVol] das últimas ~48h.
   const takerAsc = [...takerRaw].reverse().slice(-48);
+  const taker = takerAsc.map((r) => ({ t: Number(r[0]), buy: Number(r[2]), sell: Number(r[1]) }));
+
+  // CVD: acumula (buy - sell) sobre a mesma janela.
   let cum = 0;
-  const cvd: Point[] = takerAsc.map((r) => {
-    cum += Number(r[2]) - Number(r[1]);
-    return { t: Number(r[0]), v: cum };
+  const cvd: Point[] = taker.map((r) => {
+    cum += r.buy - r.sell;
+    return { t: r.t, v: cum };
   });
 
-  return NextResponse.json({ symbol: base, oi, longShort, funding, cvd });
+  // Velas de preço [ts, o, h, l, c, vol].
+  const candles = candlesRaw
+    .map((r) => ({ t: Number(r[0]), o: Number(r[1]), h: Number(r[2]), l: Number(r[3]), c: Number(r[4]), vol: Number(r[5]) }))
+    .reverse()
+    .slice(-48);
+
+  return NextResponse.json({ symbol: base, oi, longShort, funding, cvd, taker, candles });
 }
