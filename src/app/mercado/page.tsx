@@ -1787,7 +1787,7 @@ export default function MercadoPage() {
           </div>
         )}
 
-        {marketMode === "crypto" && chartSource !== "coinglass" ? (
+        {marketMode === "crypto" ? (
         <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[420px_1fr]">
           <aside className="order-2 lg:order-1">
             <FearGreedWidget
