@@ -30,7 +30,7 @@ type EtherscanTx = {
 async function getEthTxs(address: string): Promise<EtherscanTx[]> {
   const params = new URLSearchParams({
     module: "account", action: "tokentx", address,
-    startblock: "0", endblock: "99999999", page: "1", offset: "20", sort: "desc",
+    startblock: "0", endblock: "99999999", page: "1", offset: "100", sort: "desc",
     ...(API_KEY ? { apikey: API_KEY } : {}),
   });
   const res = await fetch(`${ETHERSCAN_API}?${params}`, {
@@ -45,7 +45,7 @@ async function getEthTxs(address: string): Promise<EtherscanTx[]> {
 async function getEthNativeTxs(address: string): Promise<EtherscanTx[]> {
   const params = new URLSearchParams({
     module: "account", action: "txlist", address,
-    startblock: "0", endblock: "99999999", page: "1", offset: "10", sort: "desc",
+    startblock: "0", endblock: "99999999", page: "1", offset: "30", sort: "desc",
     ...(API_KEY ? { apikey: API_KEY } : {}),
   });
   const res = await fetch(`${ETHERSCAN_API}?${params}`, {
@@ -74,7 +74,7 @@ async function getEthWhaleTxs(address: string): Promise<WhaleTx[]> {
   ]);
   const tokens = tokenTxs.status === "fulfilled" ? tokenTxs.value : [];
   const native = nativeTxs.status === "fulfilled" ? nativeTxs.value : [];
-  const all = [...tokens.slice(0, 15), ...native.slice(0, 5)];
+  const all = [...tokens.slice(0, 80), ...native.slice(0, 20)];
   return all
     .map((tx) => {
       const symbol = tx.tokenSymbol ?? "ETH";
@@ -92,7 +92,7 @@ async function getEthWhaleTxs(address: string): Promise<WhaleTx[]> {
     })
     .filter((tx) => tx.usdValue > 0)
     .sort((a, b) => b.timestamp - a.timestamp)
-    .slice(0, 20);
+    .slice(0, 100);
 }
 
 // ── BTC (Mempool.space) ───────────────────────────────────────────────────────
@@ -126,7 +126,7 @@ async function getBtcWhaleTxs(address: string): Promise<WhaleTx[]> {
 
 function parseBtcTxs(txs: MempoolTx[], address: string, btcPriceUsd: number): WhaleTx[] {
   return txs
-    .slice(0, 20)
+    .slice(0, 100)
     .map((tx) => {
       // Sum inputs from this address (sent)
       const sentSats = tx.vin
