@@ -228,15 +228,11 @@ function FearGreedGauge({ value }: { value: number }) {
 function FearGreedWidget({
   points,
   timeUntilUpdateSec,
-  top10,
-  onSelectSymbol,
   selectedSymbol,
   communitySentiment,
 }: {
   points: FearGreedPoint[];
   timeUntilUpdateSec: number | null;
-  top10: SentimentRow[];
-  onSelectSymbol: (symbol: string) => void;
   selectedSymbol: string | null;
   communitySentiment?: { up: number | null; down: number | null } | null;
 }) {
@@ -246,9 +242,6 @@ function FearGreedWidget({
   const yesterday = points[1];
   const lastWeek = points[7];
   const lastMonth = points[30];
-  const selected = selectedSymbol
-    ? top10.find((row) => row.symbol === selectedSymbol) ?? null
-    : null;
   const [remainingSec, setRemainingSec] = useState<number | null>(timeUntilUpdateSec);
 
   useEffect(() => {
@@ -372,70 +365,6 @@ function FearGreedWidget({
           {remainingSec == null ? "—" : formatCountdown(remainingSec)}
         </p>
         <p className="mt-4 text-xs text-slate-500">{t("merc_source")}</p>
-      </div>
-
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h3 className="text-sm font-semibold text-white">{t("merc_asset_fg")}</h3>
-            <p className="text-xs text-slate-500">
-              {selectedSymbol ? `${selectedSymbol} · ${t("merc_estimated_rsi")}` : t("merc_select_asset")}
-            </p>
-          </div>
-          {selected && (
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-600/90 text-sm font-semibold text-white">
-              {selected.score == null ? "—" : Math.round(selected.score)}
-            </div>
-          )}
-        </div>
-
-        <div className="mt-4">
-          {selected?.score != null ? (
-            <FearGreedGauge value={selected.score} />
-          ) : (
-            <div className="h-[140px] w-full rounded-xl border border-slate-800 bg-slate-950/50 p-4">
-              <p className="text-sm text-slate-300">
-                {selectedSymbol
-                  ? t("merc_no_data")
-                  : t("merc_select_to_view")}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {selected && (
-          <p className="mt-2 text-sm font-semibold text-white">{selected.label}</p>
-        )}
-      </div>
-
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-        <h3 className="text-sm font-semibold text-white">{t("mc_fg_title")}</h3>
-        <p className="mt-1 text-xs text-slate-500">{t("merc_top10")}</p>
-        <div className="mt-4 flex flex-col gap-3">
-          {top10.length ? (
-            top10.map((row) => (
-              <button
-                key={row.symbol}
-                type="button"
-                className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-950/50 px-3 py-2 text-left transition hover:border-slate-600"
-                onClick={() => onSelectSymbol(row.symbol)}
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-white">{row.symbol}</p>
-                  <p className="truncate text-xs text-slate-500">{row.label}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="text-xs text-slate-400">RSI</div>
-                  <div className="flex h-8 w-10 items-center justify-center rounded-full bg-slate-800 text-xs font-semibold text-white">
-                    {row.rsi7d == null ? "—" : Math.round(row.rsi7d)}
-                  </div>
-                </div>
-              </button>
-            ))
-          ) : (
-            <p className="text-sm text-slate-400">{t("loading")}</p>
-          )}
-        </div>
       </div>
     </div>
   );
@@ -695,9 +624,8 @@ function LiquidationsFeed({ symbol }: { symbol: string }) {
   );
 }
 
-function DerivativesPanel({ data, loading, symbol, marketFg }: { data: DerivData | null; loading: boolean; symbol: string; marketFg?: { value: number; classification: string } | null }) {
+function DerivativesPanel({ data, loading, symbol }: { data: DerivData | null; loading: boolean; symbol: string }) {
   const { t } = useLanguage();
-  const mapClass = useClassification();
   const oiVals = (data?.oi ?? []).map((p) => p.v);
   const cvdVals = (data?.cvd ?? []).map((p) => p.v);
   const fundingVals = (data?.funding ?? []).map((p) => p.v);
@@ -726,18 +654,6 @@ function DerivativesPanel({ data, loading, symbol, marketFg }: { data: DerivData
           Abrir Coinglass ↗
         </a>
       </div>
-
-      {marketFg && (
-        <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-white">🌍 {t("merc_fear_greed")}</p>
-            <p className="text-lg font-bold text-orange-300">{marketFg.value}</p>
-          </div>
-          <div className="mt-2"><FearGreedGauge value={marketFg.value} /></div>
-          <p className="mt-1 text-center text-xs font-semibold text-slate-300">{mapClass(marketFg.classification)}</p>
-          <p className="mt-1 text-center text-[10px] text-slate-500">{t("mc_fg_market")}</p>
-        </div>
-      )}
 
       {data && (
         <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4">
@@ -1414,6 +1330,17 @@ export default function MercadoPage() {
           </div>
         </div>
 
+        {marketMode === "crypto" && chartSource === "coinglass" && (
+          <div className="mx-auto w-full max-w-6xl">
+            <FearGreedWidget
+              points={fearGreedPoints}
+              timeUntilUpdateSec={fearGreedCountdown}
+              selectedSymbol={selected?.symbol ?? null}
+              communitySentiment={communitySentiment}
+            />
+          </div>
+        )}
+
         {marketMode === "crypto" ? (
           <section className="mx-auto w-full max-w-6xl rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -1492,7 +1419,6 @@ export default function MercadoPage() {
                 data={derivatives}
                 loading={derivativesLoading}
                 symbol={selected?.symbol ?? "BTC"}
-                marketFg={fearGreedPoints[0] ? { value: fearGreedPoints[0].value, classification: fearGreedPoints[0].classification } : null}
               />
             )}
           </div>
@@ -1802,27 +1728,8 @@ export default function MercadoPage() {
         )}
 
         {marketMode === "crypto" ? (
-        <div className={`mx-auto grid w-full max-w-6xl gap-6 ${chartSource === "coinglass" ? "lg:grid-cols-[420px_1fr]" : ""}`}>
-          {chartSource === "coinglass" && (
-          <aside className="order-2 lg:order-1">
-            <FearGreedWidget
-              points={fearGreedPoints}
-              timeUntilUpdateSec={fearGreedCountdown}
-              top10={sentimentTop10}
-              onSelectSymbol={(symbol) => {
-                const match = rows.find((row) => row.symbol === symbol);
-                if (match) {
-                  setSelected(match);
-                  chartRef.current?.scrollIntoView({ behavior: "smooth" });
-                }
-              }}
-              selectedSymbol={selected?.symbol ?? null}
-              communitySentiment={communitySentiment}
-            />
-          </aside>
-          )}
-
-          <div className="order-1 lg:order-2">
+        <div className="mx-auto w-full max-w-6xl">
+          <div>
             <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-lg font-semibold text-white">{t("mc_top200")}</h2>
