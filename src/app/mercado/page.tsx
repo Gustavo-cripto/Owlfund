@@ -312,7 +312,7 @@ function FearGreedWidget({
           const gid = "fng-hist-grad";
           return (
             <div className="mt-4">
-              <svg viewBox={`0 0 ${W} ${H}`} className="h-16 w-full" preserveAspectRatio="none" aria-hidden>
+              <svg viewBox={`0 0 ${W} ${H}`} className="h-24 w-full" preserveAspectRatio="none" aria-hidden>
                 <defs>
                   <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.35" />
@@ -346,6 +346,23 @@ function FearGreedWidget({
           ))}
         </div>
       </div>
+
+      {selectedSymbol && communitySentiment?.up != null && (
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-semibold text-white">{t("mc_community_sentiment")}</span>
+            <span className="text-xs text-slate-500">{selectedSymbol} · CoinGecko</span>
+          </div>
+          <div className="mt-3 flex h-2.5 overflow-hidden rounded-full bg-slate-800">
+            <div className="bg-emerald-500" style={{ width: `${communitySentiment.up}%` }} />
+            <div className="bg-rose-500" style={{ width: `${communitySentiment.down ?? 100 - communitySentiment.up}%` }} />
+          </div>
+          <div className="mt-1.5 flex justify-between text-xs font-semibold">
+            <span className="text-emerald-400">▲ {Math.round(communitySentiment.up)}%</span>
+            <span className="text-rose-400">{Math.round(communitySentiment.down ?? 100 - communitySentiment.up)}% ▼</span>
+          </div>
+        </div>
+      )}
 
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
         <h3 className="text-sm font-semibold text-white">{t("merc_next_update")}</h3>
@@ -387,23 +404,6 @@ function FearGreedWidget({
 
         {selected && (
           <p className="mt-2 text-sm font-semibold text-white">{selected.label}</p>
-        )}
-
-        {selectedSymbol && communitySentiment?.up != null && (
-          <div className="mt-4 border-t border-slate-800 pt-4">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400">{t("mc_community_sentiment")}</span>
-              <span className="text-slate-500">CoinGecko</span>
-            </div>
-            <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-slate-800">
-              <div className="bg-emerald-500" style={{ width: `${communitySentiment.up}%` }} />
-              <div className="bg-rose-500" style={{ width: `${communitySentiment.down ?? 100 - communitySentiment.up}%` }} />
-            </div>
-            <div className="mt-1 flex justify-between text-xs font-semibold">
-              <span className="text-emerald-400">▲ {Math.round(communitySentiment.up)}%</span>
-              <span className="text-rose-400">{Math.round(communitySentiment.down ?? 100 - communitySentiment.up)}% ▼</span>
-            </div>
-          </div>
         )}
       </div>
 
