@@ -303,27 +303,29 @@ function FearGreedWidget({
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
         <h3 className="text-sm font-semibold text-white">{t("merc_historical")}</h3>
 
-        {points.length > 3 && (() => {
+        {points.length > 7 && (() => {
+          // Velas semanais do Fear & Greed: OHLC a partir dos valores diários
+          // (abertura = 1º dia da semana, máx/mín = extremos, fecho = último).
           const series = [...points].reverse(); // mais antigo → mais recente
-          const W = 100, H = 34;
-          const coords = series.map((p, i) => [(i / (series.length - 1)) * W, H - (p.value / 100) * H] as const);
-          const line = coords.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
-          const area = `0,${H} ${line} ${W},${H}`;
-          const gid = "fng-hist-grad";
+          const fgCandles: Candle[] = [];
+          for (let i = 0; i < series.length; i += 7) {
+            const chunk = series.slice(i, i + 7);
+            if (chunk.length < 2) continue;
+            const vals = chunk.map((p) => p.value);
+            fgCandles.push({
+              t: chunk[chunk.length - 1].timestampSec,
+              o: chunk[0].value,
+              c: chunk[chunk.length - 1].value,
+              h: Math.max(...vals),
+              l: Math.min(...vals),
+              vol: 0,
+            });
+          }
           return (
             <div className="mt-4">
-              <svg viewBox={`0 0 ${W} ${H}`} className="h-24 w-full" preserveAspectRatio="none" aria-hidden>
-                <defs>
-                  <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.35" />
-                    <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                <polygon points={area} fill={`url(#${gid})`} />
-                <polyline points={line} fill="none" stroke="#f59e0b" strokeWidth="1.2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-              </svg>
+              <CandleChart candles={fgCandles} showVolume={false} heightClass="h-24" />
               <div className="mt-1 flex justify-between text-[10px] text-slate-500">
-                <span>{series.length}d</span>
+                <span>{fgCandles.length} sem</span>
                 <span>{t("merc_now")}</span>
               </div>
             </div>
@@ -569,18 +571,21 @@ function TradingViewWidget({
   return <div id={containerId} className="h-full w-full" />;
 }
 
-function CandleChart({ candles }: { candles: Candle[] }) {
-  if (!candles || candles.length < 2) return <div className="h-48 w-full rounded bg-slate-950/40" />;
+function CandleChart({ candles, showVolume = true, heightClass = "h-48" }: { candles: Candle[]; showVolume?: boolean; heightClass?: string }) {
+  if (!candles || candles.length < 2) return <div className={`${heightClass} w-full rounded bg-slate-950/40`} />;
   const max = Math.max(...candles.map((c) => c.h));
   const min = Math.min(...candles.map((c) => c.l));
   const range = max - min || 1;
   const maxVol = Math.max(...candles.map((c) => c.vol)) || 1;
-  const W = 300, H = 150, volH = 34, priceH = H - volH - 6;
+  const W = 300, H = 150;
+  const volH = showVolume ? 34 : 0;
+  const gap = showVolume ? 6 : 0;
+  const priceH = H - volH - gap;
   const n = candles.length;
   const cw = W / n;
   const y = (p: number) => priceH - ((p - min) / range) * priceH;
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="h-48 w-full" preserveAspectRatio="none" aria-hidden>
+    <svg viewBox={`0 0 ${W} ${H}`} className={`${heightClass} w-full`} preserveAspectRatio="none" aria-hidden>
       {candles.map((c, i) => {
         const x = i * cw + cw / 2;
         const up = c.c >= c.o;
@@ -592,7 +597,7 @@ function CandleChart({ candles }: { candles: Candle[] }) {
           <g key={c.t}>
             <line x1={x} y1={y(c.h)} x2={x} y2={y(c.l)} stroke={color} strokeWidth="0.7" vectorEffect="non-scaling-stroke" />
             <rect x={i * cw + cw * 0.18} y={bodyTop} width={cw * 0.64} height={bodyH} fill={color} />
-            <rect x={i * cw + cw * 0.18} y={priceH + 6 + (volH - vh)} width={cw * 0.64} height={vh} fill={color} opacity="0.4" />
+            {showVolume && <rect x={i * cw + cw * 0.18} y={priceH + gap + (volH - vh)} width={cw * 0.64} height={vh} fill={color} opacity="0.4" />}
           </g>
         );
       })}
@@ -601,7 +606,7 @@ function CandleChart({ candles }: { candles: Candle[] }) {
 }
 
 function DerivMiniChart({ values, color, id }: { values: number[]; color: string; id: string }) {
-  if (!values || values.length < 2) return <div className="h-12 w-full rounded bg-slate-950/40" />;
+  if (!values || values.length < 2) return <div className="h-16 w-full rounded bg-slate-950/40" />;
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = max - min || 1;
@@ -609,16 +614,20 @@ function DerivMiniChart({ values, color, id }: { values: number[]; color: string
   const coords = values.map((v, i) => [(i / (values.length - 1)) * W, H - ((v - min) / range) * H] as const);
   const line = coords.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
   const area = `0,${H} ${line} ${W},${H}`;
+  const baseY = H - ((values[0] - min) / range) * H; // referência = primeiro valor
+  const last = coords[coords.length - 1];
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="h-12 w-full" preserveAspectRatio="none" aria-hidden>
+    <svg viewBox={`0 0 ${W} ${H}`} className="h-16 w-full" preserveAspectRatio="none" aria-hidden>
       <defs>
         <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.35" />
           <stop offset="100%" stopColor={color} stopOpacity="0" />
         </linearGradient>
       </defs>
+      <line x1="0" y1={baseY} x2={W} y2={baseY} stroke="#475569" strokeWidth="0.5" strokeDasharray="2 2" vectorEffect="non-scaling-stroke" />
       <polygon points={area} fill={`url(#${id})`} />
       <polyline points={line} fill="none" stroke={color} strokeWidth="1.4" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={last[0]} cy={last[1]} r="2.2" fill={color} />
     </svg>
   );
 }
