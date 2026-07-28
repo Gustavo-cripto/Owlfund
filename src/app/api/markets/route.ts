@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 
+// "Mercado em tempo real": revalida a cada 60s em vez de ficar em cache estática.
+// Sem isto, o Next torna a rota estática e os preços/colunas ficam congelados.
+export const revalidate = 60;
+
 type CoinExTicker = {
   last: string;
   open: string;
