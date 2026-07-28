@@ -14,6 +14,9 @@ type CoinGeckoRow = {
   current_price?: number | null;
   market_cap: number | null;
   sparkline_in_7d?: { price?: number[] };
+  price_change_percentage_1h_in_currency?: number | null;
+  price_change_percentage_7d_in_currency?: number | null;
+  price_change_percentage_30d_in_currency?: number | null;
 };
 
 type SentimentRow = {
@@ -121,7 +124,7 @@ export async function GET() {
     const [coinexResponse, coingeckoResponse, coingeckoTopResponse, coingeckoExtraResponse, coingeckoGlobalResponse] = await Promise.all([
       fetch("https://api.coinex.com/v2/spot/ticker"),
       fetch(
-        "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1"
+        "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&sparkline=true&price_change_percentage=1h,24h,7d,30d"
       ),
       fetch(
         // fetch more and then filter (avoid stablecoins / missing markets)
@@ -180,9 +183,13 @@ export async function GET() {
           symbol,
           name,
           priceUsd: Number.isFinite(last) ? last : 0,
+          change1h: row.price_change_percentage_1h_in_currency ?? null,
           change24h: Number.isFinite(change24h) ? change24h : 0,
+          change7d: row.price_change_percentage_7d_in_currency ?? null,
+          change30d: row.price_change_percentage_30d_in_currency ?? null,
           marketCapUsd: Number.isFinite(marketCap ?? 0) ? marketCap : null,
           volume24hUsd: Number.isFinite(volume) ? volume : 0,
+          sparkline: row.sparkline_in_7d?.price ?? [],
         };
       })
       .filter((row): row is NonNullable<typeof row> => !!row)

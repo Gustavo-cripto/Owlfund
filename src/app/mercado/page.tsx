@@ -29,9 +29,13 @@ type MarketRow = {
   symbol: string;
   name: string;
   priceUsd: number;
+  change1h: number | null;
   change24h: number;
+  change7d: number | null;
+  change30d: number | null;
   marketCapUsd: number | null;
   volume24hUsd: number;
+  sparkline?: number[];
 };
 
 type TraditionalQuote = {
@@ -388,20 +392,37 @@ const buildSparkline = (change: number, seed: number) => {
   return points.map((point) => point.join(",")).join(" ");
 };
 
+// Normaliza preços reais (sparkline_in_7d) para o viewBox 100×20 da mini-tabela.
+const realSparklinePoints = (prices: number[]): string => {
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  const range = max - min || 1;
+  return prices
+    .map((p, i) => {
+      const x = (i / (prices.length - 1)) * 100;
+      const y = 18 - ((p - min) / range) * 16; // 2..18, mais alto = mais em cima
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+};
+
 function TrendSparkline({
   change,
   seed,
   isLight,
+  prices,
 }: {
   change: number;
   seed: number;
   isLight: boolean;
+  prices?: number[];
 }) {
-  const isUp = change >= 0;
+  const hasReal = Array.isArray(prices) && prices.length >= 2;
+  const isUp = hasReal ? prices![prices!.length - 1] >= prices![0] : change >= 0;
   const upColor = "#22c55e";
   const downColor = "#ef4444";
   const outlineColor = "#0f172a";
-  const points = buildSparkline(change, seed);
+  const points = hasReal ? realSparklinePoints(prices!) : buildSparkline(change, seed);
   return (
     <svg width="90" height="24" viewBox="0 0 100 20" aria-hidden>
       {!isLight && !isUp && (
@@ -1619,7 +1640,10 @@ export default function MercadoPage() {
                         <th className="px-4 py-3">#</th>
                         <th className="px-4 py-3">{t("mc_col_crypto")}</th>
                         <th className="px-4 py-3">{t("mc_col_price_usd")}</th>
-                        <th className="px-4 py-3">{t("mc_sort_change")}</th>
+                        <th className="px-4 py-3">1h</th>
+                        <th className="px-4 py-3" title="24h">{t("mc_sort_change")}</th>
+                        <th className="px-4 py-3">7d</th>
+                        <th className="px-4 py-3">30d</th>
                         <th className="px-4 py-3">{t("mc_col_mcap_usd")}</th>
                         <th className="px-4 py-3">{t("mc_col_vol_usd")}</th>
                         <th className="px-4 py-3" title="Variação de preço nos últimos 7 dias">{t("mc_col_trend")}</th>
@@ -1677,12 +1701,21 @@ export default function MercadoPage() {
                           <td className="px-4 py-4 font-semibold text-white">
                             {formatCurrency(row.priceUsd, row.priceUsd < 1 ? 6 : 2)}
                           </td>
+                          <td className={`px-4 py-4 font-semibold ${row.change1h == null ? "text-slate-500" : row.change1h >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                            {row.change1h == null ? "—" : formatPercent(row.change1h)}
+                          </td>
                           <td
                             className={`px-4 py-4 font-semibold ${
                               row.change24h >= 0 ? "text-emerald-300" : "text-rose-300"
                             }`}
                           >
                             {formatPercent(row.change24h)}
+                          </td>
+                          <td className={`px-4 py-4 font-semibold ${row.change7d == null ? "text-slate-500" : row.change7d >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                            {row.change7d == null ? "—" : formatPercent(row.change7d)}
+                          </td>
+                          <td className={`px-4 py-4 font-semibold ${row.change30d == null ? "text-slate-500" : row.change30d >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
+                            {row.change30d == null ? "—" : formatPercent(row.change30d)}
                           </td>
                           <td className="px-4 py-4 text-slate-300">
                             {row.marketCapUsd ? formatCompact(row.marketCapUsd) : "—"}
@@ -1695,6 +1728,7 @@ export default function MercadoPage() {
                               change={row.change24h}
                               seed={hashSeed(row.market)}
                               isLight={isLightMode}
+                              prices={row.sparkline}
                             />
                           </td>
                         </tr>
