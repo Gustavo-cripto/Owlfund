@@ -127,64 +127,64 @@ export async function fetchBtcMovements(address: string, label: string, prices: 
   } catch { return []; }
 }
 
-// RPCs públicos da Solana (sem chave), os mesmos usados na rota sol-balance.
-const SOL_RPCS = [
-  "https://api.mainnet-beta.solana.com",
-  "https://solana.publicnode.com",
-  "https://solana-rpc.publicnode.com",
-];
+// Mints SPL conhecidos → símbolo (para valorizar stablecoins a ~$1).
+const SOL_MINTS: Record<string, string> = {
+  EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v: "USDC",
+  Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB: "USDT",
+};
 
-// Chama um método JSON-RPC da Solana, tentando os RPCs por ordem até um responder.
-async function solRpc<T>(method: string, params: unknown[]): Promise<T | null> {
-  for (const rpc of SOL_RPCS) {
-    try {
-      const res = await fetch(rpc, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-        signal: AbortSignal.timeout(6000),
-      });
-      if (!res.ok) continue;
-      const data = await res.json() as { result?: T; error?: unknown };
-      if (data.error || data.result == null) continue;
-      return data.result;
-    } catch { /* tenta o próximo RPC */ }
-  }
-  return null;
-}
-
+// Deteção de movimentos Solana via Helius (API de transações parseadas). O RPC
+// público gratuito não classifica transferências, por isso um indexador é o
+// único caminho fiável. Sem HELIUS_API_KEY, o SOL fica inativo (devolve []).
 export async function fetchSolMovements(address: string, label: string, prices: UsdPrices): Promise<Movement[]> {
+  const key = (process.env.HELIUS_API_KEY ?? "").trim();
+  if (!key) return [];
   try {
-    // 1) assinatura mais recente do endereço
-    const sigs = await solRpc<Array<{ signature: string; blockTime: number | null }>>(
-      "getSignaturesForAddress", [address, { limit: 3 }],
+    const res = await fetch(
+      `https://api.helius.xyz/v0/addresses/${encodeURIComponent(address)}/transactions?api-key=${key}&limit=5`,
+      { signal: AbortSignal.timeout(8000) },
     );
-    const latest = sigs?.[0];
-    if (!latest?.signature) return [];
+    if (!res.ok) return [];
+    const txs = await res.json() as Array<{
+      timestamp?: number;
+      nativeTransfers?: Array<{ fromUserAccount?: string; toUserAccount?: string; amount?: number }>;
+      tokenTransfers?: Array<{ fromUserAccount?: string; toUserAccount?: string; tokenAmount?: number; mint?: string }>;
+    }>;
+    if (!Array.isArray(txs)) return [];
 
-    // 2) a transação, para medir a variação de saldo em SOL do endereço
-    type Tx = {
-      meta?: { preBalances?: number[]; postBalances?: number[] };
-      transaction?: { message?: { accountKeys?: Array<string | { pubkey?: string }> } };
-    };
-    const tx = await solRpc<Tx>("getTransaction", [latest.signature, { maxSupportedTransactionVersion: 0, encoding: "jsonParsed" }]);
-    if (!tx?.meta?.preBalances || !tx.meta.postBalances) return [];
+    // Primeira transação (mais recente) que envolva mesmo o endereço num transfer.
+    for (const tx of txs) {
+      const ts = (tx.timestamp ?? Date.now() / 1000) * 1000;
 
-    const keys = (tx.transaction?.message?.accountKeys ?? []).map((k) => (typeof k === "string" ? k : k.pubkey ?? ""));
-    const idx = keys.indexOf(address);
-    if (idx < 0) return [];
+      // Maior transferência de token SPL de/para o endereço.
+      const tt = (tx.tokenTransfers ?? [])
+        .filter((t) => t.fromUserAccount === address || t.toUserAccount === address)
+        .sort((a, b) => (b.tokenAmount ?? 0) - (a.tokenAmount ?? 0))[0];
+      if (tt && (tt.tokenAmount ?? 0) > 0) {
+        const sym = SOL_MINTS[tt.mint ?? ""] ?? "";
+        const usdValue = STABLECOINS.has(sym) ? (tt.tokenAmount ?? 0) : null;
+        return [{
+          address, label, chain: "sol", type: classify(usdValue),
+          description: withUsd(`${(tt.tokenAmount ?? 0).toFixed(2)} ${sym || "tokens"}`, usdValue),
+          usdValue, timestamp: ts,
+        }];
+      }
 
-    const solDelta = Math.abs((tx.meta.postBalances[idx] ?? 0) - (tx.meta.preBalances[idx] ?? 0)) / 1e9;
-    if (solDelta < 0.01) return [];
-
-    const usdValue = prices.sol != null ? solDelta * prices.sol : null;
-    return [{
-      address, label, chain: "sol",
-      type: classify(usdValue),
-      description: withUsd(`${solDelta.toFixed(4)} SOL`, usdValue),
-      usdValue,
-      timestamp: (latest.blockTime ?? Date.now() / 1000) * 1000,
-    }];
+      // Caso contrário, transferências nativas de SOL de/para o endereço.
+      const lamports = (tx.nativeTransfers ?? [])
+        .filter((t) => t.fromUserAccount === address || t.toUserAccount === address)
+        .reduce((s, t) => s + Math.abs(t.amount ?? 0), 0);
+      const sol = lamports / 1e9;
+      if (sol >= 0.01) {
+        const usdValue = prices.sol != null ? sol * prices.sol : null;
+        return [{
+          address, label, chain: "sol", type: classify(usdValue),
+          description: withUsd(`${sol.toFixed(4)} SOL`, usdValue),
+          usdValue, timestamp: ts,
+        }];
+      }
+    }
+    return [];
   } catch { return []; }
 }
 
