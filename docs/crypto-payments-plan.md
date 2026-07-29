@@ -148,9 +148,9 @@ create table if not exists crypto_payments (
 
 ## 8. Faseamento
 - **Fase 0 — Due diligence** do processador (UE, fees, KYC, recorrência por rede, webhooks). *(gate)*
-- **Fase 1 — Base (independente do processador):** migração SQL (`source`, `current_period_end`, `crypto_payments`), helper de resolução de plano unificado, cron de expiração, feature flag. *(posso fazer já)*
-- **Fase 2 — Integração processador:** `/api/crypto/checkout` + `/api/crypto/webhook` + UI de checkout, para **BTC + ETH** (USDC).
-- **Fase 3 — Renovação/emails** (avisos T-7/T-1, botão renovar) + `/account`.
+- **Fase 1 — Base (independente do processador):** migração SQL (`source`, `current_period_end`, `crypto_payments`), helper de resolução de plano unificado, cron de expiração, feature flag. ✅ **FEITO** (`71e81ff`)
+- **Fase 2 — Integração processador:** `/api/crypto/checkout` + `/api/crypto/webhook` (backend `05bfd83`) + UI de checkout no `/pricing` (`8f93aec`). ✅ **FEITO**
+- **Fase 3 — Renovação/emails + `/account`:** ✅ **FEITO** — `/api/crypto/subscription` (detalhes server-side), bloco cripto na `/account` (rede, link tx, data de renovação) + botão **Renovar** de 1 clique; avisos por email **T-7/T-1** via `crypto-expiry` cron + Resend. Confirmado: o cron só faz `status='canceled'`, **nunca** apaga dados — histórico/métricas ficam intactos ao renovar.
 - **Fase 4 — Mais redes** (SOL e outras) + polimento.
 
 ---
@@ -163,6 +163,11 @@ create table if not exists crypto_payments (
    Preços cripto (EURC): Pro **12,74** / **126,65** · Premium **33,15** / **331,50**.
 5. **Recebimento: direto nas cold wallets do utilizador**, **sempre em cripto** (sem auto-offramp para fiat).
 6. **BTC** entra como pré-pago + renovação manual (sem débito automático); **ETH/SOL** podem auto-renovar.
+7. **Modelo unificado (confirmado 2026-07-29): TUDO pré-pago + renovação manual**, igual para
+   BTC/ETH/SOL. Não usamos subscrições nativas do Helio — cada pagamento é uma cobrança
+   one-time que credita/estende um período. A **expiração e o downgrade para Free são geridos
+   pelo nosso cron** (`/api/cron/crypto-expiry`), não por webhooks `ENDED` do Helio. Vantagem:
+   mais simples, previsível e independente do processador.
 
 ### Ainda a definir pelo utilizador
 - Endereços de recebimento por rede (BTC + ETH/EVM + Solana) — dar ao configurar os Pay Links.

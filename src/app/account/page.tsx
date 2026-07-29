@@ -9,8 +9,31 @@ import { loadNickname, saveNickname, nicknameFromMetadata } from "@/lib/user/nic
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { useTheme, type Theme, type Currency, type NumberFormat } from "@/lib/theme/ThemeContext";
+import { CRYPTO_PAYMENTS_ENABLED } from "@/lib/payments/config";
 
 type SubscriptionStatus = { status: string; current_period_end: string | null; price_id?: string | null };
+type CryptoSub = {
+  status: string;
+  currentPeriodEnd: string | null;
+  chain: string | null;
+  currency: string | null;
+  amount: number | null;
+  txHash: string | null;
+  plan: "pro" | "premium" | null;
+  period: "monthly" | "annual" | null;
+  provider: string;
+  lastPaymentAt: string | null;
+};
+
+// Link para o explorer da rede a partir do tx_hash (só leitura, abre em nova aba).
+function explorerTxUrl(chain: string | null, txHash: string | null): string | null {
+  if (!chain || !txHash) return null;
+  const c = chain.toUpperCase();
+  if (c === "BTC") return `https://mempool.space/tx/${txHash}`;
+  if (c === "ETH" || c === "ETHEREUM" || c === "BASE") return `https://etherscan.io/tx/${txHash}`;
+  if (c === "SOL" || c === "SOLANA") return `https://solscan.io/tx/${txHash}`;
+  return null;
+}
 type SettingsSection = "account" | "appearance" | "preferences" | "notifications" | "privacy" | "premium" | "api";
 type ApiKey = { id: string; name: string; key_prefix: string; created_at: string; last_used_at: string | null; is_active: boolean };
 
@@ -310,6 +333,8 @@ export default function AccountPage() {
   const [memberSince, setMemberSince] = useState<string | null>(null);
   const [loginProvider, setLoginProvider] = useState<string | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
+  const [cryptoSub, setCryptoSub] = useState<CryptoSub | null>(null);
+  const [renewing, setRenewing] = useState(false);
   const [serverPlan, setServerPlan] = useState<"free" | "pro" | "premium" | null>(null);
   const [loading, setLoading] = useState(true);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -440,6 +465,14 @@ export default function AccountPage() {
         .from("subscriptions").select("status, current_period_end, price_id")
         .eq("user_id", user.id).eq("status", "active").order("current_period_end", { ascending: false }).limit(1).maybeSingle();
       setSubscription(subData ?? null);
+      // Detalhes da subscrição cripto (rede, tx_hash, renovação) — server-side,
+      // porque a tabela crypto_payments é só-service-role. Só quando a flag está on.
+      if (CRYPTO_PAYMENTS_ENABLED) {
+        fetch("/api/crypto/subscription")
+          .then((r) => (r.ok ? r.json() : null))
+          .then((j: { crypto: CryptoSub | null } | null) => { if (j?.crypto) setCryptoSub(j.crypto); })
+          .catch(() => {});
+      }
       // Uso & limites (não bloqueia o carregamento)
       fetch("/api/usage")
         .then((r) => (r.ok ? r.json() : null))
@@ -523,6 +556,26 @@ export default function AccountPage() {
     else setBillingError(t("acc_billing_error"));
   };
 
+  // Renovar subscrição cripto: reabre o checkout Helio para o mesmo plano/período.
+  // Renovação = novo pagamento que soma um período (dados/histórico ficam intactos).
+  const handleRenewCrypto = async () => {
+    if (!cryptoSub?.plan || !cryptoSub?.period) { window.location.href = "/pricing"; return; }
+    setRenewing(true);
+    setBillingError(null);
+    try {
+      const res = await fetch("/api/crypto/checkout", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: cryptoSub.plan, period: cryptoSub.period }),
+      });
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (data.url) window.location.href = data.url;
+      else setBillingError(data.error ?? t("acc_billing_error"));
+    } catch {
+      setBillingError(t("acc_billing_error"));
+    }
+    setRenewing(false);
+  };
+
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !userId) return;
@@ -558,6 +611,14 @@ export default function AccountPage() {
   const currentPlan = isPremium ? "premium" : isPro ? "pro" : "free";
   const periodEnd = subscription?.current_period_end
     ? new Date(subscription.current_period_end).toLocaleDateString("pt-PT") : null;
+
+  // Subscrição paga em cripto (pré-pago + renovação manual). Fica "expirada" quando
+  // o período já passou — mas os dados/histórico do utilizador nunca são apagados.
+  const isCrypto = !!cryptoSub;
+  const cryptoEnd = cryptoSub?.currentPeriodEnd ? new Date(cryptoSub.currentPeriodEnd) : null;
+  const cryptoExpired = !!cryptoEnd && cryptoEnd.getTime() < Date.now();
+  const cryptoEndLabel = cryptoEnd ? cryptoEnd.toLocaleDateString("pt-PT") : null;
+  const cryptoTxUrl = explorerTxUrl(cryptoSub?.chain ?? null, cryptoSub?.txHash ?? null);
 
   return (
     <AppShell>
@@ -693,10 +754,38 @@ export default function AccountPage() {
                         <span className="text-sm text-slate-400">{t("free")}</span>
                       )}
                     </SettingRow>
-                    {isPro && periodEnd && (
+                    {isPro && periodEnd && !isCrypto && (
                       <SettingRow label={t("acc_expires")}>
                         <span className="text-sm text-slate-400">{periodEnd}</span>
                       </SettingRow>
+                    )}
+                    {isCrypto && (
+                      <>
+                        <SettingRow label={t("acc_pay_method")}>
+                          <span className="text-sm font-semibold text-orange-300">
+                            ₿ {t("pc_pay_crypto")}{cryptoSub?.currency ? ` · ${cryptoSub.currency}` : ""}
+                          </span>
+                        </SettingRow>
+                        {cryptoSub?.chain && (
+                          <SettingRow label={t("acc_crypto_network")}>
+                            <span className="text-sm text-slate-300">
+                              {cryptoTxUrl ? (
+                                <a href={cryptoTxUrl} target="_blank" rel="noopener noreferrer"
+                                  className="text-orange-300 hover:text-orange-200 underline decoration-dotted">
+                                  {cryptoSub.chain} · {t("acc_crypto_view_tx")} ↗
+                                </a>
+                              ) : cryptoSub.chain}
+                            </span>
+                          </SettingRow>
+                        )}
+                        {cryptoEndLabel && (
+                          <SettingRow label={cryptoExpired ? t("acc_crypto_expired_on") : t("acc_crypto_renews")}>
+                            <span className={`text-sm ${cryptoExpired ? "text-rose-400 font-semibold" : "text-slate-300"}`}>
+                              {cryptoEndLabel}
+                            </span>
+                          </SettingRow>
+                        )}
+                      </>
                     )}
                   </div>
 
@@ -793,7 +882,12 @@ export default function AccountPage() {
                   {billingError && <p className="text-xs text-rose-400">{billingError}</p>}
 
                   <div className="flex flex-wrap gap-3 pt-2">
-                    {isPremium ? (
+                    {isCrypto ? (
+                      <button type="button" onClick={handleRenewCrypto} disabled={renewing}
+                        className={`${btnPrimary} px-5 py-2.5 text-sm disabled:opacity-50`}>
+                        {renewing ? t("ac_saving") : cryptoExpired ? t("acc_crypto_renew_expired") : t("acc_crypto_renew")}
+                      </button>
+                    ) : isPremium ? (
                       <button type="button" onClick={handleManageBilling}
                         className="rounded-full border border-violet-400/40 px-5 py-2.5 text-sm font-semibold text-violet-200 hover:border-violet-400 hover:text-white transition">
                         Gerir Premium
@@ -816,14 +910,16 @@ export default function AccountPage() {
                     <a href="/pricing" className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-300 hover:text-white transition">
                       {t("acc_compare_plans")}
                     </a>
-                    <button type="button" onClick={async () => {
-                      const res = await fetch("/api/sync-subscription", { method: "POST" });
-                      const json = await res.json() as { synced?: boolean; error?: string };
-                      if (json.synced) window.location.reload();
-                      else alert(json.error ?? t("ac_no_sub"));
-                    }} className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-400 hover:text-white transition">
-                      Sincronizar plano
-                    </button>
+                    {!isCrypto && (
+                      <button type="button" onClick={async () => {
+                        const res = await fetch("/api/sync-subscription", { method: "POST" });
+                        const json = await res.json() as { synced?: boolean; error?: string };
+                        if (json.synced) window.location.reload();
+                        else alert(json.error ?? t("ac_no_sub"));
+                      }} className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-400 hover:text-white transition">
+                        Sincronizar plano
+                      </button>
+                    )}
                     <button type="button" onClick={handleLogout}
                       className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-400 hover:border-rose-500/40 hover:text-rose-400 transition ml-auto">
                       {t("acc_logout")}

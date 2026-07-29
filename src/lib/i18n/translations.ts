@@ -1281,6 +1281,13 @@ export const translations = {
     acc_upgrade: "Upgrade para Pro",
     acc_active_pro: "Plano Pro ativo",
     acc_expires: "Válido até",
+    acc_pay_method: "Pagamento",
+    acc_crypto_network: "Rede",
+    acc_crypto_view_tx: "ver transação",
+    acc_crypto_renews: "Renova a",
+    acc_crypto_expired_on: "Expirou a",
+    acc_crypto_renew: "Renovar",
+    acc_crypto_renew_expired: "Renovar acesso",
 
     // ── Pricing ──
     pricing_title: "Planos & Preços",
@@ -2758,6 +2765,13 @@ export const translations = {
     acc_upgrade: "Upgrade to Pro",
     acc_active_pro: "Pro Plan active",
     acc_expires: "Valid until",
+    acc_pay_method: "Payment",
+    acc_crypto_network: "Network",
+    acc_crypto_view_tx: "view transaction",
+    acc_crypto_renews: "Renews on",
+    acc_crypto_expired_on: "Expired on",
+    acc_crypto_renew: "Renew",
+    acc_crypto_renew_expired: "Renew access",
 
     pricing_title: "Plans & Pricing",
 
@@ -4233,6 +4247,13 @@ export const translations = {
     acc_upgrade: "Actualizar a Pro",
     acc_active_pro: "Plan Pro activo",
     acc_expires: "Válido hasta",
+    acc_pay_method: "Pago",
+    acc_crypto_network: "Red",
+    acc_crypto_view_tx: "ver transacción",
+    acc_crypto_renews: "Renueva el",
+    acc_crypto_expired_on: "Expiró el",
+    acc_crypto_renew: "Renovar",
+    acc_crypto_renew_expired: "Renovar acceso",
 
     pricing_title: "Planes y Precios",
 
@@ -5708,6 +5729,13 @@ export const translations = {
     acc_upgrade: "Passer à Pro",
     acc_active_pro: "Offre Pro active",
     acc_expires: "Valide jusqu'au",
+    acc_pay_method: "Paiement",
+    acc_crypto_network: "Réseau",
+    acc_crypto_view_tx: "voir la transaction",
+    acc_crypto_renews: "Renouvelle le",
+    acc_crypto_expired_on: "Expiré le",
+    acc_crypto_renew: "Renouveler",
+    acc_crypto_renew_expired: "Renouveler l'accès",
 
     pricing_title: "Offres & Tarifs",
 
