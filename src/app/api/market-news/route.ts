@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { unstable_cache } from "next/cache";
 import { generateAiText, friendlyAiError, errorStatus, hasAnyAiProvider } from "@/lib/ai/groq";
+import { NO_ADVICE_RULE } from "@/lib/ai/disclaimer";
 
 const COINGECKO_IDS: Record<string, string> = {
   BTC: "bitcoin", ETH: "ethereum", SOL: "solana",
@@ -172,7 +173,7 @@ Escreve um briefing do mercado tradicional em português europeu.
 [Outlook para os próximos dias]`;
 
     const content = await generateAiText({
-      prompt: prompt + langInstruction,
+      prompt: prompt + "\n\n" + NO_ADVICE_RULE + langInstruction,
       maxTokens: 1500,
       temperature: 0.2,
     });
