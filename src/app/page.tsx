@@ -31,7 +31,7 @@ const TOOLS = [
 
 const PLANS = [
   { name: "Free", price: "€0", paid: false, popular: false, desc: "lp_plan_free_desc", feats: ["lp_plan_free_1", "lp_plan_free_2", "lp_plan_free_3", "lp_plan_free_4"] },
-  { name: "Pro", price: "€14.99", paid: true, popular: true, desc: "lp_plan_pro_desc", feats: ["lp_plan_pro_1", "lp_plan_pro_2", "lp_plan_pro_3", "lp_plan_pro_4"] },
+  { name: "Pro", price: "€14,99", paid: true, popular: true, desc: "lp_plan_pro_desc", feats: ["lp_plan_pro_1", "lp_plan_pro_2", "lp_plan_pro_3", "lp_plan_pro_4"] },
   { name: "Premium", price: "€39", paid: true, popular: false, desc: "lp_plan_prem_desc", feats: ["lp_plan_prem_1", "lp_plan_prem_2", "lp_plan_prem_3", "lp_plan_prem_4"] },
 ] as const;
 
@@ -159,16 +159,16 @@ export default function Home() {
               <section className="grid gap-6 md:grid-cols-[1.1fr_0.9fr] md:items-start">
               <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
                 <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">{t("lp_logged_area")}</p>
-                <h1 className="mt-3 text-3xl font-semibold text-white">Atalhos rápidos do ChainFolioAI</h1>
+                <h1 className="mt-3 text-3xl font-semibold text-white">{t("lp_logged_title")}</h1>
                 <p className="mt-2 text-sm text-slate-400">{t("lp_logged_desc")}</p>
                 <div className="mt-6 flex flex-wrap gap-3">
-                  {([[t("lp_open_dashboard"),"/dashboard",btnPrimary],["Portfolio","/portfolio",btnSecondary],["Carteiras","/wallets",btnSecondary],["Mercado","/mercado",btnSecondary]] as [string,string,string][]).map(([label, href, cls]) => (
+                  {([[t("lp_open_dashboard"),"/dashboard",btnPrimary],[t("nav_portfolio"),"/portfolio",btnSecondary],[t("nav_wallets"),"/wallets",btnSecondary],[t("nav_mercado"),"/mercado",btnSecondary]] as [string,string,string][]).map(([label, href, cls]) => (
                     <a key={href} className={`${cls} px-6 py-3 text-sm`} href={href}>{label}</a>
                   ))}
                 </div>
               </div>
               <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-                <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Resumo</p>
+                <p className="text-xs uppercase tracking-[0.3em] text-slate-500">{t("lp_summary")}</p>
                 <div className="mt-4 space-y-3 text-sm text-slate-300">
                   <p>{t("lp_continue_desc")}</p>
                   <p className="text-xs text-slate-500">{t("lp_help_desc")}</p>
@@ -199,23 +199,23 @@ export default function Home() {
         <section className="mx-auto flex w-full max-w-6xl flex-col items-center gap-12 px-6 pb-16 pt-16 md:flex-row md:pt-24">
           <div className="flex-1 space-y-7">
             <div className="animate-fade-in-up inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-4 py-1.5 text-xs font-bold text-orange-300 uppercase tracking-widest">
-              <img src="/chainfolioai-icon.png" alt="" className="h-4 w-4 rounded-full object-cover" /> Plataforma gratuita · Beta aberto
+              <img src="/chainfolioai-icon.png" alt="" className="h-4 w-4 rounded-full object-cover" /> {t("lp_hero_badge")}
             </div>
             <h1 className="animate-fade-in-up delay-100 text-4xl font-bold leading-tight text-white md:text-5xl lg:text-6xl">
-              O teu portfólio<br />
+              {t("lp_hero_title_1")}<br />
               <span className="text-orange-400">{t("lp_crypto_trad")}</span><br />
-              num só lugar
+              {t("lp_hero_title_2")}
             </h1>
             <p className="animate-fade-in-up delay-200 max-w-lg text-lg text-slate-300">
-              Carteiras, exchanges e ativos manuais num só painel. PNL em tempo real, métricas avançadas (ROI, Sharpe, drawdown), fiscalidade e um assistente de IA que conhece o teu portfólio.
+              {t("lp_hero_sub")}
             </p>
             <p className="animate-fade-in-up delay-200 text-sm font-semibold text-orange-300/90">{t("lp_audience")}</p>
             <div className="animate-fade-in-up delay-300 flex flex-wrap gap-4">
               <a href="/login" className={`${btnPrimary} px-8 py-3.5 text-base`}>
-                Começar grátis →
+                {t("lp_plan_cta")} →
               </a>
               <a href="#como-funciona" className={`${btnSecondary} px-8 py-3.5 text-base`}>
-                Como funciona
+                {t("lp_how_works")}
               </a>
             </div>
             <p className="animate-fade-in-up delay-400 text-xs text-slate-500">{t("lp_no_card")}</p>
@@ -533,13 +533,13 @@ export default function Home() {
             <div className="relative">
               <img src="/chainfolioai-icon.png" alt="" className="mb-5 mx-auto h-16 w-16 rounded-2xl object-cover" />
               <h2 className="text-3xl font-bold text-white md:text-4xl">{t("lp_ready")}</h2>
-              <p className="mt-4 text-slate-400 max-w-sm mx-auto">Junta-te à comunidade ChainFolioAI. Grátis para sempre no plano base.</p>
+              <p className="mt-4 text-slate-400 max-w-sm mx-auto">{t("lp_final_sub")}</p>
               <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
                 <a href="/login" className={`${btnPrimary} w-full px-10 py-4 text-base sm:w-auto`}>
-                  Criar conta grátis
+                  {t("lp_final_cta1")}
                 </a>
                 <a href="/login" className={`${btnSecondary} w-full px-10 py-4 text-base sm:w-auto`}>
-                  Já tenho conta →
+                  {t("lp_final_cta2")} →
                 </a>
               </div>
               <p className="mt-5 text-xs text-slate-600">{t("lp_no_card2")}</p>
@@ -568,7 +568,7 @@ export default function Home() {
               <a href="/termos" className="transition hover:text-slate-300">{t("legal_terms_short")}</a>
               <a href="/login" className="transition hover:text-slate-300">{t("lp_login")}</a>
             </div>
-            <p className="text-xs text-slate-600">© 2025 ChainFolioAI · Todos os direitos reservados</p>
+            <p className="text-xs text-slate-600">© {new Date().getFullYear()} ChainFolioAI · Todos os direitos reservados</p>
           </div>
         </footer>
       </div>

@@ -66,7 +66,7 @@ PÁGINAS E FUNCIONALIDADES:
 • /gestor — Gestor Dedicado IA (exclusivo Premium). Chat privado com IA especializada no teu portfolio real. Analisa alocação, risco, fiscalidade, FIRE planning com os teus dados reais de carteiras.
 • /mercado — Tabela de mercado em tempo real com preços, variações 1h/24h/7d, volume, sparklines e gráfico TradingView.
 • /fiscalidade — Calculadora de mais-valias cripto por método FIFO. Suporta regras fiscais de PT (isenção >1 ano), ES, FR, DE. Exportação para declaração de IRS.
-• /fire — Calculadora FIRE (Financial Independence, Retire Early). Regra dos 4%, projeção de patrimônio, CAGR ajustado à inflação.
+• /fire — Calculadora FIRE (Financial Independence, Retire Early). Regra dos 4%, projeção de património, CAGR ajustado à inflação.
 • /account — Conta do utilizador, preferências, gestão do plano, API Keys (Premium).
 
 PLANOS E FUNCIONALIDADES:
@@ -80,7 +80,7 @@ Plano Gratuito (€0):
 - Calculadora fiscal básica (PT, ES, FR, DE)
 - Calculadora FIRE (3 cenários)
 
-Plano Pro (€14.99/mês):
+Plano Pro (€14,99/mês):
 - Carteiras ilimitadas
 - Análise IA do portfolio ilimitada
 - Análise IA de notícias em tempo real

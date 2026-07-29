@@ -7,7 +7,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContai
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useTheme } from "@/lib/theme/ThemeContext";
 
-// Regra dos 4% (Trinity Study): patrimônio necessário = despesas anuais × 25
+// Regra dos 4% (Trinity Study): património necessário = despesas anuais × 25
 const FIRE_MULTIPLE = 25;
 
 export default function FirePage() {
