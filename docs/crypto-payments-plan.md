@@ -151,7 +151,10 @@ create table if not exists crypto_payments (
 - **Fase 1 — Base (independente do processador):** migração SQL (`source`, `current_period_end`, `crypto_payments`), helper de resolução de plano unificado, cron de expiração, feature flag. ✅ **FEITO** (`71e81ff`)
 - **Fase 2 — Integração processador:** `/api/crypto/checkout` + `/api/crypto/webhook` (backend `05bfd83`) + UI de checkout no `/pricing` (`8f93aec`). ✅ **FEITO**
 - **Fase 3 — Renovação/emails + `/account`:** ✅ **FEITO** — `/api/crypto/subscription` (detalhes server-side), bloco cripto na `/account` (rede, link tx, data de renovação) + botão **Renovar** de 1 clique; avisos por email **T-7/T-1** via `crypto-expiry` cron + Resend. Confirmado: o cron só faz `status='canceled'`, **nunca** apaga dados — histórico/métricas ficam intactos ao renovar.
-- **Fase 4 — Mais redes** (SOL e outras) + polimento.
+- **Fase 4 — Mais redes + polimento:** página de confirmação pós-pagamento `/crypto/confirm`
+  (polling ao estado da subscrição: "à espera → confirmado ✓ / ainda a processar") + redirect
+  URL passada ao Helio. ✅ Confirmação feita. *Mais redes (SOL etc.) é sobretudo configuração
+  nos Pay Links do Helio (quais moedas aceitam), não código nosso.*
 
 ---
 

@@ -95,6 +95,12 @@ export async function createHelioCharge(input: {
   const paylinkId = helioPaylinkId(input.plan, input.period);
   if (!secret || !publicKey || !paylinkId) return { ok: false, error: "Helio não configurado." };
 
+  // Para onde o Helio reencaminha o utilizador após pagar (página de confirmação
+  // com polling). O nome do campo é PROVISÓRIO — confirmar contra a API/Pay Link
+  // real; em alternativa, definir a redirect URL no próprio Pay Link do dashboard.
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://owlfund.vercel.app").replace(/\/$/, "");
+  const redirectUrl = `${siteUrl}/crypto/confirm`;
+
   try {
     const res = await fetch(`${HELIO_API_BASE}/charge/create?publicKey=${encodeURIComponent(publicKey)}`, {
       method: "POST",
@@ -103,6 +109,7 @@ export async function createHelioCharge(input: {
         paylinkId,
         customerDetails: input.email ? { email: input.email } : undefined,
         meta: { userId: input.userId, plan: input.plan, period: input.period },
+        redirectUrl, // PROVISÓRIO — confirmar nome do campo (redirectUrl/successUrl).
       }),
       signal: AbortSignal.timeout(10000),
     });
