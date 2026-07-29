@@ -155,8 +155,15 @@ create table if not exists crypto_payments (
 
 ---
 
-## 9. Decisões em aberto (para o utilizador)
-1. **Processador:** Helio (recomendado, cobre BTC+ETH+SOL) **ou** BTCPay+Sphere (soberano, sem KYC, mais infra)?
-2. **Moeda de cobrança:** USDC (recomendado, estável) ou BTC/ETH nativo (volátil)?
-3. **BTC sem auto-renovação** — aceitável (pré-pago + lembrete)?
-4. Preços finais em USDC (mensal/anual) para Pro e Premium.
+## 9. Decisões CONFIRMADAS (2026-07-29)
+1. **Processador: Helio / MoonPay Commerce** (não-custodial, cobre BTC+ETH+SOL).
+2. **Preço fixado em EURC**; **stablecoins aceites: EURC + USDC** (cliente pode pagar com outras, Helio converte).
+3. **Fiat mantém-se** (Pro €14,99/€149 · Premium €39/€390) para cartão/Stripe.
+4. **Desconto cripto: 15%** (alterável em `src/lib/payments/pricing.ts` ou env `NEXT_PUBLIC_CRYPTO_DISCOUNT_PCT`).
+   Preços cripto (EURC): Pro **12,74** / **126,65** · Premium **33,15** / **331,50**.
+5. **Recebimento: direto nas cold wallets do utilizador**, **sempre em cripto** (sem auto-offramp para fiat).
+6. **BTC** entra como pré-pago + renovação manual (sem débito automático); **ETH/SOL** podem auto-renovar.
+
+### Ainda a definir pelo utilizador
+- Endereços de recebimento por rede (BTC + ETH/EVM + Solana) — dar ao configurar os Pay Links.
+- Conta Helio + KYB (opcional no tier básico não-custodial).
