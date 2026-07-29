@@ -23,6 +23,12 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     if (stored && stored in translations) setLangState(stored);
   }, []);
 
+  // Mantém <html lang> em sincronia com o idioma escolhido (SEO/acessibilidade).
+  useEffect(() => {
+    const map: Record<Lang, string> = { pt: "pt-PT", en: "en", es: "es", fr: "fr" };
+    document.documentElement.lang = map[lang];
+  }, [lang]);
+
   const setLang = (l: Lang) => {
     setLangState(l);
     localStorage.setItem("owlfund-lang", l);
