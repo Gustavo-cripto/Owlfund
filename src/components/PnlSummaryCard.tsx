@@ -12,22 +12,21 @@ type PnlSummaryCardProps = {
   className?: string;
 };
 
-const defaultMetrics: Metric[] = [
-  { label: "Ativos monitorados", value: "120+" },
-  { label: "Categorias personalizadas", value: "15" },
-  { label: "Atualizações ao vivo", value: "1 min" },
-];
-
 export default function PnlSummaryCard({
   position,
   today,
   days30,
   daily7d,
-  metrics = defaultMetrics,
+  metrics,
   className = "",
 }: PnlSummaryCardProps) {
   const { t } = useLanguage();
   const { formatSigned } = useCurrencyFormat();
+  const resolvedMetrics: Metric[] = metrics ?? [
+    { label: t("pnl_monitored"), value: "120+" },
+    { label: t("pnl_custom_cat"), value: "15" },
+    { label: t("pnl_live_updates"), value: "1 min" },
+  ];
   return (
     <div
       className={`pnl-card rounded-3xl border border-orange-500/20 bg-gradient-to-br from-orange-500/20 via-slate-900 to-slate-950 p-6 ${className}`}
@@ -55,7 +54,7 @@ export default function PnlSummaryCard({
           </div>
         </div>
         <div className="mt-6 grid grid-cols-3 gap-3">
-          {metrics.map((metric) => (
+          {resolvedMetrics.map((metric) => (
             <div
               key={metric.label}
               className="rounded-xl border border-slate-800 bg-slate-900/70 p-3 text-center"
