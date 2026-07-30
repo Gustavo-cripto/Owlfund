@@ -287,7 +287,7 @@ export const connectWalletConnect = async (): Promise<`0x${string}`> => {
     metadata: {
       name: "ChainFolioAI",
       description: "Portfólio read-only — consulta dados públicos da blockchain, não assina transações.",
-      url: typeof window !== "undefined" ? window.location.origin : "https://owlfund.app",
+      url: typeof window !== "undefined" ? window.location.origin : "https://chainfolioai.com",
       icons: ["/chainfolioai-icon.png"],
     },
   });
