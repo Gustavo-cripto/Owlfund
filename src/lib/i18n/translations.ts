@@ -1482,7 +1482,7 @@ export const translations = {
     pp_s7_h: "Os teus direitos",
     pp_s7_b: "Tens direito a aceder, corrigir, exportar e apagar os teus dados e a retirar o consentimento a qualquer momento. Podes eliminar carteiras e a conta diretamente na aplicação.",
     pp_s8_h: "Contacto",
-    pp_s8_b: "Para questões de privacidade, contacta-nos através do email de suporte indicado na tua conta.",
+    pp_s8_b: "Para questões de privacidade, contacta-nos em suporte@chainfolioai.com.",
     pp_s9_h: "Cookies",
     pp_s9_b: "Usamos apenas cookies essenciais para manter a tua sessão iniciada (autenticação via Supabase) — sem eles a plataforma não funciona, por isso não carecem de consentimento. Para estatísticas de utilização usamos o Vercel Analytics, que é anónimo e não usa cookies nem te identifica. Não usamos cookies de publicidade nem rastreadores de terceiros (Google Analytics, Meta Pixel e semelhantes). Se um dia adicionarmos ferramentas com cookies não essenciais, pediremos o teu consentimento primeiro.",
 
@@ -1504,7 +1504,7 @@ export const translations = {
     tp_s7_h: "Alterações aos termos",
     tp_s7_b: "Podemos atualizar estes termos. As alterações materiais serão comunicadas e a data de atualização será revista.",
     tp_s8_h: "Contacto",
-    tp_s8_b: "Para questões sobre estes termos, contacta-nos através do email de suporte indicado na tua conta.",
+    tp_s8_b: "Para questões sobre estes termos, contacta-nos em suporte@chainfolioai.com.",
   },
 
   en: {
@@ -2977,7 +2977,7 @@ export const translations = {
     pp_s7_h: "Your rights",
     pp_s7_b: "You have the right to access, correct, export and delete your data and to withdraw consent at any time. You can remove wallets and your account directly in the app.",
     pp_s8_h: "Contact",
-    pp_s8_b: "For privacy questions, contact us via the support email shown in your account.",
+    pp_s8_b: "For privacy questions, contact us at suporte@chainfolioai.com.",
     pp_s9_h: "Cookies",
     pp_s9_b: "We only use essential cookies to keep you signed in (authentication via Supabase) — without them the platform doesn't work, so they don't require consent. For usage statistics we use Vercel Analytics, which is anonymous and uses no cookies and does not identify you. We use no advertising cookies or third-party trackers (Google Analytics, Meta Pixel and the like). If we ever add tools that use non-essential cookies, we'll ask for your consent first.",
 
@@ -2999,7 +2999,7 @@ export const translations = {
     tp_s7_h: "Changes to the terms",
     tp_s7_b: "We may update these terms. Material changes will be communicated and the update date will be revised.",
     tp_s8_h: "Contact",
-    tp_s8_b: "For questions about these terms, contact us via the support email shown in your account.",
+    tp_s8_b: "For questions about these terms, contact us at suporte@chainfolioai.com.",
   },
 
   es: {
@@ -4472,7 +4472,7 @@ export const translations = {
     pp_s7_h: "Tus derechos",
     pp_s7_b: "Tienes derecho a acceder, corregir, exportar y eliminar tus datos y a retirar el consentimiento en cualquier momento. Puedes eliminar carteras y la cuenta directamente en la aplicación.",
     pp_s8_h: "Contacto",
-    pp_s8_b: "Para cuestiones de privacidad, contáctanos a través del email de soporte indicado en tu cuenta.",
+    pp_s8_b: "Para cuestiones de privacidad, contáctanos en suporte@chainfolioai.com.",
     pp_s9_h: "Cookies",
     pp_s9_b: "Solo usamos cookies esenciales para mantener tu sesión iniciada (autenticación vía Supabase) — sin ellas la plataforma no funciona, por lo que no requieren consentimiento. Para estadísticas de uso usamos Vercel Analytics, que es anónimo y no usa cookies ni te identifica. No usamos cookies publicitarias ni rastreadores de terceros (Google Analytics, Meta Pixel y similares). Si algún día añadimos herramientas con cookies no esenciales, pediremos tu consentimiento primero.",
 
@@ -4494,7 +4494,7 @@ export const translations = {
     tp_s7_h: "Cambios en los términos",
     tp_s7_b: "Podemos actualizar estos términos. Los cambios materiales se comunicarán y se revisará la fecha de actualización.",
     tp_s8_h: "Contacto",
-    tp_s8_b: "Para preguntas sobre estos términos, contáctanos a través del email de soporte indicado en tu cuenta.",
+    tp_s8_b: "Para preguntas sobre estos términos, contáctanos en suporte@chainfolioai.com.",
   },
 
   fr: {
@@ -5967,7 +5967,7 @@ export const translations = {
     pp_s7_h: "Vos droits",
     pp_s7_b: "Vous avez le droit d'accéder à vos données, de les rectifier, de les exporter et de les supprimer, et de retirer votre consentement à tout moment. Vous pouvez supprimer des portefeuilles et votre compte directement dans l'application.",
     pp_s8_h: "Contact",
-    pp_s8_b: "Pour toute question de confidentialité, contactez-nous via l'e-mail d'assistance indiqué dans votre compte.",
+    pp_s8_b: "Pour toute question de confidentialité, contactez-nous à suporte@chainfolioai.com.",
     pp_s9_h: "Cookies",
     pp_s9_b: "Nous n'utilisons que des cookies essentiels pour vous garder connecté (authentification via Supabase) — sans eux la plateforme ne fonctionne pas, ils ne nécessitent donc pas de consentement. Pour les statistiques d'utilisation, nous utilisons Vercel Analytics, qui est anonyme, sans cookies et ne vous identifie pas. Nous n'utilisons aucun cookie publicitaire ni traceur tiers (Google Analytics, Meta Pixel et similaires). Si nous ajoutons un jour des outils utilisant des cookies non essentiels, nous demanderons d'abord votre consentement.",
 
@@ -5989,7 +5989,7 @@ export const translations = {
     tp_s7_h: "Modifications des conditions",
     tp_s7_b: "Nous pouvons mettre à jour ces conditions. Les modifications importantes seront communiquées et la date de mise à jour sera révisée.",
     tp_s8_h: "Contact",
-    tp_s8_b: "Pour toute question concernant ces conditions, contactez-nous via l'e-mail d'assistance indiqué dans votre compte.",
+    tp_s8_b: "Pour toute question concernant ces conditions, contactez-nous à suporte@chainfolioai.com.",
   },
 } satisfies Record<Lang, Record<string, string>>;
 
