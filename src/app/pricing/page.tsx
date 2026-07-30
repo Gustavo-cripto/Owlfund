@@ -484,6 +484,7 @@ export default function PricingPage() {
                   { q: t("pc_faq_q4"), a: t("pc_faq_a4") },
                   { q: t("pc_faq_q5"), a: t("pc_faq_a5") },
                   { q: t("pc_faq_q6"), a: t("pc_faq_a6") },
+                  ...(CRYPTO_PAYMENTS_ENABLED ? [{ q: t("pc_faq_q_crypto"), a: t("pc_faq_a_crypto") }] : []),
                 ].map((item) => (
                   <div key={item.q} className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
                     <p className="text-sm font-semibold text-white">{item.q}</p>
