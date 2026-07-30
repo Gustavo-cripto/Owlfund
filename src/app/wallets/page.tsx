@@ -2086,7 +2086,7 @@ export default function WalletsPage() {
       const dAppConnect = new DAppPeerConnect({
         dAppInfo: {
           name: "ChainFolioAI",
-          url: typeof window !== "undefined" ? window.location.origin : "https://owlfund.vercel.app",
+          url: typeof window !== "undefined" ? window.location.origin : "https://chainfolioai.vercel.app",
           icon: typeof window !== "undefined" ? `${window.location.origin}/chainfolioai-icon.png` : "",
         },
         onConnect: (_address, _walletInfo) => {

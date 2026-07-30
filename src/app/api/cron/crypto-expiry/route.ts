@@ -62,7 +62,7 @@ export async function GET(request: Request) {
   let reminded = 0;
   const remindErrors: string[] = [];
   const resendKey = process.env.RESEND_API_KEY ?? "";
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://owlfund.vercel.app").replace(/\/$/, "");
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://chainfolioai.vercel.app").replace(/\/$/, "");
 
   if (resendKey) {
     try {

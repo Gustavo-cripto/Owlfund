@@ -6,7 +6,7 @@ import FloatingChat from "@/components/FloatingChat";
 import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 import { ThemeProvider } from "@/lib/theme/ThemeContext";
 
-const SITE_URL = "https://owlfund.vercel.app";
+const SITE_URL = "https://chainfolioai.vercel.app";
 const SITE_TITLE = "ChainFolioAI — O teu portefólio cripto e tradicional num só lugar";
 const SITE_DESC =
   "Carteiras, exchanges e ativos manuais num só painel. PNL em tempo real, métricas avançadas (ROI, Sharpe, drawdown), fiscalidade e um assistente de IA que conhece o teu portefólio. 100% só-leitura e gratuito para começar.";
