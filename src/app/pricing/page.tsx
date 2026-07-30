@@ -117,28 +117,38 @@ export default function PricingPage() {
 
   const handleUpgrade = async (plan: "pro" | "premium") => {
     if (!userId) { window.location.href = "/login"; return; }
-    const { data: sessionData } = await supabase.auth.getSession();
-    const accessToken = sessionData.session?.access_token ?? "";
-    const res = await fetch("/api/stripe/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${accessToken}` },
-      body: JSON.stringify({ userId, plan, interval: billingInterval }),
-    });
-    const data = (await res.json()) as { url?: string; error?: string };
-    if (data.url) window.location.href = data.url;
-    else if (data.error) alert(data.error);
+    try {
+      // getSession() pode rebentar se a sessão local estiver corrompida — nesse
+      // caso mostramos mensagem em vez de falhar em silêncio (botão "não faz nada").
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token ?? "";
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${accessToken}` },
+        body: JSON.stringify({ userId, plan, interval: billingInterval }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+      if (data.url) { window.location.href = data.url; return; }
+      alert(data.error ?? t("pc_checkout_error"));
+    } catch {
+      alert(t("pc_checkout_error"));
+    }
   };
 
   const handleCryptoUpgrade = async (plan: "pro" | "premium") => {
     if (!userId) { window.location.href = "/login"; return; }
-    const res = await fetch("/api/crypto/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ plan, period: billingInterval === "year" ? "annual" : "monthly" }),
-    });
-    const data = (await res.json()) as { url?: string; error?: string };
-    if (data.url) window.location.href = data.url;
-    else if (data.error) alert(data.error);
+    try {
+      const res = await fetch("/api/crypto/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan, period: billingInterval === "year" ? "annual" : "monthly" }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+      if (data.url) { window.location.href = data.url; return; }
+      alert(data.error ?? t("pc_checkout_error"));
+    } catch {
+      alert(t("pc_checkout_error"));
+    }
   };
 
   const upgrade = (plan: "pro" | "premium") =>
