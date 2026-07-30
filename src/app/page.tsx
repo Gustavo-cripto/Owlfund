@@ -149,31 +149,66 @@ export default function Home() {
   const showAppView = isReady && isLoggedIn;
 
   if (showAppView) {
+    const shortcuts: [string, string, string][] = [
+      ["📊", t("lp_open_dashboard"), "/dashboard"],
+      ["💼", t("nav_portfolio"), "/portfolio"],
+      ["👛", t("nav_wallets"), "/wallets"],
+      ["📈", t("nav_mercado"), "/mercado"],
+    ];
     return (
       <AppShell>
-        <div className="relative min-h-full">
-          <div className="pointer-events-none absolute inset-0 opacity-70" style={{ backgroundImage: "url(/hwvtot_2f4227d5a6869b1ae946ecac3e2712c2a84b9f59.jpeg)", backgroundRepeat: "no-repeat", backgroundPosition: "center", backgroundSize: "contain" }} aria-hidden />
-          <div className="pointer-events-none absolute inset-0 bg-slate-950/25" aria-hidden />
+        <div className="relative min-h-full overflow-hidden">
+          {/* Background glows — subtle, on-brand (matches the logged-out hero) */}
+          <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+            <div className="absolute -top-32 left-1/2 h-[420px] w-[720px] -translate-x-1/2 rounded-full bg-orange-500/8 blur-[120px]" />
+            <div className="absolute bottom-0 right-0 h-[360px] w-[460px] rounded-full bg-slate-700/20 blur-[100px]" />
+          </div>
           <div className="relative z-10">
-            <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-24 pt-8">
-              <section className="grid gap-6 md:grid-cols-[1.1fr_0.9fr] md:items-start">
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">{t("lp_logged_area")}</p>
-                <h1 className="mt-3 text-3xl font-semibold text-white">{t("lp_logged_title")}</h1>
-                <p className="mt-2 text-sm text-slate-400">{t("lp_logged_desc")}</p>
-                <div className="mt-6 flex flex-wrap gap-3">
-                  {([[t("lp_open_dashboard"),"/dashboard",btnPrimary],[t("nav_portfolio"),"/portfolio",btnSecondary],[t("nav_wallets"),"/wallets",btnSecondary],[t("nav_mercado"),"/mercado",btnSecondary]] as [string,string,string][]).map(([label, href, cls]) => (
-                    <a key={href} className={`${cls} px-6 py-3 text-sm`} href={href}>{label}</a>
-                  ))}
+            <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 pb-24 pt-10">
+              {/* Welcome header */}
+              <header className="space-y-3">
+                <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-orange-300">
+                  <img src="/chainfolioai-icon.png" alt="" className="h-4 w-4 rounded-full object-cover" />
+                  {t("lp_logged_area")}
                 </div>
+                <h1 className="text-3xl font-bold text-white md:text-4xl">{t("lp_logged_title")}</h1>
+                <p className="max-w-xl text-sm text-slate-400">{t("lp_logged_desc")}</p>
+              </header>
+
+              {/* Hero image — centered and large */}
+              <div className="mx-auto w-full overflow-hidden rounded-3xl border border-slate-800 shadow-2xl shadow-orange-500/10">
+                <img
+                  src="/hwvtot_2f4227d5a6869b1ae946ecac3e2712c2a84b9f59.jpeg"
+                  alt=""
+                  className="h-64 w-full object-cover object-center sm:h-80 md:h-96"
+                />
               </div>
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+
+              {/* Shortcut grid */}
+              <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                {shortcuts.map(([icon, label, href]) => (
+                  <a
+                    key={href}
+                    href={href}
+                    className="group flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-5 transition hover:border-orange-500/40 hover:bg-slate-900"
+                  >
+                    <span className="text-2xl" aria-hidden>{icon}</span>
+                    <span className="text-sm font-semibold text-white">{label}</span>
+                    <span className="mt-auto text-orange-300 opacity-0 transition group-hover:translate-x-1 group-hover:opacity-100" aria-hidden>→</span>
+                  </a>
+                ))}
+              </section>
+
+              {/* Continue where you left off */}
+              <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
                 <p className="text-xs uppercase tracking-[0.3em] text-slate-500">{t("lp_summary")}</p>
-                <div className="mt-4 space-y-3 text-sm text-slate-300">
-                  <p>{t("lp_continue_desc")}</p>
-                  <p className="text-xs text-slate-500">{t("lp_help_desc")}</p>
+                <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-1.5 text-sm text-slate-300">
+                    <p>{t("lp_continue_desc")}</p>
+                    <p className="text-xs text-slate-500">{t("lp_help_desc")}</p>
+                  </div>
+                  <a href="/dashboard" className={`${btnPrimary} shrink-0 px-6 py-3 text-sm`}>{t("lp_open_dashboard")}</a>
                 </div>
-              </div>
               </section>
             </main>
           </div>
