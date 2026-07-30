@@ -84,7 +84,7 @@ function buildEmailHtml(briefing: string, mode: string, date: string): string {
 <body style="background:#0f172a;font-family:system-ui,sans-serif;padding:0;margin:0">
   <div style="max-width:600px;margin:0 auto;padding:32px 24px">
     <div style="text-align:center;margin-bottom:24px">
-      <img src="https://owlfund.vercel.app/chainfolioai-icon.png" alt="ChainFolioAI" width="48" height="48" style="border-radius:12px;object-fit:cover;margin-bottom:8px" />
+      <img src="https://chainfolioai.vercel.app/chainfolioai-icon.png" alt="ChainFolioAI" width="48" height="48" style="border-radius:12px;object-fit:cover;margin-bottom:8px" />
       <p style="color:#f97316;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;margin:0">ChainFolioAI</p>
       <h1 style="color:#fff;font-size:22px;margin:8px 0">Briefing ${mode === "crypto" ? "Cripto" : "Tradicional"}</h1>
       <p style="color:#64748b;font-size:12px;margin:0">${date}</p>
@@ -93,10 +93,10 @@ function buildEmailHtml(briefing: string, mode: string, date: string): string {
       ${lines}
     </div>
     <div style="text-align:center;margin-top:20px">
-      <a href="https://owlfund.vercel.app/mercado" style="background:#f97316;color:#0f172a;padding:10px 24px;border-radius:999px;text-decoration:none;font-size:13px;font-weight:700">Ver Mercado →</a>
+      <a href="https://chainfolioai.vercel.app/mercado" style="background:#f97316;color:#0f172a;padding:10px 24px;border-radius:999px;text-decoration:none;font-size:13px;font-weight:700">Ver Mercado →</a>
     </div>
     <p style="text-align:center;color:#475569;font-size:11px;margin-top:20px">
-      Para cancelar, vai a <a href="https://owlfund.vercel.app/account" style="color:#f97316">Conta → Notificações</a>
+      Para cancelar, vai a <a href="https://chainfolioai.vercel.app/account" style="color:#f97316">Conta → Notificações</a>
     </p>
   </div>
 </body>

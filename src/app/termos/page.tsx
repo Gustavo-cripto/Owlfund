@@ -16,7 +16,7 @@ const SECTIONS: { h: TranslationKey; b: TranslationKey }[] = [
   { h: "tp_s8_h", b: "tp_s8_b" },
 ];
 
-const LAST_UPDATED = "2026-07-09";
+const LAST_UPDATED = "2026-07-29";
 
 export default function TermsPage() {
   const { t } = useLanguage();

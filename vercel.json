@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/news-briefing",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/crypto-expiry",
+      "schedule": "30 0 * * *"
     }
   ]
 }

@@ -62,6 +62,7 @@ const upsertSubscription = async (subscription: any) => {
     price_id: priceId,
     current_period_end: currentPeriodEnd,
     cancel_at_period_end: subscription.cancel_at_period_end ?? false,
+    source: "stripe",
   });
 };
 

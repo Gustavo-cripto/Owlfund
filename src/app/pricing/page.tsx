@@ -5,6 +5,8 @@ import { btnPrimary } from "@/lib/ui/buttons";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { CRYPTO_PAYMENTS_ENABLED } from "@/lib/payments/config";
+import { cryptoPrice, CRYPTO_DISCOUNT_PCT } from "@/lib/payments/pricing";
 
 // ── Feature comparison table data ─────────────────────────────────────────
 
@@ -79,6 +81,7 @@ export default function PricingPage() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [billingInterval, setBillingInterval] = useState<"month" | "year">("month");
+  const [payMethod, setPayMethod] = useState<"fiat" | "crypto">("fiat");
 
   useEffect(() => {
     const load = async () => {
@@ -114,23 +117,51 @@ export default function PricingPage() {
 
   const handleUpgrade = async (plan: "pro" | "premium") => {
     if (!userId) { window.location.href = "/login"; return; }
-    const { data: sessionData } = await supabase.auth.getSession();
-    const accessToken = sessionData.session?.access_token ?? "";
-    const res = await fetch("/api/stripe/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${accessToken}` },
-      body: JSON.stringify({ userId, plan, interval: billingInterval }),
-    });
-    const data = (await res.json()) as { url?: string; error?: string };
-    if (data.url) window.location.href = data.url;
-    else if (data.error) alert(data.error);
+    try {
+      // getSession() pode rebentar se a sessão local estiver corrompida — nesse
+      // caso mostramos mensagem em vez de falhar em silêncio (botão "não faz nada").
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token ?? "";
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${accessToken}` },
+        body: JSON.stringify({ userId, plan, interval: billingInterval }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+      if (data.url) { window.location.href = data.url; return; }
+      alert(data.error ?? t("pc_checkout_error"));
+    } catch {
+      alert(t("pc_checkout_error"));
+    }
   };
+
+  const handleCryptoUpgrade = async (plan: "pro" | "premium") => {
+    if (!userId) { window.location.href = "/login"; return; }
+    try {
+      const res = await fetch("/api/crypto/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan, period: billingInterval === "year" ? "annual" : "monthly" }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+      if (data.url) { window.location.href = data.url; return; }
+      alert(data.error ?? t("pc_checkout_error"));
+    } catch {
+      alert(t("pc_checkout_error"));
+    }
+  };
+
+  const upgrade = (plan: "pro" | "premium") =>
+    payMethod === "crypto" ? handleCryptoUpgrade(plan) : handleUpgrade(plan);
 
   const currentPlan = isPremium ? "premium" : isPro ? "pro" : "free";
   const annual = billingInterval === "year";
   // Preços por plano/intervalo. Anual ≈ 2 meses grátis face ao mensal.
+  // Em modo cripto, mostra o preço com desconto em EURC.
+  const fmtEurc = (n: number) => `${n.toFixed(2).replace(".", ",")} EURC`;
   const priceLabel = (plan: "free" | "pro" | "premium") => {
     if (plan === "free") return "€0";
+    if (payMethod === "crypto") return fmtEurc(cryptoPrice(plan, annual ? "annual" : "monthly"));
     if (plan === "pro") return annual ? "€149" : "€14,99";
     return annual ? "€390" : "€39";
   };
@@ -211,6 +242,26 @@ export default function PricingPage() {
               </div>
             </div>
 
+            {/* Payment method toggle (Cartão / Cripto) — só quando ativado */}
+            {CRYPTO_PAYMENTS_ENABLED && (
+              <div className="flex flex-col items-center gap-2 -mt-6">
+                <div className="inline-flex items-center gap-1 rounded-full border border-slate-800 bg-slate-900/60 p-1">
+                  <button type="button" onClick={() => setPayMethod("fiat")}
+                    className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${payMethod === "fiat" ? "bg-orange-500 text-slate-950" : "text-slate-400 hover:text-white"}`}>
+                    💳 {t("pc_pay_card")}
+                  </button>
+                  <button type="button" onClick={() => setPayMethod("crypto")}
+                    className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold transition ${payMethod === "crypto" ? "bg-orange-500 text-slate-950" : "text-slate-400 hover:text-white"}`}>
+                    ₿ {t("pc_pay_crypto")}
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${payMethod === "crypto" ? "bg-slate-950/20 text-slate-950" : "bg-emerald-500/20 text-emerald-300"}`}>−{CRYPTO_DISCOUNT_PCT}%</span>
+                  </button>
+                </div>
+                {payMethod === "crypto" && (
+                  <p className="text-[11px] text-slate-500 max-w-xs text-center">{t("pc_crypto_pay_note")}</p>
+                )}
+              </div>
+            )}
+
             {/* 3 Plan Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
@@ -289,7 +340,7 @@ export default function PricingPage() {
                 ) : currentPlan === "premium" ? (
                   <div className="text-center py-2.5 text-sm text-slate-500 border border-slate-700 rounded-xl">{t("pc_included_premium")}</div>
                 ) : (
-                  <button type="button" onClick={() => handleUpgrade("pro")}
+                  <button type="button" onClick={() => upgrade("pro")}
                     className={`${btnPrimary} w-full px-4 py-2.5 text-sm`}>
                     {t("pc_btn_upgrade_pro")}
                   </button>
@@ -333,7 +384,7 @@ export default function PricingPage() {
                 ) : currentPlan === "premium" ? (
                   <div className="text-center py-2.5 text-sm text-emerald-400 font-semibold border border-emerald-500/30 rounded-xl bg-emerald-500/10">{t("pc_current_plan")}</div>
                 ) : (
-                  <button type="button" onClick={() => handleUpgrade("premium")}
+                  <button type="button" onClick={() => upgrade("premium")}
                     className="w-full rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-violet-400 transition">
                     {t("pc_btn_upgrade_premium")}
                   </button>
@@ -443,6 +494,7 @@ export default function PricingPage() {
                   { q: t("pc_faq_q4"), a: t("pc_faq_a4") },
                   { q: t("pc_faq_q5"), a: t("pc_faq_a5") },
                   { q: t("pc_faq_q6"), a: t("pc_faq_a6") },
+                  ...(CRYPTO_PAYMENTS_ENABLED ? [{ q: t("pc_faq_q_crypto"), a: t("pc_faq_a_crypto") }] : []),
                 ].map((item) => (
                   <div key={item.q} className="rounded-2xl border border-slate-800 bg-slate-900/40 p-5">
                     <p className="text-sm font-semibold text-white">{item.q}</p>

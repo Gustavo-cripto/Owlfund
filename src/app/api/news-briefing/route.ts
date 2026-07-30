@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { unstable_cache } from "next/cache";
 import { generateAiText, friendlyAiError, errorStatus, hasAnyAiProvider } from "@/lib/ai/groq";
+import { NO_ADVICE_RULE } from "@/lib/ai/disclaimer";
 
 type NewsItem = {
   title: string;
@@ -70,7 +71,7 @@ Com base nestas notícias reais, escreve um BRIEFING COMPLETO em português euro
 *Análise gerada por ChainFolioAI com base em notícias reais de ${today} ${time}*`;
 
     const content = await generateAiText({
-      prompt: prompt + langInstruction,
+      prompt: prompt + "\n\n" + NO_ADVICE_RULE + langInstruction,
       maxTokens: 2000,
       temperature: 0.25,
     });
