@@ -6,7 +6,7 @@ export const metadata = {
   description: "Documentação da API REST e do servidor MCP do ChainFolioAI.",
 };
 
-const BASE = "https://chainfolioai.vercel.app";
+const BASE = "https://chainfolioai.com";
 
 function Code({ children }: { children: string }) {
   return (

@@ -147,7 +147,7 @@ function PremiumApiKeys({ isPremium }: { isPremium: boolean }) {
           </div>
 
           <div className="space-y-1.5 border-t border-slate-800 pt-3">
-            <p className="text-[10px] text-slate-600">{t("ac_endpoint_base")} <code className="text-slate-500">https://chainfolioai.vercel.app/api/v1/</code> · Cabeçalho: <code className="text-slate-500">Authorization: Bearer cfa_live_…</code></p>
+            <p className="text-[10px] text-slate-600">{t("ac_endpoint_base")} <code className="text-slate-500">https://chainfolioai.com/api/v1/</code> · Cabeçalho: <code className="text-slate-500">Authorization: Bearer cfa_live_…</code></p>
             <ul className="space-y-1">
               {[
                 ["GET", "/api/v1", "índice"],
@@ -171,7 +171,7 @@ function PremiumApiKeys({ isPremium }: { isPremium: boolean }) {
               ))}
             </ul>
             <p className="text-[10px] text-slate-600 pt-1">
-              MCP (Claude, Cursor…): <code className="text-slate-500">https://chainfolioai.vercel.app/api/mcp</code> · mesma chave no cabeçalho <code className="text-slate-500">Authorization</code>. Ferramentas: <code className="text-slate-500">get_portfolio</code>, <code className="text-slate-500">get_wallets</code>, <code className="text-slate-500">get_whale_activity</code>, <code className="text-slate-500">get_market</code>, <code className="text-slate-500">list_known_whales</code>, <code className="text-slate-500">get_asset</code>, <code className="text-slate-500">get_fear_greed</code>, <code className="text-slate-500">get_news</code>, <code className="text-slate-500">get_btc_blocks</code>, <code className="text-slate-500">get_fire</code>, <code className="text-slate-500">ask_ai</code>.
+              MCP (Claude, Cursor…): <code className="text-slate-500">https://chainfolioai.com/api/mcp</code> · mesma chave no cabeçalho <code className="text-slate-500">Authorization</code>. Ferramentas: <code className="text-slate-500">get_portfolio</code>, <code className="text-slate-500">get_wallets</code>, <code className="text-slate-500">get_whale_activity</code>, <code className="text-slate-500">get_market</code>, <code className="text-slate-500">list_known_whales</code>, <code className="text-slate-500">get_asset</code>, <code className="text-slate-500">get_fear_greed</code>, <code className="text-slate-500">get_news</code>, <code className="text-slate-500">get_btc_blocks</code>, <code className="text-slate-500">get_fire</code>, <code className="text-slate-500">ask_ai</code>.
             </p>
             <a href="/developers" className="inline-block pt-1 text-[10px] font-semibold text-orange-300/90 hover:text-orange-200">Ver documentação completa →</a>
           </div>

@@ -8,7 +8,7 @@ export async function GET() {
   return apiJson({
     name: "ChainFolioAI API",
     version: "v1",
-    documentation: "https://chainfolioai.vercel.app/account",
+    documentation: "https://chainfolioai.com/account",
     authentication:
       "Bearer token — cabeçalho 'Authorization: Bearer cfa_live_…'. Gera chaves em Conta → API & MCP (plano Premium).",
     endpoints: [
