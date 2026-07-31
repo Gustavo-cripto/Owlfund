@@ -1,3 +1,5 @@
+import { accKey, allAccountIds, isAllAccountsActive, readNamespaced } from "@/lib/portfolios/accounts";
+
 export type CryptoHolding = {
   /** Valor investido (custo) em EUR. */
   buyValue?: number;
@@ -23,11 +25,31 @@ export const cryptoHoldingValueEur = (
   return Number.isFinite(invested) ? invested : 0;
 };
 
-const STORAGE_KEY = "owlfund.crypto.holdings.v1";
+const cryptoHoldingsKey = () => accKey("owlfund.crypto.holdings.v1");
 
 export const loadCryptoHoldings = (): CryptoHoldings => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    // Vista combinada "Todas": soma quantidade e valor investido por símbolo.
+    if (isAllAccountsActive()) {
+      const merged: CryptoHoldings = {};
+      for (const id of allAccountIds()) {
+        const raw = readNamespaced(id, "owlfund.crypto.holdings.v1");
+        if (!raw) continue;
+        let obj: CryptoHoldings;
+        try { obj = JSON.parse(raw) as CryptoHoldings; } catch { continue; }
+        if (!obj || typeof obj !== "object") continue;
+        for (const [sym, h] of Object.entries(obj)) {
+          const cur = merged[sym] ?? {};
+          merged[sym] = {
+            buyValue: (cur.buyValue ?? 0) + (h.buyValue ?? 0),
+            quantity: (cur.quantity ?? 0) + (h.quantity ?? 0),
+            buyDate: cur.buyDate ?? h.buyDate,
+          };
+        }
+      }
+      return merged;
+    }
+    const raw = localStorage.getItem(cryptoHoldingsKey());
     const parsed = raw ? (JSON.parse(raw) as CryptoHoldings) : {};
     if (!parsed || typeof parsed !== "object") return {};
     return parsed;
@@ -37,8 +59,9 @@ export const loadCryptoHoldings = (): CryptoHoldings => {
 };
 
 export const saveCryptoHoldings = (holdings: CryptoHoldings) => {
+  if (isAllAccountsActive()) return; // vista combinada é só leitura
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(holdings));
+    localStorage.setItem(cryptoHoldingsKey(), JSON.stringify(holdings));
   } catch {
     // ignore
   }
@@ -53,11 +76,24 @@ export type StablecoinEntry = {
   balance?: string;
 };
 
-const STABLECOIN_STORAGE_KEY = "owlfund.stablecoin.addresses.v1";
+const stablecoinKey = () => accKey("owlfund.stablecoin.addresses.v1");
 
 export const loadStablecoinEntries = (): StablecoinEntry[] => {
   try {
-    const raw = localStorage.getItem(STABLECOIN_STORAGE_KEY);
+    // Vista combinada "Todas": junta as stablecoins de todas as contas.
+    if (isAllAccountsActive()) {
+      const merged: StablecoinEntry[] = [];
+      for (const id of allAccountIds()) {
+        const raw = readNamespaced(id, "owlfund.stablecoin.addresses.v1");
+        if (!raw) continue;
+        try {
+          const arr = JSON.parse(raw) as StablecoinEntry[];
+          if (Array.isArray(arr)) merged.push(...arr);
+        } catch { /* ignore */ }
+      }
+      return merged;
+    }
+    const raw = localStorage.getItem(stablecoinKey());
     const parsed = raw ? (JSON.parse(raw) as StablecoinEntry[]) : [];
     return Array.isArray(parsed) ? parsed : [];
   } catch {
@@ -66,8 +102,9 @@ export const loadStablecoinEntries = (): StablecoinEntry[] => {
 };
 
 export const saveStablecoinEntries = (entries: StablecoinEntry[]) => {
+  if (isAllAccountsActive()) return; // vista combinada é só leitura
   try {
-    localStorage.setItem(STABLECOIN_STORAGE_KEY, JSON.stringify(entries));
+    localStorage.setItem(stablecoinKey(), JSON.stringify(entries));
   } catch {
     // ignore
   }

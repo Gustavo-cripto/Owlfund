@@ -52,11 +52,11 @@ import {
 } from "@/lib/wallets/cardano";
 import {
   loadWalletSnapshot,
-  saveWalletSnapshot,
   updateWalletSnapshot,
   type StoredWalletEntry,
   type WalletSnapshot,
 } from "@/lib/wallets/storage";
+import { pushWalletCloud, pullWalletCloud } from "@/lib/portfolios/cloudSync";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { traditionalAssets, traditionalCategories } from "@/lib/traditional/assets";
 import {
@@ -680,18 +680,20 @@ export default function WalletsPage() {
       setOtherWallets(snapshot.other ?? []);
       walletsHydratedRef.current = true;
     } else {
-      // No local data — try to restore from cloud
-      fetch("/api/wallet-sync")
-        .then(r => r.ok ? r.json() : null)
-        .then((json: { data?: { eth?: unknown[]; sol?: unknown[]; btc?: unknown[]; ada?: unknown[]; other?: unknown[] } | null } | null) => {
-          if (json?.data) {
-            const d = json.data;
-            saveWalletSnapshot(d as Parameters<typeof saveWalletSnapshot>[0]);
+      // No local data — try to restore from cloud (multi-conta)
+      pullWalletCloud()
+        .then((restored) => {
+          if (restored) {
+            const d = loadWalletSnapshot();
             setEthWallets((d.eth ?? []) as typeof ethWallets);
             setSolWallets((d.sol ?? []) as typeof solWallets);
             setBtcWallets((d.btc ?? []) as typeof btcWallets);
             setAdaWallets((d.ada ?? []) as typeof adaWallets);
             setOtherWallets((d.other ?? []) as typeof otherWallets);
+            // Ativos manuais também vieram da nuvem — re-ler
+            setTraditionalHoldings(loadTraditionalHoldings());
+            setCryptoHoldings(loadCryptoHoldings());
+            setStablecoinEntries(loadStablecoinEntries());
           }
         })
         .catch(() => {})
@@ -704,8 +706,8 @@ export default function WalletsPage() {
     const id = window.setTimeout(() => {
       const snap = { eth: ethWallets, sol: solWallets, btc: btcWallets, ada: adaWallets, other: otherWallets };
       updateWalletSnapshot(snap);
-      // Sync to cloud so other devices stay in sync
-      fetch("/api/wallet-sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: snap }) }).catch(() => {});
+      // Sync to cloud so other devices stay in sync (todas as contas)
+      pushWalletCloud();
     }, 500);
     return () => window.clearTimeout(id);
   }, [ethWallets, solWallets, btcWallets, adaWallets, otherWallets]);
@@ -763,17 +765,18 @@ export default function WalletsPage() {
 
   useEffect(() => {
     saveStablecoinEntries(stablecoinEntries);
+    if (walletsHydratedRef.current) pushWalletCloud();
   }, [stablecoinEntries]);
 
   useEffect(() => {
     if (!traditionalHydratedRef.current) return;
-    const id = window.setTimeout(() => saveTraditionalHoldings(traditionalHoldings), 120);
+    const id = window.setTimeout(() => { saveTraditionalHoldings(traditionalHoldings); if (walletsHydratedRef.current) pushWalletCloud(); }, 120);
     return () => window.clearTimeout(id);
   }, [traditionalHoldings]);
 
   useEffect(() => {
     if (!cryptoHydratedRef.current) return;
-    const id = window.setTimeout(() => saveCryptoHoldings(cryptoHoldings), 120);
+    const id = window.setTimeout(() => { saveCryptoHoldings(cryptoHoldings); if (walletsHydratedRef.current) pushWalletCloud(); }, 120);
     return () => window.clearTimeout(id);
   }, [cryptoHoldings]);
 

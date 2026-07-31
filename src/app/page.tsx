@@ -27,6 +27,7 @@ const TOOLS = [
   { icon: "🔥", t: "lp_t4_t", d: "lp_t4_d" },
   { icon: "🐋", t: "lp_t5_t", d: "lp_t5_d" },
   { icon: "🌐", t: "lp_t6_t", d: "lp_t6_d" },
+  { icon: "🗂️", t: "lp_t7_t", d: "lp_t7_d" },
 ] as const;
 
 const PLANS = [
@@ -208,6 +209,18 @@ export default function Home() {
                     <p className="text-xs text-slate-500">{t("lp_help_desc")}</p>
                   </div>
                   <a href="/dashboard" className={`${btnPrimary} shrink-0 px-6 py-3 text-sm`}>{t("lp_open_dashboard")}</a>
+                </div>
+              </section>
+
+              {/* Multi-conta — anúncio da feature */}
+              <section className="rounded-2xl border border-orange-500/30 bg-gradient-to-br from-orange-500/10 to-slate-900/40 p-6">
+                <div className="flex items-start gap-4">
+                  <span className="text-3xl leading-none" aria-hidden>🗂️</span>
+                  <div>
+                    <span className="mb-2 inline-flex items-center gap-1 rounded-full border border-orange-500/40 bg-orange-500/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-orange-300">✨ Pro · Premium</span>
+                    <h2 className="text-lg font-semibold text-white">{t("lp_multi_t")}</h2>
+                    <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-slate-400">{t("lp_multi_d")}</p>
+                  </div>
                 </div>
               </section>
             </main>

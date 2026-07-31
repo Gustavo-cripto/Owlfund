@@ -14,7 +14,8 @@ import PnlSummaryCard from "@/components/PnlSummaryCard";
 import PortfolioChartSection from "@/components/PortfolioChartSection";
 import ScenarioSimulator from "@/components/ScenarioSimulator";
 import { createClient } from "@/lib/supabase/client";
-import { loadWalletSnapshot, saveWalletSnapshot, updateWalletSnapshot, type StoredWalletEntry, type WalletSnapshot } from "@/lib/wallets/storage";
+import { loadWalletSnapshot, updateWalletSnapshot, type StoredWalletEntry, type WalletSnapshot } from "@/lib/wallets/storage";
+import { pushWalletCloud, pullWalletCloud } from "@/lib/portfolios/cloudSync";
 import { getEvmBalance } from "@/lib/wallets/evm";
 import { getSolBalance } from "@/lib/wallets/solana";
 import { getBtcBalanceFromAddress } from "@/lib/wallets/bitcoin";
@@ -327,19 +328,19 @@ export default function PortfolioPage() {
       let snapshot = loadWalletSnapshot();
       const isEmpty = !snapshot.eth?.length && !snapshot.sol?.length && !snapshot.btc?.length && !snapshot.ada?.length;
 
-      // If no local data, try to restore from cloud
+      // If no local data, try to restore from cloud (multi-conta)
       if (isEmpty) {
-        try {
-          const res = await fetch("/api/wallet-sync");
-          if (res.ok) {
-            const json = await res.json() as { data?: WalletSnapshot | null };
-            if (json.data && (json.data.eth?.length || json.data.sol?.length || json.data.btc?.length || json.data.ada?.length)) {
-              saveWalletSnapshot(json.data);
-              snapshot = json.data;
-              setWallets(snapshotToWallets(snapshot, tokenPricesRef.current));
-            }
+        const restored = await pullWalletCloud();
+        if (restored) {
+          snapshot = loadWalletSnapshot();
+          if (snapshot.eth?.length || snapshot.sol?.length || snapshot.btc?.length || snapshot.ada?.length) {
+            setWallets(snapshotToWallets(snapshot, tokenPricesRef.current));
           }
-        } catch { /* ignore */ }
+          // Ativos manuais também vieram da nuvem — re-ler
+          setTraditionalHoldings(loadTraditionalHoldings());
+          setCryptoHoldings(loadCryptoHoldings());
+          setStablecoinEntries(loadStablecoinEntries());
+        }
       }
 
       if (!snapshot.eth?.length && !snapshot.sol?.length && !snapshot.btc?.length && !snapshot.ada?.length) return;
@@ -375,8 +376,8 @@ export default function PortfolioPage() {
         updateWalletSnapshot(patch);
         const fresh = loadWalletSnapshot();
         setWallets(snapshotToWallets(fresh as WalletSnapshot, tokenPricesRef.current));
-        // Sync updated balances back to cloud
-        fetch("/api/wallet-sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: fresh }) }).catch(() => {});
+        // Sync updated balances back to cloud (todas as contas)
+        pushWalletCloud();
       }
     };
     run();

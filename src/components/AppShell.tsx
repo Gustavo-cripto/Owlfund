@@ -2,6 +2,7 @@
 
 import Sidebar from "./Sidebar";
 import BtcBlocksBar from "./BtcBlocksBar";
+import AccountSwitcher from "./AccountSwitcher";
 
 const TICKER_DATA = [
   { symbol: "BTC",    price: "€ 91.240", change: "+2,4%", up: true  },
@@ -44,6 +45,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* BTC live blocks */}
         <BtcBlocksBar />
+
+        {/* Account / portfolio switcher (Pro/Premium) */}
+        <div className="flex justify-end px-4 pt-2">
+          <AccountSwitcher />
+        </div>
 
         {/* Page content */}
         <main className="flex-1 min-w-0">
