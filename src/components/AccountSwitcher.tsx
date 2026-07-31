@@ -136,7 +136,7 @@ export default function AccountSwitcher() {
                 onClick={() => switchTo(a.id)}
                 className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm transition ${a.id === activeId ? "bg-orange-500/15 text-orange-300" : "text-slate-300 hover:bg-white/5"}`}
               >
-                <span className="truncate">{a.name}</span>
+                <span className="min-w-0 flex-1 truncate pr-2 text-left">{a.name}</span>
                 {a.id === activeId && <span className="shrink-0 text-orange-400">✓</span>}
               </button>
             ))}
