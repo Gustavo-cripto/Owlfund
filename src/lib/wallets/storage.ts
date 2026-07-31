@@ -1,3 +1,5 @@
+import { accKey, allAccountIds, isAllAccountsActive, readNamespaced } from "@/lib/portfolios/accounts";
+
 export type StoredWalletEntry = {
   address?: string;
   balance?: string;
@@ -19,7 +21,7 @@ export type WalletSnapshot = {
   manualEur?: number;
 };
 
-const STORAGE_KEY = "portfolio-wallets";
+const walletsKey = () => accKey("portfolio-wallets");
 
 const normalizeEntry = (value: unknown): StoredWalletEntry[] | undefined => {
   if (!value) return undefined;
@@ -45,7 +47,24 @@ const normalizeSnapshot = (value: unknown): WalletSnapshot => {
 export const loadWalletSnapshot = (): WalletSnapshot => {
   if (typeof window === "undefined") return {};
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    // Vista combinada "Todas": junta as carteiras de todas as contas.
+    if (isAllAccountsActive()) {
+      const merged: WalletSnapshot = {};
+      for (const id of allAccountIds()) {
+        const raw = readNamespaced(id, "portfolio-wallets");
+        if (!raw) continue;
+        const snap = normalizeSnapshot(JSON.parse(raw));
+        (["eth", "sol", "btc", "ada", "other"] as const).forEach((k) => {
+          const arr = snap[k];
+          if (arr?.length) merged[k] = [...(merged[k] ?? []), ...arr];
+        });
+        if (typeof snap.cexUsd === "number") merged.cexUsd = (merged.cexUsd ?? 0) + snap.cexUsd;
+        if (typeof snap.defiUsd === "number") merged.defiUsd = (merged.defiUsd ?? 0) + snap.defiUsd;
+        if (typeof snap.manualEur === "number") merged.manualEur = (merged.manualEur ?? 0) + snap.manualEur;
+      }
+      return merged;
+    }
+    const raw = window.localStorage.getItem(walletsKey());
     return raw ? normalizeSnapshot(JSON.parse(raw)) : {};
   } catch {
     return {};
@@ -54,8 +73,9 @@ export const loadWalletSnapshot = (): WalletSnapshot => {
 
 export const saveWalletSnapshot = (next: WalletSnapshot) => {
   if (typeof window === "undefined") return;
+  if (isAllAccountsActive()) return; // vista combinada é só leitura
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizeSnapshot(next)));
+    window.localStorage.setItem(walletsKey(), JSON.stringify(normalizeSnapshot(next)));
   } catch {
     // ignore storage errors
   }
