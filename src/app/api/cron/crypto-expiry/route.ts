@@ -91,7 +91,7 @@ export async function GET(request: Request) {
           const plan = planFromPriceId(sub.price_id);
           const endLabel = end.toLocaleDateString("pt-PT");
           const { error } = await resend.emails.send({
-            from: "ChainFolioAI <billing@owlfund.app>",
+            from: "ChainFolioAI <billing@chainfolioai.com>",
             to: email,
             subject: `A tua subscrição ${plan} expira ${daysLeft === 1 ? "amanhã" : `em ${daysLeft} dias`}`,
             html: reminderHtml(plan, endLabel, daysLeft, `${siteUrl}/account`),
