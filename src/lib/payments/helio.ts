@@ -98,7 +98,7 @@ export async function createHelioCharge(input: {
   // Para onde o Helio reencaminha o utilizador após pagar (página de confirmação
   // com polling). O nome do campo é PROVISÓRIO — confirmar contra a API/Pay Link
   // real; em alternativa, definir a redirect URL no próprio Pay Link do dashboard.
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://chainfolioai.vercel.app").replace(/\/$/, "");
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://chainfolioai.com").replace(/\/$/, "");
   const redirectUrl = `${siteUrl}/crypto/confirm`;
 
   try {

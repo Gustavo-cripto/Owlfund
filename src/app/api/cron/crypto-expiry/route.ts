@@ -62,7 +62,7 @@ export async function GET(request: Request) {
   let reminded = 0;
   const remindErrors: string[] = [];
   const resendKey = process.env.RESEND_API_KEY ?? "";
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://chainfolioai.vercel.app").replace(/\/$/, "");
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://chainfolioai.com").replace(/\/$/, "");
 
   if (resendKey) {
     try {
@@ -91,7 +91,7 @@ export async function GET(request: Request) {
           const plan = planFromPriceId(sub.price_id);
           const endLabel = end.toLocaleDateString("pt-PT");
           const { error } = await resend.emails.send({
-            from: "ChainFolioAI <billing@owlfund.app>",
+            from: "ChainFolioAI <billing@chainfolioai.com>",
             to: email,
             subject: `A tua subscrição ${plan} expira ${daysLeft === 1 ? "amanhã" : `em ${daysLeft} dias`}`,
             html: reminderHtml(plan, endLabel, daysLeft, `${siteUrl}/account`),

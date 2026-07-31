@@ -23,8 +23,8 @@ async function timingSafeEqual(a: string, b: string): Promise<boolean> {
     crypto.subtle.importKey("raw", enc.encode(b).buffer as ArrayBuffer, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]),
   ]);
   const [sa, sb] = await Promise.all([
-    crypto.subtle.sign("HMAC", ka, enc.encode("owlfund-cron").buffer as ArrayBuffer),
-    crypto.subtle.sign("HMAC", kb, enc.encode("owlfund-cron").buffer as ArrayBuffer),
+    crypto.subtle.sign("HMAC", ka, enc.encode("chainfolioai-cron").buffer as ArrayBuffer),
+    crypto.subtle.sign("HMAC", kb, enc.encode("chainfolioai-cron").buffer as ArrayBuffer),
   ]);
   const va = new Uint8Array(sa);
   const vb = new Uint8Array(sb);
