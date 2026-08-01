@@ -113,6 +113,28 @@ async function fetchBenchmarkSnapshot(): Promise<BenchSnapshot | null> {
   }
 }
 
+// Logótipo do ChainFolioAI como data URL (base64), para embutir no PDF/Excel.
+// Usa o apple-touch-icon (leve, ~43KB). Cacheado após o primeiro fetch.
+let _logoDataUrl: string | null = null;
+async function loadLogoDataUrl(): Promise<string | null> {
+  if (_logoDataUrl) return _logoDataUrl;
+  try {
+    const res = await fetch("/apple-touch-icon.png");
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(fr.result as string);
+      fr.onerror = reject;
+      fr.readAsDataURL(blob);
+    });
+    _logoDataUrl = dataUrl;
+    return dataUrl;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchHistoricalPrices(): Promise<HistoricalPrices> {
   try {
     const res = await fetch("/api/historical-prices", { cache: "no-store" });
@@ -1448,55 +1470,106 @@ export default function PortfolioPage() {
                 const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
                 const now = new Date().toLocaleDateString("pt-PT", { day: "2-digit", month: "long", year: "numeric" });
                 let y = 20;
-                const line = (text: string, size = 11, bold = false) => {
-                  doc.setFontSize(size);
-                  doc.setFont("helvetica", bold ? "bold" : "normal");
-                  doc.text(text, 15, y);
-                  y += size * 0.5 + 2;
-                };
                 const spacer = (n = 4) => { y += n; };
+                const checkPage = () => {
+                  if (y > 272) {
+                    doc.addPage();
+                    doc.setFillColor(15, 23, 42);
+                    doc.rect(0, 0, 210, 297, "F");
+                    doc.setTextColor(255, 255, 255);
+                    y = 20;
+                  }
+                };
+                // Cabeçalho de secção (laranja da marca)
+                const head = (text: string) => {
+                  checkPage();
+                  doc.setTextColor(249, 115, 22);
+                  doc.setFontSize(13);
+                  doc.setFont("helvetica", "bold");
+                  doc.text(text, 15, y);
+                  doc.setTextColor(255, 255, 255);
+                  y += 8;
+                };
+                // Linha de corpo em 2 colunas
+                const kv2 = (a: string, b?: string) => {
+                  checkPage();
+                  doc.setFontSize(10);
+                  doc.setFont("helvetica", "normal");
+                  doc.setTextColor(226, 232, 240);
+                  doc.text(a, 15, y);
+                  if (b) doc.text(b, 108, y);
+                  doc.setTextColor(255, 255, 255);
+                  y += 6.5;
+                };
+
+                let accName = "";
+                try { accName = listAccounts().find((x) => x.id === getActiveAccountId())?.name ?? ""; } catch { /* ignore */ }
 
                 doc.setFillColor(15, 23, 42);
                 doc.rect(0, 0, 210, 297, "F");
                 doc.setTextColor(255, 255, 255);
 
-                line("ChainFolioAI", 22, true);
-                line(`Relatório de Portfólio — ${now}`, 10);
-                spacer(6);
+                // Logótipo + título
+                const logo = await loadLogoDataUrl();
+                if (logo) { try { doc.addImage(logo, "PNG", 15, 12, 20, 20); } catch { /* ignore */ } }
+                const titleX = logo ? 40 : 15;
+                doc.setFontSize(22);
+                doc.setFont("helvetica", "bold");
+                doc.text("ChainFolioAI", titleX, 24);
+                doc.setFontSize(10);
+                doc.setFont("helvetica", "normal");
+                doc.setTextColor(148, 163, 184);
+                doc.text(`Relatório de Portfólio — ${now}${accName ? ` · ${accName}` : ""}`, titleX, 31);
+                doc.setTextColor(255, 255, 255);
+                y = 42;
                 doc.setDrawColor(249, 115, 22);
                 doc.setLineWidth(0.5);
                 doc.line(15, y, 195, y);
-                spacer(6);
+                spacer(8);
 
-                line(t("pf_summary"), 14, true);
-                spacer(2);
-                line(`Total do portfólio: ${curSym} ${formatValue(fx(portfolioTotal))}`);
-                line(`Cripto: ${curSym} ${formatValue(fx(cryptoTotal))} · Tradicional: ${curSym} ${formatValue(fx(traditionalTotal))}`);
-                spacer(4);
+                head(t("pf_summary"));
+                kv2(`Total: ${curSym} ${formatValue(fx(portfolioTotal))}`, `Cripto: ${curSym} ${formatValue(fx(cryptoTotal))}`);
+                kv2(`Tradicional: ${curSym} ${formatValue(fx(traditionalTotal))}`, stablecoinTotal > 0 ? `Stablecoins: ${curSym} ${formatValue(fx(stablecoinTotal))}` : undefined);
+                spacer(3);
 
-                line("PNL", 14, true);
-                spacer(2);
-                line(`Posição: ${curSym} ${formatValue(fx(pnlSummary.position >= 0 ? pnlSummary.position : -pnlSummary.position))} ${pnlSummary.position >= 0 ? "(ganho)" : "(perda)"}`);
-                line(`Hoje: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.today)))}`);
-                line(`30 dias: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.days30 ?? 0)))}`);
-                spacer(4);
+                head("PNL");
+                kv2(`Posição: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.position)))} ${pnlSummary.position >= 0 ? "(ganho)" : "(perda)"}`, `Hoje: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.today)))}`);
+                kv2(`30 dias: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.days30 ?? 0)))}`);
+                spacer(3);
 
                 if (advancedMetrics) {
-                  line(t("pf_adv_metrics"), 14, true);
-                  spacer(2);
-                  line(`ROI: ${advancedMetrics.roi.toFixed(2)}%`);
-                  if (advancedMetrics.cagr !== null) line(`CAGR: ${advancedMetrics.cagr.toFixed(2)}%`);
-                  if (advancedMetrics.sharpe !== null) line(`Sharpe Ratio: ${advancedMetrics.sharpe.toFixed(2)}`);
-                  line(`Max Drawdown: ${advancedMetrics.maxDrawdown.toFixed(2)}%`);
-                  if (advancedMetrics.volatility !== null) line(`Volatilidade: ${advancedMetrics.volatility.toFixed(2)}%`);
-                  line(`Período: ${advancedMetrics.days} dias`);
-                  spacer(4);
+                  const m = advancedMetrics;
+                  head(t("pf_adv_metrics"));
+                  kv2(`ROI: ${m.roi.toFixed(2)}%`, m.cagr !== null ? `CAGR: ${m.cagr.toFixed(2)}%` : undefined);
+                  kv2(m.sharpe !== null ? `Sharpe: ${m.sharpe.toFixed(2)}` : "Sharpe: —", m.sortino !== null ? `Sortino: ${m.sortino.toFixed(2)}` : undefined);
+                  kv2(m.calmar !== null ? `Calmar: ${m.calmar.toFixed(2)}` : "Calmar: —", m.volatility !== null ? `Volatilidade: ${m.volatility.toFixed(2)}%` : undefined);
+                  kv2(`Queda máxima: ${m.maxDrawdown.toFixed(2)}%`, `Drawdown atual: ${m.currentDrawdown.toFixed(2)}%${m.currentDrawdown < 0 ? ` (há ${m.daysSincePeak}d)` : ""}`);
+                  kv2(m.winRate !== null ? `Win rate: ${m.winRate.toFixed(0)}%` : "Win rate: —", m.var95 !== null ? `VaR 95%: ${m.var95.toFixed(2)}%` : undefined);
+                  if (m.bestReturn !== null || m.worstReturn !== null) {
+                    kv2(m.bestReturn !== null ? `Melhor período: ${m.bestReturn >= 0 ? "+" : ""}${m.bestReturn.toFixed(2)}%` : "", m.worstReturn !== null ? `Pior período: ${m.worstReturn.toFixed(2)}%` : undefined);
+                  }
+                  kv2(`Período: ${m.days} dias`, beta.btc !== null ? `Beta BTC: ${beta.btc.toFixed(2)}` : undefined);
+                  if (beta.sp500 !== null) kv2(`Beta S&P 500: ${beta.sp500.toFixed(2)}`);
+                  if (!beta.ready) kv2(`Beta vs BTC/S&P: a acumular (${beta.count}/${beta.needed})`);
+                  spacer(3);
                 }
 
-                line(t("pf_distribution"), 14, true);
-                spacer(2);
+                if (concentration) {
+                  head("Concentração");
+                  kv2(`Nº de ativos: ${concentration.numAssets}`, `Maior posição: ${concentration.topHolding.toFixed(1)}%`);
+                  kv2(`HHI: ${concentration.hhi}`, `Cripto: ${concentration.cryptoPct.toFixed(1)}% · Trad.: ${concentration.traditionalPct.toFixed(1)}%`);
+                  spacer(3);
+                }
+
+                head(t("pf_distribution"));
                 cryptoAllocations.filter(a => a.value > 0).forEach(a => {
-                  line(`${a.label} (${a.symbol}): ${curSym} ${formatValue(fx(a.value))} · ${a.percent}`);
+                  checkPage();
+                  doc.setFontSize(10);
+                  doc.setFont("helvetica", "normal");
+                  doc.setTextColor(226, 232, 240);
+                  doc.text(`${a.label} (${a.symbol}): ${curSym} ${formatValue(fx(a.value))} · ${a.percent}`, 15, y);
+                  doc.setTextColor(255, 255, 255);
+                  y += 6;
                 });
                 spacer(6);
 
@@ -1533,6 +1606,9 @@ export default function PortfolioPage() {
                 wb.created = new Date();
                 const ws = wb.addWorksheet("Portfólio");
 
+                const logoUrl = await loadLogoDataUrl();
+                const logoImgId = logoUrl ? wb.addImage({ base64: logoUrl.split(",")[1], extension: "png" }) : null;
+
                 [26, 22, 16, 18, 12].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
                 const money = `#,##0.00 "${curSym}"`;
                 const pctFmt = '0.00"%"';
@@ -1554,7 +1630,14 @@ export default function PortfolioPage() {
                 };
                 const boldRow = (r: import("exceljs").Row) => { r.eachCell((c) => { c.font = { bold: true }; }); return r; };
 
-                bandRow("ChainFolioAI — Exportação de portfólio", DARK, 14).height = 24;
+                const titleRow = bandRow("ChainFolioAI — Exportação de portfólio", DARK, 14);
+                if (logoImgId != null) {
+                  titleRow.height = 46;
+                  titleRow.getCell(1).alignment = { vertical: "middle", indent: 8 };
+                  ws.addImage(logoImgId, { tl: { col: 0.15, row: 0.15 }, ext: { width: 46, height: 46 } });
+                } else {
+                  titleRow.height = 24;
+                }
                 ([
                   ["Conta", accName || "—"],
                   ["Data", new Date().toLocaleString("pt-PT", { dateStyle: "short", timeStyle: "short" })],
@@ -1588,9 +1671,26 @@ export default function PortfolioPage() {
                   if (advancedMetrics.volatility !== null) metric("Volatilidade", advancedMetrics.volatility, pctFmt);
                   if (advancedMetrics.winRate !== null) metric("Win rate", advancedMetrics.winRate, pctFmt);
                   if (advancedMetrics.var95 !== null) metric("VaR 95%", advancedMetrics.var95, pctFmt);
+                  metric("Drawdown atual", advancedMetrics.currentDrawdown, pctFmt);
+                  if (advancedMetrics.bestReturn !== null) metric("Melhor período", advancedMetrics.bestReturn, pctFmt);
+                  if (advancedMetrics.worstReturn !== null) metric("Pior período", advancedMetrics.worstReturn, pctFmt);
                   metric("Período (dias)", advancedMetrics.days, "0");
                 }
+                if (beta.btc !== null) metric("Beta BTC", beta.btc, "0.00");
+                if (beta.sp500 !== null) metric("Beta S&P 500", beta.sp500, "0.00");
                 ws.addRow([]);
+
+                if (concentration) {
+                  bandRow("CONCENTRAÇÃO", BRAND);
+                  boldRow(ws.addRow(["Métrica", "Valor"]));
+                  metric("Nº de ativos", concentration.numAssets, "0");
+                  metric("Maior posição", concentration.topHolding, pctFmt);
+                  metric("HHI (0–10000)", concentration.hhi, "0");
+                  metric("% Cripto", concentration.cryptoPct, pctFmt);
+                  if (concentration.stablecoinPct > 0) metric("% Stablecoins", concentration.stablecoinPct, pctFmt);
+                  metric("% Tradicional", concentration.traditionalPct, pctFmt);
+                  ws.addRow([]);
+                }
 
                 bandRow("POSIÇÕES", BRAND);
                 boldRow(ws.addRow(["Categoria", "Ativo", "Símbolo", `Valor (${curSym})`, "% do total"]));
