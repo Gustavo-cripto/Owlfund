@@ -1349,7 +1349,18 @@ export default function PortfolioPage() {
                 doc.setTextColor(100, 116, 139);
                 doc.text(`Gerado por ChainFolioAI em ${now}. Apenas para referência pessoal.`, 15, 287);
 
-                doc.save(`chainfolioai-portfolio-${new Date().toISOString().slice(0, 10)}.pdf`);
+                const pdfName = `chainfolioai-portfolio-${new Date().toISOString().slice(0, 10)}.pdf`;
+                const pdfBlob = doc.output("blob");
+                const nav = navigator as Navigator & {
+                  canShare?: (d: { files: File[] }) => boolean;
+                  share?: (d: { files?: File[]; title?: string }) => Promise<void>;
+                };
+                const pdfFile = typeof File !== "undefined" ? new File([pdfBlob], pdfName, { type: "application/pdf" }) : null;
+                if (pdfFile && nav.canShare && nav.canShare({ files: [pdfFile] }) && nav.share) {
+                  nav.share({ files: [pdfFile], title: pdfName }).catch(() => {});
+                } else {
+                  doc.save(pdfName);
+                }
               }}
               className="flex items-center gap-2 rounded-xl border border-orange-500/40 px-4 py-2 text-sm font-semibold text-orange-300 hover:bg-orange-500/10 transition"
             >
@@ -1407,12 +1418,26 @@ export default function PortfolioPage() {
 
                 const csv = lines.join("\n");
                 const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = `chainfolioai-portfolio-${new Date().toISOString().slice(0, 10)}.csv`;
-                a.click();
-                URL.revokeObjectURL(url);
+                const filename = `chainfolioai-portfolio-${new Date().toISOString().slice(0, 10)}.csv`;
+                const nav = navigator as Navigator & {
+                  canShare?: (d: { files: File[] }) => boolean;
+                  share?: (d: { files?: File[]; title?: string }) => Promise<void>;
+                };
+                const file = typeof File !== "undefined" ? new File([blob], filename, { type: "text/csv" }) : null;
+                if (file && nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
+                  // Telemóvel (iOS/Android): folha de partilha → "Guardar em Ficheiros"
+                  nav.share({ files: [file], title: filename }).catch(() => {});
+                } else {
+                  // Desktop: download clássico (revoke adiado para não cancelar)
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = filename;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  setTimeout(() => URL.revokeObjectURL(url), 4000);
+                }
               }}
               className="flex items-center gap-2 rounded-xl border border-slate-600/50 px-4 py-2 text-sm font-semibold text-slate-300 hover:bg-slate-700/30 transition"
             >
