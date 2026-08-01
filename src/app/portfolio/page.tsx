@@ -635,7 +635,15 @@ export default function PortfolioPage() {
 
   // ── Métricas avançadas calculadas a partir dos snapshots ──
   const advancedMetrics = useMemo(() => {
-    const sorted = [...snapshotTotals].reverse(); // cronológico
+    const chrono = [...snapshotTotals].reverse(); // cronológico
+    if (chrono.length < 2) return null;
+
+    // Limpeza: descartar snapshots claramente incompletos (total ~0 face à
+    // mediana). São capturas parciais — o portfólio não valeu mesmo 0 — e
+    // faziam a queda máxima disparar para -100%.
+    const positives = chrono.map((s) => s.total).filter((v) => v > 0).sort((a, b) => a - b);
+    const median = positives.length ? positives[Math.floor(positives.length / 2)] : 0;
+    const sorted = chrono.filter((s) => s.total > median * 0.05);
     if (sorted.length < 2) return null;
 
     const oldest = sorted[0];
@@ -651,13 +659,23 @@ export default function PortfolioPage() {
     // CAGR (só faz sentido com >= 30 dias)
     const cagr = days >= 30 ? (Math.pow(current / base, 365 / days) - 1) * 100 : null;
 
-    // Retornos diários entre snapshots consecutivos
-    const dailyReturns: number[] = [];
+    // Retornos entre snapshots consecutivos
+    const rawReturns: number[] = [];
     for (let i = 1; i < sorted.length; i++) {
       const prev = sorted[i - 1].total;
       const cur = sorted[i].total;
-      if (prev > 0) dailyReturns.push((cur - prev) / prev);
+      if (prev > 0) rawReturns.push((cur - prev) / prev);
     }
+    // Para as métricas de risco, ignorar saltos > ±50% entre snapshots: quase
+    // sempre são depósitos/levantamentos (entrada ou saída de capital), não
+    // movimento de mercado — e inflacionavam a volatilidade de forma irreal.
+    const dailyReturns = rawReturns.filter((r) => Math.abs(r) < 0.5);
+
+    // Anualização a partir do espaçamento real dos snapshots (não assumir 1/dia).
+    const stepsPerYear = rawReturns.length > 0 && days > 0
+      ? Math.min(365, Math.max(12, 365 / (days / rawReturns.length)))
+      : 252;
+    const ann = Math.sqrt(stepsPerYear);
 
     // Sharpe Ratio (benchmark risk-free ≈ 0)
     let sharpe: number | null = null;
@@ -666,7 +684,7 @@ export default function PortfolioPage() {
       const variance =
         dailyReturns.reduce((s, r) => s + Math.pow(r - mean, 2), 0) / dailyReturns.length;
       const stdDev = Math.sqrt(variance);
-      if (stdDev > 0) sharpe = (mean / stdDev) * Math.sqrt(252);
+      if (stdDev > 0) sharpe = (mean / stdDev) * ann;
     }
 
     // Max Drawdown
@@ -687,10 +705,57 @@ export default function PortfolioPage() {
       const mean = dailyReturns.reduce((s, r) => s + r, 0) / dailyReturns.length;
       const variance =
         dailyReturns.reduce((s, r) => s + Math.pow(r - mean, 2), 0) / dailyReturns.length;
-      volatility = Math.sqrt(variance) * Math.sqrt(252) * 100;
+      volatility = Math.sqrt(variance) * ann * 100;
     }
 
-    return { roi, cagr, sharpe, maxDrawdown: maxDrawdown * 100, volatility, days: Math.round(days) };
+    const maxDdPct = maxDrawdown * 100;
+
+    // Sortino (como o Sharpe mas só penaliza a queda)
+    let sortino: number | null = null;
+    if (dailyReturns.length >= 5) {
+      const mean = dailyReturns.reduce((s, r) => s + r, 0) / dailyReturns.length;
+      const downsideVar =
+        dailyReturns.reduce((s, r) => s + (r < 0 ? r * r : 0), 0) / dailyReturns.length;
+      const dd = Math.sqrt(downsideVar);
+      if (dd > 0) sortino = (mean / dd) * ann;
+    }
+
+    // Calmar = CAGR / |Max Drawdown|
+    const calmar = cagr !== null && maxDdPct < 0 ? cagr / Math.abs(maxDdPct) : null;
+
+    // Win rate + melhor/pior período
+    let winRate: number | null = null;
+    let bestReturn: number | null = null;
+    let worstReturn: number | null = null;
+    if (dailyReturns.length >= 1) {
+      winRate = (dailyReturns.filter((r) => r > 0).length / dailyReturns.length) * 100;
+      bestReturn = Math.max(...dailyReturns) * 100;
+      worstReturn = Math.min(...dailyReturns) * 100;
+    }
+
+    // Drawdown atual + dias desde o pico
+    let peakVal = sorted[0].total;
+    let peakAt = sorted[0].createdAt;
+    for (const s of sorted) {
+      if (s.total > peakVal) { peakVal = s.total; peakAt = s.createdAt; }
+    }
+    if (current > peakVal) { peakVal = current; peakAt = Date.now(); }
+    const currentDrawdown = peakVal > 0 ? ((current - peakVal) / peakVal) * 100 : 0;
+    const daysSincePeak = Math.max(0, Math.round((Date.now() - peakAt) / (1000 * 60 * 60 * 24)));
+
+    // VaR 95% histórico — perda diária no 5º percentil (negativo)
+    let var95: number | null = null;
+    if (dailyReturns.length >= 10) {
+      const s = [...dailyReturns].sort((a, b) => a - b);
+      var95 = s[Math.floor(0.05 * s.length)] * 100;
+    }
+
+    return {
+      roi, cagr, sharpe, sortino, calmar,
+      maxDrawdown: maxDdPct, volatility,
+      winRate, bestReturn, worstReturn, currentDrawdown, daysSincePeak, var95,
+      days: Math.round(days),
+    };
   }, [snapshotTotals, portfolioTotal]);
 
   // ── Estado do benchmark ──
@@ -747,6 +812,25 @@ export default function PortfolioPage() {
       assets: byAsset,
     };
   }, [traditionalHoldings]);
+
+  // Concentração / diversificação (a partir das posições atuais)
+  const concentration = useMemo(() => {
+    const values = [
+      ...cryptoAllocations.filter((a) => a.value > 0).map((a) => a.value),
+      ...traditionalAllocations.assets.filter((a) => a.value > 0).map((a) => a.value),
+    ];
+    const total = values.reduce((s, v) => s + v, 0);
+    if (total <= 0 || values.length === 0 || portfolioTotal <= 0) return null;
+    const shares = values.map((v) => v / total);
+    return {
+      numAssets: values.length,
+      topHolding: Math.max(...shares) * 100,
+      hhi: Math.round(shares.reduce((s, w) => s + w * w, 0) * 10000), // 0–10000
+      cryptoPct: (cryptoTotal / portfolioTotal) * 100,
+      stablecoinPct: (stablecoinTotal / portfolioTotal) * 100,
+      traditionalPct: (traditionalTotal / portfolioTotal) * 100,
+    };
+  }, [cryptoAllocations, traditionalAllocations, cryptoTotal, stablecoinTotal, traditionalTotal, portfolioTotal]);
 
   // ── Score do portfólio (0–100) — depois de cryptoAllocations ──
   const portfolioScore = useMemo(() => {
@@ -1484,6 +1568,64 @@ export default function PortfolioPage() {
                   color: "text-orange-300",
                   hint: t("pf_annualized"),
                 }] : []),
+                ...(advancedMetrics.sortino !== null ? [{
+                  label: "Sortino",
+                  value: advancedMetrics.sortino.toFixed(2),
+                  color: advancedMetrics.sortino >= 1 ? "text-emerald-400" : advancedMetrics.sortino >= 0 ? "text-orange-300" : "text-rose-400",
+                  hint: "Só penaliza a queda",
+                }] : []),
+                ...(advancedMetrics.calmar !== null ? [{
+                  label: "Calmar",
+                  value: advancedMetrics.calmar.toFixed(2),
+                  color: advancedMetrics.calmar >= 1 ? "text-emerald-400" : advancedMetrics.calmar >= 0 ? "text-orange-300" : "text-rose-400",
+                  hint: "Retorno ÷ queda",
+                }] : []),
+                ...(advancedMetrics.winRate !== null ? [{
+                  label: "Win rate",
+                  value: `${advancedMetrics.winRate.toFixed(0)}%`,
+                  color: advancedMetrics.winRate >= 50 ? "text-emerald-400" : "text-orange-300",
+                  hint: "Períodos positivos",
+                }] : []),
+                {
+                  label: "Drawdown atual",
+                  value: `${advancedMetrics.currentDrawdown.toFixed(2)}%`,
+                  color: advancedMetrics.currentDrawdown < 0 ? "text-rose-400" : "text-emerald-400",
+                  hint: advancedMetrics.currentDrawdown < 0 ? `há ${advancedMetrics.daysSincePeak}d do pico` : "no pico",
+                },
+                ...(advancedMetrics.bestReturn !== null ? [{
+                  label: "Melhor",
+                  value: `${advancedMetrics.bestReturn >= 0 ? "+" : ""}${advancedMetrics.bestReturn.toFixed(2)}%`,
+                  color: "text-emerald-400",
+                  hint: "melhor período",
+                }] : []),
+                ...(advancedMetrics.worstReturn !== null ? [{
+                  label: "Pior",
+                  value: `${advancedMetrics.worstReturn.toFixed(2)}%`,
+                  color: "text-rose-400",
+                  hint: "pior período",
+                }] : []),
+                ...(advancedMetrics.var95 !== null ? [{
+                  label: "VaR 95%",
+                  value: `${advancedMetrics.var95.toFixed(2)}%`,
+                  color: "text-rose-400",
+                  hint: "perda diária (95%)",
+                }] : []),
+                ...(concentration ? [{
+                  label: "Nº ativos",
+                  value: String(concentration.numAssets),
+                  color: "text-slate-200",
+                  hint: "posições",
+                }, {
+                  label: "Maior posição",
+                  value: `${concentration.topHolding.toFixed(1)}%`,
+                  color: concentration.topHolding > 50 ? "text-rose-400" : concentration.topHolding > 30 ? "text-orange-300" : "text-emerald-400",
+                  hint: "concentração",
+                }, {
+                  label: "HHI",
+                  value: String(concentration.hhi),
+                  color: concentration.hhi > 2500 ? "text-rose-400" : concentration.hhi > 1500 ? "text-orange-300" : "text-emerald-400",
+                  hint: ">2500 = concentrado",
+                }] : []),
               ].map((m, i) => (
                 <div key={m.label} className={`card-hover rounded-xl border border-slate-700 bg-slate-900/80 p-4 text-center animate-count-up delay-${i * 100}`}>
                   <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-2">{m.label}</p>
@@ -1491,6 +1633,36 @@ export default function PortfolioPage() {
                   <p className="text-[10px] text-slate-600 mt-1.5">{m.hint}</p>
                 </div>
               ))}
+            </div>
+          )}
+
+          {advancedMetrics && (
+            <div className="mt-5 rounded-xl border border-slate-800 bg-slate-950/50 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2.5">
+                O que significa cada indicador
+              </p>
+              <dl className="grid gap-x-6 gap-y-2 text-[12px] leading-snug text-slate-400 sm:grid-cols-2">
+                {[
+                  ["Sharpe", "Retorno por unidade de risco total. Acima de 1 é bom; negativo indica que assumiste risco sem ser compensado."],
+                  ["Sortino", "Como o Sharpe, mas só penaliza a volatilidade das quedas — ignora oscilações positivas."],
+                  ["Calmar", "Retorno anual (CAGR) a dividir pela maior queda. Mede quanto ganhas face ao pior tombo."],
+                  ["Volatilidade", "Oscilação anualizada dos retornos. Quanto maior, mais o valor sobe e desce."],
+                  ["Queda máxima", "A maior queda do topo até ao fundo no período. Mede o pior cenário que já viveste."],
+                  ["Drawdown atual", "Quanto estás abaixo do teu máximo histórico agora — e há quantos dias vens do pico."],
+                  ["Win rate", "Percentagem de períodos entre snapshots em que o portfólio subiu."],
+                  ["VaR 95%", "Num dia mau típico (pior 5% dos casos), a perda esperada. Ex.: −4% = em 1 de cada 20 leituras perdes ao menos 4%."],
+                  ["Nº ativos · Maior posição", "Quantas posições tens e o peso da maior. Acima de ~50% numa só é muita concentração."],
+                  ["HHI", "Índice de concentração (0–10000). Abaixo de 1500 = diversificado; acima de 2500 = concentrado."],
+                ].map(([term, def]) => (
+                  <div key={term}>
+                    <dt className="inline font-semibold text-slate-300">{term}: </dt>
+                    <dd className="inline">{def}</dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="mt-3 text-[11px] leading-snug text-slate-500">
+                Nota: as métricas de risco são calculadas a partir dos teus snapshots. Saltos de valor causados por depósitos ou levantamentos (variações acima de ±50% entre snapshots) são ignorados para não distorcer a volatilidade. Quantos mais snapshots tiveres, mais fiáveis ficam.
+              </p>
             </div>
           )}
         </section>
