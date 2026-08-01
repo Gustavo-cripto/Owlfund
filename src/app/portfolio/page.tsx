@@ -1527,62 +1527,103 @@ export default function PortfolioPage() {
             </button>
             <button
               id="btn-export-csv"
-              onClick={() => {
-                // CSV amigável para Excel/Numbers PT/EU: separador ";", decimais
-                // com vírgula, números SEM aspas (alinham à direita, não como texto).
-                const sep = ";";
-                const nf = (v: number) => Number(v ?? 0).toFixed(2).replace(".", ",");
-                const esc = (v: string | number) => {
-                  const s = String(v);
-                  return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-                };
-                const line = (cells: (string | number)[]) => cells.map(esc).join(sep);
-                const pct = (v: number) => (portfolioTotal > 0 ? nf((v / portfolioTotal) * 100) : "0,00");
+              onClick={async () => {
+                // Excel (.xlsx) formatado: larguras de coluna certas, cabeçalhos
+                // a negrito e números com formato — resolve o CSV cortado/"###".
+                const mod = await import("exceljs");
+                const ExcelJS = (mod as unknown as { default?: typeof mod }).default ?? mod;
+                const wb = new ExcelJS.Workbook();
+                wb.creator = "ChainFolioAI";
+                wb.created = new Date();
+                const ws = wb.addWorksheet("Portfólio");
+
+                [26, 22, 16, 18, 12].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
+                const money = `#,##0.00 "${curSym}"`;
+                const pctFmt = '0.00"%"';
+                const BRAND = "FFF97316";
+                const DARK = "FF0F172A";
+
                 let accName = "";
                 try { accName = listAccounts().find((x) => x.id === getActiveAccountId())?.name ?? ""; } catch { /* ignore */ }
-                const now = new Date();
 
-                const lines: string[] = [];
-                lines.push(line(["ChainFolioAI — Exportação de portfólio"]));
-                if (accName) lines.push(line(["Conta", accName]));
-                lines.push(line(["Data", now.toISOString().slice(0, 16).replace("T", " ")]));
-                lines.push(line(["Moeda", curSym]));
-                lines.push("");
-                lines.push(line(["RESUMO"]));
-                lines.push(line(["Métrica", "Valor"]));
-                lines.push(line(["Total", nf(fx(portfolioTotal))]));
-                lines.push(line(["Cripto", nf(fx(cryptoTotal))]));
-                if (stablecoinTotal > 0) lines.push(line(["Stablecoins", nf(fx(stablecoinTotal))]));
-                lines.push(line(["Tradicional", nf(fx(traditionalTotal))]));
-                lines.push(line(["PNL Posição", nf(fx(pnlSummary.position))]));
-                lines.push(line(["PNL Hoje", nf(fx(pnlSummary.today))]));
-                lines.push(line(["PNL 30 dias", nf(fx(pnlSummary.days30 ?? 0))]));
+                const bandRow = (label: string, argb: string, size = 12) => {
+                  const r = ws.addRow([label]);
+                  ws.mergeCells(r.number, 1, r.number, 5);
+                  const c = r.getCell(1);
+                  c.font = { bold: true, size, color: { argb: "FFFFFFFF" } };
+                  c.fill = { type: "pattern", pattern: "solid", fgColor: { argb } };
+                  c.alignment = { vertical: "middle" };
+                  r.height = 20;
+                  return r;
+                };
+                const boldRow = (r: import("exceljs").Row) => { r.eachCell((c) => { c.font = { bold: true }; }); return r; };
+
+                bandRow("ChainFolioAI — Exportação de portfólio", DARK, 14).height = 24;
+                ([
+                  ["Conta", accName || "—"],
+                  ["Data", new Date().toLocaleString("pt-PT", { dateStyle: "short", timeStyle: "short" })],
+                  ["Moeda", curSym],
+                ] as [string, string][]).forEach(([k, v]) => {
+                  const r = ws.addRow([k, v]);
+                  r.getCell(1).font = { bold: true, color: { argb: "FF64748B" } };
+                });
+                ws.addRow([]);
+
+                bandRow("RESUMO", BRAND);
+                boldRow(ws.addRow(["Métrica", "Valor"]));
+                const metric = (label: string, value: number, fmt?: string) => {
+                  const r = ws.addRow([label, value]);
+                  if (fmt) r.getCell(2).numFmt = fmt;
+                };
+                metric("Total", fx(portfolioTotal), money);
+                metric("Cripto", fx(cryptoTotal), money);
+                if (stablecoinTotal > 0) metric("Stablecoins", fx(stablecoinTotal), money);
+                metric("Tradicional", fx(traditionalTotal), money);
+                metric("PNL Posição", fx(pnlSummary.position), money);
+                metric("PNL Hoje", fx(pnlSummary.today), money);
+                metric("PNL 30 dias", fx(pnlSummary.days30 ?? 0), money);
                 if (advancedMetrics) {
-                  lines.push(line(["ROI %", nf(advancedMetrics.roi)]));
-                  if (advancedMetrics.cagr !== null) lines.push(line(["CAGR %", nf(advancedMetrics.cagr)]));
-                  if (advancedMetrics.sharpe !== null) lines.push(line(["Sharpe", nf(advancedMetrics.sharpe)]));
-                  lines.push(line(["Max Drawdown %", nf(advancedMetrics.maxDrawdown)]));
-                  if (advancedMetrics.volatility !== null) lines.push(line(["Volatilidade %", nf(advancedMetrics.volatility)]));
-                  lines.push(line(["Período (dias)", String(advancedMetrics.days)]));
+                  metric("ROI", advancedMetrics.roi, pctFmt);
+                  if (advancedMetrics.cagr !== null) metric("CAGR", advancedMetrics.cagr, pctFmt);
+                  if (advancedMetrics.sharpe !== null) metric("Sharpe", advancedMetrics.sharpe, "0.00");
+                  if (advancedMetrics.sortino !== null) metric("Sortino", advancedMetrics.sortino, "0.00");
+                  if (advancedMetrics.calmar !== null) metric("Calmar", advancedMetrics.calmar, "0.00");
+                  metric("Queda máxima", advancedMetrics.maxDrawdown, pctFmt);
+                  if (advancedMetrics.volatility !== null) metric("Volatilidade", advancedMetrics.volatility, pctFmt);
+                  if (advancedMetrics.winRate !== null) metric("Win rate", advancedMetrics.winRate, pctFmt);
+                  if (advancedMetrics.var95 !== null) metric("VaR 95%", advancedMetrics.var95, pctFmt);
+                  metric("Período (dias)", advancedMetrics.days, "0");
                 }
-                lines.push("");
-                lines.push(line(["POSIÇÕES"]));
-                lines.push(line(["Categoria", "Ativo", "Símbolo", `Valor (${curSym})`, "% do total"]));
+                ws.addRow([]);
+
+                bandRow("POSIÇÕES", BRAND);
+                boldRow(ws.addRow(["Categoria", "Ativo", "Símbolo", `Valor (${curSym})`, "% do total"]));
+                const posRows: [string, string, string, number, number][] = [];
                 cryptoAllocations.filter((a) => a.value > 0).forEach((a) => {
-                  lines.push(line(["Cripto", a.label, a.symbol, nf(fx(a.value)), pct(a.value)]));
+                  posRows.push(["Cripto", a.label, a.symbol, fx(a.value), portfolioTotal > 0 ? (a.value / portfolioTotal) * 100 : 0]);
                 });
                 traditionalAllocations.assets.filter((a) => a.value > 0).forEach((a) => {
-                  lines.push(line(["Tradicional", a.label, a.category ?? "", nf(fx(a.value)), pct(a.value)]));
+                  posRows.push(["Tradicional", a.label, a.category ?? "", fx(a.value), portfolioTotal > 0 ? (a.value / portfolioTotal) * 100 : 0]);
                 });
+                if (posRows.length === 0) {
+                  const r = ws.addRow(["Sem posições registadas"]);
+                  r.getCell(1).font = { italic: true, color: { argb: "FF94A3B8" } };
+                } else {
+                  posRows.forEach((p) => {
+                    const r = ws.addRow(p);
+                    r.getCell(4).numFmt = money;
+                    r.getCell(5).numFmt = pctFmt;
+                  });
+                }
 
-                const csv = lines.join("\n");
-                const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
-                const filename = `chainfolioai-portfolio-${new Date().toISOString().slice(0, 10)}.csv`;
+                const buf = await wb.xlsx.writeBuffer();
+                const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+                const filename = `chainfolioai-portfolio-${new Date().toISOString().slice(0, 10)}.xlsx`;
                 const nav = navigator as Navigator & {
                   canShare?: (d: { files: File[] }) => boolean;
                   share?: (d: { files?: File[]; title?: string }) => Promise<void>;
                 };
-                const file = typeof File !== "undefined" ? new File([blob], filename, { type: "text/csv" }) : null;
+                const file = typeof File !== "undefined" ? new File([blob], filename, { type: blob.type }) : null;
                 if (file && nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
                   // Telemóvel (iOS/Android): folha de partilha → "Guardar em Ficheiros"
                   nav.share({ files: [file], title: filename }).catch(() => {});
@@ -1600,7 +1641,7 @@ export default function PortfolioPage() {
               }}
               className="flex items-center gap-2 rounded-xl border border-slate-600/50 px-4 py-2 text-sm font-semibold text-slate-300 hover:bg-slate-700/30 transition"
             >
-              ↓ Exportar CSV
+              ↓ Exportar Excel
             </button>
             </div>
           </div>
