@@ -106,9 +106,16 @@ export async function GET(request: Request) {
       continue;
     }
 
+    // Copiamos o total (não dá para recalcular o valor real server-side — os
+    // ativos manuais vivem no browser), mas removemos o benchmark antigo: como
+    // o valor do portfólio é apenas copiado, guardar um _bench com timestamp
+    // novo criaria pontos desalinhados e distorceria o Beta. O Beta usa só os
+    // snapshots gravados ao vivo na página (com valor e benchmark reais).
+    const copied = { ...(lastSnapshot[0].data as Record<string, unknown>) };
+    delete copied._bench;
     const { error: insertError } = await supabase
       .from("portfolio_snapshots")
-      .insert({ user_id: userId, data: lastSnapshot[0].data });
+      .insert({ user_id: userId, data: copied });
 
     if (!insertError) saved++;
   }

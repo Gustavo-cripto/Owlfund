@@ -8,7 +8,28 @@ type Benchmark = {
   btc_eur: number; btc_24h: number; btc_7d: number; btc_30d: number;
   eth_eur: number; eth_24h: number; eth_7d: number; eth_30d: number;
   gold_eur: number; gold_24h: number; gold_7d: number; gold_30d: number;
+  sp500: number;
 };
+
+// Cotação do S&P 500 (índice, em pontos) via stooq — grátis, sem chave.
+// Best-effort: usado para guardar nos snapshots e calcular Beta vs mercado.
+// Só precisamos do valor (retornos relativos), a moeda/pontos é indiferente.
+async function fetchSp500(): Promise<number> {
+  try {
+    const res = await fetch("https://stooq.com/q/l/?s=%5Espx&f=sd2t2ohlcv&h&e=csv", {
+      cache: "no-store",
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!res.ok) return 0;
+    const csv = (await res.text()).trim();
+    const rows = csv.split("\n");
+    if (rows.length < 2) return 0;
+    const close = Number(rows[1].split(",")[6]); // Symbol,Date,Time,Open,High,Low,Close,Volume
+    return Number.isFinite(close) && close > 0 ? close : 0;
+  } catch {
+    return 0;
+  }
+}
 
 // ── Binance (EUR pairs via USDT + ECB rate approx) ──────────────────────────
 async function fromBinance(): Promise<{ prices: Prices; benchmark: Partial<Benchmark> }> {
@@ -132,7 +153,9 @@ export async function GET() {
     try {
       const { prices, benchmark } = await source();
       if (!isValid(prices)) continue;
+      const sp500 = await fetchSp500(); // best-effort, 0 se falhar
       const fullBenchmark: Benchmark = {
+        sp500,
         btc_eur: benchmark.btc_eur ?? 0,
         btc_24h: benchmark.btc_24h ?? 0,
         btc_7d: benchmark.btc_7d ?? 0,
