@@ -59,8 +59,9 @@ export default function AccountSwitcher() {
 
   const max = MAX_BY_PLAN[plan];
   const isAll = activeId === ALL_ACCOUNTS_ID;
-  const shouldShow = plan === "pro" || plan === "premium" || accounts.length > 1;
-  if (!shouldShow) return null;
+  // Mostramos sempre o seletor (paridade desktop/telemóvel). O limite do plano
+  // é aplicado no botão "Nova conta" (desativado + CTA de upgrade no Free), não
+  // escondendo a UI — antes ficava oculto no desktop quando só havia 1 conta.
 
   const canCreate = accounts.length < max;
   const activeName = isAll
