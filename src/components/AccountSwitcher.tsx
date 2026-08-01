@@ -4,6 +4,7 @@
 // - Free: 1 conta · Pro: 3 · Premium: 10.
 // - Trocar de conta (ou "Todas") recarrega a página, para que os load*/save*
 //   apanhem os dados da conta ativa sem refactor das páginas grandes.
+// - Renomear/apagar é POR conta, diretamente na lista (input inline, sem prompt).
 
 import { useEffect, useRef, useState } from "react";
 import {
@@ -17,6 +18,7 @@ import {
   setActiveAccountId,
   type Account,
 } from "@/lib/portfolios/accounts";
+import { pushWalletCloud } from "@/lib/portfolios/cloudSync";
 
 type Plan = "free" | "pro" | "premium";
 const MAX_BY_PLAN: Record<Plan, number> = { free: 1, pro: 3, premium: 10 };
@@ -27,6 +29,8 @@ export default function AccountSwitcher() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [activeId, setActiveId] = useState<string>("");
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
   const boxRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -55,8 +59,6 @@ export default function AccountSwitcher() {
 
   const max = MAX_BY_PLAN[plan];
   const isAll = activeId === ALL_ACCOUNTS_ID;
-  // Mostra o seletor a quem pode ter várias contas (Pro/Premium) OU a quem já
-  // tem mais do que uma (ex.: fez downgrade) — para não estranhar dados.
   const shouldShow = plan === "pro" || plan === "premium" || accounts.length > 1;
   if (!shouldShow) return null;
 
@@ -73,25 +75,40 @@ export default function AccountSwitcher() {
   const onNew = () => {
     if (!canCreate) return;
     createAccount(); // auto-nomeia "Conta N" e fica ativa
+    pushWalletCloud();
     window.location.reload();
   };
 
-  const onRename = () => {
-    if (isAll) return;
-    const current = accounts.find((a) => a.id === activeId);
-    const name = window.prompt("Novo nome da conta:", current?.name ?? "");
-    if (name && name.trim()) {
-      renameAccount(activeId, name.trim());
+  const startEdit = (a: Account) => {
+    setEditingId(a.id);
+    setEditName(a.name);
+  };
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditName("");
+  };
+  const saveEdit = () => {
+    if (!editingId) return;
+    const n = editName.trim();
+    if (n) {
+      renameAccount(editingId, n);
+      setAccounts(listAccounts());
+      pushWalletCloud();
+    }
+    cancelEdit();
+  };
+
+  const onDeleteRow = (a: Account) => {
+    if (accounts.length <= 1) return;
+    if (!window.confirm(`Apagar a conta "${a.name}" e os seus dados? Esta ação não pode ser desfeita.`)) return;
+    const wasActive = a.id === activeId;
+    deleteAccount(a.id);
+    pushWalletCloud();
+    if (wasActive) {
+      window.location.reload();
+    } else {
       setAccounts(listAccounts());
     }
-  };
-
-  const onDelete = () => {
-    if (isAll || accounts.length <= 1) return;
-    const current = accounts.find((a) => a.id === activeId);
-    if (!window.confirm(`Apagar a conta "${current?.name}" e os seus dados? Esta ação não pode ser desfeita.`)) return;
-    deleteAccount(activeId);
-    window.location.reload();
   };
 
   return (
@@ -102,7 +119,7 @@ export default function AccountSwitcher() {
         className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-orange-500/50 hover:bg-slate-800/70"
         title="Conta / portfólio"
       >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-orange-400 shrink-0">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-orange-400">
           <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
         </svg>
         <span className="max-w-[140px] truncate">{activeName}</span>
@@ -112,7 +129,7 @@ export default function AccountSwitcher() {
       </button>
 
       {open && (
-        <div className="absolute right-0 z-50 mt-2 w-64 rounded-2xl border border-slate-700 bg-slate-900 p-2 shadow-2xl shadow-black/60">
+        <div className="absolute right-0 z-50 mt-2 w-72 rounded-2xl border border-slate-700 bg-slate-900 p-2 shadow-2xl shadow-black/60">
           <p className="px-2 pt-1 pb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
             Contas · {accounts.length}/{max}
           </p>
@@ -128,17 +145,46 @@ export default function AccountSwitcher() {
 
           <div className="my-1 border-t border-white/[0.06]" />
 
-          <div className="max-h-56 overflow-y-auto">
+          <div className="max-h-64 overflow-y-auto">
             {accounts.map((a) => (
-              <button
+              <div
                 key={a.id}
-                type="button"
-                onClick={() => switchTo(a.id)}
-                className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm transition ${a.id === activeId ? "bg-orange-500/15 text-orange-300" : "text-slate-300 hover:bg-white/5"}`}
+                className={`flex items-center gap-1 rounded-xl px-1.5 py-1 ${a.id === activeId ? "bg-orange-500/15" : "hover:bg-white/5"}`}
               >
-                <span className="min-w-0 flex-1 truncate pr-2 text-left">{a.name}</span>
-                {a.id === activeId && <span className="shrink-0 text-orange-400">✓</span>}
-              </button>
+                {editingId === a.id ? (
+                  <>
+                    {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
+                    <input
+                      autoFocus
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") saveEdit();
+                        if (e.key === "Escape") cancelEdit();
+                      }}
+                      maxLength={40}
+                      className="min-w-0 flex-1 rounded-lg border border-slate-600 bg-slate-950 px-2 py-1 text-sm text-white outline-none focus:border-orange-500"
+                    />
+                    <button type="button" onClick={saveEdit} aria-label="Guardar" className="shrink-0 rounded-lg px-2 py-1 text-orange-400 hover:bg-white/5">✓</button>
+                    <button type="button" onClick={cancelEdit} aria-label="Cancelar" className="shrink-0 rounded-lg px-2 py-1 text-slate-500 hover:bg-white/5">✕</button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => switchTo(a.id)}
+                      className={`min-w-0 flex-1 truncate rounded-lg px-2 py-1 text-left text-sm ${a.id === activeId ? "font-medium text-orange-300" : "text-slate-300 hover:text-white"}`}
+                    >
+                      {a.name}
+                    </button>
+                    {a.id === activeId && <span className="shrink-0 text-sm text-orange-400">✓</span>}
+                    <button type="button" onClick={() => startEdit(a)} aria-label="Renomear" title="Renomear" className="shrink-0 rounded-lg px-1.5 py-1 text-slate-500 transition hover:bg-white/5 hover:text-orange-300">✎</button>
+                    {accounts.length > 1 && (
+                      <button type="button" onClick={() => onDeleteRow(a)} aria-label="Apagar" title="Apagar" className="shrink-0 rounded-lg px-1.5 py-1 text-slate-500 transition hover:bg-rose-500/10 hover:text-rose-400">🗑</button>
+                    )}
+                  </>
+                )}
+              </div>
             ))}
           </div>
 
@@ -160,20 +206,14 @@ export default function AccountSwitcher() {
             </p>
           )}
 
-          {!isAll && (
-            <button type="button" onClick={onRename} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-slate-300 transition hover:bg-white/5">
-              <span className="text-slate-400">✎</span> Renomear atual
-            </button>
-          )}
-          {!isAll && accounts.length > 1 && (
-            <button type="button" onClick={onDelete} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-rose-400 transition hover:bg-rose-500/10">
-              <span>🗑</span> Apagar atual
-            </button>
-          )}
-
           {isAll && (
             <p className="px-3 py-2 text-[11px] leading-snug text-slate-500">
               Vista combinada (só leitura). Escolhe uma conta para adicionar/editar.
+            </p>
+          )}
+          {!isAll && (
+            <p className="px-3 py-1.5 text-[11px] leading-snug text-slate-500">
+              ✎ renomeia · 🗑 apaga — cada conta é um portfólio no teu login.
             </p>
           )}
         </div>
