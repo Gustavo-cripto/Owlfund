@@ -16,6 +16,7 @@ import ScenarioSimulator from "@/components/ScenarioSimulator";
 import { createClient } from "@/lib/supabase/client";
 import { loadWalletSnapshot, updateWalletSnapshot, type StoredWalletEntry, type WalletSnapshot } from "@/lib/wallets/storage";
 import { pushWalletCloud, pullWalletCloud } from "@/lib/portfolios/cloudSync";
+import { getActiveAccountId, listAccounts } from "@/lib/portfolios/accounts";
 import { getEvmBalance } from "@/lib/wallets/evm";
 import { getSolBalance } from "@/lib/wallets/solana";
 import { getBtcBalanceFromAddress } from "@/lib/wallets/bitcoin";
@@ -1357,28 +1358,54 @@ export default function PortfolioPage() {
             <button
               id="btn-export-csv"
               onClick={() => {
-                const n = (v: number) => Number(v ?? 0).toFixed(2);
-                const rows: string[][] = [
-                  ["Secção", "Métrica", "Valor"],
-                  ["Resumo", `Total (${curSym})`, n(fx(portfolioTotal))],
-                  ["Resumo", "Cripto", n(fx(cryptoTotal))],
-                  ["Resumo", "Tradicional", n(fx(traditionalTotal))],
-                  ["PNL", "Posição", n(fx(pnlSummary.position))],
-                  ["PNL", "Hoje", n(fx(pnlSummary.today))],
-                  ["PNL", "30 dias", n(fx(pnlSummary.days30 ?? 0))],
-                ];
+                // CSV amigável para Excel/Numbers PT/EU: separador ";", decimais
+                // com vírgula, números SEM aspas (alinham à direita, não como texto).
+                const sep = ";";
+                const nf = (v: number) => Number(v ?? 0).toFixed(2).replace(".", ",");
+                const esc = (v: string | number) => {
+                  const s = String(v);
+                  return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+                };
+                const line = (cells: (string | number)[]) => cells.map(esc).join(sep);
+                const pct = (v: number) => (portfolioTotal > 0 ? nf((v / portfolioTotal) * 100) : "0,00");
+                let accName = "";
+                try { accName = listAccounts().find((x) => x.id === getActiveAccountId())?.name ?? ""; } catch { /* ignore */ }
+                const now = new Date();
+
+                const lines: string[] = [];
+                lines.push(line(["ChainFolioAI — Exportação de portfólio"]));
+                if (accName) lines.push(line(["Conta", accName]));
+                lines.push(line(["Data", now.toISOString().slice(0, 16).replace("T", " ")]));
+                lines.push(line(["Moeda", curSym]));
+                lines.push("");
+                lines.push(line(["RESUMO"]));
+                lines.push(line(["Métrica", "Valor"]));
+                lines.push(line(["Total", nf(fx(portfolioTotal))]));
+                lines.push(line(["Cripto", nf(fx(cryptoTotal))]));
+                if (stablecoinTotal > 0) lines.push(line(["Stablecoins", nf(fx(stablecoinTotal))]));
+                lines.push(line(["Tradicional", nf(fx(traditionalTotal))]));
+                lines.push(line(["PNL Posição", nf(fx(pnlSummary.position))]));
+                lines.push(line(["PNL Hoje", nf(fx(pnlSummary.today))]));
+                lines.push(line(["PNL 30 dias", nf(fx(pnlSummary.days30 ?? 0))]));
                 if (advancedMetrics) {
-                  rows.push(["Métricas", "ROI %", advancedMetrics.roi.toFixed(2)]);
-                  if (advancedMetrics.cagr !== null) rows.push(["Métricas", "CAGR %", advancedMetrics.cagr.toFixed(2)]);
-                  if (advancedMetrics.sharpe !== null) rows.push(["Métricas", "Sharpe", advancedMetrics.sharpe.toFixed(2)]);
-                  rows.push(["Métricas", "Max Drawdown %", advancedMetrics.maxDrawdown.toFixed(2)]);
-                  if (advancedMetrics.volatility !== null) rows.push(["Métricas", "Volatilidade %", advancedMetrics.volatility.toFixed(2)]);
-                  rows.push(["Métricas", "Período (dias)", String(advancedMetrics.days)]);
+                  lines.push(line(["ROI %", nf(advancedMetrics.roi)]));
+                  if (advancedMetrics.cagr !== null) lines.push(line(["CAGR %", nf(advancedMetrics.cagr)]));
+                  if (advancedMetrics.sharpe !== null) lines.push(line(["Sharpe", nf(advancedMetrics.sharpe)]));
+                  lines.push(line(["Max Drawdown %", nf(advancedMetrics.maxDrawdown)]));
+                  if (advancedMetrics.volatility !== null) lines.push(line(["Volatilidade %", nf(advancedMetrics.volatility)]));
+                  lines.push(line(["Período (dias)", String(advancedMetrics.days)]));
                 }
+                lines.push("");
+                lines.push(line(["POSIÇÕES"]));
+                lines.push(line(["Categoria", "Ativo", "Símbolo", `Valor (${curSym})`, "% do total"]));
                 cryptoAllocations.filter((a) => a.value > 0).forEach((a) => {
-                  rows.push(["Alocação", `${a.label} (${a.symbol})`, n(fx(a.value))]);
+                  lines.push(line(["Cripto", a.label, a.symbol, nf(fx(a.value)), pct(a.value)]));
                 });
-                const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+                traditionalAllocations.filter((a) => a.value > 0).forEach((a) => {
+                  lines.push(line(["Tradicional", a.label, a.symbol, nf(fx(a.value)), pct(a.value)]));
+                });
+
+                const csv = lines.join("\n");
                 const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
