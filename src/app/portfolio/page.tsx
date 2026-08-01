@@ -94,6 +94,25 @@ async function fetchPricesWithBenchmark(): Promise<PricesApiResponse> {
   }
 }
 
+// Snapshot do benchmark (BTC, S&P 500, ouro) no momento da gravação — base para
+// calcular o Beta do portfólio vs mercado. Só guardamos o que vier > 0.
+type BenchSnapshot = { btc?: number; sp500?: number; gold?: number };
+async function fetchBenchmarkSnapshot(): Promise<BenchSnapshot | null> {
+  try {
+    const res = await fetch("/api/prices", { cache: "no-store" });
+    if (!res.ok) return null;
+    const b = ((await res.json()) as PricesApiResponse).benchmark;
+    if (!b) return null;
+    const out: BenchSnapshot = {};
+    if (b.btc_eur > 0) out.btc = b.btc_eur;
+    if (b.sp500 > 0) out.sp500 = b.sp500;
+    if (b.gold_eur > 0) out.gold = b.gold_eur;
+    return Object.keys(out).length > 0 ? out : null;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchHistoricalPrices(): Promise<HistoricalPrices> {
   try {
     const res = await fetch("/api/historical-prices", { cache: "no-store" });
@@ -497,8 +516,14 @@ export default function PortfolioPage() {
     if (!silent) setSaveMessage(null);
 
     const snapshot = loadWalletSnapshot();
-    // Store current EUR total inside data so historical PNL reflects real prices
-    const dataWithTotal = { ...snapshot, _totalEur: portfolioTotal };
+    // Guardamos o total EUR e o benchmark do momento dentro de data, para que o
+    // PNL histórico use preços reais e para poder calcular o Beta vs mercado.
+    const bench = await fetchBenchmarkSnapshot();
+    const dataWithTotal = {
+      ...snapshot,
+      _totalEur: portfolioTotal,
+      ...(bench ? { _bench: bench } : {}),
+    };
     const { error } = await supabase
       .from("portfolio_snapshots")
       .insert({ user_id: userId, data: dataWithTotal });
@@ -757,6 +782,56 @@ export default function PortfolioPage() {
       days: Math.round(days),
     };
   }, [snapshotTotals, portfolioTotal]);
+
+  // ── Beta vs mercado (BTC e S&P 500) ──
+  // Usa apenas snapshots gravados ao vivo (com _totalEur e _bench reais). Vai
+  // acumulando desde o dia em que a captura de benchmark entrou; até ter
+  // capturas suficientes mostra "a acumular". Beta ≈ 1 → move com o mercado;
+  // <1 → menos volátil; >1 → amplifica; <0 → move ao contrário.
+  const beta = useMemo(() => {
+    const NEEDED = 8; // capturas mínimas com benchmark
+    type Row = { t: number; total: number; bench: BenchSnapshot };
+    const series: Row[] = snapshots
+      .map((r) => {
+        const d = r.data as WalletSnapshot & { _totalEur?: number; _bench?: BenchSnapshot };
+        return { t: new Date(r.created_at).getTime(), total: Number(d._totalEur ?? 0), bench: d._bench ?? {} };
+      })
+      .filter((x) => x.total > 0 && (x.bench.btc || x.bench.sp500))
+      .sort((a, b) => a.t - b.t);
+
+    const computeBeta = (key: keyof BenchSnapshot): number | null => {
+      const pr: number[] = [];
+      const br: number[] = [];
+      for (let i = 1; i < series.length; i++) {
+        const p0 = series[i - 1].total, p1 = series[i].total;
+        const b0 = series[i - 1].bench[key], b1 = series[i].bench[key];
+        if (p0 > 0 && b0 && b1 && b0 > 0) {
+          const pRet = (p1 - p0) / p0;
+          const bRet = (b1 - b0) / b0;
+          // ignorar saltos de capital (>±50%), como nas outras métricas de risco
+          if (Math.abs(pRet) < 0.5) { pr.push(pRet); br.push(bRet); }
+        }
+      }
+      if (pr.length < NEEDED - 2) return null;
+      const pMean = pr.reduce((s, r) => s + r, 0) / pr.length;
+      const bMean = br.reduce((s, r) => s + r, 0) / br.length;
+      let cov = 0, varB = 0;
+      for (let i = 0; i < pr.length; i++) {
+        cov += (pr[i] - pMean) * (br[i] - bMean);
+        varB += (br[i] - bMean) ** 2;
+      }
+      return varB > 0 ? cov / varB : null;
+    };
+
+    const ready = series.length >= NEEDED;
+    return {
+      count: series.length,
+      needed: NEEDED,
+      ready,
+      btc: ready ? computeBeta("btc") : null,
+      sp500: ready ? computeBeta("sp500") : null,
+    };
+  }, [snapshots]);
 
   // ── Estado do benchmark ──
   const [benchmarkPrices, setBenchmarkPrices] = useState<Record<string, number>>({});
@@ -1496,8 +1571,8 @@ export default function PortfolioPage() {
                 cryptoAllocations.filter((a) => a.value > 0).forEach((a) => {
                   lines.push(line(["Cripto", a.label, a.symbol, nf(fx(a.value)), pct(a.value)]));
                 });
-                traditionalAllocations.filter((a) => a.value > 0).forEach((a) => {
-                  lines.push(line(["Tradicional", a.label, a.symbol, nf(fx(a.value)), pct(a.value)]));
+                traditionalAllocations.assets.filter((a) => a.value > 0).forEach((a) => {
+                  lines.push(line(["Tradicional", a.label, a.category ?? "", nf(fx(a.value)), pct(a.value)]));
                 });
 
                 const csv = lines.join("\n");
@@ -1626,6 +1701,18 @@ export default function PortfolioPage() {
                   color: concentration.hhi > 2500 ? "text-rose-400" : concentration.hhi > 1500 ? "text-orange-300" : "text-emerald-400",
                   hint: ">2500 = concentrado",
                 }] : []),
+                ...(beta.btc !== null ? [{
+                  label: "Beta BTC",
+                  value: beta.btc.toFixed(2),
+                  color: beta.btc > 1.1 ? "text-rose-400" : beta.btc < 0 ? "text-orange-300" : "text-emerald-400",
+                  hint: "vs Bitcoin",
+                }] : []),
+                ...(beta.sp500 !== null ? [{
+                  label: "Beta S&P 500",
+                  value: beta.sp500.toFixed(2),
+                  color: beta.sp500 > 1.1 ? "text-rose-400" : beta.sp500 < 0 ? "text-orange-300" : "text-emerald-400",
+                  hint: "vs mercado ações",
+                }] : []),
               ].map((m, i) => (
                 <div key={m.label} className={`card-hover rounded-xl border border-slate-700 bg-slate-900/80 p-4 text-center animate-count-up delay-${i * 100}`}>
                   <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-2">{m.label}</p>
@@ -1643,6 +1730,8 @@ export default function PortfolioPage() {
               </p>
               <dl className="grid gap-x-6 gap-y-2 text-[12px] leading-snug text-slate-400 sm:grid-cols-2">
                 {[
+                  ["ROI", "Retorno total desde o primeiro snapshot: quanto ganhaste ou perdeste em % sobre o valor inicial."],
+                  ["CAGR", "Taxa de crescimento anual composta — o teu ROI convertido para ritmo por ano (só a partir de 30 dias de histórico)."],
                   ["Sharpe", "Retorno por unidade de risco total. Acima de 1 é bom; negativo indica que assumiste risco sem ser compensado."],
                   ["Sortino", "Como o Sharpe, mas só penaliza a volatilidade das quedas — ignora oscilações positivas."],
                   ["Calmar", "Retorno anual (CAGR) a dividir pela maior queda. Mede quanto ganhas face ao pior tombo."],
@@ -1653,6 +1742,7 @@ export default function PortfolioPage() {
                   ["VaR 95%", "Num dia mau típico (pior 5% dos casos), a perda esperada. Ex.: −4% = em 1 de cada 20 leituras perdes ao menos 4%."],
                   ["Nº ativos · Maior posição", "Quantas posições tens e o peso da maior. Acima de ~50% numa só é muita concentração."],
                   ["HHI", "Índice de concentração (0–10000). Abaixo de 1500 = diversificado; acima de 2500 = concentrado."],
+                  ["Beta BTC / S&P 500", "Sensibilidade ao mercado. 1 = move igual; abaixo de 1 = mais calmo; acima = amplifica; negativo = move ao contrário."],
                 ].map(([term, def]) => (
                   <div key={term}>
                     <dt className="inline font-semibold text-slate-300">{term}: </dt>
@@ -1663,6 +1753,11 @@ export default function PortfolioPage() {
               <p className="mt-3 text-[11px] leading-snug text-slate-500">
                 Nota: as métricas de risco são calculadas a partir dos teus snapshots. Saltos de valor causados por depósitos ou levantamentos (variações acima de ±50% entre snapshots) são ignorados para não distorcer a volatilidade. Quantos mais snapshots tiveres, mais fiáveis ficam.
               </p>
+              {!beta.ready && (
+                <p className="mt-2 text-[11px] leading-snug text-sky-400/80">
+                  Beta vs BTC/S&P 500: a acumular dados ({beta.count}/{beta.needed} capturas com preço de mercado). Cada snapshot novo passa a guardar a cotação do BTC e do S&P 500 — assim que houver capturas suficientes, o Beta aparece automaticamente aqui.
+                </p>
+              )}
             </div>
           )}
         </section>
