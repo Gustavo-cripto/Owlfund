@@ -669,36 +669,26 @@ export default function WalletsPage() {
       eternl: isEternlAvailable(),
     });
     setEvmProviders(getEvmProviderOptions());
-    const snapshot = loadWalletSnapshot();
-    const hasLocal = snapshot.eth?.length || snapshot.sol?.length || snapshot.btc?.length || snapshot.ada?.length;
-
-    if (hasLocal) {
-      setEthWallets(snapshot.eth ?? []);
-      setSolWallets(snapshot.sol ?? []);
-      setBtcWallets(snapshot.btc ?? []);
-      setAdaWallets(snapshot.ada ?? []);
-      setOtherWallets(snapshot.other ?? []);
-      walletsHydratedRef.current = true;
-    } else {
-      // No local data — try to restore from cloud (multi-conta)
-      pullWalletCloud()
-        .then((restored) => {
-          if (restored) {
-            const d = loadWalletSnapshot();
-            setEthWallets((d.eth ?? []) as typeof ethWallets);
-            setSolWallets((d.sol ?? []) as typeof solWallets);
-            setBtcWallets((d.btc ?? []) as typeof btcWallets);
-            setAdaWallets((d.ada ?? []) as typeof adaWallets);
-            setOtherWallets((d.other ?? []) as typeof otherWallets);
-            // Ativos manuais também vieram da nuvem — re-ler
-            setTraditionalHoldings(loadTraditionalHoldings());
-            setCryptoHoldings(loadCryptoHoldings());
-            setStablecoinEntries(loadStablecoinEntries());
-          }
-        })
-        .catch(() => {})
-        .finally(() => { walletsHydratedRef.current = true; });
-    }
+    // Sincroniza SEMPRE com a nuvem (funde o registo de contas + preenche dados
+    // em falta, sem sobrescrever os locais) ANTES de hidratar — para as contas
+    // aparecerem em todos os dispositivos e não fazer push antes do merge.
+    pullWalletCloud()
+      .catch(() => false)
+      .then((restored) => {
+        const d = loadWalletSnapshot();
+        setEthWallets((d.eth ?? []) as typeof ethWallets);
+        setSolWallets((d.sol ?? []) as typeof solWallets);
+        setBtcWallets((d.btc ?? []) as typeof btcWallets);
+        setAdaWallets((d.ada ?? []) as typeof adaWallets);
+        setOtherWallets((d.other ?? []) as typeof otherWallets);
+        if (restored) {
+          // Ativos manuais também podem ter vindo da nuvem — re-ler.
+          setTraditionalHoldings(loadTraditionalHoldings());
+          setCryptoHoldings(loadCryptoHoldings());
+          setStablecoinEntries(loadStablecoinEntries());
+        }
+        walletsHydratedRef.current = true;
+      });
   }, []);
 
   useEffect(() => {

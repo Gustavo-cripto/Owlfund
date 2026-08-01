@@ -170,6 +170,33 @@ export function replaceRegistry(reg: { accounts: Account[]; activeId?: string })
   emitChange();
 }
 
+/** Funde o registo da nuvem com o local por UNIÃO — nunca remove contas locais
+ *  (evita que um dispositivo com menos contas apague as dos outros). Mantém a
+ *  conta ativa local se ainda existir, e o nome local em ids partilhados.
+ *  Retorna true se acrescentou alguma conta. */
+export function mergeRegistry(cloud: { accounts: Account[]; activeId?: string }): boolean {
+  if (!cloud || !Array.isArray(cloud.accounts) || cloud.accounts.length === 0) return false;
+  const current = ensureAccounts();
+  const byId = new Map<string, Account>();
+  for (const a of current.accounts) byId.set(a.id, a);
+  let changed = false;
+  for (const a of cloud.accounts) {
+    if (!a || !a.id) continue;
+    if (!byId.has(a.id)) {
+      byId.set(a.id, { id: a.id, name: (a.name ?? "").trim() || "Conta" });
+      changed = true;
+    }
+  }
+  if (!changed) return false;
+  const accounts = Array.from(byId.values());
+  const activeId = accounts.some((a) => a.id === current.activeId)
+    ? current.activeId
+    : accounts[0].id;
+  writeRegistry({ accounts, activeId });
+  emitChange();
+  return true;
+}
+
 export function createAccount(name?: string): Account {
   const reg = ensureAccounts();
   const id = uid();

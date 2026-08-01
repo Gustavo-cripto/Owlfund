@@ -11,8 +11,8 @@
 import {
   NAMESPACED_BASE_KEYS,
   getRegistry,
+  mergeRegistry,
   readNamespaced,
-  replaceRegistry,
   writeNamespaced,
   type Account,
 } from "@/lib/portfolios/accounts";
@@ -67,11 +67,15 @@ export async function pullWalletCloud(): Promise<boolean> {
 
     // v3 — todos os dados por conta
     if (data.v === 3 && data.registry && data.data) {
-      replaceRegistry(data.registry as { accounts: Account[]; activeId: string });
+      // União do registo (nunca remove contas locais).
+      mergeRegistry(data.registry as { accounts: Account[]; activeId: string });
       const byAcc = data.data as Record<string, Record<string, string>>;
       for (const [id, perAcc] of Object.entries(byAcc)) {
         for (const [base, raw] of Object.entries(perAcc)) {
-          if (typeof raw === "string") writeNamespaced(id, base, raw);
+          // Só preenche o que falta localmente — nunca sobrescreve edições locais.
+          if (typeof raw === "string" && readNamespaced(id, base) == null) {
+            writeNamespaced(id, base, raw);
+          }
         }
       }
       return true;
@@ -79,10 +83,12 @@ export async function pullWalletCloud(): Promise<boolean> {
 
     // v2 — só carteiras por conta
     if (data.v === 2 && data.registry && data.wallets) {
-      replaceRegistry(data.registry as { accounts: Account[]; activeId: string });
+      mergeRegistry(data.registry as { accounts: Account[]; activeId: string });
       const wallets = data.wallets as Record<string, unknown>;
       for (const [id, snap] of Object.entries(wallets)) {
-        writeNamespaced(id, WALLET_BASE, JSON.stringify(snap));
+        if (readNamespaced(id, WALLET_BASE) == null) {
+          writeNamespaced(id, WALLET_BASE, JSON.stringify(snap));
+        }
       }
       return true;
     }

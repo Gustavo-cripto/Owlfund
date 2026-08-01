@@ -8,6 +8,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  ACCOUNTS_EVENT,
   ALL_ACCOUNTS_ID,
   createAccount,
   deleteAccount,
@@ -54,6 +55,17 @@ export default function AccountSwitcher() {
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
   }, [open]);
+
+  // Re-lê a lista quando o registo muda (ex.: contas fundidas da nuvem noutro
+  // dispositivo), para o seletor refletir as novas contas sem reload manual.
+  useEffect(() => {
+    const refresh = () => {
+      setAccounts(listAccounts());
+      setActiveId(getActiveAccountId());
+    };
+    window.addEventListener(ACCOUNTS_EVENT, refresh);
+    return () => window.removeEventListener(ACCOUNTS_EVENT, refresh);
+  }, []);
 
   if (!ready) return null;
 
