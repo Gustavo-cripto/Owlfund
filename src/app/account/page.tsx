@@ -907,18 +907,10 @@ export default function AccountPage() {
                         {t("acc_upgrade")}
                       </a>
                     )}
-                    <a href="/pricing" className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-300 hover:text-white transition">
-                      {t("acc_compare_plans")}
-                    </a>
-                    {!isCrypto && (
-                      <button type="button" onClick={async () => {
-                        const res = await fetch("/api/sync-subscription", { method: "POST" });
-                        const json = await res.json() as { synced?: boolean; error?: string };
-                        if (json.synced) window.location.reload();
-                        else alert(json.error ?? t("ac_no_sub"));
-                      }} className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-400 hover:text-white transition">
-                        Sincronizar plano
-                      </button>
+                    {(isPremium || isCrypto) && (
+                      <a href="/pricing" className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-300 hover:text-white transition">
+                        {t("acc_compare_plans")}
+                      </a>
                     )}
                     <button type="button" onClick={handleLogout}
                       className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-400 hover:border-rose-500/40 hover:text-rose-400 transition ml-auto">

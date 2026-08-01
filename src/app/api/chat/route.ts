@@ -116,7 +116,7 @@ SUPORTE:
 - Saldo a zeros: verificar se o endereço foi adicionado corretamente; clicar "Atualizar saldo".
 - Para DeFi Solana: precisas de SHYFT_API_KEY (shyft.to gratuito).
 - Para DeFi ETH: precisas de MORALIS_API_KEY (moralis.io gratuito).
-- Plano não atualizado após pagamento: ir a /account e clicar "Sincronizar plano".
+- Plano não atualizado após pagamento: recarregar /account (sincroniza automaticamente ao abrir); se persistir, ir a /pricing e clicar "↻ Sincronizar plano".
 `;
 
 const SYSTEM_PROMPT = `Tu és o Chain — analista de cripto/mercados E assistente da plataforma ChainFolioAI. Respondes de forma clara, direta e amigável.
