@@ -345,22 +345,18 @@ export default function PortfolioPage() {
   // Sync wallet config: load from cloud if localStorage empty, then refresh on-chain balances
   useEffect(() => {
     const run = async () => {
-      let snapshot = loadWalletSnapshot();
-      const isEmpty = !snapshot.eth?.length && !snapshot.sol?.length && !snapshot.btc?.length && !snapshot.ada?.length;
-
-      // If no local data, try to restore from cloud (multi-conta)
-      if (isEmpty) {
-        const restored = await pullWalletCloud();
-        if (restored) {
-          snapshot = loadWalletSnapshot();
-          if (snapshot.eth?.length || snapshot.sol?.length || snapshot.btc?.length || snapshot.ada?.length) {
-            setWallets(snapshotToWallets(snapshot, tokenPricesRef.current));
-          }
-          // Ativos manuais também vieram da nuvem — re-ler
-          setTraditionalHoldings(loadTraditionalHoldings());
-          setCryptoHoldings(loadCryptoHoldings());
-          setStablecoinEntries(loadStablecoinEntries());
-        }
+      // Sincroniza SEMPRE com a nuvem: funde o registo de contas (união, nunca
+      // remove) e preenche dados em falta sem sobrescrever os locais. Assim as
+      // contas aparecem em todos os dispositivos mesmo quando já há dados locais.
+      const restored = await pullWalletCloud();
+      if (restored) {
+        setTraditionalHoldings(loadTraditionalHoldings());
+        setCryptoHoldings(loadCryptoHoldings());
+        setStablecoinEntries(loadStablecoinEntries());
+      }
+      const snapshot = loadWalletSnapshot();
+      if (snapshot.eth?.length || snapshot.sol?.length || snapshot.btc?.length || snapshot.ada?.length) {
+        setWallets(snapshotToWallets(snapshot, tokenPricesRef.current));
       }
 
       if (!snapshot.eth?.length && !snapshot.sol?.length && !snapshot.btc?.length && !snapshot.ada?.length) return;
