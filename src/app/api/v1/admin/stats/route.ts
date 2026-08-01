@@ -165,6 +165,32 @@ export async function GET(req: NextRequest) {
       head(admin, "crypto_payments").eq("status", "confirmed").gte("confirmed_at", ISO(daysAgo(7)))),
   };
 
+  // -- Visualizacoes (page_views, gravadas pelo middleware) -------------------
+  const views: {
+    last24h: number | null;
+    last7d: number | null;
+    last30d: number | null;
+    topPaths: Array<{ path: string; count: number }>;
+  } = {
+    last24h: await countOf(head(admin, "page_views").gte("created_at", ISO(daysAgo(1)))),
+    last7d: await countOf(head(admin, "page_views").gte("created_at", ISO(daysAgo(7)))),
+    last30d: await countOf(head(admin, "page_views").gte("created_at", ISO(daysAgo(30)))),
+    topPaths: [],
+  };
+  try {
+    const { data } = await admin
+      .from("page_views")
+      .select("path")
+      .gte("created_at", ISO(daysAgo(7)))
+      .limit(5000);
+    const counts: Record<string, number> = {};
+    for (const r of data ?? []) counts[r.path] = (counts[r.path] ?? 0) + 1;
+    views.topPaths = Object.entries(counts)
+      .map(([path, count]) => ({ path, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  } catch { /* sem top paths */ }
+
   return apiJson({
     generatedAt: ISO(now),
     accounts,
@@ -172,5 +198,6 @@ export async function GET(req: NextRequest) {
     apiKeys,
     usage,
     payments,
+    views,
   });
 }
