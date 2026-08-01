@@ -67,12 +67,34 @@ export async function GET(req: NextRequest) {
   const now = new Date();
 
   // -- Contas ----------------------------------------------------------------
-  const accounts = {
-    total: await countOf(head(admin, "profiles")),
-    new24h: await countOf(head(admin, "profiles").gte("created_at", ISO(daysAgo(1)))),
-    new7d: await countOf(head(admin, "profiles").gte("created_at", ISO(daysAgo(7)))),
-    new30d: await countOf(head(admin, "profiles").gte("created_at", ISO(daysAgo(30)))),
-  };
+  // Fonte autoritativa: auth.users (tem sempre created_at). Percorre paginas do
+  // admin do GoTrue e conta o total + novos por janela. Devolve tudo a null se
+  // a listagem falhar (fail-open).
+  async function countAccounts() {
+    const w = { total: 0, new24h: 0, new7d: 0, new30d: 0 };
+    const t1 = daysAgo(1).getTime();
+    const t7 = daysAgo(7).getTime();
+    const t30 = daysAgo(30).getTime();
+    try {
+      for (let page = 1; page <= 50; page++) {
+        const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+        if (error) return null;
+        const users = data?.users ?? [];
+        for (const u of users) {
+          w.total++;
+          const c = u.created_at ? new Date(u.created_at).getTime() : 0;
+          if (c >= t1) w.new24h++;
+          if (c >= t7) w.new7d++;
+          if (c >= t30) w.new30d++;
+        }
+        if (users.length < 1000) break;
+      }
+      return w;
+    } catch {
+      return null;
+    }
+  }
+  const accounts = (await countAccounts()) ?? { total: null, new24h: null, new7d: null, new30d: null };
 
   // -- Planos ativos (subscriptions) ------------------------------------------
   const plans: {
