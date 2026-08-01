@@ -305,25 +305,113 @@ export default function FiscalidadePage() {
     return { totalGain, taxable, exempt, losses, tax };
   }, [taxEvents]);
 
-  const exportCSV = () => {
-    const rows = [
-      [t("fc_col_asset"), t("fc_col_buydate"), t("fc_col_selldate"), t("fc_col_buyprice"), t("fc_col_sellprice"), t("fc_col_qty"), t("fc_col_gain"), t("fc_col_type"), t("fc_col_rate"), t("fc_col_tax")],
-      ...taxEvents.map(e => [
-        e.asset, e.buyDate, e.sellDate,
-        e.buyPrice.toFixed(2), e.sellPrice.toFixed(2),
-        e.amount.toFixed(8), e.gain.toFixed(2),
-        e.holding === "longo" ? t("fc_long_term") : t("fc_short_term"),
-        `${(e.taxRate * 100).toFixed(0)}%`,
-        (Math.max(0, e.gain) * e.taxRate).toFixed(2),
-      ]),
-    ];
-    const csv = rows.map(r => r.join(";")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `chainfolioai-fiscalidade-${country}-${new Date().getFullYear()}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  // Partilha (telemóvel) ou download (desktop) — mesmo padrão dos exports do portfólio.
+  const shareOrDownload = async (blob: Blob, filename: string) => {
+    const nav = navigator as Navigator & {
+      canShare?: (d: { files: File[] }) => boolean;
+      share?: (d: { files?: File[]; title?: string }) => Promise<void>;
+    };
+    const file = typeof File !== "undefined" ? new File([blob], filename, { type: blob.type }) : null;
+    if (file && nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
+      try { await nav.share({ files: [file], title: filename }); } catch { /* cancelado */ }
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }
+  };
+
+  // Excel (.xlsx) formatado com logótipo — mesmo formato dos exports do portfólio.
+  const exportXLSX = async () => {
+    const mod = await import("exceljs");
+    const ExcelJS = (mod as unknown as { default?: typeof mod }).default ?? mod;
+    const wb = new ExcelJS.Workbook();
+    wb.creator = "ChainFolioAI";
+    wb.created = new Date();
+    const ws = wb.addWorksheet("Fiscalidade");
+
+    const logoUrl = await loadLogo();
+    const logoImgId = logoUrl ? wb.addImage({ base64: logoUrl.split(",")[1], extension: "png" }) : null;
+
+    const NCOL = 10;
+    [10, 12, 12, 12, 14, 14, 14, 12, 8, 14].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
+    const money = '#,##0.00 "€"';
+    const pctFmt = '0"%"';
+    const BRAND = "FFF97316";
+    const DARK = "FF0F172A";
+
+    const bandRow = (label: string, argb: string, size = 12) => {
+      const r = ws.addRow([label]);
+      ws.mergeCells(r.number, 1, r.number, NCOL);
+      const c = r.getCell(1);
+      c.font = { bold: true, size, color: { argb: "FFFFFFFF" } };
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb } };
+      c.alignment = { vertical: "middle" };
+      r.height = 20;
+      return r;
+    };
+    const boldRow = (r: import("exceljs").Row) => { r.eachCell((c) => { c.font = { bold: true }; }); return r; };
+
+    const titleRow = bandRow(`ChainFolioAI — Relatório fiscal ${new Date().getFullYear()}`, DARK, 14);
+    if (logoImgId != null) {
+      titleRow.height = 46;
+      titleRow.getCell(1).alignment = { vertical: "middle", indent: 8 };
+      ws.addImage(logoImgId, { tl: { col: 0.15, row: 0.15 }, ext: { width: 46, height: 46 } });
+    } else {
+      titleRow.height = 24;
+    }
+    ([
+      ["País", `${country} (${(regime.short * 100).toFixed(0)}% / ${regime.longLabel})`],
+      ["Data", new Date().toLocaleString("pt-PT", { dateStyle: "short", timeStyle: "short" })],
+      ["Método", "FIFO / EUR"],
+    ] as [string, string][]).forEach(([k, v]) => {
+      const r = ws.addRow([k, v]);
+      r.getCell(1).font = { bold: true, color: { argb: "FF64748B" } };
+    });
+    ws.addRow([]);
+
+    bandRow("RESUMO", BRAND);
+    boldRow(ws.addRow(["Métrica", "Valor"]));
+    const metric = (label: string, value: number, fmt?: string) => {
+      const r = ws.addRow([label, value]);
+      if (fmt) r.getCell(2).numFmt = fmt;
+    };
+    metric("Ganho total", summary.totalGain, money);
+    metric("Tributável", summary.taxable, money);
+    metric("Isento (longo prazo)", summary.exempt, money);
+    metric("Perdas realizadas", summary.losses, money);
+    metric("Imposto estimado", summary.tax, money);
+    metric("Nº de eventos", taxEvents.length, "0");
+    ws.addRow([]);
+
+    bandRow("EVENTOS FISCAIS", BRAND);
+    boldRow(ws.addRow(["Ativo", "Compra", "Venda", "Qtd", "P.Compra (€)", "P.Venda (€)", "Ganho (€)", "Tipo", "Taxa", "Imposto (€)"]));
+    if (taxEvents.length === 0) {
+      const r = ws.addRow(["Sem eventos fiscais no período"]);
+      r.getCell(1).font = { italic: true, color: { argb: "FF94A3B8" } };
+    } else {
+      taxEvents.forEach((e) => {
+        const r = ws.addRow([
+          e.asset, e.buyDate, e.sellDate, e.amount,
+          e.buyPrice, e.sellPrice, e.gain,
+          e.holding === "longo" ? t("fc_long_term") : t("fc_short_term"),
+          e.taxRate * 100,
+          e.gain > 0 && e.taxRate > 0 ? e.gain * e.taxRate : 0,
+        ]);
+        r.getCell(4).numFmt = "#,##0.00000000";
+        r.getCell(5).numFmt = money;
+        r.getCell(6).numFmt = money;
+        r.getCell(7).numFmt = money;
+        r.getCell(9).numFmt = pctFmt;
+        r.getCell(10).numFmt = money;
+      });
+    }
+
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    await shareOrDownload(blob, `chainfolioai-fiscalidade-${country}-${new Date().getFullYear()}.xlsx`);
   };
 
   const loadLogo = (): Promise<string | null> =>
@@ -540,7 +628,8 @@ export default function FiscalidadePage() {
     doc.setTextColor(156, 163, 175);
     doc.text(t("fisc_pdf_footer"), W / 2, fy, { align: "center", maxWidth: W - M * 2 });
 
-    doc.save(`chainfolioai-report-${country}-${new Date().getFullYear()}.pdf`);
+    const pdfBlob = doc.output("blob");
+    await shareOrDownload(pdfBlob, `chainfolioai-report-${country}-${new Date().getFullYear()}.pdf`);
   };
 
   if (isLoading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-400 animate-pulse">{t("loading")}</p></div>;
@@ -707,7 +796,7 @@ export default function FiscalidadePage() {
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t("fisc_tax_events")} ({taxEvents.length})</p>
                   <div className="flex items-center gap-2">
                     {isPro ? (
-                      <button onClick={exportCSV}
+                      <button onClick={exportXLSX}
                         className="flex items-center gap-2 rounded-xl border border-orange-500/40 px-3 py-1.5 text-xs font-semibold text-orange-300 hover:bg-orange-500/10 transition">
                         ↓ {t("fisc_export_csv")}
                       </button>
