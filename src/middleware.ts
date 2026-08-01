@@ -9,7 +9,8 @@ function isProtectedPath(pathname: string): boolean {
 
 // Regista uma visualizacao de pagina (fire-and-forget via waitUntil, sem atrasar
 // a resposta). So conta navegacoes reais: GET, sem prefetch, fora de /api e das
-// rotas de auth. Escreve com o service role (bypassa RLS da tabela page_views).
+// rotas de auth. Delega a escrita a /api/track (runtime Node, com service role) -
+// o Edge nao tem acesso fiavel ao SUPABASE_SERVICE_ROLE_KEY.
 function trackPageView(request: NextRequest, event: NextFetchEvent): void {
   if (request.method !== "GET") return;
   const isPrefetch =
@@ -20,19 +21,10 @@ function trackPageView(request: NextRequest, event: NextFetchEvent): void {
   const path = request.nextUrl.pathname;
   if (path.startsWith("/api") || path.startsWith("/login") || path.startsWith("/auth")) return;
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) return;
-
   event.waitUntil(
-    fetch(`${url}/rest/v1/page_views`, {
+    fetch(new URL("/api/track", request.url), {
       method: "POST",
-      headers: {
-        apikey: serviceKey,
-        Authorization: `Bearer ${serviceKey}`,
-        "Content-Type": "application/json",
-        Prefer: "return=minimal",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path }),
     }).catch(() => {}),
   );
