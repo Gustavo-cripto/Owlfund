@@ -380,12 +380,13 @@ export default function GestorPage() {
               type="button"
               onClick={exportPdf}
               title={t("gz_export")}
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs text-slate-300 transition hover:border-violet-500/50 hover:text-violet-300"
+              aria-label={t("gz_export")}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-2 py-1.5 text-xs text-slate-300 transition hover:border-violet-500/50 hover:text-violet-300 sm:px-2.5"
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
               </svg>
-              {t("gz_export")}
+              <span className="hidden sm:inline">{t("gz_export")}</span>
             </button>
           )}
           <div className="flex items-center gap-1.5">
