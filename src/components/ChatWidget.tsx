@@ -289,13 +289,13 @@ export default function ChatWidget({
           <div className="flex flex-col items-center gap-4 px-1 py-2 text-center">
             <div className="relative animate-fade-in-up">
               {/* Halo/glow para destacar o Chain contra o fundo escuro do chat */}
-              <span className="pointer-events-none absolute -inset-3 rounded-full bg-orange-500/25 blur-2xl" aria-hidden />
+              <span className="pointer-events-none absolute -inset-4 rounded-full bg-orange-500/25 blur-2xl" aria-hidden />
               <img
                 src={assistantAvatar}
                 alt="Chain"
-                className="relative h-28 w-28 rounded-3xl border-2 border-orange-400/70 object-cover shadow-2xl shadow-orange-500/25 ring-4 ring-orange-500/10"
+                className="relative h-40 w-40 rounded-3xl border-2 border-orange-400/70 object-cover shadow-2xl shadow-orange-500/25 ring-4 ring-orange-500/10"
               />
-              <span className="absolute -bottom-1.5 -right-1.5 h-5 w-5 rounded-full border-[3px] border-slate-950 bg-emerald-400 shadow-lg shadow-emerald-500/40" />
+              <span className="absolute -bottom-1.5 -right-1.5 h-6 w-6 rounded-full border-[3px] border-slate-950 bg-emerald-400 shadow-lg shadow-emerald-500/40" />
             </div>
             <div className="animate-fade-in-up delay-100">
               <p className="text-base font-bold text-white">
