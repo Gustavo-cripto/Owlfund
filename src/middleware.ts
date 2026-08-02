@@ -23,10 +23,17 @@ function trackPageView(request: NextRequest, event: NextFetchEvent): void {
   // sitemap.xml, e qualquer path com extensao) - esses nao sao page views.
   if (path.startsWith("/api") || path.startsWith("/login") || path.startsWith("/auth") || path.includes(".")) return;
 
+  // TRACK_SECRET (quando definido) prova a /api/track que o pedido vem daqui e
+  // não de fora — o beacon escreve com o service role, por isso não pode aceitar
+  // pedidos arbitrários da internet.
+  const trackSecret = (process.env.TRACK_SECRET ?? "").trim();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (trackSecret) headers["x-track-secret"] = trackSecret;
+
   event.waitUntil(
     fetch(new URL("/api/track", request.url), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ path }),
     }).catch(() => {}),
   );
