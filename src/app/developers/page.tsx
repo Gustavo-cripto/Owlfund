@@ -2,7 +2,9 @@ import Link from "next/link";
 import AppShell from "@/components/AppShell";
 
 export const metadata = {
-  title: "API & MCP — Documentação · ChainFolioAI",
+  // Sem sufixo da marca: o template do layout raiz já junta "· ChainFolioAI"
+  // (antes ficava duplicado: "… · ChainFolioAI · ChainFolioAI").
+  title: "API & MCP — Documentação",
   description: "Documentação da API REST e do servidor MCP do ChainFolioAI.",
 };
 
