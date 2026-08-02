@@ -288,8 +288,14 @@ export default function ChatWidget({
           /* Estado de boas-vindas */
           <div className="flex flex-col items-center gap-4 px-1 py-2 text-center">
             <div className="relative animate-fade-in-up">
-              <img src={assistantAvatar} alt="" className="h-16 w-16 rounded-2xl border border-slate-700 object-cover shadow-lg shadow-black/40" />
-              <span className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-slate-950 bg-emerald-400" />
+              {/* Halo/glow para destacar o Chain contra o fundo escuro do chat */}
+              <span className="pointer-events-none absolute -inset-3 rounded-full bg-orange-500/25 blur-2xl" aria-hidden />
+              <img
+                src={assistantAvatar}
+                alt="Chain"
+                className="relative h-28 w-28 rounded-3xl border-2 border-orange-400/70 object-cover shadow-2xl shadow-orange-500/25 ring-4 ring-orange-500/10"
+              />
+              <span className="absolute -bottom-1.5 -right-1.5 h-5 w-5 rounded-full border-[3px] border-slate-950 bg-emerald-400 shadow-lg shadow-emerald-500/40" />
             </div>
             <div className="animate-fade-in-up delay-100">
               <p className="text-base font-bold text-white">
@@ -326,7 +332,7 @@ export default function ChatWidget({
             <div key={i} className={`flex items-end gap-2 animate-fade-in-up ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
               {/* Avatar */}
               {msg.role === "assistant" ? (
-                <img src={assistantAvatar} alt="" className="h-7 w-7 flex-shrink-0 rounded-full border border-slate-700 object-cover" />
+                <img src={assistantAvatar} alt="" className="h-8 w-8 flex-shrink-0 rounded-full border-2 border-orange-400/50 object-cover" />
               ) : (
                 <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-orange-500/30 bg-orange-500/15 text-[10px] font-bold text-orange-300">
                   {nick ? nick[0].toUpperCase() : "🙂"}
@@ -350,7 +356,7 @@ export default function ChatWidget({
         {/* Indicador de "a escrever" */}
         {isLoading && (
           <div className="flex items-end gap-2 animate-fade-in-up">
-            <img src={assistantAvatar} alt="" className="h-7 w-7 flex-shrink-0 rounded-full border border-slate-700 object-cover" />
+            <img src={assistantAvatar} alt="" className="h-8 w-8 flex-shrink-0 rounded-full border-2 border-orange-400/50 object-cover" />
             <div className="rounded-2xl rounded-bl-md border border-slate-700/50 bg-slate-800/70 px-4 py-3">
               <div className="flex items-center gap-1">
                 {[0, 1, 2].map(n => (
