@@ -7,6 +7,13 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { buildPortfolioSummaryText } from "@/lib/portfolio/summaryText";
 import { loadNickname } from "@/lib/user/nickname";
 import { escapeHtml } from "@/lib/utils/html";
+import {
+  ACCOUNTS_EVENT,
+  ALL_ACCOUNTS_ID,
+  accKey,
+  getActiveAccountId,
+  listAccounts,
+} from "@/lib/portfolios/accounts";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -26,7 +33,17 @@ type ChatWidgetProps = {
   isPro?: boolean;
 };
 
-const STORAGE_KEY = "owlfund.chat.messages.v2";
+// Histórico de mensagens: chave POR CONTA (cada portfólio tem a sua conversa
+// separada com o Chain). accKey prefixa por conta ativa → cf.acct.<id>.<base>.
+const MESSAGES_BASE = "owlfund.chat.messages.v2";
+const messagesKeyFor = (accountId: string) => accKey(MESSAGES_BASE, accountId);
+// Nome legível da conta ativa (para o cabeçalho e o contexto enviado à IA).
+function activeAccountName(accountId: string): string {
+  if (accountId === ALL_ACCOUNTS_ID) return "Todas as contas";
+  return listAccounts().find((a) => a.id === accountId)?.name ?? "Conta";
+}
+// O contador de chats grátis é POR UTILIZADOR (não por conta) — mantém-se global
+// para o limite do plano não ser contornável criando várias contas.
 const FREE_CHAT_LIMIT = 5;
 
 function getChatMonthKey() {
@@ -82,30 +99,62 @@ export default function ChatWidget({
   const [error, setError] = useState<string | null>(null);
   const [chatCount, setChatCount] = useState(0);
   const [nick, setNick] = useState("");
+  const [acctId, setAcctId] = useState<string>("");
+  const [acctName, setAcctName] = useState<string>("");
+  const [acctCount, setAcctCount] = useState(1);
+  const hydratedRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setChatCount(getChatCount());
     setNick(loadNickname() || "");
+    setAcctId(getActiveAccountId());
   }, []);
 
-  // Carregar histórico do localStorage
-  useEffect(() => {
+  // Lê o histórico da conta indicada e substitui o que está no ecrã.
+  const loadMessagesFor = (accountId: string) => {
+    hydratedRef.current = false;
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as ChatMessage[];
-      if (Array.isArray(parsed)) {
-        setMessages(parsed.filter(m => (m.role === "user" || m.role === "assistant") && typeof m.content === "string"));
-      }
-    } catch { /* ignore */ }
+      const raw = localStorage.getItem(messagesKeyFor(accountId));
+      const parsed = raw ? (JSON.parse(raw) as ChatMessage[]) : [];
+      setMessages(
+        Array.isArray(parsed)
+          ? parsed.filter(m => (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
+          : [],
+      );
+    } catch {
+      setMessages([]);
+    }
+    setAcctName(activeAccountName(accountId));
+    try { setAcctCount(listAccounts().length); } catch { /* ignore */ }
+    // Permite guardar só depois de hidratar (evita apagar a conversa da conta).
+    requestAnimationFrame(() => { hydratedRef.current = true; });
+  };
+
+  // Carregar a conversa da conta ativa quando ela é conhecida / muda.
+  useEffect(() => {
+    if (!acctId) return;
+    loadMessagesFor(acctId);
+  }, [acctId]);
+
+  // Reage à troca de conta (o AccountSwitcher recarrega a página, mas isto cobre
+  // trocas sem reload — ex.: contas fundidas da nuvem noutro dispositivo).
+  useEffect(() => {
+    const onAccountsChanged = () => {
+      const next = getActiveAccountId();
+      setAcctId(prev => (prev === next ? prev : next));
+      setAcctName(activeAccountName(next));
+    };
+    window.addEventListener(ACCOUNTS_EVENT, onAccountsChanged);
+    return () => window.removeEventListener(ACCOUNTS_EVENT, onAccountsChanged);
   }, []);
 
-  // Guardar histórico
+  // Guardar histórico na chave da conta ativa (só após hidratar).
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-40))); }
+    if (!acctId || !hydratedRef.current) return;
+    try { localStorage.setItem(messagesKeyFor(acctId), JSON.stringify(messages.slice(-40))); }
     catch { /* ignore */ }
-  }, [messages]);
+  }, [messages, acctId]);
 
   // Auto-scroll para a última mensagem
   useEffect(() => {
@@ -160,6 +209,7 @@ export default function ChatWidget({
           pageContext: pathname ?? undefined,
           portfolio: portfolio ?? undefined,
           nickname: loadNickname() || undefined,
+          accountName: acctName || undefined,
         }),
         signal: controller.signal,
       }).finally(() => window.clearTimeout(timeoutId));
@@ -195,10 +245,13 @@ export default function ChatWidget({
   const clearHistory = () => {
     setMessages([]);
     setError(null);
-    try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+    try { if (acctId) localStorage.removeItem(messagesKeyFor(acctId)); } catch { /* ignore */ }
   };
 
   const limitReached = !isPro && chatCount >= FREE_CHAT_LIMIT;
+  // Indicador de conta ativa: só quando há várias contas ou na vista combinada,
+  // para não poluir a UI de quem só tem um portfólio.
+  const showAcctChip = Boolean(acctName) && (acctCount > 1 || acctId === ALL_ACCOUNTS_ID);
 
   const content = (
     <div className="flex flex-col gap-3">
@@ -243,6 +296,14 @@ export default function ChatWidget({
                 {t("cw_greeting_hi")}{nick ? ` ${nick}` : ""}! 👋
               </p>
               <p className="mt-1 text-xs text-slate-400">{t("cw_greeting_intro")}</p>
+              {showAcctChip && (
+                <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-orange-500/25 bg-orange-500/10 px-2.5 py-1 text-[10px] font-medium text-orange-300">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
+                  </svg>
+                  {acctName}
+                </span>
+              )}
             </div>
             <div className="w-full space-y-2 pt-1">
               <p className="text-left text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("cw_suggestions")}</p>
