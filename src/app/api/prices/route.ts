@@ -11,24 +11,56 @@ type Benchmark = {
   sp500: number;
 };
 
-// Cotação do S&P 500 (índice, em pontos) via stooq — grátis, sem chave.
-// Best-effort: usado para guardar nos snapshots e calcular Beta vs mercado.
-// Só precisamos do valor (retornos relativos), a moeda/pontos é indiferente.
-async function fetchSp500(): Promise<number> {
+// Cotação de um símbolo no Yahoo Finance (grátis, sem chave). Substituiu o
+// stooq, que passou a exigir proof-of-work no browser e devolvia sempre 0.
+// Devolve { price, prevClose } — prevClose permite calcular a variação 24h.
+async function fetchYahooQuote(symbol: string): Promise<{ price: number; prevClose: number }> {
   try {
-    const res = await fetch("https://stooq.com/q/l/?s=%5Espx&f=sd2t2ohlcv&h&e=csv", {
-      cache: "no-store",
-      signal: AbortSignal.timeout(4000),
-    });
-    if (!res.ok) return 0;
-    const csv = (await res.text()).trim();
-    const rows = csv.split("\n");
-    if (rows.length < 2) return 0;
-    const close = Number(rows[1].split(",")[6]); // Symbol,Date,Time,Open,High,Low,Close,Volume
-    return Number.isFinite(close) && close > 0 ? close : 0;
+    const res = await fetch(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1d&interval=1d`,
+      {
+        cache: "no-store",
+        headers: { "User-Agent": "Mozilla/5.0" },
+        signal: AbortSignal.timeout(5000),
+      }
+    );
+    if (!res.ok) return { price: 0, prevClose: 0 };
+    const json = (await res.json()) as {
+      chart?: { result?: Array<{ meta?: { regularMarketPrice?: number; chartPreviousClose?: number; previousClose?: number } }> };
+    };
+    const meta = json.chart?.result?.[0]?.meta;
+    const price = Number(meta?.regularMarketPrice ?? 0);
+    const prevClose = Number(meta?.chartPreviousClose ?? meta?.previousClose ?? 0);
+    return {
+      price: Number.isFinite(price) && price > 0 ? price : 0,
+      prevClose: Number.isFinite(prevClose) && prevClose > 0 ? prevClose : 0,
+    };
   } catch {
-    return 0;
+    return { price: 0, prevClose: 0 };
   }
+}
+
+const pctChange = (price: number, prev: number) =>
+  price > 0 && prev > 0 ? ((price - prev) / prev) * 100 : 0;
+
+/** S&P 500 (pontos do índice) + ouro em EUR/onça, ambos do Yahoo.
+ *  O ouro vinha do id "gold" da CoinGecko, que é um TOKEN cripto (~0,00002 €),
+ *  não ouro real — o valor mostrado estava errado por ordens de grandeza. */
+async function fetchMarketBenchmarks(): Promise<Pick<Benchmark, "sp500" | "gold_eur" | "gold_24h">> {
+  const [spx, gold, eurusd] = await Promise.all([
+    fetchYahooQuote("^GSPC"),
+    fetchYahooQuote("GC=F"),   // futuros de ouro, em USD/onça
+    fetchYahooQuote("EURUSD=X"),
+  ]);
+  const rate = eurusd.price > 0 ? eurusd.price : 0; // USD por 1 EUR
+  const goldEur = gold.price > 0 && rate > 0 ? gold.price / rate : 0;
+  const goldPrevEur = gold.prevClose > 0 && rate > 0 ? gold.prevClose / rate : 0;
+  return {
+    sp500: spx.price,
+    gold_eur: goldEur,
+    // A variação é a mesma em USD ou EUR quando se usa a mesma taxa nos dois lados.
+    gold_24h: pctChange(goldEur, goldPrevEur),
+  };
 }
 
 // ── Binance (EUR pairs via USDT + ECB rate approx) ──────────────────────────
@@ -105,7 +137,7 @@ async function fromKraken(): Promise<{ prices: Prices; benchmark: Partial<Benchm
 // ── CoinGecko (with retries) ─────────────────────────────────────────────────
 async function fromCoinGecko(): Promise<{ prices: Prices; benchmark: Partial<Benchmark> }> {
   const res = await fetch(
-    "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,cardano,gold&vs_currencies=eur,usd&include_24hr_change=true&include_7d_change=true&include_30d_change=true",
+    "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,cardano&vs_currencies=eur,usd&include_24hr_change=true&include_7d_change=true&include_30d_change=true",
     {
       headers: {
         "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36",
@@ -135,10 +167,8 @@ async function fromCoinGecko(): Promise<{ prices: Prices; benchmark: Partial<Ben
     eth_24h: d.ethereum?.eur_24h_change ?? 0,
     eth_7d: d.ethereum?.eur_7d_change ?? 0,
     eth_30d: d.ethereum?.eur_30d_change ?? 0,
-    gold_eur: d.gold?.eur ?? 0,
-    gold_24h: d.gold?.eur_24h_change ?? 0,
-    gold_7d: d.gold?.eur_7d_change ?? 0,
-    gold_30d: d.gold?.eur_30d_change ?? 0,
+    // Sem ouro aqui: o id "gold" da CoinGecko é um token cripto, não o metal.
+    // O ouro real vem de fetchMarketBenchmarks() (Yahoo GC=F).
   };
   return { prices, benchmark };
 }
@@ -153,9 +183,10 @@ export async function GET() {
     try {
       const { prices, benchmark } = await source();
       if (!isValid(prices)) continue;
-      const sp500 = await fetchSp500(); // best-effort, 0 se falhar
+      // S&P 500 + ouro real (Yahoo). Best-effort: 0 se falhar, nunca rebenta.
+      const market = await fetchMarketBenchmarks();
       const fullBenchmark: Benchmark = {
-        sp500,
+        sp500: market.sp500,
         btc_eur: benchmark.btc_eur ?? 0,
         btc_24h: benchmark.btc_24h ?? 0,
         btc_7d: benchmark.btc_7d ?? 0,
@@ -164,10 +195,11 @@ export async function GET() {
         eth_24h: benchmark.eth_24h ?? 0,
         eth_7d: benchmark.eth_7d ?? 0,
         eth_30d: benchmark.eth_30d ?? 0,
-        gold_eur: benchmark.gold_eur ?? 0,
-        gold_24h: benchmark.gold_24h ?? 0,
-        gold_7d: benchmark.gold_7d ?? 0,
-        gold_30d: benchmark.gold_30d ?? 0,
+        gold_eur: market.gold_eur,
+        gold_24h: market.gold_24h,
+        // 7d/30d do ouro exigiriam histórico; ficam a 0 em vez de valores falsos.
+        gold_7d: 0,
+        gold_30d: 0,
       };
       return NextResponse.json({ prices, benchmark: fullBenchmark, source: source.name }, {
         headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120" },
