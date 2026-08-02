@@ -171,12 +171,14 @@ export async function GET(req: NextRequest) {
     last7d: number | null;
     last30d: number | null;
     topPaths: Array<{ path: string; count: number }>;
+    bottomPaths: Array<{ path: string; count: number }>;
     byDay: Array<{ day: string; count: number }>;
   } = {
     last24h: await countOf(head(admin, "page_views").gte("created_at", ISO(daysAgo(1)))),
     last7d: await countOf(head(admin, "page_views").gte("created_at", ISO(daysAgo(7)))),
     last30d: await countOf(head(admin, "page_views").gte("created_at", ISO(daysAgo(30)))),
     topPaths: [],
+    bottomPaths: [],
     byDay: [],
   };
   try {
@@ -196,9 +198,15 @@ export async function GET(req: NextRequest) {
       const day = iso.slice(0, 10);
       dayCounts[day] = (dayCounts[day] ?? 0) + 1;
     }
-    views.topPaths = Object.entries(pathCounts)
+    const ranked = Object.entries(pathCounts)
       .map(([path, count]) => ({ path, count }))
-      .sort((a, b) => b.count - a.count)
+      .sort((a, b) => b.count - a.count);
+    views.topPaths = ranked.slice(0, 5);
+    // Menos vistas: as com menos visitas (asc), excluindo as que ja estao no top.
+    const inTop = new Set(views.topPaths.map((p) => p.path));
+    views.bottomPaths = ranked
+      .filter((p) => !inTop.has(p.path))
+      .sort((a, b) => a.count - b.count)
       .slice(0, 5);
     // Serie de 14 dias, do mais antigo ao mais recente, com zeros preenchidos.
     const byDay: Array<{ day: string; count: number }> = [];
