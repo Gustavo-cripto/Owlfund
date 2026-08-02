@@ -17,13 +17,15 @@ export default function FloatingChat() {
   const [isContentReady, setIsContentReady] = useState(false);
   const [showBadge, setShowBadge] = useState(false);
   const [isPro, setIsPro] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [, startTransition] = useTransition();
 
-  // Verificar plano
+  // Verificar sessão + plano (o chat só existe para utilizadores autenticados)
   useEffect(() => {
     const check = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) { setIsLoggedIn(false); setIsPro(false); return; }
+      setIsLoggedIn(true);
       const { data: sub } = await supabase
         .from("subscriptions")
         .select("status, current_period_end")
@@ -36,6 +38,8 @@ export default function FloatingChat() {
       setIsPro(active && notExpired);
     };
     check();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => { check(); });
+    return () => subscription.unsubscribe();
   }, [supabase]);
 
   useEffect(() => {
@@ -89,6 +93,9 @@ export default function FloatingChat() {
     "/account":     t("nav_account"),
   };
   const currentPage = pageLabels[pathname ?? ""] ?? null;
+
+  // Sem sessão iniciada (páginas públicas / visitantes), o chat não é renderizado
+  if (!isLoggedIn) return null;
 
   return (
     <div className="pointer-events-none fixed bottom-4 right-4 z-50 flex flex-col items-end gap-3 sm:bottom-6 sm:right-6">
