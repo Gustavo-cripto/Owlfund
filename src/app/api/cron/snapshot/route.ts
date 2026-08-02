@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { verifyCronAuth } from "@/lib/api/cron-auth";
 
 // Vercel Cron Job — corre todos os dias às 00:00 UTC
 // Configurado em vercel.json: { "crons": [{ "path": "/api/cron/snapshot", "schedule": "0 0 * * *" }] }
@@ -8,45 +9,11 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-// Comparação em tempo constante para prevenir timing attacks
-async function timingSafeEqual(a: string, b: string): Promise<boolean> {
-  if (typeof crypto?.subtle?.importKey !== "function") {
-    // Fallback sem subtle crypto — ainda protege contra timing via padding
-    if (a.length !== b.length) return false;
-    let diff = 0;
-    for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-    return diff === 0;
-  }
-  const enc = new TextEncoder();
-  const [ka, kb] = await Promise.all([
-    crypto.subtle.importKey("raw", enc.encode(a).buffer as ArrayBuffer, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]),
-    crypto.subtle.importKey("raw", enc.encode(b).buffer as ArrayBuffer, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]),
-  ]);
-  const [sa, sb] = await Promise.all([
-    crypto.subtle.sign("HMAC", ka, enc.encode("chainfolioai-cron").buffer as ArrayBuffer),
-    crypto.subtle.sign("HMAC", kb, enc.encode("chainfolioai-cron").buffer as ArrayBuffer),
-  ]);
-  const va = new Uint8Array(sa);
-  const vb = new Uint8Array(sb);
-  if (va.length !== vb.length) return false;
-  let diff = 0;
-  for (let i = 0; i < va.length; i++) diff |= va[i] ^ vb[i];
-  return diff === 0;
-}
-
 export async function GET(request: Request) {
-  // CRON_SECRET é obrigatório — se não estiver configurado, recusa sempre
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) {
-    console.error("[cron/snapshot] CRON_SECRET não configurado — endpoint bloqueado.");
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const authHeader = request.headers.get("authorization") ?? "";
-  const expected = `Bearer ${cronSecret}`;
-
-  const authorized = await timingSafeEqual(authHeader, expected);
-  if (!authorized) {
+  // Autenticação partilhada (lib/api/cron-auth): CRON_SECRET obrigatório e
+  // comparação em tempo constante. Antes existia aqui uma cópia local que
+  // rebentava com 500 quando o header vinha vazio (zero-length key).
+  if (!(await verifyCronAuth(request))) {
     // Sem detalhe no erro para não confirmar existência do endpoint
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

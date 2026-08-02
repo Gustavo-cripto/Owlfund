@@ -3,6 +3,10 @@
 // em /api/cron/snapshot. CRON_SECRET obrigatório — sem ele, recusa sempre.
 
 async function timingSafeEqual(a: string, b: string): Promise<boolean> {
+  // Um dos lados vazio (ex.: pedido sem header Authorization) nunca é válido.
+  // Tem de ser tratado ANTES do importKey: a Web Crypto rebenta com
+  // "DataError: Zero-length key is not supported" e a rota devolvia 500.
+  if (!a || !b) return false;
   if (typeof crypto?.subtle?.importKey !== "function") {
     // Fallback sem subtle crypto — ainda protege contra timing via padding
     if (a.length !== b.length) return false;
@@ -28,9 +32,15 @@ async function timingSafeEqual(a: string, b: string): Promise<boolean> {
 }
 
 // True se o pedido traz o CRON_SECRET correto no header Authorization.
+// Nunca lança: qualquer falha da Web Crypto recusa o pedido (fail closed) em
+// vez de rebentar com 500 — um 500 aqui esconderia a razão real da recusa.
 export async function verifyCronAuth(request: Request): Promise<boolean> {
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) return false;
-  const token = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
-  return timingSafeEqual(token, cronSecret);
+  try {
+    const cronSecret = process.env.CRON_SECRET;
+    if (!cronSecret) return false;
+    const token = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
+    return await timingSafeEqual(token, cronSecret);
+  } catch {
+    return false;
+  }
 }
