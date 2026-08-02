@@ -12,8 +12,9 @@ const premiumPriceId = process.env.STRIPE_PREMIUM_PRICE_ID ?? process.env.NEXT_P
 type Message = { role: "user" | "assistant"; content: string };
 
 // ── LLM (Groq → OpenAI → xAI, com fallback e erros tipados) ──────────────────
+// Premium: teto de tokens mais alto para relatórios/análises completas sem corte.
 const callLLM = (messages: ChatMessage[]) =>
-  generateAiChat(messages, { maxTokens: 1024, temperature: 0.65 });
+  generateAiChat(messages, { maxTokens: 2048, temperature: 0.65 });
 
 // ── Portfolio context builder ─────────────────────────────────────────────────
 
@@ -147,10 +148,11 @@ export async function POST(req: NextRequest) {
     const isPremium = !!premiumPriceId && sub?.price_id === premiumPriceId;
     if (!isPremium) return NextResponse.json({ error: "Requer Plano Premium." }, { status: 403 });
 
-    const body = await req.json() as { messages: Message[]; watchlist?: WatchEntry[]; lang?: string; portfolio?: string; nickname?: string };
+    const body = await req.json() as { messages: Message[]; watchlist?: WatchEntry[]; lang?: string; portfolio?: string; nickname?: string; accountName?: string };
     lang = body.lang ?? "pt";
     const clientPortfolio = typeof body.portfolio === "string" ? body.portfolio.slice(0, 3000) : "";
     const nickname = typeof body.nickname === "string" ? body.nickname.trim().slice(0, 40) : "";
+    const accountName = typeof body.accountName === "string" ? body.accountName.trim().slice(0, 60) : "";
     const LANG_NAME: Record<string, string> = { pt: "português europeu (PT-PT)", en: "English", es: "español", fr: "français" };
     const langDirective = `\n\nIDIOMA (REGRA ABSOLUTA, ignora o idioma do contexto/portfolio acima): Responde SEMPRE e EXCLUSIVAMENTE em ${LANG_NAME[lang] ?? "português europeu (PT-PT)"}. Toda a tua resposta — títulos, listas e texto — tem de estar nesse idioma, independentemente do idioma em que o contexto do portfolio ou a watchlist estejam escritos.`;
     const messages = (body.messages ?? []).slice(-14).map(m => ({
@@ -191,7 +193,10 @@ export async function POST(req: NextRequest) {
     const nameDirective = nickname
       ? `\n\nNOME DO UTILIZADOR: chama-se ${nickname}. Trata-o por esse nome de forma natural e amigável. Não inventes outro nome.`
       : "";
-    const systemPrompt = `${getGestorSystem()}\n\n${portfolioCtx}${watchlistCtx}${nameDirective}${langDirective}`;
+    const accountDirective = accountName
+      ? `\n\nCONTA/PORTFÓLIO ATIVO: "${accountName}". Os dados de portfolio acima referem-se a esta conta. Se for "Todas as contas", é a soma de todos os portfólios do utilizador. Menciona a conta ativa quando ajudar a dar contexto.`
+      : "";
+    const systemPrompt = `${getGestorSystem()}\n\n${portfolioCtx}${watchlistCtx}${nameDirective}${accountDirective}${langDirective}`;
 
     const reply = await callLLM([
       { role: "system", content: systemPrompt },

@@ -17,8 +17,27 @@ const sumBalances = (entries?: StoredWalletEntry[]) =>
  * para /api/chat e injetado no prompt de sistema, para o assistente conhecer os
  * ativos reais (incluindo os adicionados manualmente).
  */
+export type PortfolioCategory = { key: string; label: string; eur: number };
+export type PortfolioSummary = {
+  totalEur: number;
+  categories: PortfolioCategory[];
+  manualAssets: { sym: string; qty: number; invested: number }[];
+  text: string | null;
+};
+
+const EMPTY_SUMMARY: PortfolioSummary = { totalEur: 0, categories: [], manualAssets: [], text: null };
+
+/** Wrapper retrocompatível: só o texto para o prompt da IA. */
 export async function buildPortfolioSummaryText(): Promise<string | null> {
-  if (typeof window === "undefined") return null;
+  return (await buildPortfolioSummary()).text;
+}
+
+/**
+ * Versão estruturada do resumo — devolve o total em EUR, categorias e ativos
+ * manuais (para UI: mini-cards, boas-vindas) além do texto para a IA.
+ */
+export async function buildPortfolioSummary(): Promise<PortfolioSummary> {
+  if (typeof window === "undefined") return EMPTY_SUMMARY;
 
   const snap = loadWalletSnapshot();
   const holdings = loadCryptoHoldings();
@@ -69,35 +88,43 @@ export async function buildPortfolioSummaryText(): Promise<string | null> {
     ([, h]) => (Number(h.quantity) || 0) > 0 || (Number(h.buyValue) || 0) > 0,
   );
 
-  // Nada registado — não vale a pena enviar contexto.
-  if (total <= 0 && manualSyms.length === 0) return null;
+  const manualAssets = manualSyms.slice(0, 30).map(([sym, h]) => ({
+    sym,
+    qty: Number(h.quantity) || 0,
+    invested: Number(h.buyValue) || 0,
+  }));
+
+  const allCategories: PortfolioCategory[] = [
+    { key: "onchain", label: "Carteiras on-chain (ETH/SOL/BTC/ADA)", eur: onChainEur },
+    { key: "cex", label: "Exchanges centralizadas (CEX)", eur: cexEur },
+    { key: "defi", label: "DeFi", eur: defiEur },
+    { key: "manual", label: "Cripto adicionada manualmente", eur: manualCryptoEur },
+    { key: "stable", label: "Stablecoins", eur: stableEur },
+    { key: "traditional", label: "Mercado tradicional", eur: traditionalEur },
+  ];
+  const categories = allCategories.filter((c) => c.eur > 0);
+
+  // Nada registado — não vale a pena enviar contexto à IA.
+  if (total <= 0 && manualSyms.length === 0) {
+    return { totalEur: 0, categories, manualAssets, text: null };
+  }
 
   const fmt = (n: number) => n.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const lines: string[] = [];
   lines.push(`Valor total: € ${fmt(total)}`);
 
-  const cat = (label: string, v: number) => {
-    if (v > 0) lines.push(`  - ${label}: € ${fmt(v)}`);
-  };
-  cat("Carteiras on-chain (ETH/SOL/BTC/ADA)", onChainEur);
-  cat("Exchanges centralizadas (CEX)", cexEur);
-  cat("DeFi", defiEur);
-  cat("Cripto adicionada manualmente", manualCryptoEur);
-  cat("Stablecoins", stableEur);
-  cat("Mercado tradicional", traditionalEur);
+  for (const c of categories) lines.push(`  - ${c.label}: € ${fmt(c.eur)}`);
 
-  if (manualSyms.length > 0) {
+  if (manualAssets.length > 0) {
     lines.push("Ativos manuais registados:");
-    for (const [sym, h] of manualSyms.slice(0, 30)) {
-      const qty = Number(h.quantity) || 0;
-      const inv = Number(h.buyValue) || 0;
+    for (const a of manualAssets) {
       const parts = [
-        qty > 0 ? `${qty} moedas` : null,
-        inv > 0 ? `investido € ${fmt(inv)}` : null,
+        a.qty > 0 ? `${a.qty} moedas` : null,
+        a.invested > 0 ? `investido € ${fmt(a.invested)}` : null,
       ].filter(Boolean);
-      lines.push(`  - ${sym}${parts.length ? ` (${parts.join(", ")})` : ""}`);
+      lines.push(`  - ${a.sym}${parts.length ? ` (${parts.join(", ")})` : ""}`);
     }
   }
 
-  return lines.join("\n");
+  return { totalEur: total, categories, manualAssets, text: lines.join("\n") };
 }
