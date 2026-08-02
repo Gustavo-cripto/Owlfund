@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { createHash } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 const FREE_CHAT_LIMIT = 1;
+// Teto diário por IP para visitantes não autenticados. Generoso o suficiente
+// para o assistente pré-registo, baixo o suficiente para não expor o custo de IA.
+const ANON_DAILY_CHAT_LIMIT = 10;
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const premiumPriceId = process.env.STRIPE_PREMIUM_PRICE_ID ?? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID ?? "";
@@ -476,6 +480,28 @@ export async function POST(request: Request) {
           count,
         }, { status: 429 });
       }
+    } else {
+      // Anónimos (visitantes das páginas públicas): o chat continua disponível
+      // como assistente pré-registo, mas com teto DIÁRIO por IP persistido na
+      // BD. O checkRateLimit acima é um Map em memória — na Vercel é por
+      // instância e efémero, logo não trava abuso distribuído do custo de IA.
+      try {
+        const admin = getSupabaseAdmin();
+        const ipHash = createHash("sha256").update(`anon-chat:${ip}`).digest("hex").slice(0, 32);
+        const { data, error } = await admin.rpc("api_rate_check", {
+          p_key_hash: ipHash,
+          p_limit: ANON_DAILY_CHAT_LIMIT,
+          p_window_seconds: 86400,
+        });
+        if (!error && data === false) {
+          const res = NextResponse.json({
+            error: "Limite diário de mensagens atingido. Cria uma conta gratuita para continuares a usar o assistente.",
+            limitReached: true,
+          }, { status: 429 });
+          res.headers.set("Retry-After", "86400");
+          return res;
+        }
+      } catch { /* função ainda não migrada → não bloquear o funil */ }
     }
   } catch { /* fail open */ }
 
