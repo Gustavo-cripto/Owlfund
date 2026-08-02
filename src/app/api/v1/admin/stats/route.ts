@@ -171,25 +171,43 @@ export async function GET(req: NextRequest) {
     last7d: number | null;
     last30d: number | null;
     topPaths: Array<{ path: string; count: number }>;
+    byDay: Array<{ day: string; count: number }>;
   } = {
     last24h: await countOf(head(admin, "page_views").gte("created_at", ISO(daysAgo(1)))),
     last7d: await countOf(head(admin, "page_views").gte("created_at", ISO(daysAgo(7)))),
     last30d: await countOf(head(admin, "page_views").gte("created_at", ISO(daysAgo(30)))),
     topPaths: [],
+    byDay: [],
   };
   try {
+    // Uma so leitura (14 dias) serve o top de paginas (7d) e a serie diaria (14d).
     const { data } = await admin
       .from("page_views")
-      .select("path")
-      .gte("created_at", ISO(daysAgo(7)))
-      .limit(5000);
-    const counts: Record<string, number> = {};
-    for (const r of data ?? []) counts[r.path] = (counts[r.path] ?? 0) + 1;
-    views.topPaths = Object.entries(counts)
+      .select("path, created_at")
+      .gte("created_at", ISO(daysAgo(14)))
+      .limit(20000);
+    const sevenAgo = daysAgo(7).getTime();
+    const pathCounts: Record<string, number> = {};
+    const dayCounts: Record<string, number> = {};
+    for (const r of data ?? []) {
+      const iso = String(r.created_at);
+      const t = new Date(iso).getTime();
+      if (t >= sevenAgo) pathCounts[r.path] = (pathCounts[r.path] ?? 0) + 1;
+      const day = iso.slice(0, 10);
+      dayCounts[day] = (dayCounts[day] ?? 0) + 1;
+    }
+    views.topPaths = Object.entries(pathCounts)
       .map(([path, count]) => ({ path, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
-  } catch { /* sem top paths */ }
+    // Serie de 14 dias, do mais antigo ao mais recente, com zeros preenchidos.
+    const byDay: Array<{ day: string; count: number }> = [];
+    for (let i = 13; i >= 0; i--) {
+      const day = ISO(daysAgo(i)).slice(0, 10);
+      byDay.push({ day, count: dayCounts[day] ?? 0 });
+    }
+    views.byDay = byDay;
+  } catch { /* sem detalhe de views */ }
 
   return apiJson({
     generatedAt: ISO(now),
