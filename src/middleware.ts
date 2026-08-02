@@ -19,7 +19,9 @@ function trackPageView(request: NextRequest, event: NextFetchEvent): void {
   if (isPrefetch) return;
 
   const path = request.nextUrl.pathname;
-  if (path.startsWith("/api") || path.startsWith("/login") || path.startsWith("/auth")) return;
+  // So paginas: fora /api, auth, e ficheiros estaticos/crawler (robots.txt,
+  // sitemap.xml, e qualquer path com extensao) - esses nao sao page views.
+  if (path.startsWith("/api") || path.startsWith("/login") || path.startsWith("/auth") || path.includes(".")) return;
 
   event.waitUntil(
     fetch(new URL("/api/track", request.url), {
