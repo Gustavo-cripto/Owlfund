@@ -23,6 +23,7 @@ export const NAMESPACED_BASE_KEYS = [
 ] as const;
 
 const REGISTRY_KEY = "cf.accounts.v1";
+const OWNER_KEY = "cf.owner.v1";
 /** Evento disparado quando a conta ativa (ou a lista) muda. */
 export const ACCOUNTS_EVENT = "cf-accounts-changed";
 
@@ -95,6 +96,41 @@ export function ensureAccounts(): Registry {
 
   writeRegistry(reg);
   return reg;
+}
+
+/**
+ * Associa os dados locais deste dispositivo ao utilizador autenticado.
+ * Os dados de portfólio no localStorage são partilhados por todo o browser;
+ * sem esta guarda, um login de OUTRO utilizador no mesmo dispositivo veria
+ * (e sincronizaria para a nuvem dele) as contas do utilizador anterior.
+ * - 1.º login no dispositivo: reclama os dados existentes (migração legada).
+ * - Mesmo utilizador: no-op.
+ * - Utilizador diferente: limpa registo, contas e chaves legadas primeiro.
+ * Retorna true se limpou dados de outro utilizador.
+ */
+export function claimLocalData(userId: string): boolean {
+  if (!hasWindow() || !userId) return false;
+  try {
+    const owner = window.localStorage.getItem(OWNER_KEY);
+    if (owner === userId) return false;
+    if (owner === null) {
+      window.localStorage.setItem(OWNER_KEY, userId);
+      return false;
+    }
+    const toRemove: string[] = [REGISTRY_KEY, ...NAMESPACED_BASE_KEYS];
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i);
+      if (k && k.startsWith("cf.acct.")) toRemove.push(k);
+    }
+    for (const k of toRemove) {
+      try { window.localStorage.removeItem(k); } catch { /* ignore */ }
+    }
+    window.localStorage.setItem(OWNER_KEY, userId);
+    emitChange();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function listAccounts(): Account[] {

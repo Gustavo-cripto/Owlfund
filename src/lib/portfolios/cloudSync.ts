@@ -10,12 +10,14 @@
 
 import {
   NAMESPACED_BASE_KEYS,
+  claimLocalData,
   getRegistry,
   mergeRegistry,
   readNamespaced,
   writeNamespaced,
   type Account,
 } from "@/lib/portfolios/accounts";
+import { createClient } from "@/lib/supabase/client";
 
 const WALLET_BASE = "portfolio-wallets";
 
@@ -40,15 +42,26 @@ function buildBlob(): CloudBlobV3 {
 }
 
 /** Envia TODAS as contas (carteiras + ativos manuais) para a nuvem. Seguro na
- *  vista "Todas" — lê os dados reais por conta, nunca o agregado. */
+ *  vista "Todas" — lê os dados reais por conta, nunca o agregado.
+ *  Sem sessão não faz nada; com sessão, reclama primeiro os dados locais para
+ *  nunca enviar dados de outro utilizador deste dispositivo (o blob é
+ *  construído DEPOIS da limpeza, se ela ocorrer). */
 export function pushWalletCloud() {
   try {
-    const blob = buildBlob();
-    fetch("/api/wallet-sync", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ data: blob }),
-    }).catch(() => {});
+    const supabase = createClient();
+    supabase.auth
+      .getUser()
+      .then(({ data: { user } }: { data: { user: { id: string } | null } }) => {
+        if (!user) return;
+        claimLocalData(user.id);
+        const blob = buildBlob();
+        return fetch("/api/wallet-sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data: blob }),
+        });
+      })
+      .catch(() => {});
   } catch {
     // ignore
   }
@@ -57,6 +70,11 @@ export function pushWalletCloud() {
 /** Restaura da nuvem (contas + carteiras + ativos manuais). true se restaurou. */
 export async function pullWalletCloud(): Promise<boolean> {
   try {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+    // Se o dispositivo tiver dados de outro utilizador, limpa antes de fundir.
+    claimLocalData(user.id);
     const res = await fetch("/api/wallet-sync");
     if (!res.ok) return false;
     const json = (await res.json()) as { data?: unknown };

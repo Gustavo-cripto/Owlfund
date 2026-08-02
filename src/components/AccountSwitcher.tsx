@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   ACCOUNTS_EVENT,
   ALL_ACCOUNTS_ID,
+  claimLocalData,
   createAccount,
   deleteAccount,
   ensureAccounts,
@@ -20,12 +21,14 @@ import {
   type Account,
 } from "@/lib/portfolios/accounts";
 import { pushWalletCloud } from "@/lib/portfolios/cloudSync";
+import { createClient } from "@/lib/supabase/client";
 
 type Plan = "free" | "pro" | "premium";
 const MAX_BY_PLAN: Record<Plan, number> = { free: 1, pro: 3, premium: 10 };
 
 export default function AccountSwitcher() {
   const [ready, setReady] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [plan, setPlan] = useState<Plan>("free");
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [activeId, setActiveId] = useState<string>("");
@@ -34,17 +37,36 @@ export default function AccountSwitcher() {
   const [editName, setEditName] = useState("");
   const boxRef = useRef<HTMLDivElement | null>(null);
 
+  // O seletor só existe para utilizadores autenticados: as contas são dados
+  // privados do dispositivo e não devem aparecer nas páginas públicas.
   useEffect(() => {
-    ensureAccounts();
-    setAccounts(listAccounts());
-    setActiveId(getActiveAccountId());
-    setReady(true);
-    fetch("/api/subscription")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j: { plan?: Plan } | null) => {
-        if (j?.plan) setPlan(j.plan);
-      })
-      .catch(() => {});
+    const supabase = createClient();
+    let mounted = true;
+    const init = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!mounted) return;
+      if (!user) {
+        setIsLoggedIn(false);
+        setReady(true);
+        return;
+      }
+      // Se os dados locais forem de outro utilizador, são limpos aqui.
+      claimLocalData(user.id);
+      ensureAccounts();
+      setAccounts(listAccounts());
+      setActiveId(getActiveAccountId());
+      setIsLoggedIn(true);
+      setReady(true);
+      fetch("/api/subscription")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j: { plan?: Plan } | null) => {
+          if (j?.plan) setPlan(j.plan);
+        })
+        .catch(() => {});
+    };
+    init();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => { init(); });
+    return () => { mounted = false; subscription.unsubscribe(); };
   }, []);
 
   useEffect(() => {
@@ -67,7 +89,7 @@ export default function AccountSwitcher() {
     return () => window.removeEventListener(ACCOUNTS_EVENT, refresh);
   }, []);
 
-  if (!ready) return null;
+  if (!ready || !isLoggedIn) return null;
 
   const max = MAX_BY_PLAN[plan];
   const isAll = activeId === ALL_ACCOUNTS_ID;
