@@ -50,7 +50,20 @@ function buildWatchlistContext(watchlist: WatchEntry[], movements: Movement[]): 
   return lines.join("\n");
 }
 
-function buildPortfolioContext(snapshot: SnapshotData | null, subscription: { price_id: string | null; current_period_end: string | null } | null, prices: Record<string, number>): string {
+// Mensagem de "conta vazia" — consciente da conta ativa e de outras contas.
+// Se o utilizador tiver mais do que uma conta, sugere trocar de conta (os ativos
+// podem estar noutro portfólio); caso contrário, sugere adicionar carteiras.
+function buildEmptyAccountContext(accountName: string, accountCount: number): string {
+  const acct = accountName || "ativa";
+  const suggestion = accountCount > 1
+    ? `Como o utilizador tem VÁRIAS contas/portfólios, sugere DUAS opções de forma clara: (1) se os ativos estão noutra conta, trocar de conta no seletor de contas no topo da página; (2) ou adicionar carteiras nesta conta em /wallets.`
+    : `Sugere que vá a /wallets para adicionar as suas carteiras cripto (BTC, ETH, SOL, etc.).`;
+  return `=== ESTADO DO PORTFOLIO ===
+A conta/portfólio ATIVA ("${acct}") não tem carteiras nem ativos registados.
+INSTRUÇÃO: Informa o utilizador de forma simpática e breve que a conta ATIVA (${acct}) ainda não tem carteiras. ${suggestion} Depois poderás analisar o portfolio real. Entretanto, responde a perguntas gerais sobre cripto, fiscalidade portuguesa e estratégias financeiras com base no que o utilizador te fornecer na conversa. NÃO digas genericamente que "não tens acesso ao portfolio" — refere sempre a conta ativa pelo nome.`;
+}
+
+function buildPortfolioContext(snapshot: SnapshotData | null, subscription: { price_id: string | null; current_period_end: string | null } | null, prices: Record<string, number>, accountName: string, accountCount: number): string {
   const hasData = snapshot && (
     (snapshot.btc?.length ?? 0) + (snapshot.eth?.length ?? 0) +
     (snapshot.sol?.length ?? 0) + (snapshot.ada?.length ?? 0) +
@@ -58,9 +71,7 @@ function buildPortfolioContext(snapshot: SnapshotData | null, subscription: { pr
   ) > 0;
 
   if (!hasData) {
-    return `=== ESTADO DO PORTFOLIO ===
-Sem carteiras registadas ainda.
-INSTRUÇÃO: Informa o utilizador de forma simpática que ainda não tem carteiras adicionadas na app. Sugere que vá a /wallets para adicionar as suas carteiras cripto (BTC, ETH, SOL, etc.) e que depois poderás analisar o portfolio real. Entretanto, podes responder a perguntas gerais sobre cripto, fiscalidade portuguesa e estratégias financeiras com base nas informações que o utilizador fornecer na conversa.`;
+    return buildEmptyAccountContext(accountName, accountCount);
   }
 
   const lines: string[] = ["=== DADOS DO PORTFOLIO DO UTILIZADOR ==="];
@@ -148,11 +159,16 @@ export async function POST(req: NextRequest) {
     const isPremium = !!premiumPriceId && sub?.price_id === premiumPriceId;
     if (!isPremium) return NextResponse.json({ error: "Requer Plano Premium." }, { status: 403 });
 
-    const body = await req.json() as { messages: Message[]; watchlist?: WatchEntry[]; lang?: string; portfolio?: string; nickname?: string; accountName?: string };
+    const body = await req.json() as { messages: Message[]; watchlist?: WatchEntry[]; lang?: string; portfolio?: string; nickname?: string; accountName?: string; accountCount?: number; accountEmpty?: boolean };
     lang = body.lang ?? "pt";
     const clientPortfolio = typeof body.portfolio === "string" ? body.portfolio.slice(0, 3000) : "";
     const nickname = typeof body.nickname === "string" ? body.nickname.trim().slice(0, 40) : "";
     const accountName = typeof body.accountName === "string" ? body.accountName.trim().slice(0, 60) : "";
+    const accountCount = typeof body.accountCount === "number" && body.accountCount > 0 ? Math.min(body.accountCount, 20) : 1;
+    // O cliente sinaliza quando a conta ATIVA está mesmo vazia — nesse caso não
+    // caímos no snapshot global da Supabase (que é por-utilizador, não por-conta,
+    // e poderia mostrar dados de OUTRA conta).
+    const accountEmpty = body.accountEmpty === true;
     const LANG_NAME: Record<string, string> = { pt: "português europeu (PT-PT)", en: "English", es: "español", fr: "français" };
     const langDirective = `\n\nIDIOMA (REGRA ABSOLUTA, ignora o idioma do contexto/portfolio acima): Responde SEMPRE e EXCLUSIVAMENTE em ${LANG_NAME[lang] ?? "português europeu (PT-PT)"}. Toda a tua resposta — títulos, listas e texto — tem de estar nesse idioma, independentemente do idioma em que o contexto do portfolio ou a watchlist estejam escritos.`;
     const messages = (body.messages ?? []).slice(-14).map(m => ({
@@ -184,11 +200,15 @@ export async function POST(req: NextRequest) {
     const movementsList = movements.status === "fulfilled" ? movements.value.movements : [];
 
     // Preferir o resumo enviado pelo cliente (inclui ativos manuais, CEX, DeFi,
-    // stablecoins e tradicional lidos do localStorage). Cair no snapshot da
-    // Supabase só quando o cliente não envia nada.
+    // stablecoins e tradicional lidos do localStorage). Se o cliente disser que a
+    // conta ativa está vazia, usar a mensagem account-aware (nunca o snapshot
+    // global, que é por-utilizador e poderia expor outra conta). Só cair no
+    // snapshot da Supabase quando não há sinal nenhum do cliente.
     const portfolioCtx = clientPortfolio
       ? `=== DADOS DO PORTFOLIO DO UTILIZADOR (tempo real, inclui ativos adicionados manualmente) ===\n${clientPortfolio}`
-      : buildPortfolioContext(snapshotRow?.data as SnapshotData ?? null, sub, prices);
+      : accountEmpty
+        ? buildEmptyAccountContext(accountName, accountCount)
+        : buildPortfolioContext(snapshotRow?.data as SnapshotData ?? null, sub, prices, accountName, accountCount);
     const watchlistCtx = buildWatchlistContext(watchlist, movementsList);
     const nameDirective = nickname
       ? `\n\nNOME DO UTILIZADOR: chama-se ${nickname}. Trata-o por esse nome de forma natural e amigável. Não inventes outro nome.`

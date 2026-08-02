@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
-import { buildPortfolioSummary, buildPortfolioSummaryText, type PortfolioCategory } from "@/lib/portfolio/summaryText";
+import { buildPortfolioSummary, type PortfolioCategory } from "@/lib/portfolio/summaryText";
 import { loadNickname } from "@/lib/user/nickname";
 import {
   ACCOUNTS_EVENT,
@@ -209,15 +209,21 @@ export default function GestorPage() {
       const history = [...messages, userMsg].slice(-14).map(m => ({ role: m.role, content: m.content }));
       const watchlist = loadWatchlist();
       let portfolioText: string | null = null;
+      let accountEmpty = false;
       try {
-        portfolioText = await buildPortfolioSummaryText();
+        const summary = await buildPortfolioSummary();
+        portfolioText = summary.text;
+        // Conta ativa genuinamente vazia (não um erro de leitura): sem texto e
+        // sem valor. O servidor usa isto para não cair no snapshot global.
+        accountEmpty = !summary.text && summary.totalEur <= 0;
       } catch {
         portfolioText = null;
+        accountEmpty = false;
       }
       const res = await fetch("/api/gestor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history, watchlist, lang, portfolio: portfolioText ?? undefined, nickname: loadNickname() || undefined, accountName: acctName || undefined }),
+        body: JSON.stringify({ messages: history, watchlist, lang, portfolio: portfolioText ?? undefined, nickname: loadNickname() || undefined, accountName: acctName || undefined, accountCount: acctCount, accountEmpty }),
       });
 
       if (!res.ok) {
@@ -242,7 +248,7 @@ export default function GestorPage() {
     } finally {
       setLoading(false);
     }
-  }, [messages, loading, lang, acctName]);
+  }, [messages, loading, lang, acctName, acctCount]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); }
