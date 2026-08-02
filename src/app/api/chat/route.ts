@@ -121,6 +121,29 @@ SUPORTE:
 - Para DeFi Solana: precisas de SHYFT_API_KEY (shyft.to gratuito).
 - Para DeFi ETH: precisas de MORALIS_API_KEY (moralis.io gratuito).
 - Plano não atualizado após pagamento: recarregar /account (sincroniza automaticamente ao abrir); se persistir, ir a /pricing e clicar "↻ Sincronizar plano".
+
+NAVEGAÇÃO (ajuda o utilizador a CHEGAR onde quer — indica sempre a página/secção exata):
+- "Adicionar/ligar carteira" → página Carteiras (/wallets), escolhe a rede e clica Conectar (ou cola o endereço em modo só-leitura).
+- "Adicionar cripto/ativo manualmente" → Carteiras (/wallets), secção de ativos manuais.
+- "Ver o meu lucro/PNL, gráficos e métricas" → Portfólio (/portfolio).
+- "Guardar snapshot / começar histórico" → Portfólio (/portfolio), botão de guardar snapshot.
+- "Impostos / mais-valias" → Fiscalidade (/fiscalidade).
+- "Independência financeira / reforma" → FIRE (/fire).
+- "Preços e mercado ao vivo" → Mercado (/mercado).
+- "Baleias / carteiras a seguir" → Smart Money (/smart-money).
+- "Mudar de plano, API keys, preferências, apagar conta" → Conta (/account).
+- "Trocar entre portfólios / criar nova conta" → seletor de contas no topo (Pro: 3, Premium: 10).
+- Multi-portfólio: o utilizador pode ter várias "contas" (portfólios isolados) e uma vista "Todas as contas" que soma tudo (só leitura).
+
+GLOSSÁRIO DE MÉTRICAS (explica em linguagem simples quando perguntarem):
+- PNL: lucro/prejuízo — diferença entre o valor atual e o que foi investido.
+- ROI: retorno sobre o investimento, em %.
+- CAGR: taxa de crescimento anual composta (retorno médio por ano).
+- Sharpe Ratio: retorno ajustado ao risco; quanto maior, melhor o retorno face à volatilidade.
+- Max Drawdown: maior queda do pico ao fundo; mede o pior momento da carteira.
+- Volatilidade: quão bruscas são as variações de valor.
+- Score do portfólio (0-100): nota de saúde da carteira (diversificação, risco, etc.).
+- Benchmark: compara o desempenho da tua carteira com BTC, ETH, S&P 500 e Ouro.
 `;
 
 const SYSTEM_PROMPT = `Tu és o Chain — analista de cripto/mercados E assistente da plataforma ChainFolioAI. Respondes de forma clara, direta e amigável.
@@ -130,8 +153,8 @@ IDIOMA (regra crítica): Responde SEMPRE no MESMO idioma em que o utilizador esc
 ${PLATFORM_KNOWLEDGE}
 
 REGRAS:
-1. Se a pergunta for sobre a plataforma (como funciona, onde está X, como adicionar carteira, etc.) — responde com base no conhecimento do ChainFolioAI acima.
-2. Se a pergunta for sobre mercados (BTC, ETH, DeFi, notícias, análise técnica) — responde como analista.
+1. Se a pergunta for sobre a plataforma (como funciona, onde está X, como adicionar carteira, etc.) — responde com base no conhecimento do ChainFolioAI acima. Quando o utilizador quer FAZER ou ENCONTRAR algo, guia-o de forma acionável: indica a página/secção exata e o passo a dar (usa a lista NAVEGAÇÃO).
+2. Se a pergunta for sobre mercados (BTC, ETH, DeFi, notícias, análise técnica) ou métricas — responde como analista; para métricas usa o GLOSSÁRIO em linguagem simples.
 3. Se a pergunta for mista (ex: "o meu portfolio caiu — o que aconteceu com o ETH?") — combina ambos.
 4. Apresentação: quando o utilizador disser apenas olá/oi, responde EXATAMENTE com esta apresentação e NADA MAIS — não acrescentes perguntas extra nem menciones em que página ele está: "Olá! Eu sou o Chain, o teu assistente da ChainFolioAI. Posso ajudar-te com a plataforma (carteiras, portfolio, fiscalidade...) ou analisar o mercado cripto. O que precisas?"
 5. Não dês recomendações diretas de compra/venda — apresenta cenários e riscos.
@@ -173,10 +196,13 @@ const pickProvider = (): ProviderName => {
   return "openai";
 };
 
-const toChatMessages = (recentMessages: IncomingMessage[], pageContext?: string, portfolio?: string, nickname?: string) => {
+const toChatMessages = (recentMessages: IncomingMessage[], pageContext?: string, portfolio?: string, nickname?: string, accountName?: string) => {
   let systemContent = SYSTEM_PROMPT;
   if (nickname) {
     systemContent += `\n\nNOME DO UTILIZADOR: chama-se ${nickname}. Trata-o por esse nome de forma natural e amigável (ex.: cumprimenta-o pelo nome). Não inventes outro nome.`;
+  }
+  if (accountName) {
+    systemContent += `\n\nCONTA/PORTFÓLIO ATIVO: "${accountName}". Os dados de portfólio abaixo referem-se a esta conta. Se for "Todas as contas", é a soma de todos os portfólios (vista de leitura). Menciona a conta ativa quando ajudar a dar contexto.`;
   }
   if (portfolio) {
     systemContent += `\n\nPORTFÓLIO REAL DO UTILIZADOR (dados em tempo real — inclui carteiras on-chain, exchanges, DeFi e ativos adicionados manualmente). Usa estes valores para responder a qualquer pergunta sobre "o meu portfolio", saldo total, alocação ou PNL. NÃO peças ao utilizador para adicionar carteiras se estes dados existirem:\n${portfolio}`;
@@ -505,9 +531,9 @@ export async function POST(request: Request) {
     }
   } catch { /* fail open */ }
 
-  let body: { messages?: IncomingMessage[]; pageContext?: string; portfolio?: string; nickname?: string } | null = null;
+  let body: { messages?: IncomingMessage[]; pageContext?: string; portfolio?: string; nickname?: string; accountName?: string } | null = null;
   try {
-    body = (await request.json()) as { messages?: IncomingMessage[]; pageContext?: string; portfolio?: string; nickname?: string };
+    body = (await request.json()) as { messages?: IncomingMessage[]; pageContext?: string; portfolio?: string; nickname?: string; accountName?: string };
   } catch {
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
@@ -522,6 +548,9 @@ export async function POST(request: Request) {
   const nickname = typeof body?.nickname === "string"
     ? body.nickname.trim().slice(0, 40)
     : undefined;
+  const accountName = typeof body?.accountName === "string"
+    ? body.accountName.trim().slice(0, 60)
+    : undefined;
 
   // Limitar tamanho das mensagens para prevenir abuso
   const recentMessages = incoming.slice(-12).map(m => ({
@@ -530,7 +559,7 @@ export async function POST(request: Request) {
   })) as IncomingMessage[];
 
   try {
-    const messages = toChatMessages(recentMessages, pageContext, portfolio, nickname);
+    const messages = toChatMessages(recentMessages, pageContext, portfolio, nickname, accountName);
     const provider = pickProvider();
     const forcedProvider = getForcedProvider();
 
