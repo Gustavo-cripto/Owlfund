@@ -119,11 +119,11 @@ export default function FloatingChat() {
             <div className="flex min-w-0 items-center gap-3">
               <div className="relative h-12 w-12 flex-shrink-0">
                 <span className="pointer-events-none absolute -inset-1 rounded-full bg-orange-500/25 blur-md" aria-hidden />
-                <img src="/chain-icon.jpg" alt="Chain" className="relative h-12 w-12 rounded-full object-cover border-2 border-orange-400/70 ring-2 ring-orange-500/15" />
+                <img src="/chainfolioai-icon.png" alt="Block" className="relative h-12 w-12 rounded-full object-cover border-2 border-orange-400/70 ring-2 ring-orange-500/15" />
                 <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-400 border-2 border-slate-950" />
               </div>
               <div className="min-w-0">
-                <p className="text-base font-bold text-white leading-tight">Chain</p>
+                <p className="text-base font-bold text-white leading-tight">Block</p>
                 <p className="text-[11px] text-slate-400 leading-tight">
                   {currentPage ? `${t("fch_youre_on")}: ${currentPage}` : t("fch_status_default")}
                 </p>
@@ -141,15 +141,15 @@ export default function FloatingChat() {
             </button>
           </div>
 
-          {/* Chain image + chat */}
+          {/* Block image + chat */}
           <div className="relative p-4 pb-5">
             {/* Avatar grande só quando não há mensagens */}
             {isContentReady && (
               <ChatWidget
                 withContainer={false}
-                title="CHAIN"
+                title="BLOCK"
                 subtitle="ChainFolioAI · Mercados cripto · Análise técnica"
-                assistantLabel="Chain"
+                assistantLabel="Block"
                 messagesMaxHeightClassName="max-h-[52vh]"
                 inputClassName="py-2.5 text-sm"
                 placeholder={t("fch_placeholder")}
@@ -173,7 +173,7 @@ export default function FloatingChat() {
 
         {/* Avatar */}
         <span className="relative flex-shrink-0">
-          <img src="/chain-icon.jpg" alt="" className="h-12 w-12 rounded-full object-cover border-2 border-orange-400/70 ring-2 ring-orange-500/15 group-hover:brightness-110 transition" />
+          <img src="/chainfolioai-icon.png" alt="" className="h-12 w-12 rounded-full object-cover border-2 border-orange-400/70 ring-2 ring-orange-500/15 group-hover:brightness-110 transition" />
           {/* Badge de online */}
           <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-400 border-2 border-slate-950" />
         </span>
