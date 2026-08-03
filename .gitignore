@@ -43,9 +43,3 @@ next-env.d.ts
 
 # Capturas originais (por tratar) — nunca publicar
 .screenshots-originais/
-
-# Documentos legais/contabilísticos internos — nunca publicar (repo é público)
-legalidade/
-
-# Plano de negócio interno — nunca publicar
-Plano CFAi/
