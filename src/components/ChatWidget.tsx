@@ -34,7 +34,7 @@ type ChatWidgetProps = {
 };
 
 // Histórico de mensagens: chave POR CONTA (cada portfólio tem a sua conversa
-// separada com o Chain). accKey prefixa por conta ativa → cf.acct.<id>.<base>.
+// separada com o Block). accKey prefixa por conta ativa → cf.acct.<id>.<base>.
 const MESSAGES_BASE = "owlfund.chat.messages.v2";
 const messagesKeyFor = (accountId: string) => accKey(MESSAGES_BASE, accountId);
 // Nome legível da conta ativa (para o cabeçalho e o contexto enviado à IA).
@@ -86,7 +86,7 @@ export default function ChatWidget({
   messagesMaxHeightClassName = "max-h-56",
   title = "Chat IA",
   subtitle = "Pergunta sobre o mercado e a plataforma.",
-  assistantAvatar = "/chain-icon.jpg",
+  assistantAvatar = "/chainfolioai-icon.png",
   inputClassName = "",
   placeholder = "Escreve a tua pergunta...",
   isPro = false,
@@ -288,11 +288,11 @@ export default function ChatWidget({
           /* Estado de boas-vindas */
           <div className="flex flex-col items-center gap-4 px-1 py-2 text-center">
             <div className="relative animate-fade-in-up">
-              {/* Halo/glow para destacar o Chain contra o fundo escuro do chat */}
+              {/* Halo/glow para destacar o Block contra o fundo escuro do chat */}
               <span className="pointer-events-none absolute -inset-4 rounded-full bg-orange-500/25 blur-2xl" aria-hidden />
               <img
                 src={assistantAvatar}
-                alt="Chain"
+                alt="Block"
                 className="relative h-40 w-40 rounded-3xl border-2 border-orange-400/70 object-cover shadow-2xl shadow-orange-500/25 ring-4 ring-orange-500/10"
               />
               <span className="absolute -bottom-1.5 -right-1.5 h-6 w-6 rounded-full border-[3px] border-slate-950 bg-emerald-400 shadow-lg shadow-emerald-500/40" />
