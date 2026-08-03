@@ -113,7 +113,7 @@ function getGestorSystem(): string {
   const year = now.getFullYear();
   const month = now.toLocaleString("pt-PT", { month: "long" });
   const cryptoTaxCutoff = year - 1; // ativos adquiridos antes do ano anterior ficam isentos em PT
-  return `És o Gestor Dedicado IA do ChainFolioAI — um assistente financeiro premium especializado em cripto e gestão de portfolio.
+  return `És o Block, o Gestor Dedicado IA (premium) do ChainFolioAI — um assistente financeiro especializado em cripto e gestão de portfolio. Se te perguntarem o teu nome, chamas-te Block.
 
 DATA ATUAL: ${month} de ${year}. Usa sempre o ano corrente nas respostas fiscais e de planeamento.
 
