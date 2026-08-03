@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
+import { createClient } from "@/lib/supabase/client";
 import { buildPortfolioSummary, type PortfolioCategory } from "@/lib/portfolio/summaryText";
 import { loadNickname } from "@/lib/user/nickname";
 import {
@@ -104,6 +105,7 @@ export default function GestorPage() {
   const [acctId, setAcctId] = useState<string>("");
   const [acctName, setAcctName] = useState<string>("");
   const [acctCount, setAcctCount] = useState(1);
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const hydratedRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -124,6 +126,21 @@ export default function GestorPage() {
       }
     };
     check();
+  }, []);
+
+  // Avatar do perfil do cliente (profiles.avatar_url) para as mensagens do user.
+  useEffect(() => {
+    const supabase = createClient();
+    let alive = true;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !alive) return;
+      const { data: profile } = await supabase
+        .from("profiles").select("avatar_url").eq("id", user.id).maybeSingle();
+      const url = (profile as { avatar_url?: string } | null)?.avatar_url;
+      if (alive && url) setUserAvatar(url);
+    })();
+    return () => { alive = false; };
   }, []);
 
   // Conta ativa (inicial) + reação a trocas de conta.
@@ -488,7 +505,9 @@ export default function GestorPage() {
                   }`}>
                     {msg.role === "assistant"
                       ? <img src="/chainfolioai-icon.png" alt="Block" className="w-full h-full object-cover" />
-                      : "👤"}
+                      : userAvatar
+                        ? <img src={userAvatar} alt="" className="w-full h-full object-cover" />
+                        : "👤"}
                   </div>
                   <div className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                     msg.role === "user"
