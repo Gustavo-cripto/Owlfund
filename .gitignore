@@ -43,3 +43,7 @@ next-env.d.ts
 
 # Capturas originais (por tratar) — nunca publicar
 .screenshots-originais/
+
+# Supabase CLI — estado interno/temp (não publicar)
+supabase/.temp/
+supabase/.branches/
