@@ -3,6 +3,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import FloatingChat from "@/components/FloatingChat";
+import ErrorMonitor from "@/components/ErrorMonitor";
 import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 import { ThemeProvider } from "@/lib/theme/ThemeContext";
 
@@ -71,6 +72,7 @@ export default function RootLayout({
           <LanguageProvider>
             {children}
             <FloatingChat />
+            <ErrorMonitor />
           </LanguageProvider>
         </ThemeProvider>
         <Analytics />
