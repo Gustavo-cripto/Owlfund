@@ -373,10 +373,12 @@ export default function GestorPage() {
       <div className="min-h-screen bg-slate-950 flex flex-col">
         {/* Header */}
         <div className="border-b border-slate-800 bg-slate-950 px-6 py-4 flex items-center gap-4">
-          <div className="w-10 h-10 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-lg">🤖</div>
+          <div className="w-10 h-10 rounded-full overflow-hidden border border-violet-500/30 flex-shrink-0">
+            <img src="/chainfolioai-icon.png" alt="Block" className="w-full h-full object-cover" />
+          </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <p className="text-sm font-semibold text-white truncate">{t("df_gestor_l")}</p>
+              <p className="text-sm font-semibold text-white truncate">{t("gz_assistant_name")}</p>
               {showAcctChip && (
                 <span className="inline-flex items-center gap-1 rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[10px] font-medium text-violet-300">
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -479,12 +481,14 @@ export default function GestorPage() {
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
               {messages.map(msg => (
                 <div key={msg.id} className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
-                  <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-sm ${
+                  <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden text-sm ${
                     msg.role === "assistant"
-                      ? "bg-violet-500/20 border border-violet-500/30 text-lg"
+                      ? "border border-violet-500/30"
                       : "bg-slate-800 border border-slate-700 text-xs text-slate-400"
                   }`}>
-                    {msg.role === "assistant" ? "🤖" : "👤"}
+                    {msg.role === "assistant"
+                      ? <img src="/chainfolioai-icon.png" alt="Block" className="w-full h-full object-cover" />
+                      : "👤"}
                   </div>
                   <div className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                     msg.role === "user"
@@ -505,7 +509,7 @@ export default function GestorPage() {
               {/* Typing indicator */}
               {loading && (
                 <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center bg-violet-500/20 border border-violet-500/30 text-lg">🤖</div>
+                  <div className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden border border-violet-500/30"><img src="/chainfolioai-icon.png" alt="Block" className="w-full h-full object-cover" /></div>
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-sm px-4 py-3">
                     <div className="flex gap-1 items-center h-5">
                       {[0, 0.2, 0.4].map(d => (
