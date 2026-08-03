@@ -297,7 +297,20 @@ export default function GestorPage() {
       }
       y += 4;
     }
-    doc.save(`chainfolio-gestor-${new Date().toISOString().slice(0, 10)}.pdf`);
+    // Guardar/partilhar: no telemóvel usa a partilha nativa (Ficheiros/AirDrop
+    // para o computador); no computador descarrega direto para Transferências.
+    const pdfName = `chainfolio-gestor-${new Date().toISOString().slice(0, 10)}.pdf`;
+    const pdfBlob = doc.output("blob");
+    const nav = navigator as Navigator & {
+      canShare?: (d: { files: File[] }) => boolean;
+      share?: (d: { files?: File[]; title?: string }) => Promise<void>;
+    };
+    const pdfFile = typeof File !== "undefined" ? new File([pdfBlob], pdfName, { type: "application/pdf" }) : null;
+    if (pdfFile && nav.canShare && nav.canShare({ files: [pdfFile] }) && nav.share) {
+      nav.share({ files: [pdfFile], title: pdfName }).catch(() => doc.save(pdfName));
+    } else {
+      doc.save(pdfName);
+    }
   }, [messages, acctName]);
 
   // ── Not premium gate ─────────────────────────────────────────────────────────
