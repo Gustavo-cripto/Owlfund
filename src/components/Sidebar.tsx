@@ -151,6 +151,7 @@ export default function Sidebar() {
   const { lang, setLang, t } = useLanguage();
   const [email, setEmail] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [hovered, setHovered] = useState(false);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -168,6 +169,16 @@ export default function Sidebar() {
     });
     return () => { mounted = false; sub.subscription.unsubscribe(); };
   }, [supabase]);
+
+  // Verifica se o utilizador é admin (para mostrar o item "Beta" no menu).
+  useEffect(() => {
+    if (!isLoggedIn) { setIsAdmin(false); return; }
+    let mounted = true;
+    fetch("/api/admin/beta-testers")
+      .then((r) => { if (mounted) setIsAdmin(r.ok); })
+      .catch(() => { if (mounted) setIsAdmin(false); });
+    return () => { mounted = false; };
+  }, [isLoggedIn]);
 
   useEffect(() => { setMobileOpen(false); }, [pathname]);
 
@@ -200,8 +211,16 @@ export default function Sidebar() {
       <circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" />
     </svg>
   );
+  const betaIcon = (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2 3 7v6c0 5 3.5 7.5 9 9 5.5-1.5 9-4 9-9V7l-9-5Z" /><path d="m9 12 2 2 4-4" />
+    </svg>
+  );
   const navList: { href: string; labelKey: TranslationKey; icon: ReactNode }[] = isLoggedIn
-    ? NAV_ITEMS_KEYS.map((i) => ({ href: i.href, labelKey: i.labelKey, icon: NAV_ITEMS.find((n) => n.href === i.href)?.icon }))
+    ? [
+        ...NAV_ITEMS_KEYS.map((i) => ({ href: i.href, labelKey: i.labelKey, icon: NAV_ITEMS.find((n) => n.href === i.href)?.icon })),
+        ...(isAdmin ? [{ href: "/admin/beta", labelKey: "nav_beta" as TranslationKey, icon: betaIcon }] : []),
+      ]
     : [
         { href: "/", labelKey: "nav_home", icon: homeIcon },
         { href: "/como-funciona", labelKey: "dash_how_title", icon: howIcon },

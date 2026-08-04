@@ -6,7 +6,7 @@ import { btnPrimary } from "@/lib/ui/buttons";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 export default function BetaPage() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [note, setNote] = useState("");
@@ -27,7 +27,7 @@ export default function BetaPage() {
       const res = await fetch("/api/beta-signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), name: name.trim(), note: note.trim() }),
+        body: JSON.stringify({ email: email.trim(), name: name.trim(), note: note.trim(), lang }),
       });
       if (!res.ok) {
         const j = (await res.json().catch(() => null)) as { error?: string } | null;
