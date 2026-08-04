@@ -13,6 +13,14 @@ export default function BetaPage() {
   const [state, setState] = useState<"idle" | "sending" | "ok" | "error">("idle");
   const [err, setErr] = useState("");
 
+  // Beta encerrado a novos testers a partir da data de corte (env).
+  const betaClosed = (() => {
+    const raw = process.env.NEXT_PUBLIC_BETA_CUTOFF ?? "";
+    if (!raw) return false;
+    const d = new Date(raw);
+    return !Number.isNaN(d.getTime()) && Date.now() > d.getTime();
+  })();
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (state === "sending") return;
@@ -31,7 +39,7 @@ export default function BetaPage() {
       });
       if (!res.ok) {
         const j = (await res.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(j?.error || t("beta_err"));
+        throw new Error(j?.error === "beta_closed" ? t("beta_closed_body") : j?.error || t("beta_err"));
       }
       setState("ok");
     } catch (e2) {
@@ -56,7 +64,15 @@ export default function BetaPage() {
         <h1 className="mt-4 text-3xl font-bold text-white md:text-4xl">{t("beta_title")}</h1>
         <p className="mt-3 leading-relaxed text-slate-400">{t("beta_sub")}</p>
 
-        {state === "ok" ? (
+        {betaClosed ? (
+          <div className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+            <p className="text-lg font-bold text-white">{t("beta_closed_title")}</p>
+            <p className="mt-2 text-sm leading-relaxed text-slate-300">{t("beta_closed_body")}</p>
+            <Link href="/pricing" className={`${btnPrimary} mt-4 inline-flex px-5 py-2.5 text-sm`}>
+              {t("nav_pricing")}
+            </Link>
+          </div>
+        ) : state === "ok" ? (
           <div className="mt-8 rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.07] p-6">
             <p className="text-lg font-bold text-emerald-300">{t("beta_ok_title")}</p>
             <p className="mt-2 text-sm leading-relaxed text-slate-300">{t("beta_ok_body")}</p>
