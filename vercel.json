@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/crypto-expiry",
       "schedule": "30 0 * * *"
+    },
+    {
+      "path": "/api/cron/beta-expiry",
+      "schedule": "0 8 * * *"
     }
   ]
 }
