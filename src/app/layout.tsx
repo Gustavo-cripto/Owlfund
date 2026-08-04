@@ -12,6 +12,34 @@ const SITE_TITLE = "ChainFolioAI — O teu portefólio cripto e tradicional num 
 const SITE_DESC =
   "Carteiras, exchanges e ativos manuais num só painel. PNL em tempo real, métricas avançadas (ROI, Sharpe, drawdown), fiscalidade e um assistente de IA que conhece o teu portefólio. 100% só-leitura e gratuito para começar.";
 
+// Dados estruturados (schema.org) — ajudam Google E modelos de IA a perceberem
+// o produto, a categoria e os preços. Ver estratégia GEO.
+const JSON_LD = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      name: "ChainFolioAI",
+      url: SITE_URL,
+      logo: `${SITE_URL}/chainfolioai-icon.png`,
+    },
+    {
+      "@type": "SoftwareApplication",
+      name: "ChainFolioAI",
+      applicationCategory: "FinanceApplication",
+      operatingSystem: "Web",
+      url: SITE_URL,
+      description:
+        "Read-only crypto + traditional portfolio tracker with real-time PNL, advanced metrics, multi-country tax tools, an AI assistant, and API/MCP access for AI agents. Non-custodial.",
+      offers: [
+        { "@type": "Offer", name: "Free", price: "0", priceCurrency: "EUR" },
+        { "@type": "Offer", name: "Pro", price: "14.99", priceCurrency: "EUR" },
+        { "@type": "Offer", name: "Premium", price: "39.00", priceCurrency: "EUR" },
+      ],
+    },
+  ],
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
@@ -68,6 +96,10 @@ export default function RootLayout({
   return (
     <html lang="pt-PT" suppressHydrationWarning>
       <body className="antialiased">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
+        />
         <ThemeProvider>
           <LanguageProvider>
             {children}
