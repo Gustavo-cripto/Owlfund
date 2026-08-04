@@ -9,6 +9,16 @@ const FROM = "ChainFolioAI <noreply@chainfolioai.com>";
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://chainfolioai.com";
 const TRIAL_DAYS = 60;
 
+// Data de corte do beta: a partir dela não se aceitam NOVOS testers. Os que já
+// têm plano mantêm os dias que faltam até expirar (depois renovam/pagam).
+// Definir em NEXT_PUBLIC_BETA_CUTOFF (ISO, ex.: "2026-10-01"). Vazio = sempre aberto.
+function betaClosed(): boolean {
+  const raw = process.env.NEXT_PUBLIC_BETA_CUTOFF ?? "";
+  if (!raw) return false;
+  const d = new Date(raw);
+  return !Number.isNaN(d.getTime()) && Date.now() > d.getTime();
+}
+
 const hits = new Map<string, { count: number; resetAt: number }>();
 const LIMIT = 5;
 const WINDOW = 60_000;
@@ -91,6 +101,7 @@ function welcome(lang: string, name: string, untilStr: string): { subject: strin
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
   if (!allowed(ip)) return NextResponse.json({ error: "Demasiados pedidos. Tenta daqui a pouco." }, { status: 429 });
+  if (betaClosed()) return NextResponse.json({ error: "beta_closed" }, { status: 403 });
 
   const key = process.env.RESEND_API_KEY ?? "";
   if (!key) return NextResponse.json({ error: "Email não configurado." }, { status: 503 });
