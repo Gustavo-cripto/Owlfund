@@ -3,6 +3,7 @@
 //  2) email de boas-vindas (marketing) para o próprio tester, no idioma dele.
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
+import { sendTelegram, tgEsc } from "@/lib/notify/telegram";
 
 const TO = process.env.BETA_SIGNUP_TO ?? "suporte@chainfolioai.com";
 const FROM = "ChainFolioAI <noreply@chainfolioai.com>";
@@ -13,7 +14,7 @@ const TRIAL_DAYS = 60;
 // têm plano mantêm os dias que faltam até expirar (depois renovam/pagam).
 // Definir em NEXT_PUBLIC_BETA_CUTOFF (ISO, ex.: "2026-10-01"). Vazio = sempre aberto.
 function betaClosed(): boolean {
-  const raw = process.env.NEXT_PUBLIC_BETA_CUTOFF ?? "";
+  const raw = process.env.NEXT_PUBLIC_BETA_CUTOFF ?? "2026-10-05T23:59:59Z";
   if (!raw) return false;
   const d = new Date(raw);
   return !Number.isNaN(d.getTime()) && Date.now() > d.getTime();
@@ -146,6 +147,14 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Falha ao enviar." }, { status: 502 });
   }
+
+  // 3) Notificação no Bot ChainFolioAI (Telegram), se configurado.
+  sendTelegram(
+    `🎉 <b>Novo beta tester</b>\n📧 ${tgEsc(email)}` +
+      (name ? `\n👤 ${tgEsc(name)}` : "") +
+      (note ? `\n📝 ${tgEsc(note)}` : "") +
+      `\n\n▶ Ativar: corre o SQL (Supabase) com este email — ${TRIAL_DAYS} dias.`,
+  ).catch(() => {});
 
   return NextResponse.json({ ok: true });
 }

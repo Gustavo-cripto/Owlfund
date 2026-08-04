@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { verifyCronAuth } from "@/lib/api/cron-auth";
+import { sendTelegram, tgEsc } from "@/lib/notify/telegram";
 
 const TO = process.env.BETA_SIGNUP_TO ?? "suporte@chainfolioai.com";
 const FROM = "ChainFolioAI <noreply@chainfolioai.com>";
@@ -44,6 +45,7 @@ export async function GET(request: Request) {
   if (due.length === 0) return NextResponse.json({ ok: true, notified: 0, at: now.toISOString() });
 
   const items: string[] = [];
+  const tgLines: string[] = [];
   for (const s of due) {
     let em = "";
     try {
@@ -55,7 +57,11 @@ export async function GET(request: Request) {
     const dl = s.daysLeft === 1 ? "1 dia" : `${s.daysLeft} dias`;
     const warn = s.daysLeft === 1 ? "color:#f87171;font-weight:700" : "color:#fbbf24";
     items.push(`<tr><td style="padding:6px 10px;color:#fff">${esc(em || "?")}</td><td style="padding:6px 10px;color:#e2e8f0">${plan}</td><td style="padding:6px 10px;${warn}">${dl}</td><td style="padding:6px 10px;color:#94a3b8">${endStr}</td></tr>`);
+    tgLines.push(`${s.daysLeft === 1 ? "🔴" : "🟡"} ${tgEsc(em || "?")} · ${plan} · faltam ${dl}`);
   }
+
+  // Alerta no Bot ChainFolioAI (Telegram), se configurado.
+  sendTelegram(`⏰ <b>Beta — ${due.length} tester(s) a expirar</b>\n(avisos a 3 e 1 dia)\n\n${tgLines.join("\n")}`).catch(() => {});
 
   const key = process.env.RESEND_API_KEY ?? "";
   if (key) {
