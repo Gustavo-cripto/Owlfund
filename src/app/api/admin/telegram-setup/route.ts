@@ -1,5 +1,5 @@
-// Regista/atualiza o webhook do @ChainFolioAi_Bot usando o TELEGRAM_BOT_TOKEN do
-// ambiente. Só admins. Usar depois de rodar o token (não expõe o token).
+// Regista OU remove o webhook do bot cujo token está no ambiente (TELEGRAM_BOT_TOKEN).
+// Só admins. action: "set" (default) = setWebhook; "delete" = deleteWebhook.
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
@@ -18,7 +18,7 @@ async function getAdminEmail(): Promise<string | null> {
   return data.user?.email?.toLowerCase() ?? null;
 }
 
-export async function POST() {
+export async function POST(req: Request) {
   const email = await getAdminEmail();
   if (!email) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
   if (!ADMINS.length || !ADMINS.includes(email)) return NextResponse.json({ error: "Sem permissão." }, { status: 403 });
@@ -26,10 +26,26 @@ export async function POST() {
   const token = (process.env.TELEGRAM_BOT_TOKEN ?? "").trim();
   if (!token) return NextResponse.json({ error: "TELEGRAM_BOT_TOKEN não está definido na Vercel." }, { status: 400 });
 
+  let action: "set" | "delete" = "set";
   try {
-    // Confirma que o token é válido (getMe).
+    const b = (await req.json()) as { action?: string };
+    if (b?.action === "delete") action = "delete";
+  } catch { /* sem body = set */ }
+
+  try {
     const me = await fetch(`https://api.telegram.org/bot${token}/getMe`).then((r) => r.json());
-    if (!me.ok) return NextResponse.json({ error: "Token inválido (getMe falhou). Confirma o TELEGRAM_BOT_TOKEN e faz redeploy." }, { status: 400 });
+    if (!me.ok) return NextResponse.json({ error: "Token inválido (getMe falhou)." }, { status: 400 });
+    const bot = me.result?.username as string;
+
+    if (action === "delete") {
+      const del = await fetch(`https://api.telegram.org/bot${token}/deleteWebhook`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ drop_pending_updates: true }),
+      }).then((r) => r.json());
+      if (!del.ok) return NextResponse.json({ error: del.description || "Falha no deleteWebhook." }, { status: 502 });
+      return NextResponse.json({ ok: true, action: "delete", bot });
+    }
 
     const set = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
       method: "POST",
@@ -37,9 +53,7 @@ export async function POST() {
       body: JSON.stringify({ url: `${SITE}/api/telegram-webhook`, allowed_updates: ["callback_query"], drop_pending_updates: true }),
     }).then((r) => r.json());
     if (!set.ok) return NextResponse.json({ error: set.description || "Falha no setWebhook." }, { status: 502 });
-
-    const info = await fetch(`https://api.telegram.org/bot${token}/getWebhookInfo`).then((r) => r.json());
-    return NextResponse.json({ ok: true, bot: me.result?.username, url: info.result?.url, pending: info.result?.pending_update_count });
+    return NextResponse.json({ ok: true, action: "set", bot });
   } catch {
     return NextResponse.json({ error: "Erro de rede a contactar o Telegram." }, { status: 502 });
   }

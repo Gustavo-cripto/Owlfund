@@ -25,10 +25,34 @@ export default function AdminBetaPage() {
     setTgBusy(true);
     setTgMsg(null);
     try {
-      const r = await fetch("/api/admin/telegram-setup", { method: "POST" });
+      const r = await fetch("/api/admin/telegram-setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set" }),
+      });
       const j = (await r.json().catch(() => ({}))) as { error?: string; bot?: string };
       if (!r.ok) { setTgMsg({ ok: false, text: j.error || "Falhou." }); return; }
       setTgMsg({ ok: true, text: `✅ Webhook registado no @${j.bot ?? "bot"}. Os botões de ativação voltam a funcionar.` });
+    } catch {
+      setTgMsg({ ok: false, text: "Erro de rede." });
+    } finally {
+      setTgBusy(false);
+    }
+  };
+
+  const removeBotWebhook = async () => {
+    if (tgBusy) return;
+    setTgBusy(true);
+    setTgMsg(null);
+    try {
+      const r = await fetch("/api/admin/telegram-setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "delete" }),
+      });
+      const j = (await r.json().catch(() => ({}))) as { error?: string; bot?: string };
+      if (!r.ok) { setTgMsg({ ok: false, text: j.error || "Falhou." }); return; }
+      setTgMsg({ ok: true, text: `🧹 Webhook removido do @${j.bot ?? "bot"} (o bot que está agora na Vercel).` });
     } catch {
       setTgMsg({ ok: false, text: "Erro de rede." });
     } finally {
@@ -208,15 +232,25 @@ export default function AdminBetaPage() {
               {/* Reconfigurar o webhook do bot (usar depois de rodar o token). */}
               <div className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
                 <p className="text-sm font-semibold text-white">Bot Telegram</p>
-                <p className="mt-1 text-xs text-slate-500">Se rodaste o token, atualiza-o na Vercel + redeploy, depois clica aqui para voltar a registar o webhook (os botões de ativação passam a funcionar de novo).</p>
-                <button
-                  type="button"
-                  onClick={reconfigBot}
-                  disabled={tgBusy}
-                  className="mt-3 rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-violet-500/50 hover:text-violet-300 disabled:opacity-40"
-                >
-                  {tgBusy ? "A registar…" : "Reconfigurar bot"}
-                </button>
+                <p className="mt-1 text-xs text-slate-500">Ambos os botões atuam sobre o bot cujo token está <b>agora</b> na Vercel. <b>Reconfigurar</b> = registar o webhook nesse bot. <b>Remover webhook</b> = tirar o webhook desse bot (usa antes de trocares para outro bot).</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={reconfigBot}
+                    disabled={tgBusy}
+                    className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-violet-500/50 hover:text-violet-300 disabled:opacity-40"
+                  >
+                    {tgBusy ? "A processar…" : "Reconfigurar bot"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={removeBotWebhook}
+                    disabled={tgBusy}
+                    className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:border-rose-500/50 hover:text-rose-300 disabled:opacity-40"
+                  >
+                    {tgBusy ? "A processar…" : "Remover webhook"}
+                  </button>
+                </div>
                 {tgMsg && <p className={`mt-2 text-xs ${tgMsg.ok ? "text-emerald-400" : "text-rose-400"}`}>{tgMsg.text}</p>}
               </div>
             </>
