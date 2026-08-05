@@ -5,11 +5,13 @@ import { useEffect, useState } from "react";
 import AppShell from "@/components/AppShell";
 
 type Tester = { email: string; plan: "pro" | "premium"; expiresAt: string | null; daysLeft: number | null };
+type Pending = { email: string; name: string | null; note: string | null; createdAt: string };
 
 export default function AdminBetaPage() {
   const [state, setState] = useState<"loading" | "ok" | "denied" | "error">("loading");
   const [count, setCount] = useState(0);
   const [testers, setTesters] = useState<Tester[]>([]);
+  const [pending, setPending] = useState<Pending[]>([]);
 
   const [grantEmail, setGrantEmail] = useState("");
   const [granting, setGranting] = useState(false);
@@ -20,9 +22,10 @@ export default function AdminBetaPage() {
       .then(async (r) => {
         if (r.status === 401 || r.status === 403) { setState("denied"); return; }
         if (!r.ok) { setState("error"); return; }
-        const j = (await r.json()) as { count: number; testers: Tester[] };
+        const j = (await r.json()) as { count: number; testers: Tester[]; pending?: Pending[] };
         setCount(j.count);
         setTesters(j.testers);
+        setPending(j.pending ?? []);
         setState("ok");
       })
       .catch(() => setState("error"));
@@ -30,8 +33,8 @@ export default function AdminBetaPage() {
 
   useEffect(() => { load(); }, []);
 
-  const grant = async (plan: "pro" | "premium") => {
-    const email = grantEmail.trim();
+  const grant = async (plan: "pro" | "premium", emailArg?: string) => {
+    const email = (emailArg ?? grantEmail).trim();
     if (!email || granting) return;
     setGranting(true);
     setGrantMsg(null);
@@ -105,6 +108,27 @@ export default function AdminBetaPage() {
                   <p className={`mt-2 text-xs ${grantMsg.ok ? "text-emerald-400" : "text-rose-400"}`}>{grantMsg.text}</p>
                 )}
               </div>
+
+              {/* Inscrições pendentes — aceita com um clique, sem copiar email. */}
+              {pending.length > 0 && (
+                <div className="mt-6">
+                  <p className="text-sm font-semibold text-white">Inscrições pendentes <span className="text-slate-500">({pending.length})</span></p>
+                  <div className="mt-3 space-y-2">
+                    {pending.map((p) => (
+                      <div key={p.email} className="flex flex-col gap-2 rounded-xl border border-slate-800 bg-slate-900/60 p-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm text-slate-200">{p.email}{p.name ? <span className="text-slate-500"> · {p.name}</span> : null}</p>
+                          {p.note ? <p className="mt-0.5 truncate text-xs text-slate-500">{p.note}</p> : null}
+                        </div>
+                        <div className="flex shrink-0 gap-2">
+                          <button type="button" onClick={() => grant("pro", p.email)} disabled={granting} className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-semibold text-slate-950 transition hover:bg-orange-400 disabled:opacity-40">Ativar Pro</button>
+                          <button type="button" onClick={() => grant("premium", p.email)} disabled={granting} className="rounded-lg bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-400 disabled:opacity-40">Ativar Premium</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="mt-6 flex items-center gap-4">
                 <div className="rounded-2xl border border-orange-500/30 bg-orange-500/10 px-5 py-4">

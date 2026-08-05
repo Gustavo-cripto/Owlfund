@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { sendTelegram, tgEsc } from "@/lib/notify/telegram";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 const TO = process.env.BETA_SIGNUP_TO ?? "suporte@chainfolioai.com";
 const FROM = "ChainFolioAI <noreply@chainfolioai.com>";
@@ -147,6 +148,12 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "Falha ao enviar." }, { status: 502 });
   }
+
+  // Guarda a inscrição para aparecer no painel (best-effort; ignora se a tabela
+  // ainda não existir).
+  try {
+    await getSupabaseAdmin().from("beta_signups").insert({ email, name: name || null, note: note || null, lang, ip });
+  } catch { /* ignore */ }
 
   // 3) Notificação no Bot ChainFolioAI (Telegram), se configurado.
   // IMPORTANTE: await — em serverless, sem await o envio é abortado quando a

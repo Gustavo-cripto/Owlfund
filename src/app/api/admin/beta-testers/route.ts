@@ -56,5 +56,22 @@ export async function GET() {
     });
   }
 
-  return NextResponse.json({ admin: true, count: testers.length, testers });
+  // Inscrições pendentes (best-effort; vazio se a tabela não existir).
+  let pending: { email: string; name: string | null; note: string | null; createdAt: string }[] = [];
+  try {
+    const { data: sig } = await admin
+      .from("beta_signups")
+      .select("email, name, note, created_at")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    pending = (sig ?? []).map((s) => ({
+      email: s.email as string,
+      name: (s.name as string) ?? null,
+      note: (s.note as string) ?? null,
+      createdAt: s.created_at as string,
+    }));
+  } catch { /* tabela ainda não criada */ }
+
+  return NextResponse.json({ admin: true, count: testers.length, testers, pending });
 }

@@ -71,5 +71,10 @@ export async function POST(req: NextRequest) {
   );
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // Marca a inscrição como aceite, para sair da lista de pendentes (best-effort).
+  try {
+    await admin.from("beta_signups").update({ status: "activated" }).eq("email", target).eq("status", "pending");
+  } catch { /* tabela pode não existir */ }
+
   return NextResponse.json({ ok: true, email: target, plan, until: end.toISOString() });
 }
