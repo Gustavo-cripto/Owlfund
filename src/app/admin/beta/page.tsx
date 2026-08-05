@@ -33,6 +33,14 @@ export default function AdminBetaPage() {
 
   useEffect(() => { load(); }, []);
 
+  // Pré-preenche o email a partir do link da notificação (?email=...).
+  useEffect(() => {
+    try {
+      const e = new URLSearchParams(window.location.search).get("email");
+      if (e) setGrantEmail(e);
+    } catch { /* ignore */ }
+  }, []);
+
   const grant = async (plan: "pro" | "premium", emailArg?: string) => {
     const email = (emailArg ?? grantEmail).trim();
     if (!email || granting) return;

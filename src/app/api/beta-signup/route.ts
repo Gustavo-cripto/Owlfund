@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
       <tr><td style="padding:6px 0;color:#94a3b8">Idioma</td><td style="padding:6px 0;color:#e2e8f0">${esc(lang)}</td></tr>
       <tr><td style="padding:6px 0;color:#94a3b8">Validade</td><td style="padding:6px 0;color:#e2e8f0">${TRIAL_DAYS} dias após ativação (indicativo até ${untilStr})</td></tr>
     </table>
-    <p style="background:#1f2937;border-radius:10px;padding:12px 14px;color:#e2e8f0">▶ <b>Para ativar:</b> corre o SQL de atribuição no Supabase com <b>${esc(email)}</b> (${TRIAL_DAYS} dias). Depois o tester recarrega.</p>
+    <p style="background:#1f2937;border-radius:10px;padding:12px 14px;color:#e2e8f0">▶ <b>Para ativar:</b> abre o <a href="${SITE}/admin/beta?email=${encodeURIComponent(email)}" style="color:#fb923c;font-weight:700">painel de ativação</a> e clica em Ativar Pro/Premium (${TRIAL_DAYS} dias). Depois o tester recarrega.</p>
     <p style="color:#64748b;font-size:12px">IP: ${esc(ip)} · ${new Date().toISOString()}</p>
   `);
 
@@ -162,7 +162,7 @@ export async function POST(req: NextRequest) {
     `🎉 <b>Novo beta tester</b>\n📧 ${tgEsc(email)}` +
       (name ? `\n👤 ${tgEsc(name)}` : "") +
       (note ? `\n📝 ${tgEsc(note)}` : "") +
-      `\n\n▶ Ativar: corre o SQL (Supabase) com este email — ${TRIAL_DAYS} dias.`,
+      `\n\n▶ <a href="${SITE}/admin/beta?email=${encodeURIComponent(email)}">Ativar no painel</a> (Pro/Premium · ${TRIAL_DAYS} dias)`,
   ).catch(() => {});
 
   return NextResponse.json({ ok: true });
