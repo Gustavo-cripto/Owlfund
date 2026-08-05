@@ -6,12 +6,22 @@ import { grantTester } from "@/lib/beta/grant";
 const TOKEN = (process.env.TELEGRAM_BOT_TOKEN ?? "").trim();
 const ADMIN_CHAT = (process.env.TELEGRAM_CHAT_ID ?? "").trim();
 
-async function answerCb(id: string, text: string) {
+async function answerCb(id: string, text: string, alert = false) {
   try {
     await fetch(`https://api.telegram.org/bot${TOKEN}/answerCallbackQuery`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ callback_query_id: id, text, show_alert: false }),
+      body: JSON.stringify({ callback_query_id: id, text, show_alert: alert }),
+    });
+  } catch { /* ignore */ }
+}
+
+async function sendMsg(chatId: number, text: string) {
+  try {
+    await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),
     });
   } catch { /* ignore */ }
 }
@@ -64,12 +74,26 @@ export async function POST(req: NextRequest) {
 
   const res = await grantTester(email, plan);
   if (!res.ok) {
-    await answerCb(cq.id, res.error ?? "Falhou.");
+    await answerCb(cq.id, `⚠️ ${res.error ?? "Falhou."}`, true);
     return NextResponse.json({ ok: true });
   }
 
   const label = plan === "premium" ? "Premium" : "Pro";
-  await answerCb(cq.id, `✅ ${email} ativado com ${label} (60 dias).`);
+  const untilStr = res.until
+    ? new Date(res.until).toLocaleDateString("pt-PT", { day: "2-digit", month: "long", year: "numeric" })
+    : "60 dias";
+
+  // 1) popup de confirmação ao tocar
+  await answerCb(cq.id, `✅ ${email} ativado com ${label} (60 dias)!`, true);
+  // 2) marca a mensagem original como tratada
   if (cq.message) await markDone(cq.message.chat.id, cq.message.message_id, `✅ Ativado: ${label} — ${email}`);
+  // 3) mensagem de confirmação persistente no chat
+  const chatId = cq.message?.chat.id;
+  if (chatId) {
+    await sendMsg(
+      chatId,
+      `✅ <b>Tester ativado!</b>\n📧 ${email}\n💎 Plano: <b>${label}</b>\n⏳ 60 dias (até ${untilStr})\n\nO tester deve recarregar a página.`,
+    );
+  }
   return NextResponse.json({ ok: true });
 }
