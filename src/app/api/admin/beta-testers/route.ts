@@ -27,14 +27,23 @@ export async function GET() {
   if (!email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!ADMINS.length || !ADMINS.includes(email)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const admin = getSupabaseAdmin();
+  let admin;
+  try {
+    admin = getSupabaseAdmin();
+  } catch (e) {
+    console.error("[beta-testers] getSupabaseAdmin", e);
+    return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY em falta na Vercel." }, { status: 500 });
+  }
   const { data: subs, error } = await admin
     .from("subscriptions")
     .select("user_id, price_id, current_period_end")
     .eq("source", "manual")
     .eq("status", "active")
     .order("current_period_end", { ascending: true });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[beta-testers] subscriptions", error);
+    return NextResponse.json({ error: `subs: ${error.message}` }, { status: 500 });
+  }
 
   const now = Date.now();
   const testers = [];
