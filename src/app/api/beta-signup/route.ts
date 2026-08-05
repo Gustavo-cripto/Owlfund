@@ -149,7 +149,9 @@ export async function POST(req: NextRequest) {
   }
 
   // 3) Notificação no Bot ChainFolioAI (Telegram), se configurado.
-  sendTelegram(
+  // IMPORTANTE: await — em serverless, sem await o envio é abortado quando a
+  // função devolve a resposta.
+  await sendTelegram(
     `🎉 <b>Novo beta tester</b>\n📧 ${tgEsc(email)}` +
       (name ? `\n👤 ${tgEsc(name)}` : "") +
       (note ? `\n📝 ${tgEsc(note)}` : "") +

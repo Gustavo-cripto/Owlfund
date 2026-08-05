@@ -60,8 +60,9 @@ export async function GET(request: Request) {
     tgLines.push(`${s.daysLeft === 1 ? "🔴" : "🟡"} ${tgEsc(em || "?")} · ${plan} · faltam ${dl}`);
   }
 
-  // Alerta no Bot ChainFolioAI (Telegram), se configurado.
-  sendTelegram(`⏰ <b>Beta — ${due.length} tester(s) a expirar</b>\n(avisos a 3 e 1 dia)\n\n${tgLines.join("\n")}`).catch(() => {});
+  // Alerta no Bot ChainFolioAI (Telegram), se configurado. await obrigatório
+  // (serverless aborta envios não aguardados após a resposta).
+  await sendTelegram(`⏰ <b>Beta — ${due.length} tester(s) a expirar</b>\n(avisos a 3 e 1 dia)\n\n${tgLines.join("\n")}`).catch(() => {});
 
   const key = process.env.RESEND_API_KEY ?? "";
   if (key) {
