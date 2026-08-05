@@ -30,9 +30,8 @@ export async function GET() {
   let admin;
   try {
     admin = getSupabaseAdmin();
-  } catch (e) {
-    console.error("[beta-testers] getSupabaseAdmin", e);
-    return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY em falta na Vercel." }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Serviço indisponível (config)." }, { status: 500 });
   }
   const { data: subs, error } = await admin
     .from("subscriptions")
@@ -41,8 +40,8 @@ export async function GET() {
     .eq("status", "active")
     .order("current_period_end", { ascending: true });
   if (error) {
-    console.error("[beta-testers] subscriptions", error);
-    return NextResponse.json({ error: `subs: ${error.message}` }, { status: 500 });
+    console.error("[beta-testers] subscriptions", error.code, error.message);
+    return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
   }
 
   const now = Date.now();
