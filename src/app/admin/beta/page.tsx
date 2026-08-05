@@ -11,7 +11,11 @@ export default function AdminBetaPage() {
   const [count, setCount] = useState(0);
   const [testers, setTesters] = useState<Tester[]>([]);
 
-  useEffect(() => {
+  const [grantEmail, setGrantEmail] = useState("");
+  const [granting, setGranting] = useState(false);
+  const [grantMsg, setGrantMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const load = () => {
     fetch("/api/admin/beta-testers")
       .then(async (r) => {
         if (r.status === 401 || r.status === 403) { setState("denied"); return; }
@@ -22,7 +26,32 @@ export default function AdminBetaPage() {
         setState("ok");
       })
       .catch(() => setState("error"));
-  }, []);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const grant = async (plan: "pro" | "premium") => {
+    const email = grantEmail.trim();
+    if (!email || granting) return;
+    setGranting(true);
+    setGrantMsg(null);
+    try {
+      const r = await fetch("/api/admin/grant-tester", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, plan }),
+      });
+      const j = (await r.json().catch(() => ({}))) as { error?: string };
+      if (!r.ok) { setGrantMsg({ ok: false, text: j.error || "Falhou." }); return; }
+      setGrantMsg({ ok: true, text: `✅ ${email} ativado com ${plan === "premium" ? "Premium" : "Pro"} (60 dias). O tester deve recarregar a página.` });
+      setGrantEmail("");
+      load();
+    } catch {
+      setGrantMsg({ ok: false, text: "Erro de rede." });
+    } finally {
+      setGranting(false);
+    }
+  };
 
   const fmt = (d: string | null) => (d ? new Date(d).toLocaleDateString("pt-PT", { day: "2-digit", month: "short", year: "numeric" }) : "—");
 
@@ -42,6 +71,41 @@ export default function AdminBetaPage() {
 
           {state === "ok" && (
             <>
+              {/* Ativar um tester — cola o email da notificação e clica. Sem SQL. */}
+              <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+                <p className="text-sm font-semibold text-white">Ativar tester (60 dias)</p>
+                <p className="mt-1 text-xs text-slate-500">Cola o email da inscrição e escolhe o plano. O tester tem de já ter criado conta no site.</p>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  <input
+                    type="email"
+                    value={grantEmail}
+                    onChange={(e) => setGrantEmail(e.target.value)}
+                    placeholder="email@tester.com"
+                    className="flex-1 rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-orange-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => grant("pro")}
+                    disabled={granting || !grantEmail.trim()}
+                    className="rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-orange-400 disabled:opacity-40"
+                  >
+                    Ativar Pro
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => grant("premium")}
+                    disabled={granting || !grantEmail.trim()}
+                    className="rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-400 disabled:opacity-40"
+                  >
+                    Ativar Premium
+                  </button>
+                </div>
+                {granting && <p className="mt-2 text-xs text-slate-500">A ativar…</p>}
+                {grantMsg && (
+                  <p className={`mt-2 text-xs ${grantMsg.ok ? "text-emerald-400" : "text-rose-400"}`}>{grantMsg.text}</p>
+                )}
+              </div>
+
               <div className="mt-6 flex items-center gap-4">
                 <div className="rounded-2xl border border-orange-500/30 bg-orange-500/10 px-5 py-4">
                   <p className="text-3xl font-bold text-orange-300">{count}</p>
