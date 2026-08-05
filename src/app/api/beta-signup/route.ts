@@ -158,11 +158,22 @@ export async function POST(req: NextRequest) {
   // 3) Notificação no Bot ChainFolioAI (Telegram), se configurado.
   // IMPORTANTE: await — em serverless, sem await o envio é abortado quando a
   // função devolve a resposta.
+  // Botões one-tap (callback_data tem limite de 64 bytes → só se o email couber).
+  const canButtons = `g:premium:${email}`.length <= 64;
+  const replyMarkup = canButtons
+    ? {
+        inline_keyboard: [[
+          { text: "✅ Ativar Pro", callback_data: `g:pro:${email}` },
+          { text: "✅ Ativar Premium", callback_data: `g:premium:${email}` },
+        ]],
+      }
+    : undefined;
   await sendTelegram(
     `🎉 <b>Novo beta tester</b>\n📧 ${tgEsc(email)}` +
       (name ? `\n👤 ${tgEsc(name)}` : "") +
       (note ? `\n📝 ${tgEsc(note)}` : "") +
-      `\n\n▶ <a href="${SITE}/admin/beta?email=${encodeURIComponent(email)}">Ativar no painel</a> (Pro/Premium · ${TRIAL_DAYS} dias)`,
+      `\n\n${canButtons ? "Toca num botão para ativar (60 dias) 👇" : `▶ <a href="${SITE}/admin/beta?email=${encodeURIComponent(email)}">Ativar no painel</a> (Pro/Premium · ${TRIAL_DAYS} dias)`}`,
+    replyMarkup,
   ).catch(() => {});
 
   return NextResponse.json({ ok: true });
