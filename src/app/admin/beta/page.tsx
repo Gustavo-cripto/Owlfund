@@ -17,6 +17,25 @@ export default function AdminBetaPage() {
   const [granting, setGranting] = useState(false);
   const [grantMsg, setGrantMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
+  const [tgBusy, setTgBusy] = useState(false);
+  const [tgMsg, setTgMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const reconfigBot = async () => {
+    if (tgBusy) return;
+    setTgBusy(true);
+    setTgMsg(null);
+    try {
+      const r = await fetch("/api/admin/telegram-setup", { method: "POST" });
+      const j = (await r.json().catch(() => ({}))) as { error?: string; bot?: string };
+      if (!r.ok) { setTgMsg({ ok: false, text: j.error || "Falhou." }); return; }
+      setTgMsg({ ok: true, text: `✅ Webhook registado no @${j.bot ?? "bot"}. Os botões de ativação voltam a funcionar.` });
+    } catch {
+      setTgMsg({ ok: false, text: "Erro de rede." });
+    } finally {
+      setTgBusy(false);
+    }
+  };
+
   const load = () => {
     fetch("/api/admin/beta-testers")
       .then(async (r) => {
@@ -185,6 +204,21 @@ export default function AdminBetaPage() {
                   </table>
                 </div>
               )}
+
+              {/* Reconfigurar o webhook do bot (usar depois de rodar o token). */}
+              <div className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+                <p className="text-sm font-semibold text-white">Bot Telegram</p>
+                <p className="mt-1 text-xs text-slate-500">Se rodaste o token, atualiza-o na Vercel + redeploy, depois clica aqui para voltar a registar o webhook (os botões de ativação passam a funcionar de novo).</p>
+                <button
+                  type="button"
+                  onClick={reconfigBot}
+                  disabled={tgBusy}
+                  className="mt-3 rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-violet-500/50 hover:text-violet-300 disabled:opacity-40"
+                >
+                  {tgBusy ? "A registar…" : "Reconfigurar bot"}
+                </button>
+                {tgMsg && <p className={`mt-2 text-xs ${tgMsg.ok ? "text-emerald-400" : "text-rose-400"}`}>{tgMsg.text}</p>}
+              </div>
             </>
           )}
         </div>
