@@ -49,6 +49,48 @@ type CoinGeckoMarket = {
   sparkline_in_7d?: { price?: number[] };
 };
 
+// Cache módulo-level com dedup de pedidos em curso. O CoinGecko grátis tem
+// rate limit apertado (~10/min) e as respostas 429 chegam sem CORS no web —
+// por isso: (1) TTL de 55s por conjunto de ids; (2) um só fetch por conjunto
+// mesmo com vários ecrãs montados; (3) em falha, serve o último valor bom.
+const CACHE_TTL_MS = 55_000;
+const cacheByKey = new Map<string, { at: number; rows: CoinGeckoMarket[] }>();
+const inflightByKey = new Map<string, Promise<CoinGeckoMarket[]>>();
+
+async function fetchRows(ids: string[]): Promise<CoinGeckoMarket[]> {
+  const key = ids.join(',');
+  const cached = cacheByKey.get(key);
+  if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.rows;
+
+  const existing = inflightByKey.get(key);
+  if (existing) return existing;
+
+  const url =
+    'https://api.coingecko.com/api/v3/coins/markets' +
+    '?vs_currency=eur' +
+    `&ids=${key}` +
+    '&sparkline=true' +
+    '&price_change_percentage=1h,24h,7d';
+
+  const p = (async () => {
+    try {
+      const res = await fetch(url, { headers: { accept: 'application/json' } });
+      if (!res.ok) throw new Error(`CoinGecko respondeu ${res.status}`);
+      const rows = (await res.json()) as CoinGeckoMarket[];
+      cacheByKey.set(key, { at: Date.now(), rows });
+      return rows;
+    } catch (err) {
+      // Rate limit / rede: devolve o último valor bom (stale) se existir.
+      if (cached) return cached.rows;
+      throw err;
+    } finally {
+      inflightByKey.delete(key);
+    }
+  })();
+  inflightByKey.set(key, p);
+  return p;
+}
+
 // Recebe símbolos (ex: ['BTC','ETH']), resolve ids e devolve um mapa
 // símbolo→MarketRow apenas para os que o CoinGecko reconhece.
 export async function fetchMarketPrices(
@@ -60,23 +102,11 @@ export async function fetchMarketPrices(
         .map((s) => resolveCoinId(s))
         .filter((id): id is string => Boolean(id))
     )
-  );
+  ).sort();
 
   if (ids.length === 0) return {};
 
-  const url =
-    'https://api.coingecko.com/api/v3/coins/markets' +
-    '?vs_currency=eur' +
-    `&ids=${ids.join(',')}` +
-    '&sparkline=true' +
-    '&price_change_percentage=1h,24h,7d';
-
-  const res = await fetch(url, { headers: { accept: 'application/json' } });
-  if (!res.ok) {
-    throw new Error(`CoinGecko respondeu ${res.status}`);
-  }
-
-  const rows = (await res.json()) as CoinGeckoMarket[];
+  const rows = await fetchRows(ids);
   const bySymbol: Record<string, MarketRow> = {};
 
   for (const row of rows) {

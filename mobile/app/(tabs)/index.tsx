@@ -7,6 +7,7 @@ import { usePortfolio } from '@/context/PortfolioContext';
 import { useLivePrices } from '@/hooks/useLivePrices';
 import Colors from '@/constants/Colors';
 import { useAppTheme } from '@/context/ThemeContext';
+import PriceTicker from '@/components/PriceTicker';
 
 const formatCurrency = (value: number, currency: string) =>
   new Intl.NumberFormat('pt-BR', {
@@ -101,6 +102,7 @@ export default function SummaryScreen() {
       <ScrollView
         style={[styles.container, { backgroundColor: palette.background }]}
         contentContainerStyle={[styles.content, { backgroundColor: palette.background }]}>
+        <PriceTicker />
         <View style={styles.headerRow}>
           <Text style={[styles.title, { color: palette.text }]}>Mercado</Text>
           <Text style={[styles.subtitle, { color: error ? palette.danger : palette.muted }]}>
@@ -209,7 +211,7 @@ export default function SummaryScreen() {
                                 {
                                   height: `${Math.round(value * 100)}%`,
                                   backgroundColor:
-                                    (market?.change7d ?? 0) >= 0 ? '#22c55e' : '#ef4444',
+                                    (market?.change7d ?? 0) >= 0 ? '#34d399' : '#fb7185',
                                 },
                               ]}
                             />
@@ -323,10 +325,10 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   positive: {
-    color: '#22c55e',
+    color: '#34d399',
   },
   negative: {
-    color: '#ef4444',
+    color: '#fb7185',
   },
   muted: {
     color: '#94a3b8',

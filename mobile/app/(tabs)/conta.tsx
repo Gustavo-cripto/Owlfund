@@ -16,6 +16,7 @@ import { Text, View } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useAppTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
+import PriceTicker from '@/components/PriceTicker';
 import { usePortfolio } from '@/context/PortfolioContext';
 import { SITE_URL } from '@/lib/supabase';
 
@@ -76,6 +77,7 @@ export default function ContaScreen() {
         style={{ backgroundColor: palette.background }}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled">
+        <PriceTicker />
         <View style={styles.headerRow}>
           <Text style={[styles.title, { color: palette.text }]}>Conta</Text>
           <Text style={[styles.subtitle, { color: palette.muted }]}>
@@ -100,7 +102,7 @@ export default function ContaScreen() {
                   <RNView
                     style={[
                       styles.dot,
-                      { backgroundColor: source === 'cloud' ? '#22c55e' : '#f97316' },
+                      { backgroundColor: source === 'cloud' ? '#34d399' : '#f97316' },
                     ]}
                   />
                   <Text style={{ color: palette.muted, fontSize: 13 }}>
@@ -134,9 +136,9 @@ export default function ContaScreen() {
                   disabled={busy}
                   style={({ pressed }) => [
                     styles.btnOutline,
-                    { borderColor: '#ef4444', opacity: busy || pressed ? 0.7 : 1 },
+                    { borderColor: '#fb7185', opacity: busy || pressed ? 0.7 : 1 },
                   ]}>
-                  <Text style={[styles.btnText, { color: '#ef4444' }]}>Terminar sessão</Text>
+                  <Text style={[styles.btnText, { color: '#fb7185' }]}>Terminar sessão</Text>
                 </Pressable>
               </>
             ) : (
@@ -186,7 +188,7 @@ export default function ContaScreen() {
             )}
 
             {msg && (
-              <Text style={[styles.msg, { color: msg.ok ? '#22c55e' : '#ef4444' }]}>{msg.text}</Text>
+              <Text style={[styles.msg, { color: msg.ok ? '#34d399' : '#fb7185' }]}>{msg.text}</Text>
             )}
           </View>
         </LinearGradient>
@@ -242,7 +244,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   btnText: { fontSize: 14, fontWeight: '700' },
-  btnTextDark: { fontSize: 14, fontWeight: '800', color: '#0b0f1a' },
+  btnTextDark: { fontSize: 14, fontWeight: '800', color: '#020617' },
   link: { fontSize: 13, marginTop: 14, textAlign: 'center' },
   msg: { fontSize: 13, marginTop: 12 },
   note: { fontSize: 12, lineHeight: 18 },

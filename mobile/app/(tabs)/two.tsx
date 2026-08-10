@@ -7,6 +7,13 @@ import { usePortfolio } from '@/context/PortfolioContext';
 import { useLivePrices } from '@/hooks/useLivePrices';
 import Colors from '@/constants/Colors';
 import { useAppTheme } from '@/context/ThemeContext';
+import PriceTicker from '@/components/PriceTicker';
+
+// Cores por categoria (cripto = laranja da marca, tradicional = azul).
+const CATEGORY_COLORS: Record<string, string> = {
+  crypto: '#f97316',
+  traditional: '#0ea5e9',
+};
 
 const formatCurrency = (value: number, currency: string) =>
   new Intl.NumberFormat('pt-BR', {
@@ -115,7 +122,8 @@ export default function AssetsScreen() {
       <ScrollView
         style={[styles.container, { backgroundColor: palette.background }]}
         contentContainerStyle={[styles.content, { backgroundColor: palette.background }]}>
-        <Text style={[styles.title, { color: palette.text }]}>Ativos</Text>
+        <PriceTicker />
+        <Text style={[styles.title, { color: palette.text }]}>Portfolio</Text>
         <Text style={[styles.subtitle, { color: error ? palette.danger : palette.muted }]}>
           {statusLabel}
         </Text>
@@ -164,6 +172,62 @@ export default function AssetsScreen() {
             );
           })}
         </View>
+
+        {/* Alocação por categoria — como o dashboard do site */}
+        {totalCurrent > 0 && (
+          <LinearGradient
+            colors={['rgba(30, 41, 59, 0.9)', 'rgba(30, 41, 59, 0.9)']}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={styles.gradientBorderLg}>
+            <View style={[styles.card, { backgroundColor: palette.background }]}>
+              <Text style={[styles.sectionLabel, { color: palette.muted }]}>ALOCAÇÃO</Text>
+              <RNView style={styles.allocBar}>
+                {portfolio.categories.map((cat) => {
+                  const value = assets
+                    .filter((a) => a.categoryId === cat.id)
+                    .reduce((s, a) => s + a.currentValue, 0);
+                  if (value <= 0) return null;
+                  return (
+                    <RNView
+                      key={cat.id}
+                      style={{
+                        flex: value,
+                        backgroundColor: CATEGORY_COLORS[cat.id] ?? '#8b5cf6',
+                      }}
+                    />
+                  );
+                })}
+              </RNView>
+              {portfolio.categories.map((cat) => {
+                const value = assets
+                  .filter((a) => a.categoryId === cat.id)
+                  .reduce((s, a) => s + a.currentValue, 0);
+                if (value <= 0) return null;
+                const pct = value / totalCurrent;
+                return (
+                  <RNView key={cat.id} style={styles.allocRow}>
+                    <RNView style={styles.allocNameWrap}>
+                      <RNView
+                        style={[
+                          styles.allocDot,
+                          { backgroundColor: CATEGORY_COLORS[cat.id] ?? '#8b5cf6' },
+                        ]}
+                      />
+                      <Text style={[styles.allocName, { color: palette.text }]}>{cat.name}</Text>
+                    </RNView>
+                    <Text style={[styles.allocValue, { color: palette.muted }]}>
+                      {formatCurrency(value, portfolio.currency)}
+                      <Text style={{ color: palette.text, fontWeight: '700' }}>
+                        {'  '}{formatPercent(pct)}
+                      </Text>
+                    </Text>
+                  </RNView>
+                );
+              })}
+            </View>
+          </LinearGradient>
+        )}
 
         <LinearGradient
           colors={['rgba(30, 41, 59, 0.9)', 'rgba(30, 41, 59, 0.9)']}
@@ -280,6 +344,43 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
   },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1.2,
+  },
+  allocBar: {
+    flexDirection: 'row',
+    height: 10,
+    borderRadius: 6,
+    overflow: 'hidden',
+    marginTop: 4,
+    marginBottom: 6,
+    backgroundColor: 'rgba(30, 41, 59, 0.5)',
+  },
+  allocRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  allocNameWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  allocDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  allocName: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  allocValue: {
+    fontSize: 12,
+  },
   assetRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -319,9 +420,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   positive: {
-    color: '#22c55e',
+    color: '#34d399',
   },
   negative: {
-    color: '#ef4444',
+    color: '#fb7185',
   },
 });

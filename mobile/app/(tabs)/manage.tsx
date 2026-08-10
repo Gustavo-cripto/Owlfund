@@ -14,6 +14,7 @@ import { Text, View } from '@/components/Themed';
 import { usePortfolio } from '@/context/PortfolioContext';
 import Colors from '@/constants/Colors';
 import { useAppTheme } from '@/context/ThemeContext';
+import PriceTicker from '@/components/PriceTicker';
 
 type EditingState = {
   categoryId: string;
@@ -179,6 +180,7 @@ export default function ManageScreen() {
     <RNView key={mode} style={[styles.screen, isWeb ? styles.screenWeb : null]}>
       {/* visual limpo: sem glow */}
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <PriceTicker />
         <Text style={styles.title}>Gerenciar ativos</Text>
         <Text style={styles.subtitle}>Adicione, edite ou remova ativos do portfólio</Text>
 
@@ -505,7 +507,7 @@ const createStyles = (palette: typeof Colors.dark) =>
     color: palette.text,
   },
   categoryChipTextActive: {
-    color: '#0b0f1a',
+    color: '#020617',
     fontWeight: '600',
   },
   input: {
@@ -602,7 +604,7 @@ const createStyles = (palette: typeof Colors.dark) =>
     paddingHorizontal: 16,
   },
   primaryButtonText: {
-    color: '#0b0f1a',
+    color: '#020617',
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',

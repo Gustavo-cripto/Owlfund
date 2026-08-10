@@ -60,7 +60,7 @@ export default function AssetChartScreen() {
     );
   }
 
-  const chartTheme = palette.background === '#0b0f1a' ? 'dark' : 'light';
+  const chartTheme = mode === 'light' ? 'light' : 'dark';
   const toolbarBg = encodeURIComponent(palette.background);
   const chartUrl = `https://s.tradingview.com/widgetembed/?symbol=${encodeURIComponent(
     chartSymbol
