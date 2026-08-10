@@ -126,7 +126,7 @@ export default function AssetsScreen() {
             return (
               <LinearGradient
                 key={item.label}
-                colors={['rgba(249, 115, 22, 0.45)', '#030712']}
+                colors={['rgba(30, 41, 59, 0.9)', 'rgba(30, 41, 59, 0.9)']}
                 start={{ x: 0, y: 0.5 }}
                 end={{ x: 1, y: 0.5 }}
                 style={styles.gradientBorderLg}>
@@ -166,7 +166,7 @@ export default function AssetsScreen() {
         </View>
 
         <LinearGradient
-          colors={['rgba(249, 115, 22, 0.45)', '#030712']}
+          colors={['rgba(30, 41, 59, 0.9)', 'rgba(30, 41, 59, 0.9)']}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
           style={styles.gradientBorderLg}>
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
   },
   gradientBorderLg: {
     borderRadius: 18,
-    padding: 3,
+    padding: 1,
   },
   pnlGrid: {
     marginTop: 8,
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(125, 211, 252, 0.35)',
+    borderBottomColor: 'rgba(30, 41, 59, 0.6)',
   },
   assetRowPressed: {
     opacity: 0.7,

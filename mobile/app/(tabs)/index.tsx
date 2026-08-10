@@ -109,7 +109,7 @@ export default function SummaryScreen() {
         </View>
 
         <LinearGradient
-          colors={['rgba(249, 115, 22, 0.45)', '#030712']}
+          colors={['rgba(30, 41, 59, 0.9)', 'rgba(30, 41, 59, 0.9)']}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
           style={styles.gradientBorderLg}>
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
   },
   gradientBorderLg: {
     borderRadius: 18,
-    padding: 3,
+    padding: 1,
   },
   table: {
     minWidth: 1100,
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(125, 211, 252, 0.35)',
+    borderBottomColor: 'rgba(30, 41, 59, 0.6)',
   },
   tableHeader: {},
   cell: {

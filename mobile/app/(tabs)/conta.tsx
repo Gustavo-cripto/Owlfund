@@ -86,7 +86,7 @@ export default function ContaScreen() {
         </View>
 
         <LinearGradient
-          colors={['rgba(249, 115, 22, 0.45)', '#030712']}
+          colors={['rgba(30, 41, 59, 0.9)', 'rgba(30, 41, 59, 0.9)']}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
           style={styles.gradientBorder}>
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
   headerRow: { gap: 6 },
   title: { fontSize: 24, fontWeight: '700' },
   subtitle: { fontSize: 13 },
-  gradientBorder: { borderRadius: 18, padding: 3 },
+  gradientBorder: { borderRadius: 18, padding: 1 },
   card: { borderRadius: 16, padding: 18, gap: 4 },
   label: { fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.6 },
   email: { fontSize: 16, fontWeight: '700', marginTop: 2 },

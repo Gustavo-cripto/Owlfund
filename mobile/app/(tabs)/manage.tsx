@@ -200,7 +200,7 @@ export default function ManageScreen() {
         )}
 
         <LinearGradient
-          colors={['rgba(249, 115, 22, 0.45)', '#030712']}
+          colors={['rgba(30, 41, 59, 0.9)', 'rgba(30, 41, 59, 0.9)']}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
           style={styles.gradientBorderLg}>
@@ -228,7 +228,7 @@ export default function ManageScreen() {
             <View style={styles.fieldGroup}>
               <Text style={styles.sectionTitle}>Ativo</Text>
               <LinearGradient
-                colors={['rgba(249, 115, 22, 0.45)', '#030712']}
+                colors={['rgba(30, 41, 59, 0.9)', 'rgba(30, 41, 59, 0.9)']}
                 start={{ x: 0, y: 0.5 }}
                 end={{ x: 1, y: 0.5 }}
                 style={styles.gradientBorderSm}>
@@ -250,7 +250,7 @@ export default function ManageScreen() {
           onRequestClose={() => setShowAssetPicker(false)}>
           <Pressable style={styles.modalOverlay} onPress={() => setShowAssetPicker(false)}>
             <LinearGradient
-              colors={['rgba(249, 115, 22, 0.45)', '#030712']}
+              colors={['rgba(30, 41, 59, 0.9)', 'rgba(30, 41, 59, 0.9)']}
               start={{ x: 0, y: 0.5 }}
               end={{ x: 1, y: 0.5 }}
               style={styles.gradientBorderLg}>
@@ -264,7 +264,7 @@ export default function ManageScreen() {
                 </Pressable>
               </View>
               <LinearGradient
-                colors={['rgba(249, 115, 22, 0.45)', '#030712']}
+                colors={['rgba(30, 41, 59, 0.9)', 'rgba(30, 41, 59, 0.9)']}
                 start={{ x: 0, y: 0.5 }}
                 end={{ x: 1, y: 0.5 }}
                 style={styles.gradientBorderSm}>
@@ -300,7 +300,7 @@ export default function ManageScreen() {
         <View style={styles.fieldGroup}>
           <Text style={styles.sectionTitle}>Valor investido</Text>
           <LinearGradient
-            colors={['rgba(249, 115, 22, 0.45)', '#030712']}
+            colors={['rgba(30, 41, 59, 0.9)', 'rgba(30, 41, 59, 0.9)']}
             start={{ x: 0, y: 0.5 }}
             end={{ x: 1, y: 0.5 }}
             style={styles.gradientBorderSm}>
@@ -318,7 +318,7 @@ export default function ManageScreen() {
         <View style={styles.fieldGroup}>
           <Text style={styles.sectionTitle}>Quantidade</Text>
           <LinearGradient
-            colors={['rgba(249, 115, 22, 0.45)', '#030712']}
+            colors={['rgba(30, 41, 59, 0.9)', 'rgba(30, 41, 59, 0.9)']}
             start={{ x: 0, y: 0.5 }}
             end={{ x: 1, y: 0.5 }}
             style={styles.gradientBorderSm}>
@@ -357,7 +357,7 @@ export default function ManageScreen() {
         {portfolio.categories.map((category) => (
           <LinearGradient
             key={category.id}
-            colors={['rgba(249, 115, 22, 0.45)', '#030712']}
+            colors={['rgba(30, 41, 59, 0.9)', 'rgba(30, 41, 59, 0.9)']}
             start={{ x: 0, y: 0.5 }}
             end={{ x: 1, y: 0.5 }}
             style={styles.gradientBorderLg}>
@@ -452,7 +452,7 @@ const createStyles = (palette: typeof Colors.dark) =>
   },
   gradientBorderLg: {
     borderRadius: 18,
-    padding: 3,
+    padding: 1,
   },
   gradientBorderSm: {
     borderRadius: 12,
@@ -643,7 +643,7 @@ const createStyles = (palette: typeof Colors.dark) =>
     justifyContent: 'space-between',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(125, 211, 252, 0.35)',
+    borderBottomColor: 'rgba(30, 41, 59, 0.6)',
   },
   assetInfo: {
     flex: 1,

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Link, Tabs } from 'expo-router';
 import { Image, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 
 import { Text } from '@/components/Themed';
 import Colors from '@/constants/Colors';
@@ -15,14 +14,14 @@ function TabBarIcon(props: {
   name: React.ComponentProps<typeof FontAwesome>['name'];
   color: string;
 }) {
-  return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
+  return <FontAwesome size={20} style={{ marginBottom: -3 }} {...props} />;
 }
 
 function ThemeToggleButton() {
   const { mode, setMode } = useAppTheme();
   const [open, setOpen] = useState(false);
   const iconName = 'moon-o';
-  const iconColor = mode === 'dark' ? '#38bdf8' : '#0ea5e9';
+  const iconColor = mode === 'dark' ? '#fb923c' : '#f97316';
 
   return (
     <>
@@ -72,7 +71,7 @@ function HeaderActions({ showInfo }: { showInfo?: boolean }) {
               <FontAwesome
                 name="info-circle"
                 size={18}
-                color="#93c5fd"
+                color="#94a3b8"
                 style={{ opacity: pressed ? 0.6 : 1 }}
               />
             )}
@@ -87,31 +86,42 @@ function HeaderActions({ showInfo }: { showInfo?: boolean }) {
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const isWeb = Platform.OS === 'web';
-  const sidebarWidth = 140;
+  const sidebarWidth = 200;
 
   return (
     <Tabs
+      initialRouteName="two"
       tabBar={(props) => {
         if (!isWeb) return null;
         const { state, descriptors, navigation } = props;
-        const activeColor = '#bfdbfe';
-        const inactiveColor = '#93c5fd';
 
         return (
-          <LinearGradient
-            colors={['#f97316', '#0b0f1a']}
-            locations={[0, 0.55]}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            style={[styles.sidebar, { width: sidebarWidth }]}>
+          <View style={[styles.sidebar, { width: sidebarWidth }]}>
+            {/* Marca — como no site: ícone + CHAINFOLIOAI + subtítulo */}
+            <View style={styles.brandWrap}>
+              <View style={styles.brandIconWrap}>
+                <Image
+                  source={require('@/assets/images/icon.png')}
+                  style={styles.brandIcon}
+                  resizeMode="cover"
+                />
+              </View>
+              <View style={styles.brandTextWrap}>
+                <Text style={styles.brandTitle}>CHAINFOLIOAI</Text>
+                <Text style={styles.brandSubtitle}>Portfolio Analytics</Text>
+              </View>
+            </View>
+
+            <Text style={styles.navLabel}>Navigation</Text>
+
             {state.routes.map((route, index) => {
               const isFocused = state.index === index;
               const options = descriptors[route.key].options;
               const label = options.title ?? route.name;
-              const color = isFocused ? activeColor : inactiveColor;
+              const iconColor = isFocused ? '#fb923c' : '#64748b';
               const icon =
                 typeof options.tabBarIcon === 'function'
-                  ? options.tabBarIcon({ color, focused: isFocused, size: 22 })
+                  ? options.tabBarIcon({ color: iconColor, focused: isFocused, size: 20 })
                   : null;
 
               const onPress = () => {
@@ -141,38 +151,28 @@ export default function TabLayout() {
                     pressed ? styles.sidebarItemPressed : null,
                   ]}>
                   {icon}
-                  <View style={styles.sidebarLabelWrapper}>
-                    <Text style={[styles.sidebarLabel, { color }]}>{label}</Text>
-                  </View>
+                  <Text
+                    style={[
+                      styles.sidebarLabel,
+                      { color: isFocused ? '#ffffff' : '#94a3b8' },
+                    ]}>
+                    {label}
+                  </Text>
                 </Pressable>
               );
             })}
             <View style={styles.sidebarSpacer} />
-            <View style={styles.sidebarOwlWrap}>
-              <Image
-                source={require('@/assets/images/icon.png')}
-                style={styles.sidebarLogo}
-                resizeMode="contain"
-              />
-              <LinearGradient
-                colors={['#f97316', '#7dd3fc']}
-                start={{ x: 0, y: 0.5 }}
-                end={{ x: 1, y: 0.5 }}
-                style={styles.owlTitleWrap}>
-                <Text style={styles.owlTitle}>ChainFolioAI</Text>
-              </LinearGradient>
-            </View>
-          </LinearGradient>
+          </View>
         );
       }}
       screenOptions={{
-        tabBarActiveTintColor: '#bfdbfe',
-        tabBarInactiveTintColor: '#93c5fd',
+        tabBarActiveTintColor: '#fb923c',
+        tabBarInactiveTintColor: '#64748b',
         tabBarStyle: isWeb
           ? { display: 'none' }
           : {
-              backgroundColor: Colors[colorScheme ?? 'light'].background,
-              borderTopColor: 'rgba(124, 58, 237, 0.4)',
+              backgroundColor: '#000000',
+              borderTopColor: 'rgba(255, 255, 255, 0.06)',
               borderTopWidth: 1,
             },
         headerStyle: {
@@ -198,18 +198,18 @@ export default function TabLayout() {
         headerShown: useClientOnlyValue(false, true),
       }}>
       <Tabs.Screen
-        name="index"
+        name="two"
         options={{
-          title: 'Resumo',
+          title: 'Portfolio',
           tabBarIcon: ({ color }) => <TabBarIcon name="pie-chart" color={color} />,
-          headerRight: () => <HeaderActions showInfo />,
         }}
       />
       <Tabs.Screen
-        name="two"
+        name="index"
         options={{
-          title: 'Portfólio',
-          tabBarIcon: ({ color }) => <TabBarIcon name="briefcase" color={color} />,
+          title: 'Mercado',
+          tabBarIcon: ({ color }) => <TabBarIcon name="line-chart" color={color} />,
+          headerRight: () => <HeaderActions showInfo />,
         }}
       />
       <Tabs.Screen
@@ -231,137 +231,151 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
+  // Sidebar preta como o site (bg-black, border white/6).
   sidebar: {
     position: 'absolute',
     left: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: '#0b0f1a',
+    backgroundColor: '#000000',
     borderRightWidth: 1,
-    borderRightColor: 'rgba(56, 189, 248, 0.45)',
-    paddingTop: 48,
-    gap: 6,
+    borderRightColor: 'rgba(255, 255, 255, 0.06)',
+    paddingHorizontal: 12,
+    gap: 4,
     zIndex: 10,
+  },
+  brandWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 22,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+    marginBottom: 12,
+  },
+  brandIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  brandIcon: {
+    width: '100%',
+    height: '100%',
+  },
+  brandTextWrap: {
+    flexShrink: 1,
+  },
+  brandTitle: {
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+    color: '#fb923c',
+  },
+  brandSubtitle: {
+    fontSize: 9,
+    color: '#64748b',
+    marginTop: 2,
+  },
+  navLabel: {
+    fontSize: 9,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 2.2,
+    color: '#475569',
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  sidebarItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
+  sidebarItemActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  sidebarItemPressed: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  sidebarLabel: {
+    fontSize: 14,
+    fontWeight: '500',
   },
   sidebarSpacer: {
     flex: 1,
   },
-  sidebarOwlWrap: {
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingBottom: 92,
-    gap: 8,
-  },
-  owlTitleWrap: {
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    opacity: 0.8,
-  },
-  owlTitle: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    color: '#0b0f1a',
-    textAlign: 'center',
-  },
-  sidebarLogo: {
-    width: 76,
-    height: 76,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    transform: [{ scaleX: -1 }],
-  },
-  sidebarItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginHorizontal: 10,
-    gap: 6,
-  },
-  sidebarItemActive: {
-    backgroundColor: 'rgba(56, 189, 248, 0.2)',
-  },
-  sidebarItemPressed: {
-    opacity: 0.8,
-  },
-  sidebarLabelWrapper: {
-    alignItems: 'center',
-  },
-  sidebarLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginRight: 12,
+    gap: 4,
+    marginRight: 8,
+    backgroundColor: 'transparent',
   },
   infoButton: {
-    padding: 6,
-    borderRadius: 999,
-    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    padding: 8,
   },
   themeToggle: {
-    padding: 6,
-    borderRadius: 999,
-    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    padding: 8,
   },
   themeOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(2, 6, 23, 0.6)',
-    justifyContent: 'center',
+    backgroundColor: 'rgba(2, 6, 23, 0.7)',
     alignItems: 'center',
-    padding: 20,
+    justifyContent: 'center',
+    padding: 24,
   },
   themeMenu: {
-    width: 220,
+    width: '100%',
+    maxWidth: 320,
     borderRadius: 16,
+    backgroundColor: '#0f172a',
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.35)',
-    backgroundColor: '#0b0f1a',
+    borderColor: 'rgba(30, 41, 59, 0.9)',
     padding: 16,
-    gap: 10,
+    gap: 8,
   },
   themeHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: 'transparent',
   },
   themeTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
-    color: '#e2e8f0',
+    color: '#f1f5f9',
+  },
+  themeClose: {
+    padding: 6,
+  },
+  themeCloseText: {
+    color: '#94a3b8',
+    fontSize: 14,
   },
   themeSubtitle: {
     fontSize: 12,
     color: '#94a3b8',
   },
-  themeClose: {
-    padding: 4,
-  },
-  themeCloseText: {
-    fontSize: 16,
-    color: '#94a3b8',
-  },
   themeOption: {
+    borderRadius: 12,
     paddingVertical: 10,
     paddingHorizontal: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(148, 163, 184, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
   },
   themeOptionActive: {
-    borderColor: '#38bdf8',
-    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    backgroundColor: 'rgba(249, 115, 22, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(249, 115, 22, 0.5)',
   },
   themeOptionText: {
-    fontSize: 13,
+    color: '#f1f5f9',
+    fontSize: 14,
     fontWeight: '600',
-    color: '#e2e8f0',
   },
 });
