@@ -159,7 +159,7 @@ export default function TabLayout() {
                 start={{ x: 0, y: 0.5 }}
                 end={{ x: 1, y: 0.5 }}
                 style={styles.owlTitleWrap}>
-                <Text style={styles.owlTitle}>OwlFund</Text>
+                <Text style={styles.owlTitle}>ChainFolioAI</Text>
               </LinearGradient>
             </View>
           </LinearGradient>
@@ -184,7 +184,7 @@ export default function TabLayout() {
           fontWeight: '700',
         },
         headerRight: () => <HeaderActions />,
-        sceneContainerStyle: isWeb
+        sceneStyle: isWeb
           ? {
               paddingLeft: sidebarWidth,
               paddingTop: 12,
@@ -252,11 +252,12 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   owlTitle: {
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 1.6,
+    letterSpacing: 0.6,
     textTransform: 'uppercase',
     color: '#0b0f1a',
+    textAlign: 'center',
   },
   sidebarLogo: {
     width: 76,

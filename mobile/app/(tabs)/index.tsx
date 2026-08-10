@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 
 import { Text, View } from '@/components/Themed';
 import { usePortfolio } from '@/context/PortfolioContext';
+import { useLivePrices } from '@/hooks/useLivePrices';
 import Colors from '@/constants/Colors';
 import { useAppTheme } from '@/context/ThemeContext';
 
@@ -13,11 +14,13 @@ const formatCurrency = (value: number, currency: string) =>
     currency,
   }).format(value);
 
+// CoinGecko devolve percentagens já em base 100 (ex: 2.5 = +2,5%).
 const formatPercent = (value: number) =>
   new Intl.NumberFormat('pt-BR', {
     style: 'percent',
     minimumFractionDigits: 1,
-  }).format(value);
+    maximumFractionDigits: 1,
+  }).format(value / 100);
 
 const formatCompact = (value: number) =>
   new Intl.NumberFormat('pt-BR', {
@@ -25,15 +28,20 @@ const formatCompact = (value: number) =>
     maximumFractionDigits: 2,
   }).format(value);
 
-const hashSeed = (value: string) =>
-  value.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-
-const buildSparkline = (seed: number) =>
-  Array.from({ length: 12 }).map((_, index) => {
-    const wave = Math.sin((seed + index) / 2);
-    const jitter = (seed % 7) * 0.03;
-    return Math.max(0.1, Math.min(0.95, 0.5 + wave * 0.2 + jitter));
-  });
+// Reduz a sparkline real (168 pontos ~7d) a 12 barras normalizadas 0..1.
+const normalizeSparkline = (prices: number[], buckets = 12): number[] => {
+  if (!prices || prices.length === 0) return [];
+  const step = Math.max(1, Math.floor(prices.length / buckets));
+  const sampled: number[] = [];
+  for (let i = 0; i < prices.length; i += step) {
+    sampled.push(prices[i]);
+  }
+  const min = Math.min(...sampled);
+  const max = Math.max(...sampled);
+  const range = max - min;
+  if (range === 0) return sampled.map(() => 0.5);
+  return sampled.map((p) => 0.1 + ((p - min) / range) * 0.85);
+};
 
 export default function SummaryScreen() {
   const { portfolio, isLoading } = usePortfolio();
@@ -42,34 +50,28 @@ export default function SummaryScreen() {
   const { mode } = useAppTheme();
   const palette = Colors[mode ?? 'dark'];
 
-  const assets = portfolio.categories
-    .flatMap((category) =>
-      category.assets.map((asset) => ({
-        ...asset,
-        categoryId: category.id,
-        categoryName: category.name,
-      }))
-    )
-    .map((asset, index) => {
-      const seed = hashSeed(asset.name + (asset.symbol ?? ''));
-      const price = Math.max(0.1, (seed % 9000) + 100 + index * 3.2);
-      const change1h = ((seed % 10) - 5) / 100;
-      const change24h = ((seed % 14) - 7) / 100;
-      const change7d = ((seed % 20) - 10) / 100;
-      const volume24h = price * (500000 + (seed % 900000));
-      const marketCap = price * (20000000 + (seed % 15000000));
+  const flatAssets = portfolio.categories.flatMap((category) =>
+    category.assets.map((asset) => ({
+      ...asset,
+      categoryId: category.id,
+      categoryName: category.name,
+    }))
+  );
 
-      return {
-        ...asset,
-        price,
-        change1h,
-        change24h,
-        change7d,
-        volume24h,
-        marketCap,
-        sparkline: buildSparkline(seed),
-      };
-    });
+  const symbols = flatAssets
+    .map((asset) => asset.symbol)
+    .filter((s): s is string => Boolean(s));
+
+  const { pricesBySymbol, isLoading: pricesLoading, error } = useLivePrices(symbols);
+
+  const assets = flatAssets.map((asset) => {
+    const market = asset.symbol ? pricesBySymbol[asset.symbol.toUpperCase()] : undefined;
+    return {
+      ...asset,
+      market: market ?? null,
+      sparkline: market ? normalizeSparkline(market.sparkline) : [],
+    };
+  });
 
   if (isLoading) {
     return (
@@ -79,6 +81,15 @@ export default function SummaryScreen() {
     );
   }
 
+  const statusLabel = error
+    ? 'Falha ao atualizar preços — tente novamente em instantes'
+    : pricesLoading
+      ? 'Atualizando preços...'
+      : 'Preços em tempo real (CoinGecko) · atualiza a cada 60s';
+
+  const changeStyle = (value: number | null) =>
+    value == null ? styles.muted : value >= 0 ? styles.positive : styles.negative;
+
   return (
     <RNView
       key={mode}
@@ -87,14 +98,13 @@ export default function SummaryScreen() {
         { backgroundColor: palette.background },
         isWeb ? styles.screenWeb : null,
       ]}>
-      {/* visual limpo: sem glow */}
       <ScrollView
         style={[styles.container, { backgroundColor: palette.background }]}
         contentContainerStyle={[styles.content, { backgroundColor: palette.background }]}>
         <View style={styles.headerRow}>
           <Text style={[styles.title, { color: palette.text }]}>Mercado</Text>
-          <Text style={[styles.subtitle, { color: palette.muted }]}>
-            Clique em um ativo para abrir o gráfico
+          <Text style={[styles.subtitle, { color: error ? palette.danger : palette.muted }]}>
+            {statusLabel}
           </Text>
         </View>
 
@@ -142,8 +152,7 @@ export default function SummaryScreen() {
               </View>
 
               {assets.map((asset, index) => {
-                const changeColor = (value: number) =>
-                  value >= 0 ? styles.positive : styles.negative;
+                const market = asset.market;
 
                 return (
                   <Pressable
@@ -161,7 +170,7 @@ export default function SummaryScreen() {
                     <Text style={[styles.cell, styles.cellIndex, { color: palette.text }]}>
                       {index + 1}
                     </Text>
-                    <View style={[styles.cell, styles.cellAsset]}>
+                    <View style={styles.cellAsset}>
                       <Text style={[styles.assetName, { color: palette.text }]}>
                         {asset.name}
                       </Text>
@@ -170,39 +179,45 @@ export default function SummaryScreen() {
                       </Text>
                     </View>
                     <Text style={[styles.cell, styles.cellPrice, { color: palette.text }]}>
-                      {formatCurrency(asset.price, 'EUR')}
+                      {market ? formatCurrency(market.priceEur, 'EUR') : '—'}
                     </Text>
-                    <Text style={[styles.cell, styles.cellChange, changeColor(asset.change1h)]}>
-                      {formatPercent(asset.change1h)}
+                    <Text style={[styles.cell, styles.cellChange, changeStyle(market?.change1h ?? null)]}>
+                      {market && market.change1h != null ? formatPercent(market.change1h) : '—'}
                     </Text>
-                    <Text style={[styles.cell, styles.cellChange, changeColor(asset.change24h)]}>
-                      {formatPercent(asset.change24h)}
+                    <Text style={[styles.cell, styles.cellChange, changeStyle(market?.change24h ?? null)]}>
+                      {market && market.change24h != null ? formatPercent(market.change24h) : '—'}
                     </Text>
-                    <Text style={[styles.cell, styles.cellChange, changeColor(asset.change7d)]}>
-                      {formatPercent(asset.change7d)}
+                    <Text style={[styles.cell, styles.cellChange, changeStyle(market?.change7d ?? null)]}>
+                      {market && market.change7d != null ? formatPercent(market.change7d) : '—'}
                     </Text>
                     <Text style={[styles.cell, styles.cellVolume, { color: palette.text }]}>
-                      € {formatCompact(asset.volume24h)}
+                      {market ? `€ ${formatCompact(market.volumeEur)}` : '—'}
                     </Text>
                     <Text style={[styles.cell, styles.cellCap, { color: palette.text }]}>
-                      € {formatCompact(asset.marketCap)}
+                      {market && market.marketCapEur != null
+                        ? `€ ${formatCompact(market.marketCapEur)}`
+                        : '—'}
                     </Text>
-                    <View style={[styles.cell, styles.cellSpark]}>
-                      <View style={styles.sparkline}>
-                        {asset.sparkline.map((value, sparkIndex) => (
-                      <View
-                            key={`${asset.id}-${sparkIndex}`}
-                            style={[
-                              styles.sparkBar,
-                              {
-                                height: `${Math.round(value * 100)}%`,
-                                backgroundColor:
-                                  asset.change7d >= 0 ? '#22c55e' : '#ef4444',
-                              },
-                            ]}
-                          />
-                        ))}
-                      </View>
+                    <View style={styles.cellSpark}>
+                      {asset.sparkline.length > 0 ? (
+                        <View style={styles.sparkline}>
+                          {asset.sparkline.map((value, sparkIndex) => (
+                            <View
+                              key={`${asset.id}-${sparkIndex}`}
+                              style={[
+                                styles.sparkBar,
+                                {
+                                  height: `${Math.round(value * 100)}%`,
+                                  backgroundColor:
+                                    (market?.change7d ?? 0) >= 0 ? '#22c55e' : '#ef4444',
+                                },
+                              ]}
+                            />
+                          ))}
+                        </View>
+                      ) : (
+                        <Text style={[styles.assetSymbol, { color: palette.muted }]}>—</Text>
+                      )}
                     </View>
                   </Pressable>
                 );
@@ -312,6 +327,9 @@ const styles = StyleSheet.create({
   },
   negative: {
     color: '#ef4444',
+  },
+  muted: {
+    color: '#94a3b8',
   },
   sparkline: {
     flexDirection: 'row',

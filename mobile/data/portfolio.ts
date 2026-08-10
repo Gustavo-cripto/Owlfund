@@ -3,6 +3,10 @@ export type Asset = {
   name: string;
   symbol?: string;
   invested: number;
+  // Quantidade de unidades detidas (ex: 0.25 BTC). Necessária para o PNL real:
+  // valor atual = preço × quantity. Opcional — ativos sem preço (tradicionais)
+  // ou registados só pelo valor investido ficam sem quantity.
+  quantity?: number;
 };
 
 export type Category = {
@@ -27,9 +31,9 @@ export const portfolio = {
       id: 'crypto',
       name: 'Cripto',
       assets: [
-        { id: 'btc', name: 'Bitcoin', symbol: 'BTC', invested: 9200 },
-        { id: 'eth', name: 'Ethereum', symbol: 'ETH', invested: 4100 },
-        { id: 'sol', name: 'Solana', symbol: 'SOL', invested: 1800 },
+        { id: 'btc', name: 'Bitcoin', symbol: 'BTC', invested: 9200, quantity: 0.15 },
+        { id: 'eth', name: 'Ethereum', symbol: 'ETH', invested: 4100, quantity: 1.4 },
+        { id: 'sol', name: 'Solana', symbol: 'SOL', invested: 1800, quantity: 12 },
       ],
     },
   ],

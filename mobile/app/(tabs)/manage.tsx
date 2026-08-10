@@ -60,6 +60,7 @@ export default function ManageScreen() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [selectedAsset, setSelectedAsset] = useState<AssetOption | null>(null);
   const [invested, setInvested] = useState('');
+  const [quantity, setQuantity] = useState('');
   const [error, setError] = useState('');
   const [editing, setEditing] = useState<EditingState>(null);
   const [showAssetPicker, setShowAssetPicker] = useState(false);
@@ -84,6 +85,7 @@ export default function ManageScreen() {
   const resetForm = () => {
     setSelectedAsset(null);
     setInvested('');
+    setQuantity('');
     setEditing(null);
     setError('');
     setShowAssetPicker(false);
@@ -111,17 +113,26 @@ export default function ManageScreen() {
       return;
     }
 
+    const normalizedQty = quantity.replace(',', '.').replace(/[^0-9.]/g, '');
+    const qtyAmount = normalizedQty ? Number(normalizedQty) : undefined;
+    if (qtyAmount !== undefined && (!Number.isFinite(qtyAmount) || qtyAmount < 0)) {
+      setError('Informe uma quantidade valida.');
+      return;
+    }
+
     if (editing) {
       updateAsset(editing.categoryId, editing.assetId, {
         name: selectedAsset.name,
         symbol: selectedAsset.symbol ?? undefined,
         invested: amount,
+        quantity: qtyAmount,
       });
     } else {
       addAsset(selectedCategoryId, {
         name: selectedAsset.name,
         symbol: selectedAsset.symbol ?? undefined,
         invested: amount,
+        quantity: qtyAmount,
       });
     }
 
@@ -135,6 +146,7 @@ export default function ManageScreen() {
     setSelectedCategoryId(categoryId);
     setSelectedAsset({ name: asset.name, symbol: asset.symbol });
     setInvested(asset.invested.toString().replace('.', ','));
+    setQuantity(asset.quantity != null ? asset.quantity.toString().replace('.', ',') : '');
     setEditing({ categoryId, assetId });
     setError('');
   };
@@ -286,6 +298,24 @@ export default function ManageScreen() {
           </LinearGradient>
         </View>
 
+        <View style={styles.fieldGroup}>
+          <Text style={styles.sectionTitle}>Quantidade</Text>
+          <LinearGradient
+            colors={['rgba(249, 115, 22, 0.45)', '#030712']}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={styles.gradientBorderSm}>
+            <TextInput
+              value={quantity}
+              onChangeText={setQuantity}
+              placeholder="Ex: 0,15 (necessario p/ PNL real)"
+              style={styles.input}
+              placeholderTextColor={palette.muted}
+              keyboardType="decimal-pad"
+            />
+          </LinearGradient>
+        </View>
+
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <View style={styles.actionsRow}>
@@ -334,6 +364,7 @@ export default function ManageScreen() {
                     <Text style={styles.assetMeta}>
                       {asset.symbol ? `${asset.symbol} · ` : ''}
                       {formatCurrency(asset.invested, portfolio.currency)}
+                      {asset.quantity != null ? ` · ${asset.quantity} un.` : ''}
                     </Text>
                   </View>
                   <View style={styles.assetActions}>
