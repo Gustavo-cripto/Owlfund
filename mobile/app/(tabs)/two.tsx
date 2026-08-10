@@ -1,4 +1,5 @@
-import { Platform, Pressable, ScrollView, StyleSheet, View as RNView } from 'react-native';
+import { useState } from 'react';
+import { Platform, Pressable, RefreshControl, ScrollView, StyleSheet, View as RNView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 
@@ -35,7 +36,7 @@ const formatPercent = (value: number) =>
   }).format(value);
 
 export default function AssetsScreen() {
-  const { portfolio, isLoading } = usePortfolio();
+  const { portfolio, isLoading, source, refreshCloud } = usePortfolio();
   const router = useRouter();
   const isWeb = Platform.OS === 'web';
   const { mode } = useAppTheme();
@@ -53,7 +54,16 @@ export default function AssetsScreen() {
     .map((asset) => asset.symbol)
     .filter((s): s is string => Boolean(s));
 
-  const { pricesBySymbol, isLoading: pricesLoading, error } = useLivePrices(symbols);
+  const { pricesBySymbol, isLoading: pricesLoading, error, refresh } = useLivePrices(symbols);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    refresh();
+    // Logado: puxa também o portfólio atualizado do site.
+    if (source === 'cloud') await refreshCloud().catch(() => null);
+    setTimeout(() => setRefreshing(false), 800);
+  };
 
   // Enriquecer cada ativo com valor atual/PNL reais quando há preço + quantidade.
   const assets = flatAssets.map((asset) => {
@@ -121,7 +131,10 @@ export default function AssetsScreen() {
       ]}>
       <ScrollView
         style={[styles.container, { backgroundColor: palette.background }]}
-        contentContainerStyle={[styles.content, { backgroundColor: palette.background }]}>
+        contentContainerStyle={[styles.content, { backgroundColor: palette.background }]}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#f97316" />
+        }>
         <PriceTicker />
         <Text style={[styles.title, { color: palette.text }]}>Portfolio</Text>
         <Text style={[styles.subtitle, { color: error ? palette.danger : palette.muted }]}>

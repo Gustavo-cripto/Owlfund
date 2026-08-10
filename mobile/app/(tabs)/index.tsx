@@ -1,4 +1,5 @@
-import { Platform, Pressable, ScrollView, StyleSheet, View as RNView } from 'react-native';
+import { useState } from 'react';
+import { Platform, Pressable, RefreshControl, ScrollView, StyleSheet, View as RNView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 
@@ -63,7 +64,15 @@ export default function SummaryScreen() {
     .map((asset) => asset.symbol)
     .filter((s): s is string => Boolean(s));
 
-  const { pricesBySymbol, isLoading: pricesLoading, error } = useLivePrices(symbols);
+  const { pricesBySymbol, isLoading: pricesLoading, error, refresh } = useLivePrices(symbols);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    refresh();
+    // O hook não expõe promessa; 1,2s cobre o fetch típico sem prender o gesto.
+    setTimeout(() => setRefreshing(false), 1200);
+  };
 
   const assets = flatAssets.map((asset) => {
     const market = asset.symbol ? pricesBySymbol[asset.symbol.toUpperCase()] : undefined;
@@ -101,7 +110,10 @@ export default function SummaryScreen() {
       ]}>
       <ScrollView
         style={[styles.container, { backgroundColor: palette.background }]}
-        contentContainerStyle={[styles.content, { backgroundColor: palette.background }]}>
+        contentContainerStyle={[styles.content, { backgroundColor: palette.background }]}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#f97316" />
+        }>
         <PriceTicker />
         <View style={styles.headerRow}>
           <Text style={[styles.title, { color: palette.text }]}>Mercado</Text>

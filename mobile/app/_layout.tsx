@@ -73,7 +73,16 @@ function RootLayoutNav() {
               headerTitleStyle: { fontWeight: '700' },
             }}
           />
-          <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+          <Stack.Screen
+            name="modal"
+            options={{
+              presentation: 'modal',
+              title: 'Sobre',
+              headerStyle: { backgroundColor: colors.background },
+              headerTintColor: colors.text,
+              headerTitleStyle: { fontWeight: '700' },
+            }}
+          />
         </Stack>
       </PortfolioProvider>
       </AuthProvider>

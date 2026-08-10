@@ -57,10 +57,10 @@ const CACHE_TTL_MS = 55_000;
 const cacheByKey = new Map<string, { at: number; rows: CoinGeckoMarket[] }>();
 const inflightByKey = new Map<string, Promise<CoinGeckoMarket[]>>();
 
-async function fetchRows(ids: string[]): Promise<CoinGeckoMarket[]> {
+async function fetchRows(ids: string[], force = false): Promise<CoinGeckoMarket[]> {
   const key = ids.join(',');
   const cached = cacheByKey.get(key);
-  if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.rows;
+  if (!force && cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.rows;
 
   const existing = inflightByKey.get(key);
   if (existing) return existing;
@@ -94,7 +94,8 @@ async function fetchRows(ids: string[]): Promise<CoinGeckoMarket[]> {
 // Recebe símbolos (ex: ['BTC','ETH']), resolve ids e devolve um mapa
 // símbolo→MarketRow apenas para os que o CoinGecko reconhece.
 export async function fetchMarketPrices(
-  symbols: string[]
+  symbols: string[],
+  opts?: { force?: boolean }
 ): Promise<Record<string, MarketRow>> {
   const ids = Array.from(
     new Set(
@@ -106,7 +107,7 @@ export async function fetchMarketPrices(
 
   if (ids.length === 0) return {};
 
-  const rows = await fetchRows(ids);
+  const rows = await fetchRows(ids, opts?.force ?? false);
   const bySymbol: Record<string, MarketRow> = {};
 
   for (const row of rows) {

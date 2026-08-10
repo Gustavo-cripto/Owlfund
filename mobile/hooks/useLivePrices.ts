@@ -24,8 +24,13 @@ export function useLivePrices(symbols: string[]): LivePricesState {
   const [error, setError] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
   const isMountedRef = useRef(true);
+  // O refresh manual (pull-to-refresh) fura a cache; o automático de 60s não.
+  const forceRef = useRef(false);
 
-  const refresh = useCallback(() => setNonce((n) => n + 1), []);
+  const refresh = useCallback(() => {
+    forceRef.current = true;
+    setNonce((n) => n + 1);
+  }, []);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -45,8 +50,10 @@ export function useLivePrices(symbols: string[]): LivePricesState {
 
     let cancelled = false;
     setIsLoading(true);
+    const force = forceRef.current;
+    forceRef.current = false;
 
-    fetchMarketPrices(list)
+    fetchMarketPrices(list, { force })
       .then((data) => {
         if (cancelled || !isMountedRef.current) return;
         setPricesBySymbol(data);
