@@ -52,7 +52,7 @@ const ASSET_OPTIONS: Record<string, AssetOption[]> = {
 };
 
 export default function ManageScreen() {
-  const { portfolio, isLoading, addAsset, updateAsset, removeAsset } = usePortfolio();
+  const { portfolio, isLoading, source, addAsset, updateAsset, removeAsset } = usePortfolio();
   const isWeb = Platform.OS === 'web';
   const { mode } = useAppTheme();
   const palette = Colors[mode ?? 'dark'];
@@ -181,6 +181,23 @@ export default function ManageScreen() {
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <Text style={styles.title}>Gerenciar ativos</Text>
         <Text style={styles.subtitle}>Adicione, edite ou remova ativos do portfólio</Text>
+
+        {source === 'cloud' && (
+          <RNView
+            style={{
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: 'rgba(249, 115, 22, 0.5)',
+              backgroundColor: 'rgba(249, 115, 22, 0.08)',
+              padding: 12,
+            }}>
+            <Text style={{ color: palette.text, fontSize: 13, lineHeight: 19 }}>
+              Estás com sessão iniciada: o Resumo e o Portfólio mostram os dados da tua
+              conta do site. Para editares esses ativos usa o site (tab Conta → “Abrir o
+              site”). O que adicionares aqui fica só neste dispositivo.
+            </Text>
+          </RNView>
+        )}
 
         <LinearGradient
           colors={['rgba(249, 115, 22, 0.45)', '#030712']}

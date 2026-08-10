@@ -150,7 +150,7 @@ export default function TabLayout() {
             <View style={styles.sidebarSpacer} />
             <View style={styles.sidebarOwlWrap}>
               <Image
-                source={require('@/assets/images/portfolio-logo.png')}
+                source={require('@/assets/images/icon.png')}
                 style={styles.sidebarLogo}
                 resizeMode="contain"
               />
@@ -217,6 +217,13 @@ export default function TabLayout() {
         options={{
           title: 'Gerenciar',
           tabBarIcon: ({ color }) => <TabBarIcon name="sliders" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="conta"
+        options={{
+          title: 'Conta',
+          tabBarIcon: ({ color }) => <TabBarIcon name="user-circle" color={color} />,
         }}
       />
     </Tabs>

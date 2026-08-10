@@ -8,6 +8,7 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { AppThemeProvider } from '@/context/ThemeContext';
+import { AuthProvider } from '@/context/AuthContext';
 import { PortfolioProvider } from '@/context/PortfolioContext';
 
 export {
@@ -59,6 +60,7 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider key={colorScheme} value={theme}>
+      <AuthProvider>
       <PortfolioProvider>
         <Stack key={colorScheme}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -74,6 +76,7 @@ function RootLayoutNav() {
           <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
         </Stack>
       </PortfolioProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }
