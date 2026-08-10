@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -8,12 +8,26 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 
 async function getAuthUser() {
+  // 1) Sessão por cookies (site).
   const cookieStore = await cookies();
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: { get: (name) => cookieStore.get(name)?.value, set: () => {}, remove: () => {} },
   });
   const { data } = await supabase.auth.getUser();
-  return data.user ?? null;
+  if (data.user) return data.user;
+
+  // 2) Bearer token (app mobile) — valida o JWT junto do Supabase.
+  const h = await headers();
+  const auth = h.get("authorization") ?? "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+  if (!token) return null;
+  try {
+    const anon = createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: false } });
+    const { data: viaToken } = await anon.auth.getUser(token);
+    return viaToken.user ?? null;
+  } catch {
+    return null;
+  }
 }
 
 // GET — carrega config de carteiras do Supabase
