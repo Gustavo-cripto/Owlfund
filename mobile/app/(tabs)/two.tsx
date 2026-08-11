@@ -85,9 +85,10 @@ export default function AssetsScreen() {
   const totalInvested = assets.reduce((sum, a) => sum + a.invested, 0);
   const totalCurrent = assets.reduce((sum, a) => sum + a.currentValue, 0);
 
-  // PNL % é relativo apenas ao capital dos ativos com preço (senão fica enganoso).
-  const investedPriced = assets.reduce((sum, a) => (a.priced ? sum + a.invested : sum), 0);
-  const currentPriced = assets.reduce((sum, a) => (a.priced ? sum + a.currentValue : sum), 0);
+  // PNL % é relativo apenas ao capital COM custo registado (saldos de carteira
+  // não têm preço de compra — entram no valor atual mas não no PNL).
+  const investedPriced = assets.reduce((sum, a) => (a.priced && a.invested > 0 ? sum + a.invested : sum), 0);
+  const currentPriced = assets.reduce((sum, a) => (a.priced && a.invested > 0 ? sum + a.currentValue : sum), 0);
   const pnlValue = currentPriced - investedPriced;
   const pnlPct = investedPriced > 0 ? pnlValue / investedPriced : null;
 
@@ -186,6 +187,27 @@ export default function AssetsScreen() {
           })}
         </View>
 
+        {/* Logado mas sem dados sincronizados: guiar em vez de ecrã vazio. */}
+        {source === 'cloud' && assets.length === 0 && (
+          <RNView
+            style={{
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: 'rgba(249, 115, 22, 0.5)',
+              backgroundColor: 'rgba(249, 115, 22, 0.08)',
+              padding: 16,
+            }}>
+            <Text style={{ color: palette.text, fontSize: 14, fontWeight: '700' }}>
+              A tua conta ainda não tem dados sincronizados 📭
+            </Text>
+            <Text style={{ color: palette.muted, fontSize: 13, lineHeight: 19, marginTop: 6 }}>
+              Abre chainfolioai.com no browser, entra na conta e adiciona (ou edita) as tuas
+              carteiras e ativos — o site sincroniza para a nuvem quando os dados mudam.
+              Depois volta aqui e puxa para baixo para atualizar.
+            </Text>
+          </RNView>
+        )}
+
         {/* Alocação por categoria — como o dashboard do site */}
         {totalCurrent > 0 && (
           <LinearGradient
@@ -274,10 +296,12 @@ export default function AssetsScreen() {
                 <Text style={[styles.assetValue, { color: palette.text }]}>
                   {formatCurrency(asset.currentValue, portfolio.currency)}
                 </Text>
-                {asset.priced ? (
+                {asset.priced && asset.invested > 0 ? (
                   <Text style={[styles.assetPnl, asset.pnl >= 0 ? styles.positive : styles.negative]}>
                     {formatSignedCurrency(asset.pnl, portfolio.currency)}
                   </Text>
+                ) : asset.priced ? (
+                  <Text style={[styles.assetPnl, { color: palette.muted }]}>carteira</Text>
                 ) : (
                   <Text style={[styles.assetPnl, { color: palette.muted }]}>investido</Text>
                 )}

@@ -24,6 +24,17 @@ type CloudBlobV3 = {
 
 const CRYPTO_BASE = 'owlfund.crypto.holdings.v1';
 const TRADITIONAL_BASE = 'owlfund.traditional.holdings.v1';
+const WALLETS_BASE = 'portfolio-wallets';
+
+// Carteiras on-chain guardadas pelo site: entradas com o último saldo conhecido.
+type StoredWalletEntry = { address?: string; balance?: string; network?: string; label?: string };
+type WalletSnapshot = {
+  eth?: StoredWalletEntry[];
+  sol?: StoredWalletEntry[];
+  btc?: StoredWalletEntry[];
+  ada?: StoredWalletEntry[];
+};
+const CHAIN_SYMBOL: Record<string, string> = { eth: 'ETH', sol: 'SOL', btc: 'BTC', ada: 'ADA' };
 
 // Nomes bonitos para símbolos comuns (fallback: o próprio símbolo).
 const SYMBOL_NAMES: Record<string, string> = {
@@ -76,6 +87,21 @@ export function blobToCategories(blob: CloudBlobV3): Category[] {
         const cur = traditional.get(sym) ?? { invested: 0 };
         cur.invested += Number(h.buyValue ?? 0) || 0;
         traditional.set(sym, cur);
+      }
+    }
+    // Carteiras on-chain: soma o último saldo conhecido por moeda (sem custo).
+    const w = parseJson<WalletSnapshot>(perAcc[WALLETS_BASE]);
+    if (w) {
+      for (const [chain, sym] of Object.entries(CHAIN_SYMBOL)) {
+        const entries = (w as Record<string, StoredWalletEntry[] | undefined>)[chain];
+        if (!Array.isArray(entries)) continue;
+        for (const e of entries) {
+          const qty = Number(e?.balance);
+          if (!Number.isFinite(qty) || qty <= 0) continue;
+          const cur = crypto.get(sym) ?? { invested: 0, quantity: 0 };
+          cur.quantity += qty;
+          crypto.set(sym, cur);
+        }
       }
     }
   }

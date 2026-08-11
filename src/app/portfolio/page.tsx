@@ -380,6 +380,9 @@ export default function PortfolioPage() {
       if (snapshot.eth?.length || snapshot.sol?.length || snapshot.btc?.length || snapshot.ada?.length) {
         setWallets(snapshotToWallets(snapshot, tokenPricesRef.current));
       }
+      // Após o merge, envia o estado local para a nuvem — garante que a app
+      // mobile (e outros dispositivos) veem os dados mesmo sem edições novas.
+      pushWalletCloud();
 
       if (!snapshot.eth?.length && !snapshot.sol?.length && !snapshot.btc?.length && !snapshot.ada?.length) return;
 

@@ -688,6 +688,9 @@ export default function WalletsPage() {
           setStablecoinEntries(loadStablecoinEntries());
         }
         walletsHydratedRef.current = true;
+        // Após o merge, envia o estado local para a nuvem — garante que a app
+        // mobile (e outros dispositivos) veem os dados mesmo sem edições novas.
+        pushWalletCloud();
       });
   }, []);
 
