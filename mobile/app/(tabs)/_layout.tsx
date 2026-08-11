@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Link, Tabs } from 'expo-router';
 import { Image, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
 
@@ -88,11 +89,9 @@ export default function TabLayout() {
   const isWeb = Platform.OS === 'web';
   const sidebarWidth = 200;
 
-  return (
-    <Tabs
-      initialRouteName="two"
-      tabBar={(props) => {
-        if (!isWeb) return null;
+  // NOTA: passar `tabBar` substitui SEMPRE a barra nativa — por isso só o
+  // passamos no web (sidebar). No nativo fica a tab bar normal em baixo.
+  const webSidebar = (props: BottomTabBarProps) => {
         const { state, descriptors, navigation } = props;
 
         return (
@@ -164,7 +163,12 @@ export default function TabLayout() {
             <View style={styles.sidebarSpacer} />
           </View>
         );
-      }}
+  };
+
+  return (
+    <Tabs
+      initialRouteName="two"
+      {...(isWeb ? { tabBar: webSidebar } : {})}
       screenOptions={{
         tabBarActiveTintColor: '#fb923c',
         tabBarInactiveTintColor: '#64748b',
