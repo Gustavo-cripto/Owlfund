@@ -182,12 +182,22 @@ export async function GET(req: NextRequest) {
     byDay: [],
   };
   try {
-    // Uma so leitura (14 dias) serve o top de paginas (7d) e a serie diaria (14d).
-    const { data } = await admin
-      .from("page_views")
-      .select("path, created_at")
-      .gte("created_at", ISO(daysAgo(14)))
-      .limit(20000);
+    // Le TODAS as visitas dos ultimos 14 dias (serve o top de paginas 7d e a serie diaria 14d).
+    // NB: o PostgREST devolve no maximo ~1000 linhas por pedido (max-rows) e IGNORA .limit(),
+    // por isso paginamos com .range() ate ler tudo — senao os dias recentes ficavam a 0.
+    const data: Array<{ path: string; created_at: string }> = [];
+    const PAGE = 1000;
+    for (let from = 0; from < 100000; from += PAGE) {
+      const { data: page, error } = await admin
+        .from("page_views")
+        .select("path, created_at")
+        .gte("created_at", ISO(daysAgo(14)))
+        .order("created_at", { ascending: true })
+        .range(from, from + PAGE - 1);
+      if (error || !page || page.length === 0) break;
+      data.push(...(page as Array<{ path: string; created_at: string }>));
+      if (page.length < PAGE) break;
+    }
     const sevenAgo = daysAgo(7).getTime();
     const pathCounts: Record<string, number> = {};
     const dayCounts: Record<string, number> = {};
