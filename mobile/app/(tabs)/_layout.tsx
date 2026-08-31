@@ -224,6 +224,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="mais"
+        options={{
+          title: 'Mais',
+          tabBarIcon: ({ color }) => <TabBarIcon name="th-large" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="conta"
         options={{
           title: 'Conta',

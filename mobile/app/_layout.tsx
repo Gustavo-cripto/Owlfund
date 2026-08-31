@@ -74,6 +74,15 @@ function RootLayoutNav() {
             }}
           />
           <Stack.Screen
+            name="site/[page]"
+            options={{
+              title: 'ChainFolioAI',
+              headerStyle: { backgroundColor: colors.background },
+              headerTintColor: colors.text,
+              headerTitleStyle: { fontWeight: '700' },
+            }}
+          />
+          <Stack.Screen
             name="modal"
             options={{
               presentation: 'modal',
