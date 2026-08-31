@@ -74,6 +74,15 @@ function RootLayoutNav() {
             }}
           />
           <Stack.Screen
+            name="fire"
+            options={{
+              title: 'FIRE',
+              headerStyle: { backgroundColor: colors.background },
+              headerTintColor: colors.text,
+              headerTitleStyle: { fontWeight: '700' },
+            }}
+          />
+          <Stack.Screen
             name="site/[page]"
             options={{
               title: 'ChainFolioAI',

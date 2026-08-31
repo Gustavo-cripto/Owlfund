@@ -26,7 +26,7 @@ const ITEMS: Item[] = [
   { key: 'gestor', label: 'Gestor IA', icon: 'android', desc: 'Block · análise IA do teu portfólio' },
   { key: 'historico', label: 'Histórico', icon: 'clock-o', desc: 'Evolução e registos' },
   { key: 'impostos', label: 'Impostos', icon: 'file-text-o', desc: 'Fiscalidade FIFO · 14 países' },
-  { key: 'fire', label: 'FIRE', icon: 'fire', desc: 'Simulador de independência financeira' },
+  { key: 'fire', label: 'FIRE', icon: 'fire', desc: 'Simulador nativo · regra dos 4%' },
   { key: 'planos', label: 'Planos', icon: 'star-o', desc: 'Free · Pro · Premium' },
   { key: 'api', label: 'API & MCP', icon: 'code', desc: 'Chaves de API e assistentes IA' },
 ];
@@ -37,6 +37,11 @@ export default function MaisScreen() {
   const router = useRouter();
 
   const open = (key: string) => {
+    // Secções já NATIVAS abrem o ecrã da app (não o site embutido).
+    if (key === 'fire') {
+      router.push('/fire' as never);
+      return;
+    }
     if (Platform.OS === 'web') {
       // No web, cada item abre o próprio site (não se embute por CSP).
       const paths: Record<string, string> = {
