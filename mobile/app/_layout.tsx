@@ -74,6 +74,15 @@ function RootLayoutNav() {
             }}
           />
           <Stack.Screen
+            name="historico"
+            options={{
+              title: 'Histórico',
+              headerStyle: { backgroundColor: colors.background },
+              headerTintColor: colors.text,
+              headerTitleStyle: { fontWeight: '700' },
+            }}
+          />
+          <Stack.Screen
             name="gestor"
             options={{
               title: 'Block · Gestor IA',

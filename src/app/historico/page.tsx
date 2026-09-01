@@ -3,6 +3,8 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
+import { accKey } from "@/lib/portfolios/accounts";
+import { pullWalletCloud, pushWalletCloud } from "@/lib/portfolios/cloudSync";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useTheme } from "@/lib/theme/ThemeContext";
 
@@ -74,13 +76,19 @@ const fmtQty = (v: number, sym: string) =>
 
 const loadTxs = (): Transaction[] => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    // Namespaced por conta (sincroniza com a nuvem); fallback para a chave
+    // legada não-prefixada de quem já tinha histórico guardado.
+    const raw = localStorage.getItem(accKey(STORAGE_KEY)) ?? localStorage.getItem(STORAGE_KEY);
     return raw ? (JSON.parse(raw) as Transaction[]) : [];
   } catch { return []; }
 };
 
 const saveTxs = (txs: Transaction[]) => {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(txs)); } catch {}
+  try {
+    localStorage.setItem(accKey(STORAGE_KEY), JSON.stringify(txs));
+  } catch {}
+  // Envia para a nuvem (app mobile + outros dispositivos).
+  pushWalletCloud();
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -94,7 +102,11 @@ export default function HistoricoPage() {
   const [txs, setTxs] = useState<Transaction[]>([]);
 
   useEffect(() => {
-    setTxs(loadTxs());
+    // Puxa da nuvem primeiro (histórico de outros dispositivos/app) e só
+    // depois lê — sem sobrescrever dados locais (merge do cloudSync).
+    pullWalletCloud()
+      .catch(() => false)
+      .then(() => setTxs(loadTxs()));
   }, []);
 
   const persist = useCallback((next: Transaction[]) => {
