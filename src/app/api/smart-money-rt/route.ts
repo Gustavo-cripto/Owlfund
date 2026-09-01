@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { scanWatchlist, type WatchEntry } from "@/lib/api/whales";
 
@@ -16,10 +17,28 @@ export async function GET(req: NextRequest) {
   });
 
   const { data: userData } = await supabase.auth.getUser();
-  const user = userData.user;
+  let user = userData.user;
+  // Cliente para consultar a BD respeitando RLS: cookies por defeito; com
+  // Bearer (app mobile) usa um cliente autenticado com o próprio token.
+  let db: Pick<typeof supabase, "from"> = supabase;
+  if (!user) {
+    const auth = req.headers.get("authorization") ?? "";
+    const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+    if (token) {
+      try {
+        const viaTokenClient = createClient(supabaseUrl, supabaseAnonKey, {
+          auth: { persistSession: false },
+          global: { headers: { Authorization: `Bearer ${token}` } },
+        });
+        const { data: viaToken } = await viaTokenClient.auth.getUser(token);
+        user = viaToken.user ?? null;
+        if (user) db = viaTokenClient;
+      } catch { /* fica null */ }
+    }
+  }
   if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
 
-  const { data: sub } = await supabase.from("subscriptions")
+  const { data: sub } = await db.from("subscriptions")
     .select("status, price_id").eq("user_id", user.id).eq("status", "active").maybeSingle();
   const isPremium = !!premiumPriceId && sub?.price_id === premiumPriceId;
   if (!isPremium) return NextResponse.json({ error: "Requer Premium." }, { status: 403 });

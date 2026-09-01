@@ -74,6 +74,15 @@ function RootLayoutNav() {
             }}
           />
           <Stack.Screen
+            name="smart-money"
+            options={{
+              title: 'Smart Money',
+              headerStyle: { backgroundColor: colors.background },
+              headerTintColor: colors.text,
+              headerTitleStyle: { fontWeight: '700' },
+            }}
+          />
+          <Stack.Screen
             name="carteiras"
             options={{
               title: 'Carteiras',

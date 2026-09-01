@@ -22,7 +22,7 @@ type Item = {
 const ITEMS: Item[] = [
   { key: 'dashboard', label: 'Dashboard', icon: 'th-large', desc: 'Nativo · portfólio + mercado global' },
   { key: 'carteiras', label: 'Carteiras', icon: 'credit-card', desc: 'Nativo · ver e adicionar on-chain' },
-  { key: 'smart-money', label: 'Smart Money', icon: 'eye', desc: 'Movimentos de whales em tempo real' },
+  { key: 'smart-money', label: 'Smart Money', icon: 'eye', desc: 'Nativo · whales em tempo real' },
   { key: 'gestor', label: 'Gestor IA', icon: 'android', desc: 'Block · análise IA do teu portfólio' },
   { key: 'historico', label: 'Histórico', icon: 'clock-o', desc: 'Evolução e registos' },
   { key: 'impostos', label: 'Impostos', icon: 'file-text-o', desc: 'Fiscalidade FIFO · 14 países' },
@@ -48,6 +48,10 @@ export default function MaisScreen() {
     }
     if (key === 'carteiras') {
       router.push('/carteiras' as never);
+      return;
+    }
+    if (key === 'smart-money') {
+      router.push('/smart-money' as never);
       return;
     }
     if (Platform.OS === 'web') {
