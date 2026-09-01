@@ -5,8 +5,12 @@ import { WebView } from 'react-native-webview';
 
 import { Text } from '@/components/Themed';
 import { usePortfolio } from '@/context/PortfolioContext';
+import { useLivePrices } from '@/hooks/useLivePrices';
 import Colors from '@/constants/Colors';
 import { useAppTheme } from '@/context/ThemeContext';
+
+const fmtEur = (v: number) =>
+  new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(v);
 
 const resolveSymbol = (symbol: string | undefined, categoryName: string) => {
   if (!symbol) return null;
@@ -39,6 +43,13 @@ export default function AssetChartScreen() {
       chartSymbol: resolveSymbol(assetFound?.symbol, resolvedCategoryName),
     };
   }, [assetId, categoryId, portfolio.categories]);
+
+  // Posição em tempo real (preço vivo × quantidade) para o cabeçalho.
+  const { pricesBySymbol } = useLivePrices(asset?.symbol ? [asset.symbol] : []);
+  const market = asset?.symbol ? pricesBySymbol[asset.symbol.toUpperCase()] : undefined;
+  const hasQty = asset?.quantity != null && asset.quantity > 0;
+  const currentValue = market && hasQty ? market.priceEur * (asset!.quantity as number) : null;
+  const pnl = currentValue != null && (asset?.invested ?? 0) > 0 ? currentValue - asset!.invested : null;
 
   if (!asset) {
     return (
@@ -74,6 +85,44 @@ export default function AssetChartScreen() {
           {categoryName} · {chartSymbol}
         </Text>
       </View>
+
+      {/* Posição — preço vivo, valor, PNL */}
+      <View style={styles.statsRow}>
+        <View style={styles.statBox}>
+          <Text style={styles.statLabel}>PREÇO</Text>
+          <Text style={styles.statValue}>{market ? fmtEur(market.priceEur) : '—'}</Text>
+          {market?.change24h != null && (
+            <Text style={{ color: market.change24h >= 0 ? '#34d399' : '#fb7185', fontSize: 11, fontWeight: '700' }}>
+              {market.change24h >= 0 ? '+' : ''}
+              {market.change24h.toFixed(1)}% 24h
+            </Text>
+          )}
+        </View>
+        <View style={styles.statBox}>
+          <Text style={styles.statLabel}>POSIÇÃO</Text>
+          <Text style={styles.statValue}>
+            {currentValue != null ? fmtEur(currentValue) : fmtEur(asset.invested)}
+          </Text>
+          <Text style={{ color: palette.muted, fontSize: 11 }}>
+            {hasQty ? `${asset.quantity} un.` : 'investido'}
+          </Text>
+        </View>
+        <View style={styles.statBox}>
+          <Text style={styles.statLabel}>PNL</Text>
+          <Text
+            style={[
+              styles.statValue,
+              { color: pnl == null ? palette.muted : pnl >= 0 ? '#34d399' : '#fb7185' },
+            ]}>
+            {pnl == null ? '—' : `${pnl >= 0 ? '+' : ''}${fmtEur(pnl)}`}
+          </Text>
+          {pnl != null && asset.invested > 0 && (
+            <Text style={{ color: pnl >= 0 ? '#34d399' : '#fb7185', fontSize: 11, fontWeight: '700' }}>
+              {((pnl / asset.invested) * 100).toFixed(1)}%
+            </Text>
+          )}
+        </View>
+      </View>
       <View style={styles.chartCard}>
         <WebView
           source={{ uri: chartUrl }}
@@ -102,6 +151,30 @@ const createStyles = (palette: typeof Colors.dark) =>
   },
   header: {
     gap: 4,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  statBox: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: palette.border,
+    backgroundColor: palette.card,
+    borderRadius: 12,
+    padding: 10,
+    gap: 2,
+  },
+  statLabel: {
+    fontSize: 9,
+    letterSpacing: 0.8,
+    fontWeight: '700',
+    color: palette.muted,
+  },
+  statValue: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: palette.text,
   },
   title: {
     fontSize: 20,

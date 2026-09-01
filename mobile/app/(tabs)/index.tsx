@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform, Pressable, RefreshControl, ScrollView, StyleSheet, View as RNView } from 'react-native';
+
+import { fetchSiteMarkets, type MarketCoin } from '@/lib/siteMarkets';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 
@@ -67,9 +69,20 @@ export default function SummaryScreen() {
   const { pricesBySymbol, isLoading: pricesLoading, error, refresh } = useLivePrices(symbols);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Top do mercado (dados do site, USD) — as principais moedas por cap.
+  const [topCoins, setTopCoins] = useState<MarketCoin[]>([]);
+  useEffect(() => {
+    fetchSiteMarkets()
+      .then((d) => setTopCoins(d.coins.slice(0, 20)))
+      .catch(() => null);
+  }, []);
+
   const onRefresh = () => {
     setRefreshing(true);
     refresh();
+    fetchSiteMarkets()
+      .then((d) => setTopCoins(d.coins.slice(0, 20)))
+      .catch(() => null);
     // O hook não expõe promessa; 1,2s cobre o fetch típico sem prender o gesto.
     setTimeout(() => setRefreshing(false), 1200);
   };
@@ -240,6 +253,51 @@ export default function SummaryScreen() {
           </ScrollView>
           </View>
         </LinearGradient>
+
+        {/* Top do mercado — principais moedas por capitalização (fonte: site) */}
+        {topCoins.length > 0 && (
+          <LinearGradient
+            colors={['rgba(30, 41, 59, 0.9)', 'rgba(30, 41, 59, 0.9)']}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={styles.gradientBorderLg}>
+            <View style={[styles.tableCard, { backgroundColor: palette.background, paddingHorizontal: 14 }]}>
+              <Text style={{ color: palette.muted, fontSize: 10, letterSpacing: 1, fontWeight: '700', marginBottom: 8 }}>
+                TOP MERCADO · USD
+              </Text>
+              {topCoins.map((c, i) => (
+                <RNView
+                  key={c.symbol}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingVertical: 8,
+                    borderBottomWidth: i === topCoins.length - 1 ? 0 : 1,
+                    borderBottomColor: 'rgba(30, 41, 59, 0.6)',
+                  }}>
+                  <Text style={{ color: palette.muted, fontSize: 11, width: 24 }}>{i + 1}</Text>
+                  <RNView style={{ flex: 1 }}>
+                    <Text style={{ color: palette.text, fontSize: 13, fontWeight: '600' }}>{c.name}</Text>
+                    <Text style={{ color: palette.muted, fontSize: 11 }}>{c.symbol}</Text>
+                  </RNView>
+                  <Text style={{ color: palette.text, fontSize: 13, fontWeight: '600', marginRight: 12 }}>
+                    ${c.priceUsd >= 1 ? c.priceUsd.toLocaleString('pt-PT', { maximumFractionDigits: 2 }) : c.priceUsd.toPrecision(3)}
+                  </Text>
+                  <Text
+                    style={{
+                      color: (c.change24h ?? 0) >= 0 ? '#34d399' : '#fb7185',
+                      fontSize: 12,
+                      fontWeight: '700',
+                      width: 62,
+                      textAlign: 'right',
+                    }}>
+                    {c.change24h == null ? '—' : `${c.change24h >= 0 ? '+' : ''}${c.change24h.toFixed(1)}%`}
+                  </Text>
+                </RNView>
+              ))}
+            </View>
+          </LinearGradient>
+        )}
       </ScrollView>
     </RNView>
   );
