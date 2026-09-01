@@ -21,7 +21,7 @@ type Item = {
 // tabs nativas, por isso não se repetem aqui.
 const ITEMS: Item[] = [
   { key: 'dashboard', label: 'Dashboard', icon: 'th-large', desc: 'Nativo · portfólio + mercado global' },
-  { key: 'carteiras', label: 'Carteiras', icon: 'credit-card', desc: 'On-chain, CEX e cold wallets' },
+  { key: 'carteiras', label: 'Carteiras', icon: 'credit-card', desc: 'Nativo · ver e adicionar on-chain' },
   { key: 'smart-money', label: 'Smart Money', icon: 'eye', desc: 'Movimentos de whales em tempo real' },
   { key: 'gestor', label: 'Gestor IA', icon: 'android', desc: 'Block · análise IA do teu portfólio' },
   { key: 'historico', label: 'Histórico', icon: 'clock-o', desc: 'Evolução e registos' },
@@ -44,6 +44,10 @@ export default function MaisScreen() {
     }
     if (key === 'dashboard') {
       router.push('/dashboard' as never);
+      return;
+    }
+    if (key === 'carteiras') {
+      router.push('/carteiras' as never);
       return;
     }
     if (Platform.OS === 'web') {
