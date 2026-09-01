@@ -35,7 +35,18 @@ export default function BetaPage() {
       const res = await fetch("/api/beta-signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), name: name.trim(), note: note.trim(), lang }),
+        body: JSON.stringify({
+          email: email.trim(),
+          name: name.trim(),
+          note: note.trim(),
+          lang,
+          // Origem do link (?src=twitter etc.) para atribuição por rede.
+          src: (() => {
+            try {
+              return new URLSearchParams(window.location.search).get("src") ?? "";
+            } catch { return ""; }
+          })(),
+        }),
       });
       if (!res.ok) {
         const j = (await res.json().catch(() => null)) as { error?: string } | null;
