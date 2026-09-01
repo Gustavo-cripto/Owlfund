@@ -74,6 +74,15 @@ function RootLayoutNav() {
             }}
           />
           <Stack.Screen
+            name="gestor"
+            options={{
+              title: 'Block · Gestor IA',
+              headerStyle: { backgroundColor: colors.background },
+              headerTintColor: colors.text,
+              headerTitleStyle: { fontWeight: '700' },
+            }}
+          />
+          <Stack.Screen
             name="smart-money"
             options={{
               title: 'Smart Money',
