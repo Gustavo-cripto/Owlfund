@@ -15,7 +15,7 @@ const TRIAL_DAYS = 60;
 // têm plano mantêm os dias que faltam até expirar (depois renovam/pagam).
 // Definir em NEXT_PUBLIC_BETA_CUTOFF (ISO, ex.: "2026-10-01"). Vazio = sempre aberto.
 function betaClosed(): boolean {
-  const raw = process.env.NEXT_PUBLIC_BETA_CUTOFF ?? "2026-10-05T23:59:59Z";
+  const raw = process.env.NEXT_PUBLIC_BETA_CUTOFF ?? "2026-11-05T23:59:59Z";
   if (!raw) return false;
   const d = new Date(raw);
   return !Number.isNaN(d.getTime()) && Date.now() > d.getTime();

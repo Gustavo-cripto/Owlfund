@@ -15,7 +15,7 @@ export default function BetaPage() {
 
   // Beta encerrado a novos testers a partir da data de corte (env).
   const betaClosed = (() => {
-    const raw = process.env.NEXT_PUBLIC_BETA_CUTOFF ?? "2026-10-05T23:59:59Z";
+    const raw = process.env.NEXT_PUBLIC_BETA_CUTOFF ?? "2026-11-05T23:59:59Z";
     if (!raw) return false;
     const d = new Date(raw);
     return !Number.isNaN(d.getTime()) && Date.now() > d.getTime();
