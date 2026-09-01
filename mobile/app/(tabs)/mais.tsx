@@ -20,7 +20,7 @@ type Item = {
 // Mesmo menu do site (Dashboard…API & MCP). Portfolio/Mercado/Conta já são
 // tabs nativas, por isso não se repetem aqui.
 const ITEMS: Item[] = [
-  { key: 'dashboard', label: 'Dashboard', icon: 'th-large', desc: 'Visão geral da conta' },
+  { key: 'dashboard', label: 'Dashboard', icon: 'th-large', desc: 'Nativo · portfólio + mercado global' },
   { key: 'carteiras', label: 'Carteiras', icon: 'credit-card', desc: 'On-chain, CEX e cold wallets' },
   { key: 'smart-money', label: 'Smart Money', icon: 'eye', desc: 'Movimentos de whales em tempo real' },
   { key: 'gestor', label: 'Gestor IA', icon: 'android', desc: 'Block · análise IA do teu portfólio' },
@@ -40,6 +40,10 @@ export default function MaisScreen() {
     // Secções já NATIVAS abrem o ecrã da app (não o site embutido).
     if (key === 'fire') {
       router.push('/fire' as never);
+      return;
+    }
+    if (key === 'dashboard') {
+      router.push('/dashboard' as never);
       return;
     }
     if (Platform.OS === 'web') {
