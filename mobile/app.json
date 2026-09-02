@@ -37,6 +37,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "0c9b7d32-528a-4546-b99b-74ac05a2f728"
+      }
+    },
+    "owner": "gust_cripto"
   }
 }
