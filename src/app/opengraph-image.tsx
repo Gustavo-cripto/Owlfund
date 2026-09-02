@@ -7,7 +7,11 @@ export const contentType = "image/png";
 
 // Cartão social gerado dinamicamente (1200×630).
 // Next injeta automaticamente og:image e, na ausência de twitter-image, twitter:image.
-export default function Image() {
+export default async function Image() {
+  // Logótipo real embebido (ficheiro do repo → ArrayBuffer aceite pelo satori).
+  const logo = await fetch(new URL("../../public/chainfolioai-icon.png", import.meta.url)).then(
+    (r) => r.arrayBuffer(),
+  );
   return new ImageResponse(
     (
       <div
@@ -26,22 +30,14 @@ export default function Image() {
       >
         {/* Marca */}
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          <div
-            style={{
-              width: 64,
-              height: 64,
-              borderRadius: 18,
-              background: "#f97316",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 38,
-              fontWeight: 800,
-              color: "#020617",
-            }}
-          >
-            C
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text */}
+          <img
+            // @ts-expect-error — o satori aceita ArrayBuffer como src
+            src={logo}
+            width={64}
+            height={64}
+            style={{ borderRadius: 18 }}
+          />
           <div style={{ fontSize: 34, fontWeight: 700, letterSpacing: -0.5 }}>
             ChainFolioAI
           </div>
