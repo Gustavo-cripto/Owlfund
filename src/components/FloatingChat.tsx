@@ -96,6 +96,8 @@ export default function FloatingChat() {
 
   // Sem sessão iniciada (páginas públicas / visitantes), o chat não é renderizado
   if (!isLoggedIn) return null;
+  // Páginas de funil/inscrição: o chat distrai — não renderizar mesmo logado.
+  if (pathname === "/beta" || pathname === "/login") return null;
 
   return (
     <div className="pointer-events-none fixed bottom-4 right-4 z-50 flex flex-col items-end gap-3 sm:bottom-6 sm:right-6">

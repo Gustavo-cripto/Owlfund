@@ -144,6 +144,16 @@ export default function BetaPage() {
               <p className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">{err}</p>
             )}
 
+            {/* Sem conta no site não há ativação — avisar ANTES de submeter. */}
+            <div className="flex flex-col gap-2 rounded-xl border border-amber-500/40 bg-amber-500/[0.08] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm leading-relaxed text-amber-200">{t("beta_account_warn")}</p>
+              <Link
+                href="/login"
+                className="shrink-0 rounded-lg border border-amber-400/50 px-3 py-1.5 text-center text-xs font-semibold text-amber-300 transition hover:bg-amber-500/20"
+              >
+                {t("beta_account_cta")}
+              </Link>
+            </div>
             <button type="submit" disabled={state === "sending"} className={`${btnPrimary} w-full px-6 py-3 text-base disabled:opacity-60`}>
               {state === "sending" ? t("beta_sending") : t("beta_submit")}
             </button>
