@@ -22,7 +22,7 @@ async function call(url: string, key: string, model: string, messages: ChatMessa
 export async function askAI(messages: ChatMessage[]): Promise<string | null> {
   const groqKey = (process.env.GROQ_API_KEY ?? "").trim();
   if (groqKey) {
-    const model = (process.env.GROQ_MODEL ?? "").trim() || "llama-3.3-70b-versatile";
+    const model = (() => { const m = (process.env.GROQ_MODEL ?? "").trim(); return !m || m === "llama-3.1-8b-instant" ? "llama-3.3-70b-versatile" : m; })();
     const r = await call("https://api.groq.com/openai/v1/chat/completions", groqKey, model, messages, 12000);
     if (r) return r;
   }

@@ -93,7 +93,7 @@ async function callAI(system: string, question: string): Promise<string> {
   // Tenta Groq primeiro (free tier)
   const groqKey = (process.env.GROQ_API_KEY ?? "").trim();
   if (groqKey) {
-    const model = (process.env.GROQ_MODEL ?? "").trim() || "llama-3.3-70b-versatile";
+    const model = (() => { const m = (process.env.GROQ_MODEL ?? "").trim(); return !m || m === "llama-3.1-8b-instant" ? "llama-3.3-70b-versatile" : m; })();
     const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${groqKey}`, "Content-Type": "application/json" },

@@ -293,7 +293,7 @@ async function callGroq(messages: Array<{ role: string; content: string }>) {
     };
   }
 
-  const model = (process.env.GROQ_MODEL ?? "").trim() || "llama-3.3-70b-versatile";
+  const model = (() => { const m = (process.env.GROQ_MODEL ?? "").trim(); return !m || m === "llama-3.1-8b-instant" ? "llama-3.3-70b-versatile" : m; })();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
   let response: Response;
