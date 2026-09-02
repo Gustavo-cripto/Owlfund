@@ -21,7 +21,8 @@ export async function GET(request: Request) {
 
   const admin = getSupabaseAdmin();
   const now = new Date();
-  const horizon = new Date(now.getTime() + (Math.max(...NOTIFY_DAYS) + 1) * DAY);
+  const OFFER_DAY = 10; // dia 50 do trial: oferta de fundador (faltam 10 dias)
+  const horizon = new Date(now.getTime() + (OFFER_DAY + 1) * DAY);
 
   const { data: subs, error } = await admin
     .from("subscriptions")
@@ -33,14 +34,14 @@ export async function GET(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Só os que estão exatamente a 3 ou 1 dia (cron diário → 1 aviso por marco).
-  const due = (subs ?? [])
-    .map((s) => {
-      const end = s.current_period_end ? new Date(s.current_period_end as string) : null;
-      const daysLeft = end ? Math.ceil((end.getTime() - now.getTime()) / DAY) : null;
-      return { ...s, end, daysLeft };
-    })
-    .filter((s) => s.daysLeft != null && NOTIFY_DAYS.includes(s.daysLeft));
+  // Cron diário → 1 aviso por marco exato.
+  const mapped = (subs ?? []).map((s) => {
+    const end = s.current_period_end ? new Date(s.current_period_end as string) : null;
+    const daysLeft = end ? Math.ceil((end.getTime() - now.getTime()) / DAY) : null;
+    return { ...s, end, daysLeft };
+  });
+  const due = mapped.filter((s) => s.daysLeft != null && NOTIFY_DAYS.includes(s.daysLeft));
+  const offerDue = mapped.filter((s) => s.daysLeft === OFFER_DAY);
 
   // (sem retorno antecipado: além dos avisos ao admin há emails ao tester,
   //  fim de beta e alerta de inatividade)
@@ -73,6 +74,31 @@ export async function GET(request: Request) {
           <p style="color:#94a3b8;font-size:12px">Como beta tester, terás condições especiais no lançamento. Ficas na lista. 💛</p>`),
       });
     }
+  }
+
+  // ── Dia 50: oferta de FUNDADOR ao tester (pagamentos ativam no lançamento) ──
+  for (const sub of offerDue) {
+    let em = "";
+    try {
+      const { data } = await admin.auth.admin.getUserById(sub.user_id as string);
+      em = data.user?.email ?? "";
+    } catch { /* ignore */ }
+    if (!em) continue;
+    const plan = premiumPriceId && sub.price_id === premiumPriceId ? "Premium" : "Pro";
+    testerMails.push({
+      to: em,
+      subject: "O teu preço de fundador ChainFolioAI está reservado 🏆",
+      html: shell(`<p style="color:#fff;font-size:17px;font-weight:700">Estás connosco desde o início — isso conta. 🏆</p>
+        <p>Faltam ~10 dias para o fim do teu período beta (${plan}). Como <b>fundador</b>, garantimos-te para sempre:</p>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;margin:6px 0">
+          <tr><td style="padding:8px 10px;background:#1f2937;border-radius:8px 0 0 8px;color:#fff"><b>Premium Fundador</b></td><td style="padding:8px 10px;background:#1f2937;text-align:right"><b style="color:#fb923c">€19/mês</b> <span style="color:#64748b;text-decoration:line-through">€39</span></td></tr>
+          <tr><td colspan="2" style="height:6px"></td></tr>
+          <tr><td style="padding:8px 10px;background:#1f2937;border-radius:8px 0 0 8px;color:#fff"><b>Pro Fundador</b></td><td style="padding:8px 10px;background:#1f2937;text-align:right"><b style="color:#fb923c">€9,99/mês</b> <span style="color:#64748b;text-decoration:line-through">€14,99</span></td></tr>
+        </table>
+        <p style="color:#94a3b8;font-size:13px">Preço <b>vitalício</b> enquanto mantiveres a subscrição — mesmo quando os preços subirem. O pagamento só abre no lançamento; até lá não pagas nada.</p>
+        <p style="background:#0c4a6e33;border:1px solid #0ea5e955;border-radius:10px;padding:12px 14px">👉 <b>Para reservar o teu preço de fundador</b>, responde no Telegram: <a href="https://t.me/ChainFolioAiBetaBot" style="color:#38bdf8;font-weight:700">@ChainFolioAiBetaBot</a> — e aproveita para nos dizeres o que gostaste e o que faltou (o teu balanço vale ouro 🙏).</p>`),
+    });
+    await sendTelegram(`🏆 Oferta de fundador enviada a ${tgEsc(em)} (${plan}, faltam 10 dias)`).catch(() => {});
   }
 
   // Alerta no Bot ChainFolioAI (Telegram), se configurado. await obrigatório
@@ -125,7 +151,7 @@ export async function GET(request: Request) {
         html: shell(`<p style="color:#fff;font-size:16px;font-weight:700">Os teus 60 dias de beta terminaram — obrigado! 🙏</p>
           <p>A tua conta voltou ao plano <b>Free</b>: os teus dados, carteiras e histórico ficam todos guardados e podes continuar a usar o site e a app.</p>
           <p style="background:#1f2937;border-radius:10px;padding:12px 14px">📝 <b>Último pedido:</b> um balanço final em 2 minutos — o que valeu a pena, o que faltou? Responde no Telegram: ${BOT}</p>
-          <p style="background:#3b271433;border:1px solid #f9731655;border-radius:10px;padding:12px 14px">🎁 Como beta tester tens <b>condições especiais garantidas no lançamento</b> — vamos avisar-te por email em primeira mão.</p>`),
+          <p style="background:#3b271433;border:1px solid #f9731655;border-radius:10px;padding:12px 14px">🏆 O teu <b>preço de fundador</b> fica garantido: <b>Premium €19/mês</b> (em vez de €39) ou <b>Pro €9,99/mês</b> (em vez de €14,99) — vitalício enquanto fores subscritor. Reserva respondendo no Telegram: <a href="https://t.me/ChainFolioAiBetaBot" style="color:#38bdf8;font-weight:700">@ChainFolioAiBetaBot</a>. Avisamos-te em primeira mão quando o pagamento abrir.</p>`),
       });
       await sendTelegram(`🏁 <b>Beta terminou</b>: ${tgEsc(em)} — email de balanço final enviado.`).catch(() => {});
     }
