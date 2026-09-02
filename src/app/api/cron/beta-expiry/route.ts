@@ -42,10 +42,14 @@ export async function GET(request: Request) {
     })
     .filter((s) => s.daysLeft != null && NOTIFY_DAYS.includes(s.daysLeft));
 
-  if (due.length === 0) return NextResponse.json({ ok: true, notified: 0, at: now.toISOString() });
+  // (sem retorno antecipado: além dos avisos ao admin há emails ao tester,
+  //  fim de beta e alerta de inatividade)
 
   const items: string[] = [];
   const tgLines: string[] = [];
+  const testerMails: { to: string; subject: string; html: string }[] = [];
+  const shell = (inner: string) => `<div style="background:#0f172a;padding:24px;font-family:-apple-system,Helvetica,Arial,sans-serif"><div style="max-width:560px;margin:0 auto;background:#111827;border:1px solid #1f2937;border-radius:14px;overflow:hidden"><div style="padding:16px 22px;border-bottom:1px solid #1f2937;color:#fff;font-weight:800">ChainFolio<span style="color:#f97316">AI</span></div><div style="padding:20px 22px;color:#cbd5e1;font-size:14px;line-height:1.6">${inner}</div></div></div>`;
+  const BOT = '<a href="https://t.me/ChainFolioAiBetaBot" style="color:#38bdf8;font-weight:700">@ChainFolioAiBetaBot</a>';
   for (const s of due) {
     let em = "";
     try {
@@ -58,14 +62,25 @@ export async function GET(request: Request) {
     const warn = s.daysLeft === 1 ? "color:#f87171;font-weight:700" : "color:#fbbf24";
     items.push(`<tr><td style="padding:6px 10px;color:#fff">${esc(em || "?")}</td><td style="padding:6px 10px;color:#e2e8f0">${plan}</td><td style="padding:6px 10px;${warn}">${dl}</td><td style="padding:6px 10px;color:#94a3b8">${endStr}</td></tr>`);
     tgLines.push(`${s.daysLeft === 1 ? "🔴" : "🟡"} ${tgEsc(em || "?")} · ${plan} · faltam ${dl}`);
+    // Email ao PRÓPRIO tester no marco dos 3 dias (1 vez).
+    if (s.daysLeft === 3 && em) {
+      testerMails.push({
+        to: em,
+        subject: "O teu acesso beta ChainFolioAI termina em 3 dias ⏳",
+        html: shell(`<p style="color:#fff;font-size:16px;font-weight:700">Faltam 3 dias de ${plan} 🚀</p>
+          <p>O teu período de beta tester termina a <b>${esc(endStr)}</b>. Depois disso a conta volta ao plano Free — os teus dados ficam todos guardados.</p>
+          <p style="background:#1f2937;border-radius:10px;padding:12px 14px">🙏 <b>Antes de acabar, conta-nos como correu:</b> o que gostaste, o que faltou, o que partirias. Fala connosco no Telegram: ${BOT}</p>
+          <p style="color:#94a3b8;font-size:12px">Como beta tester, terás condições especiais no lançamento. Ficas na lista. 💛</p>`),
+      });
+    }
   }
 
   // Alerta no Bot ChainFolioAI (Telegram), se configurado. await obrigatório
   // (serverless aborta envios não aguardados após a resposta).
-  await sendTelegram(`⏰ <b>Beta — ${due.length} tester(s) a expirar</b>\n(avisos a 3 e 1 dia)\n\n${tgLines.join("\n")}`).catch(() => {});
+  if (due.length > 0) await sendTelegram(`⏰ <b>Beta — ${due.length} tester(s) a expirar</b>\n(avisos a 3 e 1 dia)\n\n${tgLines.join("\n")}`).catch(() => {});
 
   const key = process.env.RESEND_API_KEY ?? "";
-  if (key) {
+  if (key && due.length > 0) {
     const html = `<div style="background:#0f172a;padding:24px;font-family:-apple-system,Helvetica,Arial,sans-serif">
       <div style="max-width:600px;margin:0 auto;background:#111827;border:1px solid #1f2937;border-radius:14px;overflow:hidden">
         <div style="padding:16px 22px;border-bottom:1px solid #1f2937;color:#fff;font-weight:800">ChainFolio<span style="color:#f97316">AI</span> · Beta</div>
@@ -86,5 +101,71 @@ export async function GET(request: Request) {
     } catch { /* não falhar o cron por causa do email */ }
   }
 
-  return NextResponse.json({ ok: true, notified: due.length, at: now.toISOString() });
+  // ── Fim de beta: expirou nas últimas 24h → obrigado + balanço final ──────
+  let ended = 0;
+  try {
+    const { data: endedSubs } = await admin
+      .from("subscriptions")
+      .select("user_id, price_id, current_period_end")
+      .eq("source", "manual")
+      .eq("status", "active")
+      .gt("current_period_end", new Date(now.getTime() - DAY).toISOString())
+      .lte("current_period_end", now.toISOString());
+    for (const sub of endedSubs ?? []) {
+      let em = "";
+      try {
+        const { data } = await admin.auth.admin.getUserById(sub.user_id as string);
+        em = data.user?.email ?? "";
+      } catch { /* ignore */ }
+      if (!em) continue;
+      ended++;
+      testerMails.push({
+        to: em,
+        subject: "Obrigado por testares o ChainFolioAI 💛",
+        html: shell(`<p style="color:#fff;font-size:16px;font-weight:700">Os teus 60 dias de beta terminaram — obrigado! 🙏</p>
+          <p>A tua conta voltou ao plano <b>Free</b>: os teus dados, carteiras e histórico ficam todos guardados e podes continuar a usar o site e a app.</p>
+          <p style="background:#1f2937;border-radius:10px;padding:12px 14px">📝 <b>Último pedido:</b> um balanço final em 2 minutos — o que valeu a pena, o que faltou? Responde no Telegram: ${BOT}</p>
+          <p style="background:#3b271433;border:1px solid #f9731655;border-radius:10px;padding:12px 14px">🎁 Como beta tester tens <b>condições especiais garantidas no lançamento</b> — vamos avisar-te por email em primeira mão.</p>`),
+      });
+      await sendTelegram(`🏁 <b>Beta terminou</b>: ${tgEsc(em)} — email de balanço final enviado.`).catch(() => {});
+    }
+  } catch { /* ignore */ }
+
+  // ── Inatividade: 14 dias exatos sem login → alerta 1x no Telegram ─────────
+  let inactive = 0;
+  try {
+    const { data: allManual } = await admin
+      .from("subscriptions")
+      .select("user_id, current_period_end")
+      .eq("source", "manual")
+      .eq("status", "active")
+      .gt("current_period_end", now.toISOString());
+    const lines: string[] = [];
+    for (const sub of allManual ?? []) {
+      try {
+        const { data } = await admin.auth.admin.getUserById(sub.user_id as string);
+        const last = data.user?.last_sign_in_at ? new Date(data.user.last_sign_in_at as string) : null;
+        const days = last ? Math.floor((now.getTime() - last.getTime()) / DAY) : null;
+        if (days === 14) {
+          lines.push(`😴 ${tgEsc(data.user?.email ?? "?")} — 14 dias sem entrar`);
+          inactive++;
+        }
+      } catch { /* ignore */ }
+    }
+    if (lines.length > 0) {
+      await sendTelegram(`⚠️ <b>Testers inativos (14d sem login)</b>\n${lines.join("\n")}\nVale a pena um toque pessoal?`).catch(() => {});
+    }
+  } catch { /* ignore */ }
+
+  // ── Envia os emails aos testers ───────────────────────────────────────────
+  if (key && testerMails.length > 0) {
+    const resend = new Resend(key);
+    for (const m of testerMails) {
+      try {
+        await resend.emails.send({ from: FROM, to: m.to, subject: m.subject, html: m.html });
+      } catch { /* não falhar o cron */ }
+    }
+  }
+
+  return NextResponse.json({ ok: true, notified: due.length, testerMails: testerMails.length, ended, inactiveAlerts: inactive, at: now.toISOString() });
 }

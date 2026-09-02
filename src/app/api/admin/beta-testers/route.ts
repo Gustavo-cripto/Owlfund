@@ -48,19 +48,28 @@ export async function GET() {
   const testers = [];
   for (const s of subs ?? []) {
     let em = "";
+    let lastSignInAt: string | null = null;
     try {
       const { data } = await admin.auth.admin.getUserById(s.user_id as string);
       em = data.user?.email ?? "";
+      lastSignInAt = (data.user?.last_sign_in_at as string | undefined) ?? null;
     } catch {
       /* ignore */
     }
     const end = s.current_period_end ? new Date(s.current_period_end as string) : null;
     const daysLeft = end ? Math.ceil((end.getTime() - now) / 86_400_000) : null;
+    const activatedAt = end ? new Date(end.getTime() - 60 * 86_400_000).toISOString() : null;
+    const inactiveDays = lastSignInAt
+      ? Math.floor((now - new Date(lastSignInAt).getTime()) / 86_400_000)
+      : null;
     testers.push({
       email: em,
       plan: premiumPriceId && s.price_id === premiumPriceId ? "premium" : "pro",
+      activatedAt,
       expiresAt: s.current_period_end ?? null,
       daysLeft,
+      lastSignInAt,
+      inactiveDays,
     });
   }
 

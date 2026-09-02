@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import AppShell from "@/components/AppShell";
 
-type Tester = { email: string; plan: "pro" | "premium"; expiresAt: string | null; daysLeft: number | null };
+type Tester = { email: string; plan: "pro" | "premium"; activatedAt?: string | null; expiresAt: string | null; daysLeft: number | null; lastSignInAt?: string | null; inactiveDays?: number | null };
 type Pending = { email: string; name: string | null; note: string | null; createdAt: string };
 
 export default function AdminBetaPage() {
@@ -207,6 +207,7 @@ export default function AdminBetaPage() {
                         <th className="px-4 py-3">Plano</th>
                         <th className="px-4 py-3">Expira</th>
                         <th className="px-4 py-3">Dias restantes</th>
+                        <th className="px-4 py-3">Último acesso</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -221,6 +222,9 @@ export default function AdminBetaPage() {
                           <td className="px-4 py-3 text-slate-300">{fmt(tst.expiresAt)}</td>
                           <td className={`px-4 py-3 font-medium ${tst.daysLeft != null && tst.daysLeft <= 3 ? "text-rose-400" : "text-slate-300"}`}>
                             {tst.daysLeft != null ? `${tst.daysLeft} dias` : "—"}
+                          </td>
+                          <td className={`px-4 py-3 ${tst.inactiveDays != null && tst.inactiveDays >= 14 ? "text-amber-400 font-medium" : "text-slate-400"}`}>
+                            {tst.inactiveDays == null ? "—" : tst.inactiveDays === 0 ? "hoje" : `há ${tst.inactiveDays}d${tst.inactiveDays >= 14 ? " ⚠️" : ""}`}
                           </td>
                         </tr>
                       ))}

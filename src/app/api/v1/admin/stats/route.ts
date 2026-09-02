@@ -227,10 +227,55 @@ export async function GET(req: NextRequest) {
     views.byDay = byDay;
   } catch { /* sem detalhe de views */ }
 
+  // -- Beta testers (atribuições manuais): lista completa p/ o bot de gestão --
+  type BetaTester = {
+    email: string;
+    plan: string;
+    activatedAt: string | null;
+    expiresAt: string | null;
+    daysLeft: number | null;
+    lastSignInAt: string | null;
+    inactiveDays: number | null;
+  };
+  const betaTesters: BetaTester[] = [];
+  try {
+    const premiumPriceId =
+      process.env.STRIPE_PREMIUM_PRICE_ID ?? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID ?? "";
+    const { data: manualSubs } = await admin
+      .from("subscriptions")
+      .select("user_id, price_id, current_period_end")
+      .eq("source", "manual")
+      .eq("status", "active")
+      .order("current_period_end", { ascending: true });
+    for (const sub of manualSubs ?? []) {
+      let email = "";
+      let lastSignInAt: string | null = null;
+      try {
+        const { data } = await admin.auth.admin.getUserById(sub.user_id as string);
+        email = data.user?.email ?? "";
+        lastSignInAt = (data.user?.last_sign_in_at as string | undefined) ?? null;
+      } catch { /* ignore */ }
+      const end = sub.current_period_end ? new Date(sub.current_period_end as string) : null;
+      const daysLeft = end ? Math.ceil((end.getTime() - now.getTime()) / 86_400_000) : null;
+      betaTesters.push({
+        email,
+        plan: premiumPriceId && sub.price_id === premiumPriceId ? "premium" : "pro",
+        activatedAt: end ? new Date(end.getTime() - 60 * 86_400_000).toISOString() : null,
+        expiresAt: (sub.current_period_end as string) ?? null,
+        daysLeft,
+        lastSignInAt,
+        inactiveDays: lastSignInAt
+          ? Math.floor((now.getTime() - new Date(lastSignInAt).getTime()) / 86_400_000)
+          : null,
+      });
+    }
+  } catch { /* lista vazia em caso de erro */ }
+
   return apiJson({
     generatedAt: ISO(now),
     accounts,
     plans,
+    betaTesters,
     apiKeys,
     usage,
     payments,

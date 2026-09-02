@@ -66,6 +66,7 @@ function welcome(lang: string, name: string, untilStr: string): { subject: strin
         <p style="background:#1f2937;border-radius:10px;padding:12px 14px">✅ You'll get <b>Pro or Premium free for ${TRIAL_DAYS} days</b> once we activate your account (indicative until <b>${untilStr}</b>).</p>
         <p><b>Next step:</b> create your account so we can unlock your plan.</p>
         <p><a href="${SITE}/login" style="display:inline-block;background:#f97316;color:#0f172a;font-weight:700;text-decoration:none;padding:11px 20px;border-radius:10px">Create my account →</a></p>
+        <p style="background:#0c4a6e33;border:1px solid #0ea5e955;border-radius:10px;padding:12px 14px">💬 <b>Found a bug or have feedback?</b> Talk to us on Telegram: <a href="https://t.me/ChainFolioAiBetaBot" style="color:#38bdf8;font-weight:700">@ChainFolioAiBetaBot</a></p>
         <p style="color:#94a3b8;font-size:12px">100% read-only and non-custodial — we never ask for private keys.</p>`,
     },
     es: {
@@ -75,6 +76,7 @@ function welcome(lang: string, name: string, untilStr: string): { subject: strin
         <p style="background:#1f2937;border-radius:10px;padding:12px 14px">✅ Tendrás <b>Pro o Premium gratis ${TRIAL_DAYS} días</b> cuando activemos tu cuenta (indicativo hasta el <b>${untilStr}</b>).</p>
         <p><b>Siguiente paso:</b> crea tu cuenta para poder liberar tu plan.</p>
         <p><a href="${SITE}/login" style="display:inline-block;background:#f97316;color:#0f172a;font-weight:700;text-decoration:none;padding:11px 20px;border-radius:10px">Crear mi cuenta →</a></p>
+        <p style="background:#0c4a6e33;border:1px solid #0ea5e955;border-radius:10px;padding:12px 14px">💬 <b>¿Encontraste un error o tienes sugerencias?</b> Háblanos por Telegram: <a href="https://t.me/ChainFolioAiBetaBot" style="color:#38bdf8;font-weight:700">@ChainFolioAiBetaBot</a></p>
         <p style="color:#94a3b8;font-size:12px">100% de solo lectura y sin custodia — nunca pedimos claves privadas.</p>`,
     },
     fr: {
@@ -84,6 +86,7 @@ function welcome(lang: string, name: string, untilStr: string): { subject: strin
         <p style="background:#1f2937;border-radius:10px;padding:12px 14px">✅ Vous aurez <b>Pro ou Premium gratuit ${TRIAL_DAYS} jours</b> dès l'activation de votre compte (indicatif jusqu'au <b>${untilStr}</b>).</p>
         <p><b>Étape suivante :</b> créez votre compte pour que nous puissions débloquer votre plan.</p>
         <p><a href="${SITE}/login" style="display:inline-block;background:#f97316;color:#0f172a;font-weight:700;text-decoration:none;padding:11px 20px;border-radius:10px">Créer mon compte →</a></p>
+        <p style="background:#0c4a6e33;border:1px solid #0ea5e955;border-radius:10px;padding:12px 14px">💬 <b>Un bug ou une suggestion ?</b> Parlez-nous sur Telegram : <a href="https://t.me/ChainFolioAiBetaBot" style="color:#38bdf8;font-weight:700">@ChainFolioAiBetaBot</a></p>
         <p style="color:#94a3b8;font-size:12px">100% en lecture seule et sans conservation — nous ne demandons jamais de clés privées.</p>`,
     },
     pt: {
@@ -93,6 +96,7 @@ function welcome(lang: string, name: string, untilStr: string): { subject: strin
         <p style="background:#1f2937;border-radius:10px;padding:12px 14px">✅ Vais ter <b>Pro ou Premium grátis durante ${TRIAL_DAYS} dias</b> assim que ativarmos a tua conta (indicativo até <b>${untilStr}</b>).</p>
         <p><b>Próximo passo:</b> cria a tua conta para podermos libertar o teu plano.</p>
         <p><a href="${SITE}/login" style="display:inline-block;background:#f97316;color:#0f172a;font-weight:700;text-decoration:none;padding:11px 20px;border-radius:10px">Criar a minha conta →</a></p>
+        <p style="background:#0c4a6e33;border:1px solid #0ea5e955;border-radius:10px;padding:12px 14px">💬 <b>Encontraste um bug ou tens sugestões?</b> Fala connosco no Telegram: <a href="https://t.me/ChainFolioAiBetaBot" style="color:#38bdf8;font-weight:700">@ChainFolioAiBetaBot</a></p>
         <p style="color:#94a3b8;font-size:12px">100% só-leitura e sem custódia — nunca pedimos chaves privadas.</p>`,
     },
   };
