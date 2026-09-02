@@ -9,6 +9,7 @@ import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 import { useAppTheme } from '@/context/ThemeContext';
+import { useLanguage } from '@/context/LanguageContext';
 
 // You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
 function TabBarIcon(props: {
@@ -86,6 +87,7 @@ function HeaderActions({ showInfo }: { showInfo?: boolean }) {
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const { t } = useLanguage();
   const isWeb = Platform.OS === 'web';
   const sidebarWidth = 200;
 
@@ -204,14 +206,14 @@ export default function TabLayout() {
       <Tabs.Screen
         name="two"
         options={{
-          title: 'Portfolio',
+          title: t('tab_portfolio'),
           tabBarIcon: ({ color }) => <TabBarIcon name="pie-chart" color={color} />,
         }}
       />
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Mercado',
+          title: t('tab_mercado'),
           tabBarIcon: ({ color }) => <TabBarIcon name="line-chart" color={color} />,
           headerRight: () => <HeaderActions showInfo />,
         }}
@@ -219,21 +221,21 @@ export default function TabLayout() {
       <Tabs.Screen
         name="manage"
         options={{
-          title: 'Gerenciar',
+          title: t('tab_gerenciar'),
           tabBarIcon: ({ color }) => <TabBarIcon name="sliders" color={color} />,
         }}
       />
       <Tabs.Screen
         name="mais"
         options={{
-          title: 'Mais',
+          title: t('tab_mais'),
           tabBarIcon: ({ color }) => <TabBarIcon name="th-large" color={color} />,
         }}
       />
       <Tabs.Screen
         name="conta"
         options={{
-          title: 'Conta',
+          title: t('tab_conta'),
           tabBarIcon: ({ color }) => <TabBarIcon name="user-circle" color={color} />,
         }}
       />

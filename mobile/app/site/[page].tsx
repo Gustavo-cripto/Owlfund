@@ -22,6 +22,7 @@ const PAGES: Record<string, { path: string; title: string }> = {
   planos: { path: '/pricing', title: 'Planos' },
   api: { path: '/account?section=api', title: 'API & MCP' },
   conta_site: { path: '/account', title: 'Conta (site)' },
+  beta_admin: { path: '/admin/beta', title: 'Beta' },
 };
 
 export default function SitePageScreen() {

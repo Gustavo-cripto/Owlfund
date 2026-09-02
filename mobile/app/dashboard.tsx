@@ -35,6 +35,10 @@ export default function DashboardScreen() {
   const [coins, setCoins] = useState<MarketCoin[]>([]);
   const [fng, setFng] = useState<FearGreed | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  // Blocos BTC projetados (mempool.space via o site) — como a faixa do site.
+  const [mempool, setMempool] = useState<
+    { blockVSize: number; nTx: number; totalFees: number; feeRange: number[] }[]
+  >([]);
 
   const load = () => {
     fetchSiteMarkets()
@@ -44,6 +48,10 @@ export default function DashboardScreen() {
       })
       .catch(() => null);
     fetchFearGreed().then(setFng).catch(() => null);
+    fetch('https://chainfolioai.com/api/btc-blocks')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { mempool?: typeof mempool } | null) => setMempool(j?.mempool?.slice(0, 3) ?? []))
+      .catch(() => null);
   };
   useEffect(load, []);
 
@@ -127,6 +135,45 @@ export default function DashboardScreen() {
             </RNView>
           </RNView>
         </RNView>
+
+        {/* Blocos BTC ao vivo — como a faixa do site (mempool.space) */}
+        {mempool.length > 0 && (
+          <RNView style={card}>
+            <Text style={[styles.label, { color: '#fb923c' }]}>₿ BLOCOS BTC · AO VIVO</Text>
+            <RNView style={{ flexDirection: 'row', gap: 10 }}>
+              {mempool.map((b, i) => {
+                const fill = Math.min(100, Math.round((b.blockVSize / 1_000_000) * 100));
+                const lo = b.feeRange?.[0] ?? 0;
+                const hi = b.feeRange?.[b.feeRange.length - 1] ?? 0;
+                return (
+                  <RNView
+                    key={i}
+                    style={{
+                      flex: 1,
+                      borderWidth: 1,
+                      borderColor: 'rgba(52, 211, 153, 0.35)',
+                      borderRadius: 12,
+                      padding: 10,
+                      gap: 2,
+                    }}>
+                    <Text style={{ color: '#34d399', fontSize: 11, fontWeight: '800' }}>
+                      Em ~{(i + 1) * 10} min
+                    </Text>
+                    <Text style={{ color: palette.muted, fontSize: 10 }}>
+                      {Math.round(lo)}–{Math.round(hi)} sat/vB
+                    </Text>
+                    <Text style={{ color: palette.text, fontSize: 13, fontWeight: '800' }}>
+                      {(b.totalFees / 1e8).toFixed(3)} BTC
+                    </Text>
+                    <Text style={{ color: palette.muted, fontSize: 10 }}>
+                      {b.nTx.toLocaleString('pt-PT')} tx · {fill}% cheio
+                    </Text>
+                  </RNView>
+                );
+              })}
+            </RNView>
+          </RNView>
+        )}
 
         {/* Top movers */}
         <RNView style={styles.row}>

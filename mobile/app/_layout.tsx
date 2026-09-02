@@ -8,6 +8,7 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { AppThemeProvider } from '@/context/ThemeContext';
+import { LanguageProvider } from '@/context/LanguageContext';
 import { AuthProvider } from '@/context/AuthContext';
 import { PortfolioProvider } from '@/context/PortfolioContext';
 
@@ -60,6 +61,7 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider key={colorScheme} value={theme}>
+      <LanguageProvider>
       <AuthProvider>
       <PortfolioProvider>
         <Stack key={colorScheme}>
@@ -149,6 +151,7 @@ function RootLayoutNav() {
         </Stack>
       </PortfolioProvider>
       </AuthProvider>
+      </LanguageProvider>
     </ThemeProvider>
   );
 }
