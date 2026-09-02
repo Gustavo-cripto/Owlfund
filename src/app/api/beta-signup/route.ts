@@ -64,8 +64,8 @@ function welcome(lang: string, name: string, untilStr: string): { subject: strin
       body: `<p style="color:#fff;font-size:17px;font-weight:700">You're on the list${hi}! 🎉</p>
         <p>Thanks for joining the <b>ChainFolioAI</b> beta — the dashboard that brings your <b>crypto and traditional assets</b> together, with real-time PNL, tax tools and an AI that knows your real portfolio.</p>
         <p style="background:#1f2937;border-radius:10px;padding:12px 14px">✅ You'll get <b>Pro or Premium free for ${TRIAL_DAYS} days</b> once we activate your account (indicative until <b>${untilStr}</b>).</p>
-        <p><b>Next step:</b> create your account so we can unlock your plan.</p>
-        <p><a href="${SITE}/login" style="display:inline-block;background:#f97316;color:#0f172a;font-weight:700;text-decoration:none;padding:11px 20px;border-radius:10px">Create my account →</a></p>
+        <p><b>Next step:</b> create your account with this email — or, if you already did, just sign in and hang tight: we’ll activate your plan shortly.</p>
+        <p style="margin:14px 0 4px"><a href="${SITE}/login" style="display:inline-block;background:#f97316;color:#0f172a;font-weight:700;text-decoration:none;padding:11px 20px;border-radius:10px">Create my account →</a>&nbsp;&nbsp;<a href="${SITE}/login" style="display:inline-block;border:1px solid #f9731688;color:#fb923c;font-weight:700;text-decoration:none;padding:10px 18px;border-radius:10px">I have an account — sign in</a></p>
         <p style="background:#0c4a6e33;border:1px solid #0ea5e955;border-radius:10px;padding:12px 14px">💬 <b>Found a bug or have feedback?</b> Talk to us on Telegram: <a href="https://t.me/ChainFolioAiBetaBot" style="color:#38bdf8;font-weight:700">@ChainFolioAiBetaBot</a></p>
         <p style="color:#94a3b8;font-size:12px">100% read-only and non-custodial — we never ask for private keys.</p>`,
     },
@@ -74,8 +74,8 @@ function welcome(lang: string, name: string, untilStr: string): { subject: strin
       body: `<p style="color:#fff;font-size:17px;font-weight:700">¡Estás en la lista${hi}! 🎉</p>
         <p>Gracias por unirte a la beta de <b>ChainFolioAI</b> — el panel que reúne tu <b>cripto y activos tradicionales</b>, con PNL en tiempo real, impuestos y una IA que conoce tu cartera real.</p>
         <p style="background:#1f2937;border-radius:10px;padding:12px 14px">✅ Tendrás <b>Pro o Premium gratis ${TRIAL_DAYS} días</b> cuando activemos tu cuenta (indicativo hasta el <b>${untilStr}</b>).</p>
-        <p><b>Siguiente paso:</b> crea tu cuenta para poder liberar tu plan.</p>
-        <p><a href="${SITE}/login" style="display:inline-block;background:#f97316;color:#0f172a;font-weight:700;text-decoration:none;padding:11px 20px;border-radius:10px">Crear mi cuenta →</a></p>
+        <p><b>Siguiente paso:</b> crea tu cuenta con este email — o, si ya la creaste, entra y espera: activaremos tu plan en breve.</p>
+        <p style="margin:14px 0 4px"><a href="${SITE}/login" style="display:inline-block;background:#f97316;color:#0f172a;font-weight:700;text-decoration:none;padding:11px 20px;border-radius:10px">Crear mi cuenta →</a>&nbsp;&nbsp;<a href="${SITE}/login" style="display:inline-block;border:1px solid #f9731688;color:#fb923c;font-weight:700;text-decoration:none;padding:10px 18px;border-radius:10px">Ya tengo cuenta — entrar</a></p>
         <p style="background:#0c4a6e33;border:1px solid #0ea5e955;border-radius:10px;padding:12px 14px">💬 <b>¿Encontraste un error o tienes sugerencias?</b> Háblanos por Telegram: <a href="https://t.me/ChainFolioAiBetaBot" style="color:#38bdf8;font-weight:700">@ChainFolioAiBetaBot</a></p>
         <p style="color:#94a3b8;font-size:12px">100% de solo lectura y sin custodia — nunca pedimos claves privadas.</p>`,
     },
@@ -84,8 +84,8 @@ function welcome(lang: string, name: string, untilStr: string): { subject: strin
       body: `<p style="color:#fff;font-size:17px;font-weight:700">Vous êtes sur la liste${hi} ! 🎉</p>
         <p>Merci de rejoindre la bêta de <b>ChainFolioAI</b> — le tableau de bord qui réunit vos <b>cryptos et actifs traditionnels</b>, avec PNL en temps réel, fiscalité et une IA qui connaît votre portefeuille réel.</p>
         <p style="background:#1f2937;border-radius:10px;padding:12px 14px">✅ Vous aurez <b>Pro ou Premium gratuit ${TRIAL_DAYS} jours</b> dès l'activation de votre compte (indicatif jusqu'au <b>${untilStr}</b>).</p>
-        <p><b>Étape suivante :</b> créez votre compte pour que nous puissions débloquer votre plan.</p>
-        <p><a href="${SITE}/login" style="display:inline-block;background:#f97316;color:#0f172a;font-weight:700;text-decoration:none;padding:11px 20px;border-radius:10px">Créer mon compte →</a></p>
+        <p><b>Étape suivante :</b> créez votre compte avec cet email — ou, si c’est déjà fait, connectez-vous : nous activerons votre offre sous peu.</p>
+        <p style="margin:14px 0 4px"><a href="${SITE}/login" style="display:inline-block;background:#f97316;color:#0f172a;font-weight:700;text-decoration:none;padding:11px 20px;border-radius:10px">Créer mon compte →</a>&nbsp;&nbsp;<a href="${SITE}/login" style="display:inline-block;border:1px solid #f9731688;color:#fb923c;font-weight:700;text-decoration:none;padding:10px 18px;border-radius:10px">J’ai un compte — me connecter</a></p>
         <p style="background:#0c4a6e33;border:1px solid #0ea5e955;border-radius:10px;padding:12px 14px">💬 <b>Un bug ou une suggestion ?</b> Parlez-nous sur Telegram : <a href="https://t.me/ChainFolioAiBetaBot" style="color:#38bdf8;font-weight:700">@ChainFolioAiBetaBot</a></p>
         <p style="color:#94a3b8;font-size:12px">100% en lecture seule et sans conservation — nous ne demandons jamais de clés privées.</p>`,
     },
@@ -94,8 +94,8 @@ function welcome(lang: string, name: string, untilStr: string): { subject: strin
       body: `<p style="color:#fff;font-size:17px;font-weight:700">Estás na lista${hi}! 🎉</p>
         <p>Obrigado por entrares no beta do <b>ChainFolioAI</b> — o painel que junta a tua <b>cripto e ativos tradicionais</b>, com PNL em tempo real, fiscalidade e uma IA que conhece o teu portefólio real.</p>
         <p style="background:#1f2937;border-radius:10px;padding:12px 14px">✅ Vais ter <b>Pro ou Premium grátis durante ${TRIAL_DAYS} dias</b> assim que ativarmos a tua conta (indicativo até <b>${untilStr}</b>).</p>
-        <p><b>Próximo passo:</b> cria a tua conta para podermos libertar o teu plano.</p>
-        <p><a href="${SITE}/login" style="display:inline-block;background:#f97316;color:#0f172a;font-weight:700;text-decoration:none;padding:11px 20px;border-radius:10px">Criar a minha conta →</a></p>
+        <p><b>Próximo passo:</b> cria a tua conta com este email — ou, se já a criaste, entra e aguarda: ativamos o teu plano em breve.</p>
+        <p style="margin:14px 0 4px"><a href="${SITE}/login" style="display:inline-block;background:#f97316;color:#0f172a;font-weight:700;text-decoration:none;padding:11px 20px;border-radius:10px">Criar a minha conta →</a>&nbsp;&nbsp;<a href="${SITE}/login" style="display:inline-block;border:1px solid #f9731688;color:#fb923c;font-weight:700;text-decoration:none;padding:10px 18px;border-radius:10px">Já tenho conta — entrar</a></p>
         <p style="background:#0c4a6e33;border:1px solid #0ea5e955;border-radius:10px;padding:12px 14px">💬 <b>Encontraste um bug ou tens sugestões?</b> Fala connosco no Telegram: <a href="https://t.me/ChainFolioAiBetaBot" style="color:#38bdf8;font-weight:700">@ChainFolioAiBetaBot</a></p>
         <p style="color:#94a3b8;font-size:12px">100% só-leitura e sem custódia — nunca pedimos chaves privadas.</p>`,
     },
