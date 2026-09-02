@@ -293,7 +293,7 @@ async function callGroq(messages: Array<{ role: string; content: string }>) {
     };
   }
 
-  const model = (process.env.GROQ_MODEL ?? "").trim() || "llama-3.1-8b-instant";
+  const model = (process.env.GROQ_MODEL ?? "").trim() || "llama-3.3-70b-versatile";
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
   let response: Response;
@@ -331,10 +331,20 @@ async function callGroq(messages: Array<{ role: string; content: string }>) {
           "Chave Groq inválida. Confirma se a `GROQ_API_KEY` é mesmo da Groq (começa por `gsk_...`) e faz Redeploy.",
       };
     }
+    // Modelo descontinuado pelo Groq (404/400 "does not exist"): mensagem
+    // limpa; o erro cru fica só no log do servidor.
+    console.error(`[chat:groq] ${response.status}: ${message.slice(0, 200)}`);
+    if (/does not exist|decommissioned|not found/i.test(message)) {
+      return {
+        ok: false as const,
+        status: response.status,
+        error: "O modelo de IA configurado ficou indisponível. Remove/atualiza a env `GROQ_MODEL` na Vercel e faz Redeploy.",
+      };
+    }
     return {
       ok: false as const,
       status: response.status,
-      error: message || "Erro ao chamar Groq.",
+      error: "Erro ao contactar a IA. Tenta novamente daqui a pouco.",
     };
   }
 

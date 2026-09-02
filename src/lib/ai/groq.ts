@@ -97,8 +97,15 @@ export async function generateAiChat(
 
   const groqKey = (process.env.GROQ_API_KEY ?? "").trim();
   if (groqKey) {
-    const model = (process.env.GROQ_MODEL ?? "").trim() || "llama-3.3-70b-versatile";
-    const r = await callProvider("groq", GROQ_URL, groqKey, model, messages, opts.maxTokens, opts.temperature, 20000);
+    const DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile";
+    const model = (process.env.GROQ_MODEL ?? "").trim() || DEFAULT_GROQ_MODEL;
+    let r = await callProvider("groq", GROQ_URL, groqKey, model, messages, opts.maxTokens, opts.temperature, 20000);
+    // O Groq descontinua modelos sem aviso (404/400). Se o modelo configurado
+    // na env morreu, tenta uma vez o default antes de cair para outro provider.
+    if (!r.ok && (r.status === 404 || r.status === 400) && model !== DEFAULT_GROQ_MODEL) {
+      console.error(`[ai:groq] modelo "${model}" indisponível — a tentar ${DEFAULT_GROQ_MODEL}`);
+      r = await callProvider("groq", GROQ_URL, groqKey, DEFAULT_GROQ_MODEL, messages, opts.maxTokens, opts.temperature, 20000);
+    }
     if (r.ok && r.content) return r.content;
     if (!r.ok) lastStatus = r.status;
   }
