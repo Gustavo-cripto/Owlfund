@@ -662,13 +662,25 @@ export default function WalletsPage() {
 
   useEffect(() => {
     setIsClient(true);
-    setAvailability({
-      metamask: isMetaMaskAvailable(),
-      phantom: isPhantomAvailable(),
-      xverse: isXverseAvailable(),
-      eternl: isEternlAvailable(),
-    });
-    setEvmProviders(getEvmProviderOptions());
+    const computeAvailability = () => {
+      setAvailability({
+        metamask: isMetaMaskAvailable(),
+        phantom: isPhantomAvailable(),
+        xverse: isXverseAvailable(),
+        eternl: isEternlAvailable(),
+      });
+      setEvmProviders(getEvmProviderOptions());
+    };
+    computeAvailability();
+    // As extensões injetam-se muitas vezes DEPOIS do mount do React → sem isto
+    // o card ficava "Indisponível" até um refresh com sorte. Re-verificamos
+    // quando a carteira se anuncia (EIP-6963/MetaMask), ao focar a janela e
+    // nuns retries curtos.
+    window.addEventListener("eip6963:announceProvider", computeAvailability);
+    window.addEventListener("ethereum#initialized", computeAvailability);
+    window.addEventListener("focus", computeAvailability);
+    try { window.dispatchEvent(new Event("eip6963:requestProvider")); } catch { /* ignore */ }
+    const retries = [500, 1500, 3500].map((ms) => setTimeout(computeAvailability, ms));
     // Sincroniza SEMPRE com a nuvem (funde o registo de contas + preenche dados
     // em falta, sem sobrescrever os locais) ANTES de hidratar — para as contas
     // aparecerem em todos os dispositivos e não fazer push antes do merge.
@@ -692,6 +704,13 @@ export default function WalletsPage() {
         // mobile (e outros dispositivos) veem os dados mesmo sem edições novas.
         pushWalletCloud();
       });
+
+    return () => {
+      window.removeEventListener("eip6963:announceProvider", computeAvailability);
+      window.removeEventListener("ethereum#initialized", computeAvailability);
+      window.removeEventListener("focus", computeAvailability);
+      retries.forEach(clearTimeout);
+    };
   }, []);
 
   useEffect(() => {
