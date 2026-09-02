@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
-import { resolveGroqModel } from "@/lib/ai/groq";
+import { generateAiText } from "@/lib/ai/groq";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 
-const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const COINGECKO_IDS: Record<string, string> = {
   BTC: "bitcoin", ETH: "ethereum", SOL: "solana",
   BNB: "binancecoin", ADA: "cardano", XRP: "ripple",
@@ -47,27 +46,20 @@ async function buildContext(mode: "crypto" | "tradicional"): Promise<string> {
   return lines.join("\n");
 }
 
-async function generateBriefing(mode: "crypto" | "tradicional", context: string): Promise<string> {
-  const apiKey = (process.env.GROQ_API_KEY ?? "").trim();
-  if (!apiKey) return "GROQ_API_KEY não configurada.";
+// Devolve null em falha — o caller NUNCA envia email com texto de erro.
+async function generateBriefing(mode: "crypto" | "tradicional", context: string): Promise<string | null> {
   const today = new Date().toISOString().split("T")[0];
   const prompt = mode === "crypto"
     ? `Briefing diário de mercado cripto em português europeu. Data: ${today}.\n\nDados reais:\n${context}\n\nEscreve um briefing conciso com: Resumo, Destaques (bullets), Análise BTC/ETH/SOL, Fear & Greed e Perspetiva 24h. Usa APENAS os preços fornecidos.`
     : `Briefing diário de mercado tradicional em português europeu. Data: ${today}.\n\nEscreve um briefing com: Resumo Macro, Destaques, Análise setorial (Tech, Ouro, Índices) e Perspetiva. Não inventes cotações específicas.`;
-
-  const res = await fetch(GROQ_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: resolveGroqModel(),
-      messages: [{ role: "user", content: prompt }],
-      max_tokens: 1000,
-      temperature: 0.2,
-    }),
-  });
-  if (!res.ok) return "Erro ao gerar briefing.";
-  const data = await res.json() as { choices: { message: { content: string } }[] };
-  return data.choices[0]?.message?.content ?? "";
+  try {
+    // Cadeia completa: candidatos Groq (modelos vivos) → OpenAI → xAI.
+    const text = await generateAiText({ prompt, maxTokens: 1000, temperature: 0.2 });
+    return text || null;
+  } catch (err) {
+    console.error(`[briefing:${mode}] geração falhou:`, err instanceof Error ? err.message : err);
+    return null;
+  }
 }
 
 function buildEmailHtml(briefing: string, mode: string, date: string): string {
@@ -158,6 +150,11 @@ export async function GET(request: Request) {
     for (const mode of modes) {
       const context = await buildContext(mode);
       const briefing = await generateBriefing(mode, context);
+      if (!briefing) {
+        // IA indisponível: NÃO enviar email de erro — regista e salta este modo.
+        console.error(`[briefing] ${mode}: IA indisponível — briefing não enviado`);
+        continue;
+      }
       const html = buildEmailHtml(briefing, mode, date);
 
       const { error } = await resend.emails.send({
