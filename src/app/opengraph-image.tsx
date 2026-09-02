@@ -1,4 +1,6 @@
 import { ImageResponse } from "next/og";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 
 export const alt =
   "ChainFolioAI — O teu portefólio cripto e tradicional num só lugar";
@@ -8,10 +10,10 @@ export const contentType = "image/png";
 // Cartão social gerado dinamicamente (1200×630).
 // Next injeta automaticamente og:image e, na ausência de twitter-image, twitter:image.
 export default async function Image() {
-  // Logótipo real embebido (ficheiro do repo → ArrayBuffer aceite pelo satori).
-  const logo = await fetch(new URL("../../public/chainfolioai-icon.png", import.meta.url)).then(
-    (r) => r.arrayBuffer(),
-  );
+  // Logótipo real embebido: lido do disco no prerender (rota corre em Node)
+  // e passado como data URI — fetch de caminhos relativos rebenta no build.
+  const logoBuf = await readFile(join(process.cwd(), "public", "chainfolioai-icon.png"));
+  const logo = `data:image/png;base64,${logoBuf.toString("base64")}`;
   return new ImageResponse(
     (
       <div
@@ -31,13 +33,7 @@ export default async function Image() {
         {/* Marca */}
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           {/* eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text */}
-          <img
-            // @ts-expect-error — o satori aceita ArrayBuffer como src
-            src={logo}
-            width={64}
-            height={64}
-            style={{ borderRadius: 18 }}
-          />
+          <img src={logo} width={64} height={64} style={{ borderRadius: 18 }} />
           <div style={{ fontSize: 34, fontWeight: 700, letterSpacing: -0.5 }}>
             ChainFolioAI
           </div>
