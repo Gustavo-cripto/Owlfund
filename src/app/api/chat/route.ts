@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveGroqModel } from "@/lib/ai/groq";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { createHash } from "crypto";
@@ -293,7 +294,7 @@ async function callGroq(messages: Array<{ role: string; content: string }>) {
     };
   }
 
-  const model = (() => { const m = (process.env.GROQ_MODEL ?? "").trim(); return !m || m === "llama-3.1-8b-instant" ? "llama-3.3-70b-versatile" : m; })();
+  const model = resolveGroqModel();
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
   let response: Response;

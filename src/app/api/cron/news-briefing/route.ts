@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveGroqModel } from "@/lib/ai/groq";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 
@@ -58,7 +59,7 @@ async function generateBriefing(mode: "crypto" | "tradicional", context: string)
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
+      model: resolveGroqModel(),
       messages: [{ role: "user", content: prompt }],
       max_tokens: 1000,
       temperature: 0.2,

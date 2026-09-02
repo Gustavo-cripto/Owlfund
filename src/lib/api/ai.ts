@@ -1,5 +1,6 @@
 // Chamada ao LLM com fallback Groq → OpenAI → xAI, partilhada pela API/MCP.
 // Groq (free tier) primeiro; só cai para os pagos se o Groq falhar.
+import { resolveGroqModel } from "@/lib/ai/groq";
 
 export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 
@@ -22,7 +23,7 @@ async function call(url: string, key: string, model: string, messages: ChatMessa
 export async function askAI(messages: ChatMessage[]): Promise<string | null> {
   const groqKey = (process.env.GROQ_API_KEY ?? "").trim();
   if (groqKey) {
-    const model = (() => { const m = (process.env.GROQ_MODEL ?? "").trim(); return !m || m === "llama-3.1-8b-instant" ? "llama-3.3-70b-versatile" : m; })();
+    const model = resolveGroqModel();
     const r = await call("https://api.groq.com/openai/v1/chat/completions", groqKey, model, messages, 12000);
     if (r) return r;
   }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveGroqModel } from "@/lib/ai/groq";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { rateLimit, clientIp } from "@/lib/utils/rateLimit";
@@ -93,7 +94,7 @@ async function callAI(system: string, question: string): Promise<string> {
   // Tenta Groq primeiro (free tier)
   const groqKey = (process.env.GROQ_API_KEY ?? "").trim();
   if (groqKey) {
-    const model = (() => { const m = (process.env.GROQ_MODEL ?? "").trim(); return !m || m === "llama-3.1-8b-instant" ? "llama-3.3-70b-versatile" : m; })();
+    const model = resolveGroqModel();
     const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${groqKey}`, "Content-Type": "application/json" },

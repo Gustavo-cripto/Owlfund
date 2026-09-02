@@ -1,5 +1,5 @@
 // Geração de texto com IA e fallback automático entre providers:
-//   1. Groq   (free tier)      → GROQ_MODEL ou "llama-3.3-70b-versatile"
+//   1. Groq   (free tier)      → GROQ_MODEL ou candidatos (ver abaixo)
 //   2. OpenAI (fallback)       → "gpt-4o-mini"
 //   3. xAI    (fallback)       → "grok-4-fast-non-reasoning"
 // Cada fallback só é usado se a respetiva API key estiver configurada.
@@ -10,6 +10,25 @@ const XAI_URL = "https://api.x.ai/v1/chat/completions";
 
 const OPENAI_MODEL = "gpt-4o-mini";
 const XAI_MODEL = "grok-4-fast-non-reasoning";
+
+// O Groq reforma modelos sem pré-aviso útil (a linha Llama 3.x inteira morreu
+// a 2026-08-16). Mantemos uma lista de candidatos e tentamos por ordem quando
+// um devolve 404/400. Substitutos oficiais: openai/gpt-oss-120b, qwen3.6-27b.
+const DEAD_GROQ_MODELS = new Set(["llama-3.1-8b-instant", "llama-3.3-70b-versatile", "llama3-8b-8192", "llama3-70b-8192"]);
+const GROQ_FALLBACK_MODELS = ["openai/gpt-oss-120b", "qwen/qwen3.6-27b", "meta-llama/llama-4-maverick-17b-128e-instruct"];
+
+/** Modelo Groq preferido: env (se não estiver na lista de mortos) ou o 1º candidato. */
+export function resolveGroqModel(): string {
+  const env = (process.env.GROQ_MODEL ?? "").trim();
+  if (env && !DEAD_GROQ_MODELS.has(env)) return env;
+  return GROQ_FALLBACK_MODELS[0];
+}
+
+/** Ordem de tentativa no Groq: preferido primeiro, depois os restantes candidatos. */
+export function groqModelCandidates(): string[] {
+  const preferred = resolveGroqModel();
+  return [preferred, ...GROQ_FALLBACK_MODELS.filter((m) => m !== preferred)];
+}
 
 /** Erro de IA com o status HTTP do último provider que falhou, para tratamento a montante. */
 export class AiError extends Error {
@@ -97,17 +116,16 @@ export async function generateAiChat(
 
   const groqKey = (process.env.GROQ_API_KEY ?? "").trim();
   if (groqKey) {
-    const DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile";
-    const model = (process.env.GROQ_MODEL ?? "").trim() || DEFAULT_GROQ_MODEL;
-    let r = await callProvider("groq", GROQ_URL, groqKey, model, messages, opts.maxTokens, opts.temperature, 20000);
-    // O Groq descontinua modelos sem aviso (404/400). Se o modelo configurado
-    // na env morreu, tenta uma vez o default antes de cair para outro provider.
-    if (!r.ok && (r.status === 404 || r.status === 400) && model !== DEFAULT_GROQ_MODEL) {
-      console.error(`[ai:groq] modelo "${model}" indisponível — a tentar ${DEFAULT_GROQ_MODEL}`);
-      r = await callProvider("groq", GROQ_URL, groqKey, DEFAULT_GROQ_MODEL, messages, opts.maxTokens, opts.temperature, 20000);
+    // Tenta os candidatos por ordem; 404/400 = modelo reformado → próximo.
+    let lastGroq: ProviderResult | null = null;
+    for (const model of groqModelCandidates()) {
+      const r = await callProvider("groq", GROQ_URL, groqKey, model, messages, opts.maxTokens, opts.temperature, 20000);
+      if (r.ok && r.content) return r.content;
+      lastGroq = r;
+      if (r.ok || (r.status !== 404 && r.status !== 400)) break;
+      console.error(`[ai:groq] modelo "${model}" indisponível — a tentar o próximo candidato`);
     }
-    if (r.ok && r.content) return r.content;
-    if (!r.ok) lastStatus = r.status;
+    if (lastGroq && !lastGroq.ok) lastStatus = lastGroq.status;
   }
 
   const openaiKey = (process.env.OPENAI_API_KEY ?? "").trim();
