@@ -77,12 +77,12 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
     const nextPassword = password.trim();
 
     if (!nextEmail || !nextPassword) {
-      fail("Preenche o email e a senha.");
+      fail("Preenche o email e a palavra-passe.");
       return null;
     }
 
     if (nextPassword.length < 6) {
-      fail("A senha deve ter pelo menos 6 caracteres.");
+      fail("A palavra-passe deve ter pelo menos 6 caracteres.");
       return null;
     }
 
@@ -174,13 +174,13 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
 
     const nextConfirm = confirmPassword.trim();
     if (!nextConfirm) {
-      fail("Confirma a senha.");
+      fail("Confirma a palavra-passe.");
       setLoading(false);
       return;
     }
 
     if (creds.password !== nextConfirm) {
-      fail("As senhas não coincidem.");
+      fail("As palavras-passe não coincidem.");
       setLoading(false);
       return;
     }
@@ -225,7 +225,7 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
   const handleReset = async () => {
     const nextEmail = email.trim();
     if (!nextEmail) {
-      fail("Escreve o teu email primeiro e depois clica em \"Esqueceste a senha?\".");
+      fail("Escreve o teu email primeiro e depois clica em \"Esqueceste-te da palavra-passe?\".");
       return;
     }
     setLoading(true);
@@ -237,7 +237,7 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
     if (error) {
       fail(error.message || "Não foi possível enviar o email.");
     } else {
-      setMessage("Email enviado! Verifica a tua caixa de entrada para redefinir a senha.");
+      setMessage("Email enviado! Verifica a tua caixa de entrada para redefinires a palavra-passe.");
       setIsError(false);
     }
     setLoading(false);
@@ -368,7 +368,7 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
             <div className="relative">
               <input
                 className={`${inputClass} pr-16`}
-                placeholder="Senha"
+                placeholder="Palavra-passe"
                 type={showPassword ? "text" : "password"}
                 autoComplete={mode === "signup" ? "new-password" : "current-password"}
                 value={password}
@@ -386,7 +386,7 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
             {mode === "signup" ? (
               <input
                 className={inputClass}
-                placeholder="Confirmar senha"
+                placeholder="Confirmar palavra-passe"
                 type={showPassword ? "text" : "password"}
                 autoComplete="new-password"
                 value={confirmPassword}
@@ -402,7 +402,7 @@ export default function LoginForm({ nextParam }: LoginFormProps) {
               disabled={busy}
               className="mt-2 text-xs text-slate-400 transition hover:text-orange-300 disabled:opacity-50"
             >
-              Esqueceste a senha?
+              Esqueceste-te da palavra-passe?
             </button>
           )}
 

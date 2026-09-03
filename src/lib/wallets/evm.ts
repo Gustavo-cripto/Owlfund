@@ -187,7 +187,7 @@ export const connectMetaMask = async () => {
 
   const address = accounts?.[0];
   if (!address) {
-    throw new Error("Nenhuma conta retornada pelo MetaMask.");
+    throw new Error("Nenhuma conta devolvida pela MetaMask.");
   }
 
   return address as `0x${string}`;
@@ -213,7 +213,7 @@ export const connectEvmProvider = async (provider?: EvmProvider) => {
   const accounts = await requestAccountsWithPrompt(provider);
   const address = accounts?.[0];
   if (!address) {
-    throw new Error("Nenhuma conta retornada pela carteira.");
+    throw new Error("Nenhuma conta devolvida pela carteira.");
   }
   return address as `0x${string}`;
 };
@@ -286,14 +286,14 @@ export const connectWalletConnect = async (): Promise<`0x${string}`> => {
     disableProviderPing: true,
     metadata: {
       name: "ChainFolioAI",
-      description: "Portfólio read-only — consulta dados públicos da blockchain, não assina transações.",
+      description: "Portefólio read-only — consulta dados públicos da blockchain, não assina transações.",
       url: typeof window !== "undefined" ? window.location.origin : "https://chainfolioai.com",
       icons: ["/chainfolioai-icon.png"],
     },
   });
   await provider.connect();
   const accounts = provider.accounts;
-  if (!accounts?.[0]) throw new Error("Nenhuma conta retornada pelo WalletConnect.");
+  if (!accounts?.[0]) throw new Error("Nenhuma conta devolvida pelo WalletConnect.");
   return accounts[0] as `0x${string}`;
 };
 

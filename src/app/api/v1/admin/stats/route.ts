@@ -49,7 +49,7 @@ const head = (admin: Admin, table: string) =>
 export async function GET(req: NextRequest) {
   if (!verifyAdminAuth(req)) {
     const res = apiJson(
-      { error: "unauthorized", message: "Token de administracao em falta ou invalido." },
+      { error: "unauthorized", message: "Token de administração em falta ou inválido." },
       { status: 401 });
     res.headers.set("WWW-Authenticate", 'Bearer realm="ChainFolioAI Admin"');
     return res;
@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
     admin = getSupabaseAdmin();
   } catch {
     return apiJson(
-      { error: "service_unavailable", message: "Supabase nao configurado." },
+      { error: "service_unavailable", message: "Supabase não configurado." },
       { status: 503 });
   }
 

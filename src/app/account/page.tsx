@@ -934,7 +934,7 @@ export default function AccountPage() {
                       <ThemeCard value="system" current={theme} label={t("ac_system")}  icon="💻" onClick={() => setSetting("theme", "system")} />
                     </div>
                     <p className="text-xs text-slate-500 mt-2">
-                      {theme === "system" ? "A seguir as preferências do sistema operativo." : theme === "light" ? "Modo claro ativado." : "Modo escuro ativado."}
+                      {theme === "system" ? "A usar as preferências do sistema operativo." : theme === "light" ? "Modo claro ativado." : "Modo escuro ativado."}
                     </p>
                   </div>
 

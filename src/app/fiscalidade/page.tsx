@@ -305,7 +305,7 @@ export default function FiscalidadePage() {
     return { totalGain, taxable, exempt, losses, tax };
   }, [taxEvents]);
 
-  // Partilha (telemóvel) ou download (desktop) — mesmo padrão dos exports do portfólio.
+  // Partilha (telemóvel) ou download (desktop) — mesmo padrão dos exports do portefólio.
   const shareOrDownload = async (blob: Blob, filename: string) => {
     const nav = navigator as Navigator & {
       canShare?: (d: { files: File[] }) => boolean;
@@ -323,7 +323,7 @@ export default function FiscalidadePage() {
     }
   };
 
-  // Excel (.xlsx) formatado com logótipo — mesmo formato dos exports do portfólio.
+  // Excel (.xlsx) formatado com logótipo — mesmo formato dos exports do portefólio.
   const exportXLSX = async () => {
     const mod = await import("exceljs");
     const ExcelJS = (mod as unknown as { default?: typeof mod }).default ?? mod;

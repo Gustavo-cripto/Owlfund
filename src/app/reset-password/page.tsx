@@ -47,25 +47,25 @@ export default function ResetPasswordPage() {
     setMessage(null);
     setIsError(false);
     if (password.trim().length < 6) {
-      setMessage("A senha deve ter pelo menos 6 caracteres.");
+      setMessage("A palavra-passe deve ter pelo menos 6 caracteres.");
       setIsError(true);
       return;
     }
     if (password !== confirm) {
-      setMessage("As senhas não coincidem.");
+      setMessage("As palavras-passe não coincidem.");
       setIsError(true);
       return;
     }
     setLoading(true);
     const { error } = await supabase.auth.updateUser({ password: password.trim() });
     if (error) {
-      setMessage(error.message || "Não foi possível redefinir a senha. Pede um novo link.");
+      setMessage(error.message || "Não foi possível redefinir a palavra-passe. Pede um novo link.");
       setIsError(true);
       setLoading(false);
       return;
     }
     setDone(true);
-    setMessage("Senha redefinida com sucesso! A redirecionar...");
+    setMessage("Palavra-passe redefinida com sucesso! A redirecionar...");
     setIsError(false);
     setTimeout(() => { window.location.href = "/dashboard"; }, 1500);
   };
@@ -83,8 +83,8 @@ export default function ResetPasswordPage() {
         <div className="flex flex-col items-center gap-3 text-center">
           <img src="/chainfolioai-icon.png" alt="ChainFolioAI" className="h-16 w-16 rounded-2xl border border-white/10 object-cover shadow-lg shadow-black/40" />
           <div>
-            <h1 className="text-2xl font-bold text-white">Redefinir senha</h1>
-            <p className="mt-1 text-sm text-slate-400">Escolhe uma nova senha para a tua conta.</p>
+            <h1 className="text-2xl font-bold text-white">Redefinir palavra-passe</h1>
+            <p className="mt-1 text-sm text-slate-400">Escolhe uma nova palavra-passe para a tua conta.</p>
           </div>
         </div>
 
@@ -103,7 +103,7 @@ export default function ResetPasswordPage() {
               <div className="relative">
                 <input
                   className={`${inputClass} pr-16`}
-                  placeholder="Nova senha"
+                  placeholder="Nova palavra-passe"
                   type={show ? "text" : "password"}
                   autoComplete="new-password"
                   value={password}
@@ -117,7 +117,7 @@ export default function ResetPasswordPage() {
               </div>
               <input
                 className={inputClass}
-                placeholder="Confirmar nova senha"
+                placeholder="Confirmar nova palavra-passe"
                 type={show ? "text" : "password"}
                 autoComplete="new-password"
                 value={confirm}
@@ -130,7 +130,7 @@ export default function ResetPasswordPage() {
               ) : null}
               <button type="button" onClick={submit} disabled={loading || done}
                 className={`${btnPrimary} w-full px-6 py-3 text-sm`}>
-                {loading ? "A guardar..." : "Redefinir senha"}
+                {loading ? "A guardar..." : "Redefinir palavra-passe"}
               </button>
             </div>
           )}

@@ -38,7 +38,7 @@ export async function POST() {
     .maybeSingle();
 
   if (!profile?.stripe_customer_id) {
-    return NextResponse.json({ error: "Sem subscrição activa." }, { status: 404 });
+    return NextResponse.json({ error: "Sem subscrição ativa." }, { status: 404 });
   }
 
   const session = await stripe.billingPortal.sessions.create({

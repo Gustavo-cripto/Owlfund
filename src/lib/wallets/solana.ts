@@ -64,7 +64,7 @@ export const connectPhantom = async (): Promise<string> => {
   try { await provider.disconnect?.(); } catch { /* ignore */ }
   const response = await provider.connect();
   const address = response?.publicKey?.toString();
-  if (!address) throw new Error("Nenhuma conta retornada pelo Phantom.");
+  if (!address) throw new Error("Nenhuma conta devolvida pela Phantom.");
   return address;
 };
 
@@ -82,7 +82,7 @@ export const connectSolflare = async (): Promise<string> => {
   // After connect(), publicKey is set on the window object (may take a tick)
   await new Promise((r) => setTimeout(r, 100));
   const address = window.solflare.publicKey?.toString();
-  if (!address) throw new Error("Nenhuma conta retornada pela Solflare. Verifica se a extensão está desbloqueada.");
+  if (!address) throw new Error("Nenhuma conta devolvida pela Solflare. Verifica se a extensão está desbloqueada.");
   return address;
 };
 
@@ -92,7 +92,7 @@ export const connectBackpack = async (): Promise<string> => {
   }
   const response = await window.backpack.connect();
   const address = response?.address ?? response?.publicKey?.toString();
-  if (!address) throw new Error("Nenhuma conta retornada pela Backpack.");
+  if (!address) throw new Error("Nenhuma conta devolvida pela Backpack.");
   return address;
 };
 
@@ -102,7 +102,7 @@ export const connectGlow = async (): Promise<string> => {
   }
   const response = await window.glow.connect();
   const address = response?.address ?? response?.publicKey?.toString();
-  if (!address) throw new Error("Nenhuma conta retornada pela Glow.");
+  if (!address) throw new Error("Nenhuma conta devolvida pela Glow.");
   return address;
 };
 
@@ -115,7 +115,7 @@ export const connectFlint = async (): Promise<string> => {
     response?.publicKey?.toString() ??
     response?.address ??
     window.flint.publicKey?.toString();
-  if (!address) throw new Error("Nenhuma conta retornada pela Flint.");
+  if (!address) throw new Error("Nenhuma conta devolvida pela Flint.");
   return address;
 };
 

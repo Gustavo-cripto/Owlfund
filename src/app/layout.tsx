@@ -49,7 +49,7 @@ export const metadata: Metadata = {
   description: SITE_DESC,
   applicationName: "ChainFolioAI",
   keywords: [
-    "portfólio cripto",
+    "portefólio cripto",
     "crypto portfolio tracker",
     "PNL cripto",
     "Bitcoin",

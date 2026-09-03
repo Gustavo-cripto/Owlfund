@@ -1444,7 +1444,7 @@ export async function GET(request: Request) {
   }
 
   if (!["eth", "sol", "btc", "ada"].includes(chain)) {
-    return NextResponse.json({ error: "Chain inválida. Use eth, sol, btc ou ada." }, { status: 400 });
+    return NextResponse.json({ error: "Chain inválida. Usa eth, sol, btc ou ada." }, { status: 400 });
   }
 
   if (!validateAddressForChain(address.trim(), chain)) {

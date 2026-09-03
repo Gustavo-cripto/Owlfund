@@ -53,7 +53,7 @@ export type XverseAddresses = { payment: string; ordinals?: string };
 const requestAccounts = async (purposes: AddressPurpose[]) =>
   Wallet.request("getAccounts", {
     purposes,
-    message: "Permita o acesso para leitura do saldo, Ordinals e Runes.",
+    message: "Permite o acesso para leitura do saldo, Ordinals e Runes.",
   });
 
 export const connectXverse = async (): Promise<XverseAddresses> => {
@@ -64,7 +64,7 @@ export const connectXverse = async (): Promise<XverseAddresses> => {
     response = await requestAccounts([AddressPurpose.Payment]);
   }
   if (response.status === "error") {
-    throw new Error(response.error?.message ?? "Falha ao conectar com Xverse.");
+    throw new Error(response.error?.message ?? "Falha ao ligar à Xverse.");
   }
 
   const accounts = response.result ?? [];
@@ -72,7 +72,7 @@ export const connectXverse = async (): Promise<XverseAddresses> => {
     ?? accounts[0]?.address;
   const ordinals = accounts.find((a) => a.purpose === AddressPurpose.Ordinals)?.address;
   if (!payment) {
-    throw new Error("Nenhum endereço retornado pela Xverse.");
+    throw new Error("Nenhum endereço devolvido pela Xverse.");
   }
 
   return { payment, ordinals };

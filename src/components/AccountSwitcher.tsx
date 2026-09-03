@@ -1,6 +1,6 @@
 "use client";
 
-// Seletor de contas (multi-portfólio). Gated a Pro/Premium.
+// Seletor de contas (multi-portefólio). Gated a Pro/Premium.
 // - Free: 1 conta · Pro: 3 · Premium: 10.
 // - Trocar de conta (ou "Todas") recarrega a página, para que os load*/save*
 //   apanhem os dados da conta ativa sem refactor das páginas grandes.
@@ -135,7 +135,7 @@ export default function AccountSwitcher() {
 
   const onDeleteRow = (a: Account) => {
     if (accounts.length <= 1) return;
-    if (!window.confirm(`Apagar a conta "${a.name}" e os seus dados? Esta ação não pode ser desfeita.`)) return;
+    if (!window.confirm(`Apagar a conta "${a.name}" e os respetivos dados? Esta ação não pode ser desfeita.`)) return;
     const wasActive = a.id === activeId;
     deleteAccount(a.id);
     pushWalletCloud();
@@ -152,7 +152,7 @@ export default function AccountSwitcher() {
         type="button"
         onClick={() => setOpen((o) => !o)}
         className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-orange-500/50 hover:bg-slate-800/70"
-        title="Conta / portfólio"
+        title="Conta / portefólio"
       >
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-orange-400">
           <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
@@ -248,7 +248,7 @@ export default function AccountSwitcher() {
           )}
           {!isAll && (
             <p className="px-3 py-1.5 text-[11px] leading-snug text-slate-500">
-              ✎ renomeia · 🗑 apaga — cada conta é um portfólio no teu login.
+              ✎ renomeia · 🗑 apaga — cada conta é um portefólio no teu login.
             </p>
           )}
         </div>

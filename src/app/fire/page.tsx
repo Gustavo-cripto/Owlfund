@@ -30,7 +30,7 @@ export default function FirePage() {
   const realReturn = (annualReturn - inflationRate) / 100;
   const monthlyReal = realReturn / 12;
 
-  // Anos para FIRE partindo do portfólio atual
+  // Anos para FIRE partindo do portefólio atual
   const yearsToFire = useMemo(() => {
     if (realReturn <= 0) return null;
     if (portfolioValue >= fireTarget) return 0;

@@ -37,7 +37,7 @@ function reminderHtml(plan: string, endLabel: string, days: number, accountUrl: 
       cripto não têm débito automático, precisas de renovar manualmente para manteres o ${plan}.
     </p>
     <p style="line-height:1.6;margin:0 0 20px">
-      O teu histórico de portfólio e todas as métricas ficam <strong>intactos</strong> —
+      O teu histórico de portefólio e todas as métricas ficam <strong>intactos</strong> —
       renovar apenas reativa o acesso, sem perder nada.
     </p>
     <p style="margin:0 0 24px">

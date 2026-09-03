@@ -33,7 +33,7 @@ type ChatWidgetProps = {
   isPro?: boolean;
 };
 
-// Histórico de mensagens: chave POR CONTA (cada portfólio tem a sua conversa
+// Histórico de mensagens: chave POR CONTA (cada portefólio tem a sua conversa
 // separada com o Chain). accKey prefixa por conta ativa → cf.acct.<id>.<base>.
 const MESSAGES_BASE = "owlfund.chat.messages.v2";
 const messagesKeyFor = (accountId: string) => accKey(MESSAGES_BASE, accountId);
@@ -250,7 +250,7 @@ export default function ChatWidget({
 
   const limitReached = !isPro && chatCount >= FREE_CHAT_LIMIT;
   // Indicador de conta ativa: só quando há várias contas ou na vista combinada,
-  // para não poluir a UI de quem só tem um portfólio.
+  // para não poluir a UI de quem só tem um portefólio.
   const showAcctChip = Boolean(acctName) && (acctCount > 1 || acctId === ALL_ACCOUNTS_ID);
 
   const content = (
@@ -370,7 +370,7 @@ export default function ChatWidget({
         {limitReached ? (
           <div className="space-y-1 rounded-xl border border-orange-500/30 bg-orange-500/5 px-3 py-3 text-xs">
             <p className="font-semibold text-orange-300">🔒 Limite de {FREE_CHAT_LIMIT} chats/mês atingido</p>
-            <p className="text-slate-400">Faz upgrade para Pro e tem chats ilimitados.</p>
+            <p className="text-slate-400">Faz upgrade para Pro para chats ilimitados.</p>
             <a href="/pricing" className={`${btnPrimary} mt-1 px-4 py-1.5 text-xs`}>
               Upgrade para Pro →
             </a>

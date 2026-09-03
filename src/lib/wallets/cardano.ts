@@ -56,7 +56,7 @@ export const connectEternl = async () => {
     const addrs = await unused;
     addressHex = addrs?.[0] ?? "";
   }
-  if (!addressHex) throw new Error("Nenhum endereço retornado.");
+  if (!addressHex) throw new Error("Nenhum endereço devolvido.");
   if (addressHex.startsWith("addr")) return { api, address: addressHex };
   const CardanoWasm = await getCardanoWasm();
   const address = CardanoWasm.Address.from_bytes(hexToBytes(addressHex)).to_bech32();
@@ -82,7 +82,7 @@ const connectCardanoWalletById = async (
   const changeAddressHex = await api.getChangeAddress?.().catch(() => "");
   const unused = await api.getUnusedAddresses?.().catch(() => []);
   const addressHex = changeAddressHex || (unused?.[0] ?? "");
-  if (!addressHex) throw new Error("Nenhum endereço retornado pela carteira.");
+  if (!addressHex) throw new Error("Nenhum endereço devolvido pela carteira.");
   if (typeof addressHex === "string" && addressHex.startsWith("addr"))
     return { api, address: addressHex };
   const CardanoWasm = await getCardanoWasm();

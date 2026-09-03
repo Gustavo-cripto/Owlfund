@@ -1,6 +1,6 @@
-// Multi-portfólio ("contas") — Etapa 1: fundação.
+// Multi-portefólio ("contas") — Etapa 1: fundação.
 //
-// Cada "conta" é um conjunto isolado dos dados do portfólio (carteiras + ativos
+// Cada "conta" é um conjunto isolado dos dados do portefólio (carteiras + ativos
 // manuais), guardado no localStorage sob chaves prefixadas por conta:
 //   cf.acct.<accountId>.<baseKey>
 //
@@ -101,7 +101,7 @@ export function ensureAccounts(): Registry {
 
 /**
  * Associa os dados locais deste dispositivo ao utilizador autenticado.
- * Os dados de portfólio no localStorage são partilhados por todo o browser;
+ * Os dados de portefólio no localStorage são partilhados por todo o browser;
  * sem esta guarda, um login de OUTRO utilizador no mesmo dispositivo veria
  * (e sincronizaria para a nuvem dele) as contas do utilizador anterior.
  * - 1.º login no dispositivo: reclama os dados existentes (migração legada).

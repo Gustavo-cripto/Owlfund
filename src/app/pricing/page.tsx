@@ -198,7 +198,7 @@ export default function PricingPage() {
               <h2 className="text-sm font-bold text-white mb-3">{t("pc_intro_title")}</h2>
               <div className="space-y-2.5 text-sm text-slate-300 leading-relaxed">
                 <p>{t("pc_intro_1")}</p>
-                <p>{t("pc_intro_2")}</p>
+                <p>{t(paymentsFrozen ? "pc_intro_2_beta" : "pc_intro_2")}</p>
               </div>
             </div>
 
@@ -223,7 +223,7 @@ export default function PricingPage() {
                 { icon: "🔒", label: t("pc_trust_readonly") },
                 { icon: "↩️", label: t("pc_trust_cancel") },
                 { icon: "💳", label: t("pc_trust_nocard") },
-                { icon: "🔐", label: t("pc_trust_stripe") },
+                { icon: "🔐", label: t(paymentsFrozen ? "pc_trust_stripe_beta" : "pc_trust_stripe") },
               ].map((item) => (
                 <div key={item.label} className="flex items-center gap-2.5 rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2.5">
                   <span className="text-lg shrink-0">{item.icon}</span>
@@ -522,7 +522,7 @@ export default function PricingPage() {
             {/* Footer note */}
             <div className="text-center space-y-2">
               <p className="text-xs text-slate-600">
-                {t("pc_footer")}
+                {t(paymentsFrozen ? "pc_footer_beta" : "pc_footer")}
               </p>
             </div>
 

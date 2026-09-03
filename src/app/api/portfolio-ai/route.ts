@@ -61,7 +61,7 @@ function buildSystemPrompt(ctx: PortfolioContext, nickname = ""): string {
     ? `\nO utilizador chama-se ${nickname} — trata-o por esse nome de forma natural. Não inventes outro nome.`
     : "";
 
-  return `Tu és o assistente IA — analista financeiro pessoal do utilizador no ChainFolioAI. Tens acesso em tempo real aos dados do portfólio dele:${nameLine}
+  return `Tu és o assistente IA — analista financeiro pessoal do utilizador no ChainFolioAI. Tens acesso em tempo real aos dados do portefólio dele:${nameLine}
 
 PORTFÓLIO ATUAL:
   Total: € ${fmt(ctx.totalEur)}

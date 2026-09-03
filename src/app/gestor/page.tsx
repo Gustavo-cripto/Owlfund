@@ -37,7 +37,7 @@ type Message = {
 
 type PlanStatus = "loading" | "premium" | "not-premium";
 
-// Persistência da conversa POR CONTA (cada portfólio tem a sua thread com o
+// Persistência da conversa POR CONTA (cada portefólio tem a sua thread com o
 // Gestor). accKey prefixa por conta ativa → cf.acct.<id>.<base>.
 const GESTOR_MESSAGES_BASE = "gestor.chat.messages.v1";
 const gestorKeyFor = (accountId: string) => accKey(GESTOR_MESSAGES_BASE, accountId);
@@ -154,7 +154,7 @@ export default function GestorPage() {
     return () => window.removeEventListener(ACCOUNTS_EVENT, onAccountsChanged);
   }, []);
 
-  // Resumo estruturado do portfólio (total em € + categorias) para o mini-card
+  // Resumo estruturado do portefólio (total em € + categorias) para o mini-card
   // e a mensagem de boas-vindas. Recarrega ao trocar de conta.
   useEffect(() => {
     let alive = true;
@@ -165,7 +165,7 @@ export default function GestorPage() {
     return () => { alive = false; };
   }, [acctId]);
 
-  // Mensagem de boas-vindas personalizada (nome + total do portfólio).
+  // Mensagem de boas-vindas personalizada (nome + total do portefólio).
   const buildWelcome = useCallback((): Message => {
     const nick = loadNickname() || "";
     const greeting = `${t("gz_hi")}${nick ? `, ${nick}` : ""}!`;
@@ -188,11 +188,11 @@ export default function GestorPage() {
     setMessages(persisted.length > 0 ? persisted : [buildWelcome()]);
     requestAnimationFrame(() => { hydratedRef.current = true; });
     // buildWelcome propositadamente fora das deps: só queremos recarregar ao
-    // mudar de conta/plano, não a cada atualização do portfólio.
+    // mudar de conta/plano, não a cada atualização do portefólio.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planStatus, acctId]);
 
-  // Se o total do portfólio chegar depois e ainda só estivermos nas boas-vindas,
+  // Se o total do portefólio chegar depois e ainda só estivermos nas boas-vindas,
   // atualiza a mensagem para incluir o valor.
   useEffect(() => {
     setMessages(prev => (prev.length === 1 && prev[0].id === "welcome" ? [buildWelcome()] : prev));

@@ -476,7 +476,7 @@ export default function WalletsPage() {
   const [nftLoading, setNftLoading] = useState<Record<string, boolean>>({});
   const [nftErrors, setNftErrors] = useState<Record<string, string | null>>({});
   const [nftsByKey, setNftsByKey] = useState<Record<string, Array<{ id: string; name: string; image?: string; tokenUri?: string; tokenAddress?: string; tokenId?: string }>>>({});
-  // Tokens (ERC-20 / SPL) por endereço cold — para mostrar wETH etc. e somar ao portfólio.
+  // Tokens (ERC-20 / SPL) por endereço cold — para mostrar wETH etc. e somar ao portefólio.
   type ColdToken = { address: string; symbol: string; name: string; logo?: string; balance: string; usdValue: number; usdPrice: number; chain: string };
   const [coldTokensByAddr, setColdTokensByAddr] = useState<Record<string, ColdToken[]>>({});
   const [coldTokensLoading, setColdTokensLoading] = useState<Record<string, boolean>>({});
@@ -1599,7 +1599,7 @@ export default function WalletsPage() {
       setEthWallets(nextWallets);
       updateWalletSnapshot({ eth: nextWallets, sol: solWallets, btc: btcWallets, ada: adaWallets });
     } catch (error) {
-      setEthError(error instanceof Error ? error.message : "Erro ao conectar.");
+      setEthError(error instanceof Error ? error.message : "Erro ao ligar.");
     } finally {
       setEthLoading(false);
     }
@@ -1608,7 +1608,7 @@ export default function WalletsPage() {
   const handleEthConnect = () => {
     const host = typeof window !== "undefined" ? window.location.hostname : "";
     requestConfirm({
-      title: "Conectar carteira Ethereum",
+      title: "Ligar carteira Ethereum",
       description: `Vai ligar a carteira ao domínio ${host || "atual"} em modo leitura.`,
       onConfirm: handleEthConnectInternal,
     });
@@ -1631,7 +1631,7 @@ export default function WalletsPage() {
       setEthWallets(nextWallets);
       updateWalletSnapshot({ eth: nextWallets, sol: solWallets, btc: btcWallets, ada: adaWallets });
     } catch (error) {
-      setEthError(error instanceof Error ? error.message : "Erro ao conectar via WalletConnect.");
+      setEthError(error instanceof Error ? error.message : "Erro ao ligar via WalletConnect.");
     } finally {
       setEthLoading(false);
     }
@@ -1645,7 +1645,7 @@ export default function WalletsPage() {
     }
     const host = typeof window !== "undefined" ? window.location.hostname : "";
     requestConfirm({
-      title: "Conectar via WalletConnect",
+      title: "Ligar via WalletConnect",
       description: `Vai abrir um QR code para ligares qualquer carteira mobile ao domínio ${host || "atual"}.`,
       onConfirm: handleWalletConnectInternal,
     });
@@ -1772,7 +1772,7 @@ export default function WalletsPage() {
       }
       updateWalletSnapshot({ eth: ethWallets, sol: nextWallets, btc: btcWallets, ada: adaWallets });
     } catch (error) {
-      setSolError(error instanceof Error ? error.message : "Erro ao conectar.");
+      setSolError(error instanceof Error ? error.message : "Erro ao ligar.");
     } finally {
       setSolLoading(false);
     }
@@ -1781,7 +1781,7 @@ export default function WalletsPage() {
   const handleSolConnect = () => {
     const host = typeof window !== "undefined" ? window.location.hostname : "";
     requestConfirm({
-      title: "Conectar carteira Solana",
+      title: "Ligar carteira Solana",
       description: `Vai ligar a carteira ao domínio ${host || "atual"} em modo leitura.`,
       onConfirm: handleSolConnectInternal,
     });
@@ -1908,7 +1908,7 @@ export default function WalletsPage() {
       }
       updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: nextWallets, ada: adaWallets });
     } catch (error) {
-      setBtcError(error instanceof Error ? error.message : "Erro ao conectar.");
+      setBtcError(error instanceof Error ? error.message : "Erro ao ligar.");
     } finally {
       setBtcLoading(false);
     }
@@ -1917,7 +1917,7 @@ export default function WalletsPage() {
   const handleBtcConnect = () => {
     const host = typeof window !== "undefined" ? window.location.hostname : "";
     requestConfirm({
-      title: "Conectar carteira Bitcoin",
+      title: "Ligar carteira Bitcoin",
       description: `Vai ligar a carteira ao domínio ${host || "atual"} em modo leitura.`,
       onConfirm: handleBtcConnectInternal,
     });
@@ -2066,11 +2066,11 @@ export default function WalletsPage() {
       updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: nextWallets });
     } catch (error) {
       clearTimeout(msgTimer);
-      const msg = error instanceof Error ? error.message : "Erro ao conectar.";
+      const msg = error instanceof Error ? error.message : "Erro ao ligar.";
       if (msg === "timeout") {
-        setAdaError("O Eternl não respondeu em 60 segundos. Verifica: 1) Clica no ícone do Eternl na barra de extensões do Chrome → deverá aparecer um pedido pendente para aprovar. 2) Se não aparecer nada, abre o Eternl → Settings → dApp Connector → confirma que tens uma conta dApp activa. 3) Em alternativa, adiciona o endereço manualmente abaixo.");
+        setAdaError("O Eternl não respondeu em 60 segundos. Verifica: 1) Clica no ícone do Eternl na barra de extensões do Chrome → deverá aparecer um pedido pendente para aprovar. 2) Se não aparecer nada, abre o Eternl → Settings → dApp Connector → confirma que tens uma conta dApp ativa. 3) Em alternativa, adiciona o endereço manualmente abaixo.");
       } else if (msg.toLowerCase().includes("user canceled") || msg.toLowerCase().includes("cancelled") || msg.toLowerCase().includes("cancel")) {
-        setAdaError("Conexão cancelada pelo utilizador.");
+        setAdaError("Ligação cancelada pelo utilizador.");
       } else if (
         msg.toLowerCase().includes("no account set") ||
         msg.toLowerCase().includes("no daccount") ||
@@ -3047,7 +3047,7 @@ export default function WalletsPage() {
                 ) : null}
               </div>
               <p className="text-xs text-slate-500">
-                Conecta uma carteira e/ou adiciona endereços. O saldo total junta todas.
+                Liga uma carteira e/ou adiciona endereços. O saldo total junta todas.
               </p>
               <button
                 type="button"
@@ -3448,7 +3448,7 @@ export default function WalletsPage() {
                 ))}
               </div>
               <p className="text-xs text-slate-500">
-                Conecta uma carteira e/ou adiciona endereços. O saldo total junta todas.
+                Liga uma carteira e/ou adiciona endereços. O saldo total junta todas.
               </p>
               <div className="grid gap-3 sm:grid-cols-[1.2fr_0.8fr_auto]">
                 <input
@@ -3792,7 +3792,7 @@ export default function WalletsPage() {
           >
             <div className="space-y-3">
               <p className="text-xs text-slate-500">
-                Conecta uma carteira e/ou adiciona endereços. O saldo total junta todas.
+                Liga uma carteira e/ou adiciona endereços. O saldo total junta todas.
               </p>
               <div className="grid gap-3 sm:grid-cols-[1.2fr_0.8fr_auto]">
                 <input
@@ -4291,7 +4291,7 @@ export default function WalletsPage() {
               ) : null}
               {adaNewError ? <p className="text-xs text-rose-300">{adaNewError}</p> : null}
               <p className="text-xs text-slate-500">
-                Conecta uma carteira e/ou adiciona endereços. O saldo total junta todas.
+                Liga uma carteira e/ou adiciona endereços. O saldo total junta todas.
               </p>
               <div className="space-y-2">
                 {adaWallets.map((item) => {

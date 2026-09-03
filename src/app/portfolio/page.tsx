@@ -95,7 +95,7 @@ async function fetchPricesWithBenchmark(): Promise<PricesApiResponse> {
 }
 
 // Snapshot do benchmark (BTC, S&P 500, ouro) no momento da gravação — base para
-// calcular o Beta do portfólio vs mercado. Só guardamos o que vier > 0.
+// calcular o Beta do portefólio vs mercado. Só guardamos o que vier > 0.
 type BenchSnapshot = { btc?: number; sp500?: number; gold?: number };
 async function fetchBenchmarkSnapshot(): Promise<BenchSnapshot | null> {
   try {
@@ -685,7 +685,7 @@ export default function PortfolioPage() {
     if (chrono.length < 2) return null;
 
     // Limpeza: descartar snapshots claramente incompletos (total ~0 face à
-    // mediana). São capturas parciais — o portfólio não valeu mesmo 0 — e
+    // mediana). São capturas parciais — o portefólio não valeu mesmo 0 — e
     // faziam a queda máxima disparar para -100%.
     const positives = chrono.map((s) => s.total).filter((v) => v > 0).sort((a, b) => a - b);
     const median = positives.length ? positives[Math.floor(positives.length / 2)] : 0;
@@ -928,7 +928,7 @@ export default function PortfolioPage() {
     };
   }, [cryptoAllocations, traditionalAllocations, cryptoTotal, stablecoinTotal, traditionalTotal, portfolioTotal]);
 
-  // ── Score do portfólio (0–100) — depois de cryptoAllocations ──
+  // ── Score do portefólio (0–100) — depois de cryptoAllocations ──
   const portfolioScore = useMemo(() => {
     if (portfolioTotal <= 0) return null;
     let score = 0;
@@ -1350,7 +1350,7 @@ export default function PortfolioPage() {
 
         {/* ── SCORE + BENCHMARK ── */}
         <section className="grid gap-6 md:grid-cols-[1fr_1.6fr]">
-          {/* Score do portfólio */}
+          {/* Score do portefólio */}
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{t("pf_evaluation")}</p>
             <h2 className="text-base font-bold text-white mt-0.5 mb-4">{t("pf_score")}</h2>
@@ -1404,7 +1404,7 @@ export default function PortfolioPage() {
             ) : null}
           </div>
 
-          {/* Resumo do portfólio */}
+          {/* Resumo do portefólio */}
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 flex flex-col gap-5">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{t("pf_summary")}</p>
@@ -1522,7 +1522,7 @@ export default function PortfolioPage() {
                 doc.setFontSize(10);
                 doc.setFont("helvetica", "normal");
                 doc.setTextColor(148, 163, 184);
-                doc.text(`Relatório de Portfólio — ${now}${accName ? ` · ${accName}` : ""}`, titleX, 31);
+                doc.text(`Relatório de Portefólio — ${now}${accName ? ` · ${accName}` : ""}`, titleX, 31);
                 doc.setTextColor(255, 255, 255);
                 y = 42;
                 doc.setDrawColor(249, 115, 22);
@@ -1607,7 +1607,7 @@ export default function PortfolioPage() {
                 const wb = new ExcelJS.Workbook();
                 wb.creator = "ChainFolioAI";
                 wb.created = new Date();
-                const ws = wb.addWorksheet("Portfólio");
+                const ws = wb.addWorksheet("Portefólio");
 
                 const logoUrl = await loadLogoDataUrl();
                 const logoImgId = logoUrl ? wb.addImage({ base64: logoUrl.split(",")[1], extension: "png" }) : null;
@@ -1633,7 +1633,7 @@ export default function PortfolioPage() {
                 };
                 const boldRow = (r: import("exceljs").Row) => { r.eachCell((c) => { c.font = { bold: true }; }); return r; };
 
-                const titleRow = bandRow("ChainFolioAI — Exportação de portfólio", DARK, 14);
+                const titleRow = bandRow("ChainFolioAI — Exportação de portefólio", DARK, 14);
                 if (logoImgId != null) {
                   titleRow.height = 46;
                   titleRow.getCell(1).alignment = { vertical: "middle", indent: 8 };
@@ -1878,7 +1878,7 @@ export default function PortfolioPage() {
                   ["Volatilidade", "Oscilação anualizada dos retornos. Quanto maior, mais o valor sobe e desce."],
                   ["Queda máxima", "A maior queda do topo até ao fundo no período. Mede o pior cenário que já viveste."],
                   ["Drawdown atual", "Quanto estás abaixo do teu máximo histórico agora — e há quantos dias vens do pico."],
-                  ["Win rate", "Percentagem de períodos entre snapshots em que o portfólio subiu."],
+                  ["Win rate", "Percentagem de períodos entre snapshots em que o portefólio subiu."],
                   ["VaR 95%", "Num dia mau típico (pior 5% dos casos), a perda esperada. Ex.: −4% = em 1 de cada 20 leituras perdes ao menos 4%."],
                   ["Nº ativos · Maior posição", "Quantas posições tens e o peso da maior. Acima de ~50% numa só é muita concentração."],
                   ["HHI", "Índice de concentração (0–10000). Abaixo de 1500 = diversificado; acima de 2500 = concentrado."],
@@ -2021,7 +2021,7 @@ export default function PortfolioPage() {
           ) : (
             <div className="mt-4 space-y-3">
               <p className="text-sm text-slate-300">
-                Faça login para guardar o seu portfólio e acessar a versão paga.
+                Inicia sessão para guardares o teu portefólio e acederes à versão paga.
               </p>
               <a
                 className="inline-flex rounded-full border border-orange-400/40 px-6 py-3 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"

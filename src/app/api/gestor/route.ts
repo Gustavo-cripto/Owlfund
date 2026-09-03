@@ -37,7 +37,7 @@ type SnapshotData = {
 function buildWatchlistContext(watchlist: WatchEntry[], movements: Movement[]): string {
   if (!watchlist.length) return "";
   const lines = ["\n=== SMART MONEY WATCHLIST ==="];
-  lines.push(`Endereços monitorados: ${watchlist.length}`);
+  lines.push(`Endereços monitorizados: ${watchlist.length}`);
   watchlist.slice(0, 10).forEach(e => lines.push(`  • ${e.label} (${e.chain.toUpperCase()}): ${e.address.slice(0, 10)}...`));
   if (movements.length) {
     lines.push("\nMovimentos recentes detetados:");
@@ -53,15 +53,15 @@ function buildWatchlistContext(watchlist: WatchEntry[], movements: Movement[]): 
 
 // Mensagem de "conta vazia" — consciente da conta ativa e de outras contas.
 // Se o utilizador tiver mais do que uma conta, sugere trocar de conta (os ativos
-// podem estar noutro portfólio); caso contrário, sugere adicionar carteiras.
+// podem estar noutro portefólio); caso contrário, sugere adicionar carteiras.
 function buildEmptyAccountContext(accountName: string, accountCount: number): string {
   const acct = accountName || "ativa";
   const suggestion = accountCount > 1
-    ? `Como o utilizador tem VÁRIAS contas/portfólios, sugere DUAS opções de forma clara: (1) se os ativos estão noutra conta, trocar de conta no seletor de contas no topo da página; (2) ou adicionar carteiras nesta conta em /wallets.`
-    : `Sugere que vá a /wallets para adicionar as suas carteiras cripto (BTC, ETH, SOL, etc.).`;
+    ? `Como o utilizador tem VÁRIAS contas/portefólios, sugere DUAS opções de forma clara: (1) se os ativos estão noutra conta, trocar de conta no seletor de contas no topo da página; (2) ou adicionar carteiras nesta conta em /wallets.`
+    : `Sugere-lhe ir a /wallets para adicionar carteiras cripto (BTC, ETH, SOL, etc.) — e trata sempre o utilizador por tu.`;
   return `=== ESTADO DO PORTFOLIO ===
-A conta/portfólio ATIVA ("${acct}") não tem carteiras nem ativos registados.
-INSTRUÇÃO: Informa o utilizador de forma simpática e breve que a conta ATIVA (${acct}) ainda não tem carteiras. ${suggestion} Depois poderás analisar o portfolio real. Entretanto, responde a perguntas gerais sobre cripto, fiscalidade portuguesa e estratégias financeiras com base no que o utilizador te fornecer na conversa. NÃO digas genericamente que "não tens acesso ao portfolio" — refere sempre a conta ativa pelo nome.`;
+A conta/portefólio ATIVA ("${acct}") não tem carteiras nem ativos registados.
+INSTRUÇÃO: Informa o utilizador de forma simpática e breve que a conta ATIVA (${acct}) ainda não tem carteiras. ${suggestion} Depois poderás analisar o portefólio real. Entretanto, responde a perguntas gerais sobre cripto, fiscalidade portuguesa e estratégias financeiras com base no que o utilizador te fornecer na conversa. NÃO digas genericamente que "não tens acesso ao portefólio" — refere sempre a conta ativa pelo nome.`;
 }
 
 function buildPortfolioContext(snapshot: SnapshotData | null, subscription: { price_id: string | null; current_period_end: string | null } | null, prices: Record<string, number>, accountName: string, accountCount: number): string {
@@ -233,7 +233,7 @@ export async function POST(req: NextRequest) {
       ? `\n\nNOME DO UTILIZADOR: chama-se ${nickname}. Trata-o por esse nome de forma natural e amigável. Não inventes outro nome.`
       : "";
     const accountDirective = accountName
-      ? `\n\nCONTA/PORTFÓLIO ATIVO: "${accountName}". Os dados de portfolio acima referem-se a esta conta. Se for "Todas as contas", é a soma de todos os portfólios do utilizador. Menciona a conta ativa quando ajudar a dar contexto.`
+      ? `\n\nCONTA/PORTFÓLIO ATIVO: "${accountName}". Os dados de portfolio acima referem-se a esta conta. Se for "Todas as contas", é a soma de todos os portefólios do utilizador. Menciona a conta ativa quando ajudar a dar contexto.`
       : "";
     const systemPrompt = `${getGestorSystem()}\n\n${portfolioCtx}${watchlistCtx}${nameDirective}${accountDirective}${langDirective}`;
 

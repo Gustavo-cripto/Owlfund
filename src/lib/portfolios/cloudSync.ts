@@ -1,4 +1,4 @@
-// Sync cloud multi-conta de TODOS os dados do portfólio (carteiras + ativos
+// Sync cloud multi-conta de TODOS os dados do portefólio (carteiras + ativos
 // manuais: cripto, tradicional, stablecoins), via /api/wallet-sync (agnóstico
 // ao formato do `data`).
 //

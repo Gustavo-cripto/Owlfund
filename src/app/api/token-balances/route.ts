@@ -119,7 +119,7 @@ export async function GET(request: Request) {
     }));
 
     // IMPORTANTE: usar SÓ os preços do Moralis (por contrato, não por símbolo).
-    // Um fallback por símbolo daria a um token de spam "BTC" o preço real do Bitcoin → portfólio inflado.
+    // Um fallback por símbolo daria a um token de spam "BTC" o preço real do Bitcoin → portefólio inflado.
     const allTokens: TokenBalance[] = [];
 
     for (const token of rawTokens) {
