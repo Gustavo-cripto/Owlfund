@@ -13,6 +13,15 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 
 export async function POST(request: Request) {
+  // Pagamentos congelados durante o beta — no lançamento define
+  // NEXT_PUBLIC_PAYMENTS_ENABLED=true na Vercel (a UI de /pricing usa a mesma flag).
+  if (process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true") {
+    return NextResponse.json(
+      { error: "Os pagamentos abrem no lançamento. Durante o beta, o acesso Pro/Premium é gratuito — inscreve-te em chainfolioai.com/beta." },
+      { status: 403 },
+    );
+  }
+
   let user: { id: string; email?: string } | null = null;
 
   // 1a. Tentar pelo Bearer token (anon client — verifica JWT do Supabase)

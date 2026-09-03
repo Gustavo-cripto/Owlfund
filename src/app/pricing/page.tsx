@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import { btnPrimary } from "@/lib/ui/buttons";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -153,6 +154,10 @@ export default function PricingPage() {
 
   const upgrade = (plan: "pro" | "premium") =>
     payMethod === "crypto" ? handleCryptoUpgrade(plan) : handleUpgrade(plan);
+
+  // Pagamentos congelados durante o beta — no lançamento define
+  // NEXT_PUBLIC_PAYMENTS_ENABLED=true na Vercel (o checkout também valida no servidor).
+  const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
 
   const currentPlan = isPremium ? "premium" : isPro ? "pro" : "free";
   const annual = billingInterval === "year";
@@ -339,6 +344,11 @@ export default function PricingPage() {
                   <div className="text-center py-2.5 text-sm text-emerald-400 font-semibold border border-emerald-500/30 rounded-xl bg-emerald-500/10">{t("pc_current_plan")}</div>
                 ) : currentPlan === "premium" ? (
                   <div className="text-center py-2.5 text-sm text-slate-500 border border-slate-700 rounded-xl">{t("pc_included_premium")}</div>
+                ) : paymentsFrozen ? (
+                  <Link href="/beta" className="block rounded-xl border border-orange-500/40 bg-orange-500/10 px-4 py-2.5 text-center transition hover:border-orange-400/60">
+                    <span className="block text-sm font-semibold text-orange-300">{t("pc_frozen_cta")}</span>
+                    <span className="mt-0.5 block text-[11px] text-slate-400">{t("pc_frozen_sub")}</span>
+                  </Link>
                 ) : (
                   <button type="button" onClick={() => upgrade("pro")}
                     className={`${btnPrimary} w-full px-4 py-2.5 text-sm`}>
@@ -383,6 +393,11 @@ export default function PricingPage() {
                   <div className="h-10 rounded-xl bg-slate-800 animate-pulse" />
                 ) : currentPlan === "premium" ? (
                   <div className="text-center py-2.5 text-sm text-emerald-400 font-semibold border border-emerald-500/30 rounded-xl bg-emerald-500/10">{t("pc_current_plan")}</div>
+                ) : paymentsFrozen ? (
+                  <Link href="/beta" className="block rounded-xl border border-violet-500/40 bg-violet-500/10 px-4 py-2.5 text-center transition hover:border-violet-400/60">
+                    <span className="block text-sm font-semibold text-violet-300">{t("pc_frozen_cta")}</span>
+                    <span className="mt-0.5 block text-[11px] text-slate-400">{t("pc_frozen_sub")}</span>
+                  </Link>
                 ) : (
                   <button type="button" onClick={() => upgrade("premium")}
                     className="w-full rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-violet-400 transition">
