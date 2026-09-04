@@ -296,7 +296,7 @@ export default function GestorPage() {
     doc.setFontSize(15); doc.setFont("helvetica", "bold");
     doc.text("ChainFolioAI — Gestor Dedicado IA", margin, y); y += 7;
     doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(120);
-    const meta = [acctName || "", new Date().toLocaleString()].filter(Boolean).join("  ·  ");
+    const meta = [acctName || "", new Date().toLocaleString(({ pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" } as Record<string, string>)[lang] ?? "pt-PT", { dateStyle: "long", timeStyle: "short" })].filter(Boolean).join("  ·  ");
     doc.text(meta, margin, y); y += 8;
     doc.setTextColor(30);
 

@@ -245,7 +245,7 @@ function SnapshotList({ snapshots, onRestore }: { snapshots: SnapshotRow[]; onRe
         >
           <div>
             <p className="text-sm font-semibold text-white">
-              {new Date(row.created_at).toLocaleString("pt-BR")}
+              {new Date(row.created_at).toLocaleString("pt-PT")}
             </p>
             <p className="text-xs text-slate-500">ID #{row.id}</p>
           </div>
@@ -588,7 +588,7 @@ export default function PortfolioPage() {
 
   const handleRestoreSnapshot = (row: SnapshotRow) => {
     setWallets(snapshotToWallets(row.data, tokenPricesRef.current));
-    setSaveMessage(`Snapshot de ${new Date(row.created_at).toLocaleString("pt-BR")} carregado.`);
+    setSaveMessage(`Snapshot de ${new Date(row.created_at).toLocaleString("pt-PT")} carregado.`);
   };
 
   const snapshotCexEur = snapshotCexUsd * usdToEur;

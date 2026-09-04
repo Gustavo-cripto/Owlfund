@@ -226,7 +226,7 @@ const PREMIUM_COUNTRIES = [
 
 export default function FiscalidadePage() {
   const { isLoading, userId } = useRequireAuth("/login");
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const { hideBalances } = useTheme();
   const [isPro, setIsPro] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
@@ -527,7 +527,7 @@ export default function FiscalidadePage() {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     doc.setTextColor(107, 114, 128);
-    doc.text(`${t("fisc_pdf_generated")}: ${new Date().toLocaleDateString()}  ·  ${t("fisc_pdf_country")}: ${country} (${(regime.short * 100).toFixed(0)}% / ${regime.longLabel})`, cx, y, { align: "center" });
+    doc.text(`${t("fisc_pdf_generated")}: ${new Date().toLocaleDateString(({ pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" } as Record<string, string>)[lang] ?? "pt-PT", { day: "numeric", month: "long", year: "numeric" })}  ·  ${t("fisc_pdf_country")}: ${country} (${(regime.short * 100).toFixed(0)}% / ${regime.longLabel})`, cx, y, { align: "center" });
     y += 8;
 
     // Summary box (compact)
