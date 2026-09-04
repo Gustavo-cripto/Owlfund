@@ -14,7 +14,7 @@ import { useTheme } from "@/lib/theme/ThemeContext";
 
 export default function FirePage() {
   const { isLoading, userId } = useRequireAuth("/login");
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const { hideBalances } = useTheme();
 
   // Inputs do utilizador — persistidos localmente para a página abrir com o plano dele
@@ -190,7 +190,11 @@ export default function FirePage() {
     y += 8;
     doc.setFontSize(13); doc.setTextColor(15, 23, 42);
     doc.text(t("fire_pdf_title"), cx, y, { align: "center" });
-    y += 12;
+    y += 6;
+    const locale = ({ pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" } as Record<string, string>)[lang] ?? "pt-PT";
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(148, 163, 184);
+    doc.text(new Date().toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" }), cx, y, { align: "center" });
+    y += 10;
 
     // Resposta principal
     doc.setFillColor(255, 247, 237);
