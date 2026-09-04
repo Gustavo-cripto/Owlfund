@@ -279,8 +279,10 @@ export default function FiscalidadePage() {
   const regime = taxRates[country] ?? taxRates["PT"];
 
   // FIFO: calcular eventos de mais-valias
+  const [unmatched, setUnmatched] = useState<Record<string, number>>({});
   const taxEvents = useMemo<TaxEvent[]>(() => {
     const events: TaxEvent[] = [];
+    const um: Record<string, number> = {};
     const pool: Record<string, Array<{ amount: number; price: number; date: string }>> = {};
 
     const sorted = [...trades].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -314,8 +316,12 @@ export default function FiscalidadePage() {
           remaining -= used;
           if (lot.amount <= 0) pool[tr.asset].shift();
         }
+        // Venda sem lote de compra correspondente — não entra no cálculo,
+        // mas o utilizador tem de saber (custo de aquisição em falta).
+        if (remaining > 0) um[tr.asset] = (um[tr.asset] ?? 0) + remaining;
       }
     }
+    setUnmatched(um);
     return events;
   }, [trades, regime]);
 
@@ -807,6 +813,13 @@ export default function FiscalidadePage() {
           )}
 
           {/* Resultados */}
+          {Object.keys(unmatched).length > 0 && (
+            <p className="rounded-xl border border-amber-500/40 bg-amber-500/[0.08] px-4 py-2.5 text-xs leading-relaxed text-amber-200">
+              ⚠️ {t("fisc_unmatched_warn")}{" "}
+              {Object.entries(unmatched).map(([a, q]) => `${q.toLocaleString("pt-PT")} ${a}`).join(", ")}.{" "}
+              {t("fisc_unmatched_hint")}
+            </p>
+          )}
           {taxEvents.length > 0 && (
             <>
               {/* Summary cards */}
