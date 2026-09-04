@@ -247,7 +247,18 @@ export default function FirePage() {
     doc.setTextColor(249, 115, 22); doc.setFont("helvetica", "bold"); doc.setFontSize(8.5);
     doc.text("chainfolioai.com", cx, pageH - 8, { align: "center" });
 
-    doc.save(`chainfolioai-plano-fire-${new Date().getFullYear()}.pdf`);
+    // Telemóvel: folha de partilha nativa; desktop: download (padrão da fiscalidade).
+    const filename = `chainfolioai-plano-fire-${new Date().getFullYear()}.pdf`;
+    const blob = doc.output("blob");
+    const nav = navigator as Navigator & {
+      canShare?: (d: { files: File[] }) => boolean;
+      share?: (d: { files?: File[]; title?: string }) => Promise<void>;
+    };
+    const file = typeof File !== "undefined" ? new File([blob], filename, { type: "application/pdf" }) : null;
+    if (file && nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
+      try { await nav.share({ files: [file], title: filename }); return; } catch { /* cancelado */ }
+    }
+    doc.save(filename);
   };
 
   if (isLoading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-400 animate-pulse">{t("loading")}</p></div>;
