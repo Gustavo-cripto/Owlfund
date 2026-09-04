@@ -159,6 +159,22 @@ export default function BetaPage() {
               {state === "sending" ? t("beta_sending") : t("beta_submit")}
             </button>
             <p className="text-center text-[11px] text-slate-600">{t("beta_privacy")}</p>
+
+            {/* Canal de feedback dos testers — visível já antes da inscrição
+                (também aparece no cartão de sucesso e nos emails). */}
+            <a
+              href="https://t.me/ChainFolioAiBetaBot"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 flex items-center gap-3 rounded-xl border border-sky-500/30 bg-sky-500/[0.07] px-4 py-3 transition hover:border-sky-400/50"
+            >
+              <span className="text-xl">💬</span>
+              <span className="text-sm text-slate-300">
+                <span className="font-semibold text-sky-300">{t("beta_bot_title")}</span>
+                <br />
+                {t("beta_bot_desc")} <span className="font-mono text-sky-300">@ChainFolioAiBetaBot</span>
+              </span>
+            </a>
           </form>
         )}
       </main>
