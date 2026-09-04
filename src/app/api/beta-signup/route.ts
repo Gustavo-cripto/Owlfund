@@ -60,7 +60,7 @@ function welcome(lang: string, name: string, untilStr: string): { subject: strin
   const hi = name ? `, ${esc(name)}` : "";
   const T: Record<string, { subject: string; body: string }> = {
     en: {
-      subject: "Welcome to the ChainFolioAI beta 🎉",
+      subject: "Welcome to the ChainFolioAI beta",
       body: `<p style="color:#fff;font-size:17px;font-weight:700">You're on the list${hi}! 🎉</p>
         <p>Thanks for joining the <b>ChainFolioAI</b> beta — the dashboard that brings your <b>crypto and traditional assets</b> together, with real-time PNL, tax tools and an AI that knows your real portfolio.</p>
         <p style="background:#1f2937;border-radius:10px;padding:12px 14px">✅ You'll get <b>Pro or Premium free for ${TRIAL_DAYS} days</b> once we activate your account (indicative until <b>${untilStr}</b>).</p>
@@ -70,7 +70,7 @@ function welcome(lang: string, name: string, untilStr: string): { subject: strin
         <p style="color:#94a3b8;font-size:12px">100% read-only and non-custodial — we never ask for private keys.</p>`,
     },
     es: {
-      subject: "Bienvenido a la beta de ChainFolioAI 🎉",
+      subject: "Bienvenido a la beta de ChainFolioAI",
       body: `<p style="color:#fff;font-size:17px;font-weight:700">¡Estás en la lista${hi}! 🎉</p>
         <p>Gracias por unirte a la beta de <b>ChainFolioAI</b> — el panel que reúne tu <b>cripto y activos tradicionales</b>, con PNL en tiempo real, impuestos y una IA que conoce tu cartera real.</p>
         <p style="background:#1f2937;border-radius:10px;padding:12px 14px">✅ Tendrás <b>Pro o Premium gratis ${TRIAL_DAYS} días</b> cuando activemos tu cuenta (indicativo hasta el <b>${untilStr}</b>).</p>
@@ -80,7 +80,7 @@ function welcome(lang: string, name: string, untilStr: string): { subject: strin
         <p style="color:#94a3b8;font-size:12px">100% de solo lectura y sin custodia — nunca pedimos claves privadas.</p>`,
     },
     fr: {
-      subject: "Bienvenue dans la bêta de ChainFolioAI 🎉",
+      subject: "Bienvenue dans la bêta de ChainFolioAI",
       body: `<p style="color:#fff;font-size:17px;font-weight:700">Vous êtes sur la liste${hi} ! 🎉</p>
         <p>Merci de rejoindre la bêta de <b>ChainFolioAI</b> — le tableau de bord qui réunit vos <b>cryptos et actifs traditionnels</b>, avec PNL en temps réel, fiscalité et une IA qui connaît votre portefeuille réel.</p>
         <p style="background:#1f2937;border-radius:10px;padding:12px 14px">✅ Vous aurez <b>Pro ou Premium gratuit ${TRIAL_DAYS} jours</b> dès l'activation de votre compte (indicatif jusqu'au <b>${untilStr}</b>).</p>
@@ -90,7 +90,7 @@ function welcome(lang: string, name: string, untilStr: string): { subject: strin
         <p style="color:#94a3b8;font-size:12px">100% en lecture seule et sans conservation — nous ne demandons jamais de clés privées.</p>`,
     },
     pt: {
-      subject: "Bem-vindo ao beta do ChainFolioAI 🎉",
+      subject: "Bem-vindo ao beta do ChainFolioAI",
       body: `<p style="color:#fff;font-size:17px;font-weight:700">Estás na lista${hi}! 🎉</p>
         <p>Obrigado por entrares no beta do <b>ChainFolioAI</b> — o painel que junta a tua <b>cripto e ativos tradicionais</b>, com PNL em tempo real, fiscalidade e uma IA que conhece o teu portefólio real.</p>
         <p style="background:#1f2937;border-radius:10px;padding:12px 14px">✅ Vais ter <b>Pro ou Premium grátis durante ${TRIAL_DAYS} dias</b> assim que ativarmos a tua conta (indicativo até <b>${untilStr}</b>).</p>
@@ -160,10 +160,10 @@ export async function POST(req: NextRequest) {
   `);
 
   try {
-    await resend.emails.send({ from: FROM, to: TO, replyTo: email, subject: `🎉 Beta tester: ${email}`, html: notify, text: toText(notify) });
+    await resend.emails.send({ from: FROM, to: TO, replyTo: email, subject: `Beta tester: ${email}`, html: notify, text: toText(notify) });
     // 2) Boas-vindas ao tester (não bloqueia se falhar).
     const w = welcome(lang, name, untilStr);
-    resend.emails.send({ from: FROM, to: email, subject: w.subject, html: w.html, text: toText(w.html) }).catch(() => {});
+    resend.emails.send({ from: FROM, to: email, subject: w.subject, html: w.html, text: toText(w.html), headers: { "List-Unsubscribe": "<mailto:suporte@chainfolioai.com?subject=remover>" } }).catch(() => {});
   } catch {
     return NextResponse.json({ error: "Falha ao enviar." }, { status: 502 });
   }

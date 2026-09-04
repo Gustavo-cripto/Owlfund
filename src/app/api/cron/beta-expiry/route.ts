@@ -80,7 +80,7 @@ export async function GET(request: Request) {
     if (s.daysLeft === 3 && em) {
       testerMails.push({
         to: em,
-        subject: "O teu acesso beta ChainFolioAI termina em 3 dias ⏳",
+        subject: "O teu acesso beta ChainFolioAI termina em 3 dias",
         html: shell(`<p style="color:#fff;font-size:16px;font-weight:700">Faltam 3 dias de ${plan} 🚀</p>
           <p>O teu período de beta tester termina a <b>${esc(endStr)}</b>. Depois disso a conta volta ao plano Free — os teus dados ficam todos guardados.</p>
           <p style="background:#1f2937;border-radius:10px;padding:12px 14px">🙏 <b>Antes de acabar, conta-nos como correu:</b> o que gostaste, o que faltou, o que partirias. Fala connosco no Telegram: ${BOT}</p>
@@ -100,7 +100,7 @@ export async function GET(request: Request) {
     const plan = premiumPriceId && sub.price_id === premiumPriceId ? "Premium" : "Pro";
     testerMails.push({
       to: em,
-      subject: "O teu preço de fundador ChainFolioAI está reservado 🏆",
+      subject: "O teu preço de fundador ChainFolioAI está reservado",
       html: shell(`<p style="color:#fff;font-size:17px;font-weight:700">Estás connosco desde o início — isso conta. 🏆</p>
         <p>Faltam ~10 dias para o fim do teu período beta (${plan}). Como <b>fundador</b>, garantimos-te para sempre:</p>
         <table style="width:100%;border-collapse:collapse;font-size:14px;margin:6px 0">
@@ -138,7 +138,7 @@ export async function GET(request: Request) {
     </div>`;
     try {
       const resend = new Resend(key);
-      await resend.emails.send({ from: FROM, to: TO, subject: `⏰ Beta: ${due.length} tester(s) a expirar (3/1 dia)`, html, text: toText(html) });
+      await resend.emails.send({ from: FROM, to: TO, subject: `Beta: ${due.length} tester(s) a expirar (3/1 dia)`, html, text: toText(html), headers: { "List-Unsubscribe": "<mailto:suporte@chainfolioai.com?subject=remover>" } });
     } catch { /* não falhar o cron por causa do email */ }
   }
 
@@ -162,7 +162,7 @@ export async function GET(request: Request) {
       ended++;
       testerMails.push({
         to: em,
-        subject: "Obrigado por testares o ChainFolioAI 💛",
+        subject: "Obrigado por testares o ChainFolioAI",
         html: shell(`<p style="color:#fff;font-size:16px;font-weight:700">Os teus 60 dias de beta terminaram — obrigado! 🙏</p>
           <p>A tua conta voltou ao plano <b>Free</b>: os teus dados, carteiras e histórico ficam todos guardados e podes continuar a usar o site e a app.</p>
           <p style="background:#1f2937;border-radius:10px;padding:12px 14px">📝 <b>Último pedido:</b> um balanço final em 2 minutos — o que valeu a pena, o que faltou? Responde no Telegram: ${BOT}</p>
@@ -205,7 +205,7 @@ export async function GET(request: Request) {
     const resend = new Resend(key);
     for (const m of testerMails) {
       try {
-        await resend.emails.send({ from: FROM, to: m.to, subject: m.subject, html: m.html, text: toText(m.html) });
+        await resend.emails.send({ from: FROM, to: m.to, subject: m.subject, html: m.html, text: toText(m.html), headers: { "List-Unsubscribe": "<mailto:suporte@chainfolioai.com?subject=remover>" } });
       } catch { /* não falhar o cron */ }
     }
   }
