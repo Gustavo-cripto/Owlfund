@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { createClient } from "@/lib/supabase/client";
+import { jsPDF } from "jspdf";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, ReferenceLine } from "recharts";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useTheme } from "@/lib/theme/ThemeContext";
@@ -104,6 +105,26 @@ export default function FirePage() {
   const progressPct = fireTarget > 0 ? Math.min(100, (portfolioValue / fireTarget) * 100) : 0;
   const passiveNow = portfolioValue * (swr / 100) / 12; // €/mês que o património atual já geraria
 
+  // Intervalo provável: mesmo cálculo com retorno ±2 p.p.
+  const yearsAt = (annualRet: number): number | null => {
+    const rr = (annualRet - inflationRate) / 100;
+    if (rr <= 0) return null;
+    const mr = rr / 12;
+    if (portfolioValue >= fireTarget) return 0;
+    if (monthlyInvestment <= 0 && portfolioValue <= 0) return null;
+    const months = monthlyInvestment > 0
+      ? Math.log((fireTarget * mr + monthlyInvestment) / (portfolioValue * mr + monthlyInvestment)) / Math.log(1 + mr)
+      : Math.log(fireTarget / Math.max(portfolioValue, 1)) / Math.log(1 + mr);
+    const y = Math.ceil(months / 12);
+    return y > 99 ? null : y;
+  };
+  const optimisticYears = useMemo(() => yearsAt(annualReturn + 2),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [annualReturn, inflationRate, portfolioValue, monthlyInvestment, fireTarget]);
+  const pessimisticYears = useMemo(() => yearsAt(annualReturn - 2),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [annualReturn, inflationRate, portfolioValue, monthlyInvestment, fireTarget]);
+
   const fireYear = yearsToFire !== null ? new Date().getFullYear() + yearsToFire : null;
   const fireAge = yearsToFire !== null ? currentAge + yearsToFire : null;
 
@@ -131,6 +152,103 @@ export default function FirePage() {
     ];
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [portfolioValue, fireTarget, monthlyExpenses, t]);
+
+  const loadLogo = (): Promise<string | null> =>
+    new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        try {
+          const size = 128;
+          const canvas = document.createElement("canvas");
+          canvas.width = size; canvas.height = size;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return resolve(null);
+          ctx.drawImage(img, 0, 0, size, size);
+          resolve(canvas.toDataURL("image/png"));
+        } catch { resolve(null); }
+      };
+      img.onerror = () => resolve(null);
+      img.src = "/chainfolioai-icon.png";
+    });
+
+  // PDF de 1 página com o plano — mesmo padrão visual dos exports da fiscalidade.
+  const exportPlanPDF = async () => {
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const W = doc.internal.pageSize.getWidth();
+    const cx = W / 2;
+    const M = 16;
+    const eur = (v: number) => `EUR ${Math.round(v).toLocaleString("en-US")}`;
+
+    doc.setFillColor(249, 115, 22);
+    doc.rect(0, 0, W, 3, "F");
+    const logo = await loadLogo();
+    let y = 12;
+    if (logo) { doc.addImage(logo, "PNG", cx - 9, y, 18, 18); y += 23; } else { y += 6; }
+    doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(249, 115, 22);
+    doc.text("ChainFolioAI", cx, y, { align: "center" });
+    y += 8;
+    doc.setFontSize(13); doc.setTextColor(15, 23, 42);
+    doc.text(t("fire_pdf_title"), cx, y, { align: "center" });
+    y += 12;
+
+    // Resposta principal
+    doc.setFillColor(255, 247, 237);
+    doc.roundedRect(M, y, W - 2 * M, 30, 3, 3, "F");
+    doc.setFontSize(10); doc.setTextColor(100, 116, 139); doc.setFont("helvetica", "normal");
+    doc.text(t("fire_answer_lead"), cx, y + 8, { align: "center" });
+    doc.setFont("helvetica", "bold"); doc.setFontSize(22); doc.setTextColor(15, 23, 42);
+    const mainTxt = yearsToFire === null ? "—" : yearsToFire === 0 ? "FIRE!" : `${yearsToFire} ${t("fire_years")}`;
+    doc.text(mainTxt, cx, y + 19, { align: "center" });
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(100, 116, 139);
+    const subBits: string[] = [];
+    if (fireAge !== null && yearsToFire !== null && yearsToFire > 0) subBits.push(`${t("fire_retire_at")} ${fireAge} ${t("fire_years")} (${fireYear})`);
+    if (optimisticYears !== null && pessimisticYears !== null && pessimisticYears !== optimisticYears)
+      subBits.push(`${t("fire_range_lead")} ${optimisticYears}-${pessimisticYears} ${t("fire_years")}`);
+    if (subBits.length) doc.text(subBits.join("  ·  "), cx, y + 26, { align: "center" });
+    y += 38;
+
+    // Parâmetros + objetivo
+    const line = (label: string, value: string) => {
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9.5); doc.setTextColor(100, 116, 139);
+      doc.text(label, M, y);
+      doc.setFont("helvetica", "bold"); doc.setTextColor(15, 23, 42);
+      doc.text(value, W - M, y, { align: "right" });
+      y += 6.5;
+    };
+    doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.setTextColor(249, 115, 22);
+    doc.text(t("fire_params").toUpperCase(), M, y); y += 7;
+    line(t("fire_monthly_expenses"), eur(monthlyExpenses));
+    line(t("fire_monthly_investment"), eur(monthlyInvestment));
+    line(t("fire_annual_return"), `${annualReturn}%`);
+    line(t("fire_inflation"), `${inflationRate}%`);
+    line(t("fire_current_age"), `${currentAge} ${t("fire_years")}`);
+    if (portfolioValue > 0) line(t("fire_current_portfolio"), eur(portfolioValue));
+    y += 3;
+    doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.setTextColor(249, 115, 22);
+    doc.text(t("fire_target").toUpperCase(), M, y); y += 7;
+    line(t("fire_target"), eur(fireTarget));
+    line(`${t("fire_expenses_x")} ×${fireMultiple}`, `${t("fire_swr_label")} ${swr.toFixed(1)}%`);
+    if (portfolioValue > 0) {
+      line(t("fire_progress_title"), `${progressPct.toFixed(1)}%`);
+      line(t("fire_passive_title"), `${eur(passiveNow)}/${t("fire_month_short")}`);
+      if (coastYears !== null) line(t("fire_coast_title"), coastYears === 0 ? "FIRE" : `${coastYears} ${t("fire_years")}`);
+    }
+    if (whatIf.length > 0) {
+      y += 3;
+      doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.setTextColor(249, 115, 22);
+      doc.text(t("fire_whatif_pdf").toUpperCase(), M, y); y += 7;
+      whatIf.forEach((w) => line(`+${eur(w.extra)}/${t("fire_month_short")}`, `${w.years} ${t("fire_years")} (−${w.saved})`));
+    }
+
+    const pageH = doc.internal.pageSize.getHeight();
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.setTextColor(148, 163, 184);
+    doc.text(doc.splitTextToSize(t("fire_disclaimer"), W - 2 * M), M, pageH - 20);
+    doc.setTextColor(249, 115, 22); doc.setFont("helvetica", "bold"); doc.setFontSize(8.5);
+    doc.text("chainfolioai.com", cx, pageH - 8, { align: "center" });
+
+    doc.save(`chainfolioai-plano-fire-${new Date().getFullYear()}.pdf`);
+  };
 
   if (isLoading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-400 animate-pulse">{t("loading")}</p></div>;
 
@@ -221,8 +339,17 @@ export default function FirePage() {
                   {t("fire_retire_at")} <span className="font-semibold text-slate-200">{fireAge} {t("fire_years")}</span>
                   {" · "}{fireYear}
                 </p>
+                {optimisticYears !== null && pessimisticYears !== null && pessimisticYears !== optimisticYears && (
+                  <p className="mt-2 text-xs text-slate-500">
+                    📐 {t("fire_range_lead")} <span className="font-semibold text-slate-300">{optimisticYears}–{pessimisticYears} {t("fire_years")}</span> · {t("fire_range_tail")}
+                  </p>
+                )}
               </>
             )}
+            <button type="button" onClick={exportPlanPDF}
+              className="mx-auto mt-5 flex items-center gap-2 rounded-xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-300 transition hover:border-orange-400/50 hover:text-orange-200">
+              ↓ {t("fire_export_pdf")}
+            </button>
           </div>
 
           {/* Progresso até ao objetivo (só com portefólio preenchido) */}
