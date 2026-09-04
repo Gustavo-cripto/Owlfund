@@ -104,6 +104,18 @@ function welcome(lang: string, name: string, untilStr: string): { subject: strin
   return { subject: chosen.subject, html: shell(chosen.body) };
 }
 
+// Versão texto (multipart) — emails só-HTML pesam no score de spam.
+const toText = (h: string) =>
+  h
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|tr|div|table)>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
   if (!allowed(ip)) return NextResponse.json({ error: "Demasiados pedidos. Tenta daqui a pouco." }, { status: 429 });
@@ -148,10 +160,10 @@ export async function POST(req: NextRequest) {
   `);
 
   try {
-    await resend.emails.send({ from: FROM, to: TO, replyTo: email, subject: `🎉 Beta tester: ${email}`, html: notify });
+    await resend.emails.send({ from: FROM, to: TO, replyTo: email, subject: `🎉 Beta tester: ${email}`, html: notify, text: toText(notify) });
     // 2) Boas-vindas ao tester (não bloqueia se falhar).
     const w = welcome(lang, name, untilStr);
-    resend.emails.send({ from: FROM, to: email, subject: w.subject, html: w.html }).catch(() => {});
+    resend.emails.send({ from: FROM, to: email, subject: w.subject, html: w.html, text: toText(w.html) }).catch(() => {});
   } catch {
     return NextResponse.json({ error: "Falha ao enviar." }, { status: 502 });
   }

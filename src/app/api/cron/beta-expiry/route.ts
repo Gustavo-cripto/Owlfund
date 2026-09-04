@@ -13,6 +13,19 @@ const premiumPriceId = process.env.STRIPE_PREMIUM_PRICE_ID ?? process.env.NEXT_P
 const DAY = 86_400_000;
 const NOTIFY_DAYS = [3, 1]; // marcos de aviso (dias antes de expirar)
 const esc = (x: string) => x.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+// Versão texto (multipart) — emails só-HTML pesam no score de spam.
+const toText = (h: string) =>
+  h
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|tr|div|table)>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 
 export async function GET(request: Request) {
   if (!(await verifyCronAuth(request))) {
@@ -98,7 +111,9 @@ export async function GET(request: Request) {
         <p style="color:#94a3b8;font-size:13px">Preço <b>vitalício</b> enquanto mantiveres a subscrição — mesmo quando os preços subirem. O pagamento só abre no lançamento; até lá não pagas nada.</p>
         <p style="background:#0c4a6e33;border:1px solid #0ea5e955;border-radius:10px;padding:12px 14px">👉 <b>Para reservar o teu preço de fundador</b>, responde no Telegram: <a href="https://t.me/ChainFolioAiBetaBot" style="color:#38bdf8;font-weight:700">@ChainFolioAiBetaBot</a> — e aproveita para nos dizeres o que gostaste e o que faltou (o teu balanço vale ouro 🙏).</p>`),
     });
-    await sendTelegram(`🏆 Oferta de fundador enviada a ${tgEsc(em)} (${plan}, faltam 10 dias)`).catch(() => {});
+    await sendTelegram(`🏆 Oferta de fundador enviada a ${tgEsc(em)} (${plan}, faltam 10 dias)\nQuando o tester responder no bot a reservar, confirma aqui:`, {
+      inline_keyboard: [[{ text: "🏆 Confirmar fundador", callback_data: `f:${sub.user_id}` }]],
+    }).catch(() => {});
   }
 
   // Alerta no Bot ChainFolioAI (Telegram), se configurado. await obrigatório
@@ -123,7 +138,7 @@ export async function GET(request: Request) {
     </div>`;
     try {
       const resend = new Resend(key);
-      await resend.emails.send({ from: FROM, to: TO, subject: `⏰ Beta: ${due.length} tester(s) a expirar (3/1 dia)`, html });
+      await resend.emails.send({ from: FROM, to: TO, subject: `⏰ Beta: ${due.length} tester(s) a expirar (3/1 dia)`, html, text: toText(html) });
     } catch { /* não falhar o cron por causa do email */ }
   }
 
@@ -153,7 +168,9 @@ export async function GET(request: Request) {
           <p style="background:#1f2937;border-radius:10px;padding:12px 14px">📝 <b>Último pedido:</b> um balanço final em 2 minutos — o que valeu a pena, o que faltou? Responde no Telegram: ${BOT}</p>
           <p style="background:#3b271433;border:1px solid #f9731655;border-radius:10px;padding:12px 14px">🏆 O teu <b>preço de fundador</b> fica garantido: <b>Premium €19/mês</b> (em vez de €39) ou <b>Pro €9,99/mês</b> (em vez de €14,99) — vitalício enquanto fores subscritor. Reserva respondendo no Telegram: <a href="https://t.me/ChainFolioAiBetaBot" style="color:#38bdf8;font-weight:700">@ChainFolioAiBetaBot</a>. Avisamos-te em primeira mão quando o pagamento abrir.</p>`),
       });
-      await sendTelegram(`🏁 <b>Beta terminou</b>: ${tgEsc(em)} — email de balanço final enviado.`).catch(() => {});
+      await sendTelegram(`🏁 <b>Beta terminou</b>: ${tgEsc(em)} — email de balanço final enviado.\nSe reservar o preço de fundador, confirma aqui:`, {
+        inline_keyboard: [[{ text: "🏆 Confirmar fundador", callback_data: `f:${sub.user_id}` }]],
+      }).catch(() => {});
     }
   } catch { /* ignore */ }
 
@@ -188,7 +205,7 @@ export async function GET(request: Request) {
     const resend = new Resend(key);
     for (const m of testerMails) {
       try {
-        await resend.emails.send({ from: FROM, to: m.to, subject: m.subject, html: m.html });
+        await resend.emails.send({ from: FROM, to: m.to, subject: m.subject, html: m.html, text: toText(m.html) });
       } catch { /* não falhar o cron */ }
     }
   }

@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import AppShell from "@/components/AppShell";
 
-type Tester = { email: string; plan: "pro" | "premium"; activatedAt?: string | null; expiresAt: string | null; daysLeft: number | null; lastSignInAt?: string | null; inactiveDays?: number | null };
+type Tester = { email: string; plan: "pro" | "premium"; activatedAt?: string | null; expiresAt: string | null; daysLeft: number | null; lastSignInAt?: string | null; inactiveDays?: number | null; founder?: boolean };
 type Pending = { email: string; name: string | null; note: string | null; createdAt: string };
 
 export default function AdminBetaPage() {
@@ -17,6 +17,7 @@ export default function AdminBetaPage() {
   const [granting, setGranting] = useState(false);
   const [grantMsg, setGrantMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
+  const [founderBusy, setFounderBusy] = useState<string | null>(null);
   const [tgBusy, setTgBusy] = useState(false);
   const [tgMsg, setTgMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -75,6 +76,24 @@ export default function AdminBetaPage() {
   };
 
   useEffect(() => { load(); }, []);
+
+  // Marca/desmarca a reserva de preço de fundador de um tester.
+  const toggleFounder = async (email: string, on: boolean) => {
+    setFounderBusy(email);
+    try {
+      const res = await fetch("/api/admin/founder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, founder: on }),
+      });
+      const j = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) alert(j.error ?? "Falhou.");
+      else setTesters((prev) => prev.map((t) => (t.email === email ? { ...t, founder: on } : t)));
+    } catch {
+      alert("Falhou.");
+    }
+    setFounderBusy(null);
+  };
 
   // Pré-preenche o email a partir do link da notificação (?email=...).
   useEffect(() => {
@@ -208,6 +227,7 @@ export default function AdminBetaPage() {
                         <th className="px-4 py-3">Expira</th>
                         <th className="px-4 py-3">Dias restantes</th>
                         <th className="px-4 py-3">Último acesso</th>
+                        <th className="px-4 py-3">Fundador</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -225,6 +245,17 @@ export default function AdminBetaPage() {
                           </td>
                           <td className={`px-4 py-3 ${tst.inactiveDays != null && tst.inactiveDays >= 14 ? "text-amber-400 font-medium" : "text-slate-400"}`}>
                             {tst.inactiveDays == null ? "—" : tst.inactiveDays === 0 ? "hoje" : `há ${tst.inactiveDays}d${tst.inactiveDays >= 14 ? " ⚠️" : ""}`}
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              type="button"
+                              onClick={() => toggleFounder(tst.email, !tst.founder)}
+                              disabled={founderBusy === tst.email}
+                              title={tst.founder ? "Remover reserva de fundador" : "Marcar como fundador (preço vitalício)"}
+                              className={`rounded-full px-2 py-0.5 text-xs font-semibold transition disabled:opacity-50 ${tst.founder ? "bg-amber-500/20 text-amber-300 hover:bg-amber-500/30" : "bg-slate-800 text-slate-500 hover:text-slate-300"}`}
+                            >
+                              {founderBusy === tst.email ? "…" : tst.founder ? "🏆 Sim" : "marcar"}
+                            </button>
                           </td>
                         </tr>
                       ))}

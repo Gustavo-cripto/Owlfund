@@ -78,6 +78,7 @@ export default function PricingPage() {
   ];
   const [isPro, setIsPro] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
+  const [founder, setFounder] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -96,6 +97,13 @@ export default function PricingPage() {
           const json = await res.json() as { plan: string };
           if (json.plan === "premium") setIsPremium(true);
           else if (json.plan === "pro") setIsPro(true);
+        }
+      } catch { /* ignore */ }
+      try {
+        const rf = await fetch("/api/founder-status");
+        if (rf.ok) {
+          const jf = await rf.json() as { founder?: boolean };
+          if (jf.founder) setFounder(true);
         }
       } catch { /* ignore */ }
       setLoading(false);
@@ -264,6 +272,17 @@ export default function PricingPage() {
                 {payMethod === "crypto" && (
                   <p className="text-[11px] text-slate-500 max-w-xs text-center">{t("pc_crypto_pay_note")}</p>
                 )}
+              </div>
+            )}
+
+            {/* Reserva de fundador (beta testers confirmados) */}
+            {founder && (
+              <div className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/[0.08] px-5 py-4">
+                <span className="text-2xl">🏆</span>
+                <div>
+                  <p className="text-sm font-bold text-amber-300">{t("pc_founder_title")}</p>
+                  <p className="mt-0.5 text-sm leading-relaxed text-slate-300">{t("pc_founder_body")}</p>
+                </div>
               </div>
             )}
 

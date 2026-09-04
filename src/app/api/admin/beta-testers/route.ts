@@ -44,6 +44,13 @@ export async function GET() {
     return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
   }
 
+  // Fundadores confirmados (best-effort; vazio se a tabela ainda não existir).
+  const founderIds = new Set<string>();
+  try {
+    const { data: fnd } = await admin.from("founders").select("user_id");
+    for (const f of fnd ?? []) founderIds.add(f.user_id as string);
+  } catch { /* ignore */ }
+
   const now = Date.now();
   const testers = [];
   for (const s of subs ?? []) {
@@ -70,6 +77,7 @@ export async function GET() {
       daysLeft,
       lastSignInAt,
       inactiveDays,
+      founder: founderIds.has(s.user_id as string),
     });
   }
 

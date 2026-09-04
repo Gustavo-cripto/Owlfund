@@ -2,6 +2,7 @@
 // das notificações de beta. Só aceita cliques do chat do admin (TELEGRAM_CHAT_ID).
 import { NextRequest, NextResponse } from "next/server";
 import { grantTester } from "@/lib/beta/grant";
+import { setFounder } from "@/lib/beta/founder";
 
 const TOKEN = (process.env.TELEGRAM_BOT_TOKEN ?? "").trim();
 const ADMIN_CHAT = (process.env.TELEGRAM_CHAT_ID ?? "").trim();
@@ -61,6 +62,26 @@ export async function POST(req: NextRequest) {
   // Só o admin (o chat que configurámos) pode ativar.
   if (!ADMIN_CHAT || String(cq.from?.id ?? "") !== ADMIN_CHAT) {
     await answerCb(cq.id, "Não autorizado.");
+    return NextResponse.json({ ok: true });
+  }
+
+  // 🏆 Confirmar reserva de preço de fundador (botão nas mensagens do cron).
+  const f = String(cq.data ?? "").match(/^f:([0-9a-f-]{36})$/);
+  if (f) {
+    const res = await setFounder(f[1]);
+    if (!res.ok) {
+      await answerCb(cq.id, `⚠️ ${res.error ?? "Falhou."}`, true);
+      return NextResponse.json({ ok: true });
+    }
+    await answerCb(cq.id, `🏆 Fundador confirmado: ${res.email}`, true);
+    if (cq.message) await markDone(cq.message.chat.id, cq.message.message_id, `🏆 Fundador: ${res.email}`);
+    const chatId = cq.message?.chat.id;
+    if (chatId) {
+      await sendMsg(
+        chatId,
+        `🏆 <b>Preço de fundador reservado!</b>\n📧 ${res.email}\n💶 Pro €9,99/mês · Premium €19/mês (vitalício)\n\nO tester vê a reserva na página de planos; o preço aplica-se automaticamente quando os pagamentos abrirem.`,
+      );
+    }
     return NextResponse.json({ ok: true });
   }
 
