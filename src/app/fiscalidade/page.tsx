@@ -69,7 +69,7 @@ function buildCountryLaw(t: (k: TranslationKey) => string): Country[] {
     c("DE", "🇩🇪", "border-slate-500/30 bg-slate-500/5", "text-slate-400", "de", "EStG § 23"),
     c("GB", "🇬🇧", "border-purple-500/30 bg-purple-500/5", "text-purple-400", "uk", "TCGA 1992 / HMRC (Autumn Budget 2024)", "pro"),
     c("NL", "🇳🇱", "border-orange-500/30 bg-orange-500/5", "text-orange-400", "nl", "Wet IB 2001, Box 3", "pro"),
-    c("IT", "🇮🇹", "border-green-600/30 bg-green-600/5", "text-green-300", "it", "D.Lgs. 461/1997 / Legge 197/2022", "pro"),
+    c("IT", "🇮🇹", "border-green-600/30 bg-green-600/5", "text-green-300", "it", "Legge 197/2022 / Legge 199/2025", "pro"),
     c("BR", "🇧🇷", "border-emerald-500/30 bg-emerald-500/5", "text-emerald-400", "br", "IN RFB 1888/2019 / Lei 14.754/2023", "pro"),
     c("US", "🇺🇸", "border-red-500/30 bg-red-500/5", "text-red-400", "us", "IRS Notice 2014-21 / Rev. Ruling 2023-14", "premium"),
     c("CA", "🇨🇦", "border-rose-500/30 bg-rose-500/5", "text-rose-400", "ca", "ITA s. 38 / CRA IT-218R", "premium"),
@@ -237,13 +237,13 @@ export default function FiscalidadePage() {
 
   const taxRates: Record<string, { short: number; long: number; longDays: number; longLabel: string }> = {
     PT: { short: 0.28, long: 0.0,  longDays: 365, longLabel: "Isento (>1 ano)" },
-    ES: { short: 0.19, long: 0.23, longDays: 365, longLabel: "23% (>1 ano)" },
+    ES: { short: 0.19, long: 0.19, longDays: 0,   longLabel: "19–30% (escala, sem distinção temporal)" },
     FR: { short: 0.30, long: 0.30, longDays: 0,   longLabel: "30% (flat tax)" },
-    DE: { short: 0.25, long: 0.0,  longDays: 365, longLabel: "Isento (>1 ano)" },
+    DE: { short: 0.45, long: 0.0,  longDays: 365, longLabel: "Isento (>1 ano)" },
     // Pro countries
-    GB: { short: 0.20, long: 0.20, longDays: 0,   longLabel: "20% (sem isenção temporal)" },
-    NL: { short: 0.31, long: 0.31, longDays: 0,   longLabel: "31% (rendimento fictício)" },
-    IT: { short: 0.26, long: 0.26, longDays: 0,   longLabel: "26% (flat rate)" },
+    GB: { short: 0.24, long: 0.24, longDays: 0,   longLabel: "18%/24% (sem distinção temporal)" },
+    NL: { short: 0.0,  long: 0.0,  longDays: 0,   longLabel: "Box 3 tributa património, não mais-valias" },
+    IT: { short: 0.33, long: 0.33, longDays: 0,   longLabel: "33% (flat, desde 2026)" },
     BR: { short: 0.15, long: 0.15, longDays: 0,   longLabel: "15% (isenção < R$35k/mês)" },
     // Premium countries
     US: { short: 0.37, long: 0.20, longDays: 365, longLabel: "0–20% (>1 ano)" },
