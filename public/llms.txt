@@ -6,7 +6,7 @@
 - Consolidates crypto (on-chain wallets, exchanges, DeFi, NFTs, stablecoins, manual assets) and traditional assets in one dashboard.
 - Real-time profit/loss (PNL), portfolio Score (0-100), and benchmarks vs BTC, ETH, S&P 500 and Gold.
 - Advanced metrics: ROI, CAGR, Sharpe ratio, Max Drawdown, volatility.
-- Crypto tax (FIFO capital gains) for 14 countries, with CSV/PDF export.
+- Crypto tax (FIFO capital gains) for 21 countries with annual allowances applied, plus Excel/PDF export.
 - FIRE (financial independence) calculator.
 - Live market: prices, BTC/ETH dominance, Fear & Greed, derivatives (open interest, funding, long/short, CVD), TradingView charts, AI-summarized news, daily AI briefing.
 - Smart Money: track 50+ whale wallets and their on-chain moves (ETH/BTC/SOL).
