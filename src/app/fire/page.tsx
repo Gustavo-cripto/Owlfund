@@ -16,15 +16,28 @@ export default function FirePage() {
   const { t } = useLanguage();
   const { hideBalances } = useTheme();
 
-  // Inputs do utilizador
-  const [monthlyExpenses, setMonthlyExpenses] = useState(2000);
-  const [monthlyInvestment, setMonthlyInvestment] = useState(500);
-  const [annualReturn, setAnnualReturn] = useState(7); // % ao ano
-  const [inflationRate, setInflationRate] = useState(3); // %
-  const [currentAge, setCurrentAge] = useState(30);
+  // Inputs do utilizador — persistidos localmente para a página abrir com o plano dele
+  const saved = useMemo<Record<string, number | string>>(() => {
+    try { return JSON.parse(localStorage.getItem("fire-plan-v1") ?? "{}"); } catch { return {}; }
+  }, []);
+  const n = (k: string, d: number) => (typeof saved[k] === "number" ? (saved[k] as number) : d);
+  const [monthlyExpenses, setMonthlyExpenses] = useState(() => n("exp", 2000));
+  const [monthlyInvestment, setMonthlyInvestment] = useState(() => n("inv", 500));
+  const [annualReturn, setAnnualReturn] = useState(() => n("ret", 7)); // % ao ano
+  const [inflationRate, setInflationRate] = useState(() => n("inf", 3)); // %
+  const [currentAge, setCurrentAge] = useState(() => n("age", 30));
 
-  const [portfolioOverride, setPortfolioOverride] = useState<string>("");
-  const [fireMultiple, setFireMultiple] = useState(25); // 20 Lean · 25 Regular · 33 Fat
+  const [portfolioOverride, setPortfolioOverride] = useState<string>(() => (typeof saved["pv"] === "string" ? (saved["pv"] as string) : ""));
+  const [fireMultiple, setFireMultiple] = useState(() => n("mult", 25)); // 20 Lean · 25 Regular · 33 Fat
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("fire-plan-v1", JSON.stringify({
+        exp: monthlyExpenses, inv: monthlyInvestment, ret: annualReturn,
+        inf: inflationRate, age: currentAge, pv: portfolioOverride, mult: fireMultiple,
+      }));
+    } catch { /* modo privado, etc. */ }
+  }, [monthlyExpenses, monthlyInvestment, annualReturn, inflationRate, currentAge, portfolioOverride, fireMultiple]);
 
   // Último snapshot do portefólio (para pré-preencher com 1 clique)
   const [livePortfolio, setLivePortfolio] = useState<number | null>(null);
