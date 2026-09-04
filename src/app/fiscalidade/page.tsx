@@ -75,12 +75,15 @@ function buildCountryLaw(t: (k: TranslationKey) => string): Country[] {
     c("IE", "🇮🇪", "border-emerald-400/30 bg-emerald-400/5", "text-emerald-300", "ie", "TCA 1997 / Revenue CGT", "pro"),
     c("AT", "🇦🇹", "border-red-500/30 bg-red-500/5", "text-red-300", "at", "EStG § 27b (reforma 2022)", "pro"),
     c("PL", "🇵🇱", "border-rose-400/30 bg-rose-400/5", "text-rose-300", "pl", "Ustawa PIT art. 30b", "pro"),
+    c("LU", "🇱🇺", "border-sky-400/30 bg-sky-400/5", "text-sky-300", "lu", "LIR art. 99bis", "pro"),
     c("US", "🇺🇸", "border-red-500/30 bg-red-500/5", "text-red-400", "us", "IRS Notice 2014-21 / Rev. Ruling 2023-14", "premium"),
     c("CA", "🇨🇦", "border-rose-500/30 bg-rose-500/5", "text-rose-400", "ca", "ITA s. 38 / CRA IT-218R", "premium"),
     c("AU", "🇦🇺", "border-sky-500/30 bg-sky-500/5", "text-sky-400", "au", "ITAA 1997 s. 108-5 / ATO (2014–2023)", "premium"),
     c("CH", "🇨🇭", "border-red-500/30 bg-red-500/5", "text-red-400", "ch", "DBG art. 16 / LIFD", "premium"),
     c("AE", "🇦🇪", "border-amber-500/30 bg-amber-500/5", "text-amber-400", "ae", "Federal Decree-Law No. 47 of 2022", "premium"),
     c("SG", "🇸🇬", "border-red-400/30 bg-red-400/5", "text-red-300", "sg", "Payment Services Act 2019 / IRAS e-Tax Guide", "premium"),
+    c("MX", "🇲🇽", "border-green-500/30 bg-green-500/5", "text-green-300", "mx", "LISR (ISR) / SAT", "premium"),
+    c("AR", "🇦🇷", "border-cyan-400/30 bg-cyan-400/5", "text-cyan-300", "ar", "Ley 27.430 (imposto cedular)", "premium"),
   ];
 }
 
@@ -207,6 +210,7 @@ const PRO_COUNTRIES = [
   { code: "IE", flag: "🇮🇪", labelKey: "fc_ie" },
   { code: "AT", flag: "🇦🇹", labelKey: "fc_at" },
   { code: "PL", flag: "🇵🇱", labelKey: "fc_pl" },
+  { code: "LU", flag: "🇱🇺", labelKey: "fc_lu" },
 ] as const;
 
 const PREMIUM_COUNTRIES = [
@@ -216,6 +220,8 @@ const PREMIUM_COUNTRIES = [
   { code: "CH", flag: "🇨🇭", labelKey: "fc_ch_name" },
   { code: "AE", flag: "🇦🇪", labelKey: "fc_ae_name" },
   { code: "SG", flag: "🇸🇬", labelKey: "fc_sg_name" },
+  { code: "MX", flag: "🇲🇽", labelKey: "fc_mx" },
+  { code: "AR", flag: "🇦🇷", labelKey: "fc_ar" },
 ] as const;
 
 export default function FiscalidadePage() {
@@ -259,6 +265,7 @@ export default function FiscalidadePage() {
     IE: { short: 0.33, long: 0.33, longDays: 0,   longLabel: "33% (CGT, sem distinção temporal)", allowance: { amount: 1270, kind: "deduct", label: "Isenção anual €1.270" } },
     AT: { short: 0.275,long: 0.275,longDays: 0,   longLabel: "27,5% (flat, sem distinção temporal)" },
     PL: { short: 0.19, long: 0.19, longDays: 0,   longLabel: "19% (flat, PIT-38)" },
+    LU: { short: 0.42, long: 0.0,  longDays: 183, longLabel: "Isento (>6 meses)", allowance: { amount: 500, kind: "threshold", label: "Isento se ganhos especulativos < €500/ano" } },
     // Premium countries
     US: { short: 0.37, long: 0.20, longDays: 365, longLabel: "0–20% (>1 ano)" },
     CA: { short: 0.27, long: 0.27, longDays: 0,   longLabel: "27% (50% inclusion rate)" },
@@ -266,6 +273,8 @@ export default function FiscalidadePage() {
     CH: { short: 0.0,  long: 0.0,  longDays: 0,   longLabel: "Isento (investidor privado)" },
     AE: { short: 0.0,  long: 0.0,  longDays: 0,   longLabel: "0% (sem imposto)" },
     SG: { short: 0.0,  long: 0.0,  longDays: 0,   longLabel: "0% (investidor privado)" },
+    MX: { short: 0.35, long: 0.35, longDays: 0,   longLabel: "1,92–35% (ISR progressivo)", allowance: { amount: 3000, kind: "deduct", label: "Isenção anual MX$60.000 (≈€3.000)" } },
+    AR: { short: 0.15, long: 0.15, longDays: 0,   longLabel: "15% (imposto cedular, flat)" },
   };
   const regime = taxRates[country] ?? taxRates["PT"];
 
