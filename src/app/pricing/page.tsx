@@ -215,7 +215,7 @@ export default function PricingPage() {
               {[
                 { value: "10+", label: t("pc_stat_chains") },
                 { value: "3 CEXs", label: t("pc_stat_cex") },
-                { value: "8+ países", label: t("pc_stat_tax") },
+                { value: "18 países", label: t("pc_stat_tax") },
                 { value: "API/MCP", label: t("pc_stat_api") },
               ].map((s) => (
                 <div key={s.label} className="text-center">

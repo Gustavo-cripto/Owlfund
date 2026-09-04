@@ -71,6 +71,10 @@ function buildCountryLaw(t: (k: TranslationKey) => string): Country[] {
     c("NL", "🇳🇱", "border-orange-500/30 bg-orange-500/5", "text-orange-400", "nl", "Wet IB 2001, Box 3", "pro"),
     c("IT", "🇮🇹", "border-green-600/30 bg-green-600/5", "text-green-300", "it", "Legge 197/2022 / Legge 199/2025", "pro"),
     c("BR", "🇧🇷", "border-emerald-500/30 bg-emerald-500/5", "text-emerald-400", "br", "IN RFB 1888/2019 / Lei 14.754/2023", "pro"),
+    c("BE", "🇧🇪", "border-yellow-400/30 bg-yellow-400/5", "text-yellow-300", "be", "CIR92 art. 90 / Lei MV-2026", "pro"),
+    c("IE", "🇮🇪", "border-emerald-400/30 bg-emerald-400/5", "text-emerald-300", "ie", "TCA 1997 / Revenue CGT", "pro"),
+    c("AT", "🇦🇹", "border-red-500/30 bg-red-500/5", "text-red-300", "at", "EStG § 27b (reforma 2022)", "pro"),
+    c("PL", "🇵🇱", "border-rose-400/30 bg-rose-400/5", "text-rose-300", "pl", "Ustawa PIT art. 30b", "pro"),
     c("US", "🇺🇸", "border-red-500/30 bg-red-500/5", "text-red-400", "us", "IRS Notice 2014-21 / Rev. Ruling 2023-14", "premium"),
     c("CA", "🇨🇦", "border-rose-500/30 bg-rose-500/5", "text-rose-400", "ca", "ITA s. 38 / CRA IT-218R", "premium"),
     c("AU", "🇦🇺", "border-sky-500/30 bg-sky-500/5", "text-sky-400", "au", "ITAA 1997 s. 108-5 / ATO (2014–2023)", "premium"),
@@ -199,6 +203,10 @@ const PRO_COUNTRIES = [
   { code: "NL", flag: "🇳🇱", labelKey: "fc_nl" },
   { code: "IT", flag: "🇮🇹", labelKey: "fc_it" },
   { code: "BR", flag: "🇧🇷", labelKey: "fc_br" },
+  { code: "BE", flag: "🇧🇪", labelKey: "fc_be" },
+  { code: "IE", flag: "🇮🇪", labelKey: "fc_ie" },
+  { code: "AT", flag: "🇦🇹", labelKey: "fc_at" },
+  { code: "PL", flag: "🇵🇱", labelKey: "fc_pl" },
 ] as const;
 
 const PREMIUM_COUNTRIES = [
@@ -235,16 +243,22 @@ export default function FiscalidadePage() {
     check();
   }, [userId]);
 
-  const taxRates: Record<string, { short: number; long: number; longDays: number; longLabel: string }> = {
+  // allowance: isenção anual aplicada ao cálculo — "deduct" abate ao ganho tributável;
+  // "threshold" (Freigrenze alemã) isenta TUDO se o total ficar abaixo, senão tributa tudo.
+  const taxRates: Record<string, { short: number; long: number; longDays: number; longLabel: string; allowance?: { amount: number; kind: "deduct" | "threshold"; label: string } }> = {
     PT: { short: 0.28, long: 0.0,  longDays: 365, longLabel: "Isento (>1 ano)" },
     ES: { short: 0.19, long: 0.19, longDays: 0,   longLabel: "19–30% (escala, sem distinção temporal)" },
     FR: { short: 0.30, long: 0.30, longDays: 0,   longLabel: "30% (flat tax)" },
-    DE: { short: 0.45, long: 0.0,  longDays: 365, longLabel: "Isento (>1 ano)" },
+    DE: { short: 0.45, long: 0.0,  longDays: 365, longLabel: "Isento (>1 ano)", allowance: { amount: 1000, kind: "threshold", label: "Freigrenze €1.000/ano" } },
     // Pro countries
-    GB: { short: 0.24, long: 0.24, longDays: 0,   longLabel: "18%/24% (sem distinção temporal)" },
+    GB: { short: 0.24, long: 0.24, longDays: 0,   longLabel: "18%/24% (sem distinção temporal)", allowance: { amount: 3500, kind: "deduct", label: "Isenção anual £3.000 (≈€3.500)" } },
     NL: { short: 0.0,  long: 0.0,  longDays: 0,   longLabel: "Box 3 tributa património, não mais-valias" },
     IT: { short: 0.33, long: 0.33, longDays: 0,   longLabel: "33% (flat, desde 2026)" },
     BR: { short: 0.15, long: 0.15, longDays: 0,   longLabel: "15% (isenção < R$35k/mês)" },
+    BE: { short: 0.10, long: 0.10, longDays: 0,   longLabel: "10% (gestão privada; especulativo 33%)", allowance: { amount: 10000, kind: "deduct", label: "Isenção anual €10.000 (regime 2026)" } },
+    IE: { short: 0.33, long: 0.33, longDays: 0,   longLabel: "33% (CGT, sem distinção temporal)", allowance: { amount: 1270, kind: "deduct", label: "Isenção anual €1.270" } },
+    AT: { short: 0.275,long: 0.275,longDays: 0,   longLabel: "27,5% (flat, sem distinção temporal)" },
+    PL: { short: 0.19, long: 0.19, longDays: 0,   longLabel: "19% (flat, PIT-38)" },
     // Premium countries
     US: { short: 0.37, long: 0.20, longDays: 365, longLabel: "0–20% (>1 ano)" },
     CA: { short: 0.27, long: 0.27, longDays: 0,   longLabel: "27% (50% inclusion rate)" },
@@ -301,9 +315,20 @@ export default function FiscalidadePage() {
     const taxable = taxEvents.filter(e => e.gain > 0 && e.taxRate > 0).reduce((s, e) => s + e.gain, 0);
     const exempt = taxEvents.filter(e => e.taxRate === 0 && e.gain > 0).reduce((s, e) => s + e.gain, 0);
     const losses = taxEvents.filter(e => e.gain < 0).reduce((s, e) => s + e.gain, 0);
-    const tax = taxEvents.filter(e => e.gain > 0).reduce((s, e) => s + e.gain * e.taxRate, 0);
-    return { totalGain, taxable, exempt, losses, tax };
-  }, [taxEvents]);
+    let tax = taxEvents.filter(e => e.gain > 0).reduce((s, e) => s + e.gain * e.taxRate, 0);
+    // Isenção anual do país (aproximação sobre o total tributável)
+    let allowanceUsed = 0;
+    const alw = regime.allowance;
+    if (alw && taxable > 0 && tax > 0) {
+      if (alw.kind === "threshold") {
+        if (taxable <= alw.amount) { allowanceUsed = taxable; tax = 0; }
+      } else {
+        allowanceUsed = Math.min(alw.amount, taxable);
+        tax = tax * (1 - allowanceUsed / taxable);
+      }
+    }
+    return { totalGain, taxable, exempt, losses, tax, allowanceUsed };
+  }, [taxEvents, regime]);
 
   // Partilha (telemóvel) ou download (desktop) — mesmo padrão dos exports do portefólio.
   const shareOrDownload = async (blob: Blob, filename: string) => {
@@ -382,6 +407,7 @@ export default function FiscalidadePage() {
     metric("Tributável", summary.taxable, money);
     metric("Isento (longo prazo)", summary.exempt, money);
     metric("Perdas realizadas", summary.losses, money);
+    if (summary.allowanceUsed > 0 && regime.allowance) metric(`Isenção aplicada (${regime.allowance.label})`, -summary.allowanceUsed, money);
     metric("Imposto estimado", summary.tax, money);
     metric("Nº de eventos", taxEvents.length, "0");
     ws.addRow([]);
@@ -789,6 +815,11 @@ export default function FiscalidadePage() {
                   </div>
                 ))}
               </div>
+              {summary.allowanceUsed > 0 && regime.allowance && (
+                <p className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-4 py-2.5 text-xs text-emerald-300">
+                  ✂️ {regime.allowance.label}: −{fmtEur(summary.allowanceUsed)} {t("fisc_allowance_applied")}
+                </p>
+              )}
 
               {/* Tabela de eventos */}
               <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
