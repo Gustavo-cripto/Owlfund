@@ -1,17 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
+import { createClient } from "@/lib/supabase/client";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, ReferenceLine } from "recharts";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useTheme } from "@/lib/theme/ThemeContext";
 
-// Regra dos 4% (Trinity Study): património necessário = despesas anuais × 25
-const FIRE_MULTIPLE = 25;
+// Regra dos 4% (Trinity Study): património necessário = despesas anuais × 25.
+// Lean=20× (levantamento 5%), Regular=25× (4%), Fat=33× (3%) — selecionável.
 
 export default function FirePage() {
-  const { isLoading } = useRequireAuth("/login");
+  const { isLoading, userId } = useRequireAuth("/login");
   const { t } = useLanguage();
   const { hideBalances } = useTheme();
 
@@ -23,22 +24,72 @@ export default function FirePage() {
   const [currentAge, setCurrentAge] = useState(30);
 
   const [portfolioOverride, setPortfolioOverride] = useState<string>("");
+  const [fireMultiple, setFireMultiple] = useState(25); // 20 Lean · 25 Regular · 33 Fat
+
+  // Último snapshot do portefólio (para pré-preencher com 1 clique)
+  const [livePortfolio, setLivePortfolio] = useState<number | null>(null);
+  useEffect(() => {
+    if (!userId) return;
+    const supabase = createClient();
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("portfolio_snapshots")
+          .select("data")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        const tot = (data?.[0]?.data as { _totalEur?: number } | undefined)?._totalEur;
+        if (typeof tot === "number" && tot > 0) setLivePortfolio(tot);
+      } catch { /* ignore */ }
+    })();
+  }, [userId]);
 
   const portfolioValue = portfolioOverride !== "" ? Number(portfolioOverride) || 0 : 0;
 
-  const fireTarget = monthlyExpenses * 12 * FIRE_MULTIPLE;
+  const fireTarget = monthlyExpenses * 12 * fireMultiple;
+  const swr = 100 / fireMultiple; // taxa de levantamento anual (%)
   const realReturn = (annualReturn - inflationRate) / 100;
   const monthlyReal = realReturn / 12;
 
-  // Anos para FIRE partindo do portefólio atual
-  const yearsToFire = useMemo(() => {
+  // Anos até um objetivo, dado o património inicial e o investimento mensal
+  const calcYears = (pv: number, inv: number, target: number): number | null => {
     if (realReturn <= 0) return null;
-    if (portfolioValue >= fireTarget) return 0;
-    const months = monthlyInvestment > 0
-      ? Math.log((fireTarget * monthlyReal + monthlyInvestment) / (portfolioValue * monthlyReal + monthlyInvestment)) / Math.log(1 + monthlyReal)
-      : Math.log(fireTarget / Math.max(portfolioValue, 1)) / Math.log(1 + monthlyReal);
-    return Math.ceil(months / 12);
-  }, [portfolioValue, monthlyInvestment, fireTarget, monthlyReal, realReturn]);
+    if (pv >= target) return 0;
+    if (inv <= 0 && pv <= 0) return null;
+    const months = inv > 0
+      ? Math.log((target * monthlyReal + inv) / (pv * monthlyReal + inv)) / Math.log(1 + monthlyReal)
+      : Math.log(target / Math.max(pv, 1)) / Math.log(1 + monthlyReal);
+    const years = Math.ceil(months / 12);
+    return years > 99 ? null : years;
+  };
+
+  // Anos para FIRE partindo do portefólio atual
+  const yearsToFire = useMemo(
+    () => calcYears(portfolioValue, monthlyInvestment, fireTarget),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [portfolioValue, monthlyInvestment, fireTarget, monthlyReal, realReturn],
+  );
+
+  // Coast FIRE: e se parasses de investir hoje?
+  const coastYears = useMemo(
+    () => (portfolioValue > 0 ? calcYears(portfolioValue, 0, fireTarget) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [portfolioValue, fireTarget, monthlyReal, realReturn],
+  );
+
+  // E se investisses mais por mês?
+  const whatIf = useMemo(() => {
+    if (yearsToFire === null || yearsToFire === 0) return [];
+    return [100, 250, 500].map((extra) => {
+      const y = calcYears(portfolioValue, monthlyInvestment + extra, fireTarget);
+      return { extra, years: y, saved: y !== null ? yearsToFire - y : null };
+    }).filter((w) => w.years !== null && (w.saved ?? 0) > 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [yearsToFire, portfolioValue, monthlyInvestment, fireTarget, monthlyReal, realReturn]);
+
+  const progressPct = fireTarget > 0 ? Math.min(100, (portfolioValue / fireTarget) * 100) : 0;
+  const passiveNow = portfolioValue * (swr / 100) / 12; // €/mês que o património atual já geraria
 
   const fireYear = yearsToFire !== null ? new Date().getFullYear() + yearsToFire : null;
   const fireAge = yearsToFire !== null ? currentAge + yearsToFire : null;
@@ -129,6 +180,12 @@ export default function FirePage() {
                 <input type="number" placeholder="Ex: 50000" value={portfolioOverride}
                   onChange={e => setPortfolioOverride(e.target.value)}
                   className="w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+                {livePortfolio !== null && Number(portfolioOverride) !== Math.round(livePortfolio) && (
+                  <button type="button" onClick={() => setPortfolioOverride(String(Math.round(livePortfolio)))}
+                    className="mt-1.5 rounded-lg border border-orange-500/40 bg-orange-500/10 px-2.5 py-1 text-[11px] font-semibold text-orange-300 transition hover:bg-orange-500/20">
+                    📊 {t("fire_use_live")} {hideBalances ? "••••" : fmt(livePortfolio)}
+                  </button>
+                )}
                 <p className="text-[10px] leading-snug text-slate-500 mt-1.5">{t("fire_hint_portfolio")}</p>
               </div>
             </div>
@@ -155,12 +212,58 @@ export default function FirePage() {
             )}
           </div>
 
+          {/* Progresso até ao objetivo (só com portefólio preenchido) */}
+          {portfolioValue > 0 && (
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t("fire_progress_title")}</p>
+                <p className="text-sm font-black text-orange-300">{progressPct.toFixed(1)}%</p>
+              </div>
+              <div className="h-3 overflow-hidden rounded-full bg-slate-800">
+                <div className="h-full rounded-full bg-gradient-to-r from-orange-500 to-emerald-400 transition-all" style={{ width: `${progressPct}%` }} />
+              </div>
+              <div className="mt-1.5 flex justify-between text-[10px] text-slate-500">
+                <span>{hideBalances ? "••••" : fmt(portfolioValue)}</span>
+                <span>{hideBalances ? "••••" : fmt(fireTarget)}</span>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.05] p-3 text-center">
+                  <p className="text-lg font-black text-emerald-300">{hideBalances ? "••••" : `${fmt(passiveNow)}/${t("fire_month_short")}`}</p>
+                  <p className="mt-0.5 text-[11px] text-slate-400">{t("fire_passive_title")}</p>
+                  <p className="text-[10px] text-slate-600">{t("fire_passive_sub")} {swr.toFixed(1)}%</p>
+                </div>
+                <div className="rounded-xl border border-sky-500/20 bg-sky-500/[0.05] p-3 text-center">
+                  <p className="text-lg font-black text-sky-300">{coastYears === null ? "—" : coastYears === 0 ? "🔥" : `${coastYears} ${t("fire_years")}`}</p>
+                  <p className="mt-0.5 text-[11px] text-slate-400">{t("fire_coast_title")}</p>
+                  <p className="text-[10px] text-slate-600">{t("fire_coast_sub")}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* E se investisses mais? */}
+          {whatIf.length > 0 && (
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">💡 {t("fire_whatif_title")}</p>
+              <div className="flex flex-wrap gap-2">
+                {whatIf.map((w) => (
+                  <button key={w.extra} type="button" onClick={() => setMonthlyInvestment(monthlyInvestment + w.extra)}
+                    title={t("fire_whatif_apply")}
+                    className="rounded-xl border border-slate-700 bg-slate-800/60 px-3 py-2 text-xs text-slate-300 transition hover:border-orange-400/50 hover:text-orange-200">
+                    +€{w.extra}/{t("fire_month_short")} → <b className="text-white">{w.years} {t("fire_years")}</b>{" "}
+                    <span className="font-semibold text-emerald-400">(−{w.saved})</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Detalhes de apoio */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 text-center">
               <p className="text-xs text-slate-500 mb-1">{t("fire_target")}</p>
               <p className="text-2xl font-black text-orange-300">{fmt(fireTarget)}</p>
-              <p className="text-[11px] text-slate-500 mt-1">{t("fire_target_rule")}</p>
+              <p className="text-[11px] text-slate-500 mt-1">{t("fire_expenses_x")} ×{fireMultiple} · {t("fire_swr_label")} {swr.toFixed(1)}%</p>
             </div>
             <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 text-center">
               <p className="text-xs text-slate-500 mb-1">{t("fire_real_return")}</p>
@@ -194,6 +297,10 @@ export default function FirePage() {
                     formatter={(v: any, name: any) => [fmt(typeof v === "number" ? v : 0), name === "patrimonio" ? t("fire_patrimony") : t("fire_goal")]} />
                   <Area type="monotone" dataKey="target" stroke="#22c55e" strokeWidth={1.5} strokeDasharray="4 4" fill="url(#gTarget)" dot={false} name="target" />
                   <Area type="monotone" dataKey="patrimonio" stroke="#f97316" strokeWidth={2} fill="url(#gPat)" dot={false} name="patrimonio" />
+                  {fireAge !== null && yearsToFire !== null && yearsToFire > 0 && (
+                    <ReferenceLine x={fireAge} stroke="#22c55e" strokeDasharray="4 4"
+                      label={{ value: `🔥 ${fireAge}`, fill: "#22c55e", fontSize: 11, position: "insideTopRight" }} />
+                  )}
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -234,14 +341,16 @@ export default function FirePage() {
                 { type: t("fire_regular"), multiplier: 25, desc: t("fire_regular_desc"), target: monthlyExpenses * 12 * 25 },
                 { type: t("fire_fat"), multiplier: 33, desc: t("fire_fat_desc"), target: monthlyExpenses * 12 * 33 },
               ].map(f => (
-                <div key={f.type} className={`rounded-xl border p-4 ${f.multiplier === 25 ? "border-orange-500/40 bg-orange-500/5" : "border-slate-700 bg-slate-900/40"}`}>
+                <button key={f.type} type="button" onClick={() => setFireMultiple(f.multiplier)}
+                  className={`rounded-xl border p-4 text-left transition hover:brightness-110 ${f.multiplier === fireMultiple ? "border-orange-500/40 bg-orange-500/5 ring-1 ring-orange-500/30" : "border-slate-700 bg-slate-900/40 hover:border-slate-600"}`}>
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm font-bold text-white">{f.type}</p>
-                    {f.multiplier === 25 && <span className="text-[10px] rounded-full border border-orange-500/40 px-2 py-0.5 text-orange-400">{t("fire_in_use")}</span>}
+                    {f.multiplier === fireMultiple && <span className="text-[10px] rounded-full border border-orange-500/40 px-2 py-0.5 text-orange-400">{t("fire_in_use")}</span>}
                   </div>
                   <p className="text-lg font-black text-orange-300">{fmt(f.target)}</p>
                   <p className="text-xs text-slate-400 mt-1">{f.desc}</p>
-                </div>
+                  <p className="mt-1.5 text-[10px] text-slate-500">×{f.multiplier} · {t("fire_swr_label")} {(100 / f.multiplier).toFixed(1)}% · {t("fire_variant_tap")}</p>
+                </button>
               ))}
             </div>
           </div>
