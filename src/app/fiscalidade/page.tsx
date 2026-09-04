@@ -279,10 +279,8 @@ export default function FiscalidadePage() {
   const regime = taxRates[country] ?? taxRates["PT"];
 
   // FIFO: calcular eventos de mais-valias
-  const [unmatched, setUnmatched] = useState<Record<string, number>>({});
   const taxEvents = useMemo<TaxEvent[]>(() => {
     const events: TaxEvent[] = [];
-    const um: Record<string, number> = {};
     const pool: Record<string, Array<{ amount: number; price: number; date: string }>> = {};
 
     const sorted = [...trades].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -316,14 +314,28 @@ export default function FiscalidadePage() {
           remaining -= used;
           if (lot.amount <= 0) pool[tr.asset].shift();
         }
-        // Venda sem lote de compra correspondente — não entra no cálculo,
-        // mas o utilizador tem de saber (custo de aquisição em falta).
-        if (remaining > 0) um[tr.asset] = (um[tr.asset] ?? 0) + remaining;
       }
     }
-    setUnmatched(um);
     return events;
   }, [trades, regime]);
+
+  // Vendas sem lote de compra correspondente — excluídas do FIFO, mas o
+  // utilizador tem de saber (custo de aquisição em falta).
+  const unmatched = useMemo<Record<string, number>>(() => {
+    const um: Record<string, number> = {};
+    const bought: Record<string, number> = {};
+    const sorted = [...trades].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    for (const tr of sorted) {
+      if (tr.type === "compra") bought[tr.asset] = (bought[tr.asset] ?? 0) + tr.amount;
+      else {
+        const avail = bought[tr.asset] ?? 0;
+        const used = Math.min(avail, tr.amount);
+        bought[tr.asset] = avail - used;
+        if (tr.amount > used) um[tr.asset] = (um[tr.asset] ?? 0) + (tr.amount - used);
+      }
+    }
+    return um;
+  }, [trades]);
 
   const summary = useMemo(() => {
     const totalGain = taxEvents.reduce((s, e) => s + e.gain, 0);
