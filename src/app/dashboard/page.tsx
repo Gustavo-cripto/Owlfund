@@ -196,7 +196,9 @@ export default function DashboardPage() {
     return t("dash_greeting_evening");
   };
 
-  const firstName = nickname || userEmail?.split("@")[0] || "Investor";
+  const firstName = nickname || userEmail?.split("@")[0] || t("dash_investor");
+  // Durante o beta (pagamentos congelados) os CTAs de upgrade viram convite ao beta grátis.
+  const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
   const isPro = plan === "pro" || plan === "premium";
   const isPremium = plan === "premium";
 
@@ -253,6 +255,14 @@ export default function DashboardPage() {
       ],
     },
     {
+      href: "/historico", icon: "📒", label: t("df_hist_l"),
+      color: "from-teal-500/15 to-teal-600/5", border: "border-teal-500/20", iconBg: "bg-teal-500/10",
+      minPlan: "free" as Plan, summary: t("df_hist_s"),
+      tiers: [
+        { plan: "free" as const, text: t("df_hist_0") },
+      ],
+    },
+    {
       href: "/fire", icon: "🔥", label: t("df_fire_l"),
       color: "from-rose-500/15 to-rose-600/5", border: "border-rose-500/20", iconBg: "bg-rose-500/10",
       minPlan: "free" as Plan, summary: t("df_fire_s"),
@@ -303,7 +313,7 @@ export default function DashboardPage() {
           {/* ── Hero ── */}
           <section className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             <div className="flex items-center gap-4">
-              <a href="/account" title="Editar perfil">
+              <a href="/account" title={t("dash_edit_profile")}>
                 <div className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-slate-700 hover:border-orange-500/60 transition-all shrink-0">
                   {avatarUrl ? (
                     <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
@@ -379,9 +389,9 @@ export default function DashboardPage() {
                 </div>
               </div>
               {plan !== "premium" && (
-                <a href="/pricing"
+                <a href={paymentsFrozen ? "/beta" : "/pricing"}
                   className={`shrink-0 rounded-xl px-4 py-2 text-xs font-bold transition ${plan === "pro" ? "bg-violet-500 text-white hover:bg-violet-400" : "bg-orange-500 text-slate-950 hover:bg-orange-400"}`}>
-                  {plan === "pro" ? `${t("dash_upgrade_premium")} →` : `${t("dash_upgrade_pro")} →`}
+                  {paymentsFrozen ? `🧪 ${t("dash_beta_cta_short")} →` : plan === "pro" ? `${t("dash_upgrade_premium")} →` : `${t("dash_upgrade_pro")} →`}
                 </a>
               )}
             </div>
@@ -488,22 +498,35 @@ export default function DashboardPage() {
                   </p>
                   <div className="flex flex-wrap gap-2 mt-3">
                     {(isPro
-                      ? ["🤖 Gestor IA personalizado", "📡 Smart Money RT", "🔑 API + MCP", "💎 Todos os países fiscais"]
-                      : ["🔓 Carteiras ilimitadas", "📊 Histórico 1 ano+", "🐋 Alertas de baleias", "📤 Exportação CSV/PDF"]
+                      ? [`🤖 ${t("dash_chip_gestor")}`, `📡 ${t("dash_chip_smrt")}`, `🔑 ${t("dash_chip_api")}`, `💎 ${t("dash_chip_countries")}`]
+                      : [`🔓 ${t("dash_chip_wallets")}`, `📊 ${t("dash_chip_history")}`, `🐋 ${t("dash_chip_whales")}`, `📤 ${t("dash_chip_export")}`]
                     ).map(f => (
                       <span key={f} className="text-xs bg-slate-800/60 border border-slate-700/60 rounded-full px-2.5 py-1 text-slate-300">{f}</span>
                     ))}
                   </div>
                 </div>
                 <div className="shrink-0 text-center">
-                  <p className={`text-3xl font-black mb-1 ${isPro ? "text-violet-300" : "text-orange-300"}`}>
-                    {isPro ? "€39" : "€14,99"}<span className="text-sm font-normal text-slate-500">{t("dash_per_month")}</span>
-                  </p>
-                  <a href="/pricing"
-                    className={`block w-full rounded-xl px-6 py-3 text-sm font-bold transition ${isPro ? "bg-violet-500 text-white hover:bg-violet-400" : "bg-orange-500 text-slate-950 hover:bg-orange-400"}`}>
-                    {isPro ? t("dash_upgrade_premium") : t("dash_upgrade_pro")}
-                  </a>
-                  <p className="text-[10px] text-slate-600 mt-1.5">{t("dash_cancel_anytime")}</p>
+                  {paymentsFrozen ? (
+                    <>
+                      <p className="text-2xl font-black mb-1 text-emerald-300">{t("dash_beta_free")}</p>
+                      <a href="/beta"
+                        className={`block w-full rounded-xl px-6 py-3 text-sm font-bold transition ${isPro ? "bg-violet-500 text-white hover:bg-violet-400" : "bg-orange-500 text-slate-950 hover:bg-orange-400"}`}>
+                        🧪 {t("dash_beta_cta")}
+                      </a>
+                      <p className="text-[10px] text-slate-600 mt-1.5">{t("dash_beta_note")}</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className={`text-3xl font-black mb-1 ${isPro ? "text-violet-300" : "text-orange-300"}`}>
+                        {isPro ? "€39" : "€14,99"}<span className="text-sm font-normal text-slate-500">{t("dash_per_month")}</span>
+                      </p>
+                      <a href="/pricing"
+                        className={`block w-full rounded-xl px-6 py-3 text-sm font-bold transition ${isPro ? "bg-violet-500 text-white hover:bg-violet-400" : "bg-orange-500 text-slate-950 hover:bg-orange-400"}`}>
+                        {isPro ? t("dash_upgrade_premium") : t("dash_upgrade_pro")}
+                      </a>
+                      <p className="text-[10px] text-slate-600 mt-1.5">{t("dash_cancel_anytime")}</p>
+                    </>
+                  )}
                 </div>
               </div>
             </section>
