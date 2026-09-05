@@ -16,10 +16,11 @@ interface CexBalance {
 
 interface CexAccount {
   id: string;
-  exchange: "binance" | "kraken" | "coinex";
+  exchange: "binance" | "kraken" | "coinex" | "okx" | "bybit" | "cryptocom" | "bitpanda";
   label: string;
   apiKey: string;
   apiSecret: string;
+  apiPassphrase?: string;
   balances: CexBalance[];
   error?: string;
   loading: boolean;
@@ -43,9 +44,13 @@ interface HlAccount {
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 const EXCHANGES = [
-  { id: "binance", label: "Binance" },
-  { id: "kraken", label: "Kraken" },
-  { id: "coinex", label: "CoinEx" },
+  { id: "kraken", label: "Kraken", mica: true },
+  { id: "okx", label: "OKX", mica: true },
+  { id: "bybit", label: "Bybit", mica: true },
+  { id: "cryptocom", label: "Crypto.com", mica: true },
+  { id: "bitpanda", label: "Bitpanda", mica: true },
+  { id: "binance", label: "Binance", mica: false },
+  { id: "coinex", label: "CoinEx", mica: false },
 ] as const;
 
 function fmt(n: number) {
@@ -59,7 +64,7 @@ function fmt(n: number) {
 const CEX_STORAGE_KEY = "cex-accounts-v1";
 const HL_STORAGE_KEY = "hl-accounts-v1";
 
-type StoredCex = { id: string; exchange: "binance" | "kraken" | "coinex"; label: string; apiKey: string; apiSecret: string };
+type StoredCex = { id: string; exchange: "binance" | "kraken" | "coinex" | "okx" | "bybit" | "cryptocom" | "bitpanda"; label: string; apiKey: string; apiSecret: string; apiPassphrase?: string };
 type StoredHl = { address: string };
 
 function loadStored<T>(key: string): T[] {
@@ -106,7 +111,8 @@ export default function CexSection({
 
   // CEX add form
   const [showAddCex, setShowAddCex] = useState(false);
-  const [newExchange, setNewExchange] = useState<"binance" | "kraken" | "coinex">("binance");
+  const [newExchange, setNewExchange] = useState<"binance" | "kraken" | "coinex" | "okx" | "bybit" | "cryptocom" | "bitpanda">("kraken");
+  const [newPassphrase, setNewPassphrase] = useState("");
   const [newLabel, setNewLabel] = useState("");
   const [newKey, setNewKey] = useState("");
   const [newSecret, setNewSecret] = useState("");
@@ -126,7 +132,7 @@ export default function CexSection({
         fetch("/api/cex-balance", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ exchange: s.exchange, apiKey: s.apiKey, apiSecret: s.apiSecret }),
+          body: JSON.stringify({ exchange: s.exchange, apiKey: s.apiKey, apiSecret: s.apiSecret, apiPassphrase: s.apiPassphrase }),
         })
           .then((r) => r.json() as Promise<{ balances?: CexBalance[]; error?: string }>)
           .then((data) =>
@@ -167,7 +173,7 @@ export default function CexSection({
 
   // Save config to localStorage whenever accounts change (without transient state)
   useEffect(() => {
-    saveStored<StoredCex>(CEX_STORAGE_KEY, cexAccounts.map(({ id, exchange, label, apiKey, apiSecret }) => ({ id, exchange, label, apiKey, apiSecret })));
+    saveStored<StoredCex>(CEX_STORAGE_KEY, cexAccounts.map(({ id, exchange, label, apiKey, apiSecret, apiPassphrase }) => ({ id, exchange, label, apiKey, apiSecret, apiPassphrase })));
   }, [cexAccounts]);
 
   useEffect(() => {
@@ -194,7 +200,7 @@ export default function CexSection({
     fetch("/api/cex-balance", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ exchange: acc.exchange, apiKey: acc.apiKey, apiSecret: acc.apiSecret }),
+      body: JSON.stringify({ exchange: acc.exchange, apiKey: acc.apiKey, apiSecret: acc.apiSecret, apiPassphrase: acc.apiPassphrase }),
     })
       .then((r) => r.json() as Promise<{ balances?: CexBalance[]; error?: string }>)
       .then((data) => setCexAccounts((prev) => prev.map((a) => a.id === acc.id ? { ...a, loading: false, balances: data.balances ?? [], error: data.error } : a)))
@@ -234,6 +240,7 @@ export default function CexSection({
       id,
       exchange: newExchange,
       label: newLabel || EXCHANGES.find((e) => e.id === newExchange)!.label,
+      apiPassphrase: newPassphrase || undefined,
       apiKey: newKey,
       apiSecret: newSecret,
       balances: [],
@@ -241,12 +248,12 @@ export default function CexSection({
     };
     setCexAccounts((prev) => [...prev, account]);
     setShowAddCex(false);
-    setNewKey(""); setNewSecret(""); setNewLabel("");
+    setNewKey(""); setNewSecret(""); setNewLabel(""); setNewPassphrase("");
 
     const res = await fetch("/api/cex-balance", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ exchange: newExchange, apiKey: newKey, apiSecret: newSecret }),
+      body: JSON.stringify({ exchange: newExchange, apiKey: newKey, apiSecret: newSecret, apiPassphrase: newPassphrase || undefined }),
     });
     const data = await res.json() as { balances?: CexBalance[]; error?: string };
     setCexAccounts((prev) =>
@@ -284,7 +291,7 @@ export default function CexSection({
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{t("cx_cex")}</p>
-            <p className="text-sm text-slate-300 mt-0.5">Binance · Kraken · CoinEx — via API Key (read-only)</p>
+            <p className="text-sm text-slate-300 mt-0.5">Kraken · OKX · Bybit · Crypto.com · Bitpanda · Binance · CoinEx — via API Key (read-only)</p>
           </div>
           <button
             type="button"
@@ -302,14 +309,14 @@ export default function CexSection({
                 <button
                   key={ex.id}
                   type="button"
-                  onClick={() => setNewExchange(ex.id)}
+                  onClick={() => setNewExchange(ex.id as typeof newExchange)}
                   className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
                     newExchange === ex.id
                       ? "border-orange-400 bg-orange-500/20 text-orange-200"
                       : "border-slate-700 text-slate-400 hover:border-slate-500"
                   }`}
                 >
-                  {ex.label}
+                  {ex.label}{ex.mica ? <span className="ml-1 text-[9px] text-emerald-400" title="Licenciada MiCA (UE)">🇪🇺</span> : null}
                 </button>
               ))}
             </div>
@@ -327,13 +334,30 @@ export default function CexSection({
               onChange={(e) => setNewKey(e.target.value)}
               className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-orange-500 font-mono"
             />
-            <input
-              type="password"
-              placeholder={newExchange === "coinex" ? "Secret Key" : "API Secret"}
-              value={newSecret}
-              onChange={(e) => setNewSecret(e.target.value)}
-              className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-orange-500 font-mono"
-            />
+            {newExchange !== "bitpanda" && (
+              <input
+                type="password"
+                placeholder={newExchange === "coinex" ? "Secret Key" : "API Secret"}
+                value={newSecret}
+                onChange={(e) => setNewSecret(e.target.value)}
+                className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-orange-500 font-mono"
+              />
+            )}
+            {newExchange === "okx" && (
+              <input
+                type="password"
+                placeholder="Passphrase (definida ao criar a chave)"
+                value={newPassphrase}
+                onChange={(e) => setNewPassphrase(e.target.value)}
+                className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-orange-500 font-mono"
+              />
+            )}
+            {newExchange === "bitpanda" && (
+              <p className="text-[10px] text-emerald-400">Bitpanda: basta a API key (não tem secret).</p>
+            )}
+            {newExchange === "binance" && (
+              <p className="text-[10px] text-amber-400">⚠️ A Binance não obteve licença MiCA e está a encerrar serviços na UE — considera uma exchange licenciada 🇪🇺.</p>
+            )}
             {newExchange === "coinex" && (
               <p className="text-[10px] text-orange-400">CoinEx: o campo “Access ID” é o que aparece como chave na página de API Keys. O “Secret Key” é a chave de assinatura.</p>
             )}
@@ -342,8 +366,8 @@ export default function CexSection({
               <ol className="mt-2 space-y-1 text-[11px] leading-relaxed text-slate-300">
                 <li>1. {t("cx_guide_s1")}{" "}
                   <a target="_blank" rel="noopener noreferrer" className="text-sky-300 underline"
-                    href={newExchange === "binance" ? "https://www.binance.com/en/my/settings/api-management" : newExchange === "kraken" ? "https://pro.kraken.com/app/settings/api" : "https://www.coinex.com/apikey"}>
-                    {newExchange === "binance" ? "Binance → API Management" : newExchange === "kraken" ? "Kraken → Settings → API" : "CoinEx → API Keys"}
+                    href={({ binance: "https://www.binance.com/en/my/settings/api-management", kraken: "https://pro.kraken.com/app/settings/api", coinex: "https://www.coinex.com/apikey", okx: "https://www.okx.com/account/my-api", bybit: "https://www.bybit.com/app/user/api-management", cryptocom: "https://crypto.com/exchange", bitpanda: "https://web.bitpanda.com/apikey" } as Record<string, string>)[newExchange]}>
+                    {({ binance: "Binance → API Management", kraken: "Kraken → Settings → API", coinex: "CoinEx → API Keys", okx: "OKX → API keys", bybit: "Bybit → API Management", cryptocom: "Crypto.com Exchange → API Keys", bitpanda: "Bitpanda → API Key" } as Record<string, string>)[newExchange]}
                   </a>
                 </li>
                 <li>2. {t("cx_guide_s2")}</li>
@@ -356,7 +380,7 @@ export default function CexSection({
               <button
                 type="button"
                 onClick={addCex}
-                disabled={!newKey || !newSecret}
+                disabled={!newKey || (newExchange !== "bitpanda" && !newSecret) || (newExchange === "okx" && !newPassphrase)}
                 className={`${btnPrimary} px-4 py-2 text-xs`}
               >
                 Ligar
