@@ -566,6 +566,7 @@ export default function PortfolioPage() {
     const dataWithTotal = {
       ...snapshot,
       _totalEur: portfolioTotal,
+      _account: getActiveAccountId(),
       ...(bench ? { _bench: bench } : {}),
     };
     const { error } = await supabase
@@ -706,8 +707,19 @@ export default function PortfolioPage() {
 
   const manualTotals = manualCryptoTotal + traditionalTotal + stablecoinTotal;
 
+  // Snapshots da CONTA ativa (+ legado sem etiqueta). Sem isto, as métricas
+  // misturavam contas diferentes e davam ROI/quedas absurdas (-100%).
+  const accountSnapshots = useMemo(() => {
+    let active = "";
+    try { active = getActiveAccountId(); } catch { /* ignore */ }
+    return snapshots.filter((r) => {
+      const acc = (r.data as { _account?: string })._account;
+      return !acc || acc === active;
+    });
+  }, [snapshots]);
+
   const snapshotTotals = useMemo(() => {
-    return snapshots
+    return accountSnapshots
       .map((row) => {
         // Use stored EUR total if available (saved after this fix was deployed)
         // Falls back to recalculating with current prices for older snapshots
@@ -722,7 +734,7 @@ export default function PortfolioPage() {
         };
       })
       .sort((a, b) => b.createdAt - a.createdAt);
-  }, [snapshots, manualTotals, tokenPrices]);
+  }, [accountSnapshots, manualTotals, tokenPrices]);
 
   // PNL usando preços históricos — funciona desde o 1º dia, sem depender de snapshots
   const pnlSummary = useMemo(() => {
@@ -897,7 +909,7 @@ export default function PortfolioPage() {
   const beta = useMemo(() => {
     const NEEDED = 8; // capturas mínimas com benchmark
     type Row = { t: number; total: number; bench: BenchSnapshot };
-    const series: Row[] = snapshots
+    const series: Row[] = accountSnapshots
       .map((r) => {
         const d = r.data as WalletSnapshot & { _totalEur?: number; _bench?: BenchSnapshot };
         return { t: new Date(r.created_at).getTime(), total: Number(d._totalEur ?? 0), bench: d._bench ?? {} };
@@ -937,7 +949,7 @@ export default function PortfolioPage() {
       btc: ready ? computeBeta("btc") : null,
       sp500: ready ? computeBeta("sp500") : null,
     };
-  }, [snapshots]);
+  }, [accountSnapshots]);
 
   // ── Estado do benchmark ──
   const [benchmarkPrices, setBenchmarkPrices] = useState<Record<string, number>>({});
@@ -980,7 +992,7 @@ export default function PortfolioPage() {
   // vs HODL BTC: o teu ROI contra simplesmente segurar BTC no mesmo período
   // (usa a cotação do BTC guardada no snapshot mais antigo com benchmark).
   const hodlBtc = useMemo(() => {
-    const rows = snapshots
+    const rows = accountSnapshots
       .map((r) => {
         const d = r.data as WalletSnapshot & { _totalEur?: number; _bench?: BenchSnapshot };
         return { t: new Date(r.created_at).getTime(), total: Number(d._totalEur ?? 0), btc: d._bench?.btc ?? 0 };
@@ -992,7 +1004,7 @@ export default function PortfolioPage() {
     if (!first || !btcNow || btcNow <= 0) return null;
     const btcRoi = (btcNow / first.btc - 1) * 100;
     return { btcRoi, since: first.t };
-  }, [snapshots, benchmarkPrices]);
+  }, [accountSnapshots, benchmarkPrices]);
 
 
   const traditionalAllocations = useMemo(() => {
@@ -2112,6 +2124,21 @@ export default function PortfolioPage() {
               )}
             </div>
           )}
+          {/* Totais — resumo rápido do portefólio no fim das métricas */}
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-5">
+            {[
+              { label: t("total"), value: fmt(portfolioTotal), color: "text-white" },
+              { label: t("pf_crypto"), value: fmt(cryptoTotal), color: "text-orange-300" },
+              { label: t("pf_traditional"), value: fmt(traditionalTotal), color: "text-sky-300" },
+              { label: t("pf_stablecoins"), value: fmt(stablecoinTotal), color: "text-emerald-300" },
+              { label: `PNL ${t("pf_position")}`, value: fmtSigned(pnlSummary.position), color: pnlSummary.position >= 0 ? "text-emerald-400" : "text-rose-400" },
+            ].map((c) => (
+              <div key={c.label} className="rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-center">
+                <p className="text-[10px] uppercase tracking-wider text-slate-500">{c.label}</p>
+                <p className={`mt-1 text-lg font-black ${c.color}`}>{c.value}</p>
+              </div>
+            ))}
+          </div>
         </section>
 
         <section className="grid gap-6 md:grid-cols-2">
@@ -2272,12 +2299,12 @@ export default function PortfolioPage() {
 
           {isLoadingAuth || isSnapshotsLoading ? (
             <p className="mt-4 text-sm text-slate-400">{t("loading")}</p>
-          ) : snapshots.length === 0 ? (
+          ) : accountSnapshots.length === 0 ? (
             <p className="mt-4 text-sm text-slate-400">
               {t("pfu_no_snapshots")}
             </p>
           ) : (
-            <SnapshotList snapshots={snapshots} onRestore={handleRestoreSnapshot} onDelete={handleDeleteSnapshot} locale={locale} hideBalances={hideBalances} />
+            <SnapshotList snapshots={accountSnapshots} onRestore={handleRestoreSnapshot} onDelete={handleDeleteSnapshot} locale={locale} hideBalances={hideBalances} />
           )}
         </section>
         {/* ── SIMULADOR DE CENÁRIOS ── */}
