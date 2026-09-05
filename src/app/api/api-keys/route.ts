@@ -19,16 +19,17 @@ async function getUser() {
 
 async function checkPremium(supabase: ReturnType<typeof createServerClient>, userId: string) {
   const { data: sub } = await supabase.from("subscriptions")
-    .select("status, price_id").eq("user_id", userId).eq("status", "active").maybeSingle();
+    .select("status, price_id").eq("user_id", userId).eq("status", "active")
+    .order("current_period_end", { ascending: false, nullsFirst: false }).limit(1).maybeSingle();
   return !!premiumPriceId && sub?.price_id === premiumPriceId;
 }
 
 // GET — list user's API keys (masked)
 export async function GET() {
   const { supabase, user } = await getUser();
-  if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "Não autenticado.", code: "UNAUTHENTICATED" }, { status: 401 });
   const isPremium = await checkPremium(supabase, user.id);
-  if (!isPremium) return NextResponse.json({ error: "Requer Premium." }, { status: 403 });
+  if (!isPremium) return NextResponse.json({ error: "Requer Premium.", code: "PREMIUM_REQUIRED" }, { status: 403 });
 
   const supabaseAdmin = getSupabaseAdmin();
   const { data: keys } = await supabaseAdmin
@@ -43,19 +44,19 @@ export async function GET() {
 // POST — create new API key
 export async function POST(req: NextRequest) {
   const { supabase, user } = await getUser();
-  if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "Não autenticado.", code: "UNAUTHENTICATED" }, { status: 401 });
   const isPremium = await checkPremium(supabase, user.id);
-  if (!isPremium) return NextResponse.json({ error: "Requer Premium." }, { status: 403 });
+  if (!isPremium) return NextResponse.json({ error: "Requer Premium.", code: "PREMIUM_REQUIRED" }, { status: 403 });
 
-  const body = await req.json() as { name?: string };
-  const name = (body.name ?? "Chave API").slice(0, 64).trim();
+  const body = await req.json().catch(() => ({})) as { name?: string };
+  const name = (body.name ?? "").slice(0, 64).trim() || "API key";
 
   const supabaseAdmin = getSupabaseAdmin();
 
   // Max 5 keys per user
   const { count } = await supabaseAdmin.from("api_keys")
     .select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("is_active", true);
-  if ((count ?? 0) >= 5) return NextResponse.json({ error: "Máximo de 5 chaves atingido." }, { status: 400 });
+  if ((count ?? 0) >= 5) return NextResponse.json({ error: "Máximo de 5 chaves atingido.", code: "MAX_KEYS" }, { status: 400 });
 
   // Generate key: cfa_live_<40 hex> (cfa = ChainFolioAI)
   const rawKey = `cfa_live_${randomBytes(20).toString("hex")}`;
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
     key_hash: keyHash,
     key_prefix: keyPrefix,
     is_active: true,
-  }).select("id, name, key_prefix, created_at").single();
+  }).select("id, name, key_prefix, created_at, last_used_at, is_active").single();
 
   if (error) return NextResponse.json({ error: "Erro ao criar chave." }, { status: 500 });
 

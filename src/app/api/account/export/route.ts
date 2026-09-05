@@ -25,7 +25,7 @@ export async function GET() {
     return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
   }
 
-  const [profile, subscriptions, walletConfig, snapshots, briefing, apiKeys, chatUsage] = await Promise.all([
+  const [profile, subscriptions, walletConfig, snapshots, briefing, apiKeys, chatUsage, webhook, cryptoPayments] = await Promise.all([
     admin.from("profiles").select("email, avatar_url, auto_snapshot").eq("id", userId).maybeSingle(),
     admin.from("subscriptions").select("status, price_id, current_period_end, cancel_at_period_end").eq("user_id", userId),
     admin.from("wallet_config").select("data, updated_at").eq("user_id", userId).maybeSingle(),
@@ -34,6 +34,9 @@ export async function GET() {
     // Só metadados das chaves — nunca o hash.
     admin.from("api_keys").select("name, key_prefix, created_at, last_used_at, is_active").eq("user_id", userId),
     admin.from("chat_usage").select("month, count").eq("user_id", userId),
+    // Webhook: só o URL (nunca o segredo). Pagamentos cripto: histórico sem dados sensíveis.
+    admin.from("webhook_config").select("url, enabled, updated_at").eq("user_id", userId).maybeSingle(),
+    admin.from("crypto_payments").select("created_at, plan, period, chain, currency, amount, status, tx_hash").eq("user_id", userId),
   ]);
 
   const payload = {
@@ -48,6 +51,8 @@ export async function GET() {
     subscriptions: subscriptions.data ?? [],
     walletConfig: walletConfig.data ?? null,
     portfolioSnapshots: snapshots.data ?? [],
+    webhook: webhook.data ?? null,
+    cryptoPayments: cryptoPayments.data ?? [],
     newsBriefingSchedule: briefing.data ?? null,
     apiKeys: apiKeys.data ?? [],
     chatUsage: chatUsage.data ?? [],

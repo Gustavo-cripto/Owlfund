@@ -63,7 +63,7 @@ export async function POST() {
       price_id: priceId,
       current_period_end: currentPeriodEnd,
       cancel_at_period_end: sub.cancel_at_period_end ?? false,
-    });
+    }, { onConflict: "user_id" });
 
     return NextResponse.json({ synced: true, price_id: priceId, status: sub.status });
   } catch (err) {

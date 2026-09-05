@@ -29,6 +29,8 @@ export async function isUserPremium(
     .select("price_id")
     .eq("user_id", userId)
     .eq("status", "active")
+    .order("current_period_end", { ascending: false, nullsFirst: false })
+    .limit(1)
     .maybeSingle();
   return !!premiumPriceId && sub?.price_id === premiumPriceId;
 }

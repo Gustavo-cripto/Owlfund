@@ -27,10 +27,24 @@ async function getUser(authHeader: string | null) {
   return data.user ?? null;
 }
 
+// Nível de garantia (aal1/aal2) lido do próprio JWT — sem isto uma sessão roubada
+// (só palavra-passe) podia regenerar códigos e contornar o 2FA.
+function tokenAal(authHeader: string | null): string | null {
+  try {
+    const token = authHeader?.slice(7) ?? "";
+    const payload = JSON.parse(Buffer.from(token.split(".")[1] ?? "", "base64url").toString("utf8")) as { aal?: string };
+    return payload.aal ?? null;
+  } catch { return null; }
+}
+
 export async function POST(request: Request) {
   const user = await getUser(request.headers.get("Authorization"));
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!serviceKey) return NextResponse.json({ error: "Service role key não configurada." }, { status: 503 });
+  const hasVerifiedFactor = (user.factors ?? []).some((f) => f.status === "verified");
+  if (hasVerifiedFactor && tokenAal(request.headers.get("Authorization")) !== "aal2") {
+    return NextResponse.json({ error: "Requer sessão verificada com 2FA (AAL2).", code: "AAL2_REQUIRED" }, { status: 403 });
+  }
 
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { btnPrimary } from "@/lib/ui/buttons";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -8,8 +8,11 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 type Msg = { text: string; error: boolean } | null;
 
 export default function TwoFactorSetup() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const { t } = useLanguage();
+  const [disabling, setDisabling] = useState(false);
+  const [disableCode, setDisableCode] = useState("");
+  const [copiedCodes, setCopiedCodes] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [enrolled, setEnrolled] = useState(false);
@@ -36,6 +39,9 @@ export default function TwoFactorSetup() {
     if (res.ok) {
       const j = (await res.json()) as { codes?: string[] };
       setRecoveryCodes(j.codes ?? null);
+    } else {
+      const j = (await res.json().catch(() => ({}))) as { code?: string };
+      setMsg({ text: j.code === "AAL2_REQUIRED" ? t("ac_2fa_aal2_required") : t("ac_2fa_codes_error"), error: true });
     }
   };
 
@@ -73,7 +79,7 @@ export default function TwoFactorSetup() {
     }
     const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp" });
     if (error || !data) {
-      setMsg({ text: error?.message ?? "Erro", error: true });
+      setMsg({ text: error?.message ?? t("error"), error: true });
       setBusy(false);
       return;
     }
@@ -90,7 +96,7 @@ export default function TwoFactorSetup() {
     setMsg(null);
     const { data: challenge, error: cErr } = await supabase.auth.mfa.challenge({ factorId: pendingFactorId });
     if (cErr || !challenge) {
-      setMsg({ text: cErr?.message ?? "Erro", error: true });
+      setMsg({ text: cErr?.message ?? t("error"), error: true });
       setBusy(false);
       return;
     }
@@ -118,10 +124,15 @@ export default function TwoFactorSetup() {
     setBusy(false);
   };
 
+  // Desativar exige o código TOTP atual (challenge + verify) — um clique não chega.
   const disable2fa = async () => {
     if (!factorId) return;
     setBusy(true);
     setMsg(null);
+    const { data: challenge, error: cErr } = await supabase.auth.mfa.challenge({ factorId });
+    if (cErr || !challenge) { setMsg({ text: cErr?.message ?? t("error"), error: true }); setBusy(false); return; }
+    const { error: vErr } = await supabase.auth.mfa.verify({ factorId, challengeId: challenge.id, code: disableCode.trim() });
+    if (vErr) { setMsg({ text: t("ac_2fa_invalid"), error: true }); setBusy(false); return; }
     const { error } = await supabase.auth.mfa.unenroll({ factorId });
     if (error) {
       setMsg({ text: error.message, error: true });
@@ -130,6 +141,7 @@ export default function TwoFactorSetup() {
     }
     setMsg({ text: t("ac_2fa_ok_off"), error: false });
     setRecoveryCodes(null);
+    setDisabling(false); setDisableCode("");
     await loadFactors();
     setBusy(false);
   };
@@ -152,7 +164,7 @@ export default function TwoFactorSetup() {
         </div>
         {!loading && !enrolling && (
           enrolled ? (
-            <button type="button" onClick={disable2fa} disabled={busy}
+            <button type="button" onClick={() => { setDisabling(v => !v); setMsg(null); }} disabled={busy}
               className="shrink-0 rounded-lg border border-rose-500/30 px-3 py-1.5 text-xs font-semibold text-rose-400 hover:bg-rose-500/10 disabled:opacity-50 transition">
               {t("ac_2fa_disable")}
             </button>
@@ -164,6 +176,24 @@ export default function TwoFactorSetup() {
           )
         )}
       </div>
+
+      {disabling && enrolled && (
+        <div className="space-y-2 border-t border-slate-800 pt-4">
+          <p className="text-xs text-slate-300">{t("ac_2fa_disable_enter")}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <input inputMode="numeric" maxLength={6} value={disableCode} onChange={(e) => setDisableCode(e.target.value.replace(/\D/g, ""))} placeholder="000000" aria-label={t("ac_2fa_enter")}
+              className="w-32 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-center text-sm tracking-[0.3em] text-white outline-none focus:border-rose-400" />
+            <button type="button" onClick={disable2fa} disabled={busy || disableCode.length !== 6}
+              className="rounded-lg bg-rose-500/90 px-4 py-2 text-xs font-bold text-white hover:bg-rose-500 disabled:opacity-50 transition">
+              {t("ac_2fa_disable")}
+            </button>
+            <button type="button" onClick={() => { setDisabling(false); setDisableCode(""); }} disabled={busy}
+              className="rounded-lg px-3 py-2 text-xs font-semibold text-slate-400 hover:text-white disabled:opacity-50 transition">
+              {t("ac_2fa_cancel")}
+            </button>
+          </div>
+        </div>
+      )}
 
       {enrolling && qrCode && (
         <div className="space-y-3 border-t border-slate-800 pt-4">
@@ -215,9 +245,9 @@ export default function TwoFactorSetup() {
           </div>
           <div className="flex gap-2">
             <button type="button"
-              onClick={() => { navigator.clipboard?.writeText(recoveryCodes.join("\n")); }}
+              onClick={() => { try { navigator.clipboard?.writeText(recoveryCodes.join("\n")).then(() => { setCopiedCodes(true); setTimeout(() => setCopiedCodes(false), 1500); }).catch(() => {}); } catch { /* ignore */ } }}
               className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:border-slate-500 transition">
-              {t("ac_2fa_codes_copy")}
+              {copiedCodes ? t("dev_copied") : t("ac_2fa_codes_copy")}
             </button>
             <button type="button" onClick={() => setRecoveryCodes(null)}
               className="rounded-lg bg-emerald-500/20 border border-emerald-500/40 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/30 transition">

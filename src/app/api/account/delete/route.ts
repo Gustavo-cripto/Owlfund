@@ -15,6 +15,7 @@ const USER_TABLES = [
   "portfolio_snapshots",
   "subscriptions",
   "wallet_config",
+  "webhook_config",
 ] as const;
 
 export async function POST() {
@@ -52,6 +53,8 @@ export async function POST() {
     try { await admin.from(table).delete().eq("user_id", userId); } catch { /* ignore */ }
   }
   try { await admin.from("profiles").delete().eq("id", userId); } catch { /* ignore */ }
+  // Inscrição no beta é por email (sem user_id).
+  try { if (user.email) await admin.from("beta_signups").delete().eq("email", user.email.toLowerCase()); } catch { /* ignore */ }
 
   // 3. Apagar ficheiros de avatar do storage (best-effort).
   try {
