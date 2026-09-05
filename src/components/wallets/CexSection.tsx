@@ -337,6 +337,20 @@ export default function CexSection({
             {newExchange === "coinex" && (
               <p className="text-[10px] text-orange-400">CoinEx: o campo “Access ID” é o que aparece como chave na página de API Keys. O “Secret Key” é a chave de assinatura.</p>
             )}
+            <details className="rounded-lg border border-sky-500/20 bg-sky-500/[0.05] px-3 py-2">
+              <summary className="cursor-pointer text-[11px] font-semibold text-sky-300">🔑 {t("cx_guide_title")}</summary>
+              <ol className="mt-2 space-y-1 text-[11px] leading-relaxed text-slate-300">
+                <li>1. {t("cx_guide_s1")}{" "}
+                  <a target="_blank" rel="noopener noreferrer" className="text-sky-300 underline"
+                    href={newExchange === "binance" ? "https://www.binance.com/en/my/settings/api-management" : newExchange === "kraken" ? "https://pro.kraken.com/app/settings/api" : "https://www.coinex.com/apikey"}>
+                    {newExchange === "binance" ? "Binance → API Management" : newExchange === "kraken" ? "Kraken → Settings → API" : "CoinEx → API Keys"}
+                  </a>
+                </li>
+                <li>2. {t("cx_guide_s2")}</li>
+                <li>3. {t("cx_guide_s3")} <span className="font-mono text-emerald-300">✓ Read</span> · <span className="font-mono text-rose-300">✗ Trade</span> · <span className="font-mono text-rose-300">✗ Withdraw</span></li>
+                <li>4. {t("cx_guide_s4")}</li>
+              </ol>
+            </details>
             <p className="text-[10px] text-slate-600">⚠️ Usa apenas chaves read-only. Nunca partilhes chaves com permissão de trade/withdrawal.</p>
             <div className="flex gap-2">
               <button

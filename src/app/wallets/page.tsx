@@ -497,6 +497,7 @@ export default function WalletsPage() {
   const [manualAddAddress, setManualAddAddress] = useState("");
   const [manualAddLabel, setManualAddLabel] = useState("");
   const [manualAddError, setManualAddError] = useState<string | null>(null);
+  const [manualAddOk, setManualAddOk] = useState<string | null>(null);
   const [solWalletSelectOpen, setSolWalletSelectOpen] = useState(false);
   const [solWalletSelectFilter, setSolWalletSelectFilter] = useState("");
   const solWalletSelectRef = useRef<HTMLDivElement>(null);
@@ -1721,6 +1722,14 @@ export default function WalletsPage() {
       return;
     }
     const trimmed = ethNewAddress.trim();
+    {
+      const dupNet = addressAlreadyTracked(trimmed);
+      const network0 = ethNewNetwork === "outro" ? (ethNewCustomLabel.trim() || "Outro") : ethNewNetwork;
+      if (dupNet && dupNet !== network0) {
+        setEthNewError(`Este endereço já está adicionado (${dupNet}) — o saldo contaria em dobro.`);
+        return;
+      }
+    }
     const network =
       ethNewNetwork === "outro" ? (ethNewCustomLabel.trim() || "Outro") : ethNewNetwork;
     const netForFetch = ethNewNetwork === "outro" ? "Ethereum" : ethNewNetwork;
@@ -1846,6 +1855,14 @@ export default function WalletsPage() {
       return;
     }
     const trimmed = solNewAddress.trim();
+    {
+      const dupNet = addressAlreadyTracked(trimmed);
+      const label0 = solNewWalletId === "outro" ? (solNewCustomLabel.trim() || "Solana") : (MANUAL_ADD_TO_SOL_NETWORK[solNewWalletId] ?? "Solana");
+      if (dupNet && dupNet !== label0) {
+        setSolNewError(`Este endereço já está adicionado (${dupNet}) — o saldo contaria em dobro.`);
+        return;
+      }
+    }
     const walletLabel =
       solNewWalletId === "outro"
         ? (solNewCustomLabel.trim() || "Solana")
@@ -1995,6 +2012,14 @@ export default function WalletsPage() {
       return;
     }
     const trimmed = btcNewAddress.trim();
+    {
+      const dupNet = addressAlreadyTracked(trimmed);
+      const label0 = btcNewLabel === "outro" ? (btcNewCustomLabel.trim() || "Bitcoin") : (btcNetworkOptions.find((o) => o.id === btcNewLabel)?.label ?? "Bitcoin");
+      if (dupNet && dupNet !== label0) {
+        setBtcNewError(`Este endereço já está adicionado (${dupNet}) — o saldo contaria em dobro.`);
+        return;
+      }
+    }
     const networkLabel =
       btcNewLabel === "outro"
         ? (btcNewCustomLabel.trim() || "Bitcoin")
@@ -2237,6 +2262,19 @@ export default function WalletsPage() {
     updateWalletSnapshot({ eth, sol, btc, ada, other });
   };
 
+  // Em que rede (se alguma) é que este endereço já está a ser seguido?
+  // Evita duplicados entre redes que somavam o MESMO saldo duas vezes.
+  const addressAlreadyTracked = (addr: string): string | null => {
+    const a = addr.toLowerCase();
+    const hit =
+      ethWallets.find((w) => (w.address ?? "").toLowerCase() === a) ??
+      solWallets.find((w) => (w.address ?? "").toLowerCase() === a) ??
+      btcWallets.find((w) => (w.address ?? "").toLowerCase() === a) ??
+      adaWallets.find((w) => (w.address ?? "").toLowerCase() === a) ??
+      otherWallets.find((w) => (w.address ?? "").toLowerCase() === a);
+    return hit ? (hit.network ?? "?") : null;
+  };
+
   const addManualAddress = (addressArg: string, networkId: string, labelArg?: string, source: "cold" | "manual" = "manual"): string | null => {
     if (!isPro && totalWallets >= FREE_WALLET_LIMIT) {
       return `Plano Gratuito limitado a ${FREE_WALLET_LIMIT} carteiras. Faz upgrade para Pro.`;
@@ -2244,6 +2282,10 @@ export default function WalletsPage() {
     const trimmed = addressArg.trim();
     const label = labelArg && labelArg.trim() ? sanitizeLabel(labelArg) : undefined;
     if (!trimmed) return "Insere um endereço.";
+    {
+      const dupNet = addressAlreadyTracked(trimmed);
+      if (dupNet) return `Este endereço já está adicionado (${dupNet}).`;
+    }
     const evmNetwork = MANUAL_ADD_TO_EVM_NETWORK[networkId];
     if (evmNetwork) {
       if (!isEvmAddress(trimmed)) return "Endereço inválido (deve ser 0x... para redes EVM/L2).";
@@ -2304,10 +2346,14 @@ export default function WalletsPage() {
 
   const handleManualAddAddress = () => {
     setManualAddError(null);
+    setManualAddOk(null);
+    const addr = manualAddAddress.trim();
     const err = addManualAddress(manualAddAddress, manualAddNetwork, manualAddLabel);
     if (err) { setManualAddError(err); return; }
     setManualAddAddress("");
     setManualAddLabel("");
+    setManualAddOk(`✓ ${addr.slice(0, 10)}… ${t("wl_added_ok")}`);
+    window.setTimeout(() => setManualAddOk(null), 6000);
   };
 
   /** Endereços adicionados via card Ledger/Trezor (source === "cold"), enriquecidos com saldo/NFTs/DeFi. */
@@ -2723,6 +2769,13 @@ export default function WalletsPage() {
       setAdaNewError("Endereço Cardano inválido (addr1... ou stake1...).");
       return;
     }
+    {
+      const dupNet = addressAlreadyTracked(adaNewAddress.trim());
+      if (dupNet) {
+        setAdaNewError(`Este endereço já está adicionado (${dupNet}) — o saldo contaria em dobro.`);
+        return;
+      }
+    }
     const trimmed = adaNewAddress.trim();
     const networkLabel =
       adaNewNetworkId === "outro"
@@ -2770,6 +2823,28 @@ export default function WalletsPage() {
           <p className="max-w-2xl text-sm text-slate-400">
             Liga carteiras blockchain (ETH, SOL, BTC, ADA) para ver saldos em tempo real, ou regista ativos tradicionais e cripto comprados manualmente.
           </p>
+          {totalWallets === 0 && (
+            <div className="rounded-2xl border border-orange-500/30 bg-orange-500/[0.06] p-5">
+              <p className="text-sm font-bold text-white">🚀 {t("wl_start_title")}</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                <a href="#chain-cards" className="rounded-xl border border-slate-700 bg-slate-900/60 p-4 transition hover:border-orange-400/50">
+                  <p className="text-lg">🦊</p>
+                  <p className="mt-1 text-sm font-semibold text-white">{t("wl_start_1t")}</p>
+                  <p className="mt-0.5 text-xs text-slate-400">{t("wl_start_1d")}</p>
+                </a>
+                <a href="#manual-address-section" className="rounded-xl border border-slate-700 bg-slate-900/60 p-4 transition hover:border-orange-400/50">
+                  <p className="text-lg">📋</p>
+                  <p className="mt-1 text-sm font-semibold text-white">{t("wl_start_2t")}</p>
+                  <p className="mt-0.5 text-xs text-slate-400">{t("wl_start_2d")}</p>
+                </a>
+                <a href="#manual-crypto-section" className="rounded-xl border border-slate-700 bg-slate-900/60 p-4 transition hover:border-orange-400/50">
+                  <p className="text-lg">✍️</p>
+                  <p className="mt-1 text-sm font-semibold text-white">{t("wl_start_3t")}</p>
+                  <p className="mt-0.5 text-xs text-slate-400">{t("wl_start_3d")}</p>
+                </a>
+              </div>
+            </div>
+          )}
           <div className="flex items-center gap-2 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-2.5 text-sm text-blue-300">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 shrink-0">
               <path d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" />
@@ -2910,7 +2985,7 @@ export default function WalletsPage() {
             </div>
           </section>
         )}
-        <div className="grid gap-6 md:grid-cols-2">
+        <div id="chain-cards" className="grid gap-6 md:grid-cols-2 scroll-mt-24">
           <WalletCard
             title="Ethereum"
             description={
@@ -4439,7 +4514,7 @@ export default function WalletsPage() {
             </div>
           </WalletCard>
         </div>
-        <section className="order-last rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+        <section id="manual-crypto-section" className="order-last rounded-2xl border border-slate-800 bg-slate-900/60 p-6 scroll-mt-24">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-white">{t("wl_crypto_wallet")}</h2>
@@ -5344,6 +5419,9 @@ export default function WalletsPage() {
               Adicionar
             </button>
           </div>
+          {manualAddOk ? (
+            <p className="mt-2 text-xs text-emerald-300">{manualAddOk}</p>
+          ) : null}
           {manualAddError ? (
             <p className="mt-2 text-xs text-rose-300">{manualAddError}</p>
           ) : null}
