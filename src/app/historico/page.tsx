@@ -11,6 +11,7 @@ import {
 } from "@/lib/portfolios/trades";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
+import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, ReferenceLine } from "recharts";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -654,6 +655,35 @@ export default function HistoricoPage() {
               {filtered.length === 0 && (
                 <p className="py-8 text-center text-sm text-slate-500">{t("hx_no_filtered")}</p>
               )}
+            </div>
+          )}
+
+          {/* ── Cumulative realized PNL ── */}
+          {fifo.cumulative.length >= 2 && !hideBalances && (
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+              <h2 className="text-sm font-bold text-white mb-1">{t("hx_pnl_chart_title")}</h2>
+              <p className="text-[11px] text-slate-500 mb-3">{t("hx_pnl_chart_hint")}</p>
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={fifo.cumulative.map((c, i) => ({ i, date: c.date, pnl: Math.round(c.pnl * 100) / 100 }))} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="hxPnl" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={fifo.realizedPnl >= 0 ? "#34d399" : "#fb7185"} stopOpacity={0.35} />
+                        <stop offset="100%" stopColor={fifo.realizedPnl >= 0 ? "#34d399" : "#fb7185"} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="date" tick={{ fill: "#64748b", fontSize: 10 }} tickFormatter={(d: string) => fmtDate(d, { month: "short", year: "2-digit" })} minTickGap={24} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: "#64748b", fontSize: 10 }} tickFormatter={(v: number) => fmtCur(v, { compact: true })} width={64} axisLine={false} tickLine={false} />
+                    <ReferenceLine y={0} stroke="#334155" />
+                    <Tooltip
+                      contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 12, fontSize: 12 }}
+                      labelFormatter={(d) => fmtDate(String(d))}
+                      formatter={(v) => [formatSigned(Number(v)), t("hx_pl_realized")]}
+                    />
+                    <Area type="monotone" dataKey="pnl" stroke={fifo.realizedPnl >= 0 ? "#34d399" : "#fb7185"} strokeWidth={2} fill="url(#hxPnl)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           )}
 
