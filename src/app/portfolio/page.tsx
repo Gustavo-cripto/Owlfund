@@ -232,22 +232,28 @@ const STABLE_SYMBOLS = new Set([
   "USDT", "USDC", "DAI", "BUSD", "TUSD", "FDUSD", "USDE", "PYUSD", "USDP", "EURC", "GUSD", "FRAX",
 ]);
 
-function SnapshotList({ snapshots, onRestore }: { snapshots: SnapshotRow[]; onRestore: (row: SnapshotRow) => void }) {
+function SnapshotList({ snapshots, onRestore, locale, hideBalances }: { snapshots: SnapshotRow[]; onRestore: (row: SnapshotRow) => void; locale: string; hideBalances: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const visible = expanded ? snapshots : snapshots.slice(0, 3);
   const hasMore = snapshots.length > 3;
   return (
     <div className="mt-6 space-y-3">
-      {visible.map((row) => (
+      {visible.map((row) => {
+        const total = (row.data as { _totalEur?: number })._totalEur;
+        return (
         <div
           key={row.id}
           className="flex flex-col gap-3 rounded-xl border border-slate-800 bg-slate-950/60 p-4 sm:flex-row sm:items-center sm:justify-between"
         >
           <div>
             <p className="text-sm font-semibold text-white">
-              {new Date(row.created_at).toLocaleString("pt-PT")}
+              {new Date(row.created_at).toLocaleString(locale)}
             </p>
-            <p className="text-xs text-slate-500">ID #{row.id}</p>
+            <p className="text-xs text-slate-500">
+              {typeof total === "number" && total > 0
+                ? (hideBalances ? "••••" : `€ ${Math.round(total).toLocaleString(locale)}`)
+                : `ID #${row.id}`}
+            </p>
           </div>
           <button
             type="button"
@@ -257,7 +263,8 @@ function SnapshotList({ snapshots, onRestore }: { snapshots: SnapshotRow[]; onRe
             Restaurar
           </button>
         </div>
-      ))}
+        );
+      })}
       {hasMore && (
         <button
           type="button"
@@ -274,7 +281,10 @@ function SnapshotList({ snapshots, onRestore }: { snapshots: SnapshotRow[]; onRe
 export default function PortfolioPage() {
   const supabase = createClient();
   useRequireAuth("/login");
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const locale = ({ pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" } as Record<string, string>)[lang] ?? "pt-PT";
+  // Durante o beta (pagamentos congelados) os CTAs de upgrade viram convite ao beta.
+  const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
   const { format: fmt, formatSigned: fmtSigned, convert: fx, symbol: curSym, hideBalances } = useCurrencyFormat();
   const [wallets, setWallets] = useState<WalletBalance[]>([]);
   const [tokenPrices, setTokenPrices] = useState<TokenPrices>({});
@@ -286,8 +296,9 @@ export default function PortfolioPage() {
   const [stablecoinEntries, setStablecoinEntries] = useState<StablecoinEntry[]>([]);
   const [snapshots, setSnapshots] = useState<SnapshotRow[]>([]);
   // Intervalo do gráfico PNL histórico (içado para cá — hooks não podem viver no IIFE do gráfico).
-  const [chartRange, setChartRange] = useState<string>(t("pf_all"));
+  const [chartRange, setChartRange] = useState<string>("all"); // id estável (não o rótulo traduzido)
   const [isSnapshotsLoading, setIsSnapshotsLoading] = useState(false);
+  const [isSavingSnap, setIsSavingSnap] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [isPro, setIsPro] = useState(false);
@@ -295,7 +306,7 @@ export default function PortfolioPage() {
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isBillingLoading, setIsBillingLoading] = useState(false);
   const [billingError, setBillingError] = useState<string | null>(null);
-  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [saveMessage, setSaveMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   // IA contextual
   const [aiQuestion, setAiQuestion] = useState("");
@@ -550,11 +561,11 @@ export default function PortfolioPage() {
       .insert({ user_id: userId, data: dataWithTotal });
 
     if (error) {
-      if (!silent) setSaveMessage(t("pf_save_fail"));
+      if (!silent) setSaveMessage({ ok: false, text: t("pf_save_fail") });
       return;
     }
 
-    if (!silent) setSaveMessage(t("pf_save_ok"));
+    if (!silent) setSaveMessage({ ok: true, text: t("pf_save_ok") });
 
     const historyFrom2 = isPremium
       ? new Date(0).toISOString()
@@ -570,25 +581,50 @@ export default function PortfolioPage() {
     setSnapshots((snapshotRows ?? []) as SnapshotRow[]);
   };
 
-  // Auto-snapshot: guardar automaticamente se passaram mais de 24h desde o último
-  useEffect(() => {
-    if (!userId || isLoadingAuth) return;
-    const latest = snapshots[0];
-    const lastSaved = latest ? new Date(latest.created_at).getTime() : 0;
-    const hoursSince = (Date.now() - lastSaved) / (1000 * 60 * 60);
-    if (hoursSince >= 24) {
-      handleSaveSnapshot(true);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, isLoadingAuth]);
-
   useEffect(() => {
     try { setPortfolioNote(localStorage.getItem("portfolio-note") ?? ""); } catch {}
   }, []);
 
+  // Envia uma pergunta à IA do portefólio (usado pelos chips, Enter e botão).
+  const askAi = async (question: string) => {
+    const q = question.trim();
+    if (!q || aiLoading) return;
+    setAiQuestion(q);
+    setAiLoading(true);
+    setAiReply(null);
+    setAiError(null);
+    try {
+      const context = {
+        totalEur: portfolioTotal,
+        pnlPosition: pnlSummary.position,
+        pnlToday: pnlSummary.today,
+        pnl30d: pnlSummary.days30 ?? 0,
+        ...(advancedMetrics ?? {}),
+        allocations: cryptoAllocations.map((a) => ({
+          label: a.label,
+          symbol: a.symbol,
+          valueEur: a.value,
+          percent: a.percent,
+        })),
+      };
+      const res = await fetch("/api/portfolio-ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: q, context, nickname: loadNickname() || undefined }),
+      });
+      const data = (await res.json()) as { reply?: string; error?: string };
+      if (!res.ok || data.error) { setAiError(data.error ?? t("pf_error")); return; }
+      setAiReply(data.reply ?? "");
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : t("pf_error"));
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const handleRestoreSnapshot = (row: SnapshotRow) => {
     setWallets(snapshotToWallets(row.data, tokenPricesRef.current));
-    setSaveMessage(`Snapshot de ${new Date(row.created_at).toLocaleString("pt-PT")} carregado.`);
+    setSaveMessage({ ok: true, text: `${t("pf_snapshot_loaded")} · ${new Date(row.created_at).toLocaleString(locale)}` });
   };
 
   const snapshotCexEur = snapshotCexUsd * usdToEur;
@@ -626,6 +662,22 @@ export default function PortfolioPage() {
     }, 0);
   }, [traditionalHoldings]);
   const portfolioTotal = cryptoTotal + stablecoinTotal + traditionalTotal;
+
+  // Auto-snapshot: guardar automaticamente se passaram mais de 24h desde o último
+  useEffect(() => {
+    if (!userId || isLoadingAuth) return;
+    // Guarda: só depois de haver valor real (preços/saldos carregados) — um
+    // snapshot a 0 € tornar-se-ia a base do PNL e falsearia o ROI para sempre.
+    if (!(portfolioTotal > 0)) return;
+    const latest = snapshots[0];
+    const lastSaved = latest ? new Date(latest.created_at).getTime() : 0;
+    const hoursSince = (Date.now() - lastSaved) / (1000 * 60 * 60);
+    if (hoursSince >= 24) {
+      handleSaveSnapshot(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, isLoadingAuth, portfolioTotal]);
+
   const manualTotals = manualCryptoTotal + traditionalTotal + stablecoinTotal;
 
   const snapshotTotals = useMemo(() => {
@@ -860,7 +912,7 @@ export default function PortfolioPage() {
 
   const cryptoAllocations = useMemo(() => {
     const manualItems = Object.entries(cryptoHoldings).map(([symbol, holding]) => ({
-      label: `${symbol} Manual`,
+      label: symbol,
       symbol: t("pf_manual"),
       value: Number(holding.buyValue ?? 0),
     }));
@@ -871,7 +923,7 @@ export default function PortfolioPage() {
         value: toNumber(wallet.balance),
       })),
       ...manualItems.filter((item) => Number.isFinite(item.value) && item.value > 0),
-      { label: t("pf_stablecoins"), symbol: t("pf_usdt_usdc"), value: stablecoinTotal },
+      ...(stablecoinTotal > 0 ? [{ label: t("pf_stablecoins"), symbol: t("pf_usdt_usdc"), value: stablecoinTotal }] : []),
       ...(snapshotCexEur > 0 ? [{ label: t("pf_cex"), symbol: "CEX", value: snapshotCexEur }] : []),
       ...(snapshotDefiEur > 0 ? [{ label: "DeFi", symbol: "DeFi", value: snapshotDefiEur }] : []),
     ];
@@ -880,7 +932,7 @@ export default function PortfolioPage() {
       ...item,
       percent: getPercent(item.value, total),
     }));
-  }, [wallets, stablecoinTotal, cryptoHoldings, snapshotCexUsd, snapshotDefiUsd]);
+  }, [wallets, stablecoinTotal, cryptoHoldings, snapshotCexEur, snapshotDefiEur, t]);
 
   const traditionalAllocations = useMemo(() => {
     const byCategory: Record<string, number> = {};
@@ -932,7 +984,7 @@ export default function PortfolioPage() {
   const portfolioScore = useMemo(() => {
     if (portfolioTotal <= 0) return null;
     let score = 0;
-    const reasons: { label: string; points: number; max: number; ok: boolean }[] = [];
+    const reasons: { label: string; points: number; max: number; ok: boolean; pending?: boolean }[] = [];
 
     const allocValues = cryptoAllocations.filter(a => a.value > 0).map(a => a.value);
     const maxAlloc = allocValues.length > 0 ? Math.max(...allocValues) : portfolioTotal;
@@ -954,15 +1006,15 @@ export default function PortfolioPage() {
 
     const roiPts = advancedMetrics ? (advancedMetrics.roi > 20 ? 20 : advancedMetrics.roi > 10 ? 15 : advancedMetrics.roi > 0 ? 10 : 0) : 0;
     score += roiPts;
-    reasons.push({ label: t("pf_perf_roi"), points: roiPts, max: 20, ok: roiPts >= 10 });
+    reasons.push({ label: t("pf_perf_roi"), points: roiPts, max: 20, ok: roiPts >= 10, pending: !advancedMetrics });
 
     const riskPts = advancedMetrics
       ? (advancedMetrics.maxDrawdown > -50 ? 10 : 5) + (advancedMetrics.volatility !== null && advancedMetrics.volatility < 80 ? 10 : advancedMetrics.volatility !== null && advancedMetrics.volatility < 150 ? 5 : 0)
       : 0;
     score += riskPts;
-    reasons.push({ label: t("pf_risk_mgmt"), points: riskPts, max: 20, ok: riskPts >= 12 });
+    reasons.push({ label: t("pf_risk_mgmt"), points: riskPts, max: 20, ok: riskPts >= 12, pending: !advancedMetrics });
 
-    const label = score >= 80 ? t("pf_excellent") : score >= 60 ? "Bom" : score >= 40 ? t("pf_fair") : t("pf_improving");
+    const label = score >= 80 ? t("pf_excellent") : score >= 60 ? t("pf_good") : score >= 40 ? t("pf_fair") : t("pf_improving");
     const color = score >= 80 ? "text-emerald-400" : score >= 60 ? "text-orange-300" : score >= 40 ? "text-yellow-400" : "text-rose-400";
     return { score, label, color, reasons };
   }, [portfolioTotal, cryptoAllocations, traditionalTotal, stablecoinTotal, manualStableEur, advancedMetrics]);
@@ -1101,7 +1153,7 @@ export default function PortfolioPage() {
                 Distribuição total
               </p>
               <p className="mt-2 text-sm text-slate-400">
-                Percentual do total entre Blockchain e Tradicional.
+                Percentagem do total entre Blockchain e Tradicional.
               </p>
               <div className="mt-6 space-y-3">
                 <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
@@ -1157,8 +1209,8 @@ export default function PortfolioPage() {
               <BarChart data={[
                 { periodo: t("pf_position"), pnl: parseFloat(pnlSummary.position.toFixed(2)) },
                 { periodo: t("pf_today"), pnl: parseFloat(pnlSummary.today.toFixed(2)) },
-                { periodo: "30 dias", pnl: parseFloat((pnlSummary.days30 ?? 0).toFixed(2)) },
-                { periodo: "7d (média)", pnl: parseFloat(pnlSummary.daily7d.toFixed(2)) },
+                { periodo: t("pc_30_days"), pnl: parseFloat((pnlSummary.days30 ?? 0).toFixed(2)) },
+                { periodo: t("pf_7d_avg"), pnl: parseFloat(pnlSummary.daily7d.toFixed(2)) },
               ]} barSize={48}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                 <XAxis dataKey="periodo" tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -1276,21 +1328,19 @@ export default function PortfolioPage() {
           {/* Gráfico PNL histórico — bottom, full width */}
           {(() => {
             const RANGES = [
-              { label: "1H", ms: 3_600_000 },
-              { label: "4H", ms: 4 * 3_600_000 },
-              { label: "1D", ms: 86_400_000 },
-              { label: "7D", ms: 7 * 86_400_000 },
-              { label: "30D", ms: 30 * 86_400_000 },
-              { label: "90D", ms: 90 * 86_400_000 },
-              { label: t("pf_all"), ms: 0 },
+              { id: "1d", label: "1D", ms: 86_400_000 },
+              { id: "7d", label: "7D", ms: 7 * 86_400_000 },
+              { id: "30d", label: "30D", ms: 30 * 86_400_000 },
+              { id: "90d", label: "90D", ms: 90 * 86_400_000 },
+              { id: "all", label: t("pf_all"), ms: 0 },
             ] as const;
             const now = Date.now();
-            const ms = RANGES.find(r => r.label === chartRange)?.ms ?? 0;
+            const ms = RANGES.find(r => r.id === chartRange)?.ms ?? 0;
             const chartData = [...snapshotTotals]
               .filter(s => ms === 0 || now - new Date(s.createdAt).getTime() <= ms)
               .reverse()
               .map(s => ({
-                data: new Date(s.createdAt).toLocaleDateString("pt-PT", { day: "2-digit", month: "2-digit" }),
+                data: new Date(s.createdAt).toLocaleDateString(locale, { day: "2-digit", month: "2-digit" }),
                 valor: parseFloat(s.total.toFixed(2)),
               }));
             return (
@@ -1306,9 +1356,9 @@ export default function PortfolioPage() {
                 </div>
                 <div className="flex gap-1 mb-3">
                   {RANGES.map(r => (
-                    <button key={r.label} onClick={() => setChartRange(r.label)}
+                    <button key={r.id} onClick={() => setChartRange(r.id)}
                       className={`px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors ${
-                        chartRange === r.label ? "bg-orange-500 text-white" : "bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700"
+                        chartRange === r.id ? "bg-orange-500 text-white" : "bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700"
                       }`}>
                       {r.label}
                     </button>
@@ -1387,9 +1437,9 @@ export default function PortfolioPage() {
                   {portfolioScore.reasons.map(r => (
                     <div key={r.label}>
                       <div className="flex items-center gap-2 mb-1">
-                        <span className={`text-xs ${r.ok ? "text-emerald-400" : "text-rose-400"}`}>{r.ok ? "✓" : "✗"}</span>
-                        <span className="text-xs text-slate-300 flex-1">{r.label}</span>
-                        <span className="text-[10px] font-semibold text-slate-500 tabular-nums">{r.points}/{r.max}</span>
+                        <span className={`text-xs ${r.pending ? "text-slate-500" : r.ok ? "text-emerald-400" : "text-rose-400"}`}>{r.pending ? "…" : r.ok ? "✓" : "✗"}</span>
+                        <span className="text-xs text-slate-300 flex-1">{r.label}{r.pending ? ` · ${t("pf_score_pending")}` : ""}</span>
+                        <span className="text-[10px] font-semibold text-slate-500 tabular-nums">{r.pending ? "—" : `${r.points}/${r.max}`}</span>
                       </div>
                       <div className="h-1 w-full rounded-full bg-slate-800 overflow-hidden">
                         <div
@@ -1416,16 +1466,16 @@ export default function PortfolioPage() {
               <p className="text-xs text-slate-500 mb-1">{t("pf_total_value")}</p>
               <p className="text-3xl font-black text-white tracking-tight">{fmt(portfolioTotal)}</p>
               <p className={`text-sm mt-1 font-semibold ${pnlSummary.today >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                {pnlSummary.today >= 0 ? "▲" : "▼"} {fmt(Math.abs(pnlSummary.today))} hoje
+                {pnlSummary.today >= 0 ? "▲" : "▼"} {fmt(Math.abs(pnlSummary.today))} {t("pf_today").toLowerCase()}
               </p>
             </div>
 
             {/* Métricas em grid 2x2 */}
             <div className="grid grid-cols-2 gap-3">
               {[
-                { label: t("pf_crypto"), value: fmt(cryptoTotal), sub: `${portfolioSplit.crypto}% do total`, color: "text-orange-300" },
-                { label: t("pf_traditional"), value: fmt(traditionalTotal), sub: `${portfolioSplit.traditional}% do total`, color: "text-sky-400" },
-                { label: "PNL 30 dias", value: fmtSigned(pnlSummary.days30), sub: portfolioTotal > 0 ? `${((pnlSummary.days30 / portfolioTotal) * 100).toLocaleString("pt-PT", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%` : "—", color: pnlSummary.days30 >= 0 ? "text-emerald-400" : "text-rose-400" },
+                { label: t("pf_crypto"), value: fmt(cryptoTotal), sub: `${portfolioSplit.crypto}% ${t("pf_of_total")}`, color: "text-orange-300" },
+                { label: t("pf_traditional"), value: fmt(traditionalTotal), sub: `${portfolioSplit.traditional}% ${t("pf_of_total")}`, color: "text-sky-400" },
+                { label: t("pf_pnl_30d"), value: fmtSigned(pnlSummary.days30), sub: portfolioTotal - pnlSummary.days30 > 0 ? `${((pnlSummary.days30 / (portfolioTotal - pnlSummary.days30)) * 100).toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%` : "—", color: pnlSummary.days30 >= 0 ? "text-emerald-400" : "text-rose-400" },
                 { label: t("pf_pnl_pos"), value: fmtSigned(pnlSummary.position), sub: advancedMetrics ? `ROI ${advancedMetrics.roi >= 0 ? "+" : ""}${advancedMetrics.roi.toFixed(1)}%` : "—", color: pnlSummary.position >= 0 ? "text-emerald-400" : "text-rose-400" },
               ].map(m => (
                 <div key={m.label} className="rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
@@ -1981,23 +2031,34 @@ export default function PortfolioPage() {
               <p className="text-sm text-slate-300">
                 {isPro
                   ? "Plano Pro ativo. Snapshots automáticos a cada 24h."
-                  : "Plano Free — snapshots manuais e automáticos disponíveis gratuitamente."}
+                  : paymentsFrozen
+                    ? "Estamos em beta — pede o Pro grátis (60 dias) e fica com snapshots e histórico completos."
+                    : "Plano Free — snapshots manuais e automáticos disponíveis gratuitamente."}
               </p>
               {saveMessage ? (
-                <p className={`text-sm ${saveMessage.includes("sucesso") ? "text-emerald-400" : "text-rose-300"}`}>{saveMessage}</p>
+                <p className={`text-sm ${saveMessage.ok ? "text-emerald-400" : "text-rose-300"}`}>{saveMessage.text}</p>
               ) : null}
               {billingError ? (
                 <p className="text-sm text-rose-300">{billingError}</p>
               ) : null}
               <div className="flex flex-col gap-3 sm:flex-row">
                 <button
-                  className={`${btnPrimary} px-6 py-3 text-sm`}
-                  onClick={() => handleSaveSnapshot(false)}
+                  className={`${btnPrimary} px-6 py-3 text-sm disabled:opacity-60`}
+                  onClick={async () => { setIsSavingSnap(true); try { await handleSaveSnapshot(false); } finally { setIsSavingSnap(false); } }}
                   type="button"
+                  disabled={isSavingSnap}
                 >
-                  📸 Salvar snapshot agora
+                  {isSavingSnap ? t("loading") : "📸 Guardar snapshot agora"}
                 </button>
                 {!isPro ? (
+                  paymentsFrozen ? (
+                    <a
+                      className="rounded-full border border-orange-400/40 px-6 py-3 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
+                      href="/beta"
+                    >
+                      🧪 {t("dash_beta_cta_short")} →
+                    </a>
+                  ) : (
                   <button
                     className="rounded-full border border-orange-400/40 px-6 py-3 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
                     onClick={handleCheckout}
@@ -2006,6 +2067,7 @@ export default function PortfolioPage() {
                   >
                     {isBillingLoading ? t("pf_starting") : "✨ Ativar plano Pro"}
                   </button>
+                  )
                 ) : null}
                 <a
                   className="rounded-full border border-slate-700 px-6 py-3 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
@@ -2014,14 +2076,11 @@ export default function PortfolioPage() {
                   Gerir conta
                 </a>
               </div>
-              {saveMessage ? (
-                <p className="text-sm text-emerald-300">{saveMessage}</p>
-              ) : null}
             </div>
           ) : (
             <div className="mt-4 space-y-3">
               <p className="text-sm text-slate-300">
-                Inicia sessão para guardares o teu portefólio e acederes à versão paga.
+                Inicia sessão para guardares o teu portefólio na nuvem e sincronizares entre dispositivos.
               </p>
               <a
                 className="inline-flex rounded-full border border-orange-400/40 px-6 py-3 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
@@ -2038,7 +2097,7 @@ export default function PortfolioPage() {
             <div>
               <h2 className="text-lg font-semibold text-white">{t("pf_portfolio_history")}</h2>
               <p className="text-sm text-slate-400">
-                {isPremium ? t("pf_unlimited_history") : isPro ? "Últimos 365 dias de snapshots (Plano Pro)." : <>{t("pf_30days_free")} <a href="/pricing" className="text-orange-400 underline hover:text-orange-300">{t("pf_pro_1year")}</a></>}
+                {isPremium ? t("pf_unlimited_history") : isPro ? "Últimos 365 dias de snapshots (Plano Pro)." : <>{t("pf_30days_free")} <a href={paymentsFrozen ? "/beta" : "/pricing"} className="text-orange-400 underline hover:text-orange-300">{t("pf_pro_1year")}</a></>}
               </p>
             </div>
             <a
@@ -2053,10 +2112,10 @@ export default function PortfolioPage() {
             <p className="mt-4 text-sm text-slate-400">{t("loading")}</p>
           ) : snapshots.length === 0 ? (
             <p className="mt-4 text-sm text-slate-400">
-              Ainda não tens snapshots salvos. Salva um para aparecer aqui.
+              Ainda não tens snapshots guardados. Guarda um para aparecer aqui.
             </p>
           ) : (
-            <SnapshotList snapshots={snapshots} onRestore={handleRestoreSnapshot} />
+            <SnapshotList snapshots={snapshots} onRestore={handleRestoreSnapshot} locale={locale} hideBalances={hideBalances} />
           )}
         </section>
         {/* ── SIMULADOR DE CENÁRIOS ── */}
@@ -2098,7 +2157,7 @@ export default function PortfolioPage() {
             ].map((q) => (
               <button
                 key={q}
-                onClick={() => setAiQuestion(q)}
+                onClick={() => void askAi(q)}
                 className="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs text-slate-700 hover:border-orange-400 hover:text-orange-600 transition dark:border-slate-700 dark:bg-transparent dark:text-slate-300 dark:hover:border-orange-400/40 dark:hover:text-orange-200"
               >
                 {q}
@@ -2114,39 +2173,7 @@ export default function PortfolioPage() {
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !aiLoading) {
                   e.preventDefault();
-                  void (async () => {
-                    if (!aiQuestion.trim()) return;
-                    setAiLoading(true);
-                    setAiReply(null);
-                    setAiError(null);
-                    try {
-                      const context = {
-                        totalEur: portfolioTotal,
-                        pnlPosition: pnlSummary.position,
-                        pnlToday: pnlSummary.today,
-                        pnl30d: pnlSummary.days30 ?? 0,
-                        ...(advancedMetrics ?? {}),
-                        allocations: cryptoAllocations.map((a) => ({
-                          label: a.label,
-                          symbol: a.symbol,
-                          valueEur: a.value,
-                          percent: a.percent,
-                        })),
-                      };
-                      const res = await fetch("/api/portfolio-ai", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ question: aiQuestion.trim(), context, nickname: loadNickname() || undefined }),
-                      });
-                      const data = (await res.json()) as { reply?: string; error?: string };
-                      if (!res.ok || data.error) { setAiError(data.error ?? t("pf_error")); return; }
-                      setAiReply(data.reply ?? "");
-                    } catch (err) {
-                      setAiError(err instanceof Error ? err.message : t("pf_error"));
-                    } finally {
-                      setAiLoading(false);
-                    }
-                  })();
+                  void askAi(aiQuestion);
                 }
               }}
               placeholder={t("pf_ask_ph")}
@@ -2154,39 +2181,7 @@ export default function PortfolioPage() {
             />
             <button
               disabled={aiLoading || !aiQuestion.trim()}
-              onClick={async () => {
-                if (!aiQuestion.trim()) return;
-                setAiLoading(true);
-                setAiReply(null);
-                setAiError(null);
-                try {
-                  const context = {
-                    totalEur: portfolioTotal,
-                    pnlPosition: pnlSummary.position,
-                    pnlToday: pnlSummary.today,
-                    pnl30d: pnlSummary.days30 ?? 0,
-                    ...(advancedMetrics ?? {}),
-                    allocations: cryptoAllocations.map((a) => ({
-                      label: a.label,
-                      symbol: a.symbol,
-                      valueEur: a.value,
-                      percent: a.percent,
-                    })),
-                  };
-                  const res = await fetch("/api/portfolio-ai", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ question: aiQuestion.trim(), context, nickname: loadNickname() || undefined }),
-                  });
-                  const data = (await res.json()) as { reply?: string; error?: string };
-                  if (!res.ok || data.error) { setAiError(data.error ?? t("pf_no_response")); return; }
-                  setAiReply(data.reply ?? "");
-                } catch (err) {
-                  setAiError(err instanceof Error ? err.message : t("pf_no_response_conn"));
-                } finally {
-                  setAiLoading(false);
-                }
-              }}
+              onClick={() => void askAi(aiQuestion)}
               className={`${btnPrimary} px-5 py-2.5 text-sm`}
             >
               {aiLoading ? "…" : t("pf_ask")}
