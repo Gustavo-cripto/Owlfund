@@ -9,6 +9,14 @@ import { useTheme } from "@/lib/theme/ThemeContext";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { createClient } from "@/lib/supabase/client";
 import { jsPDF } from "jspdf";
+import { ACCOUNTS_EVENT } from "@/lib/portfolios/accounts";
+import { pushWalletCloud } from "@/lib/portfolios/cloudSync";
+import { deleteTrade, loadTrades, tradeId, upsertTrade } from "@/lib/portfolios/trades";
+
+const LOCALE_BY_LANG: Record<string, string> = { pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" };
+// Durante o beta os CTAs de upgrade apontam para o convite /beta.
+const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
+const upgradeHref = paymentsFrozen ? "/beta" : "/pricing";
 
 type TradeEntry = {
   id: string;
@@ -41,7 +49,7 @@ function calcDays(from: string, to: string): number {
 }
 
 const emptyTrade = (): TradeEntry => ({
-  id: crypto.randomUUID(),
+  id: tradeId(),
   asset: "BTC",
   type: "compra",
   amount: 0,
@@ -141,7 +149,7 @@ function LegislationSection({ isPro, isPremium }: { isPro: boolean; isPremium: b
           ) : (
             <a
               key={c.code}
-              href="/pricing"
+              href={upgradeHref}
               className={`rounded-2xl border p-4 text-left transition opacity-60 hover:opacity-80 ${c.color}`}
             >
               <div className="flex items-center gap-2 mb-2">
@@ -228,9 +236,23 @@ export default function FiscalidadePage() {
   const { isLoading, userId } = useRequireAuth("/login");
   const { t, lang } = useLanguage();
   const { hideBalances } = useTheme();
+  const uiLocale = LOCALE_BY_LANG[lang] ?? "pt-PT";
   const [isPro, setIsPro] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
+  // Fonte única: o Histórico (/historico) da conta ativa. O que se adiciona aqui
+  // fica também lá — e vice-versa.
   const [trades, setTrades] = useState<TradeEntry[]>([]);
+  const [fromHistory, setFromHistory] = useState(0);
+  useEffect(() => {
+    const load = () => {
+      const hist = loadTrades();
+      setTrades(hist.map(h => ({ id: h.id, asset: h.asset, type: h.type, amount: h.quantity, price: h.priceEur, date: h.date, exchange: h.exchange })));
+      setFromHistory(hist.length);
+    };
+    load();
+    window.addEventListener(ACCOUNTS_EVENT, load);
+    return () => window.removeEventListener(ACCOUNTS_EVENT, load);
+  }, []);
   const [newTrade, setNewTrade] = useState<TradeEntry>(emptyTrade());
   const [country, setCountry] = useState<string>("PT");
 
@@ -416,7 +438,7 @@ export default function FiscalidadePage() {
     }
     ([
       ["País", `${country} (${(regime.short * 100).toFixed(0)}% / ${regime.longLabel})`],
-      ["Data", new Date().toLocaleString("pt-PT", { dateStyle: "short", timeStyle: "short" })],
+      [t("hx_date"), new Date().toLocaleString(uiLocale, { dateStyle: "short", timeStyle: "short" })],
       ["Método", "FIFO / EUR"],
     ] as [string, string][]).forEach(([k, v]) => {
       const r = ws.addRow([k, v]);
@@ -490,8 +512,8 @@ export default function FiscalidadePage() {
     });
 
   const exportPDF = async () => {
-    const eur = (v: number) => `EUR ${Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-    const eurN = (v: number) => Math.abs(v).toLocaleString("en-US", { maximumFractionDigits: 0 });
+    const eur = (v: number) => `EUR ${Math.abs(v).toLocaleString(uiLocale, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+    const eurN = (v: number) => Math.abs(v).toLocaleString(uiLocale, { maximumFractionDigits: 0 });
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     const W = doc.internal.pageSize.getWidth();
     const cx = W / 2;
@@ -527,7 +549,7 @@ export default function FiscalidadePage() {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     doc.setTextColor(107, 114, 128);
-    doc.text(`${t("fisc_pdf_generated")}: ${new Date().toLocaleDateString(({ pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" } as Record<string, string>)[lang] ?? "pt-PT", { day: "numeric", month: "long", year: "numeric" })}  ·  ${t("fisc_pdf_country")}: ${country} (${(regime.short * 100).toFixed(0)}% / ${regime.longLabel})`, cx, y, { align: "center" });
+    doc.text(`${t("fisc_pdf_generated")}: ${new Date().toLocaleDateString(uiLocale, { day: "numeric", month: "long", year: "numeric" })}  ·  ${t("fisc_pdf_country")}: ${country} (${(regime.short * 100).toFixed(0)}% / ${regime.longLabel})`, cx, y, { align: "center" });
     y += 8;
 
     // Summary box (compact)
@@ -687,7 +709,7 @@ export default function FiscalidadePage() {
 
   if (isLoading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-400 animate-pulse">{t("loading")}</p></div>;
 
-  const fmtEur = (v: number) => `€ ${Math.abs(v).toLocaleString("pt-PT", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  const fmtEur = (v: number) => `€ ${Math.abs(v).toLocaleString(uiLocale, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
   return (
     <AppShell>
@@ -722,7 +744,7 @@ export default function FiscalidadePage() {
                     {c.flag} {c.code}
                   </button>
                 ) : (
-                  <a key={c.code} href="/pricing"
+                  <a key={c.code} href={upgradeHref}
                     title={`${c.flag} ${t(c.labelKey)} — ${t("fc_plan_pro")}`}
                     className="rounded-lg px-3 py-1.5 text-xs font-bold border border-orange-500/20 text-orange-400/60 hover:border-orange-500/40 transition flex items-center gap-1">
                     {c.flag} {c.code} 🔒
@@ -737,7 +759,7 @@ export default function FiscalidadePage() {
                     {c.flag} {c.code}
                   </button>
                 ) : (
-                  <a key={c.code} href="/pricing"
+                  <a key={c.code} href={upgradeHref}
                     title={`${c.flag} ${t(c.labelKey)} — ${t("fc_plan_premium")}`}
                     className="rounded-lg px-3 py-1.5 text-xs font-bold border border-violet-500/20 text-violet-400/60 hover:border-violet-500/40 transition flex items-center gap-1">
                     {c.flag} {c.code} 💎
@@ -786,7 +808,10 @@ export default function FiscalidadePage() {
                 className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500" />
               <button onClick={() => {
                 if (!newTrade.asset || newTrade.amount <= 0 || newTrade.price <= 0) return;
-                setTrades(prev => [...prev, { ...newTrade, id: crypto.randomUUID() }]);
+                const entry = { ...newTrade, id: tradeId(), asset: newTrade.asset.toUpperCase() };
+                setTrades(prev => [...prev, entry]);
+                upsertTrade({ id: entry.id, type: entry.type, asset: entry.asset, assetName: entry.asset, quantity: entry.amount, priceEur: entry.price, totalEur: entry.amount * entry.price, date: entry.date, exchange: entry.exchange, notes: "" });
+                pushWalletCloud();
                 setNewTrade(emptyTrade());
               }} className={`${btnPrimary} px-4 py-2 text-sm`}>
                 + {t("add")}
@@ -794,9 +819,9 @@ export default function FiscalidadePage() {
             </div>
             {newTrade.amount > 0 && newTrade.price > 0 && (
               <p className="mt-3 text-xs text-slate-400">
-                {newTrade.amount} {newTrade.asset || "—"} × € {newTrade.price.toLocaleString("pt-PT")} =
+                {newTrade.amount} {newTrade.asset || "—"} × € {newTrade.price.toLocaleString(uiLocale)} =
                 <span className="ml-1 font-semibold text-orange-300">
-                  € {(newTrade.amount * newTrade.price).toLocaleString("pt-PT", { maximumFractionDigits: 2 })}
+                  € {(newTrade.amount * newTrade.price).toLocaleString(uiLocale, { maximumFractionDigits: 2 })}
                 </span>
               </p>
             )}
@@ -805,7 +830,10 @@ export default function FiscalidadePage() {
           {/* Transações */}
           {trades.length > 0 && (
             <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-4">{t("fisc_transactions")} ({trades.length})</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-1">{t("fisc_transactions")} ({trades.length})</p>
+              <p className="text-[11px] text-slate-500 mb-4">
+                🔗 {t("fc_from_history").replace("{n}", String(fromHistory))} <a href="/historico" className="text-orange-300 underline decoration-dotted">{t("nav_historico")} →</a>
+              </p>
               <div className="space-y-2">
                 {[...trades].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(trade => (
                   <div key={trade.id} className="flex items-center gap-3 rounded-xl border border-slate-800 px-4 py-2.5">
@@ -813,10 +841,10 @@ export default function FiscalidadePage() {
                       {trade.type === "compra" ? t("fisc_type_buy") : t("fisc_type_sell")}
                     </span>
                     <span className="text-sm font-semibold text-white w-12">{trade.asset}</span>
-                    <span className="text-sm text-slate-300 flex-1">{trade.amount} × € {trade.price.toLocaleString("pt-PT")}</span>
-                    <span className="text-sm font-semibold text-slate-300">€ {(trade.amount * trade.price).toLocaleString("pt-PT", { maximumFractionDigits: 0 })}</span>
+                    <span className="text-sm text-slate-300 flex-1">{trade.amount} × € {trade.price.toLocaleString(uiLocale)}</span>
+                    <span className="text-sm font-semibold text-slate-300">€ {(trade.amount * trade.price).toLocaleString(uiLocale, { maximumFractionDigits: 0 })}</span>
                     <span className="text-xs text-slate-500">{trade.date}</span>
-                    <button onClick={() => setTrades(prev => prev.filter(x => x.id !== trade.id))}
+                    <button aria-label={t("hx_delete")} onClick={() => { setTrades(prev => prev.filter(x => x.id !== trade.id)); deleteTrade(trade.id); pushWalletCloud(); }}
                       className="text-slate-600 hover:text-rose-400 transition text-sm px-1">✕</button>
                   </div>
                 ))}
@@ -828,7 +856,7 @@ export default function FiscalidadePage() {
           {Object.keys(unmatched).length > 0 && (
             <p className="rounded-xl border border-amber-500/40 bg-amber-500/[0.08] px-4 py-2.5 text-xs leading-relaxed text-amber-200">
               ⚠️ {t("fisc_unmatched_warn")}{" "}
-              {Object.entries(unmatched).map(([a, q]) => `${q.toLocaleString("pt-PT")} ${a}`).join(", ")}.{" "}
+              {Object.entries(unmatched).map(([a, q]) => `${q.toLocaleString(uiLocale)} ${a}`).join(", ")}.{" "}
               {t("fisc_unmatched_hint")}
             </p>
           )}
@@ -866,7 +894,7 @@ export default function FiscalidadePage() {
                         ↓ {t("fisc_export_csv")}
                       </button>
                     ) : (
-                      <a href="/pricing"
+                      <a href={upgradeHref}
                         className="flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:border-orange-400/40 hover:text-orange-300 transition">
                         🔒 {t("fisc_export_csv_pro")}
                       </a>
@@ -877,7 +905,7 @@ export default function FiscalidadePage() {
                         ↓ {t("fisc_export_pdf")}
                       </button>
                     ) : (
-                      <a href="/pricing"
+                      <a href={upgradeHref}
                         className="flex items-center gap-2 rounded-xl border border-violet-500/20 px-3 py-1.5 text-xs font-semibold text-violet-400/50 hover:border-violet-500/40 hover:text-violet-300 transition">
                         🔒 {t("fisc_export_pdf_premium")}
                       </a>
@@ -903,7 +931,7 @@ export default function FiscalidadePage() {
                           <td className="py-2 pr-4 text-slate-300">€ {e.buyPrice.toFixed(0)}</td>
                           <td className="py-2 pr-4 text-slate-300">€ {e.sellPrice.toFixed(0)}</td>
                           <td className={`py-2 pr-4 font-semibold ${e.gain >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                            {e.gain >= 0 ? "+" : ""}€ {e.gain.toLocaleString("pt-PT", { maximumFractionDigits: 0 })}
+                            {e.gain >= 0 ? "+" : ""}€ {e.gain.toLocaleString(uiLocale, { maximumFractionDigits: 0 })}
                           </td>
                           <td className="py-2 pr-4">
                             <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${e.holding === "longo" ? "bg-emerald-500/20 text-emerald-400" : "bg-orange-500/20 text-orange-400"}`}>
@@ -912,7 +940,7 @@ export default function FiscalidadePage() {
                           </td>
                           <td className="py-2 pr-4 text-slate-400">{(e.taxRate * 100).toFixed(0)}%</td>
                           <td className={`py-2 font-semibold ${e.gain > 0 && e.taxRate > 0 ? "text-orange-400" : "text-emerald-400"}`}>
-                            {e.gain > 0 && e.taxRate > 0 ? `€ ${(e.gain * e.taxRate).toLocaleString("pt-PT", { maximumFractionDigits: 0 })}` : t("fc_exempt")}
+                            {e.gain > 0 && e.taxRate > 0 ? `€ ${(e.gain * e.taxRate).toLocaleString(uiLocale, { maximumFractionDigits: 0 })}` : t("fc_exempt")}
                           </td>
                         </tr>
                       ))}

@@ -18,6 +18,7 @@ import {
   type Account,
 } from "@/lib/portfolios/accounts";
 import { createClient } from "@/lib/supabase/client";
+import { TRADE_HISTORY_KEY, mergeTradeRaw } from "@/lib/portfolios/trades";
 
 const WALLET_BASE = "portfolio-wallets";
 
@@ -90,9 +91,16 @@ export async function pullWalletCloud(): Promise<boolean> {
       const byAcc = data.data as Record<string, Record<string, string>>;
       for (const [id, perAcc] of Object.entries(byAcc)) {
         for (const [base, raw] of Object.entries(perAcc)) {
-          // Só preenche o que falta localmente — nunca sobrescreve edições locais.
-          if (typeof raw === "string" && readNamespaced(id, base) == null) {
+          if (typeof raw !== "string") continue;
+          const local = readNamespaced(id, base);
+          if (local == null) {
+            // Só preenche o que falta localmente — nunca sobrescreve edições locais.
             writeNamespaced(id, base, raw);
+          } else if (base === TRADE_HISTORY_KEY) {
+            // Histórico de trades: merge por id (updatedAt + lápides), para não
+            // perder trades feitos noutro dispositivo nem ressuscitar apagados.
+            const merged = mergeTradeRaw(local, raw);
+            if (merged !== local) writeNamespaced(id, base, merged);
           }
         }
       }
