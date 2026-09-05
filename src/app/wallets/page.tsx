@@ -3024,7 +3024,7 @@ export default function WalletsPage() {
             topContent={
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[11px] uppercase tracking-[0.3em] text-slate-500">
-                  Carteira ETH
+                  {t("wl_wallet")} ETH
                 </span>
                 <div className="relative min-w-[140px]" ref={ethWalletSelectRef}>
                   <button
@@ -3164,7 +3164,7 @@ export default function WalletsPage() {
               <div className="grid gap-3 sm:grid-cols-[1.2fr_0.8fr_auto]">
                 <input
                   className="w-full rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
-                  placeholder="Endereço 0x..."
+                  placeholder={t("wl_addr_eth")}
                   value={ethNewAddress}
                   onChange={(event) => setEthNewAddress(event.target.value)}
                 />
@@ -3197,7 +3197,7 @@ export default function WalletsPage() {
               {ethNewNetwork === "outro" ? (
                 <input
                   className="w-full max-w-xs rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
-                  placeholder="Nome (opcional, ex: L2, Exchange)"
+                  placeholder={t("wl_name_opt")}
                   value={ethNewCustomLabel}
                   onChange={(e) => setEthNewCustomLabel(e.target.value)}
                 />
@@ -3435,7 +3435,7 @@ export default function WalletsPage() {
             topContent={
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[11px] uppercase tracking-[0.3em] text-slate-500">
-                  Carteira SOL
+                  {t("wl_wallet")} SOL
                 </span>
                 {/* Wallet selector */}
                 <div className="relative min-w-[160px]" ref={solWalletSelectRef}>
@@ -3810,7 +3810,7 @@ export default function WalletsPage() {
             topContent={
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[11px] uppercase tracking-[0.3em] text-slate-500">
-                  Carteira BTC
+                  {t("wl_wallet")} BTC
                 </span>
                 <div className="relative min-w-[120px]" ref={btcWalletSelectRef}>
                   <button
@@ -4230,7 +4230,7 @@ export default function WalletsPage() {
               )}
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[11px] uppercase tracking-[0.3em] text-slate-500">
-                  Carteira ADA
+                  {t("wl_wallet")} ADA
                 </span>
                 <div className="relative min-w-[120px]" ref={adaWalletSelectRef}>
                   <button
@@ -4385,7 +4385,7 @@ export default function WalletsPage() {
               {adaNewNetworkId === "outro" ? (
                 <input
                   className="w-full max-w-xs rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
-                  placeholder="Nome (opcional, ex: Exchange)"
+                  placeholder={t("wl_name_opt")}
                   value={adaNewCustomLabel}
                   onChange={(e) => setAdaNewCustomLabel(e.target.value)}
                 />
@@ -4854,7 +4854,7 @@ export default function WalletsPage() {
                           inputMode="decimal"
                           min="0"
                           step="0.01"
-                          placeholder="Ex: 200"
+                          placeholder="200"
                           value={holding.buyValue ?? ""}
                           onChange={(event) => {
                             const value = event.target.value;
@@ -4872,7 +4872,7 @@ export default function WalletsPage() {
                           inputMode="decimal"
                           min="0"
                           step="any"
-                          placeholder="Ex: 0.5"
+                          placeholder="0.5"
                           title={t("wl_qty_hint")}
                           value={holding.quantity ?? ""}
                           onChange={(event) => {
@@ -4996,7 +4996,7 @@ export default function WalletsPage() {
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="Ticker (ex: AMZN, VTI, PLTR...)"
+                  placeholder="Ticker (AMZN, VTI, PLTR…)"
                   value={customTickerInput}
                   onChange={(e) => setCustomTickerInput(e.target.value.toUpperCase())}
                   onKeyDown={(e) => {
