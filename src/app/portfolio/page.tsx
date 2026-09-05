@@ -300,6 +300,8 @@ export default function PortfolioPage() {
   const [chartRange, setChartRange] = useState<string>("all"); // id estável (não o rótulo traduzido)
   const [isSnapshotsLoading, setIsSnapshotsLoading] = useState(false);
   const [isSavingSnap, setIsSavingSnap] = useState(false);
+  const [showScoreHelp, setShowScoreHelp] = useState(false);
+  const [pricesFailed, setPricesFailed] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [isPro, setIsPro] = useState(false);
@@ -357,13 +359,14 @@ export default function PortfolioPage() {
             });
           }
           if (data.prices && Object.keys(data.prices).length > 0) {
+            setPricesFailed(false);
             applyPrices(data.prices);
             if (data.prices.usdToEur && data.prices.usdToEur > 0) {
               setUsdToEur(data.prices.usdToEur);
             }
           }
         })
-        .catch(() => {})
+        .catch(() => setPricesFailed(true))
         .finally(() => setBenchmarkLoading(false));
     };
 
@@ -583,7 +586,10 @@ export default function PortfolioPage() {
   };
 
   useEffect(() => {
-    try { setPortfolioNote(localStorage.getItem("portfolio-note") ?? ""); } catch {}
+    try {
+      const acct = getActiveAccountId();
+      setPortfolioNote(localStorage.getItem(`portfolio-note-${acct}`) ?? localStorage.getItem("portfolio-note") ?? "");
+    } catch {}
   }, []);
 
   // Envia uma pergunta à IA do portefólio (usado pelos chips, Enter e botão).
@@ -1038,6 +1044,27 @@ export default function PortfolioPage() {
           <p className="text-sm text-slate-400">{t("port_subtitle")}</p>
         </div>
 
+        {pricesFailed && (
+          <p className="rounded-xl border border-amber-500/40 bg-amber-500/[0.08] px-4 py-2.5 text-xs text-amber-200">
+            ⚠️ {t("pfe_prices_down")}
+          </p>
+        )}
+
+        {/* Onboarding guiado — portefólio ainda vazio */}
+        {portfolioTotal <= 0 && !pricesFailed && (
+          <div className="rounded-2xl border border-orange-500/30 bg-orange-500/[0.06] p-6">
+            <p className="text-sm font-bold text-white">🚀 {t("pfe_title")}</p>
+            <ol className="mt-3 space-y-2 text-sm text-slate-300">
+              <li className="flex items-start gap-2"><span className="font-black text-orange-400">1.</span> {t("pfe_s1")}</li>
+              <li className="flex items-start gap-2"><span className="font-black text-orange-400">2.</span> {t("pfe_s2")}</li>
+              <li className="flex items-start gap-2"><span className="font-black text-orange-400">3.</span> {t("pfe_s3")}</li>
+            </ol>
+            <a href="/wallets" className={`${btnPrimary} mt-4 inline-flex px-5 py-2.5 text-sm`}>
+              🔗 {t("dash_connect_wallets")} →
+            </a>
+          </div>
+        )}
+
         {/* ── Portfolio Chart + Tabs ── */}
         <PortfolioChartSection
           portfolioTotal={portfolioTotal}
@@ -1399,12 +1426,73 @@ export default function PortfolioPage() {
 
         </section>
 
+        {/* Benchmark: tu vs mercado (24h/7d/30d) */}
+        {portfolioTotal > 0 && benchmarkPrices.btc_24h !== undefined && (
+          <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{t("pfb_eyebrow")}</p>
+            <h2 className="mt-0.5 mb-4 text-base font-bold text-white">{t("pfb_title")}</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[420px] text-sm">
+                <thead>
+                  <tr className="text-left text-[11px] uppercase tracking-wider text-slate-500">
+                    <th className="pb-2"></th>
+                    <th className="pb-2 text-right">24h</th>
+                    <th className="pb-2 text-right">7d</th>
+                    <th className="pb-2 text-right">30d</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const pct = (delta: number | null) => {
+                      if (delta === null) return null;
+                      const base = portfolioTotal - delta;
+                      return base > 0 ? (delta / base) * 100 : null;
+                    };
+                    const cell = (v: number | null | undefined) => {
+                      if (v === null || v === undefined || Number.isNaN(v)) return <span className="text-slate-600">—</span>;
+                      return <span className={v >= 0 ? "text-emerald-400" : "text-rose-400"}>{v >= 0 ? "+" : ""}{v.toFixed(1)}%</span>;
+                    };
+                    const rows: Array<{ name: string; vals: Array<number | null | undefined>; me?: boolean }> = [
+                      { name: `📊 ${t("pfb_you")}`, me: true, vals: [pct(pnlSummary.today), pct(pnlSummary.daily7d * 7), pct(pnlSummary.days30 ?? null)] },
+                      { name: "₿ Bitcoin", vals: [benchmarkPrices.btc_24h, benchmarkPrices.btc_7d, benchmarkPrices.btc_30d] },
+                      { name: "Ξ Ethereum", vals: [benchmarkPrices.eth_24h, benchmarkPrices.eth_7d, benchmarkPrices.eth_30d] },
+                      { name: `🥇 ${t("pfb_gold")}`, vals: [benchmarkPrices.gold_24h, benchmarkPrices.gold_7d, benchmarkPrices.gold_30d] },
+                    ];
+                    return rows.map((r) => (
+                      <tr key={r.name} className={`border-t border-slate-800/60 ${r.me ? "bg-orange-500/[0.05]" : ""}`}>
+                        <td className={`py-2 ${r.me ? "font-bold text-orange-300" : "text-slate-300"}`}>{r.name}</td>
+                        {r.vals.map((v, i) => <td key={i} className="py-2 text-right font-semibold tabular-nums">{cell(v)}</td>)}
+                      </tr>
+                    ));
+                  })()}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-2 text-[10px] text-slate-600">{t("pfb_note")}</p>
+          </section>
+        )}
+
         {/* ── SCORE + BENCHMARK ── */}
         <section className="grid gap-6 md:grid-cols-[1fr_1.6fr]">
           {/* Score do portefólio */}
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{t("pf_evaluation")}</p>
-            <h2 className="text-base font-bold text-white mt-0.5 mb-4">{t("pf_score")}</h2>
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{t("pf_evaluation")}</p>
+                <h2 className="text-base font-bold text-white mt-0.5 mb-4">{t("pf_score")}</h2>
+              </div>
+              <button type="button" onClick={() => setShowScoreHelp(v => !v)} aria-label={t("pfs_how")}
+                className={`mt-0.5 flex h-6 w-6 items-center justify-center rounded-full border text-xs font-bold transition ${showScoreHelp ? "border-orange-400 text-orange-300" : "border-slate-600 text-slate-400 hover:border-orange-400/60 hover:text-orange-300"}`}>
+                ?
+              </button>
+            </div>
+            {showScoreHelp && (
+              <div className="mb-4 rounded-xl border border-slate-700 bg-slate-950/60 p-3 text-xs leading-relaxed text-slate-300">
+                <p className="font-semibold text-orange-300">{t("pfs_how")}</p>
+                <p className="mt-1">{t("pfs_body")}</p>
+                <p className="mt-1.5 text-slate-500">{t("pfs_tip")}</p>
+              </div>
+            )}
             {portfolioTotal <= 0 ? (
               <div className="flex h-32 items-center justify-center text-sm text-slate-500">{t("pf_add_for_score")}</div>
             ) : portfolioScore ? (
@@ -2217,7 +2305,7 @@ export default function PortfolioPage() {
             onChange={(e) => {
               const v = e.target.value;
               setPortfolioNote(v);
-              try { localStorage.setItem("portfolio-note", v); } catch {}
+              try { localStorage.setItem(`portfolio-note-${getActiveAccountId()}`, v); } catch {}
             }}
           />
           <p className="mt-1.5 text-[10px] text-slate-600">{t("pf_saved_local")}</p>
