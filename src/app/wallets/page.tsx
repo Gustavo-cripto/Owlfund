@@ -2978,7 +2978,7 @@ export default function WalletsPage() {
                       updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: adaWallets, other: next });
                     }}
                   >
-                    Remover
+                    {t("wl_remove")}
                   </button>
                 </div>
               ))}
@@ -3069,11 +3069,11 @@ export default function WalletsPage() {
                               <span>{option.label}</span>
                               {isClient && isEvmWalletAvailable(option.id) ? (
                                 <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
-                                  Disponível
+                                  {t("wl_available")}
                                 </span>
                               ) : (
                                 <span className="rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
-                                  Não instalada
+                                  {t("wl_not_installed")}
                                 </span>
                               )}
                             </button>
@@ -3115,7 +3115,7 @@ export default function WalletsPage() {
           >
             <div className="space-y-3">
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                Carteiras adicionais / L2
+                {t("wl_more_wallets")}
               </p>
               <div>
                 <button
@@ -3123,7 +3123,7 @@ export default function WalletsPage() {
                   onClick={() => setShowEthNetworks((prev) => !prev)}
                   className="rounded-full border border-slate-700 px-3 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
                 >
-                  Carteiras ETH
+                  {t("wl_eth_wallets")}
                 </button>
                 {showEthNetworks ? (
                   <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
@@ -3135,11 +3135,11 @@ export default function WalletsPage() {
                         {option.label}{" "}
                         {isClient && isEvmWalletAvailable(option.id) ? (
                           <span className="ml-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
-                            Disponível
+                            {t("wl_available")}
                           </span>
                         ) : (
                           <span className="ml-1 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
-                            Não instalada
+                            {t("wl_not_installed")}
                           </span>
                         )}
                       </span>
@@ -3191,7 +3191,7 @@ export default function WalletsPage() {
                   onClick={handleAddEthWallet}
                   disabled={ethNewLoading}
                 >
-                  {ethNewLoading ? "A adicionar..." : "Adicionar"}
+                  {ethNewLoading ? t("wl_adding") : t("wl_add")}
                 </button>
               </div>
               {ethNewNetwork === "outro" ? (
@@ -3209,7 +3209,7 @@ export default function WalletsPage() {
                     type="button"
                     className="rounded-full border border-rose-400/30 px-3 py-1 text-[11px] font-semibold text-rose-300 transition hover:border-rose-400 hover:text-white"
                     onClick={() => {
-                      if (!confirm("Remover todas as carteiras ETH adicionadas por endereço?")) return;
+                      if (!confirm(t("wl_remove_all_confirm"))) return;
                       setEthWallets([]);
                       setEthAddress(undefined);
                       setEthBalance(undefined);
@@ -3218,7 +3218,7 @@ export default function WalletsPage() {
                       setEthBalanceErrors({});
                     }}
                   >
-                    Remover todas
+                    {t("wl_remove_all")}
                   </button>
                 </div>
               )}
@@ -3386,7 +3386,7 @@ export default function WalletsPage() {
                               });
                             }}
                           >
-                            Remover
+                            {t("wl_remove")}
                           </button>
                         </div>
                       </div>
@@ -3481,11 +3481,11 @@ export default function WalletsPage() {
                               <span>{option.label}</span>
                               {isClient && isSolanaWalletAvailable(option.id) ? (
                                 <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
-                                  Disponível
+                                  {t("wl_available")}
                                 </span>
                               ) : (
                                 <span className="rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
-                                  Não instalada
+                                  {t("wl_not_installed")}
                                 </span>
                               )}
                             </button>
@@ -3527,7 +3527,7 @@ export default function WalletsPage() {
           >
             <div className="space-y-3">
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                Carteiras adicionais / L2
+                {t("wl_more_wallets")}
               </p>
               <div className="flex flex-wrap gap-2 text-[11px]">
                 {solWalletOptions.map((option) => (
@@ -3538,11 +3538,11 @@ export default function WalletsPage() {
                     {option.label}{" "}
                     {isClient && isSolanaWalletAvailable(option.id) ? (
                       <span className="ml-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
-                        Disponível
+                        {t("wl_available")}
                       </span>
                     ) : (
                       <span className="ml-1 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
-                        Não instalada
+                        {t("wl_not_installed")}
                       </span>
                     )}
                   </span>
@@ -3611,7 +3611,7 @@ export default function WalletsPage() {
                   onClick={handleAddSolWallet}
                   disabled={solNewLoading}
                 >
-                  {solNewLoading ? "A adicionar..." : "Adicionar"}
+                  {solNewLoading ? t("wl_adding") : t("wl_add")}
                 </button>
               </div>
               {solNewWalletId === "outro" ? (
@@ -3760,7 +3760,7 @@ export default function WalletsPage() {
                                 setSolBalanceErrors((prev) => { const next = { ...prev }; delete next[addr]; return next; });
                               }}
                             >
-                              Remover
+                              {t("wl_remove")}
                             </button>
                           </div>
                         </div>
@@ -3855,11 +3855,11 @@ export default function WalletsPage() {
                               <span>{option.label}</span>
                               {isClient && isBtcWalletAvailable(option.id) ? (
                                 <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
-                                  Disponível
+                                  {t("wl_available")}
                                 </span>
                               ) : (
                                 <span className="rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
-                                  Não instalada
+                                  {t("wl_not_installed")}
                                 </span>
                               )}
                             </button>
@@ -3953,7 +3953,7 @@ export default function WalletsPage() {
                   onClick={handleAddBtcWallet}
                   disabled={btcNewLoading}
                 >
-                  {btcNewLoading ? "A adicionar..." : "Adicionar"}
+                  {btcNewLoading ? t("wl_adding") : t("wl_add")}
                 </button>
               </div>
               {btcNewLabel === "outro" ? (
@@ -4136,7 +4136,7 @@ export default function WalletsPage() {
                               });
                             }}
                           >
-                            Remover
+                            {t("wl_remove")}
                           </button>
                         </div>
                       </div>
@@ -4275,11 +4275,11 @@ export default function WalletsPage() {
                               <span>{option.label}</span>
                               {isClient && isCardanoWalletAvailable(option.id) ? (
                                 <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
-                                  Disponível
+                                  {t("wl_available")}
                                 </span>
                               ) : (
                                 <span className="rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
-                                  Não instalada
+                                  {t("wl_not_installed")}
                                 </span>
                               )}
                             </button>
@@ -4290,7 +4290,7 @@ export default function WalletsPage() {
                 </div>
               </div>
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                Carteiras adicionais / L2
+                {t("wl_more_wallets")}
               </p>
               <div>
                 <button
@@ -4298,7 +4298,7 @@ export default function WalletsPage() {
                   onClick={() => setShowAdaNetworks((prev) => !prev)}
                   className="rounded-full border border-slate-700 px-3 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
                 >
-                  Carteiras ADA
+                  {t("wl_ada_wallets")}
                 </button>
                 {showAdaNetworks ? (
                   <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
@@ -4310,11 +4310,11 @@ export default function WalletsPage() {
                         {option.label}{" "}
                         {isClient && isCardanoWalletAvailable(option.id) ? (
                           <span className="ml-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
-                            Disponível
+                            {t("wl_available")}
                           </span>
                         ) : (
                           <span className="ml-1 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
-                            Não instalada
+                            {t("wl_not_installed")}
                           </span>
                         )}
                       </span>
@@ -4379,7 +4379,7 @@ export default function WalletsPage() {
                   className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
                   onClick={handleAddAdaWallet}
                 >
-                  Adicionar
+                  {t("wl_add")}
                 </button>
               </div>
               {adaNewNetworkId === "outro" ? (
@@ -4503,7 +4503,7 @@ export default function WalletsPage() {
                               });
                             }}
                           >
-                            Remover
+                            {t("wl_remove")}
                           </button>
                         </div>
                       </div>
@@ -4519,12 +4519,12 @@ export default function WalletsPage() {
             <div>
               <h2 className="text-lg font-semibold text-white">{t("wl_crypto_wallet")}</h2>
               <p className="text-sm text-slate-400">
-                Regista cripto comprada fora de carteiras (ex: numa exchange). Define o valor de compra para calcular o PNL.
+                {t("wl_manual_crypto_intro")}
               </p>
             </div>
             <div className="text-right">
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                Total (carteiras + DeFi + CEX/HL + manuais)
+                {t("wl_total_all")}
               </p>
               <p className="text-lg font-semibold text-white">
                 {fmtCur((walletsTotalUsd + totalDefiUsd + cexHlTotalUsd + coldTokensExtraUsd) * usdToEurRate + cryptoManualTotal)}
@@ -4534,7 +4534,7 @@ export default function WalletsPage() {
 
           <div className="mt-4 rounded-xl border border-slate-700/80 bg-slate-950/50 p-4">
             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-              Saldos das carteiras e NFTs
+              {t("wl_balances_nfts")}
             </p>
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-300">
               <span>
@@ -4613,7 +4613,7 @@ export default function WalletsPage() {
                   label: w.label ?? w.network ?? "Ethereum",
                   network: w.network ?? "Ethereum",
                   balance: bal,
-                  source: "Carteira ETH",
+                  source: `${t("wl_wallet")} ETH`,
                   onRemove: () => {
                     const next = ethWallets.filter((_, j) => j !== i);
                     setEthWallets(next);
@@ -4631,7 +4631,7 @@ export default function WalletsPage() {
                   label: w.label ?? w.network ?? "Solana",
                   network: w.network ?? "Solana",
                   balance: bal,
-                  source: "Carteira SOL",
+                  source: `${t("wl_wallet")} SOL`,
                   onRemove: () => {
                     const next = solWallets.filter((_, j) => j !== i);
                     setSolWallets(next);
@@ -4649,7 +4649,7 @@ export default function WalletsPage() {
                   label: w.label ?? "Bitcoin",
                   network: "Bitcoin",
                   balance: bal,
-                  source: "Carteira BTC",
+                  source: `${t("wl_wallet")} BTC`,
                   onRemove: () => {
                     const next = btcWallets.filter((_, j) => j !== i);
                     setBtcWallets(next);
@@ -4667,7 +4667,7 @@ export default function WalletsPage() {
                   label: w.label ?? "Cardano",
                   network: "Cardano",
                   balance: bal,
-                  source: "Carteira ADA",
+                  source: `${t("wl_wallet")} ADA`,
                   onRemove: () => {
                     const next = adaWallets.filter((_, j) => j !== i);
                     setAdaWallets(next);
@@ -4705,7 +4705,7 @@ export default function WalletsPage() {
                         )}
                       </div>
                       <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
-                        Preço atual:{" "}
+                        {t("wl_current_price")}{" "}
                         <span className="font-semibold text-white">
                           {market
                             ? market.priceUsd.toLocaleString("en-US", {
@@ -4755,7 +4755,7 @@ export default function WalletsPage() {
                       )}
                     </div>
                     <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
-                      Preço atual:{" "}
+                      {t("wl_current_price")}{" "}
                       <span className="font-semibold text-white">
                         {market ? market.priceUsd.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 4 }) : "—"}
                       </span>
@@ -4785,7 +4785,7 @@ export default function WalletsPage() {
                   <div>
                     <p className="font-semibold text-white">{item.label ?? item.network ?? addr}</p>
                     <p className="text-slate-500 font-mono text-[10px]">{addr.length > 20 ? `${addr.slice(0, 10)}…${addr.slice(-6)}` : addr}</p>
-                    <p className="mt-0.5 text-[10px] text-slate-600 uppercase tracking-wide">Tracking · {item.network}</p>
+                    <p className="mt-0.5 text-[10px] text-slate-600 uppercase tracking-wide">{t("wl_tracking_tag")} · {item.network}</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-3 text-right">
                     <span className="rounded-full border border-slate-700/40 bg-slate-800/40 px-3 py-2 text-[10px] text-slate-500">{t("wl_no_price")}</span>
@@ -4896,7 +4896,7 @@ export default function WalletsPage() {
                         />
                       </div>
                       <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
-                        Preço atual:{" "}
+                        {t("wl_current_price")}{" "}
                         <span className="font-semibold text-white">
                           {market
                             ? market.priceUsd.toLocaleString("en-US", {
@@ -4932,7 +4932,7 @@ export default function WalletsPage() {
                         onClick={() => toggleCryptoHolding(symbol)}
                         className="rounded-full border border-slate-700 px-3 py-2 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
                       >
-                        Remover
+                        {t("wl_remove")}
                       </button>
                     </div>
                   </div>
@@ -4955,7 +4955,7 @@ export default function WalletsPage() {
               href="/historico"
               className="shrink-0 rounded-xl border border-orange-500/40 bg-orange-500/10 px-5 py-2.5 text-sm font-semibold text-orange-300 hover:bg-orange-500/20 transition"
             >
-              Ver histórico →
+              {t("wl_view_history")}
             </a>
           </div>
         </section>
@@ -4964,13 +4964,13 @@ export default function WalletsPage() {
           <div className="rounded-3xl border border-slate-800 bg-slate-950/60 p-6">
             <div className="flex flex-col gap-3">
               <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">
-                Carteiras Mercado Tradicional
+                {t("wl_trad_title")}
               </p>
               <h2 className="text-xl font-semibold text-white">
-                Seleciona vários ativos e mercados
+                {t("wl_trad_sub")}
               </h2>
               <p className="text-sm text-slate-400">
-                Escolhe ouro, prata e outros mercados que queres acompanhar.
+                {t("wl_trad_desc")}
               </p>
             </div>
 
@@ -5031,7 +5031,7 @@ export default function WalletsPage() {
                   }}
                   className={`${btnPrimary} px-4 py-2 text-sm`}
                 >
-                  Adicionar
+                  {t("wl_add")}
                 </button>
               </div>
               {customAssets.length > 0 && (
@@ -5111,7 +5111,7 @@ export default function WalletsPage() {
             <div className="mt-6">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                  Selecionados
+                  {t("wl_selected")}
                 </p>
                 <button
                   type="button"
@@ -5120,7 +5120,7 @@ export default function WalletsPage() {
                   }}
                   className="rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
                 >
-                  Limpar seleção
+                  {t("wl_clear_sel")}
                 </button>
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -5147,7 +5147,7 @@ export default function WalletsPage() {
 
               {sortedTraditionalAssets.length === 0 ? (
                 <span className="mt-3 block text-sm text-slate-500">
-                  Nenhum ativo selecionado.
+                  {t("wl_none_selected")}
                 </span>
               ) : (
                 <div className="mt-3 grid gap-3">
@@ -5174,7 +5174,7 @@ export default function WalletsPage() {
                             inputMode="decimal"
                             min="0"
                             step="0.01"
-                            placeholder="Valor de compra"
+                            placeholder={t("wl_buy_value")}
                             value={buy.buyValue ?? ""}
                             onChange={(event) => {
                               const value = event.target.value;
@@ -5193,7 +5193,7 @@ export default function WalletsPage() {
                             className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
                           />
                           <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
-                            Preço atual:{" "}
+                            {t("wl_current_price")}{" "}
                             <span className="font-semibold text-white">
                               {quote?.price != null ? quote.price.toFixed(2) : "—"}
                             </span>
@@ -5209,9 +5209,9 @@ export default function WalletsPage() {
                               }
                               className="bg-transparent text-xs text-slate-200 outline-none"
                             >
-                              <option value="1d">Diário</option>
-                              <option value="30d">30 dias</option>
-                              <option value="60d">60 dias</option>
+                              <option value="1d">{t("wl_daily")}</option>
+                              <option value="30d">{t("pc_30_days")}</option>
+                              <option value="60d">{t("wl_60_days")}</option>
                               <option value="1y">{t("wl_annual")}</option>
                             </select>
                             {(() => {
@@ -5246,7 +5246,7 @@ export default function WalletsPage() {
                             className="rounded-full border border-slate-700 px-3 py-2 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
                             title={t("wl_remove")}
                           >
-                            Remover
+                            {t("wl_remove")}
                           </button>
                         </div>
                       </div>
@@ -5259,7 +5259,7 @@ export default function WalletsPage() {
             <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
               <div className="flex items-center justify-between">
                 <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                  Dados Alpha Vantage
+                  {t("wl_market_data")}
                 </p>
                 {traditionalQuotesLoading ? (
                   <span className="text-xs text-slate-400">{t("wl_loading2")}</span>
@@ -5307,7 +5307,7 @@ export default function WalletsPage() {
                           </div>
                         ) : (
                           <p className="text-xs text-slate-500">
-                            Sem dados (Alpha Vantage).
+                            {t("wl_no_market_data")}
                           </p>
                         )}
                       </div>
@@ -5322,7 +5322,7 @@ export default function WalletsPage() {
         <section id="manual-address-section" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 scroll-mt-24">
           <h3 className="text-sm font-semibold text-white">{t("wl_add_manual")}</h3>
           <p className="mt-1 text-xs text-slate-500">
-            Escolhe a rede e insere o endereço. ETH, SOL, BTC e ADA mostram saldo. Outras redes ficam em tracking.
+            {t("wl_universal_intro")}
           </p>
           <div className="mt-3 flex flex-wrap items-end gap-2">
             <div className="relative min-w-[200px]" ref={manualAddNetworkRef}>
@@ -5416,7 +5416,7 @@ export default function WalletsPage() {
               className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
               onClick={handleManualAddAddress}
             >
-              Adicionar
+              {t("wl_add")}
             </button>
           </div>
           {manualAddOk ? (
@@ -5429,7 +5429,7 @@ export default function WalletsPage() {
         <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
           <h3 className="text-sm font-semibold text-white">{t("wl_manual_crypto")}</h3>
           <p className="mt-1 text-xs text-slate-500">
-            Escolhe o ativo, data de compra e valor investido em <span className="text-slate-300 font-medium">{curCode} ({curSym})</span>. O ativo aparece na Carteira Cripto em baixo.
+            {t("wl_manual_asset_intro")} <span className="text-slate-300 font-medium">{curCode} ({curSym})</span>. O ativo aparece na Carteira Cripto em baixo.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <div className="relative min-w-[220px]" ref={manualCryptoSelectRef}>
@@ -5445,7 +5445,7 @@ export default function WalletsPage() {
                         const name = list.find((r) => r.symbol === manualCryptoAssetSymbol)?.name;
                         return name ? `${manualCryptoAssetSymbol} · ${name}` : manualCryptoAssetSymbol;
                       })()
-                    : "Selecionar cripto"}
+                    : t("wl_select_crypto")}
                 </span>
                 <span className="text-slate-500">{manualCryptoSelectOpen ? "▲" : "▼"}</span>
               </button>
@@ -5532,7 +5532,7 @@ export default function WalletsPage() {
               className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
               onClick={handleManualAddCryptoAsset}
             >
-              Adicionar
+              {t("wl_add")}
             </button>
           </div>
           {manualCryptoAssetError ? (
@@ -5542,7 +5542,7 @@ export default function WalletsPage() {
         <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
           <h3 className="text-sm font-semibold text-white">{t("wl_stablecoins_addr")}</h3>
           <p className="mt-1 text-xs text-slate-500">
-            Escolhe uma ou várias stablecoins e adiciona um endereço EVM. O saldo aparece aqui e no Portfolio. (Saldo por endereço disponível em Ethereum.)
+            {t("wl_stable_intro")}
           </p>
           <div className="mt-3 grid gap-2 sm:grid-cols-[auto_1fr_auto] sm:items-center">
             <select
@@ -5566,7 +5566,7 @@ export default function WalletsPage() {
               className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
               onClick={handleAddStablecoinEntry}
             >
-              Adicionar
+              {t("wl_add")}
             </button>
           </div>
           {stablecoinAddError ? (
@@ -5624,7 +5624,7 @@ export default function WalletsPage() {
                             });
                           }}
                         >
-                          Remover
+                          {t("wl_remove")}
                         </button>
                       </td>
                     </tr>
