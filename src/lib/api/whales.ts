@@ -38,7 +38,7 @@ export type UsdPrices = { btc: number | null; eth: number | null; sol: number | 
 let priceCache: { at: number; prices: UsdPrices } | null = null;
 const PRICE_TTL_MS = 60_000;
 
-async function getUsdPrices(): Promise<UsdPrices> {
+export async function getUsdPrices(): Promise<UsdPrices> {
   if (priceCache && Date.now() - priceCache.at < PRICE_TTL_MS) return priceCache.prices;
   let prices: UsdPrices = { btc: null, eth: null, sol: null };
   try {

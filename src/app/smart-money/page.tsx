@@ -6,8 +6,6 @@ import { btnPrimary } from "@/lib/ui/buttons";
 import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
-import { useTheme } from "@/lib/theme/ThemeContext";
-import { createClient } from "@/lib/supabase/client";
 
 const STORAGE_KEY = "smart-money-watchlist";
 const ALERTS_KEY = "smart-money-alerts";
@@ -37,6 +35,7 @@ type WalletData = {
   totalUsd: number;
   loading: boolean;
   error: string | null;
+  fetchedAt?: number;
 };
 
 type WhaleTx = {
@@ -98,11 +97,18 @@ function shortAddr(addr: string) {
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 }
 
+// Locale de UI a partir de <html lang> (o LanguageContext mantém-no em sincronia).
+const uiLocale = () => {
+  const l = typeof document !== "undefined" ? document.documentElement.lang : "pt";
+  return ({ pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" } as Record<string, string>)[l] ?? "pt-PT";
+};
+
 function formatUsd(v: number) {
-  if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(2)}M`;
-  if (v >= 1_000) return `$${(v / 1_000).toFixed(1)}K`;
-  return `$${v.toFixed(2)}`;
+  return new Intl.NumberFormat(uiLocale(), { style: "currency", currency: "USD", notation: v >= 1_000 ? "compact" : "standard", maximumFractionDigits: v >= 1_000 ? 2 : 2 }).format(v);
 }
+
+// Explorador por tipo de hash: txid BTC = 64 hex sem 0x; ETH = 0x + 64 hex.
+const txExplorer = (hash: string) => (/^[0-9a-fA-F]{64}$/.test(hash) ? `https://mempool.space/tx/${hash}` : `https://etherscan.io/tx/${hash}`);
 
 function timeAgo(ts: number) {
   const diff = Math.floor((Date.now() - ts) / 1000);
@@ -115,6 +121,7 @@ function timeAgo(ts: number) {
 // ── Sub-components ──────────────────────────────────────────────────────────
 
 function TxRow({ tx, whaleName }: { tx: WhaleTx; whaleName?: string }) {
+  const { t } = useLanguage();
   const isIn = tx.direction === "in";
   return (
     <div className={`flex items-center gap-3 py-2.5 border-b border-slate-800/50 last:border-0 ${tx.isBigMove ? "bg-orange-500/5 -mx-4 px-4 rounded-lg" : ""}`}>
@@ -129,14 +136,14 @@ function TxRow({ tx, whaleName }: { tx: WhaleTx; whaleName?: string }) {
           <span className="text-sm font-semibold text-white">{tx.amount} {tx.symbol}</span>
           {tx.isBigMove && (
             <span className="text-[10px] bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded-full px-1.5 py-0.5">
-              🐋 Grande
+              🐋 {t("sm_big_move")}
             </span>
           )}
         </div>
         <div className="flex items-center gap-2 mt-0.5">
           <span className="text-[10px] text-slate-500 font-mono">{shortAddr(isIn ? tx.from : tx.to)}</span>
           <span className="text-[10px] text-slate-600">·</span>
-          <span className="text-[10px] text-slate-500">{timeAgo(tx.timestamp)} atrás</span>
+          <span className="text-[10px] text-slate-500">{timeAgo(tx.timestamp)} {t("sm2_ago")}</span>
         </div>
       </div>
       <div className="text-right shrink-0">
@@ -144,12 +151,12 @@ function TxRow({ tx, whaleName }: { tx: WhaleTx; whaleName?: string }) {
           {isIn ? "+" : "-"}{formatUsd(tx.usdValue)}
         </p>
         <a
-          href={`https://etherscan.io/tx/${tx.hash}`}
+          href={txExplorer(tx.hash)}
           target="_blank"
           rel="noopener noreferrer"
           className="text-[10px] text-slate-600 hover:text-orange-400 transition"
         >
-          ver ↗
+          {t("sm2_view")} ↗
         </a>
       </div>
     </div>
@@ -163,9 +170,12 @@ const FREE_WHALE_LIMIT = 3;
 export default function SmartMoneyPage() {
   const { isLoading, userId } = useRequireAuth("/login");
   const { t } = useLanguage();
-  const { hideBalances } = useTheme();
   const [isPro, setIsPro] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
+  const [planKnown, setPlanKnown] = useState(false);
+  // Durante o beta (pagamentos congelados) os CTAs de upgrade viram convite ao beta.
+  const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
+  const upgradeHref = paymentsFrozen ? "/beta" : "/pricing";
   const [tab, setTab] = useState<"watchlist" | "history" | "alerts">("watchlist");
   const [watchlist, setWatchlist] = useState<WatchEntry[]>([]);
   const [walletData, setWalletData] = useState<Record<string, WalletData>>({});
@@ -175,17 +185,22 @@ export default function SmartMoneyPage() {
   const [newLabel, setNewLabel] = useState("");
   const [newChain, setNewChain] = useState<"eth" | "sol" | "btc">("eth");
   const [addError, setAddError] = useState<string | null>(null);
+  const [addErrorIsLimit, setAddErrorIsLimit] = useState(false);
+  const [knownQuery, setKnownQuery] = useState("");
   const [showKnown, setShowKnown] = useState(false);
   const [checkingAlerts, setCheckingAlerts] = useState(false);
   const [lastCheckResult, setLastCheckResult] = useState<"none" | "found" | null>(null);
-  const [historyAddr, setHistoryAddr] = useState<string>("");
+  // null = ainda não escolhido (usa a 1.ª carteira); "" = vista "Todas"
+  const [historyAddr, setHistoryAddr] = useState<string | null>(null);
   const hydratedRef = useRef(false);
 
   useEffect(() => {
     const list = loadWatchlist();
     setWatchlist(list);
     setAlerts(loadAlerts());
-    hydratedRef.current = true;
+    // só depois do render com a lista restaurada é que passamos a gravar
+    const id = window.setTimeout(() => { hydratedRef.current = true; }, 0);
+    return () => window.clearTimeout(id);
   }, []);
 
   useEffect(() => {
@@ -197,14 +212,14 @@ export default function SmartMoneyPage() {
   // poderem varrer com a app fechada.
   useEffect(() => {
     if (!hydratedRef.current || !isPremium) return;
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       void fetch("/api/smart-money/watchlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ watchlist: watchlist.map((e) => ({ address: e.address, chain: e.chain, label: e.label })) }),
       }).catch(() => {});
     }, 1500);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [watchlist, isPremium]);
 
   // Verificar subscrição via API server-side (evita dependência de NEXT_PUBLIC env var no cliente)
@@ -218,10 +233,20 @@ export default function SmartMoneyPage() {
           setIsPremium(json.plan === "premium");
           setIsPro(json.plan === "pro" || json.plan === "premium");
         }
-      } catch { /* ignore */ }
+      } catch { /* ignore */ } finally { setPlanKnown(true); }
     };
     check();
   }, [userId]);
+
+  // Premium noutro dispositivo: se a lista local estiver vazia, puxar do servidor
+  useEffect(() => {
+    if (!isPremium || watchlist.length > 0) return;
+    void fetch("/api/smart-money/watchlist").then((r) => (r.ok ? r.json() : null)).then((j: { watchlist?: { address: string; chain: "eth" | "sol" | "btc"; label: string }[] } | null) => {
+      const rows = j?.watchlist ?? [];
+      if (rows.length) setWatchlist(rows.map((r) => ({ address: r.address, chain: r.chain, label: r.label || shortAddr(r.address), addedAt: Date.now() })));
+    }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPremium]);
 
   const fetchWalletData = useCallback(async (entry: WatchEntry) => {
     const key = entry.address;
@@ -230,13 +255,14 @@ export default function SmartMoneyPage() {
       const res = await fetch(`/api/token-balances?address=${encodeURIComponent(entry.address)}&chain=${entry.chain}`);
       const data = (await res.json()) as { tokens?: TokenBalance[]; totalUsd?: number; error?: string };
       if (!res.ok || data.error) {
-        setWalletData((prev) => ({ ...prev, [key]: { tokens: [], totalUsd: 0, loading: false, error: data.error ?? "Falha." } }));
+        setWalletData((prev) => ({ ...prev, [key]: { tokens: [], totalUsd: 0, loading: false, error: data.error ?? t("error") } }));
         return;
       }
-      setWalletData((prev) => ({ ...prev, [key]: { tokens: data.tokens ?? [], totalUsd: data.totalUsd ?? 0, loading: false, error: null } }));
+      setWalletData((prev) => ({ ...prev, [key]: { tokens: data.tokens ?? [], totalUsd: data.totalUsd ?? 0, loading: false, error: null, fetchedAt: Date.now() } }));
     } catch (e) {
-      setWalletData((prev) => ({ ...prev, [key]: { tokens: [], totalUsd: 0, loading: false, error: e instanceof Error ? e.message : "Erro." } }));
+      setWalletData((prev) => ({ ...prev, [key]: { tokens: [], totalUsd: 0, loading: false, error: e instanceof Error ? e.message : t("error") } }));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchTxData = useCallback(async (entry: WatchEntry) => {
@@ -247,7 +273,7 @@ export default function SmartMoneyPage() {
       const res = await fetch(`/api/whale-txs?address=${encodeURIComponent(entry.address)}&chain=${entry.chain}`);
       const data = (await res.json()) as { txs?: WhaleTx[]; error?: string };
       if (!res.ok || data.error) {
-        setTxData((prev) => ({ ...prev, [key]: { txs: [], loading: false, error: data.error ?? "Falha." } }));
+        setTxData((prev) => ({ ...prev, [key]: { txs: [], loading: false, error: data.error ?? t("error") } }));
         return;
       }
       const txs = data.txs ?? [];
@@ -256,31 +282,37 @@ export default function SmartMoneyPage() {
       const bigMoves = txs.filter((tx) => tx.isBigMove);
       if (bigMoves.length > 0) {
         setAlerts((prev) => {
-          const existingHashes = new Set(prev.map((a) => a.tx.hash));
+          const existing = new Set(prev.map((a) => a.id));
           const newAlerts: AlertEntry[] = bigMoves
-            .filter((tx) => !existingHashes.has(tx.hash))
             .map((tx) => ({
               id: tx.hash + entry.address,
               whale: entry.label,
               whaleAddress: entry.address,
               tx,
               seenAt: Date.now(),
-            }));
-          const updated = [...newAlerts, ...prev];
-          saveAlerts(updated);
-          return updated;
+            }))
+            .filter((a) => !existing.has(a.id));
+          return newAlerts.length ? [...newAlerts, ...prev].slice(0, 100) : prev;
         });
       }
     } catch (e) {
-      setTxData((prev) => ({ ...prev, [key]: { txs: [], loading: false, error: e instanceof Error ? e.message : "Erro." } }));
+      setTxData((prev) => ({ ...prev, [key]: { txs: [], loading: false, error: e instanceof Error ? e.message : t("error") } }));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     watchlist.forEach((entry) => {
       if (!walletData[entry.address]) fetchWalletData(entry);
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchlist, fetchWalletData]);
+
+  // Persistência dos alertas fora do updater (efeito puro)
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    saveAlerts(alerts);
+  }, [alerts]);
 
   // Premium RT: auto-refresh todos os 60s
   useEffect(() => {
@@ -293,31 +325,38 @@ export default function SmartMoneyPage() {
 
   // Set default history address when switching to history tab
   useEffect(() => {
-    if (tab === "history" && !historyAddr && watchlist.length > 0) {
-      const ethEntry = watchlist.find((e) => e.chain === "eth");
-      if (ethEntry) {
-        setHistoryAddr(ethEntry.address);
-        if (!txData[ethEntry.address]) fetchTxData(ethEntry);
+    if (tab !== "history") return;
+    if (historyAddr === null && watchlist.length > 0) {
+      const first = watchlist.find((e) => e.chain === "eth" || e.chain === "btc");
+      if (first) {
+        setHistoryAddr(first.address);
+        if (!txData[first.address]) fetchTxData(first);
       }
+    } else if (historyAddr === "") {
+      // vista "Todas": carregar o que ainda falta
+      watchlist.filter((e) => e.chain !== "sol" && !txData[e.address]).forEach(fetchTxData);
     }
-  }, [tab, watchlist, historyAddr, txData, fetchTxData]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, watchlist, historyAddr]);
 
   const handleAdd = () => {
     setAddError(null);
     const addr = newAddress.trim();
     if (!addr) { setAddError(t("sm2_enter_addr")); return; }
-    if (!isPro && watchlist.length >= FREE_WHALE_LIMIT) {
-      setAddError(`Plano Gratuito limitado a ${FREE_WHALE_LIMIT} baleias. Faz upgrade para Pro.`);
+    setAddErrorIsLimit(false);
+    if (planKnown && !isPro && watchlist.length >= FREE_WHALE_LIMIT) {
+      setAddError(`${t("sm2_free_limit_1")} ${FREE_WHALE_LIMIT} ${t("sm2_free_limit_2")}`);
+      setAddErrorIsLimit(true);
       return;
     }
     const isEvm = /^0x[a-fA-F0-9]{40}$/.test(addr);
-    const isSol = addr.length >= 32 && addr.length <= 44 && !addr.startsWith("0x");
-    const isBtc = /^(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,62}$/.test(addr);
-    if (newChain === "eth" && !isEvm) { setAddError("Endereço EVM inválido (deve começar com 0x)."); return; }
-    if (newChain === "sol" && !isSol) { setAddError("Endereço Solana inválido."); return; }
-    if (newChain === "btc" && !isBtc) { setAddError("Endereço Bitcoin inválido (deve começar com 1, 3 ou bc1)."); return; }
+    const isSol = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(addr);
+    const isBtc = /^(bc1[a-z0-9]{25,62}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})$/.test(addr);
+    if (newChain === "eth" && !isEvm) { setAddError(t("wl_invalid_evm")); return; }
+    if (newChain === "sol" && !isSol) { setAddError(t("wl_invalid_sol")); return; }
+    if (newChain === "btc" && !isBtc) { setAddError(t("wl_invalid_btc")); return; }
     if (watchlist.some((e) => e.address.toLowerCase() === addr.toLowerCase())) {
-      setAddError("Endereço já na watchlist."); return;
+      setAddError(t("sm2_already")); return;
     }
     const entry: WatchEntry = {
       address: addr,
@@ -331,15 +370,17 @@ export default function SmartMoneyPage() {
   };
 
   const handleRemove = (address: string) => {
+    if (historyAddr === address) setHistoryAddr(null);
     setWatchlist((prev) => prev.filter((e) => e.address !== address));
     setWalletData((prev) => { const n = { ...prev }; delete n[address]; return n; });
     setTxData((prev) => { const n = { ...prev }; delete n[address]; return n; });
   };
 
   const handleAddKnown = (entry: WatchEntry) => {
-    if (watchlist.some((e) => e.address === entry.address)) return;
-    if (!isPro && watchlist.length >= FREE_WHALE_LIMIT) {
-      setAddError(`Plano Gratuito limitado a ${FREE_WHALE_LIMIT} baleias. Faz upgrade para Pro.`);
+    if (watchlist.some((e) => e.address.toLowerCase() === entry.address.toLowerCase())) return;
+    if (planKnown && !isPro && watchlist.length >= FREE_WHALE_LIMIT) {
+      setAddError(`${t("sm2_free_limit_1")} ${FREE_WHALE_LIMIT} ${t("sm2_free_limit_2")}`);
+      setAddErrorIsLimit(true);
       setShowKnown(false);
       return;
     }
@@ -360,15 +401,20 @@ export default function SmartMoneyPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <p className="text-sm text-slate-400 animate-pulse">{t("loading")}</p>
-      </div>
+      <AppShell>
+        <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+          <p className="text-sm text-slate-400 animate-pulse">{t("loading")}</p>
+        </div>
+      </AppShell>
     );
   }
 
   const ethWatchlist = watchlist.filter((e) => e.chain === "eth" || e.chain === "btc");
   const selectedEntry = watchlist.find((e) => e.address === historyAddr);
-  const selectedTx = txData[historyAddr];
+  const selectedTx = historyAddr ? txData[historyAddr] : undefined;
+  const STARTERS = ["Vitalik", "Binance Cold", "MicroStrategy", "Coinbase Cold"];
+  const starterWhales = STARTERS.map((k) => KNOWN_WHALES.find((w) => w.label.includes(k))).filter(Boolean) as typeof KNOWN_WHALES;
+  const filteredKnown = KNOWN_WHALES.filter((w) => !knownQuery || w.label.toLowerCase().includes(knownQuery.toLowerCase()) || w.address.toLowerCase().includes(knownQuery.toLowerCase()));
   const unreadAlerts = alerts.filter((a) => Date.now() - a.seenAt < 24 * 60 * 60 * 1000).length;
 
   // Aggregate all txs for history (when no specific wallet selected)
@@ -397,7 +443,7 @@ export default function SmartMoneyPage() {
                 {isPremium && (
                   <span className="flex items-center gap-1.5 rounded-full bg-violet-500/20 border border-violet-500/30 px-2.5 py-1 text-[11px] font-bold text-violet-300">
                     <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
-                    RT
+                    <span title={t("sm2_rt_active")}>RT</span>
                   </span>
                 )}
               </div>
@@ -424,7 +470,7 @@ export default function SmartMoneyPage() {
                     }`}
                   >
                     {labels[tabId]}
-                    {tabId === "alerts" && unreadAlerts > 0 && (
+                    {tabId === "alerts" && isPro && unreadAlerts > 0 && (
                       <span className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full text-[9px] text-white flex items-center justify-center font-bold">
                         {unreadAlerts > 9 ? "9+" : unreadAlerts}
                       </span>
@@ -466,23 +512,25 @@ export default function SmartMoneyPage() {
                   {addError && (
                     <p className="text-xs text-rose-400">
                       {addError}{" "}
-                      {addError.includes("upgrade") && (
-                        <a href="/pricing" className="text-orange-400 underline hover:text-orange-300">{t("sm2_upgrade")}</a>
+                      {addErrorIsLimit && (
+                        <a href={upgradeHref} className="text-orange-400 underline hover:text-orange-300">{paymentsFrozen ? `🧪 ${t("dash_beta_cta_short")} →` : t("sm2_upgrade")}</a>
                       )}
                     </p>
                   )}
                   {!isPro && watchlist.length >= FREE_WHALE_LIMIT && !addError && (
                     <p className="text-xs text-amber-400/80">
-                      ⚠️ Limite de {FREE_WHALE_LIMIT} baleias atingido.{" "}
-                      <a href="/pricing" className="text-orange-400 underline hover:text-orange-300">{t("sm2_upgrade_pro")}</a>
+                      ⚠️ {t("sm2_limit_reached")} ({FREE_WHALE_LIMIT}).{" "}
+                      <a href={upgradeHref} className="text-orange-400 underline hover:text-orange-300">{paymentsFrozen ? `🧪 ${t("dash_beta_cta_short")} →` : t("sm2_upgrade_pro")}</a>
                     </p>
                   )}
                   {showKnown && (
                     <div className="mt-2 rounded-xl border border-slate-700 bg-slate-800/80 p-4 space-y-2 max-h-80 overflow-y-auto">
-                      <p className="text-xs text-slate-400 mb-3">{t("sm2_click_add")}</p>
-                      {KNOWN_WHALES.map((w) => (
+                      <p className="text-xs text-slate-400 mb-2">{t("sm2_click_add")}</p>
+                      <input type="text" value={knownQuery} onChange={(e) => setKnownQuery(e.target.value)} placeholder={t("sm2_search_whales")}
+                        className="mb-3 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+                      {filteredKnown.map((w) => (
                         <button key={w.address} onClick={() => handleAddKnown(w)}
-                          disabled={watchlist.some((e) => e.address === w.address)}
+                          disabled={watchlist.some((e) => e.address.toLowerCase() === w.address.toLowerCase())}
                           className="w-full flex items-center justify-between rounded-lg border border-slate-700 bg-slate-900 px-4 py-2.5 text-left hover:border-orange-400/40 disabled:opacity-40 disabled:cursor-not-allowed transition">
                           <div>
                             <span className="text-sm font-semibold text-white">{w.label}</span>
@@ -500,6 +548,15 @@ export default function SmartMoneyPage() {
                     <p className="text-3xl mb-3">🕵️</p>
                     <p className="text-sm font-semibold text-white">{t("sm_watchlist_empty")}</p>
                     <p className="mt-1 text-xs text-slate-400">{t("sm_watchlist_empty_desc")}</p>
+                    <p className="mt-4 text-xs text-slate-500">{t("sm2_start_with")}</p>
+                    <div className="mt-2 flex flex-wrap justify-center gap-2">
+                      {starterWhales.map((w) => (
+                        <button key={w.address} type="button" onClick={() => handleAddKnown(w)}
+                          className="rounded-full border border-orange-500/40 bg-orange-500/10 px-3 py-1.5 text-xs font-semibold text-orange-300 transition hover:bg-orange-500/20">
+                          🐋 {w.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
 
@@ -521,9 +578,12 @@ export default function SmartMoneyPage() {
                           </div>
                           <div className="flex items-center gap-3">
                             {data && !data.loading && !data.error && (
-                              <span className="text-sm font-bold text-emerald-400">{hideBalances ? "••••" : formatUsd(data.totalUsd)}</span>
+                              <span className="text-right">
+                                <span className="block text-sm font-bold text-emerald-400">{formatUsd(data.totalUsd)}</span>
+                                {data.fetchedAt && <span className="block text-[10px] text-slate-500">{t("updated")} {new Date(data.fetchedAt).toLocaleTimeString(uiLocale(), { hour: "2-digit", minute: "2-digit" })}</span>}
+                              </span>
                             )}
-                            {entry.chain === "eth" && (
+                            {entry.chain !== "sol" && (
                               <button type="button"
                                 onClick={() => { setTab("history"); handleHistorySelect(entry.address); }}
                                 className="text-xs text-slate-400 hover:text-orange-300 transition px-2 py-1 rounded-lg hover:bg-slate-800"
@@ -532,7 +592,7 @@ export default function SmartMoneyPage() {
                               </button>
                             )}
                             <button type="button" onClick={() => fetchWalletData(entry)}
-                              className="text-xs text-slate-400 hover:text-orange-300 transition px-2 py-1 rounded-lg hover:bg-slate-800" title="Atualizar">↻</button>
+                              className="text-xs text-slate-400 hover:text-orange-300 transition px-2 py-1 rounded-lg hover:bg-slate-800" title={t("refresh")}>↻</button>
                             <button type="button" onClick={() => handleRemove(entry.address)}
                               className="text-xs text-slate-500 hover:text-rose-400 transition px-2 py-1 rounded-lg hover:bg-slate-800" title={t("remove")}>✕</button>
                           </div>
@@ -561,13 +621,13 @@ export default function SmartMoneyPage() {
                                     </div>
                                   </div>
                                   <div className="text-right">
-                                    <p className="text-sm font-semibold text-emerald-400">{hideBalances ? "••••" : formatUsd(token.usdValue)}</p>
-                                    {!hideBalances && token.usdPrice > 0 && <p className="text-xs text-slate-500">@ {formatUsd(token.usdPrice)}</p>}
+                                    <p className="text-sm font-semibold text-emerald-400">{formatUsd(token.usdValue)}</p>
+                                    {token.usdPrice > 0 && <p className="text-xs text-slate-500">@ {formatUsd(token.usdPrice)}</p>}
                                   </div>
                                 </div>
                               ))}
                               {data.tokens.length > 15 && (
-                                <p className="text-xs text-slate-500 pt-2 text-center">+ {data.tokens.length - 15} tokens adicionais</p>
+                                <p className="text-xs text-slate-500 pt-2 text-center">+ {data.tokens.length - 15} {t("sm2_more_tokens")}</p>
                               )}
                             </div>
                           )}
@@ -593,7 +653,7 @@ export default function SmartMoneyPage() {
                         <button type="button"
                           onClick={() => setHistoryAddr("")}
                           className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${historyAddr === "" ? "bg-orange-500/20 text-orange-400 border border-orange-500/30" : "bg-slate-800 text-slate-400 hover:text-white"}`}>
-                          Todas ({ethWatchlist.length})
+                          {t("all")} ({ethWatchlist.length})
                         </button>
                         {ethWatchlist.map((e) => (
                           <button key={e.address} type="button"
@@ -612,7 +672,7 @@ export default function SmartMoneyPage() {
                             }
                           }}
                           className="ml-auto px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-orange-300 bg-slate-800 transition">
-                          ↻ Atualizar
+                          ↻ {t("refresh")}
                         </button>
                       </div>
 
@@ -625,8 +685,8 @@ export default function SmartMoneyPage() {
                             ) : (
                               <p className="text-xs text-slate-500 py-6 text-center">{t("sm_no_txs")}</p>
                             )
-                          ) : allTxs.map((tx) => (
-                            <TxRow key={tx.hash + tx.direction} tx={tx} whaleName={tx.whaleLabel} />
+                          ) : allTxs.map((tx, i) => (
+                            <TxRow key={`${tx.hash}-${tx.direction}-${tx.whaleLabel}-${i}`} tx={tx} whaleName={tx.whaleLabel} />
                           ))
                         ) : (
                           !selectedTx || selectedTx.loading ? (
@@ -635,8 +695,8 @@ export default function SmartMoneyPage() {
                             <p className="text-xs text-rose-400 py-4">{selectedTx.error}</p>
                           ) : selectedTx.txs.length === 0 ? (
                             <p className="text-xs text-slate-500 py-6 text-center">{t("sm_no_txs")}</p>
-                          ) : selectedTx.txs.map((tx) => (
-                            <TxRow key={tx.hash + tx.direction} tx={tx} whaleName={selectedEntry?.label} />
+                          ) : selectedTx.txs.map((tx, i) => (
+                            <TxRow key={`${tx.hash}-${tx.direction}-${i}`} tx={tx} whaleName={selectedEntry?.label} />
                           ))
                         )}
                       </div>
@@ -654,8 +714,8 @@ export default function SmartMoneyPage() {
                   <p className="text-base font-bold text-white mb-1">{t("sm2_alerts_pro")}</p>
                   <p className="text-sm text-slate-400">{t("sm2_alerts_pro_desc")}</p>
                 </div>
-                <a href="/pricing" className={`${btnPrimary} px-6 py-2.5 text-sm`}>
-                  {t("sm2_upgrade_pro")}
+                <a href={upgradeHref} className={`${btnPrimary} px-6 py-2.5 text-sm`}>
+                  {paymentsFrozen ? `🧪 ${t("dash_beta_cta_short")} →` : t("sm2_upgrade_pro")}
                 </a>
               </div>
             )}
@@ -667,12 +727,28 @@ export default function SmartMoneyPage() {
                       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t("sm_alerts")}</p>
                       <p className="text-xs text-slate-500 mt-1">{t("sm_alert_threshold")} · {t("sm_big_move")}</p>
                     </div>
-                    {alerts.length > 0 && (
-                      <button type="button" onClick={clearAlerts}
-                        className="text-xs text-slate-500 hover:text-rose-400 transition px-3 py-1.5 rounded-lg hover:bg-slate-800">
-                        {t("sm2_clear_all")}
-                      </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {ethWatchlist.length > 0 && (
+                        <button type="button" disabled={checkingAlerts}
+                          onClick={async () => {
+                            setCheckingAlerts(true);
+                            setLastCheckResult(null);
+                            const before = alerts.length;
+                            await Promise.all(ethWatchlist.map(fetchTxData));
+                            setCheckingAlerts(false);
+                            setLastCheckResult(alerts.length > before ? "found" : "none");
+                          }}
+                          className="text-xs text-orange-300 hover:text-orange-200 transition px-3 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/30 disabled:opacity-50">
+                          {checkingAlerts ? t("sm2_checking") : `↻ ${t("sm_check_now")}`}
+                        </button>
+                      )}
+                      {alerts.length > 0 && (
+                        <button type="button" onClick={clearAlerts}
+                          className="text-xs text-slate-500 hover:text-rose-400 transition px-3 py-1.5 rounded-lg hover:bg-slate-800">
+                          {t("sm2_clear_all")}
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {alerts.length === 0 ? (
@@ -685,24 +761,8 @@ export default function SmartMoneyPage() {
                       {ethWatchlist.length === 0 && (
                         <p className="text-xs text-slate-600 mt-3">{t("sm2_add_whale_alert")}</p>
                       )}
-                      {ethWatchlist.length > 0 && (
-                        <>
-                          <button type="button"
-                            disabled={checkingAlerts}
-                            onClick={async () => {
-                              setCheckingAlerts(true);
-                              setLastCheckResult(null);
-                              await Promise.all(ethWatchlist.map(fetchTxData));
-                              setCheckingAlerts(false);
-                              setLastCheckResult("none");
-                            }}
-                            className="mt-4 px-4 py-2 rounded-xl bg-orange-500/10 border border-orange-500/30 text-orange-400 text-sm hover:bg-orange-500/20 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                            {checkingAlerts ? t("sm2_checking") : t("sm_check_now")}
-                          </button>
-                          {lastCheckResult === "none" && !checkingAlerts && (
-                            <p className="text-xs text-slate-500 mt-2">{t("sm2_no_moves")}</p>
-                          )}
-                        </>
+                      {lastCheckResult === "none" && !checkingAlerts && (
+                        <p className="text-xs text-slate-500 mt-3">{t("sm2_no_moves")}</p>
                       )}
                     </div>
                   ) : (
@@ -740,8 +800,8 @@ export default function SmartMoneyPage() {
                       <p className="text-sm font-bold text-white mb-0.5">{t("sm2_onchain_premium")}</p>
                       <p className="text-xs text-slate-400">{t("sm2_onchain_premium_desc")}</p>
                     </div>
-                    <a href="/pricing" className="shrink-0 rounded-full border border-violet-500/40 bg-violet-500/10 px-4 py-2 text-xs font-bold text-violet-300 hover:bg-violet-500/20 transition">
-                      {t("sm2_see_premium")}
+                    <a href={upgradeHref} className="shrink-0 rounded-full border border-violet-500/40 bg-violet-500/10 px-4 py-2 text-xs font-bold text-violet-300 hover:bg-violet-500/20 transition">
+                      {paymentsFrozen ? `🧪 ${t("dash_beta_cta_short")} →` : t("sm2_see_premium")}
                     </a>
                   </div>
                 )}

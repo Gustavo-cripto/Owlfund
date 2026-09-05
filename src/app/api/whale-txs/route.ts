@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getUsdPrices } from "@/lib/api/whales";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -59,15 +60,24 @@ async function getEthNativeTxs(address: string): Promise<EtherscanTx[]> {
 
 function toUsd(value: string, decimals: string, priceUsd: number): number {
   const dec = parseInt(decimals || "18");
-  return (Number(value) / Math.pow(10, dec)) * priceUsd;
+  try {
+    // BigInt: valores com 18 decimais ultrapassam 2^53 e perdiam precisão
+    const whole = BigInt(value) / BigInt(10) ** BigInt(Math.max(0, dec - 6));
+    return (Number(whole) / 1e6) * priceUsd;
+  } catch {
+    return (Number(value) / Math.pow(10, dec)) * priceUsd;
+  }
 }
 
 async function getEthWhaleTxs(address: string): Promise<WhaleTx[]> {
-  const ETH_PRICE_USD = 3200;
+  // Preços LIVE (CoinGecko, cache 60s) — antes estavam fixos no código
+  // (ETH 3200, BTC 97000…) e todos os valores USD/alertas saíam errados.
+  const live = await getUsdPrices();
+  const ETH_PRICE_USD = live.eth ?? 0;
   const TOKEN_PRICES: Record<string, number> = {
-    ETH: ETH_PRICE_USD, WETH: ETH_PRICE_USD,
-    USDT: 1, USDC: 1, DAI: 1, BUSD: 1,
-    WBTC: 97000, LINK: 14, UNI: 7, AAVE: 180, MKR: 1600,
+    ETH: ETH_PRICE_USD, WETH: ETH_PRICE_USD, STETH: ETH_PRICE_USD, WSTETH: ETH_PRICE_USD * 1.15,
+    USDT: 1, USDC: 1, DAI: 1, BUSD: 1, FDUSD: 1, PYUSD: 1, TUSD: 1,
+    WBTC: live.btc ?? 0, CBBTC: live.btc ?? 0,
   };
   const [tokenTxs, nativeTxs] = await Promise.allSettled([
     getEthTxs(address), getEthNativeTxs(address),
@@ -104,7 +114,7 @@ type MempoolTx = {
 };
 
 async function getBtcWhaleTxs(address: string): Promise<WhaleTx[]> {
-  const BTC_PRICE_USD = 97000;
+  const BTC_PRICE_USD = (await getUsdPrices()).btc ?? 0;
 
   const res = await fetch(
     `https://mempool.space/api/address/${encodeURIComponent(address)}/txs`,
