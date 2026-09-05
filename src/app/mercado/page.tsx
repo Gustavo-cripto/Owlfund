@@ -93,6 +93,12 @@ type SentimentRow = {
   label: string;
 };
 
+// Locale de UI a partir de <html lang> (o LanguageContext mantém-no em sincronia).
+const uiLocale = () => {
+  const l = typeof document !== "undefined" ? document.documentElement.lang : "pt";
+  return ({ pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" } as Record<string, string>)[l] ?? "pt-PT";
+};
+
 const formatCurrency = (value: number, digits = 2) =>
   value.toLocaleString("en-US", {
     style: "currency",
@@ -144,7 +150,7 @@ const formatCountdown = (seconds: number) => {
 
 const formatDateShort = (timestampSec: number) => {
   try {
-    return new Date(timestampSec * 1000).toLocaleDateString("pt-PT", {
+    return new Date(timestampSec * 1000).toLocaleDateString(uiLocale(), {
       year: "numeric",
       month: "short",
       day: "2-digit",
@@ -258,7 +264,8 @@ function FearGreedWidget({
       });
     }, 1000);
     return () => window.clearInterval(id);
-  }, [remainingSec]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remainingSec == null]);
 
   const rows = [
     { label: t("merc_now"), point: now },
@@ -576,6 +583,7 @@ function LiquidationsFeed({ symbol }: { symbol: string }) {
       ws = new WebSocket(`wss://fstream.binance.com/ws/${sym}@forceOrder`);
       ws.onopen = () => setStatus("live");
       ws.onerror = () => setStatus("error");
+      ws.onclose = () => setStatus("error");
       ws.onmessage = (ev: MessageEvent) => {
         try {
           const m = JSON.parse(ev.data as string) as { o?: { S?: string; q?: string; p?: string; ap?: string; T?: number } };
@@ -624,17 +632,17 @@ function LiquidationsFeed({ symbol }: { symbol: string }) {
   );
 }
 
-function DerivativesPanel({ data, loading, symbol }: { data: DerivData | null; loading: boolean; symbol: string }) {
+function DerivativesPanel({ data, loading, symbol, updatedAt, error, onRefresh }: { data: DerivData | null; loading: boolean; symbol: string; updatedAt?: number | null; error?: boolean; onRefresh?: () => void }) {
   const { t } = useLanguage();
   const oiVals = (data?.oi ?? []).map((p) => p.v);
   const cvdVals = (data?.cvd ?? []).map((p) => p.v);
   const fundingVals = (data?.funding ?? []).map((p) => p.v);
-  const latestLs = data?.longShort[data.longShort.length - 1];
+  const latestLs = data?.longShort?.[data.longShort.length - 1];
   const latestOi = oiVals[oiVals.length - 1];
   const latestCvd = cvdVals[cvdVals.length - 1];
   const latestFunding = fundingVals[fundingVals.length - 1];
   const cvdUp = cvdVals.length > 1 ? cvdVals[cvdVals.length - 1] >= cvdVals[0] : true;
-  const latestTaker = data?.taker[data.taker.length - 1];
+  const latestTaker = data?.taker?.[data.taker.length - 1];
   const takerBuyPct = latestTaker && latestTaker.buy + latestTaker.sell > 0
     ? (latestTaker.buy / (latestTaker.buy + latestTaker.sell)) * 100 : null;
   const pcVals = (data?.putCall ?? []).map((p) => p.oi);
@@ -647,7 +655,14 @@ function DerivativesPanel({ data, loading, symbol }: { data: DerivData | null; l
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-orange-400">{t("mc_deriv_data")}</p>
-          <h3 className="mt-0.5 text-base font-bold text-white">{symbol} · <span className="text-sm font-normal text-slate-400">Bybit + OKX</span></h3>
+          <h3 className="mt-0.5 text-base font-bold text-white">{symbol} · <span className="text-sm font-normal text-slate-400">OKX</span></h3>
+          <p className="mt-1 text-[11px] text-slate-500">
+            {updatedAt ? `${t("updated")}: ${new Date(updatedAt).toLocaleTimeString(uiLocale(), { hour: "2-digit", minute: "2-digit" })}` : ""}
+            {onRefresh && (
+              <button type="button" onClick={onRefresh} disabled={loading} className="ml-2 text-orange-300 hover:text-orange-200 disabled:opacity-50">↻ {t("mc_refresh")}</button>
+            )}
+          </p>
+          {error && <p className="mt-1 text-xs text-amber-300">⚠️ {t("mc_deriv_fail")}</p>}
         </div>
         <a href="https://www.coinglass.com" target="_blank" rel="noopener noreferrer"
           className="rounded-full border border-orange-500/40 bg-orange-500/10 px-4 py-1.5 text-xs font-semibold text-orange-300 transition hover:bg-orange-500/20">
@@ -783,13 +798,16 @@ export default function MercadoPage() {
   useRequireAuth("/login");
   const { t, lang } = useLanguage();
   const { format: fmtCur } = useCurrencyFormat();
-  const [userPlan, setUserPlan] = useState<"free" | "pro" | "premium">("free");
+  const [userPlan, setUserPlan] = useState<"unknown" | "free" | "pro" | "premium">("unknown");
   useEffect(() => {
     fetch("/api/subscription").then(r => r.json()).then((d: { plan?: string }) => {
       if (d.plan === "premium") setUserPlan("premium");
       else if (d.plan === "pro") setUserPlan("pro");
-    }).catch(() => {});
+      else setUserPlan("free");
+    }).catch(() => setUserPlan("free"));
   }, []);
+  // Durante o beta (pagamentos congelados) os CTAs de upgrade viram convite ao beta.
+  const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
   const [marketMode, setMarketMode] = useState<"crypto" | "tradicional" | "noticias">("crypto");
   const [newsContent, setNewsContent] = useState<string | null>(null);
   const [newsMode, setNewsMode] = useState<"crypto" | "tradicional" | "diarias">("crypto");
@@ -799,6 +817,7 @@ export default function MercadoPage() {
   type NewsItem = { title: string; link: string; description: string; pubDate: string; source: string; image?: string; category?: string };
   const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
   const [newsItemsLoading, setNewsItemsLoading] = useState(false);
+  const [newsItemsError, setNewsItemsError] = useState(false);
   const [newsBriefing, setNewsBriefing] = useState<string | null>(null);
   const [newsBriefingLoading, setNewsBriefingLoading] = useState(false);
   const [newsBriefingError, setNewsBriefingError] = useState<string | null>(null);
@@ -819,7 +838,10 @@ export default function MercadoPage() {
   const sentimentCacheRef = useRef<Record<string, { up: number | null; down: number | null }>>({});
   const [derivatives, setDerivatives] = useState<DerivData | null>(null);
   const [derivativesLoading, setDerivativesLoading] = useState(false);
-  const derivativesCacheRef = useRef<Record<string, DerivData>>({});
+  const derivativesCacheRef = useRef<Record<string, { d: DerivData; at: number }>>({});
+  const [derivativesAt, setDerivativesAt] = useState<number | null>(null);
+  const [derivativesError, setDerivativesError] = useState(false);
+  const [derivativesTick, setDerivativesTick] = useState(0); // força refresh manual
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const chartRef = useRef<HTMLDivElement | null>(null);
@@ -831,6 +853,8 @@ export default function MercadoPage() {
     "tradingview"
   );
   const [fearGreedPoints, setFearGreedPoints] = useState<FearGreedPoint[]>([]);
+  const [fearGreedError, setFearGreedError] = useState(false);
+  const [fearGreedTick, setFearGreedTick] = useState(0);
   const [fearGreedCountdown, setFearGreedCountdown] = useState<number | null>(null);
   const [sentimentTop10, setSentimentTop10] = useState<SentimentRow[]>([]);
   const [page, setPage] = useState(0);
@@ -931,16 +955,31 @@ export default function MercadoPage() {
     if (chartSource !== "coinglass") return;
     const base = selected?.symbol ?? "BTC";
     const cached = derivativesCacheRef.current[base];
-    if (cached) { setDerivatives(cached); return; }
+    const FRESH_MS = 5 * 60_000;
+    if (cached && Date.now() - cached.at < FRESH_MS && derivativesTick === 0) {
+      setDerivatives(cached.d); setDerivativesAt(cached.at); setDerivativesError(false); return;
+    }
     let cancelled = false;
+    setDerivatives(null); // nunca mostrar a moeda anterior com o título da nova
+    setDerivativesError(false);
     setDerivativesLoading(true);
     fetch(`/api/derivatives?symbol=${encodeURIComponent(base)}`)
-      .then((r) => r.json())
-      .then((d: DerivData) => { if (cancelled) return; derivativesCacheRef.current[base] = d; setDerivatives(d); })
-      .catch(() => { if (!cancelled) setDerivatives(null); })
+      .then(async (r) => {
+        const d = (await r.json()) as DerivData & { error?: string };
+        if (!r.ok || d.error || !Array.isArray(d.longShort)) throw new Error(d.error ?? "derivatives");
+        return d;
+      })
+      .then((d: DerivData) => {
+        if (cancelled) return;
+        const at = Date.now();
+        derivativesCacheRef.current[base] = { d, at };
+        setDerivatives(d); setDerivativesAt(at);
+      })
+      .catch(() => { if (!cancelled) { setDerivatives(null); setDerivativesError(true); } })
       .finally(() => { if (!cancelled) setDerivativesLoading(false); });
     return () => { cancelled = true; };
-  }, [chartSource, selected?.symbol]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chartSource, selected?.symbol, derivativesTick]);
 
   const refreshTraditionalQuote = async (symbol?: string) => {
     if (!symbol) return;
@@ -955,6 +994,7 @@ export default function MercadoPage() {
       const quote = payload.data?.[0];
       if (quote) {
         setTraditionalQuotes((prev) => ({ ...prev, [quote.symbol]: quote }));
+        setTraditionalQuotesError(null);
       }
     } catch (err) {
       setTraditionalQuotesError(err instanceof Error ? err.message : t("mc_err_data"));
@@ -978,7 +1018,8 @@ export default function MercadoPage() {
       payload.data.forEach((quote) => {
         next[quote.symbol] = quote;
       });
-      setTraditionalQuotes(next);
+      setTraditionalQuotes((prev) => ({ ...prev, ...next }));
+      setTraditionalQuotesError(null);
     } catch (err) {
       setTraditionalQuotesError(err instanceof Error ? err.message : t("mc_err_data"));
     }
@@ -1083,8 +1124,10 @@ export default function MercadoPage() {
 
   useEffect(() => {
     const loadFearGreed = async () => {
+      setFearGreedError(false);
       try {
-        const response = await fetch("https://api.alternative.me/fng/?limit=90&format=json");
+        const response = await fetch("/api/fear-greed", { cache: "no-store" });
+        if (!response.ok) throw new Error("fng");
         const payload = (await response.json()) as { data?: FearGreedApiRow[] };
         const data = payload.data ?? [];
         const points = data
@@ -1101,10 +1144,11 @@ export default function MercadoPage() {
       } catch {
         setFearGreedPoints([]);
         setFearGreedCountdown(null);
+        setFearGreedError(true);
       }
     };
     loadFearGreed();
-  }, []);
+  }, [fearGreedTick]);
 
   useEffect(() => {
     if (!favoritesHydratedRef.current) return;
@@ -1158,7 +1202,6 @@ export default function MercadoPage() {
       const next = new Set(prev);
       if (next.has(symbol)) next.delete(symbol);
       else next.add(symbol);
-      saveFavorites(next);
       return next;
     });
   };
@@ -1332,6 +1375,12 @@ export default function MercadoPage() {
 
         {marketMode === "crypto" && chartSource === "coinglass" && (
           <div className="mx-auto w-full max-w-6xl">
+            {fearGreedError && (
+              <p className="mb-3 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] px-3 py-2 text-xs text-amber-200">
+                ⚠️ {t("mc_fng_fail")}{" "}
+                <button type="button" onClick={() => setFearGreedTick((v) => v + 1)} className="font-semibold underline">{t("wl_retry")}</button>
+              </p>
+            )}
             <FearGreedWidget
               points={fearGreedPoints}
               timeUntilUpdateSec={fearGreedCountdown}
@@ -1419,6 +1468,9 @@ export default function MercadoPage() {
                 data={derivatives}
                 loading={derivativesLoading}
                 symbol={selected?.symbol ?? "BTC"}
+                updatedAt={derivativesAt}
+                error={derivativesError}
+                onRefresh={() => setDerivativesTick((v) => v + 1)}
               />
             )}
           </div>
@@ -1804,7 +1856,7 @@ export default function MercadoPage() {
                       <button
                         type="button"
                         className="rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                        onClick={() => setPage((p) => Math.max(0, p - 1))}
+                        onClick={() => setPage(Math.max(0, currentPage - 1))}
                         disabled={currentPage <= 0}
                       >
                         Anterior
@@ -1816,7 +1868,7 @@ export default function MercadoPage() {
                       <button
                         type="button"
                         className="rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                        onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                        onClick={() => setPage(Math.min(totalPages - 1, currentPage + 1))}
                         disabled={currentPage >= totalPages - 1}
                       >
                         Próximo
@@ -1953,13 +2005,18 @@ export default function MercadoPage() {
                     type="button"
                     onClick={async () => {
                       setNewsMode(m);
+                      // O briefing/chat pertencem ao modo anterior — não mostrar com o rótulo novo
+                      setNewsContent(null); setNewsError(null); setNewsDate(null);
+                      setChatMessages([]);
                       if (m === "diarias" && newsItems.length === 0) {
                         setNewsItemsLoading(true);
+                        setNewsItemsError(false);
                         try {
                           const r = await fetch(`/api/news?lang=${lang}`);
+                          if (!r.ok) throw new Error("news");
                           const d = await r.json() as { items?: NewsItem[] };
                           setNewsItems(d.items ?? []);
-                        } catch { /* ignore */ } finally {
+                        } catch { setNewsItemsError(true); } finally {
                           setNewsItemsLoading(false);
                         }
                       }
@@ -2005,7 +2062,7 @@ export default function MercadoPage() {
                           <span className="text-[10px] font-semibold uppercase tracking-wider text-orange-400">{item.source}</span>
                           {item.pubDate && (
                             <span className="text-[10px] text-slate-500">
-                              {new Date(item.pubDate).toLocaleString("pt-PT", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                              {new Date(item.pubDate).toLocaleString(uiLocale(), { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                             </span>
                           )}
                         </div>
@@ -2016,30 +2073,35 @@ export default function MercadoPage() {
                       </div>
                     </a>
                   ))}
-                  {newsItems.length > 0 && (
+                  {newsItemsError && !newsItemsLoading && (
+                    <p className="rounded-xl border border-amber-500/30 bg-amber-500/[0.06] px-3 py-2 text-xs text-amber-200">⚠️ {t("mc_news_fail")}</p>
+                  )}
+                  {!newsItemsLoading && (
                     <div className="flex gap-2">
                       <button
                         type="button"
                         className="flex-1 rounded-xl border border-slate-700 py-2 text-xs text-slate-400 hover:border-slate-500 hover:text-slate-200 transition"
                         onClick={async () => {
                           setNewsItemsLoading(true);
+                          setNewsItemsError(false);
                           try {
                             const r = await fetch(`/api/news?lang=${lang}`);
+                            if (!r.ok) throw new Error("news");
                             const d = await r.json() as { items?: NewsItem[] };
                             setNewsItems(d.items ?? []);
-                            setNewsBriefing(null);
-                          } catch { /* ignore */ } finally {
+                            setNewsBriefing(null); setNewsBriefingError(null); setNewsBriefingDate(null);
+                          } catch { setNewsItemsError(true); } finally {
                             setNewsItemsLoading(false);
                           }
                         }}
                       >
-                        ↻ Atualizar notícias
+                        ↻ {t("mc_refresh_news")}
                       </button>
                       {userPlan === "free" ? (
-                        <a href="/pricing" className="flex-1 rounded-xl border border-orange-500/30 py-2 text-xs font-bold text-orange-400/70 text-center hover:bg-orange-500/10 transition">
-                          🔒 Análise IA — Pro
+                        <a href={paymentsFrozen ? "/beta" : "/pricing"} className="flex-1 rounded-xl border border-orange-500/30 py-2 text-xs font-bold text-orange-400/70 text-center hover:bg-orange-500/10 transition">
+                          {paymentsFrozen ? `🧪 ${t("dash_beta_cta_short")} →` : `🔒 ${t("mc_ai_analysis")} — Pro`}
                         </a>
-                      ) : (
+                      ) : userPlan === "unknown" ? null : (
                       <button
                         type="button"
                         disabled={newsBriefingLoading}
@@ -2113,10 +2175,10 @@ export default function MercadoPage() {
 
               {newsMode !== "diarias" && (<>
               {userPlan === "free" ? (
-                <a href="/pricing" className="inline-block rounded-xl border border-orange-500/30 px-6 py-2.5 text-sm font-bold text-orange-400/70 hover:bg-orange-500/10 transition">
-                  🔒 Gerar Briefing Diário — Pro
+                <a href={paymentsFrozen ? "/beta" : "/pricing"} className="inline-block rounded-xl border border-orange-500/30 px-6 py-2.5 text-sm font-bold text-orange-400/70 hover:bg-orange-500/10 transition">
+                  {paymentsFrozen ? `🧪 ${t("dash_beta_cta_short")} →` : `🔒 ${t("mc_gen_briefing")} — Pro`}
                 </a>
-              ) : (
+              ) : userPlan === "unknown" ? null : (
               <button
                 type="button"
                 disabled={newsLoading}

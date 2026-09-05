@@ -101,11 +101,15 @@ export async function GET(req: NextRequest) {
   const cTaker = lastTaker && lastTaker.buy + lastTaker.sell > 0 ? (lastTaker.buy / (lastTaker.buy + lastTaker.sell)) * 100 : 50;
   const cRsi = rsiVal ?? 50;
   const cCvd = cvd.length > 1 ? (cvd[cvd.length - 1].v >= cvd[0].v ? 65 : 35) : 50;
-  const cFunding = clamp(50 + lastFunding * 4000, 25, 75); // funding + = longs a pagar (levemente bullish)
-  const cPutCall = clamp(50 + (1 - lastPc) * 40, 0, 100);   // <1 = mais calls = bullish
+  // funding já vem em % (×100): 0,01% típico → 50+5=55; 0,1% (extremo) → 100. Antes (×4000) saturava sempre.
+  const cFunding = clamp(50 + lastFunding * 500, 0, 100);   // funding + = longs a pagar (levemente bullish)
+  const hasPutCall = putCall.length > 0;
+  // put/call é um rácio assimétrico (0..∞) → escala logarítmica centrada em 1
+  const cPutCall = hasPutCall ? clamp(50 - Math.log(Math.max(lastPc, 0.01)) * 30, 0, 100) : 50; // <1 = mais calls = bullish
 
-  const parts = [cLs, cTaker, cRsi, cCvd, cFunding, cPutCall];
+  const components = { longShort: cLs, taker: cTaker, rsi: cRsi, cvd: cCvd, funding: cFunding, putCall: cPutCall };
+  const parts = [cLs, cTaker, cRsi, cCvd, cFunding, ...(hasPutCall ? [cPutCall] : [])];
   const score = Math.round(parts.reduce((a, b) => a + b, 0) / parts.length);
 
-  return NextResponse.json({ symbol: base, oi, longShort, funding, cvd, taker, candles, putCall, score, rsi: rsiVal });
+  return NextResponse.json({ symbol: base, oi, longShort, funding, cvd, taker, candles, putCall, score, rsi: rsiVal, components, missing: hasPutCall ? [] : ["putCall"] });
 }
