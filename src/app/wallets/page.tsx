@@ -102,7 +102,7 @@ type SnapshotRow = {
 
 const isEvmAddress = (address?: string) => /^0x[a-fA-F0-9]{40}$/.test(address ?? "");
 const isSolAddress = (address?: string) =>
-  typeof address === "string" && address.length >= 32 && address.length <= 44;
+  typeof address === "string" && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
 const isBtcAddress = (address?: string) =>
   typeof address === "string" && /^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,}$/.test(address);
 
@@ -1129,15 +1129,19 @@ export default function WalletsPage() {
     setConfirmOpen(true);
   };
 
+  const [confirmBusy, setConfirmBusy] = useState(false);
   const handleConfirm = async () => {
     const current = confirmRef.current;
-    if (!current) return;
+    if (!current || confirmBusy) return;
+    setConfirmBusy(true);
     try {
       await current.onConfirm();
       setConfirmOpen(false);
       confirmRef.current = null;
     } catch (error) {
       setConfirmError(error instanceof Error ? error.message : "Erro ao confirmar.");
+    } finally {
+      setConfirmBusy(false);
     }
   };
 
@@ -1146,7 +1150,8 @@ export default function WalletsPage() {
     refreshCryptoPrices();
     const id = window.setInterval(refreshCryptoPrices, 60000);
     return () => window.clearInterval(id);
-  }, [walletMode, cryptoHoldings]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walletMode]);
 
   const refreshWeb3Prices = async () => {
     setWeb3PricesLoading(true);
@@ -1698,6 +1703,8 @@ export default function WalletsPage() {
   };
 
   const FREE_WALLET_LIMIT = 3;
+  // Durante o beta (pagamentos congelados) os CTAs de upgrade viram convite ao beta.
+  const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
   const totalWallets = ethWallets.length + solWallets.length + btcWallets.length + adaWallets.length;
 
   const handleAddEthWalletInternal = async () => {
@@ -1965,11 +1972,13 @@ export default function WalletsPage() {
   };
 
   const handleBtcDisconnect = () => {
-    setBtcWallets([]);
+    // Desligar a extensão NÃO pode apagar endereços colados à mão (manual/cold)
+    const kept = btcWallets.filter((w) => w.source === "manual" || w.source === "cold");
+    setBtcWallets(kept);
     setBtcAddress(undefined);
     setBtcBalance(null);
     setBtcError(null);
-    updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: [], ada: adaWallets });
+    updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: kept, ada: adaWallets });
   };
 
   const handleAddBtcWalletInternal = async () => {
@@ -2089,7 +2098,12 @@ export default function WalletsPage() {
   };
 
   const handleAdaConnect = () => {
-    void handleAdaConnectInternal();
+    const host = typeof window !== "undefined" ? window.location.hostname : "";
+    requestConfirm({
+      title: "Ligar carteira Cardano",
+      description: `Vai ligar a carteira ao domínio ${host || "atual"} em modo leitura.`,
+      onConfirm: handleAdaConnectInternal,
+    });
   };
 
   const handleAdaPeerConnect = async () => {
@@ -2198,12 +2212,14 @@ export default function WalletsPage() {
   };
 
   const handleAdaDisconnect = () => {
-    setAdaWallets([]);
+    // Desligar a extensão NÃO pode apagar endereços colados à mão (manual/cold)
+    const kept = adaWallets.filter((w) => w.source === "manual" || w.source === "cold");
+    setAdaWallets(kept);
     setAdaAddress(undefined);
     setAdaBalance(undefined);
     setAdaError(null);
     setAdaApi(null);
-    updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: [] });
+    updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: kept });
   };
 
   /** Adiciona um endereço a tracking (saldo + NFTs + DeFi automáticos via useEffect).
@@ -2222,6 +2238,9 @@ export default function WalletsPage() {
   };
 
   const addManualAddress = (addressArg: string, networkId: string, labelArg?: string, source: "cold" | "manual" = "manual"): string | null => {
+    if (!isPro && totalWallets >= FREE_WALLET_LIMIT) {
+      return `Plano Gratuito limitado a ${FREE_WALLET_LIMIT} carteiras. Faz upgrade para Pro.`;
+    }
     const trimmed = addressArg.trim();
     const label = labelArg && labelArg.trim() ? sanitizeLabel(labelArg) : undefined;
     if (!trimmed) return "Insere um endereço.";
@@ -2445,6 +2464,10 @@ export default function WalletsPage() {
       setStablecoinAddError("Endereço EVM inválido (0x...).");
       return;
     }
+    if (stablecoinEntries.some((e) => e.symbol === stablecoinAddSymbol && e.address.toLowerCase() === addr.toLowerCase())) {
+      setStablecoinAddError("Este endereço já está adicionado para essa stablecoin.");
+      return;
+    }
     const id = `stable-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     setStablecoinEntries((prev) => [
       ...prev,
@@ -2461,7 +2484,9 @@ export default function WalletsPage() {
       setStablecoinBalancesLoading((prev) => ({ ...prev, [entryId]: true }));
       try {
         const res = await fetch(`/api/erc20-balance?address=${encodeURIComponent(address)}&token=${encodeURIComponent(symbol)}`);
+        if (!res.ok) throw new Error("balance_fetch_failed");
         const data = (await res.json()) as { balance?: string; error?: string };
+        if (data.error) throw new Error(data.error);
         const balance = data.balance ?? "0";
         startTransition(() => {
           setStablecoinBalances((prev) => ({ ...prev, [entryId]: balance }));
@@ -2761,7 +2786,7 @@ export default function WalletsPage() {
                 Carteiras: <span className={totalWallets >= FREE_WALLET_LIMIT ? "text-rose-400 font-semibold" : "text-slate-300 font-semibold"}>{totalWallets}/{FREE_WALLET_LIMIT}</span>
                 {" "}(Plano Gratuito){" "}
                 {totalWallets >= FREE_WALLET_LIMIT && (
-                  <a href="/pricing" className="text-orange-400 underline hover:text-orange-300">Upgrade para Pro →</a>
+                  <a href={paymentsFrozen ? "/beta" : "/pricing"} className="text-orange-400 underline hover:text-orange-300">{paymentsFrozen ? `🧪 ${t("dash_beta_cta_short")} →` : "Upgrade para Pro →"}</a>
                 )}
               </p>
             </div>
@@ -2819,10 +2844,11 @@ export default function WalletsPage() {
                 </button>
                 <button
                   type="button"
-                  className={`${btnPrimary} px-4 py-2 text-xs`}
+                  className={`${btnPrimary} px-4 py-2 text-xs disabled:opacity-60`}
                   onClick={handleConfirm}
+                  disabled={confirmBusy}
                 >
-                  Confirmar
+                  {confirmBusy ? "…" : "Confirmar"}
                 </button>
               </div>
             </div>
@@ -3160,11 +3186,11 @@ export default function WalletsPage() {
                           )}
                           {isConnected ? (
                             <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
-                              Conectada
+                              {t("wl_connected")}
                             </span>
                           ) : (
                             <span className="ml-2 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
-                              Por endereço
+                              {t("wl_by_address")}
                             </span>
                           )}
                         </p>
@@ -3903,11 +3929,11 @@ export default function WalletsPage() {
                           />
                           {isConnected ? (
                             <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
-                              Conectada
+                              {t("wl_connected")}
                             </span>
                           ) : (
                             <span className="ml-2 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
-                              Por endereço
+                              {t("wl_by_address")}
                             </span>
                           )}
                         </p>
@@ -4322,11 +4348,11 @@ export default function WalletsPage() {
                           />
                           {isConnected ? (
                             <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
-                              Conectada
+                              {t("wl_connected")}
                             </span>
                           ) : (
                             <span className="ml-2 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
-                              Por endereço
+                              {t("wl_by_address")}
                             </span>
                           )}
                         </p>
@@ -5549,8 +5575,8 @@ export default function WalletsPage() {
                 <p className="text-base font-bold text-white mb-1">{t("wl_cex_hw_pro")}</p>
                 <p className="text-sm text-slate-400">{t("wl_cex_hw_desc")}</p>
               </div>
-              <a href="/pricing" className={`${btnPrimary} shrink-0 px-5 py-2.5 text-sm`}>
-                Upgrade para Pro →
+              <a href={paymentsFrozen ? "/beta" : "/pricing"} className={`${btnPrimary} shrink-0 px-5 py-2.5 text-sm`}>
+                {paymentsFrozen ? `🧪 ${t("dash_beta_cta_short")} →` : "Upgrade para Pro →"}
               </a>
             </div>
           </div>
