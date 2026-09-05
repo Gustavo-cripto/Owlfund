@@ -34,7 +34,16 @@ type SnapshotData = {
 // é agora a partilhada de @/lib/api/whales (scanWatchlist) — inclui SOL e a
 // validação/valorização em USD, sem cópias divergentes aqui.
 
-function buildWatchlistContext(watchlist: WatchEntry[], movements: Movement[]): string {
+const LOCALE_BY_LANG: Record<string, string> = { pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" };
+const API_ERR: Record<string, { auth: string; premium: string; internal: string; empty: string }> = {
+  pt: { auth: "Não autenticado.", premium: "Requer Plano Premium.", internal: "Erro interno.", empty: "Sem mensagens." },
+  en: { auth: "Not authenticated.", premium: "Premium plan required.", internal: "Internal error.", empty: "No messages." },
+  es: { auth: "No autenticado.", premium: "Requiere Plan Premium.", internal: "Error interno.", empty: "Sin mensajes." },
+  fr: { auth: "Non authentifié.", premium: "Plan Premium requis.", internal: "Erreur interne.", empty: "Aucun message." },
+};
+const apiErr = (lang: string, k: keyof (typeof API_ERR)["pt"]) => (API_ERR[lang] ?? API_ERR.pt)[k];
+
+function buildWatchlistContext(watchlist: WatchEntry[], movements: Movement[], locale = "pt-PT"): string {
   if (!watchlist.length) return "";
   const lines = ["\n=== SMART MONEY WATCHLIST ==="];
   lines.push(`Endereços monitorizados: ${watchlist.length}`);
@@ -42,7 +51,7 @@ function buildWatchlistContext(watchlist: WatchEntry[], movements: Movement[]): 
   if (movements.length) {
     lines.push("\nMovimentos recentes detetados:");
     movements.forEach(m => {
-      const time = new Date(m.timestamp).toLocaleString("pt-PT");
+      const time = new Date(m.timestamp).toLocaleString(locale);
       lines.push(`  [${time}] ${m.label} (${m.chain.toUpperCase()}): ${m.description} — ${m.type}`);
     });
   } else {
@@ -64,7 +73,7 @@ A conta/portefólio ATIVA ("${acct}") não tem carteiras nem ativos registados.
 INSTRUÇÃO: Informa o utilizador de forma simpática e breve que a conta ATIVA (${acct}) ainda não tem carteiras. ${suggestion} Depois poderás analisar o portefólio real. Entretanto, responde a perguntas gerais sobre cripto, fiscalidade portuguesa e estratégias financeiras com base no que o utilizador te fornecer na conversa. NÃO digas genericamente que "não tens acesso ao portefólio" — refere sempre a conta ativa pelo nome.`;
 }
 
-function buildPortfolioContext(snapshot: SnapshotData | null, subscription: { price_id: string | null; current_period_end: string | null } | null, prices: Record<string, number>, accountName: string, accountCount: number): string {
+function buildPortfolioContext(snapshot: SnapshotData | null, subscription: { price_id: string | null; current_period_end: string | null } | null, prices: Record<string, number>, accountName: string, accountCount: number, locale = "pt-PT"): string {
   const hasData = snapshot && (
     (snapshot.btc?.length ?? 0) + (snapshot.eth?.length ?? 0) +
     (snapshot.sol?.length ?? 0) + (snapshot.ada?.length ?? 0) +
@@ -102,24 +111,23 @@ function buildPortfolioContext(snapshot: SnapshotData | null, subscription: { pr
   }
 
   if (subscription?.current_period_end) {
-    const d = new Date(subscription.current_period_end).toLocaleDateString("pt-PT");
+    const d = new Date(subscription.current_period_end).toLocaleDateString(locale);
     lines.push(`Plano Premium ativo até: ${d}`);
   }
 
   return lines.join("\n");
 }
 
-function getGestorSystem(): string {
+function getGestorSystem(locale = "pt-PT"): string {
   const now = new Date();
   const year = now.getFullYear();
-  const month = now.toLocaleString("pt-PT", { month: "long" });
+  const month = now.toLocaleString(locale, { month: "long" });
   const cryptoTaxCutoff = year - 1; // ativos adquiridos antes do ano anterior ficam isentos em PT
   return `És o Block, o Gestor Dedicado IA (premium) do ChainFolioAI — um assistente financeiro especializado em cripto e gestão de portfolio. Se te perguntarem o teu nome, chamas-te Block.
 
 DATA ATUAL: ${month} de ${year}. Usa sempre o ano corrente nas respostas fiscais e de planeamento.
 
-PERSONALIDADE: Profissional mas acessível. Conciso e direto. Respostas curtas e úteis — sem introduções longas.
-IDIOMA (regra crítica): Responde SEMPRE no mesmo idioma em que o utilizador escreveu a última mensagem (inglês→inglês, espanhol→espanhol, francês→francês, português→PT-PT). Deteta o idioma da mensagem; não assumas português por defeito.
+PERSONALIDADE: Profissional mas acessível. Conciso e direto. Respostas curtas e úteis — sem introduções longas. Em português trata sempre o utilizador por "tu" (nunca "você"); em francês usa "tu"; em espanhol usa "tú".
 
 CAPACIDADES:
 - Análise de risco e alocação do portfolio com dados reais das carteiras
@@ -169,17 +177,18 @@ export async function POST(req: NextRequest) {
         } catch { /* fica null */ }
       }
     }
-    if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+    lang = (req.headers.get("x-lang") ?? "").slice(0, 2) || "pt";
+    if (!user) return NextResponse.json({ error: apiErr(lang, "auth") }, { status: 401 });
 
     // Verify Premium
     const { data: sub } = await db
       .from("subscriptions").select("status, price_id, current_period_end")
       .eq("user_id", user.id).eq("status", "active").maybeSingle();
     const isPremium = !!premiumPriceId && sub?.price_id === premiumPriceId;
-    if (!isPremium) return NextResponse.json({ error: "Requer Plano Premium." }, { status: 403 });
-
-    const body = await req.json() as { messages: Message[]; watchlist?: WatchEntry[]; lang?: string; portfolio?: string; nickname?: string; accountName?: string; accountCount?: number; accountEmpty?: boolean };
-    lang = body.lang ?? "pt";
+    const body = await req.json() as { messages: Message[]; watchlist?: WatchEntry[]; lang?: string; portfolio?: string; nickname?: string; accountName?: string; accountCount?: number; accountEmpty?: boolean; portfolioError?: boolean };
+    lang = typeof body.lang === "string" && body.lang in API_ERR ? body.lang : lang;
+    const locale = LOCALE_BY_LANG[lang] ?? "pt-PT";
+    if (!isPremium) return NextResponse.json({ error: apiErr(lang, "premium") }, { status: 403 });
     const clientPortfolio = typeof body.portfolio === "string" ? body.portfolio.slice(0, 3000) : "";
     const nickname = typeof body.nickname === "string" ? body.nickname.trim().slice(0, 40) : "";
     const accountName = typeof body.accountName === "string" ? body.accountName.trim().slice(0, 60) : "";
@@ -188,6 +197,8 @@ export async function POST(req: NextRequest) {
     // caímos no snapshot global da Supabase (que é por-utilizador, não por-conta,
     // e poderia mostrar dados de OUTRA conta).
     const accountEmpty = body.accountEmpty === true;
+    // Falha de LEITURA no cliente (≠ conta vazia): também não cair no snapshot global.
+    const portfolioError = body.portfolioError === true;
     const LANG_NAME: Record<string, string> = { pt: "português europeu (PT-PT)", en: "English", es: "español", fr: "français" };
     const langDirective = `\n\nIDIOMA (REGRA ABSOLUTA, ignora o idioma do contexto/portfolio acima): Responde SEMPRE e EXCLUSIVAMENTE em ${LANG_NAME[lang] ?? "português europeu (PT-PT)"}. Toda a tua resposta — títulos, listas e texto — tem de estar nesse idioma, independentemente do idioma em que o contexto do portfolio ou a watchlist estejam escritos.`;
     const messages = (body.messages ?? []).slice(-14).map(m => ({
@@ -196,22 +207,28 @@ export async function POST(req: NextRequest) {
     }));
     const watchlist: WatchEntry[] = (body.watchlist ?? []).slice(0, 10);
 
-    if (!messages.length) return NextResponse.json({ error: "Sem mensagens." }, { status: 400 });
+    if (!messages.length) return NextResponse.json({ error: apiErr(lang, "empty") }, { status: 400 });
 
-    // Fetch portfolio snapshot + prices + watchlist movements in parallel
+    // Snapshot + preços só são precisos quando o cliente não enviou resumo nem
+    // sinalizou conta vazia/erro (poupa 2 pedidos por mensagem no caso normal).
+    const needSnapshot = !clientPortfolio && !accountEmpty && !portfolioError;
     const supabaseAdmin = getSupabaseAdmin();
     const [snapshotResult, priceResult, movements] = await Promise.allSettled([
-      supabaseAdmin.from("portfolio_snapshots").select("data").eq("user_id", user.id)
-        .order("created_at", { ascending: false }).limit(1).maybeSingle(),
-      fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,cardano&vs_currencies=eur",
-        { signal: AbortSignal.timeout(5000) }),
+      needSnapshot
+        ? supabaseAdmin.from("portfolio_snapshots").select("data").eq("user_id", user.id)
+            .order("created_at", { ascending: false }).limit(1).maybeSingle()
+        : Promise.resolve({ data: null }),
+      needSnapshot
+        ? fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,cardano&vs_currencies=eur",
+            { signal: AbortSignal.timeout(5000) })
+        : Promise.resolve(null),
       scanWatchlist(watchlist),
     ]);
 
     const snapshotRow = snapshotResult.status === "fulfilled" ? snapshotResult.value.data : null;
 
     let prices: Record<string, number> = {};
-    if (priceResult.status === "fulfilled" && priceResult.value.ok) {
+    if (priceResult.status === "fulfilled" && priceResult.value?.ok) {
       const raw = await priceResult.value.json() as Record<string, { eur: number }>;
       prices = Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, v.eur ?? 0]));
     }
@@ -227,15 +244,17 @@ export async function POST(req: NextRequest) {
       ? `=== DADOS DO PORTFOLIO DO UTILIZADOR (tempo real, inclui ativos adicionados manualmente) ===\n${clientPortfolio}`
       : accountEmpty
         ? buildEmptyAccountContext(accountName, accountCount)
-        : buildPortfolioContext(snapshotRow?.data as SnapshotData ?? null, sub, prices, accountName, accountCount);
-    const watchlistCtx = buildWatchlistContext(watchlist, movementsList);
+        : portfolioError
+          ? `=== ESTADO DO PORTFOLIO ===\nNão foi possível ler o portefólio da conta ativa neste momento (erro temporário de leitura). Diz isso ao utilizador com naturalidade, sugere tentar de novo daqui a pouco, e responde na mesma ao que ele perguntar com base no que te disser.`
+          : buildPortfolioContext(snapshotRow?.data as SnapshotData ?? null, sub, prices, accountName, accountCount, locale);
+    const watchlistCtx = buildWatchlistContext(watchlist, movementsList, locale);
     const nameDirective = nickname
       ? `\n\nNOME DO UTILIZADOR: chama-se ${nickname}. Trata-o por esse nome de forma natural e amigável. Não inventes outro nome.`
       : "";
     const accountDirective = accountName
       ? `\n\nCONTA/PORTFÓLIO ATIVO: "${accountName}". Os dados de portfolio acima referem-se a esta conta. Se for "Todas as contas", é a soma de todos os portefólios do utilizador. Menciona a conta ativa quando ajudar a dar contexto.`
       : "";
-    const systemPrompt = `${getGestorSystem()}\n\n${portfolioCtx}${watchlistCtx}${nameDirective}${accountDirective}${langDirective}`;
+    const systemPrompt = `${getGestorSystem(locale)}\n\n${portfolioCtx}${watchlistCtx}${nameDirective}${accountDirective}${langDirective}`;
 
     const reply = await callLLM([
       { role: "system", content: systemPrompt },
@@ -253,6 +272,6 @@ export async function POST(req: NextRequest) {
         { status: status === 429 ? 429 : 502 },
       );
     }
-    return NextResponse.json({ error: "Erro interno." }, { status: 500 });
+    return NextResponse.json({ error: apiErr(lang, "internal") }, { status: 500 });
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { createClient } from "@/lib/supabase/client";
@@ -35,16 +35,17 @@ type Message = {
   timestamp: Date;
 };
 
-type PlanStatus = "loading" | "premium" | "not-premium";
+type PlanStatus = "loading" | "premium" | "not-premium" | "unknown";
+const LOCALE_BY_LANG: Record<string, string> = { pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" };
 
 // Persistência da conversa POR CONTA (cada portefólio tem a sua thread com o
 // Gestor). accKey prefixa por conta ativa → cf.acct.<id>.<base>.
 const GESTOR_MESSAGES_BASE = "gestor.chat.messages.v1";
 const gestorKeyFor = (accountId: string) => accKey(GESTOR_MESSAGES_BASE, accountId);
 
-function activeAccountName(accountId: string): string {
-  if (accountId === ALL_ACCOUNTS_ID) return "Todas as contas";
-  return listAccounts().find((a) => a.id === accountId)?.name ?? "Conta";
+function activeAccountName(accountId: string, t: (k: TranslationKey) => string): string {
+  if (accountId === ALL_ACCOUNTS_ID) return t("gz_all_accounts");
+  return listAccounts().find((a) => a.id === accountId)?.name ?? t("gz_account");
 }
 
 // (de)serialização — Date vira string no JSON; reconstruir ao ler.
@@ -64,9 +65,9 @@ function readMessages(accountId: string): Message[] {
   } catch { return []; }
 }
 
-function getQuickActions(t: (k: TranslationKey) => string) {
+function getQuickActions(t: (k: TranslationKey) => string, locale: string) {
   const year = new Date().getFullYear();
-  const month = new Date().toLocaleString(undefined, { month: "long" });
+  const month = new Date().toLocaleString(locale, { month: "long" });
   return [
     { icon: "📊", label: t("gz_qa_portfolio_l"), prompt: t("gz_qa_portfolio_p") },
     { icon: "🧾", label: `${t("gz_qa_tax_l")} ${year}`, prompt: `${t("gz_qa_tax_p")} ${year}?` },
@@ -95,7 +96,13 @@ function formatMarkdown(text: string): string {
 export default function GestorPage() {
   useRequireAuth();
   const { t, lang } = useLanguage();
-  const { hideBalances } = useCurrencyFormat();
+  const { hideBalances, format: fmtCur } = useCurrencyFormat();
+  const locale = LOCALE_BY_LANG[lang] ?? "pt-PT";
+  // Durante o beta (pagamentos congelados) o CTA de upgrade vira convite ao beta.
+  const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
+  const [sendError, setSendError] = useState<{ text: string; lastUser: string } | null>(null);
+  const quickActions = useMemo(() => getQuickActions(t, locale), [t, locale]);
+  const lastCountRef = useRef(0);
 
   const [planStatus, setPlanStatus] = useState<PlanStatus>("loading");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -119,10 +126,10 @@ export default function GestorPage() {
           const json = await res.json() as { plan: string };
           setPlanStatus(json.plan === "premium" ? "premium" : "not-premium");
         } else {
-          setPlanStatus("not-premium");
+          setPlanStatus("unknown"); // não bloquear por falha do servidor — o /api/gestor valida na mesma
         }
       } catch {
-        setPlanStatus("not-premium");
+        setPlanStatus("unknown");
       }
     };
     check();
@@ -172,17 +179,17 @@ export default function GestorPage() {
     const body = t("gz_welcome").replace(/^[^!]*!\s*/, "");
     let worth = "";
     if (portfolio && portfolio.totalEur > 0 && !hideBalances) {
-      const v = `€ ${portfolio.totalEur.toLocaleString(lang === "en" ? "en-US" : "pt-PT", { maximumFractionDigits: 0 })}`;
+      const v = fmtCur(portfolio.totalEur);
       worth = `\n\n${t("gz_pf_worth").replace("{v}", v)}`;
     }
     return { id: "welcome", role: "assistant", content: `${greeting} ${body}${worth}`, timestamp: new Date() };
-  }, [t, portfolio, hideBalances, lang]);
+  }, [t, portfolio, hideBalances, fmtCur]);
 
   // Carrega a conversa persistida da conta ativa; se vazia, mostra as boas-vindas.
   useEffect(() => {
-    if (planStatus !== "premium" || !acctId) return;
+    if ((planStatus !== "premium" && planStatus !== "unknown") || !acctId) return;
     hydratedRef.current = false;
-    setAcctName(activeAccountName(acctId));
+    setAcctName(activeAccountName(acctId, t));
     try { setAcctCount(listAccounts().length); } catch { /* ignore */ }
     const persisted = readMessages(acctId);
     setMessages(persisted.length > 0 ? persisted : [buildWelcome()]);
@@ -208,17 +215,22 @@ export default function GestorPage() {
     } catch { /* ignore */ }
   }, [messages, acctId]);
 
+  // Scroll só quando chega uma mensagem nova (não na hidratação do histórico).
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const grew = messages.length > lastCountRef.current;
+    lastCountRef.current = messages.length;
+    if (grew || loading) messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [messages, loading]);
 
   const sendMessage = useCallback(async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || loading) return;
 
-    const userMsg: Message = { id: Date.now().toString(), role: "user", content: trimmed, timestamp: new Date() };
+    const reqAcct = acctId; // ignorar a resposta se o utilizador trocar de conta entretanto
+    const userMsg: Message = { id: crypto.randomUUID(), role: "user", content: trimmed, timestamp: new Date() };
     setMessages(prev => [...prev, userMsg]);
     setInput("");
+    setSendError(null);
     setLoading(true);
     if (textareaRef.current) { textareaRef.current.style.height = ""; }
 
@@ -227,6 +239,7 @@ export default function GestorPage() {
       const watchlist = loadWatchlist();
       let portfolioText: string | null = null;
       let accountEmpty = false;
+      let portfolioError = false;
       try {
         const summary = await buildPortfolioSummary();
         portfolioText = summary.text;
@@ -236,36 +249,35 @@ export default function GestorPage() {
       } catch {
         portfolioText = null;
         accountEmpty = false;
+        portfolioError = true; // falha de leitura ≠ conta vazia — o servidor não deve usar o snapshot global
       }
       const res = await fetch("/api/gestor", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history, watchlist, lang, portfolio: portfolioText ?? undefined, nickname: loadNickname() || undefined, accountName: acctName || undefined, accountCount: acctCount, accountEmpty }),
+        headers: { "Content-Type": "application/json", "x-lang": lang },
+        body: JSON.stringify({ messages: history, watchlist, lang, portfolio: portfolioText ?? undefined, nickname: loadNickname() || undefined, accountName: acctName || undefined, accountCount: acctCount, accountEmpty, portfolioError }),
       });
 
       if (!res.ok) {
         const err = await res.json() as { error?: string };
-        throw new Error(err.error ?? "Erro desconhecido.");
+        throw new Error(err.error ?? t("error"));
       }
 
       const data = await res.json() as { reply: string };
+      if (getActiveAccountId() !== reqAcct) return; // trocou de conta a meio — não misturar threads
       setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
+        id: crypto.randomUUID(),
         role: "assistant",
         content: data.reply,
         timestamp: new Date(),
       }]);
     } catch (err) {
-      setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: `Erro ao processar pedido: ${err instanceof Error ? err.message : "Tenta novamente."}`,
-        timestamp: new Date(),
-      }]);
+      // Erro fora do histórico (não persistido, não vai para o PDF) com "tentar de novo"
+      setSendError({ text: err instanceof Error ? err.message : t("error"), lastUser: trimmed });
+      setMessages(prev => prev.filter(m => m.id !== userMsg.id));
     } finally {
       setLoading(false);
     }
-  }, [messages, loading, lang, acctName, acctCount]);
+  }, [messages, loading, lang, acctName, acctCount, acctId, t]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); }
@@ -278,8 +290,10 @@ export default function GestorPage() {
 
   // Reinicia a conversa da conta ativa (apaga o histórico persistido + boas-vindas).
   const resetConversation = () => {
+    if (!window.confirm(t("gz_reset_confirm"))) return;
     try { if (acctId) localStorage.removeItem(gestorKeyFor(acctId)); } catch { /* ignore */ }
     setMessages([buildWelcome()]);
+    setSendError(null);
   };
 
   // Exporta a conversa atual do Gestor em PDF (texto simples, com quebras).
@@ -294,18 +308,18 @@ export default function GestorPage() {
     let y = margin;
 
     doc.setFontSize(15); doc.setFont("helvetica", "bold");
-    doc.text("ChainFolioAI — Gestor Dedicado IA", margin, y); y += 7;
+    doc.text(`ChainFolioAI — ${t("df_gestor_l")}`, margin, y); y += 7;
     doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(120);
-    const meta = [acctName || "", new Date().toLocaleString(({ pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" } as Record<string, string>)[lang] ?? "pt-PT", { dateStyle: "long", timeStyle: "short" })].filter(Boolean).join("  ·  ");
+    const meta = [acctName || "", new Date().toLocaleString(locale, { dateStyle: "long", timeStyle: "short" })].filter(Boolean).join("  ·  ");
     doc.text(meta, margin, y); y += 8;
     doc.setTextColor(30);
 
     const stripMd = (s: string) => s.replace(/\*\*(.+?)\*\*/g, "$1").replace(/\*(.+?)\*/g, "$1").replace(/^#+\s*/gm, "").replace(/^- /gm, "• ");
     for (const m of convo) {
-      const who = m.role === "user" ? "Utilizador" : "Gestor IA";
+      const who = m.role === "user" ? t("gz_you") : t("gz_assistant_name");
       doc.setFont("helvetica", "bold"); doc.setFontSize(10);
       if (y > pageH - margin) { doc.addPage(); y = margin; }
-      doc.text(`${who} · ${m.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`, margin, y); y += 5;
+      doc.text(`${who} · ${m.timestamp.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}`, margin, y); y += 5;
       doc.setFont("helvetica", "normal"); doc.setFontSize(10);
       const lines = doc.splitTextToSize(stripMd(m.content), pageW - margin * 2) as string[];
       for (const line of lines) {
@@ -316,7 +330,8 @@ export default function GestorPage() {
     }
     // Guardar/partilhar: no telemóvel usa a partilha nativa (Ficheiros/AirDrop
     // para o computador); no computador descarrega direto para Transferências.
-    const pdfName = `chainfolio-gestor-${new Date().toISOString().slice(0, 10)}.pdf`;
+    const slug = (acctName || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const pdfName = `chainfolio-gestor${slug ? `-${slug}` : ""}-${new Date().toISOString().slice(0, 10)}.pdf`;
     const pdfBlob = doc.output("blob");
     const nav = navigator as Navigator & {
       canShare?: (d: { files: File[] }) => boolean;
@@ -328,7 +343,7 @@ export default function GestorPage() {
     } else {
       doc.save(pdfName);
     }
-  }, [messages, acctName]);
+  }, [messages, acctName, locale, t]);
 
   // ── Not premium gate ─────────────────────────────────────────────────────────
   if (planStatus === "not-premium") {
@@ -348,8 +363,8 @@ export default function GestorPage() {
                 </div>
               ))}
             </div>
-            <a href="/pricing" className="block w-full rounded-xl bg-violet-500 px-4 py-3 text-sm font-bold text-white hover:bg-violet-400 transition text-center">
-              {t("gz_upgrade")}
+            <a href={paymentsFrozen ? "/beta" : "/pricing"} className="block w-full rounded-xl bg-violet-500 px-4 py-3 text-sm font-bold text-white hover:bg-violet-400 transition text-center">
+              {paymentsFrozen ? `🧪 ${t("dash_beta_cta_short")} →` : t("gz_upgrade")}
             </a>
           </div>
         </div>
@@ -360,24 +375,24 @@ export default function GestorPage() {
   if (planStatus === "loading") {
     return (
       <AppShell>
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-3">
           <div className="w-8 h-8 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
+          <p className="text-xs text-slate-500">{t("gz_checking_plan")}</p>
         </div>
       </AppShell>
     );
   }
 
   // ── Derivados para a UI Premium ──────────────────────────────────────────────
-  const locale = lang === "en" ? "en-US" : lang === "es" ? "es-ES" : lang === "fr" ? "fr-FR" : "pt-PT";
-  const fmtEur = (n: number) => `€ ${n.toLocaleString(locale, { maximumFractionDigits: 0 })}`;
+  const fmtEur = (n: number) => fmtCur(n);
   const catLabel = (key: string): string => {
     switch (key) {
-      case "onchain": return "On-chain";
+      case "onchain": return t("gz_cat_onchain");
       case "cex": return "CEX";
       case "defi": return "DeFi";
-      case "manual": return "Manual";
+      case "manual": return t("gz_cat_manual");
       case "stable": return "Stablecoins";
-      case "traditional": return lang === "en" ? "Traditional" : lang === "fr" ? "Traditionnel" : "Tradicional";
+      case "traditional": return t("gz_cat_traditional");
       default: return key;
     }
   };
@@ -391,7 +406,7 @@ export default function GestorPage() {
         {/* Header */}
         <div className="border-b border-slate-800 bg-slate-950 px-6 py-4 flex items-center gap-4">
           <div className="w-10 h-10 rounded-full overflow-hidden border border-violet-500/30 flex-shrink-0">
-            <img src="/chainfolioai-icon.png" alt="Block" className="w-full h-full object-cover" />
+            <img src="/chainfolioai-icon.png" alt={t("gz_assistant_name")} className="w-full h-full object-cover" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
@@ -427,6 +442,9 @@ export default function GestorPage() {
           </div>
           <span className="text-[10px] bg-violet-500/20 text-violet-300 border border-violet-500/30 rounded-full px-2 py-0.5 font-semibold">Premium</span>
         </div>
+        {planStatus === "unknown" && (
+          <p className="border-b border-amber-500/30 bg-amber-500/[0.06] px-6 py-2 text-xs text-amber-200">⚠️ {t("gz_plan_unknown")}</p>
+        )}
 
         <div className="flex flex-1 overflow-hidden" style={{ height: "calc(100vh - 128px)" }}>
           {/* Sidebar */}
@@ -452,11 +470,18 @@ export default function GestorPage() {
               </div>
             )}
 
+            {(!portfolio || portfolio.totalEur <= 0) && (
+              <div className="m-3 rounded-xl border border-orange-500/30 bg-orange-500/[0.06] p-3">
+                <p className="text-xs font-semibold text-white">{t("gz_no_portfolio_title")}</p>
+                <a href="/wallets" className="mt-2 inline-block rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-orange-400">🔗 {t("gz_no_portfolio_cta")}</a>
+              </div>
+            )}
+
             {/* Quick actions */}
             <div className="px-3 pt-2 pb-1">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-2">{t("gz_quick")}</p>
               <div className="space-y-1">
-                {getQuickActions(t).map(a => (
+                {quickActions.map(a => (
                   <button key={a.label} type="button"
                     onClick={() => sendMessage(a.prompt)}
                     className="w-full text-left rounded-lg px-3 py-2 text-xs text-slate-300 hover:bg-slate-800 hover:text-white transition flex items-center gap-2">
@@ -485,7 +510,7 @@ export default function GestorPage() {
           <div className="flex-1 flex flex-col overflow-hidden">
             {/* Mobile quick actions */}
             <div className="lg:hidden flex gap-2 overflow-x-auto px-4 py-2 border-b border-slate-800 no-scrollbar">
-              {getQuickActions(t).slice(0, 4).map(a => (
+              {quickActions.slice(0, 4).map(a => (
                 <button key={a.label} type="button"
                   onClick={() => sendMessage(a.prompt)}
                   className="flex-shrink-0 rounded-full border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:border-violet-500/50 hover:text-violet-300 transition whitespace-nowrap">
@@ -504,7 +529,7 @@ export default function GestorPage() {
                       : "bg-slate-800 border border-slate-700 text-xs text-slate-400"
                   }`}>
                     {msg.role === "assistant"
-                      ? <img src="/chainfolioai-icon.png" alt="Block" className="w-full h-full object-cover" />
+                      ? <img src="/chainfolioai-icon.png" alt={t("gz_assistant_name")} className="w-full h-full object-cover" />
                       : userAvatar
                         ? <img src={userAvatar} alt="" className="w-full h-full object-cover" />
                         : "👤"}
@@ -519,16 +544,22 @@ export default function GestorPage() {
                       : msg.content
                     }
                     <p className="text-[10px] mt-1.5 opacity-50">
-                      {msg.timestamp.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" })}
+                      {msg.timestamp.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
                     </p>
                   </div>
                 </div>
               ))}
 
+              {sendError && !loading && (
+                <div className="rounded-xl border border-rose-500/30 bg-rose-500/[0.06] px-4 py-3 text-xs text-rose-200">
+                  ⚠️ {t("gz_err_prefix")} {sendError.text}{" "}
+                  <button type="button" onClick={() => { const q = sendError.lastUser; setSendError(null); void sendMessage(q); }} className="ml-1 font-semibold underline">{t("gz_retry")}</button>
+                </div>
+              )}
               {/* Typing indicator */}
               {loading && (
                 <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden border border-violet-500/30"><img src="/chainfolioai-icon.png" alt="Block" className="w-full h-full object-cover" /></div>
+                  <div className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden border border-violet-500/30"><img src="/chainfolioai-icon.png" alt={t("gz_assistant_name")} className="w-full h-full object-cover" /></div>
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-sm px-4 py-3">
                     <div className="flex gap-1 items-center h-5">
                       {[0, 0.2, 0.4].map(d => (
@@ -552,7 +583,6 @@ export default function GestorPage() {
                   onKeyDown={handleKeyDown}
                   placeholder={t("gz_placeholder")}
                   rows={1}
-                  disabled={loading}
                   className="flex-1 resize-none rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-violet-500/60 focus:ring-1 focus:ring-violet-500/20 disabled:opacity-50 transition"
                   style={{ minHeight: "46px", maxHeight: "120px" }}
                 />
