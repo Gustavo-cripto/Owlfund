@@ -1140,7 +1140,7 @@ export default function WalletsPage() {
       setConfirmOpen(false);
       confirmRef.current = null;
     } catch (error) {
-      setConfirmError(error instanceof Error ? error.message : "Erro ao confirmar.");
+      setConfirmError(error instanceof Error ? error.message : t("wl_err_confirm"));
     } finally {
       setConfirmBusy(false);
     }
@@ -1605,7 +1605,7 @@ export default function WalletsPage() {
       setEthWallets(nextWallets);
       updateWalletSnapshot({ eth: nextWallets, sol: solWallets, btc: btcWallets, ada: adaWallets });
     } catch (error) {
-      setEthError(error instanceof Error ? error.message : "Erro ao ligar.");
+      setEthError(error instanceof Error ? error.message : t("wl_err_connect"));
     } finally {
       setEthLoading(false);
     }
@@ -1614,8 +1614,8 @@ export default function WalletsPage() {
   const handleEthConnect = () => {
     const host = typeof window !== "undefined" ? window.location.hostname : "";
     requestConfirm({
-      title: "Ligar carteira Ethereum",
-      description: `Vai ligar a carteira ao domínio ${host || "atual"} em modo leitura.`,
+      title: `${t("wl_connect_wallet")} Ethereum`,
+      description: `${t("wl_connect_desc")} ${host || "—"}.`,
       onConfirm: handleEthConnectInternal,
     });
   };
@@ -1637,7 +1637,7 @@ export default function WalletsPage() {
       setEthWallets(nextWallets);
       updateWalletSnapshot({ eth: nextWallets, sol: solWallets, btc: btcWallets, ada: adaWallets });
     } catch (error) {
-      setEthError(error instanceof Error ? error.message : "Erro ao ligar via WalletConnect.");
+      setEthError(error instanceof Error ? error.message : t("wl_err_connect"));
     } finally {
       setEthLoading(false);
     }
@@ -1651,7 +1651,7 @@ export default function WalletsPage() {
     }
     const host = typeof window !== "undefined" ? window.location.hostname : "";
     requestConfirm({
-      title: "Ligar via WalletConnect",
+      title: `${t("wl_connect_wallet")} WalletConnect`,
       description: `Vai abrir um QR code para ligares qualquer carteira mobile ao domínio ${host || "atual"}.`,
       onConfirm: handleWalletConnectInternal,
     });
@@ -1688,7 +1688,7 @@ export default function WalletsPage() {
         }
       });
     } catch (error) {
-      setEthError(error instanceof Error ? error.message : "Erro ao atualizar saldo.");
+      setEthError(error instanceof Error ? error.message : t("wl_err_balance"));
     } finally {
       setEthLoading(false);
     }
@@ -1710,15 +1710,15 @@ export default function WalletsPage() {
 
   const handleAddEthWalletInternal = async () => {
     if (!isPro && totalWallets >= FREE_WALLET_LIMIT) {
-      setEthNewError(`Plano Gratuito limitado a ${FREE_WALLET_LIMIT} carteiras. Faz upgrade para Pro.`);
+      setEthNewError(`${t("wl_free_limit_1")} ${FREE_WALLET_LIMIT} ${t("wl_free_limit_2")}`);
       return;
     }
     if (!ethNewAddress.trim()) {
-      setEthNewError("Insere um endereço.");
+      setEthNewError(t("wl_insert_addr"));
       return;
     }
     if (!isEvmAddress(ethNewAddress.trim())) {
-      setEthNewError("Endereço Ethereum inválido.");
+      setEthNewError(t("wl_invalid_eth"));
       return;
     }
     const trimmed = ethNewAddress.trim();
@@ -1726,7 +1726,7 @@ export default function WalletsPage() {
       const dupNet = addressAlreadyTracked(trimmed);
       const network0 = ethNewNetwork === "outro" ? (ethNewCustomLabel.trim() || "Outro") : ethNewNetwork;
       if (dupNet && dupNet !== network0) {
-        setEthNewError(`Este endereço já está adicionado (${dupNet}) — o saldo contaria em dobro.`);
+        setEthNewError(`${t("wl_dup_addr")} (${dupNet}) — ${t("wl_dup_double")}`);
         return;
       }
     }
@@ -1747,7 +1747,7 @@ export default function WalletsPage() {
       setEthNewCustomLabel("");
     } catch (error) {
       setEthNewError(
-        error instanceof Error ? error.message : "Endereço inválido ou rede indisponível."
+        error instanceof Error ? error.message : t("wl_invalid_or_net")
       );
     } finally {
       setEthNewLoading(false);
@@ -1788,7 +1788,7 @@ export default function WalletsPage() {
       }
       updateWalletSnapshot({ eth: ethWallets, sol: nextWallets, btc: btcWallets, ada: adaWallets });
     } catch (error) {
-      setSolError(error instanceof Error ? error.message : "Erro ao ligar.");
+      setSolError(error instanceof Error ? error.message : t("wl_err_connect"));
     } finally {
       setSolLoading(false);
     }
@@ -1797,8 +1797,8 @@ export default function WalletsPage() {
   const handleSolConnect = () => {
     const host = typeof window !== "undefined" ? window.location.hostname : "";
     requestConfirm({
-      title: "Ligar carteira Solana",
-      description: `Vai ligar a carteira ao domínio ${host || "atual"} em modo leitura.`,
+      title: `${t("wl_connect_wallet")} Solana`,
+      description: `${t("wl_connect_desc")} ${host || "—"}.`,
       onConfirm: handleSolConnectInternal,
     });
   };
@@ -1827,7 +1827,7 @@ export default function WalletsPage() {
         void fetchNftBalance(solMainAddress, "sol");
       }
     } catch (error) {
-      setSolError(error instanceof Error ? error.message : "Erro ao atualizar saldo.");
+      setSolError(error instanceof Error ? error.message : t("wl_err_balance"));
     } finally {
       setSolLoading(false);
     }
@@ -1843,15 +1843,15 @@ export default function WalletsPage() {
 
   const handleAddSolWalletInternal = async () => {
     if (!isPro && totalWallets >= FREE_WALLET_LIMIT) {
-      setSolNewError(`Plano Gratuito limitado a ${FREE_WALLET_LIMIT} carteiras. Faz upgrade para Pro.`);
+      setSolNewError(`${t("wl_free_limit_1")} ${FREE_WALLET_LIMIT} ${t("wl_free_limit_2")}`);
       return;
     }
     if (!solNewAddress.trim()) {
-      setSolNewError("Insere um endereço.");
+      setSolNewError(t("wl_insert_addr"));
       return;
     }
     if (!isSolAddress(solNewAddress.trim())) {
-      setSolNewError("Endereço Solana inválido.");
+      setSolNewError(t("wl_invalid_sol"));
       return;
     }
     const trimmed = solNewAddress.trim();
@@ -1859,7 +1859,7 @@ export default function WalletsPage() {
       const dupNet = addressAlreadyTracked(trimmed);
       const label0 = solNewWalletId === "outro" ? (solNewCustomLabel.trim() || "Solana") : (MANUAL_ADD_TO_SOL_NETWORK[solNewWalletId] ?? "Solana");
       if (dupNet && dupNet !== label0) {
-        setSolNewError(`Este endereço já está adicionado (${dupNet}) — o saldo contaria em dobro.`);
+        setSolNewError(`${t("wl_dup_addr")} (${dupNet}) — ${t("wl_dup_double")}`);
         return;
       }
     }
@@ -1881,7 +1881,7 @@ export default function WalletsPage() {
       setSolNewCustomLabel("");
       void fetchSolBalanceForAddress(trimmed);
     } catch (error) {
-      setSolNewError(error instanceof Error ? error.message : "Endereço inválido.");
+      setSolNewError(error instanceof Error ? error.message : t("wl_invalid_addr"));
     } finally {
       setSolNewLoading(false);
     }
@@ -1932,7 +1932,7 @@ export default function WalletsPage() {
       }
       updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: nextWallets, ada: adaWallets });
     } catch (error) {
-      setBtcError(error instanceof Error ? error.message : "Erro ao ligar.");
+      setBtcError(error instanceof Error ? error.message : t("wl_err_connect"));
     } finally {
       setBtcLoading(false);
     }
@@ -1941,8 +1941,8 @@ export default function WalletsPage() {
   const handleBtcConnect = () => {
     const host = typeof window !== "undefined" ? window.location.hostname : "";
     requestConfirm({
-      title: "Ligar carteira Bitcoin",
-      description: `Vai ligar a carteira ao domínio ${host || "atual"} em modo leitura.`,
+      title: `${t("wl_connect_wallet")} Bitcoin`,
+      description: `${t("wl_connect_desc")} ${host || "—"}.`,
       onConfirm: handleBtcConnectInternal,
     });
   };
@@ -1982,7 +1982,7 @@ export default function WalletsPage() {
         void fetchNftBalance(btcMainAddress, "btc");
       }
     } catch (error) {
-      setBtcError(error instanceof Error ? error.message : "Erro ao atualizar saldo.");
+      setBtcError(error instanceof Error ? error.message : t("wl_err_balance"));
     } finally {
       setBtcLoading(false);
     }
@@ -2000,15 +2000,15 @@ export default function WalletsPage() {
 
   const handleAddBtcWalletInternal = async () => {
     if (!isPro && totalWallets >= FREE_WALLET_LIMIT) {
-      setBtcNewError(`Plano Gratuito limitado a ${FREE_WALLET_LIMIT} carteiras. Faz upgrade para Pro.`);
+      setBtcNewError(`${t("wl_free_limit_1")} ${FREE_WALLET_LIMIT} ${t("wl_free_limit_2")}`);
       return;
     }
     if (!btcNewAddress.trim()) {
-      setBtcNewError("Insere um endereço.");
+      setBtcNewError(t("wl_insert_addr"));
       return;
     }
     if (!isBtcAddress(btcNewAddress.trim())) {
-      setBtcNewError("Endereço Bitcoin inválido.");
+      setBtcNewError(t("wl_invalid_btc"));
       return;
     }
     const trimmed = btcNewAddress.trim();
@@ -2016,7 +2016,7 @@ export default function WalletsPage() {
       const dupNet = addressAlreadyTracked(trimmed);
       const label0 = btcNewLabel === "outro" ? (btcNewCustomLabel.trim() || "Bitcoin") : (btcNetworkOptions.find((o) => o.id === btcNewLabel)?.label ?? "Bitcoin");
       if (dupNet && dupNet !== label0) {
-        setBtcNewError(`Este endereço já está adicionado (${dupNet}) — o saldo contaria em dobro.`);
+        setBtcNewError(`${t("wl_dup_addr")} (${dupNet}) — ${t("wl_dup_double")}`);
         return;
       }
     }
@@ -2045,7 +2045,7 @@ export default function WalletsPage() {
         void fetchRunesForAddress(trimmed);
       }
     } catch (error) {
-      setBtcNewError(error instanceof Error ? error.message : "Endereço inválido.");
+      setBtcNewError(error instanceof Error ? error.message : t("wl_invalid_addr"));
     } finally {
       setBtcNewLoading(false);
     }
@@ -2100,11 +2100,11 @@ export default function WalletsPage() {
       updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: nextWallets });
     } catch (error) {
       clearTimeout(msgTimer);
-      const msg = error instanceof Error ? error.message : "Erro ao ligar.";
+      const msg = error instanceof Error ? error.message : t("wl_err_connect");
       if (msg === "timeout") {
         setAdaError("O Eternl não respondeu em 60 segundos. Verifica: 1) Clica no ícone do Eternl na barra de extensões do Chrome → deverá aparecer um pedido pendente para aprovar. 2) Se não aparecer nada, abre o Eternl → Settings → dApp Connector → confirma que tens uma conta dApp ativa. 3) Em alternativa, adiciona o endereço manualmente abaixo.");
       } else if (msg.toLowerCase().includes("user canceled") || msg.toLowerCase().includes("cancelled") || msg.toLowerCase().includes("cancel")) {
-        setAdaError("Ligação cancelada pelo utilizador.");
+        setAdaError(t("wl_cancelled"));
       } else if (
         msg.toLowerCase().includes("no account set") ||
         msg.toLowerCase().includes("no daccount") ||
@@ -2125,8 +2125,8 @@ export default function WalletsPage() {
   const handleAdaConnect = () => {
     const host = typeof window !== "undefined" ? window.location.hostname : "";
     requestConfirm({
-      title: "Ligar carteira Cardano",
-      description: `Vai ligar a carteira ao domínio ${host || "atual"} em modo leitura.`,
+      title: `${t("wl_connect_wallet")} Cardano`,
+      description: `${t("wl_connect_desc")} ${host || "—"}.`,
       onConfirm: handleAdaConnectInternal,
     });
   };
@@ -2230,7 +2230,7 @@ export default function WalletsPage() {
         void fetchNftBalance(adaMainAddress, "ada");
       }
     } catch (error) {
-      setAdaError(error instanceof Error ? error.message : "Erro ao atualizar saldo.");
+      setAdaError(error instanceof Error ? error.message : t("wl_err_balance"));
     } finally {
       setAdaLoading(false);
     }
@@ -2277,18 +2277,18 @@ export default function WalletsPage() {
 
   const addManualAddress = (addressArg: string, networkId: string, labelArg?: string, source: "cold" | "manual" = "manual"): string | null => {
     if (!isPro && totalWallets >= FREE_WALLET_LIMIT) {
-      return `Plano Gratuito limitado a ${FREE_WALLET_LIMIT} carteiras. Faz upgrade para Pro.`;
+      return `${t("wl_free_limit_1")} ${FREE_WALLET_LIMIT} ${t("wl_free_limit_2")}`;
     }
     const trimmed = addressArg.trim();
     const label = labelArg && labelArg.trim() ? sanitizeLabel(labelArg) : undefined;
-    if (!trimmed) return "Insere um endereço.";
+    if (!trimmed) return t("wl_insert_addr");
     {
       const dupNet = addressAlreadyTracked(trimmed);
-      if (dupNet) return `Este endereço já está adicionado (${dupNet}).`;
+      if (dupNet) return `${t("wl_dup_addr")} (${dupNet}).`;
     }
     const evmNetwork = MANUAL_ADD_TO_EVM_NETWORK[networkId];
     if (evmNetwork) {
-      if (!isEvmAddress(trimmed)) return "Endereço inválido (deve ser 0x... para redes EVM/L2).";
+      if (!isEvmAddress(trimmed)) return t("wl_invalid_evm");
       const nextWallets = upsertWallet(
         ethWallets,
         { address: trimmed, network: evmNetwork, label, source },
@@ -2298,7 +2298,7 @@ export default function WalletsPage() {
       updateWalletSnapshot({ eth: nextWallets, sol: solWallets, btc: btcWallets, ada: adaWallets });
       void fetchEthBalanceForEntry(trimmed, evmNetwork);
     } else if (MANUAL_ADD_TO_SOL_NETWORK[networkId]) {
-      if (!isSolAddress(trimmed)) return "Endereço Solana inválido (base58, 32–44 caracteres).";
+      if (!isSolAddress(trimmed)) return t("wl_invalid_sol");
       const solNetwork = MANUAL_ADD_TO_SOL_NETWORK[networkId];
       const nextWallets = upsertWallet(
         solWallets,
@@ -2309,7 +2309,7 @@ export default function WalletsPage() {
       updateWalletSnapshot({ eth: ethWallets, sol: nextWallets, btc: btcWallets, ada: adaWallets });
       void fetchSolBalanceForAddress(trimmed);
     } else if (networkId === "btc") {
-      if (!isBtcAddress(trimmed)) return "Endereço Bitcoin inválido.";
+      if (!isBtcAddress(trimmed)) return t("wl_invalid_btc");
       const nextWallets = upsertWallet(
         btcWallets,
         { address: trimmed, network: "Bitcoin", label, source },
@@ -2319,7 +2319,7 @@ export default function WalletsPage() {
       updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: nextWallets, ada: adaWallets });
       void fetchBtcBalanceForAddress(trimmed);
     } else if (networkId === "ada") {
-      if (!isAdaAddress(trimmed)) return "Endereço Cardano inválido (addr1... ou stake1...).";
+      if (!isAdaAddress(trimmed)) return t("wl_invalid_ada");
       const nextWallets = upsertWallet(
         adaWallets,
         { address: trimmed, network: "Cardano", label, source },
@@ -2330,7 +2330,7 @@ export default function WalletsPage() {
       void fetchAdaBalanceForAddress(trimmed);
     } else {
       // Other networks: store address without balance (tracking only)
-      if (trimmed.length < 6) return "Endereço demasiado curto.";
+      if (trimmed.length < 6) return t("wl_addr_short");
       const networkLabel = MANUAL_ADD_NETWORKS.find((n) => n.id === networkId)?.label ?? networkId.toUpperCase();
       const entry: StoredWalletEntry = { address: trimmed, network: networkLabel, label, source };
       const nextWallets = upsertWallet(
@@ -2507,7 +2507,7 @@ export default function WalletsPage() {
     setStablecoinAddError(null);
     const addr = stablecoinAddAddress.trim();
     if (!isEvmAddress(addr)) {
-      setStablecoinAddError("Endereço EVM inválido (0x...).");
+      setStablecoinAddError(t("wl_invalid_evm"));
       return;
     }
     if (stablecoinEntries.some((e) => e.symbol === stablecoinAddSymbol && e.address.toLowerCase() === addr.toLowerCase())) {
@@ -2594,7 +2594,7 @@ export default function WalletsPage() {
         setAdaBalanceErrors((prev) => ({ ...prev, [address]: null }));
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Erro ao obter saldo.";
+      const message = err instanceof Error ? err.message : t("wl_err_balance");
       startTransition(() => {
         setAdaBalanceErrors((prev) => ({ ...prev, [address]: message }));
         setAdaBalancesByAddress((prev) => ({ ...prev, [address]: "—" }));
@@ -2628,7 +2628,7 @@ export default function WalletsPage() {
     try {
       const res = await fetch(`${base}/api/evm-balance?address=${encodeURIComponent(address)}&network=${encodeURIComponent(network)}`, { signal: controller.signal });
       const data = await res.json() as { balance?: string; error?: string };
-      if (!res.ok || data.error) throw new Error(data.error ?? "Falha ao obter saldo.");
+      if (!res.ok || data.error) throw new Error(data.error ?? t("wl_err_balance"));
       return Number(data.balance ?? 0).toFixed(4);
     } finally {
       window.clearTimeout(timer);
@@ -2647,7 +2647,7 @@ export default function WalletsPage() {
           setEthBalanceErrors((prev) => ({ ...prev, [key]: null }));
         });
       } catch (err) {
-        const msg = err instanceof Error ? err.message : "Erro ao obter saldo.";
+        const msg = err instanceof Error ? err.message : t("wl_err_balance");
         startTransition(() => {
           setEthBalanceErrors((prev) => ({ ...prev, [key]: msg }));
           setEthBalancesByKey((prev) => ({ ...prev, [key]: "—" }));
@@ -2682,7 +2682,7 @@ export default function WalletsPage() {
         setSolBalanceErrors((prev) => ({ ...prev, [address]: null }));
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro ao obter saldo.";
+      const msg = err instanceof Error ? err.message : t("wl_err_balance");
       startTransition(() => {
         setSolBalanceErrors((prev) => ({ ...prev, [address]: msg }));
         setSolBalancesByAddress((prev) => ({ ...prev, [address]: "—" }));
@@ -2715,7 +2715,7 @@ export default function WalletsPage() {
         setBtcBalanceErrors((prev) => ({ ...prev, [address]: null }));
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro ao obter saldo.";
+      const msg = err instanceof Error ? err.message : t("wl_err_balance");
       startTransition(() => {
         setBtcBalanceErrors((prev) => ({ ...prev, [address]: msg }));
         setBtcBalancesByAddress((prev) => ({ ...prev, [address]: "—" }));
@@ -2758,21 +2758,21 @@ export default function WalletsPage() {
 
   const handleAddAdaWalletInternal = () => {
     if (!isPro && totalWallets >= FREE_WALLET_LIMIT) {
-      setAdaNewError(`Plano Gratuito limitado a ${FREE_WALLET_LIMIT} carteiras. Faz upgrade para Pro.`);
+      setAdaNewError(`${t("wl_free_limit_1")} ${FREE_WALLET_LIMIT} ${t("wl_free_limit_2")}`);
       return;
     }
     if (!adaNewAddress.trim()) {
-      setAdaNewError("Insere um endereço.");
+      setAdaNewError(t("wl_insert_addr"));
       return;
     }
     if (!isAdaAddress(adaNewAddress.trim())) {
-      setAdaNewError("Endereço Cardano inválido (addr1... ou stake1...).");
+      setAdaNewError(t("wl_invalid_ada"));
       return;
     }
     {
       const dupNet = addressAlreadyTracked(adaNewAddress.trim());
       if (dupNet) {
-        setAdaNewError(`Este endereço já está adicionado (${dupNet}) — o saldo contaria em dobro.`);
+        setAdaNewError(`${t("wl_dup_addr")} (${dupNet}) — ${t("wl_dup_double")}`);
         return;
       }
     }
@@ -2821,7 +2821,7 @@ export default function WalletsPage() {
             {t("port_blockchain")} · {t("port_traditional")}
           </h1>
           <p className="max-w-2xl text-sm text-slate-400">
-            Liga carteiras blockchain (ETH, SOL, BTC, ADA) para ver saldos em tempo real, ou regista ativos tradicionais e cripto comprados manualmente.
+            {t("wl_intro")}
           </p>
           {totalWallets === 0 && (
             <div className="rounded-2xl border border-orange-500/30 bg-orange-500/[0.06] p-5">
@@ -2853,13 +2853,13 @@ export default function WalletsPage() {
           </div>
           {isLoadingAuth ? null : isPro ? (
             <p className="text-xs text-emerald-300">
-              Sincronização automática ativa.
+              {t("wl_sync_active")}
             </p>
           ) : (
             <div className="flex items-center gap-3">
               <p className="text-xs text-slate-500">
-                Carteiras: <span className={totalWallets >= FREE_WALLET_LIMIT ? "text-rose-400 font-semibold" : "text-slate-300 font-semibold"}>{totalWallets}/{FREE_WALLET_LIMIT}</span>
-                {" "}(Plano Gratuito){" "}
+                {t("nav_wallets")}: <span className={totalWallets >= FREE_WALLET_LIMIT ? "text-rose-400 font-semibold" : "text-slate-300 font-semibold"}>{totalWallets}/{FREE_WALLET_LIMIT}</span>
+                {" "}({t("free")}){" "}
                 {totalWallets >= FREE_WALLET_LIMIT && (
                   <a href={paymentsFrozen ? "/beta" : "/pricing"} className="text-orange-400 underline hover:text-orange-300">{paymentsFrozen ? `🧪 ${t("dash_beta_cta_short")} →` : "Upgrade para Pro →"}</a>
                 )}
@@ -2901,10 +2901,10 @@ export default function WalletsPage() {
           <div className="pointer-events-auto fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4">
             <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-950/95 p-6 text-slate-100 shadow-2xl">
               <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">
-                {confirmRef.current?.title ?? "Confirmar"}
+                {confirmRef.current?.title ?? t("wl_confirm")}
               </p>
               <p className="mt-3 text-sm text-slate-300">
-                {confirmRef.current?.description ?? "Confirma a operação."}
+                {confirmRef.current?.description ?? t("wl_confirm_op")}
               </p>
               {confirmError ? (
                 <p className="mt-3 text-xs text-rose-300">{confirmError}</p>
@@ -2915,7 +2915,7 @@ export default function WalletsPage() {
                   className="rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
                   onClick={() => setConfirmOpen(false)}
                 >
-                  Cancelar
+                  {t("wl_cancel")}
                 </button>
                 <button
                   type="button"
@@ -2923,7 +2923,7 @@ export default function WalletsPage() {
                   onClick={handleConfirm}
                   disabled={confirmBusy}
                 >
-                  {confirmBusy ? "…" : "Confirmar"}
+                  {confirmBusy ? "…" : t("wl_confirm")}
                 </button>
               </div>
             </div>
@@ -3148,7 +3148,7 @@ export default function WalletsPage() {
                 ) : null}
               </div>
               <p className="text-xs text-slate-500">
-                Liga uma carteira e/ou adiciona endereços. O saldo total junta todas.
+                {t("wl_connect_or_add")}
               </p>
               <button
                 type="button"
@@ -3232,7 +3232,7 @@ export default function WalletsPage() {
                   const balanceDisplay = isConnected
                     ? ethBalance ?? "—"
                     : loading || liveBalance === undefined
-                      ? "A carregar..."
+                      ? t("wl_loading")
                       : err
                         ? null
                         : liveBalance ?? "—";
@@ -3311,7 +3311,7 @@ export default function WalletsPage() {
                           {hideBalances
                             ? "••••"
                             : itemNftLoading
-                            ? "A carregar..."
+                            ? t("wl_loading")
                             : itemNftCount != null
                               ? `${itemNftCount} ${itemNftCount === 1 ? "item" : "itens"}`
                               : "—"}
@@ -3337,10 +3337,10 @@ export default function WalletsPage() {
                       <div className="text-right">
                         {balanceDisplay != null && (
                           <p>
-                            {hideBalances ? "••••" : <>{balanceDisplay} {balanceDisplay !== "A carregar..." && balanceDisplay !== "—" ? "ETH" : ""}</>}
+                            {hideBalances ? "••••" : <>{balanceDisplay} {balanceDisplay !== t("wl_loading") && balanceDisplay !== "—" ? "ETH" : ""}</>}
                           </p>
                         )}
-                        {balanceDisplay != null && balanceDisplay !== "A carregar..." && balanceDisplay !== "—" && getFiatValue("ETH", balanceDisplay) != null ? (
+                        {balanceDisplay != null && balanceDisplay !== t("wl_loading") && balanceDisplay !== "—" && getFiatValue("ETH", balanceDisplay) != null ? (
                           <p className="text-slate-400">{fmtCur((getFiatValue("ETH", balanceDisplay) ?? 0) * usdToEurRate)}</p>
                         ) : null}
                         {err ? (
@@ -3356,7 +3356,7 @@ export default function WalletsPage() {
                               onClick={() => void fetchEthBalanceForEntry(item.address!, item.network ?? "Ethereum")}
                               disabled={loading}
                             >
-                              {loading ? "A carregar…" : "Tentar novamente"}
+                              {loading ? t("wl_loading") : t("wl_retry")}
                             </button>
                           ) : null}
                           <button
@@ -3549,7 +3549,7 @@ export default function WalletsPage() {
                 ))}
               </div>
               <p className="text-xs text-slate-500">
-                Liga uma carteira e/ou adiciona endereços. O saldo total junta todas.
+                {t("wl_connect_or_add")}
               </p>
               <div className="grid gap-3 sm:grid-cols-[1.2fr_0.8fr_auto]">
                 <input
@@ -3633,7 +3633,7 @@ export default function WalletsPage() {
                   const balanceDisplay = item.address === solAddress
                     ? solBalance ?? "—"
                     : loading
-                      ? "A carregar..."
+                      ? t("wl_loading")
                       : err
                         ? null
                         : solBalancesByAddress[addr] ?? item.balance ?? "—";
@@ -3705,7 +3705,7 @@ export default function WalletsPage() {
                             {hideBalances
                               ? "••••"
                               : itemNftLoading
-                              ? "A carregar..."
+                              ? t("wl_loading")
                               : itemNftCount != null
                                 ? `${itemNftCount} ${itemNftCount === 1 ? "item" : "itens"}`
                                 : "—"}
@@ -3730,9 +3730,9 @@ export default function WalletsPage() {
                         </div>
                         <div className="text-right shrink-0">
                           {balanceDisplay != null && (
-                            <p>{hideBalances ? "••••" : <>{balanceDisplay}{balanceDisplay !== "A carregar..." && balanceDisplay !== "—" ? " SOL" : ""}</>}</p>
+                            <p>{hideBalances ? "••••" : <>{balanceDisplay}{balanceDisplay !== t("wl_loading") && balanceDisplay !== "—" ? " SOL" : ""}</>}</p>
                           )}
-                          {balanceDisplay != null && balanceDisplay !== "A carregar..." && balanceDisplay !== "—" && getFiatValue("SOL", balanceDisplay) != null ? (
+                          {balanceDisplay != null && balanceDisplay !== t("wl_loading") && balanceDisplay !== "—" && getFiatValue("SOL", balanceDisplay) != null ? (
                             <p className="text-slate-400">{fmtCur((getFiatValue("SOL", balanceDisplay) ?? 0) * usdToEurRate)}</p>
                           ) : null}
                           {err ? (
@@ -3746,7 +3746,7 @@ export default function WalletsPage() {
                                 onClick={() => void fetchSolBalanceForAddress(addr)}
                                 disabled={loading}
                               >
-                                {loading ? "A carregar…" : "Tentar novamente"}
+                                {loading ? t("wl_loading") : t("wl_retry")}
                               </button>
                             ) : null}
                             <button
@@ -3893,7 +3893,7 @@ export default function WalletsPage() {
           >
             <div className="space-y-3">
               <p className="text-xs text-slate-500">
-                Liga uma carteira e/ou adiciona endereços. O saldo total junta todas.
+                {t("wl_connect_or_add")}
               </p>
               <div className="grid gap-3 sm:grid-cols-[1.2fr_0.8fr_auto]">
                 <input
@@ -3975,7 +3975,7 @@ export default function WalletsPage() {
                   const balanceDisplay = isConnected && item.address === btcAddress
                     ? (btcBalance != null ? btcBalance.toFixed(8) : "—")
                     : loading
-                      ? "A carregar..."
+                      ? t("wl_loading")
                       : err
                         ? null
                         : btcBalancesByAddress[addr] ?? item.balance ?? "—";
@@ -4032,7 +4032,7 @@ export default function WalletsPage() {
                               {hideBalances
                                 ? "••••"
                                 : itemNftLoading
-                                ? "A carregar..."
+                                ? t("wl_loading")
                                 : itemNftCount != null
                                   ? `${itemNftCount} ${itemNftCount === 1 ? "item" : "itens"}`
                                   : "—"}
@@ -4078,10 +4078,10 @@ export default function WalletsPage() {
                       <div className="text-right">
                         {balanceDisplay != null && (
                           <p>
-                            {hideBalances ? "••••" : <>{balanceDisplay} {balanceDisplay !== "A carregar..." && balanceDisplay !== "—" ? "BTC" : ""}</>}
+                            {hideBalances ? "••••" : <>{balanceDisplay} {balanceDisplay !== t("wl_loading") && balanceDisplay !== "—" ? "BTC" : ""}</>}
                           </p>
                         )}
-                        {balanceDisplay != null && balanceDisplay !== "A carregar..." && balanceDisplay !== "—" && getFiatValue("BTC", balanceDisplay) != null ? (
+                        {balanceDisplay != null && balanceDisplay !== t("wl_loading") && balanceDisplay !== "—" && getFiatValue("BTC", balanceDisplay) != null ? (
                           <p className="text-slate-400">{fmtCur((getFiatValue("BTC", balanceDisplay) ?? 0) * usdToEurRate)}</p>
                         ) : null}
                         {err ? (
@@ -4097,7 +4097,7 @@ export default function WalletsPage() {
                               onClick={() => void fetchBtcBalanceForAddress(addr)}
                               disabled={loading}
                             >
-                              {loading ? "A carregar…" : "Tentar novamente"}
+                              {loading ? t("wl_loading") : t("wl_retry")}
                             </button>
                           ) : null}
                           <button
@@ -4392,7 +4392,7 @@ export default function WalletsPage() {
               ) : null}
               {adaNewError ? <p className="text-xs text-rose-300">{adaNewError}</p> : null}
               <p className="text-xs text-slate-500">
-                Liga uma carteira e/ou adiciona endereços. O saldo total junta todas.
+                {t("wl_connect_or_add")}
               </p>
               <div className="space-y-2">
                 {adaWallets.map((item) => {
@@ -4404,7 +4404,7 @@ export default function WalletsPage() {
                     isConnected
                       ? adaBalance ?? "—"
                       : loading
-                        ? "A carregar..."
+                        ? t("wl_loading")
                         : error
                           ? null
                           : adaBalancesByAddress[addr] ?? "—";
@@ -4452,13 +4452,13 @@ export default function WalletsPage() {
                           <p>
                             {hideBalances ? "••••" : <>
                             {balanceDisplay}{" "}
-                            {balanceDisplay !== "A carregar..." && balanceDisplay !== "—"
+                            {balanceDisplay !== t("wl_loading") && balanceDisplay !== "—"
                               ? "ADA"
                               : ""}
                             </>}
                           </p>
                         )}
-                        {balanceDisplay != null && balanceDisplay !== "A carregar..." && balanceDisplay !== "—" && getFiatValue("ADA", balanceDisplay) != null ? (
+                        {balanceDisplay != null && balanceDisplay !== t("wl_loading") && balanceDisplay !== "—" && getFiatValue("ADA", balanceDisplay) != null ? (
                           <p className="text-slate-400">{fmtCur((getFiatValue("ADA", balanceDisplay) ?? 0) * usdToEurRate)}</p>
                         ) : null}
                         {error ? (
@@ -4474,7 +4474,7 @@ export default function WalletsPage() {
                               onClick={() => void fetchAdaBalanceForAddress(addr)}
                               disabled={loading}
                             >
-                              {loading ? "A carregar…" : "Tentar novamente"}
+                              {loading ? t("wl_loading") : t("wl_retry")}
                             </button>
                           ) : null}
                           <button
