@@ -51,6 +51,8 @@ type DerivData = {
   putCall: { t: number; oi: number; vol: number }[];
   score: number;
   rsi: number | null;
+  components?: { longShort: number; taker: number; rsi: number; cvd: number; funding: number; putCall: number };
+  missing?: string[];
 };
 
 type TraditionalQuote = {
@@ -666,7 +668,7 @@ function DerivativesPanel({ data, loading, symbol, updatedAt, error, onRefresh }
         </div>
         <a href="https://www.coinglass.com" target="_blank" rel="noopener noreferrer"
           className="rounded-full border border-orange-500/40 bg-orange-500/10 px-4 py-1.5 text-xs font-semibold text-orange-300 transition hover:bg-orange-500/20">
-          Abrir Coinglass ↗
+          {t("mc_open_coinglass")}
         </a>
       </div>
 
@@ -680,7 +682,29 @@ function DerivativesPanel({ data, loading, symbol, updatedAt, error, onRefresh }
           <p className={`mt-1 text-center text-xs font-semibold ${data.score >= 55 ? "text-emerald-400" : data.score <= 45 ? "text-rose-400" : "text-slate-400"}`}>
             {data.score >= 55 ? t("mc_score_bull") : data.score <= 45 ? t("mc_score_bear") : t("mc_score_neutral")}
           </p>
-          <p className="mt-1 text-center text-[10px] text-slate-500">Long/Short · Funding · CVD · Taker · RSI · Put/Call</p>
+          <details className="mt-2 rounded-lg border border-slate-700/60 bg-slate-950/40 px-3 py-2">
+            <summary className="cursor-pointer text-[11px] font-semibold text-orange-300">❓ {t("mc_score_what")}</summary>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-slate-400">{t("mc_score_explain")}</p>
+            {data.components && (
+              <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-slate-300 sm:grid-cols-3">
+                {([
+                  ["Long/Short", data.components.longShort], ["Taker", data.components.taker], ["RSI", data.components.rsi],
+                  ["CVD", data.components.cvd], ["Funding", data.components.funding], ["Put/Call", data.components.putCall],
+                ] as [string, number][]).map(([k, v]) => (
+                  <li key={k} className="flex items-center justify-between gap-2">
+                    <span className="text-slate-500">{k}</span>
+                    <span className={`font-semibold tabular-nums ${v >= 55 ? "text-emerald-400" : v <= 45 ? "text-rose-400" : "text-slate-300"}`}>
+                      {v >= 55 ? "↑" : v <= 45 ? "↓" : "→"} {Math.round(v)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {data.missing && data.missing.length > 0 && (
+              <p className="mt-1.5 text-[10px] text-slate-500">{t("mc_score_missing")}: {data.missing.join(", ")}</p>
+            )}
+            <p className="mt-1.5 text-[10px] text-slate-600">{t("mc_score_disclaimer")}</p>
+          </details>
         </div>
       )}
 
@@ -766,8 +790,8 @@ function DerivativesPanel({ data, loading, symbol, updatedAt, error, onRefresh }
                   <div className="bg-rose-500" style={{ width: `${100 - takerBuyPct}%` }} />
                 </div>
                 <div className="mt-1 flex justify-between text-[11px] font-semibold">
-                  <span className="text-emerald-400">Buy {takerBuyPct.toFixed(1)}%</span>
-                  <span className="text-rose-400">{(100 - takerBuyPct).toFixed(1)}% Sell</span>
+                  <span className="text-emerald-400">{t("mc_buy")} {takerBuyPct.toFixed(1)}%</span>
+                  <span className="text-rose-400">{(100 - takerBuyPct).toFixed(1)}% {t("mc_sell")}</span>
                 </div>
               </>
             ) : <div className="mt-3 h-12" />}
@@ -1346,7 +1370,7 @@ export default function MercadoPage() {
                   : "border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500"
               }`}
             >
-              Mercado Crypto
+              {t("mc_crypto_market")}
             </button>
             <button
               type="button"
@@ -1357,7 +1381,7 @@ export default function MercadoPage() {
                   : "border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500"
               }`}
             >
-              Mercado Tradicional
+              {t("mc_trad_market")}
             </button>
             <button
               type="button"
@@ -1368,7 +1392,7 @@ export default function MercadoPage() {
                   : "border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500"
               }`}
             >
-              📡 Notícias &amp; IA
+              {t("mc_news_ai")}
             </button>
           </div>
         </div>
@@ -1454,7 +1478,7 @@ export default function MercadoPage() {
                 className="absolute right-4 top-4 z-50 rounded-full border border-slate-700 bg-slate-950/90 px-4 py-2 text-xs font-semibold text-slate-100 shadow-lg transition hover:border-slate-500 hover:text-white"
                 onClick={() => document.exitFullscreen()}
               >
-                Sair do ecrã inteiro
+                {t("mc_exit_fs")}
               </button>
             )}
             {chartSource === "tradingview" ? (
@@ -1483,7 +1507,7 @@ export default function MercadoPage() {
               <div>
                 <h2 className="text-lg font-semibold text-white">{t("mc_trad_market")}</h2>
                 <p className="text-sm text-slate-400">
-                  Seleciona a categoria e atualiza o preço atual por ativo.
+                  {t("mc_trad_hint")}
                 </p>
               </div>
               {traditionalQuotesError ? (
@@ -1512,7 +1536,7 @@ export default function MercadoPage() {
                   />
                 ) : (
                   <div className="flex h-full items-center justify-center text-sm text-slate-500">
-                    Sem símbolo disponível para este ativo.
+                    {t("mc_no_symbol")}
                   </div>
                 )}
               </div>
@@ -1607,7 +1631,7 @@ export default function MercadoPage() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                    Carteira Tradicional
+                    {t("mc_trad_portfolio")}
                   </p>
                   <p className="text-sm text-slate-400">
                     {selectedTraditionalAssets.length
@@ -1641,7 +1665,7 @@ export default function MercadoPage() {
                   }
                   className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
                 >
-                  {traditionalSortDir === "asc" ? "Asc" : "Desc"}
+                  {traditionalSortDir === "asc" ? t("mc_asc") : t("mc_desc")}
                 </button>
               </div>
 
@@ -1691,7 +1715,7 @@ export default function MercadoPage() {
                             className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
                           />
                           <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
-                            Preço atual:{" "}
+                            {t("wl_current_price")}{" "}
                             <span className="font-semibold text-white">
                               {quote?.price != null ? quote.price.toFixed(2) : "—"}
                             </span>
@@ -1708,8 +1732,8 @@ export default function MercadoPage() {
                               className="bg-transparent text-xs text-slate-200 outline-none"
                             >
                               <option value="1d">{t("mc_daily")}</option>
-                              <option value="30d">30 dias</option>
-                              <option value="60d">60 dias</option>
+                              <option value="30d">{t("pc_30_days")}</option>
+                              <option value="60d">{t("wl_60_days")}</option>
                               <option value="1y">{t("mc_annual")}</option>
                             </select>
                             {(() => {
@@ -1743,7 +1767,7 @@ export default function MercadoPage() {
                             onClick={() => toggleTraditionalHolding(asset.id)}
                             className="rounded-full border border-slate-700 px-3 py-2 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
                           >
-                            Remover
+                            {t("wl_remove")}
                           </button>
                         </div>
                       </div>
@@ -1786,7 +1810,7 @@ export default function MercadoPage() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-lg font-semibold text-white">{t("mc_top200")}</h2>
                 <span className="text-xs text-slate-500">
-                  Fonte: CoinEx · atualização automática
+                  {t("mc_source_note")}
                 </span>
               </div>
 
@@ -1838,11 +1862,11 @@ export default function MercadoPage() {
                           className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
                           onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
                         >
-                          {sortDir === "asc" ? "Asc" : "Desc"}
+                          {sortDir === "asc" ? t("mc_asc") : t("mc_desc")}
                         </button>
                       </div>
                       <p className="text-xs text-slate-400">
-                        Mostrando{" "}
+                        {t("mc_showing")}{" "}
                         <span className="font-semibold text-slate-200">{pageRange.total ? pageRange.start + 1 : 0}</span>
                         {"–"}
                         <span className="font-semibold text-slate-200">{pageRange.end}</span> de{" "}
@@ -1859,10 +1883,10 @@ export default function MercadoPage() {
                         onClick={() => setPage(Math.max(0, currentPage - 1))}
                         disabled={currentPage <= 0}
                       >
-                        Anterior
+                        {t("mc_prev")}
                       </button>
                       <div className="text-xs text-slate-400">
-                        Página <span className="font-semibold text-slate-200">{currentPage + 1}</span> /{" "}
+                        {t("mc_page")} <span className="font-semibold text-slate-200">{currentPage + 1}</span> /{" "}
                         <span className="font-semibold text-slate-200">{totalPages}</span>
                       </div>
                       <button
@@ -1871,7 +1895,7 @@ export default function MercadoPage() {
                         onClick={() => setPage(Math.min(totalPages - 1, currentPage + 1))}
                         disabled={currentPage >= totalPages - 1}
                       >
-                        Próximo
+                        {t("mc_next")}
                       </button>
                     </div>
                   </div>
@@ -2117,11 +2141,11 @@ export default function MercadoPage() {
                               body: JSON.stringify({ items: newsItems, lang }),
                             });
                             const d = await r.json() as { content?: string; error?: string; date?: string };
-                            if (!r.ok || d.error) { setNewsBriefingError(d.error ?? "Erro"); return; }
+                            if (!r.ok || d.error) { setNewsBriefingError(d.error ?? t("mc_err_data")); return; }
                             setNewsBriefing(d.content ?? "");
                             setNewsBriefingDate(d.date ?? null);
                           } catch (e) {
-                            setNewsBriefingError(e instanceof Error ? e.message : "Erro");
+                            setNewsBriefingError(e instanceof Error ? e.message : t("mc_err_data"));
                           } finally {
                             setNewsBriefingLoading(false);
                           }
@@ -2194,18 +2218,18 @@ export default function MercadoPage() {
                       body: JSON.stringify({ mode: newsMode, lang }),
                     });
                     const data = await res.json() as { content?: string; error?: string; date?: string };
-                    if (!res.ok || data.error) { setNewsError(data.error ?? "Erro"); return; }
+                    if (!res.ok || data.error) { setNewsError(data.error ?? t("mc_err_data")); return; }
                     setNewsContent(data.content ?? "");
                     setNewsDate(data.date ?? null);
                   } catch (err) {
-                    setNewsError(err instanceof Error ? err.message : "Erro");
+                    setNewsError(err instanceof Error ? err.message : t("mc_err_data"));
                   } finally {
                     setNewsLoading(false);
                   }
                 }}
                 className={`${btnPrimary} px-6 py-2.5 text-sm`}
               >
-                {newsLoading ? "A gerar briefing…" : t("mc_gen_briefing")}
+                {newsLoading ? t("mc_generating") : t("mc_gen_briefing")}
               </button>
               )}
 
@@ -2323,7 +2347,7 @@ export default function MercadoPage() {
                         disabled={chatLoading || !chatInput.trim()}
                         className={`${btnPrimary} px-4 py-2.5 text-sm`}
                       >
-                        Enviar
+                        {t("mc_send")}
                       </button>
                     </form>
                   </div>
