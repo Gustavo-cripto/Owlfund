@@ -232,7 +232,7 @@ const STABLE_SYMBOLS = new Set([
   "USDT", "USDC", "DAI", "BUSD", "TUSD", "FDUSD", "USDE", "PYUSD", "USDP", "EURC", "GUSD", "FRAX",
 ]);
 
-function SnapshotList({ snapshots, onRestore, locale, hideBalances }: { snapshots: SnapshotRow[]; onRestore: (row: SnapshotRow) => void; locale: string; hideBalances: boolean }) {
+function SnapshotList({ snapshots, onRestore, onDelete, locale, hideBalances }: { snapshots: SnapshotRow[]; onRestore: (row: SnapshotRow) => void; onDelete: (row: SnapshotRow) => void; locale: string; hideBalances: boolean }) {
   const { t } = useLanguage();
   const [expanded, setExpanded] = useState(false);
   const visible = expanded ? snapshots : snapshots.slice(0, 3);
@@ -262,6 +262,14 @@ function SnapshotList({ snapshots, onRestore, locale, hideBalances }: { snapshot
             className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
           >
             {t("pfu_restore")}
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete(row)}
+            aria-label="🗑"
+            className="rounded-full border border-rose-500/30 px-3 py-2 text-xs font-semibold text-rose-300/80 transition hover:border-rose-400 hover:text-rose-300"
+          >
+            🗑
           </button>
         </div>
         );
@@ -629,6 +637,17 @@ export default function PortfolioPage() {
     }
   };
 
+  const handleDeleteSnapshot = async (row: SnapshotRow) => {
+    if (!userId) return;
+    if (!window.confirm(t("pfu_del_confirm"))) return;
+    const { error } = await supabase
+      .from("portfolio_snapshots")
+      .delete()
+      .eq("id", row.id)
+      .eq("user_id", userId);
+    if (!error) setSnapshots((prev) => prev.filter((r) => r.id !== row.id));
+  };
+
   const handleRestoreSnapshot = (row: SnapshotRow) => {
     setWallets(snapshotToWallets(row.data, tokenPricesRef.current));
     setSaveMessage({ ok: true, text: `${t("pf_snapshot_loaded")} · ${new Date(row.created_at).toLocaleString(locale)}` });
@@ -740,15 +759,22 @@ export default function PortfolioPage() {
 
   // ── Métricas avançadas calculadas a partir dos snapshots ──
   const advancedMetrics = useMemo(() => {
-    const chrono = [...snapshotTotals].reverse(); // cronológico
+    const chronoAll = [...snapshotTotals].reverse(); // cronológico
+    if (chronoAll.length < 2) return null;
+
+    // 1 snapshot por dia (o último): duplicados no mesmo dia criavam retornos
+    // de 0% em série que esmagavam o Win rate e anulavam o VaR.
+    const byDay = new Map<string, (typeof chronoAll)[number]>();
+    for (const s of chronoAll) byDay.set(new Date(s.createdAt).toISOString().slice(0, 10), s);
+    const chrono = [...byDay.values()].sort((a, b) => a.createdAt - b.createdAt);
     if (chrono.length < 2) return null;
 
-    // Limpeza: descartar snapshots claramente incompletos (total ~0 face à
-    // mediana). São capturas parciais — o portefólio não valeu mesmo 0 — e
-    // faziam a queda máxima disparar para -100%.
+    // Limpeza: descartar snapshots claramente corrompidos face à mediana —
+    // tanto os ~0 € (capturas parciais) como picos absurdos (>20× a mediana,
+    // ex.: preço com glitch), que faziam a queda máxima disparar para -100%.
     const positives = chrono.map((s) => s.total).filter((v) => v > 0).sort((a, b) => a - b);
     const median = positives.length ? positives[Math.floor(positives.length / 2)] : 0;
-    const sorted = chrono.filter((s) => s.total > median * 0.05);
+    const sorted = chrono.filter((s) => s.total > median * 0.05 && s.total < median * 20);
     if (sorted.length < 2) return null;
 
     const oldest = sorted[0];
@@ -940,6 +966,34 @@ export default function PortfolioPage() {
       percent: getPercent(item.value, total),
     }));
   }, [wallets, stablecoinTotal, cryptoHoldings, snapshotCexEur, snapshotDefiEur, t]);
+
+  // ── Métricas viradas a cripto ──
+  // Peso do BTC dentro da parte cripto do portefólio
+  const btcDominance = useMemo(() => {
+    const btcVal = cryptoAllocations
+      .filter((a) => a.label === "BTC" || a.symbol === "BTC")
+      .reduce((s, a) => s + a.value, 0);
+    const cryptoSum = cryptoAllocations.reduce((s, a) => s + a.value, 0);
+    return cryptoSum > 0 ? (btcVal / cryptoSum) * 100 : null;
+  }, [cryptoAllocations]);
+
+  // vs HODL BTC: o teu ROI contra simplesmente segurar BTC no mesmo período
+  // (usa a cotação do BTC guardada no snapshot mais antigo com benchmark).
+  const hodlBtc = useMemo(() => {
+    const rows = snapshots
+      .map((r) => {
+        const d = r.data as WalletSnapshot & { _totalEur?: number; _bench?: BenchSnapshot };
+        return { t: new Date(r.created_at).getTime(), total: Number(d._totalEur ?? 0), btc: d._bench?.btc ?? 0 };
+      })
+      .filter((x) => x.total > 0 && x.btc > 0)
+      .sort((a, b) => a.t - b.t);
+    const first = rows[0];
+    const btcNow = benchmarkPrices.btc_eur;
+    if (!first || !btcNow || btcNow <= 0) return null;
+    const btcRoi = (btcNow / first.btc - 1) * 100;
+    return { btcRoi, since: first.t };
+  }, [snapshots, benchmarkPrices]);
+
 
   const traditionalAllocations = useMemo(() => {
     const byCategory: Record<string, number> = {};
@@ -1902,7 +1956,7 @@ export default function PortfolioPage() {
                   label: "CAGR",
                   value: `${advancedMetrics.cagr >= 0 ? "+" : ""}${advancedMetrics.cagr.toFixed(2)}%`,
                   color: advancedMetrics.cagr >= 0 ? "text-emerald-400" : "text-rose-400",
-                  hint: t("pf_annual_return"),
+                  hint: advancedMetrics.days < 90 ? `⚠️ ${t("pfu_cagr_warn")} ${advancedMetrics.days}d` : t("pf_annual_return"),
                 }] : []),
                 ...(advancedMetrics.sharpe !== null ? [{
                   label: "Sharpe",
@@ -1992,6 +2046,24 @@ export default function PortfolioPage() {
                   color: beta.sp500 > 1.1 ? "text-rose-400" : beta.sp500 < 0 ? "text-orange-300" : "text-emerald-400",
                   hint: t("pfu_vs_stocks"),
                 }] : []),
+                ...(btcDominance !== null ? [{
+                  label: "₿ BTC",
+                  value: `${btcDominance.toFixed(1)}%`,
+                  color: "text-orange-300",
+                  hint: t("pfu_btc_dom_hint"),
+                }] : []),
+                ...(concentration && concentration.stablecoinPct > 0 ? [{
+                  label: "Stablecoins",
+                  value: `${concentration.stablecoinPct.toFixed(1)}%`,
+                  color: "text-emerald-300",
+                  hint: t("pfu_stables_hint"),
+                }] : []),
+                ...(hodlBtc !== null ? [{
+                  label: t("pfu_vs_hodl"),
+                  value: `${advancedMetrics.roi - hodlBtc.btcRoi >= 0 ? "+" : ""}${(advancedMetrics.roi - hodlBtc.btcRoi).toFixed(1)} pp`,
+                  color: advancedMetrics.roi - hodlBtc.btcRoi >= 0 ? "text-emerald-400" : "text-rose-400",
+                  hint: `HODL BTC: ${hodlBtc.btcRoi >= 0 ? "+" : ""}${hodlBtc.btcRoi.toFixed(1)}%`,
+                }] : []),
               ].map((m, i) => (
                 <div key={m.label} className={`card-hover rounded-xl border border-slate-700 bg-slate-900/80 p-4 text-center animate-count-up delay-${i * 100}`}>
                   <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-2">{m.label}</p>
@@ -2022,6 +2094,7 @@ export default function PortfolioPage() {
                   [`${t("pfu_num_assets")} · ${t("pfu_top_pos")}`, t("pfg_conc")],
                   ["HHI", t("pfg_hhi")],
                   ["Beta BTC / S&P 500", t("pfg_beta")],
+                  [t("pfu_vs_hodl"), t("pfg_hodl")],
                 ] as [string, string][]).map(([term, def]) => (
                   <div key={term}>
                     <dt className="inline font-semibold text-slate-300">{term}: </dt>
@@ -2204,7 +2277,7 @@ export default function PortfolioPage() {
               {t("pfu_no_snapshots")}
             </p>
           ) : (
-            <SnapshotList snapshots={snapshots} onRestore={handleRestoreSnapshot} locale={locale} hideBalances={hideBalances} />
+            <SnapshotList snapshots={snapshots} onRestore={handleRestoreSnapshot} onDelete={handleDeleteSnapshot} locale={locale} hideBalances={hideBalances} />
           )}
         </section>
         {/* ── SIMULADOR DE CENÁRIOS ── */}
