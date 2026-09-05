@@ -216,8 +216,8 @@ const toNumber = (value?: string) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const formatValue = (value: number) => {
-  return value.toLocaleString("pt-PT", {
+const formatValue = (value: number, locale = "pt-PT") => {
+  return value.toLocaleString(locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -233,6 +233,7 @@ const STABLE_SYMBOLS = new Set([
 ]);
 
 function SnapshotList({ snapshots, onRestore, locale, hideBalances }: { snapshots: SnapshotRow[]; onRestore: (row: SnapshotRow) => void; locale: string; hideBalances: boolean }) {
+  const { t } = useLanguage();
   const [expanded, setExpanded] = useState(false);
   const visible = expanded ? snapshots : snapshots.slice(0, 3);
   const hasMore = snapshots.length > 3;
@@ -260,7 +261,7 @@ function SnapshotList({ snapshots, onRestore, locale, hideBalances }: { snapshot
             onClick={() => onRestore(row)}
             className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
           >
-            Restaurar
+            {t("pfu_restore")}
           </button>
         </div>
         );
@@ -271,7 +272,7 @@ function SnapshotList({ snapshots, onRestore, locale, hideBalances }: { snapshot
           onClick={() => setExpanded((v) => !v)}
           className="w-full rounded-xl border border-slate-700 py-2 text-xs font-semibold text-slate-400 transition hover:border-slate-500 hover:text-white"
         >
-          {expanded ? `Mostrar menos ▲` : `Ver mais ${snapshots.length - 3} snapshots ▼`}
+          {expanded ? `${t("pfu_show_less")} ▲` : `${t("pfu_show_more")} ${snapshots.length - 3} ▼`}
         </button>
       )}
     </div>
@@ -1052,13 +1053,13 @@ export default function PortfolioPage() {
         <section className="grid gap-6 md:grid-cols-[1.2fr_0.8fr]">
           <div className="animate-fade-in-up rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
             <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">
-              Visão geral
+              {t("pfu_overview")}
             </p>
             <h2 className="mt-2 text-xl font-bold text-white">{t("port_overview")}</h2>
             <div className="mt-4 flex flex-wrap items-end gap-6">
               <div>
                 <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                  Valor total
+                  {t("pf_total_value")}
                 </p>
                 <p className="metric-value mt-2 text-4xl font-black text-white">
                   {fmt(portfolioTotal)}
@@ -1107,14 +1108,14 @@ export default function PortfolioPage() {
               </div>
               {snapshotTotals.length === 0 ? (
                 <div className="mt-3 rounded-xl border border-orange-500/20 bg-orange-500/5 px-4 py-3">
-                  <p className="text-xs font-semibold text-orange-300">📸 Como ativar o PNL histórico</p>
+                  <p className="text-xs font-semibold text-orange-300">📸 {t("pfu_hist_howto_title")}</p>
                   <p className="mt-1 text-xs text-slate-400">
-                    Guarda o teu primeiro snapshot para que o sistema comece a calcular lucro/perda ao longo do tempo. Clica em <strong className="text-white">{t("pf_save_snapshot")}</strong> abaixo.
+                    {t("pfu_hist_howto_body")} <strong className="text-white">{t("pf_save_snapshot")}</strong>.
                   </p>
                 </div>
               ) : (
                 <p className="text-xs text-slate-500">
-                  {snapshotTotals.length} snapshot{snapshotTotals.length > 1 ? "s" : ""} guardado{snapshotTotals.length > 1 ? "s" : ""}. PNL calculado desde o primeiro.
+                  {snapshotTotals.length} {snapshotTotals.length === 1 ? t("pfu_snap_one") : t("pfu_snap_many")}. {t("pfu_snap_since")}
                 </p>
               )}
             </div>
@@ -1150,10 +1151,10 @@ export default function PortfolioPage() {
           <div className="flex flex-col gap-6">
             <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                Distribuição total
+                {t("pfu_dist_total")}
               </p>
               <p className="mt-2 text-sm text-slate-400">
-                Percentagem do total entre Blockchain e Tradicional.
+                {t("pfu_dist_sub")}
               </p>
               <div className="mt-6 space-y-3">
                 <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
@@ -1189,7 +1190,7 @@ export default function PortfolioPage() {
                 {
                   label: t("pf_last_update"),
                   value: snapshots[0]
-                    ? new Date(snapshots[0].created_at).toLocaleDateString("pt-PT", { day: "2-digit", month: "short" })
+                    ? new Date(snapshots[0].created_at).toLocaleDateString(locale, { day: "2-digit", month: "short" })
                     : "—",
                 },
               ]}
@@ -1267,7 +1268,7 @@ export default function PortfolioPage() {
               return (
                 <text x={x} y={y} fill="#94a3b8" textAnchor="middle" dominantBaseline="central"
                   style={{ fontSize: 10, fontWeight: 600 }}>
-                  {((percent as number) * 100).toLocaleString("pt-PT", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
+                  {((percent as number) * 100).toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
                 </text>
               );
             };
@@ -1303,7 +1304,7 @@ export default function PortfolioPage() {
                           // eslint-disable-next-line @typescript-eslint/no-explicit-any
                           formatter={(v: any) => {
                             const val = typeof v === "number" ? v : 0;
-                            const pct = total > 0 ? ((val / total) * 100).toLocaleString("pt-PT", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : "0,0";
+                            const pct = total > 0 ? ((val / total) * 100).toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : "0,0";
                             return [`${fmt(val)} · ${pct}%`, ""];
                           }}
                         />
@@ -1501,7 +1502,7 @@ export default function PortfolioPage() {
               <div className="text-right">
                 <p className="text-[10px] uppercase tracking-wider text-slate-500">{t("pf_last_snapshot")}</p>
                 <p className="text-base font-bold text-white mt-0.5">
-                  {snapshots[0] ? new Date(snapshots[0].created_at).toLocaleDateString("pt-PT", { day: "2-digit", month: "short" }) : "—"}
+                  {snapshots[0] ? new Date(snapshots[0].created_at).toLocaleDateString(locale, { day: "2-digit", month: "short" }) : "—"}
                 </p>
               </div>
             </div>
@@ -1521,7 +1522,7 @@ export default function PortfolioPage() {
               onClick={async () => {
                 const { default: jsPDF } = await import("jspdf");
                 const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-                const now = new Date().toLocaleDateString("pt-PT", { day: "2-digit", month: "long", year: "numeric" });
+                const now = new Date().toLocaleDateString(locale, { day: "2-digit", month: "long", year: "numeric" });
                 let y = 20;
                 const spacer = (n = 4) => { y += n; };
                 const checkPage = () => {
@@ -1572,7 +1573,7 @@ export default function PortfolioPage() {
                 doc.setFontSize(10);
                 doc.setFont("helvetica", "normal");
                 doc.setTextColor(148, 163, 184);
-                doc.text(`Relatório de Portefólio — ${now}${accName ? ` · ${accName}` : ""}`, titleX, 31);
+                doc.text(`${t("pfx_report")} — ${now}${accName ? ` · ${accName}` : ""}`, titleX, 31);
                 doc.setTextColor(255, 255, 255);
                 y = 42;
                 doc.setDrawColor(249, 115, 22);
@@ -1581,13 +1582,13 @@ export default function PortfolioPage() {
                 spacer(8);
 
                 head(t("pf_summary"));
-                kv2(`Total: ${curSym} ${formatValue(fx(portfolioTotal))}`, `Cripto: ${curSym} ${formatValue(fx(cryptoTotal))}`);
-                kv2(`Tradicional: ${curSym} ${formatValue(fx(traditionalTotal))}`, stablecoinTotal > 0 ? `Stablecoins: ${curSym} ${formatValue(fx(stablecoinTotal))}` : undefined);
+                kv2(`${t("total")}: ${curSym} ${formatValue(fx(portfolioTotal))}`, `${t("pf_crypto")}: ${curSym} ${formatValue(fx(cryptoTotal))}`);
+                kv2(`${t("pf_traditional")}: ${curSym} ${formatValue(fx(traditionalTotal))}`, stablecoinTotal > 0 ? `${t("pf_stablecoins")}: ${curSym} ${formatValue(fx(stablecoinTotal))}` : undefined);
                 spacer(3);
 
                 head("PNL");
-                kv2(`Posição: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.position)))} ${pnlSummary.position >= 0 ? "(ganho)" : "(perda)"}`, `Hoje: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.today)))}`);
-                kv2(`30 dias: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.days30 ?? 0)))}`);
+                kv2(`${t("pf_position")}: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.position)))} ${pnlSummary.position >= 0 ? `(${t("pfx_gain")})` : `(${t("pfx_loss")})`}`, `${t("pf_today")}: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.today)))}`);
+                kv2(`${t("pc_30_days")}: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.days30 ?? 0)))}`);
                 spacer(3);
 
                 if (advancedMetrics) {
@@ -1595,22 +1596,22 @@ export default function PortfolioPage() {
                   head(t("pf_adv_metrics"));
                   kv2(`ROI: ${m.roi.toFixed(2)}%`, m.cagr !== null ? `CAGR: ${m.cagr.toFixed(2)}%` : undefined);
                   kv2(m.sharpe !== null ? `Sharpe: ${m.sharpe.toFixed(2)}` : "Sharpe: —", m.sortino !== null ? `Sortino: ${m.sortino.toFixed(2)}` : undefined);
-                  kv2(m.calmar !== null ? `Calmar: ${m.calmar.toFixed(2)}` : "Calmar: —", m.volatility !== null ? `Volatilidade: ${m.volatility.toFixed(2)}%` : undefined);
-                  kv2(`Queda máxima: ${m.maxDrawdown.toFixed(2)}%`, `Drawdown atual: ${m.currentDrawdown.toFixed(2)}%${m.currentDrawdown < 0 ? ` (há ${m.daysSincePeak}d)` : ""}`);
+                  kv2(m.calmar !== null ? `Calmar: ${m.calmar.toFixed(2)}` : "Calmar: —", m.volatility !== null ? `${t("pf_volatility")}: ${m.volatility.toFixed(2)}%` : undefined);
+                  kv2(`${t("pf_max_drawdown")}: ${m.maxDrawdown.toFixed(2)}%`, `${t("pfu_current_dd")}: ${m.currentDrawdown.toFixed(2)}%${m.currentDrawdown < 0 ? ` (${m.daysSincePeak}d)` : ""}`);
                   kv2(m.winRate !== null ? `Win rate: ${m.winRate.toFixed(0)}%` : "Win rate: —", m.var95 !== null ? `VaR 95%: ${m.var95.toFixed(2)}%` : undefined);
                   if (m.bestReturn !== null || m.worstReturn !== null) {
-                    kv2(m.bestReturn !== null ? `Melhor período: ${m.bestReturn >= 0 ? "+" : ""}${m.bestReturn.toFixed(2)}%` : "", m.worstReturn !== null ? `Pior período: ${m.worstReturn.toFixed(2)}%` : undefined);
+                    kv2(m.bestReturn !== null ? `${t("pfu_best_period")}: ${m.bestReturn >= 0 ? "+" : ""}${m.bestReturn.toFixed(2)}%` : "", m.worstReturn !== null ? `${t("pfu_worst_period")}: ${m.worstReturn.toFixed(2)}%` : undefined);
                   }
-                  kv2(`Período: ${m.days} dias`, beta.btc !== null ? `Beta BTC: ${beta.btc.toFixed(2)}` : undefined);
+                  kv2(`${t("pfx_period")}: ${m.days}d`, beta.btc !== null ? `Beta BTC: ${beta.btc.toFixed(2)}` : undefined);
                   if (beta.sp500 !== null) kv2(`Beta S&P 500: ${beta.sp500.toFixed(2)}`);
-                  if (!beta.ready) kv2(`Beta vs BTC/S&P: a acumular (${beta.count}/${beta.needed})`);
+                  if (!beta.ready) kv2(`Beta vs BTC/S&P: ${t("pfx_accum")} (${beta.count}/${beta.needed})`);
                   spacer(3);
                 }
 
                 if (concentration) {
-                  head("Concentração");
-                  kv2(`Nº de ativos: ${concentration.numAssets}`, `Maior posição: ${concentration.topHolding.toFixed(1)}%`);
-                  kv2(`HHI: ${concentration.hhi}`, `Cripto: ${concentration.cryptoPct.toFixed(1)}% · Trad.: ${concentration.traditionalPct.toFixed(1)}%`);
+                  head(t("pfx_concentration"));
+                  kv2(`${t("pfu_num_assets")}: ${concentration.numAssets}`, `${t("pfu_top_pos")}: ${concentration.topHolding.toFixed(1)}%`);
+                  kv2(`HHI: ${concentration.hhi}`, `${t("pf_crypto")}: ${concentration.cryptoPct.toFixed(1)}% · ${t("pf_traditional")}: ${concentration.traditionalPct.toFixed(1)}%`);
                   spacer(3);
                 }
 
@@ -1620,7 +1621,7 @@ export default function PortfolioPage() {
                   doc.setFontSize(10);
                   doc.setFont("helvetica", "normal");
                   doc.setTextColor(226, 232, 240);
-                  doc.text(`${a.label} (${a.symbol}): ${curSym} ${formatValue(fx(a.value))} · ${a.percent}`, 15, y);
+                  doc.text(`${a.label} (${a.symbol}): ${curSym} ${formatValue(fx(a.value))} · ${a.percent}%`, 15, y);
                   doc.setTextColor(255, 255, 255);
                   y += 6;
                 });
@@ -1628,7 +1629,7 @@ export default function PortfolioPage() {
 
                 doc.setFontSize(8);
                 doc.setTextColor(100, 116, 139);
-                doc.text(`Gerado por ChainFolioAI em ${now}. Apenas para referência pessoal.`, 15, 287);
+                doc.text(`${t("pfx_footer_pre")} ${now}. ${t("pfx_footer_post")}`, 15, 287);
 
                 const pdfName = `chainfolioai-portfolio-${new Date().toISOString().slice(0, 10)}.pdf`;
                 const pdfBlob = doc.output("blob");
@@ -1645,7 +1646,7 @@ export default function PortfolioPage() {
               }}
               className="flex items-center gap-2 rounded-xl border border-orange-500/40 px-4 py-2 text-sm font-semibold text-orange-300 hover:bg-orange-500/10 transition"
             >
-              ↓ Exportar PDF
+              ↓ {t("pfu_export_pdf")}
             </button>
             <button
               id="btn-export-csv"
@@ -1657,7 +1658,7 @@ export default function PortfolioPage() {
                 const wb = new ExcelJS.Workbook();
                 wb.creator = "ChainFolioAI";
                 wb.created = new Date();
-                const ws = wb.addWorksheet("Portefólio");
+                const ws = wb.addWorksheet(t("nav_portfolio"));
 
                 const logoUrl = await loadLogoDataUrl();
                 const logoImgId = logoUrl ? wb.addImage({ base64: logoUrl.split(",")[1], extension: "png" }) : null;
@@ -1683,7 +1684,7 @@ export default function PortfolioPage() {
                 };
                 const boldRow = (r: import("exceljs").Row) => { r.eachCell((c) => { c.font = { bold: true }; }); return r; };
 
-                const titleRow = bandRow("ChainFolioAI — Exportação de portefólio", DARK, 14);
+                const titleRow = bandRow(`ChainFolioAI — ${t("pfx_report")}`, DARK, 14);
                 if (logoImgId != null) {
                   titleRow.height = 46;
                   titleRow.getCell(1).alignment = { vertical: "middle", indent: 8 };
@@ -1692,70 +1693,70 @@ export default function PortfolioPage() {
                   titleRow.height = 24;
                 }
                 ([
-                  ["Conta", accName || "—"],
-                  ["Data", new Date().toLocaleString("pt-PT", { dateStyle: "short", timeStyle: "short" })],
-                  ["Moeda", curSym],
+                  [t("pfx_account"), accName || "—"],
+                  [t("pfx_date"), new Date().toLocaleString(locale, { dateStyle: "short", timeStyle: "short" })],
+                  [t("pfx_currency"), curSym],
                 ] as [string, string][]).forEach(([k, v]) => {
                   const r = ws.addRow([k, v]);
                   r.getCell(1).font = { bold: true, color: { argb: "FF64748B" } };
                 });
                 ws.addRow([]);
 
-                bandRow("RESUMO", BRAND);
-                boldRow(ws.addRow(["Métrica", "Valor"]));
+                bandRow(t("pf_summary").toUpperCase(), BRAND);
+                boldRow(ws.addRow([t("pfx_metric"), t("pfx_value")]));
                 const metric = (label: string, value: number, fmt?: string) => {
                   const r = ws.addRow([label, value]);
                   if (fmt) r.getCell(2).numFmt = fmt;
                 };
-                metric("Total", fx(portfolioTotal), money);
-                metric("Cripto", fx(cryptoTotal), money);
-                if (stablecoinTotal > 0) metric("Stablecoins", fx(stablecoinTotal), money);
-                metric("Tradicional", fx(traditionalTotal), money);
-                metric("PNL Posição", fx(pnlSummary.position), money);
-                metric("PNL Hoje", fx(pnlSummary.today), money);
-                metric("PNL 30 dias", fx(pnlSummary.days30 ?? 0), money);
+                metric(t("total"), fx(portfolioTotal), money);
+                metric(t("pf_crypto"), fx(cryptoTotal), money);
+                if (stablecoinTotal > 0) metric(t("pf_stablecoins"), fx(stablecoinTotal), money);
+                metric(t("pf_traditional"), fx(traditionalTotal), money);
+                metric(`PNL — ${t("pf_position")}`, fx(pnlSummary.position), money);
+                metric(`PNL — ${t("pf_today")}`, fx(pnlSummary.today), money);
+                metric(t("pf_pnl_30d"), fx(pnlSummary.days30 ?? 0), money);
                 if (advancedMetrics) {
                   metric("ROI", advancedMetrics.roi, pctFmt);
                   if (advancedMetrics.cagr !== null) metric("CAGR", advancedMetrics.cagr, pctFmt);
                   if (advancedMetrics.sharpe !== null) metric("Sharpe", advancedMetrics.sharpe, "0.00");
                   if (advancedMetrics.sortino !== null) metric("Sortino", advancedMetrics.sortino, "0.00");
                   if (advancedMetrics.calmar !== null) metric("Calmar", advancedMetrics.calmar, "0.00");
-                  metric("Queda máxima", advancedMetrics.maxDrawdown, pctFmt);
-                  if (advancedMetrics.volatility !== null) metric("Volatilidade", advancedMetrics.volatility, pctFmt);
+                  metric(t("pf_max_drawdown"), advancedMetrics.maxDrawdown, pctFmt);
+                  if (advancedMetrics.volatility !== null) metric(t("pf_volatility"), advancedMetrics.volatility, pctFmt);
                   if (advancedMetrics.winRate !== null) metric("Win rate", advancedMetrics.winRate, pctFmt);
                   if (advancedMetrics.var95 !== null) metric("VaR 95%", advancedMetrics.var95, pctFmt);
-                  metric("Drawdown atual", advancedMetrics.currentDrawdown, pctFmt);
-                  if (advancedMetrics.bestReturn !== null) metric("Melhor período", advancedMetrics.bestReturn, pctFmt);
-                  if (advancedMetrics.worstReturn !== null) metric("Pior período", advancedMetrics.worstReturn, pctFmt);
-                  metric("Período (dias)", advancedMetrics.days, "0");
+                  metric(t("pfu_current_dd"), advancedMetrics.currentDrawdown, pctFmt);
+                  if (advancedMetrics.bestReturn !== null) metric(t("pfu_best_period"), advancedMetrics.bestReturn, pctFmt);
+                  if (advancedMetrics.worstReturn !== null) metric(t("pfu_worst_period"), advancedMetrics.worstReturn, pctFmt);
+                  metric(`${t("pfx_period")} (d)`, advancedMetrics.days, "0");
                 }
                 if (beta.btc !== null) metric("Beta BTC", beta.btc, "0.00");
                 if (beta.sp500 !== null) metric("Beta S&P 500", beta.sp500, "0.00");
                 ws.addRow([]);
 
                 if (concentration) {
-                  bandRow("CONCENTRAÇÃO", BRAND);
-                  boldRow(ws.addRow(["Métrica", "Valor"]));
-                  metric("Nº de ativos", concentration.numAssets, "0");
-                  metric("Maior posição", concentration.topHolding, pctFmt);
+                  bandRow(t("pfx_concentration").toUpperCase(), BRAND);
+                  boldRow(ws.addRow([t("pfx_metric"), t("pfx_value")]));
+                  metric(t("pfu_num_assets"), concentration.numAssets, "0");
+                  metric(t("pfu_top_pos"), concentration.topHolding, pctFmt);
                   metric("HHI (0–10000)", concentration.hhi, "0");
-                  metric("% Cripto", concentration.cryptoPct, pctFmt);
-                  if (concentration.stablecoinPct > 0) metric("% Stablecoins", concentration.stablecoinPct, pctFmt);
-                  metric("% Tradicional", concentration.traditionalPct, pctFmt);
+                  metric(`% ${t("pf_crypto")}`, concentration.cryptoPct, pctFmt);
+                  if (concentration.stablecoinPct > 0) metric(`% ${t("pf_stablecoins")}`, concentration.stablecoinPct, pctFmt);
+                  metric(`% ${t("pf_traditional")}`, concentration.traditionalPct, pctFmt);
                   ws.addRow([]);
                 }
 
-                bandRow("POSIÇÕES", BRAND);
-                boldRow(ws.addRow(["Categoria", "Ativo", "Símbolo", `Valor (${curSym})`, "% do total"]));
+                bandRow(t("pfx_positions").toUpperCase(), BRAND);
+                boldRow(ws.addRow([t("pfx_category"), t("pfx_asset"), t("pfx_symbol"), `${t("pfx_value")} (${curSym})`, `% ${t("pf_of_total")}`]));
                 const posRows: [string, string, string, number, number][] = [];
                 cryptoAllocations.filter((a) => a.value > 0).forEach((a) => {
-                  posRows.push(["Cripto", a.label, a.symbol, fx(a.value), portfolioTotal > 0 ? (a.value / portfolioTotal) * 100 : 0]);
+                  posRows.push([t("pf_crypto"), a.label, a.symbol, fx(a.value), portfolioTotal > 0 ? (a.value / portfolioTotal) * 100 : 0]);
                 });
                 traditionalAllocations.assets.filter((a) => a.value > 0).forEach((a) => {
-                  posRows.push(["Tradicional", a.label, a.category ?? "", fx(a.value), portfolioTotal > 0 ? (a.value / portfolioTotal) * 100 : 0]);
+                  posRows.push([t("pf_traditional"), a.label, a.category ?? "", fx(a.value), portfolioTotal > 0 ? (a.value / portfolioTotal) * 100 : 0]);
                 });
                 if (posRows.length === 0) {
-                  const r = ws.addRow(["Sem posições registadas"]);
+                  const r = ws.addRow([t("pfx_no_positions")]);
                   r.getCell(1).font = { italic: true, color: { argb: "FF94A3B8" } };
                 } else {
                   posRows.forEach((p) => {
@@ -1790,14 +1791,14 @@ export default function PortfolioPage() {
               }}
               className="flex items-center gap-2 rounded-xl border border-slate-600/50 px-4 py-2 text-sm font-semibold text-slate-300 hover:bg-slate-700/30 transition"
             >
-              ↓ Exportar Excel
+              ↓ {t("pfu_export_excel")}
             </button>
             </div>
           </div>
 
           {!advancedMetrics ? (
             <div className="rounded-xl border border-dashed border-slate-700 p-6 text-center">
-              <p className="text-sm text-slate-400">{t("pf_need_at_least")} <strong className="text-white">2 snapshots</strong> para calcular métricas avançadas.</p>
+              <p className="text-sm text-slate-400">{t("pf_need_at_least")} <strong className="text-white">2 snapshots</strong> {t("pfu_need2_rest")}</p>
               <p className="text-xs text-slate-500 mt-1">{t("pf_save_snap_periodic")}</p>
             </div>
           ) : (
@@ -1807,7 +1808,7 @@ export default function PortfolioPage() {
                   label: "ROI",
                   value: `${advancedMetrics.roi >= 0 ? "+" : ""}${advancedMetrics.roi.toFixed(2)}%`,
                   color: advancedMetrics.roi >= 0 ? "text-emerald-400" : "text-rose-400",
-                  hint: `Desde ${advancedMetrics.days}d atrás`,
+                  hint: `${t("pfu_since")} ${advancedMetrics.days}d`,
                 },
                 ...(advancedMetrics.cagr !== null ? [{
                   label: "CAGR",
@@ -1819,13 +1820,13 @@ export default function PortfolioPage() {
                   label: "Sharpe",
                   value: advancedMetrics.sharpe.toFixed(2),
                   color: advancedMetrics.sharpe >= 1 ? "text-emerald-400" : advancedMetrics.sharpe >= 0 ? "text-orange-300" : "text-rose-400",
-                  hint: ">1 = bom",
+                  hint: t("pfu_sharpe_hint"),
                 }] : []),
                 {
                   label: t("pf_max_drawdown"),
                   value: `${advancedMetrics.maxDrawdown.toFixed(2)}%`,
                   color: "text-rose-400",
-                  hint: t("pf_max_drawdown"),
+                  hint: t("pfu_mdd_hint"),
                 },
                 ...(advancedMetrics.volatility !== null ? [{
                   label: t("pf_volatility"),
@@ -1837,71 +1838,71 @@ export default function PortfolioPage() {
                   label: "Sortino",
                   value: advancedMetrics.sortino.toFixed(2),
                   color: advancedMetrics.sortino >= 1 ? "text-emerald-400" : advancedMetrics.sortino >= 0 ? "text-orange-300" : "text-rose-400",
-                  hint: "Só penaliza a queda",
+                  hint: t("pfu_sortino_hint"),
                 }] : []),
                 ...(advancedMetrics.calmar !== null ? [{
                   label: "Calmar",
                   value: advancedMetrics.calmar.toFixed(2),
                   color: advancedMetrics.calmar >= 1 ? "text-emerald-400" : advancedMetrics.calmar >= 0 ? "text-orange-300" : "text-rose-400",
-                  hint: "Retorno ÷ queda",
+                  hint: t("pfu_calmar_hint"),
                 }] : []),
                 ...(advancedMetrics.winRate !== null ? [{
                   label: "Win rate",
                   value: `${advancedMetrics.winRate.toFixed(0)}%`,
                   color: advancedMetrics.winRate >= 50 ? "text-emerald-400" : "text-orange-300",
-                  hint: "Períodos positivos",
+                  hint: t("pfu_wr_hint"),
                 }] : []),
                 {
-                  label: "Drawdown atual",
+                  label: t("pfu_current_dd"),
                   value: `${advancedMetrics.currentDrawdown.toFixed(2)}%`,
                   color: advancedMetrics.currentDrawdown < 0 ? "text-rose-400" : "text-emerald-400",
-                  hint: advancedMetrics.currentDrawdown < 0 ? `há ${advancedMetrics.daysSincePeak}d do pico` : "no pico",
+                  hint: advancedMetrics.currentDrawdown < 0 ? `${advancedMetrics.daysSincePeak}d ${t("pfu_from_peak")}` : t("pfu_at_peak"),
                 },
                 ...(advancedMetrics.bestReturn !== null ? [{
-                  label: "Melhor",
+                  label: t("pfu_best"),
                   value: `${advancedMetrics.bestReturn >= 0 ? "+" : ""}${advancedMetrics.bestReturn.toFixed(2)}%`,
                   color: "text-emerald-400",
-                  hint: "melhor período",
+                  hint: t("pfu_best_period"),
                 }] : []),
                 ...(advancedMetrics.worstReturn !== null ? [{
-                  label: "Pior",
+                  label: t("pfu_worst"),
                   value: `${advancedMetrics.worstReturn.toFixed(2)}%`,
                   color: "text-rose-400",
-                  hint: "pior período",
+                  hint: t("pfu_worst_period"),
                 }] : []),
                 ...(advancedMetrics.var95 !== null ? [{
                   label: "VaR 95%",
                   value: `${advancedMetrics.var95.toFixed(2)}%`,
                   color: "text-rose-400",
-                  hint: "perda diária (95%)",
+                  hint: t("pfu_var_hint"),
                 }] : []),
                 ...(concentration ? [{
-                  label: "Nº ativos",
+                  label: t("pfu_num_assets"),
                   value: String(concentration.numAssets),
                   color: "text-slate-200",
-                  hint: "posições",
+                  hint: t("pfu_positions"),
                 }, {
-                  label: "Maior posição",
+                  label: t("pfu_top_pos"),
                   value: `${concentration.topHolding.toFixed(1)}%`,
                   color: concentration.topHolding > 50 ? "text-rose-400" : concentration.topHolding > 30 ? "text-orange-300" : "text-emerald-400",
-                  hint: "concentração",
+                  hint: t("pfu_conc"),
                 }, {
                   label: "HHI",
                   value: String(concentration.hhi),
                   color: concentration.hhi > 2500 ? "text-rose-400" : concentration.hhi > 1500 ? "text-orange-300" : "text-emerald-400",
-                  hint: ">2500 = concentrado",
+                  hint: t("pfu_hhi_hint"),
                 }] : []),
                 ...(beta.btc !== null ? [{
                   label: "Beta BTC",
                   value: beta.btc.toFixed(2),
                   color: beta.btc > 1.1 ? "text-rose-400" : beta.btc < 0 ? "text-orange-300" : "text-emerald-400",
-                  hint: "vs Bitcoin",
+                  hint: t("pfu_vs_btc"),
                 }] : []),
                 ...(beta.sp500 !== null ? [{
                   label: "Beta S&P 500",
                   value: beta.sp500.toFixed(2),
                   color: beta.sp500 > 1.1 ? "text-rose-400" : beta.sp500 < 0 ? "text-orange-300" : "text-emerald-400",
-                  hint: "vs mercado ações",
+                  hint: t("pfu_vs_stocks"),
                 }] : []),
               ].map((m, i) => (
                 <div key={m.label} className={`card-hover rounded-xl border border-slate-700 bg-slate-900/80 p-4 text-center animate-count-up delay-${i * 100}`}>
@@ -1916,24 +1917,24 @@ export default function PortfolioPage() {
           {advancedMetrics && (
             <div className="mt-5 rounded-xl border border-slate-800 bg-slate-950/50 p-4">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2.5">
-                O que significa cada indicador
+                {t("pfu_glossary_title")}
               </p>
               <dl className="grid gap-x-6 gap-y-2 text-[12px] leading-snug text-slate-400 sm:grid-cols-2">
-                {[
-                  ["ROI", "Retorno total desde o primeiro snapshot: quanto ganhaste ou perdeste em % sobre o valor inicial."],
-                  ["CAGR", "Taxa de crescimento anual composta — o teu ROI convertido para ritmo por ano (só a partir de 30 dias de histórico)."],
-                  ["Sharpe", "Retorno por unidade de risco total. Acima de 1 é bom; negativo indica que assumiste risco sem ser compensado."],
-                  ["Sortino", "Como o Sharpe, mas só penaliza a volatilidade das quedas — ignora oscilações positivas."],
-                  ["Calmar", "Retorno anual (CAGR) a dividir pela maior queda. Mede quanto ganhas face ao pior tombo."],
-                  ["Volatilidade", "Oscilação anualizada dos retornos. Quanto maior, mais o valor sobe e desce."],
-                  ["Queda máxima", "A maior queda do topo até ao fundo no período. Mede o pior cenário que já viveste."],
-                  ["Drawdown atual", "Quanto estás abaixo do teu máximo histórico agora — e há quantos dias vens do pico."],
-                  ["Win rate", "Percentagem de períodos entre snapshots em que o portefólio subiu."],
-                  ["VaR 95%", "Num dia mau típico (pior 5% dos casos), a perda esperada. Ex.: −4% = em 1 de cada 20 leituras perdes ao menos 4%."],
-                  ["Nº ativos · Maior posição", "Quantas posições tens e o peso da maior. Acima de ~50% numa só é muita concentração."],
-                  ["HHI", "Índice de concentração (0–10000). Abaixo de 1500 = diversificado; acima de 2500 = concentrado."],
-                  ["Beta BTC / S&P 500", "Sensibilidade ao mercado. 1 = move igual; abaixo de 1 = mais calmo; acima = amplifica; negativo = move ao contrário."],
-                ].map(([term, def]) => (
+                {([
+                  ["ROI", t("pfg_roi")],
+                  ["CAGR", t("pfg_cagr")],
+                  ["Sharpe", t("pfg_sharpe")],
+                  ["Sortino", t("pfg_sortino")],
+                  ["Calmar", t("pfg_calmar")],
+                  [t("pf_volatility"), t("pfg_vol")],
+                  [t("pf_max_drawdown"), t("pfg_mdd")],
+                  [t("pfu_current_dd"), t("pfg_cdd")],
+                  ["Win rate", t("pfg_wr")],
+                  ["VaR 95%", t("pfg_var")],
+                  [`${t("pfu_num_assets")} · ${t("pfu_top_pos")}`, t("pfg_conc")],
+                  ["HHI", t("pfg_hhi")],
+                  ["Beta BTC / S&P 500", t("pfg_beta")],
+                ] as [string, string][]).map(([term, def]) => (
                   <div key={term}>
                     <dt className="inline font-semibold text-slate-300">{term}: </dt>
                     <dd className="inline">{def}</dd>
@@ -1941,11 +1942,11 @@ export default function PortfolioPage() {
                 ))}
               </dl>
               <p className="mt-3 text-[11px] leading-snug text-slate-500">
-                Nota: as métricas de risco são calculadas a partir dos teus snapshots. Saltos de valor causados por depósitos ou levantamentos (variações acima de ±50% entre snapshots) são ignorados para não distorcer a volatilidade. Quantos mais snapshots tiveres, mais fiáveis ficam.
+                {t("pfu_glossary_note")}
               </p>
               {!beta.ready && (
                 <p className="mt-2 text-[11px] leading-snug text-sky-400/80">
-                  Beta vs BTC/S&P 500: a acumular dados ({beta.count}/{beta.needed} capturas com preço de mercado). Cada snapshot novo passa a guardar a cotação do BTC e do S&P 500 — assim que houver capturas suficientes, o Beta aparece automaticamente aqui.
+                  {t("pfu_beta_accum")} ({beta.count}/{beta.needed})
                 </p>
               )}
             </div>
@@ -1987,7 +1988,7 @@ export default function PortfolioPage() {
             <div className="mt-6 space-y-4">
               {traditionalAllocations.categories.length === 0 ? (
                 <p className="text-xs text-slate-500">
-                  Ainda não tens ativos tradicionais na carteira.
+                  {t("pfu_no_traditional")}
                 </p>
               ) : (
                 traditionalAllocations.categories.map((item) => (
@@ -2030,10 +2031,10 @@ export default function PortfolioPage() {
             <div className="mt-4 space-y-3">
               <p className="text-sm text-slate-300">
                 {isPro
-                  ? "Plano Pro ativo. Snapshots automáticos a cada 24h."
+                  ? t("pfu_pro_active")
                   : paymentsFrozen
-                    ? "Estamos em beta — pede o Pro grátis (60 dias) e fica com snapshots e histórico completos."
-                    : "Plano Free — snapshots manuais e automáticos disponíveis gratuitamente."}
+                    ? t("pfu_beta_plan")
+                    : t("pfu_free_plan")}
               </p>
               {saveMessage ? (
                 <p className={`text-sm ${saveMessage.ok ? "text-emerald-400" : "text-rose-300"}`}>{saveMessage.text}</p>
@@ -2048,7 +2049,7 @@ export default function PortfolioPage() {
                   type="button"
                   disabled={isSavingSnap}
                 >
-                  {isSavingSnap ? t("loading") : "📸 Guardar snapshot agora"}
+                  {isSavingSnap ? t("loading") : `📸 ${t("pf_save_snapshot")}`}
                 </button>
                 {!isPro ? (
                   paymentsFrozen ? (
@@ -2073,20 +2074,20 @@ export default function PortfolioPage() {
                   className="rounded-full border border-slate-700 px-6 py-3 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
                   href="/account"
                 >
-                  Gerir conta
+                  {t("pfu_manage_account")}
                 </a>
               </div>
             </div>
           ) : (
             <div className="mt-4 space-y-3">
               <p className="text-sm text-slate-300">
-                Inicia sessão para guardares o teu portefólio na nuvem e sincronizares entre dispositivos.
+                {t("pfu_login_hint")}
               </p>
               <a
                 className="inline-flex rounded-full border border-orange-400/40 px-6 py-3 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
                 href="/login"
               >
-                Entrar
+                {t("pfu_login")}
               </a>
             </div>
           )}
@@ -2097,14 +2098,14 @@ export default function PortfolioPage() {
             <div>
               <h2 className="text-lg font-semibold text-white">{t("pf_portfolio_history")}</h2>
               <p className="text-sm text-slate-400">
-                {isPremium ? t("pf_unlimited_history") : isPro ? "Últimos 365 dias de snapshots (Plano Pro)." : <>{t("pf_30days_free")} <a href={paymentsFrozen ? "/beta" : "/pricing"} className="text-orange-400 underline hover:text-orange-300">{t("pf_pro_1year")}</a></>}
+                {isPremium ? t("pf_unlimited_history") : isPro ? t("pfu_pro_365") : <>{t("pf_30days_free")} <a href={paymentsFrozen ? "/beta" : "/pricing"} className="text-orange-400 underline hover:text-orange-300">{t("pf_pro_1year")}</a></>}
               </p>
             </div>
             <a
               className="rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
               href="/dashboard"
             >
-              Voltar ao dashboard
+              {t("pfu_back_dash")}
             </a>
           </div>
 
@@ -2112,7 +2113,7 @@ export default function PortfolioPage() {
             <p className="mt-4 text-sm text-slate-400">{t("loading")}</p>
           ) : snapshots.length === 0 ? (
             <p className="mt-4 text-sm text-slate-400">
-              Ainda não tens snapshots guardados. Guarda um para aparecer aqui.
+              {t("pfu_no_snapshots")}
             </p>
           ) : (
             <SnapshotList snapshots={snapshots} onRestore={handleRestoreSnapshot} locale={locale} hideBalances={hideBalances} />
@@ -2143,7 +2144,7 @@ export default function PortfolioPage() {
             <p className="text-xs uppercase tracking-[0.2em] text-orange-600 dark:text-orange-300">{t("pf_ai")}</p>
             <h2 className="mt-1 text-base font-bold text-slate-900 dark:text-white">{t("pf_analyze_portfolio")}</h2>
             <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">
-              A IA tem acesso aos teus dados reais — totais, PNL, distribuição e métricas avançadas.
+              {t("pfu_ai_access")}
             </p>
           </div>
 
@@ -2196,7 +2197,7 @@ export default function PortfolioPage() {
           )}
           {aiReply && (
             <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/80">
-              <p className="flex items-center gap-1.5 text-xs text-orange-500 dark:text-orange-300/80 font-semibold mb-2"><img src="/chainfolioai-icon.png" alt="" className="h-4 w-4 rounded-full object-cover" /> ChainFolioAI — Assistente IA</p>
+              <p className="flex items-center gap-1.5 text-xs text-orange-500 dark:text-orange-300/80 font-semibold mb-2"><img src="/chainfolioai-icon.png" alt="" className="h-4 w-4 rounded-full object-cover" /> ChainFolioAI — {t("pfu_ai_assistant")}</p>
               <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">{aiReply}</p>
             </div>
           )}
