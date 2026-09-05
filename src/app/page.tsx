@@ -7,17 +7,29 @@ import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { btnPrimary, btnSecondary } from "@/lib/ui/buttons";
 
-const STEPS = [
-  { num: "01", t: "lp_s1_t", d: "lp_s1_d" },
-  { num: "02", t: "lp_s2_t", d: "lp_s2_d" },
-  { num: "03", t: "lp_s3_t", d: "lp_s3_d" },
-] as const;
+// Durante o beta os pagamentos estão congelados: os CTAs de planos pagos
+// apontam para o convite /beta (Pro/Premium grátis 60 dias).
+const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
+const paidHref = paymentsFrozen ? "/beta" : "/pricing";
+
+const STEPS = (paymentsFrozen
+  ? [
+      { num: "01", t: "lp_s1_t", d: "lp_s1_d" },
+      { num: "02", t: "lp_s_beta_t", d: "lp_s_beta_d" },
+      { num: "03", t: "lp_s2_t", d: "lp_s2_d" },
+      { num: "04", t: "lp_s3_t", d: "lp_s3_d" },
+    ]
+  : [
+      { num: "01", t: "lp_s1_t", d: "lp_s1_d" },
+      { num: "02", t: "lp_s2_t", d: "lp_s2_d" },
+      { num: "03", t: "lp_s3_t", d: "lp_s3_d" },
+    ]) as ReadonlyArray<{ num: string; t: "lp_s1_t" | "lp_s2_t" | "lp_s3_t" | "lp_s_beta_t"; d: "lp_s1_d" | "lp_s2_d" | "lp_s3_d" | "lp_s_beta_d" }>;
 
 const STATS = [
-  { value: "15+", k: "lp_st1" },
+  { value: "19", k: "lp_st1" },
+  { value: "21", k: "lp_st4" },
+  { value: "5 🇪🇺", k: "lp_st5" },
   { value: "€0", k: "lp_st2" },
-  { value: "24/7", k: "lp_st3" },
-  { value: "100%", k: "lp_st4" },
 ] as const;
 
 const TOOLS = [
@@ -28,6 +40,8 @@ const TOOLS = [
   { icon: "🐋", t: "lp_t5_t", d: "lp_t5_d" },
   { icon: "🌐", t: "lp_t6_t", d: "lp_t6_d" },
   { icon: "🗂️", t: "lp_t7_t", d: "lp_t7_d" },
+  { icon: "📒", t: "lp_t8_t", d: "lp_t8_d" },
+  { icon: "🔌", t: "lp_t9_t", d: "lp_t9_d" },
 ] as const;
 
 const PLANS = [
@@ -71,6 +85,8 @@ const FAQ = [
   { q: "lp_faq_3_q", a: "lp_faq_3_a" },
   { q: "lp_faq_4_q", a: "lp_faq_4_a" },
   { q: "lp_faq_5_q", a: "lp_faq_5_a" },
+  { q: "lp_faq_7_q", a: "lp_faq_7_a" },
+  { q: "lp_faq_8_q", a: "lp_faq_8_a" },
 ] as const;
 
 const COMPARISON = [
@@ -262,14 +278,21 @@ export default function Home() {
               <a href="/login" className={`${btnPrimary} px-8 py-3.5 text-base`}>
                 {t("lp_plan_cta")} →
               </a>
-              <a href="#como-funciona" className={`${btnSecondary} px-8 py-3.5 text-base`}>
-                {t("lp_how_works")}
-              </a>
+              {paymentsFrozen ? (
+                <a href="/beta" className={`${btnSecondary} px-8 py-3.5 text-base`}>
+                  🧪 {t("lp_hero_beta_cta")}
+                </a>
+              ) : (
+                <a href="#como-funciona" className={`${btnSecondary} px-8 py-3.5 text-base`}>
+                  {t("lp_how_works")}
+                </a>
+              )}
             </div>
-            <p className="animate-fade-in-up delay-400 text-xs text-slate-500">{t("lp_no_card")}</p>
+            <p className="animate-fade-in-up delay-400 text-xs text-slate-500">{paymentsFrozen ? t("lp_no_card_beta") : t("lp_no_card")}</p>
           </div>
           <div className="animate-scale-in delay-200 w-full max-w-sm flex-shrink-0">
             <PnlSummaryCard position={2150} today={120} days30={480} daily7d={-35} />
+            <p className="mt-2 text-center text-[10px] text-slate-600">{t("lp_demo_label")}</p>
           </div>
         </section>
 
@@ -468,10 +491,10 @@ export default function Home() {
                   ))}
                 </ul>
                 <a
-                  href={p.paid ? "/pricing" : "/login"}
+                  href={p.paid ? paidHref : "/login"}
                   className={`${p.popular ? btnPrimary : btnSecondary} mt-6 w-full px-5 py-3 text-sm`}
                 >
-                  {p.paid ? t("lp_plan_choose") : t("lp_plan_cta")}
+                  {p.paid ? (paymentsFrozen ? `🧪 ${t("lp_plan_beta_cta")}` : t("lp_plan_choose")) : t("lp_plan_cta")}
                 </a>
               </div>
             ))}
@@ -480,6 +503,7 @@ export default function Home() {
             <a href="/pricing" className="text-sm font-semibold text-orange-300/90 transition hover:text-orange-200">
               {t("lp_plan_see_all")} →
             </a>
+            {paymentsFrozen && <p className="mt-2 text-xs text-slate-500">{t("lp_plans_beta_note")}</p>}
           </div>
         </section>
 
@@ -490,7 +514,7 @@ export default function Home() {
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">{t("lp_how_works")}</p>
               <h2 className="mt-3 text-3xl font-bold text-white">{t("lp_3_steps")}</h2>
             </div>
-            <div className="grid gap-6 md:grid-cols-3">
+            <div className={`grid gap-6 ${STEPS.length === 4 ? "md:grid-cols-2 lg:grid-cols-4" : "md:grid-cols-3"}`}>
               {STEPS.map((s, i) => (
                 <div key={s.num} className={`card-hover rounded-2xl border border-orange-500/20 bg-gradient-to-br from-slate-900 to-slate-950 p-7 animate-fade-in-up delay-${i * 150 + 100}`}>
                   <div className="mb-5 text-6xl font-black text-orange-500/15 leading-none">{s.num}</div>
@@ -553,6 +577,14 @@ export default function Home() {
 
         {/* FAQ */}
         <section id="faq" className="mx-auto w-full max-w-3xl px-6 py-20">
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "FAQPage",
+              mainEntity: FAQ.map((f) => ({ "@type": "Question", name: t(f.q), acceptedAnswer: { "@type": "Answer", text: t(f.a) } })),
+            }) }}
+          />
           <div className="mb-12 text-center animate-fade-in-up">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">{t("lp_faq_tag")}</p>
             <h2 className="mt-3 text-3xl font-bold text-white md:text-4xl">{t("lp_faq_title")}</h2>
@@ -586,11 +618,11 @@ export default function Home() {
                 <a href="/login" className={`${btnPrimary} w-full px-10 py-4 text-base sm:w-auto`}>
                   {t("lp_final_cta1")}
                 </a>
-                <a href="/login" className={`${btnSecondary} w-full px-10 py-4 text-base sm:w-auto`}>
-                  {t("lp_final_cta2")} →
+                <a href={paymentsFrozen ? "/beta" : "/login"} className={`${btnSecondary} w-full px-10 py-4 text-base sm:w-auto`}>
+                  {paymentsFrozen ? `🧪 ${t("lp_hero_beta_cta")}` : t("lp_final_cta2")} →
                 </a>
               </div>
-              <p className="mt-5 text-xs text-slate-600">{t("lp_no_card2")}</p>
+              <p className="mt-5 text-xs text-slate-600">{paymentsFrozen ? t("lp_no_card_beta") : t("lp_no_card2")}</p>
             </div>
           </div>
         </section>
@@ -605,19 +637,22 @@ export default function Home() {
                 <p className="text-xs text-slate-500">{t("lp_tagline")}</p>
               </div>
             </div>
-            <div className="flex gap-6 text-sm text-slate-500">
+            <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-500">
               <a href="#ferramentas" className="transition hover:text-slate-300">{t("lp_tools_tag")}</a>
               <a href="#planos" className="transition hover:text-slate-300">{t("lp_plans_tag")}</a>
               <a href="#instituicoes" className="transition hover:text-slate-300">{t("lp_inst_tag")}</a>
               <a href="#comparacao" className="transition hover:text-slate-300">{t("lp_cmp_tag")}</a>
               <a href="/como-funciona" className="transition hover:text-slate-300">{t("dash_how_title")}</a>
+              <a href="/developers" className="transition hover:text-slate-300">API</a>
+              {paymentsFrozen && <a href="/beta" className="transition hover:text-slate-300">{t("nav_beta")}</a>}
               <a href="#faq" className="transition hover:text-slate-300">{t("lp_faq_tag")}</a>
               <a href="/privacidade" className="transition hover:text-slate-300">{t("legal_privacy_short")}</a>
               <a href="/termos" className="transition hover:text-slate-300">{t("legal_terms_short")}</a>
               <a href="/login" className="transition hover:text-slate-300">{t("lp_login")}</a>
             </div>
-            <p className="text-xs text-slate-600">© {new Date().getFullYear()} ChainFolioAI · Todos os direitos reservados</p>
+            <p className="text-xs text-slate-600">© {new Date().getFullYear()} ChainFolioAI · {t("lp_rights")}</p>
           </div>
+          <p className="mx-auto mt-6 w-full max-w-6xl px-6 text-center text-[11px] text-slate-600">⚠️ {t("lp_disclaimer")}</p>
         </footer>
       </div>
     </div>

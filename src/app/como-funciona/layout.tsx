@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Como funciona",
   description: "Liga as tuas carteiras, acompanha o portefólio cripto e tradicional e recebe análises com IA — em minutos.",
+  alternates: { canonical: "/como-funciona" },
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {

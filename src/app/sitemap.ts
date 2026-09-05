@@ -9,6 +9,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://chainfolioai.com";
 // ALLOWED de src/app/api/track/route.ts, se quiseres contá-la nas estatísticas).
 const PAGES: Array<{ path: string; priority: number; changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"] }> = [
   { path: "/", priority: 1.0, changeFrequency: "weekly" },
+  { path: "/beta", priority: 0.9, changeFrequency: "weekly" },
   { path: "/pricing", priority: 0.9, changeFrequency: "weekly" },
   { path: "/como-funciona", priority: 0.8, changeFrequency: "monthly" },
   { path: "/developers", priority: 0.6, changeFrequency: "monthly" },

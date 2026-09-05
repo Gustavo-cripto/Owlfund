@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Preços e planos",
   description: "Compara os planos Gratuito, Pro e Premium do ChainFolioAI: carteiras ilimitadas, análise IA, fiscalidade e relatórios.",
+  alternates: { canonical: "/pricing" },
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {

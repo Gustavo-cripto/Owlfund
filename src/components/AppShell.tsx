@@ -1,10 +1,14 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Sidebar from "./Sidebar";
 import BtcBlocksBar from "./BtcBlocksBar";
 import AccountSwitcher from "./AccountSwitcher";
 
-const TICKER_DATA = [
+type Tick = { symbol: string; price: string; change: string; up: boolean };
+
+// Fallback estático (só até chegarem os preços reais de /api/markets).
+const TICKER_DATA: Tick[] = [
   { symbol: "BTC",    price: "€ 91.240", change: "+2,4%", up: true  },
   { symbol: "ETH",    price: "€ 3.180",  change: "+1,8%", up: true  },
   { symbol: "SOL",    price: "€ 148",    change: "-0,6%", up: false },
@@ -22,15 +26,43 @@ const TICKER_DATA = [
   { symbol: "AVAX",   price: "€ 34,50",  change: "+1,5%", up: true  },
 ];
 
+const fmtPrice = (v: number) =>
+  v >= 1000 ? `$ ${v.toLocaleString("pt-PT", { maximumFractionDigits: 0 })}` : v >= 1 ? `$ ${v.toLocaleString("pt-PT", { maximumFractionDigits: 2 })}` : `$ ${v.toLocaleString("pt-PT", { maximumFractionDigits: 4 })}`;
+
 export default function AppShell({ children }: { children: React.ReactNode }) {
+  const [ticks, setTicks] = useState<Tick[]>(TICKER_DATA);
+  const [live, setLive] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/markets");
+        if (!res.ok) return;
+        const json = await res.json() as { data?: Array<{ symbol: string; priceUsd?: number | null; change24h?: number | null }> };
+        const rows = (json.data ?? []).filter(r => typeof r.priceUsd === "number" && r.priceUsd > 0).slice(0, 15);
+        if (cancelled || rows.length < 5) return;
+        setTicks(rows.map(r => {
+          const ch = typeof r.change24h === "number" ? r.change24h : 0;
+          return { symbol: r.symbol.toUpperCase(), price: fmtPrice(r.priceUsd as number), change: `${ch >= 0 ? "+" : ""}${ch.toFixed(1).replace(".", ",")}%`, up: ch >= 0 };
+        }));
+        setLive(true);
+      } catch { /* mantém o fallback */ }
+    };
+    void load();
+    const id = setInterval(load, 60_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col xl:flex-row xl:items-start">
       <Sidebar />
       <div className="flex-1 min-w-0 flex flex-col min-h-screen">
-        {/* ── Live price ticker ── */}
-        <div className="border-b border-slate-800/60 bg-slate-900/50 py-2 overflow-hidden select-none shrink-0">
+        {/* ── Price ticker (real via /api/markets; fallback estático marcado como exemplo) ── */}
+        <div className="relative border-b border-slate-800/60 bg-slate-900/50 py-2 overflow-hidden select-none shrink-0" title={live ? "CoinEx / CoinGecko · 24h" : "exemplo"}>
+          {!live && <span className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded bg-slate-800 px-1.5 text-[9px] uppercase tracking-wider text-slate-500">demo</span>}
           <div className="flex animate-ticker" style={{ width: "max-content" }}>
-            {[...TICKER_DATA, ...TICKER_DATA, ...TICKER_DATA].map((t, i) => (
+            {[...ticks, ...ticks, ...ticks].map((t, i) => (
               <span key={i} className="inline-flex items-center gap-1.5 mx-6 text-xs font-mono whitespace-nowrap">
                 <span className="font-bold text-slate-300 tracking-wide">{t.symbol}</span>
                 <span className="text-slate-500">{t.price}</span>
