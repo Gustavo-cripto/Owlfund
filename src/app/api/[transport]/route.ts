@@ -44,7 +44,7 @@ const handler = createMcpHandler(
 
     server.tool(
       "get_whale_activity",
-      "Varre os endereços dados e devolve os movimentos on-chain recentes (transferências grandes, acumulação). Suporta ETH e BTC.",
+      "Varre os endereços dados e devolve os movimentos on-chain recentes (transferências grandes, acumulação). Suporta ETH, BTC e SOL.",
       {
         watchlist: z
           .array(z.object({
