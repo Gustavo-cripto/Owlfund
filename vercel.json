@@ -22,7 +22,7 @@
     },
     {
       "path": "/api/cron/whale-alerts",
-      "schedule": "*/30 * * * *"
+      "schedule": "30 9 * * *"
     },
     {
       "path": "/api/cron/cleanup",
