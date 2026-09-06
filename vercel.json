@@ -19,6 +19,14 @@
     {
       "path": "/api/cron/beta-expiry",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/whale-alerts",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/cleanup",
+      "schedule": "15 1 * * *"
     }
   ]
 }

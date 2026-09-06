@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { generateAiText } from "@/lib/ai/groq";
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
+import { NO_ADVICE_RULE } from "@/lib/ai/disclaimer";
+import { verifyCronAuth } from "@/lib/api/cron-auth";
+import { esc, FROM_BRIEFING, sendEmail, TZ } from "@/lib/email";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 const COINGECKO_IDS: Record<string, string> = {
   BTC: "bitcoin", ETH: "ethereum", SOL: "solana",
@@ -10,7 +16,7 @@ const COINGECKO_IDS: Record<string, string> = {
 
 async function fetchJson<T>(url: string): Promise<T | null> {
   try {
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(6000) });
     if (!res.ok) return null;
     return await res.json() as T;
   } catch { return null; }
@@ -49,9 +55,10 @@ async function buildContext(mode: "crypto" | "tradicional"): Promise<string> {
 // Devolve null em falha — o caller NUNCA envia email com texto de erro.
 async function generateBriefing(mode: "crypto" | "tradicional", context: string): Promise<string | null> {
   const today = new Date().toISOString().split("T")[0];
-  const prompt = mode === "crypto"
-    ? `Briefing diário de mercado cripto em português europeu. Data: ${today}.\n\nDados reais:\n${context}\n\nEscreve um briefing conciso com: Resumo, Destaques (bullets), Análise BTC/ETH/SOL, Fear & Greed e Perspetiva 24h. Usa APENAS os preços fornecidos.`
-    : `Briefing diário de mercado tradicional em português europeu. Data: ${today}.\n\nEscreve um briefing com: Resumo Macro, Destaques, Análise setorial (Tech, Ouro, Índices) e Perspetiva. Não inventes cotações específicas.`;
+  const prompt = (mode === "crypto"
+    ? `Briefing diário de mercado cripto em português europeu. Data: ${today}.\n\nDados reais:\n${context}\n\nEscreve um briefing conciso com: Resumo, Destaques (bullets), Análise BTC/ETH/SOL, Fear & Greed e Perspetiva 24h (descritiva: cenários e riscos, sem recomendações). Usa APENAS os preços fornecidos.`
+    : `Briefing diário de mercado tradicional em português europeu. Data: ${today}.\n\nEscreve um briefing com: Resumo Macro, Destaques, Análise setorial (Tech, Ouro, Índices) e Perspetiva (descritiva). Não inventes cotações específicas.`)
+    + `\n\n${NO_ADVICE_RULE}`;
   try {
     // Cadeia completa: candidatos Groq (modelos vivos) → OpenAI → xAI.
     const text = await generateAiText({ prompt, maxTokens: 1000, temperature: 0.2 });
@@ -63,7 +70,9 @@ async function generateBriefing(mode: "crypto" | "tradicional", context: string)
 }
 
 function buildEmailHtml(briefing: string, mode: string, date: string): string {
-  const lines = briefing.split("\n").map((line) => {
+  // Output da IA é escapado antes de ir para HTML.
+  const lines = briefing.split("\n").map((raw) => {
+    const line = esc(raw);
     if (line.startsWith("## ")) return `<h2 style="color:#f97316;font-size:16px;margin:20px 0 8px">${line.replace("## ", "")}</h2>`;
     if (line.startsWith("- ") || line.startsWith("* ")) return `<p style="margin:4px 0;padding-left:12px;border-left:3px solid #f97316;color:#cbd5e1">${line.replace(/^[-*] /, "")}</p>`;
     if (line.trim() === "") return "<br/>";
@@ -89,7 +98,7 @@ function buildEmailHtml(briefing: string, mode: string, date: string): string {
       <a href="https://chainfolioai.com/mercado" style="background:#f97316;color:#0f172a;padding:10px 24px;border-radius:999px;text-decoration:none;font-size:13px;font-weight:700">Ver Mercado →</a>
     </div>
     <p style="text-align:center;color:#475569;font-size:11px;margin-top:20px">
-      Para cancelar, vai a <a href="https://chainfolioai.com/account" style="color:#f97316">Conta → Notificações</a>
+      Não constitui aconselhamento financeiro. Para cancelar, vai a <a href="https://chainfolioai.com/account?section=notifications" style="color:#f97316">Conta → Notificações</a>
     </p>
   </div>
 </body>
@@ -100,16 +109,7 @@ export async function GET(request: Request) {
   // CRON_SECRET é obrigatório (fail-closed). O Vercel cron envia
   // Authorization: Bearer {CRON_SECRET} quando a env var está definida.
   // Não confiar no header x-vercel-cron (é falsificável por qualquer cliente).
-  const cronSecret = (process.env.CRON_SECRET ?? "").trim();
-  if (!cronSecret) {
-    console.error("[cron/news-briefing] CRON_SECRET não configurado — endpoint bloqueado.");
-    return NextResponse.json({ error: "CRON_SECRET não configurado." }, { status: 503 });
-  }
-  const authHeader = request.headers.get("authorization") ?? "";
-  const querySecret = new URL(request.url).searchParams.get("secret") ?? "";
-  if (authHeader !== `Bearer ${cronSecret}` && querySecret !== cronSecret) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!(await verifyCronAuth(request))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
@@ -121,7 +121,6 @@ export async function GET(request: Request) {
 
   const currentHour = new Date().getUTCHours();
   const supabase = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
-  const resend = new Resend(resendKey);
 
   // Contas Hobby só permitem 1 cron/dia — não é possível respeitar a hora
   // escolhida por cada utilizador, por isso enviamos a todos os que têm o
@@ -135,37 +134,30 @@ export async function GET(request: Request) {
     return NextResponse.json({ sent: 0, hour: currentHour });
   }
 
-  const date = new Date().toLocaleDateString("pt-PT", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const date = new Date().toLocaleDateString("pt-PT", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: TZ });
   let sent = 0;
   const errors: string[] = [];
 
+  // O briefing é igual para todos → gera-se UMA vez por modo (antes: 1 chamada LLM por utilizador).
+  const cache = new Map<"crypto" | "tradicional", string | null>();
+  const briefingFor = async (mode: "crypto" | "tradicional") => {
+    if (!cache.has(mode)) {
+      const context = await buildContext(mode);
+      const b = await generateBriefing(mode, context);
+      if (!b) console.error(`[briefing] ${mode}: IA indisponível — briefing não enviado`);
+      cache.set(mode, b ? buildEmailHtml(b, mode, date) : null);
+    }
+    return cache.get(mode) ?? null;
+  };
+
   for (const user of users) {
     const rawMode = (user.mode ?? "crypto") as "crypto" | "tradicional" | "both";
-
-    // "both" = envia dois emails (cripto + tradicional)
-    const modes: Array<"crypto" | "tradicional"> = rawMode === "both"
-      ? ["crypto", "tradicional"]
-      : [rawMode];
-
+    const modes: Array<"crypto" | "tradicional"> = rawMode === "both" ? ["crypto", "tradicional"] : [rawMode];
     for (const mode of modes) {
-      const context = await buildContext(mode);
-      const briefing = await generateBriefing(mode, context);
-      if (!briefing) {
-        // IA indisponível: NÃO enviar email de erro — regista e salta este modo.
-        console.error(`[briefing] ${mode}: IA indisponível — briefing não enviado`);
-        continue;
-      }
-      const html = buildEmailHtml(briefing, mode, date);
-
-      const { error } = await resend.emails.send({
-        from: "ChainFolioAI <briefing@chainfolioai.com>",
-        to: user.email,
-        subject: `Briefing ${mode === "crypto" ? "Cripto" : "Mercado Tradicional"} — ${date}`,
-        html,
-      });
-
-      if (error) errors.push(`${user.email}/${mode}: ${error.message}`);
-      else sent++;
+      const html = await briefingFor(mode);
+      if (!html) continue;
+      const ok = await sendEmail({ from: FROM_BRIEFING, to: user.email, subject: `Briefing ${mode === "crypto" ? "Cripto" : "Mercado Tradicional"} — ${date}`, html, tag: "briefing" });
+      if (ok) sent++; else errors.push(`${user.email}/${mode}`);
     }
   }
 

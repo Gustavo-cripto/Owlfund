@@ -1,3 +1,4 @@
+import { UpstreamError, assertUpstream } from "@/lib/api/upstream";
 // Ferramentas de investimento para a API pública e o MCP.
 // Cada função é autónoma (busca a própria fonte) para não tocar nas rotas internas.
 
@@ -28,6 +29,7 @@ export async function getAsset(symbol: string): Promise<AssetQuote | null> {
   try {
     const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&symbols=${encodeURIComponent(s)}&price_change_percentage=24h,7d`;
     const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    assertUpstream(res, "coingecko");
     if (!res.ok) return null;
     const rows = await res.json() as Array<Record<string, unknown>>;
     if (!Array.isArray(rows) || !rows.length) return null;
@@ -42,7 +44,7 @@ export async function getAsset(symbol: string): Promise<AssetQuote | null> {
       change7d: (r.price_change_percentage_7d_in_currency as number) ?? null,
       rank: (r.market_cap_rank as number) ?? null,
     };
-  } catch { return null; }
+  } catch (e) { if (e instanceof UpstreamError) throw e; return null; }
 }
 
 // ── FIRE (regra dos 4%) ────────────────────────────────────────────────────

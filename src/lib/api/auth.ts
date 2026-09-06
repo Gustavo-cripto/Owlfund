@@ -51,6 +51,9 @@ export async function checkApiKey(token: string): Promise<KeyCheck> {
     .select("price_id")
     .eq("user_id", key.user_id)
     .eq("status", "active")
+    .or(`current_period_end.is.null,current_period_end.gt.${new Date().toISOString()}`)
+    .order("current_period_end", { ascending: false, nullsFirst: false })
+    .limit(1)
     .maybeSingle();
 
   const isPremium = !!premiumPriceId && sub?.price_id === premiumPriceId;
@@ -64,13 +67,16 @@ export async function checkApiKey(token: string): Promise<KeyCheck> {
       p_limit: RATE_LIMIT,
       p_window_seconds: RATE_WINDOW_SECONDS,
     });
+    if (error) console.error("[api-auth] api_rate_check indisponível (fail-open):", error.message);
     if (!error && data === false) return { ok: false, reason: "rate_limited" };
-  } catch {
-    // tabela/função ainda não existe → deixa passar
+  } catch (e) {
+    console.error("[api-auth] api_rate_check lançou (fail-open):", e instanceof Error ? e.message : e);
   }
 
-  // Regista o uso sem bloquear a resposta.
-  void admin.from("api_keys").update({ last_used_at: new Date().toISOString() }).eq("key_hash", keyHash);
+  // Regista o uso sem bloquear a resposta. (O builder é lazy: só executa no .then —
+  // com `void` nunca corria e last_used_at ficava sempre vazio.)
+  admin.from("api_keys").update({ last_used_at: new Date().toISOString() }).eq("key_hash", keyHash)
+    .then(({ error: e }) => { if (e) console.error("[api-auth] last_used_at", e.message); }, () => {});
 
   return { ok: true, userId: key.user_id };
 }

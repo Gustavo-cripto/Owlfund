@@ -118,29 +118,40 @@ const toText = (h: string) =>
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  if (!allowed(ip)) return NextResponse.json({ error: "Demasiados pedidos. Tenta daqui a pouco." }, { status: 429 });
+  if (!allowed(ip)) return NextResponse.json({ error: "rate_limited" }, { status: 429 });
   if (betaClosed()) return NextResponse.json({ error: "beta_closed" }, { status: 403 });
 
   const key = process.env.RESEND_API_KEY ?? "";
-  if (!key) return NextResponse.json({ error: "Email não configurado." }, { status: 503 });
+  if (!key) return NextResponse.json({ error: "send_failed" }, { status: 503 });
 
   let body: Record<string, unknown> = {};
   try {
     body = (await req.json()) as Record<string, unknown>;
   } catch {
-    return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
+    return NextResponse.json({ error: "bad_request" }, { status: 400 });
   }
 
-  const email = str(body.email, 120);
+  // Honeypot: campo invisível que humanos não preenchem → responde OK sem enviar nada.
+  if (str(body.website, 200)) return NextResponse.json({ ok: true });
+
+  const email = str(body.email, 120).toLowerCase();
   const name = str(body.name, 80);
   const note = str(body.note, 1000);
   const lang = (str(body.lang, 5) || "pt").toLowerCase();
   // Origem (?src=twitter) — só letras/números/traços, p/ atribuição por rede.
   const src = str(body.src, 40).replace(/[^a-zA-Z0-9_-]/g, "");
-  if (!isEmail(email)) return NextResponse.json({ error: "Email inválido." }, { status: 400 });
+  if (!isEmail(email)) return NextResponse.json({ error: "bad_email" }, { status: 400 });
+
+  // Deduplicação: o mesmo email inscrito de novo não gera outra notificação nem
+  // outro email de boas-vindas (também evita usar o site para spammar terceiros).
+  try {
+    const { data: existing } = await getSupabaseAdmin().from("beta_signups").select("id").ilike("email", email).limit(1).maybeSingle();
+    if (existing) return NextResponse.json({ ok: true, already: true });
+  } catch { /* tabela opcional */ }
 
   const until = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
-  const untilStr = until.toLocaleDateString("pt-PT", { day: "2-digit", month: "long", year: "numeric" });
+  const LOCALE: Record<string, string> = { pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" };
+  const untilStr = until.toLocaleDateString(LOCALE[lang] ?? "pt-PT", { day: "2-digit", month: "long", year: "numeric" });
 
   const resend = new Resend(key);
 
@@ -161,19 +172,24 @@ export async function POST(req: NextRequest) {
 
   try {
     await resend.emails.send({ from: FROM, to: TO, replyTo: email, subject: `Beta tester: ${email}`, html: notify, text: toText(notify) });
-    // 2) Boas-vindas ao tester (não bloqueia se falhar).
-    const w = welcome(lang, name, untilStr);
-    resend.emails.send({ from: FROM, to: email, subject: w.subject, html: w.html, text: toText(w.html), headers: { "List-Unsubscribe": "<mailto:suporte@chainfolioai.com?subject=remover>" } }).catch(() => {});
-  } catch {
-    return NextResponse.json({ error: "Falha ao enviar." }, { status: 502 });
+  } catch (e) {
+    console.error("[beta-signup] notificação", e instanceof Error ? e.message : e);
+    return NextResponse.json({ error: "send_failed" }, { status: 502 });
   }
+  // 2) Boas-vindas ao tester — com await (em serverless um envio não aguardado é abortado).
+  const w = welcome(lang, name, untilStr);
+  await resend.emails.send({
+    from: FROM, to: email, replyTo: "suporte@chainfolioai.com", subject: w.subject, html: w.html, text: toText(w.html),
+    headers: { "List-Unsubscribe": "<mailto:suporte@chainfolioai.com?subject=remover>", "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
+  }).then(({ error }) => { if (error) console.error("[beta-signup] welcome", error.message); }, (e: unknown) => console.error("[beta-signup] welcome", e));
 
   // Guarda a inscrição para aparecer no painel (best-effort; ignora se a tabela
-  // ainda não existir).
+  // ainda não existir — mas regista o erro).
   try {
     const noteDb = [src ? `[via ${src}]` : "", note].filter(Boolean).join(" ") || null;
-    await getSupabaseAdmin().from("beta_signups").insert({ email, name: name || null, note: noteDb, lang, ip });
-  } catch { /* ignore */ }
+    const { error } = await getSupabaseAdmin().from("beta_signups").insert({ email, name: name || null, note: noteDb, lang, ip });
+    if (error) console.error("[beta-signup] insert", error.message);
+  } catch (e) { console.error("[beta-signup] insert", e instanceof Error ? e.message : e); }
 
   // 3) Notificação no Bot ChainFolioAI (Telegram), se configurado.
   // IMPORTANTE: await — em serverless, sem await o envio é abortado quando a

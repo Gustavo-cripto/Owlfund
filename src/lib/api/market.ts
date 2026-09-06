@@ -1,3 +1,4 @@
+import { UpstreamError, assertUpstream } from "@/lib/api/upstream";
 // Dados de mercado (top criptoativos), para a API pública e o MCP.
 // Fonte: CoinGecko (a mesma que a app já usa).
 
@@ -34,7 +35,10 @@ export async function getMarket(limit: number): Promise<MarketResult> {
     `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc` +
     `&per_page=${perPage}&page=1&price_change_percentage=24h,7d`;
 
-  const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+  let res: Response;
+  try { res = await fetch(url, { signal: AbortSignal.timeout(8000) }); }
+  catch { throw new UpstreamError(504, "coingecko"); }
+  assertUpstream(res, "coingecko");
   if (!res.ok) return { coins: [], count: 0, source: "coingecko", timestamp: Date.now() };
 
   const rows = (await res.json().catch(() => [])) as CoinGeckoRow[];

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { Resend } from "resend";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { verifyCronAuth } from "@/lib/api/cron-auth";
+import { FROM_BILLING, markSent, sendEmail, TZ } from "@/lib/email";
 
 // Vercel Cron Job (diário, 00:30 UTC — ver vercel.json). CRON_SECRET obrigatório.
 //
@@ -76,28 +76,30 @@ export async function GET(request: Request) {
         .lt("current_period_end", horizonIso);
 
       if (upcoming && upcoming.length > 0) {
-        const resend = new Resend(resendKey);
         for (const sub of upcoming) {
           const end = sub.current_period_end ? new Date(sub.current_period_end) : null;
           if (!end) continue;
           const daysLeft = Math.ceil((end.getTime() - now.getTime()) / DAY_MS);
-          if (!REMINDER_DAYS.includes(daysLeft)) continue;
+          // Marcos ≤7 e ≤1 dia, cada um enviado UMA vez (notification_log); com a
+          // tabela em falta cai no match exato de antes.
+          const kind = daysLeft <= 1 ? `crypto_1d:${end.toISOString().slice(0, 10)}` : daysLeft <= 7 ? `crypto_7d:${end.toISOString().slice(0, 10)}` : null;
+          if (!kind) continue;
+          if (!(await markSent(admin, sub.user_id, kind, REMINDER_DAYS.includes(daysLeft)))) continue;
 
-          // Email do utilizador (service role).
           const { data: u } = await admin.auth.admin.getUserById(sub.user_id);
           const email = u?.user?.email;
           if (!email) continue;
 
           const plan = planFromPriceId(sub.price_id);
-          const endLabel = end.toLocaleDateString("pt-PT");
-          const { error } = await resend.emails.send({
-            from: "ChainFolioAI <billing@chainfolioai.com>",
+          const endLabel = end.toLocaleDateString("pt-PT", { timeZone: TZ });
+          const ok = await sendEmail({
+            from: FROM_BILLING,
             to: email,
-            subject: `A tua subscrição ${plan} expira ${daysLeft === 1 ? "amanhã" : `em ${daysLeft} dias`}`,
+            subject: `A tua subscrição ${plan} expira ${daysLeft <= 1 ? "amanhã" : `em ${daysLeft} dias`}`,
             html: reminderHtml(plan, endLabel, daysLeft, `${siteUrl}/account`),
+            tag: "crypto_reminder",
           });
-          if (error) remindErrors.push(`${email}: ${error.message}`);
-          else reminded++;
+          if (ok) reminded++; else remindErrors.push(email);
         }
       }
     } catch (e) {

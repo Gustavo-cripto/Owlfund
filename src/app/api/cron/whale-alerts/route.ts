@@ -1,28 +1,18 @@
 import { NextResponse } from "next/server";
-import { createHmac, createHash, timingSafeEqual } from "crypto";
+import { createHmac, createHash } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { scanWatchlist, type WatchEntry } from "@/lib/api/whales";
+import { verifyCronAuth } from "@/lib/api/cron-auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
-function safeEqual(a: string, b: string): boolean {
-  const ba = Buffer.from(a);
-  const bb = Buffer.from(b);
-  if (ba.length !== bb.length) return false;
-  return timingSafeEqual(ba, bb);
-}
-
 // GET — chamado por um cron (Vercel ou externo) com Authorization: Bearer <CRON_SECRET>.
 // Varre a watchlist de cada utilizador com webhook ativo, deteta movimentos
 // grandes ("large_transfer") e faz POST assinado para o URL do utilizador.
 export async function GET(request: Request) {
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!safeEqual(request.headers.get("authorization") ?? "", `Bearer ${cronSecret}`)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!(await verifyCronAuth(request))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   let admin: ReturnType<typeof getSupabaseAdmin>;
   try {

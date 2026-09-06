@@ -27,6 +27,7 @@ export async function GET() {
       .select("status, price_id, current_period_end")
       .eq("user_id", user.id)
       .eq("status", "active")
+      .or(`current_period_end.is.null,current_period_end.gt.${new Date().toISOString()}`)
       .order("current_period_end", { ascending: false, nullsFirst: false })
       .limit(1)
       .maybeSingle();

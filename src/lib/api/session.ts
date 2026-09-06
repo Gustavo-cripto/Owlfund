@@ -29,6 +29,7 @@ export async function isUserPremium(
     .select("price_id")
     .eq("user_id", userId)
     .eq("status", "active")
+    .or(`current_period_end.is.null,current_period_end.gt.${new Date().toISOString()}`)
     .order("current_period_end", { ascending: false, nullsFirst: false })
     .limit(1)
     .maybeSingle();

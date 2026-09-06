@@ -1,4 +1,4 @@
-import { createHash } from "crypto";
+import { createHmac } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 // Leituras dos dados do utilizador, partilhadas pela API REST e pelo MCP.
@@ -6,8 +6,11 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 // Segurança máxima: o endereço real NUNCA sai na API. Devolvemos um pseudónimo
 // estável derivado por hash (não reversível) — não revela nenhum caractere do
 // endereço, mas é sempre o mesmo para a mesma carteira, para o bot as distinguir.
+// HMAC com segredo do servidor: um sha256 puro era confirmável por dicionário
+// (endereços são públicos). Continua estável para a mesma carteira.
+const PSEUDONYM_KEY = process.env.API_PSEUDONYM_SECRET ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? "chainfolioai";
 function maskAddress(value: string): string {
-  return `wallet_${createHash("sha256").update(value).digest("hex").slice(0, 10)}`;
+  return `wallet_${createHmac("sha256", PSEUDONYM_KEY).update(value.toLowerCase()).digest("hex").slice(0, 10)}`;
 }
 
 // Lista branca: a API só devolve estes campos conhecidos. Qualquer outro campo
