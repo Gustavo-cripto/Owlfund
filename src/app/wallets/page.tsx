@@ -1528,19 +1528,24 @@ export default function WalletsPage() {
       const response = await fetch(
         `/api/traditional?symbols=${encodeURIComponent(symbols.join(","))}`
       );
-      if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(payload?.error ?? "Falha ao obter cotações.");
+      const payload = (await response.json().catch(() => null)) as
+        | { data?: TraditionalQuote[]; code?: string; stale?: boolean }
+        | null;
+      if (!response.ok || !payload) {
+        // Sem dados novos: mantemos os preços anteriores em vez de os apagar.
+        setTraditionalQuotesError(t(payload?.code === "rate_limited" ? "wl_quotes_rate" : payload?.code === "no_key" ? "wl_quotes_nokey" : "wl_quotes_fail"));
+        return;
       }
-      const payload = (await response.json()) as { data: TraditionalQuote[] };
       const next: Record<string, TraditionalQuote> = {};
-      payload.data.forEach((quote) => {
+      (payload.data ?? []).forEach((quote) => {
         next[quote.symbol] = quote;
       });
-      setTraditionalQuotes(next);
-    } catch (error) {
-      setTraditionalQuotesError(error instanceof Error ? error.message : "Erro ao obter dados.");
-      setTraditionalQuotes({});
+      setTraditionalQuotes((prev) => ({ ...prev, ...next }));
+      setTraditionalQuotesError(
+        payload.code === "rate_limited" ? t("wl_quotes_rate") : payload.stale ? t("wl_quotes_stale") : null,
+      );
+    } catch {
+      setTraditionalQuotesError(t("wl_quotes_fail"));
     } finally {
       setTraditionalQuotesLoading(false);
     }
@@ -1563,17 +1568,20 @@ export default function WalletsPage() {
     setTraditionalQuoteLoading((prev) => ({ ...prev, [symbol]: true }));
     try {
       const response = await fetch(`/api/traditional?symbols=${encodeURIComponent(symbol)}`);
-      if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(payload?.error ?? "Falha ao obter cotações.");
+      const payload = (await response.json().catch(() => null)) as
+        | { data?: TraditionalQuote[]; code?: string; stale?: boolean }
+        | null;
+      if (!response.ok || !payload) {
+        setTraditionalQuotesError(t(payload?.code === "rate_limited" ? "wl_quotes_rate" : payload?.code === "no_key" ? "wl_quotes_nokey" : "wl_quotes_fail"));
+        return;
       }
-      const payload = (await response.json()) as { data: TraditionalQuote[] };
       const quote = payload.data?.[0];
       if (quote) {
         setTraditionalQuotes((prev) => ({ ...prev, [quote.symbol]: quote }));
+        setTraditionalQuotesError(payload.stale ? t("wl_quotes_stale") : null);
       }
-    } catch (error) {
-      setTraditionalQuotesError(error instanceof Error ? error.message : "Erro ao obter dados.");
+    } catch {
+      setTraditionalQuotesError(t("wl_quotes_fail"));
     } finally {
       setTraditionalQuoteLoading((prev) => ({ ...prev, [symbol]: false }));
     }
