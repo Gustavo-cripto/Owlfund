@@ -188,7 +188,7 @@ function FearGreedGauge({ value }: { value: number }) {
   const ny = cy - Math.sin(rad) * needleLen;
 
   return (
-    <svg viewBox="0 0 240 140" className="w-full" aria-hidden>
+    <svg viewBox="0 0 240 140" className="mx-auto w-full max-w-[300px]" aria-hidden>
       <defs>
         <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
           <stop offset="0%" stopColor="#ef4444" />
@@ -273,7 +273,7 @@ function FearGreedWidget({
   const updatedAt = now ? formatDateShort(now.timestampSec) : "";
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
         <div className="flex items-start gap-3">
           <div className="text-2xl leading-none">₿</div>
@@ -284,7 +284,7 @@ function FearGreedWidget({
         </div>
 
         <div className="mt-4">
-          {now ? <FearGreedGauge value={now.value} /> : <div className="h-[140px] w-full animate-pulse rounded-xl bg-slate-950/60" />}
+          {now ? <FearGreedGauge value={now.value} /> : <div className="mx-auto h-[140px] w-full max-w-[300px] animate-pulse rounded-xl bg-slate-950/60" />}
         </div>
 
         <div className="mt-2">
@@ -344,6 +344,7 @@ function FearGreedWidget({
         </div>
       </div>
 
+      <div className="flex flex-col gap-5 md:col-span-2 lg:col-span-1">
       {selectedSymbol && communitySentiment?.up != null && (
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
           <div className="flex items-center justify-between text-sm">
@@ -368,6 +369,7 @@ function FearGreedWidget({
           {remainingSec == null ? "—" : formatCountdown(remainingSec)}
         </p>
         <p className="mt-4 text-xs text-slate-500">{t("merc_source")}</p>
+      </div>
       </div>
     </div>
   );
