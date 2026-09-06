@@ -979,6 +979,7 @@ export default function AccountPage() {
                           t("ac_p_alerts"),
                           t("ac_p_countries"),
                           t("ac_p_history"),
+                          t("pcc_p_export"),
                         ].map(f => (
                           <li key={f} className="flex gap-2"><span className="text-orange-400 shrink-0">✓</span>{f}</li>
                         ))}
@@ -995,7 +996,6 @@ export default function AccountPage() {
                         {[
                           t("ac_all_pro"),
                           t("ac_pr_sm"),
-                          t("ac_pr_onchain"),
                           t("ac_pr_export"),
                           t("ac_pr_api"),
                           t("ac_pr_countries"),
