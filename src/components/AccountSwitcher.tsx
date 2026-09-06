@@ -7,6 +7,7 @@
 // - Renomear/apagar é POR conta, diretamente na lista (input inline, sem prompt).
 
 import { useEffect, useRef, useState } from "react";
+import { ACCOUNT_LIMITS } from "@/lib/plans";
 import { useConfirm } from "./ConfirmDialog";
 
 const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
@@ -28,7 +29,7 @@ import { pushWalletCloud } from "@/lib/portfolios/cloudSync";
 import { createClient } from "@/lib/supabase/client";
 
 type Plan = "free" | "pro" | "premium";
-const MAX_BY_PLAN: Record<Plan, number> = { free: 1, pro: 3, premium: 10 };
+const MAX_BY_PLAN: Record<Plan, number> = ACCOUNT_LIMITS;
 
 export default function AccountSwitcher() {
   const { t } = useLanguage();

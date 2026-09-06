@@ -31,16 +31,15 @@ export default function PricingPage() {
       { label: t("pc_r_cold"), free: true, pro: true, premium: true },
     ]},
     { category: t("pc_cat_portfolio"), rows: [
-      { label: t("pc_r_snapshots"), free: false, pro: true, premium: true },
+      { label: t("pc_r_snapshots"), free: true, pro: true, premium: true },
       { label: t("pc_r_history"), free: t("pc_30_days"), pro: t("pc_1_year"), premium: t("pc_unlimited") },
-      { label: t("pc_r_csv"), free: false, pro: true, premium: true },
-      { label: t("pc_r_pdf_auto"), free: false, pro: true, premium: t("pc_advanced") },
+      { label: t("pc_r_csv"), free: true, pro: true, premium: true },
+      { label: t("pc_r_pdf_auto"), free: true, pro: true, premium: true },
     ]},
     { category: t("pc_cat_smart"), rows: [
       { label: t("pc_r_watchlist"), free: t("pc_3_addr"), pro: t("pc_unlimited"), premium: t("pc_unlimited") },
-      { label: t("pc_r_whale_history"), free: t("pc_last_10"), pro: t("pc_last_100"), premium: t("pc_unlimited") },
+      { label: t("pc_r_whale_history"), free: t("pc_last_100"), pro: t("pc_last_100"), premium: t("pc_last_100") },
       { label: t("pc_r_alerts_100k"), free: false, pro: true, premium: true },
-      { label: t("pc_r_onchain_adv"), free: false, pro: false, premium: true },
       { label: t("pc_r_sm_rt"), free: false, pro: false, premium: true },
     ]},
     { category: t("pc_cat_ai"), rows: [
@@ -56,13 +55,12 @@ export default function PricingPage() {
       { label: t("pc_r_tax_calc"), free: t("pc_30_days"), pro: t("pc_unlimited"), premium: t("pc_unlimited") },
       { label: t("pc_r_countries"), free: t("pc_4_countries"), pro: t("pc_8_countries"), premium: t("pc_all") },
       { label: t("pc_r_tax_guide"), free: true, pro: true, premium: true },
-      { label: t("pc_r_tax_pdf"), free: false, pro: true, premium: t("pc_multiformat") },
-      { label: t("pc_r_tax_annual"), free: false, pro: true, premium: true },
+      { label: t("pc_r_tax_pdf"), free: false, pro: true, premium: true },
     ]},
     { category: t("pc_cat_fire"), rows: [
       { label: t("pc_r_fire_calc"), free: true, pro: true, premium: true },
-      { label: t("pc_r_fire_scen"), free: t("pc_3_scen"), pro: t("pc_unlimited"), premium: t("pc_unlimited") },
-      { label: t("pc_r_fire_proj"), free: false, pro: true, premium: true },
+      { label: t("pc_r_fire_scen"), free: t("pc_unlimited"), pro: t("pc_unlimited"), premium: t("pc_unlimited") },
+      { label: t("pc_r_fire_proj"), free: true, pro: true, premium: true },
     ]},
     { category: t("pc_cat_api"), rows: [
       { label: t("pc_r_api_rest"), free: false, pro: false, premium: true },
@@ -72,7 +70,6 @@ export default function PricingPage() {
     { category: t("pc_cat_support"), rows: [
       { label: t("pc_r_support_email"), free: true, pro: true, premium: true },
       { label: t("pc_r_support_priority"), free: false, pro: true, premium: true },
-      { label: t("pc_r_account_manager"), free: false, pro: false, premium: true },
       { label: t("pc_r_early_access"), free: false, pro: false, premium: true },
     ]},
   ];
@@ -314,6 +311,7 @@ export default function PricingPage() {
                     t("pcc_f_history"),
                     t("pcc_f_fifo"),
                     t("pcc_f_fire"),
+                    t("pcc_f_export"),
                     t("pcc_f_countries"),
                   ].map((f) => (
                     <div key={f} className="flex items-center gap-2 text-slate-400">
@@ -347,7 +345,6 @@ export default function PricingPage() {
                     t("pcc_p_cex"),
                     t("pcc_p_hl"),
                     t("pcc_p_nft"),
-                    t("pcc_p_snap"),
                     t("pcc_p_alerts"),
                     t("pcc_p_ainews"),
                     t("pc_r_ai_briefing"),
@@ -399,7 +396,6 @@ export default function PricingPage() {
                   {[
                     t("pc_all_pro"),
                     t("pc_r_sm_rt"),
-                    t("pc_r_onchain_adv"),
                     t("pcc_pr_history"),
                     t("pcc_pr_countries"),
                     t("pc_r_api_rest"),
@@ -488,7 +484,6 @@ export default function PricingPage() {
                       [t("pc_vs_wallets"), "✓", "✓", "✓", "—"],
                       [t("pc_vs_cex"), "✓", "✓", t("pc_partial"), "—"],
                       [t("pc_vs_sm"), "✓", t("pc_adv_check"), t("pc_partial"), "—"],
-                      [t("pc_vs_onchain"), "—", "✓", "—", "—"],
                       [t("pc_vs_api"), "—", "✓", "—", "—"],
                       [t("pc_vs_tax"), t("pc_8c"), t("pc_all"), t("pc_limited"), "—"],
                       [t("pc_vs_aichat"), "✓", "✓", "—", "—"],

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from "react";
+import { FREE_WALLET_LIMIT } from "@/lib/plans";
 import { btnPrimary } from "@/lib/ui/buttons";
 
 import AppShell from "@/components/AppShell";
@@ -1741,7 +1742,6 @@ export default function WalletsPage() {
     updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: adaWallets });
   };
 
-  const FREE_WALLET_LIMIT = 3;
   // Durante o beta (pagamentos congelados) os CTAs de upgrade viram convite ao beta.
   const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
   const totalWallets = ethWallets.length + solWallets.length + btcWallets.length + adaWallets.length;

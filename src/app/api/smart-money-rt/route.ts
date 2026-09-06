@@ -3,12 +3,12 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { scanWatchlist, type WatchEntry } from "@/lib/api/whales";
+import { getPlan } from "@/lib/api/entitlement";
 
 export const runtime = "edge";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-const premiumPriceId = process.env.STRIPE_PREMIUM_PRICE_ID ?? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID ?? "";
 
 export async function GET(req: NextRequest) {
   const cookieStore = await cookies();
@@ -38,10 +38,15 @@ export async function GET(req: NextRequest) {
   }
   if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
 
-  const { data: sub } = await db.from("subscriptions")
-    .select("status, price_id").eq("user_id", user.id).eq("status", "active").maybeSingle();
-  const isPremium = !!premiumPriceId && sub?.price_id === premiumPriceId;
-  if (!isPremium) return NextResponse.json({ error: "Requer Premium." }, { status: 403 });
+  // Linha válida mais recente e não expirada (o maybeSingle() sem order/limit
+  // falhava com duas subscrições ativas e dava 403 a Premium legítimo).
+  let isPremium = false;
+  try {
+    isPremium = (await getPlan(db, user.id)) === "premium";
+  } catch {
+    return NextResponse.json({ error: "Não foi possível verificar o plano agora.", code: "unavailable" }, { status: 503 });
+  }
+  if (!isPremium) return NextResponse.json({ error: "Requer Premium.", code: "requires_premium" }, { status: 403 });
 
   const watchlistParam = req.nextUrl.searchParams.get("watchlist");
   let watchlist: WatchEntry[] = [];

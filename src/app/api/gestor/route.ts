@@ -3,12 +3,13 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { getPlan } from "@/lib/api/entitlement";
+import { GESTOR_DAILY_LIMIT } from "@/lib/plans";
 import { generateAiChat, friendlyAiError, errorStatus, type ChatMessage } from "@/lib/ai/groq";
 import { scanWatchlist, type WatchEntry, type Movement } from "@/lib/api/whales";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-const premiumPriceId = process.env.STRIPE_PREMIUM_PRICE_ID ?? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID ?? "";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -35,11 +36,11 @@ type SnapshotData = {
 // validação/valorização em USD, sem cópias divergentes aqui.
 
 const LOCALE_BY_LANG: Record<string, string> = { pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" };
-const API_ERR: Record<string, { auth: string; premium: string; internal: string; empty: string }> = {
-  pt: { auth: "Não autenticado.", premium: "Requer Plano Premium.", internal: "Erro interno.", empty: "Sem mensagens." },
-  en: { auth: "Not authenticated.", premium: "Premium plan required.", internal: "Internal error.", empty: "No messages." },
-  es: { auth: "No autenticado.", premium: "Requiere Plan Premium.", internal: "Error interno.", empty: "Sin mensajes." },
-  fr: { auth: "Non authentifié.", premium: "Plan Premium requis.", internal: "Erreur interne.", empty: "Aucun message." },
+const API_ERR: Record<string, { auth: string; premium: string; internal: string; empty: string; daily: string; plan: string }> = {
+  pt: { auth: "Não autenticado.", premium: "Requer Plano Premium.", internal: "Erro interno.", empty: "Sem mensagens.", daily: "Atingiste o limite de 150 mensagens por dia do Gestor IA. Volta amanhã.", plan: "Não foi possível verificar o teu plano agora. Tenta de novo dentro de instantes." },
+  en: { auth: "Not authenticated.", premium: "Premium plan required.", internal: "Internal error.", empty: "No messages.", daily: "You reached the AI Manager limit of 150 messages per day. Come back tomorrow.", plan: "We could not verify your plan right now. Please try again in a moment." },
+  es: { auth: "No autenticado.", premium: "Requiere Plan Premium.", internal: "Error interno.", empty: "Sin mensajes.", daily: "Alcanzaste el límite de 150 mensajes por día del Gestor IA. Vuelve mañana.", plan: "No se pudo verificar tu plan ahora. Inténtalo de nuevo en unos instantes." },
+  fr: { auth: "Non authentifié.", premium: "Plan Premium requis.", internal: "Erreur interne.", empty: "Aucun message.", daily: "Tu as atteint la limite de 150 messages par jour du Gestionnaire IA. Reviens demain.", plan: "Impossible de vérifier ton plan pour le moment. Réessaie dans un instant." },
 };
 const apiErr = (lang: string, k: keyof (typeof API_ERR)["pt"]) => (API_ERR[lang] ?? API_ERR.pt)[k];
 
@@ -182,15 +183,46 @@ export async function POST(req: NextRequest) {
     lang = (req.headers.get("x-lang") ?? "").slice(0, 2) || "pt";
     if (!user) return NextResponse.json({ error: apiErr(lang, "auth") }, { status: 401 });
 
-    // Verify Premium
+    // Plano no servidor (linha válida mais recente, não expirada). Antes um
+    // maybeSingle() sem order/limit devolvia erro a quem tinha duas subscrições
+    // ativas (ex.: beta + Stripe) e o Premium legítimo levava 403.
+    let isPremium = false;
+    try {
+      isPremium = (await getPlan(db, user.id)) === "premium";
+    } catch (e) {
+      console.error("[gestor] plano indisponível:", e instanceof Error ? e.message : e);
+      return NextResponse.json({ error: apiErr(lang, "plan"), code: "unavailable" }, { status: 503 });
+    }
+    // Só para o contexto ("plano válido até…"): a linha válida mais recente.
     const { data: sub } = await db
-      .from("subscriptions").select("status, price_id, current_period_end")
-      .eq("user_id", user.id).eq("status", "active").maybeSingle();
-    const isPremium = !!premiumPriceId && sub?.price_id === premiumPriceId;
+      .from("subscriptions").select("price_id, current_period_end")
+      .eq("user_id", user.id).in("status", ["active", "trialing"])
+      .or(`current_period_end.is.null,current_period_end.gt.${new Date().toISOString()}`)
+      .order("current_period_end", { ascending: false, nullsFirst: false })
+      .limit(1).maybeSingle();
     const body = await req.json() as { messages: Message[]; watchlist?: WatchEntry[]; lang?: string; portfolio?: string; nickname?: string; accountName?: string; accountCount?: number; accountEmpty?: boolean; portfolioError?: boolean };
     lang = typeof body.lang === "string" && body.lang in API_ERR ? body.lang : lang;
     const locale = LOCALE_BY_LANG[lang] ?? "pt-PT";
     if (!isPremium) return NextResponse.json({ error: apiErr(lang, "premium") }, { status: 403 });
+
+    // Uso razoável: teto diário por conta (muito acima de qualquer uso legítimo;
+    // trava abuso de um plano de preço fixo). Falha fechado.
+    try {
+      const { data: withinLimit, error: rlErr } = await getSupabaseAdmin().rpc("api_rate_check", {
+        p_key_hash: `gestor:${user.id}`,
+        p_limit: GESTOR_DAILY_LIMIT,
+        p_window_seconds: 86400,
+      });
+      if (rlErr) throw new Error(rlErr.message);
+      if (withinLimit === false) {
+        const res = NextResponse.json({ error: apiErr(lang, "daily"), code: "daily_limit" }, { status: 429 });
+        res.headers.set("Retry-After", "86400");
+        return res;
+      }
+    } catch (e) {
+      console.error("[gestor] api_rate_check indisponível (fail-closed):", e instanceof Error ? e.message : e);
+      return NextResponse.json({ error: apiErr(lang, "plan"), code: "unavailable" }, { status: 503 });
+    }
     const clientPortfolio = typeof body.portfolio === "string" ? body.portfolio.slice(0, 3000) : "";
     const nickname = typeof body.nickname === "string" ? body.nickname.trim().slice(0, 40) : "";
     const accountName = typeof body.accountName === "string" ? body.accountName.trim().slice(0, 60) : "";

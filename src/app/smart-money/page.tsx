@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { FREE_WHALE_LIMIT } from "@/lib/plans";
 import { KNOWN_WHALES } from "@/lib/api/known-whales";
 import { btnPrimary } from "@/lib/ui/buttons";
 import AppShell from "@/components/AppShell";
@@ -165,7 +166,6 @@ function TxRow({ tx, whaleName }: { tx: WhaleTx; whaleName?: string }) {
 
 // ── Main Page ───────────────────────────────────────────────────────────────
 
-const FREE_WHALE_LIMIT = 3;
 
 export default function SmartMoneyPage() {
   const { isLoading, userId } = useRequireAuth("/login");

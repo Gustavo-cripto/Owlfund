@@ -22,7 +22,7 @@ const premiumPriceId =
 const notExpired = () => `current_period_end.is.null,current_period_end.gt.${new Date().toISOString()}`;
 
 /** Plano de cada utilizador da lista (só os que têm subscrição válida aparecem). Lança em erro de BD. */
-export async function activeSubscribers(client: SupabaseClient, userIds: string[]): Promise<Map<string, Plan>> {
+export async function activeSubscribers(client: Pick<SupabaseClient, "from">, userIds: string[]): Promise<Map<string, Plan>> {
   const plans = new Map<string, Plan>();
   if (userIds.length === 0) return plans;
   const { data, error } = await client
@@ -40,7 +40,7 @@ export async function activeSubscribers(client: SupabaseClient, userIds: string[
 }
 
 /** Plano efetivo de um utilizador. Lança em erro de BD. */
-export async function getPlan(client: SupabaseClient, userId: string): Promise<Plan> {
+export async function getPlan(client: Pick<SupabaseClient, "from">, userId: string): Promise<Plan> {
   return (await activeSubscribers(client, [userId])).get(userId) ?? "free";
 }
 

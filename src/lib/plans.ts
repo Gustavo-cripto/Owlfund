@@ -8,3 +8,4 @@ export const ACCOUNT_LIMITS = { free: 1, pro: 3, premium: 10 } as const;
 export const FREE_WALLET_LIMIT = 3;
 export const FREE_WHALE_LIMIT = 3;
 export const API_CHAT_PER_DAY = 50;      // /api/v1/chat + MCP ask_ai (por conta)
+export const GESTOR_DAILY_LIMIT = 150;   // Gestor IA (Premium): uso razoável por conta e por dia

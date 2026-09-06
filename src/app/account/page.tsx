@@ -1153,22 +1153,8 @@ export default function AccountPage() {
                     <SettingRow label={t("ac_whale_alerts")} desc={t("sm2_alerts_appear")}>
                       <Toggle label={t("ac_whale_alerts")} checked={alertsEnabled} onChange={v => setSetting("alertsEnabled", v)} />
                     </SettingRow>
-                    <SettingRow label={t("ac_email_alerts")} desc={t("ac_email_alerts_desc")}>
-                      {isPro || isPremium ? (
-                        <span className="text-[10px] rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-emerald-300">{t("ac_included")}</span>
-                      ) : (
-                        <a href={upgradeHref} className="text-[10px] rounded-full border border-orange-500/30 px-2 py-0.5 text-orange-400 hover:bg-orange-500/10">Pro →</a>
-                      )}
-                    </SettingRow>
                     <SettingRow label={t("ac_btc_blocks")} desc={t("ac_btc_blocks_desc")}>
                       <span className="text-[10px] rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-emerald-300">{t("ac_included")}</span>
-                    </SettingRow>
-                    <SettingRow label={t("ac_price_var")} desc={t("ac_price_var_desc")}>
-                      {isPro || isPremium ? (
-                        <span className="text-[10px] rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-emerald-300">{t("ac_included")}</span>
-                      ) : (
-                        <a href={upgradeHref} className="text-[10px] rounded-full border border-orange-500/30 px-2 py-0.5 text-orange-400 hover:bg-orange-500/10">Pro →</a>
-                      )}
                     </SettingRow>
                   </div>
 
