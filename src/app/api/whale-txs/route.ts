@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUsdPrices } from "@/lib/api/whales";
+import { requireUser } from "@/lib/api/requireUser";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -178,6 +179,9 @@ function parseBtcTxs(txs: MempoolTx[], address: string, btcPriceUsd: number): Wh
 
 // ── Route handler ─────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
+  // Proxy pago (Etherscan/mempool): só com sessão e com limite por utilizador.
+  const guard = await requireUser(req, { route: "whale-txs", limit: 60 });
+  if (!guard.ok) return guard.response;
   const address = req.nextUrl.searchParams.get("address");
   const chain = req.nextUrl.searchParams.get("chain") ?? "eth";
 
@@ -200,7 +204,7 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({ txs }, {
-      headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120" },
+      headers: { "Cache-Control": "private, max-age=60" },
     });
   } catch (err) {
     return NextResponse.json(

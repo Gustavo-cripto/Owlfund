@@ -28,7 +28,7 @@ const STEPS = (paymentsFrozen
 const STATS = [
   { value: "19", k: "lp_st1" },
   { value: "21", k: "lp_st4" },
-  { value: "5 🇪🇺", k: "lp_st5" },
+  { value: "6 🇪🇺", k: "lp_st5" },
   { value: "€0", k: "lp_st2" },
 ] as const;
 
@@ -98,11 +98,12 @@ const COMPARISON = [
   { l: "lp_cmp_r6_l", a: "lp_cmp_r6_a", b: "lp_cmp_r6_b", c: "lp_cmp_r6_c" },
 ] as const;
 
+// WebP a 1600px (≈30 KB cada, antes PNG de 300–500 KB); width/height evitam CLS.
 const SCREENSHOTS = [
-  { src: "/screenshots/dashboard.png", t: "lp_shot_dash_t", d: "lp_shot_dash_d" },
-  { src: "/screenshots/portfolio.png", t: "lp_shot_pf_t", d: "lp_shot_pf_d" },
-  { src: "/screenshots/market.png", t: "lp_shot_mkt_t", d: "lp_shot_mkt_d" },
-  { src: "/screenshots/wallets.png", t: "lp_shot_wal_t", d: "lp_shot_wal_d" },
+  { src: "/screenshots/dashboard.webp", w: 1600, h: 487, t: "lp_shot_dash_t", d: "lp_shot_dash_d" },
+  { src: "/screenshots/portfolio.webp", w: 1600, h: 801, t: "lp_shot_pf_t", d: "lp_shot_pf_d" },
+  { src: "/screenshots/market.webp", w: 1600, h: 688, t: "lp_shot_mkt_t", d: "lp_shot_mkt_d" },
+  { src: "/screenshots/wallets.webp", w: 1600, h: 695, t: "lp_shot_wal_t", d: "lp_shot_wal_d" },
 ] as const;
 
 // Secção "Vê por dentro": mostra apenas os screenshots que existem em
@@ -127,7 +128,10 @@ function AppScreenshots() {
             <img
               src={s.src}
               alt={t(s.t)}
+              width={s.w}
+              height={s.h}
               loading="lazy"
+              decoding="async"
               onLoad={() => setLoaded((p) => ({ ...p, [s.src]: true }))}
               onError={() => setLoaded((p) => ({ ...p, [s.src]: false }))}
               className="w-full border-b border-slate-800 object-cover"

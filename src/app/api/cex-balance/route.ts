@@ -250,6 +250,48 @@ async function fetchBitpanda(apiKey: string): Promise<CexBalance[]> {
   return out;
 }
 
+// ── Coinbase (Advanced Trade, chaves CDP com JWT ES256) ────────────────────
+// apiKey = nome da chave ("organizations/…/apiKeys/…"), apiSecret = chave privada EC em PEM.
+
+function coinbaseJwt(keyName: string, pem: string, method: string, path: string): string {
+  const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64url");
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: "ES256", kid: keyName, nonce: crypto.randomBytes(16).toString("hex"), typ: "JWT" };
+  const payload = { iss: "cdp", sub: keyName, nbf: now, exp: now + 120, uri: `${method} api.coinbase.com${path}` };
+  const signingInput = `${b64(header)}.${b64(payload)}`;
+  const sig = crypto.sign("sha256", Buffer.from(signingInput), { key: pem, dsaEncoding: "ieee-p1363" });
+  return `${signingInput}.${sig.toString("base64url")}`;
+}
+
+async function fetchCoinbase(keyName: string, rawPem: string): Promise<CexBalance[]> {
+  // O JSON descarregado da Coinbase traz "\n" literais dentro da string PEM.
+  const pem = rawPem.trim().replace(/\\n/g, "\n");
+  if (!/-----BEGIN (EC )?PRIVATE KEY-----/.test(pem)) throw new Error("Coinbase: o secret tem de ser a chave privada em PEM (começa por -----BEGIN EC PRIVATE KEY-----).");
+  if (!/^organizations\/[^/]+\/apiKeys\/[^/]+$/.test(keyName.trim())) throw new Error("Coinbase: a API key tem o formato organizations/…/apiKeys/…");
+  const out: CexBalance[] = [];
+  let cursor = "";
+  for (let page = 0; page < 10; page++) {
+    const path = "/api/v3/brokerage/accounts";
+    const qs = `?limit=250${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`;
+    let jwt: string;
+    try { jwt = coinbaseJwt(keyName.trim(), pem, "GET", path); }
+    catch { throw new Error("Coinbase: chave privada inválida (PEM EC P-256)."); }
+    const res = await fetch(`https://api.coinbase.com${path}${qs}`, { headers: { Authorization: `Bearer ${jwt}`, Accept: "application/json" }, cache: "no-store" });
+    if (res.status === 401) throw new Error("Coinbase: chave inválida ou sem permissão 'View'.");
+    if (!res.ok) throw new Error(`Coinbase: ${res.status}`);
+    const data = await res.json() as { accounts?: { currency?: string; available_balance?: { value?: string }; hold?: { value?: string } }[]; has_next?: boolean; cursor?: string };
+    for (const a of data.accounts ?? []) {
+      const free = parseFloat(a.available_balance?.value ?? "0");
+      const locked = parseFloat(a.hold?.value ?? "0");
+      const total = free + locked;
+      if (a.currency && total > 0) out.push({ asset: a.currency, free, locked, total });
+    }
+    if (!data.has_next || !data.cursor) break;
+    cursor = data.cursor;
+  }
+  return out;
+}
+
 // ── Route ──────────────────────────────────────────────────────────────────
 
 export async function POST(request: Request) {
@@ -273,6 +315,7 @@ export async function POST(request: Request) {
     else if (exchange === "bybit") balances = await fetchBybit(apiKey, apiSecret!);
     else if (exchange === "cryptocom") balances = await fetchCryptoCom(apiKey, apiSecret!);
     else if (exchange === "bitpanda") balances = await fetchBitpanda(apiKey);
+    else if (exchange === "coinbase") balances = await fetchCoinbase(apiKey, apiSecret!);
     else return NextResponse.json({ error: "Unknown exchange" }, { status: 400 });
 
     return NextResponse.json({ exchange, balances } satisfies CexBalanceResponse);

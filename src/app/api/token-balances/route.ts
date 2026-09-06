@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireUser } from "@/lib/api/requireUser";
 
 const MORALIS_EVM = "https://deep-index.moralis.io/api/v2.2";
 const MORALIS_SOL = "https://solana-gateway.moralis.io/account/mainnet";
@@ -90,6 +91,9 @@ function parseBalance(token: EvmToken): number {
 }
 
 export async function GET(request: Request) {
+  // Proxy pago (Moralis): só com sessão e com limite por utilizador.
+  const guard = await requireUser(request, { route: "token-balances", limit: 120 });
+  if (!guard.ok) return guard.response;
   const { searchParams } = new URL(request.url);
   const address = (searchParams.get("address") ?? "").trim();
   const chain = (searchParams.get("chain") ?? "eth") as ChainId;

@@ -16,7 +16,7 @@ interface CexBalance {
 
 interface CexAccount {
   id: string;
-  exchange: "binance" | "kraken" | "coinex" | "okx" | "bybit" | "cryptocom" | "bitpanda";
+  exchange: "binance" | "kraken" | "coinex" | "okx" | "bybit" | "cryptocom" | "bitpanda" | "coinbase";
   label: string;
   apiKey: string;
   apiSecret: string;
@@ -45,6 +45,7 @@ interface HlAccount {
 
 const EXCHANGES = [
   { id: "kraken", label: "Kraken", mica: true },
+  { id: "coinbase", label: "Coinbase", mica: true },
   { id: "okx", label: "OKX", mica: true },
   { id: "bybit", label: "Bybit", mica: true },
   { id: "cryptocom", label: "Crypto.com", mica: true },
@@ -64,7 +65,7 @@ function fmt(n: number) {
 const CEX_STORAGE_KEY = "cex-accounts-v1";
 const HL_STORAGE_KEY = "hl-accounts-v1";
 
-type StoredCex = { id: string; exchange: "binance" | "kraken" | "coinex" | "okx" | "bybit" | "cryptocom" | "bitpanda"; label: string; apiKey: string; apiSecret: string; apiPassphrase?: string };
+type StoredCex = { id: string; exchange: "binance" | "kraken" | "coinex" | "okx" | "bybit" | "cryptocom" | "bitpanda" | "coinbase"; label: string; apiKey: string; apiSecret: string; apiPassphrase?: string };
 type StoredHl = { address: string };
 
 function loadStored<T>(key: string): T[] {
@@ -111,7 +112,7 @@ export default function CexSection({
 
   // CEX add form
   const [showAddCex, setShowAddCex] = useState(false);
-  const [newExchange, setNewExchange] = useState<"binance" | "kraken" | "coinex" | "okx" | "bybit" | "cryptocom" | "bitpanda">("kraken");
+  const [newExchange, setNewExchange] = useState<"binance" | "kraken" | "coinex" | "okx" | "bybit" | "cryptocom" | "bitpanda" | "coinbase">("kraken");
   const [newPassphrase, setNewPassphrase] = useState("");
   const [newLabel, setNewLabel] = useState("");
   const [newKey, setNewKey] = useState("");
@@ -291,7 +292,7 @@ export default function CexSection({
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{t("cx_cex")}</p>
-            <p className="text-sm text-slate-300 mt-0.5">Kraken · OKX · Bybit · Crypto.com · Bitpanda · Binance · CoinEx — via API Key (read-only)</p>
+            <p className="text-sm text-slate-300 mt-0.5">Kraken · Coinbase · OKX · Bybit · Crypto.com · Bitpanda · Binance · CoinEx — via API Key (read-only)</p>
           </div>
           <button
             type="button"
@@ -329,12 +330,21 @@ export default function CexSection({
             />
             <input
               type="text"
-              placeholder={newExchange === "coinex" ? "Access ID (API Key)" : "API Key"}
+              placeholder={newExchange === "coinex" ? "Access ID (API Key)" : newExchange === "coinbase" ? "organizations/…/apiKeys/… (API key name)" : "API Key"}
               value={newKey}
               onChange={(e) => setNewKey(e.target.value)}
               className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-orange-500 font-mono"
             />
-            {newExchange !== "bitpanda" && (
+            {newExchange === "coinbase" ? (
+              <textarea
+                rows={4}
+                placeholder={"-----BEGIN EC PRIVATE KEY-----\n…\n-----END EC PRIVATE KEY-----"}
+                value={newSecret}
+                onChange={(e) => setNewSecret(e.target.value)}
+                spellCheck={false}
+                className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-[11px] text-slate-200 placeholder-slate-600 focus:outline-none focus:border-orange-500 font-mono"
+              />
+            ) : newExchange !== "bitpanda" && (
               <input
                 type="password"
                 placeholder={newExchange === "coinex" ? "Secret Key" : "API Secret"}
@@ -355,6 +365,9 @@ export default function CexSection({
             {newExchange === "bitpanda" && (
               <p className="text-[10px] text-emerald-400">Bitpanda: basta a API key (não tem secret).</p>
             )}
+            {newExchange === "coinbase" && (
+              <p className="text-[10px] text-sky-300">Coinbase: cria uma chave em Developer Platform → API keys (permissão só <span className="font-mono">View</span>). Cola o <span className="font-mono">name</span> no campo da chave e a <span className="font-mono">privateKey</span> (PEM) no campo grande — o ficheiro JSON descarregado tem os dois.</p>
+            )}
             {newExchange === "binance" && (
               <p className="text-[10px] text-amber-400">⚠️ A Binance não obteve licença MiCA e está a encerrar serviços na UE — considera uma exchange licenciada 🇪🇺.</p>
             )}
@@ -366,8 +379,8 @@ export default function CexSection({
               <ol className="mt-2 space-y-1 text-[11px] leading-relaxed text-slate-300">
                 <li>1. {t("cx_guide_s1")}{" "}
                   <a target="_blank" rel="noopener noreferrer" className="text-sky-300 underline"
-                    href={({ binance: "https://www.binance.com/en/my/settings/api-management", kraken: "https://pro.kraken.com/app/settings/api", coinex: "https://www.coinex.com/apikey", okx: "https://www.okx.com/account/my-api", bybit: "https://www.bybit.com/app/user/api-management", cryptocom: "https://crypto.com/exchange", bitpanda: "https://web.bitpanda.com/apikey" } as Record<string, string>)[newExchange]}>
-                    {({ binance: "Binance → API Management", kraken: "Kraken → Settings → API", coinex: "CoinEx → API Keys", okx: "OKX → API keys", bybit: "Bybit → API Management", cryptocom: "Crypto.com Exchange → API Keys", bitpanda: "Bitpanda → API Key" } as Record<string, string>)[newExchange]}
+                    href={({ binance: "https://www.binance.com/en/my/settings/api-management", kraken: "https://pro.kraken.com/app/settings/api", coinex: "https://www.coinex.com/apikey", okx: "https://www.okx.com/account/my-api", bybit: "https://www.bybit.com/app/user/api-management", cryptocom: "https://crypto.com/exchange", bitpanda: "https://web.bitpanda.com/apikey", coinbase: "https://portal.cdp.coinbase.com/projects/api-keys" } as Record<string, string>)[newExchange]}>
+                    {({ binance: "Binance → API Management", kraken: "Kraken → Settings → API", coinex: "CoinEx → API Keys", okx: "OKX → API keys", bybit: "Bybit → API Management", cryptocom: "Crypto.com Exchange → API Keys", bitpanda: "Bitpanda → API Key", coinbase: "Coinbase Developer Platform → API keys" } as Record<string, string>)[newExchange]}
                   </a>
                 </li>
                 <li>2. {t("cx_guide_s2")}</li>

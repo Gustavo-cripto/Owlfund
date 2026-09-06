@@ -214,7 +214,7 @@ export default function PricingPage() {
             <div className="flex flex-wrap justify-center gap-6 text-center">
               {[
                 { value: "10+", label: t("pc_stat_chains") },
-                { value: "5 CEXs 🇪🇺", label: t("pc_stat_cex") },
+                { value: "6 CEXs 🇪🇺", label: t("pc_stat_cex") },
                 { value: "21 países", label: t("pc_stat_tax") },
                 { value: "API/MCP", label: t("pc_stat_api") },
               ].map((s) => (
