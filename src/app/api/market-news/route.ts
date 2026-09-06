@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { unstable_cache } from "next/cache";
 import { generateAiText, friendlyAiError, errorStatus, hasAnyAiProvider } from "@/lib/ai/groq";
 import { NO_ADVICE_RULE } from "@/lib/ai/disclaimer";
+import { requireUser } from "@/lib/api/requireUser";
+import { getPlanOrNull, planUnavailableResponse, requiresPlanResponse } from "@/lib/api/entitlement";
 
 const COINGECKO_IDS: Record<string, string> = {
   BTC: "bitcoin", ETH: "ethereum", SOL: "solana",
@@ -184,6 +186,14 @@ Escreve um briefing do mercado tradicional em português europeu.
 );
 
 export async function POST(request: Request) {
+  // Gera IA paga: só com sessão e plano Pro/Premium (antes qualquer pessoa na
+  // internet podia invocar esta rota).
+  const auth = await requireUser(request, { route: "market-news", limit: 10 });
+  if (!auth.ok) return auth.response;
+  const plan = await getPlanOrNull(auth.userId);
+  if (!plan) return planUnavailableResponse();
+  if (plan === "free") return requiresPlanResponse("pro");
+
   const body = await request.json() as { mode?: MarketMode; lang?: string };
   const { mode = "crypto", lang = "pt" } = body;
 

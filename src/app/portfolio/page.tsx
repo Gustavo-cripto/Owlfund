@@ -632,8 +632,17 @@ export default function PortfolioPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question: q, context, nickname: loadNickname() || undefined }),
       });
-      const data = (await res.json()) as { reply?: string; error?: string };
-      if (!res.ok || data.error) { setAiError(data.error ?? t("pf_error")); return; }
+      const data = (await res.json()) as { reply?: string; error?: string; code?: string; limit?: number };
+      if (!res.ok || data.error) {
+        setAiError(
+          data.code === "limit_reached"
+            ? t("pf_ai_limit").replace("{n}", String(data.limit ?? 3))
+            : data.code === "unavailable"
+              ? t("pf_ai_unavailable")
+              : data.error ?? t("pf_error"),
+        );
+        return;
+      }
       setAiReply(data.reply ?? "");
     } catch (err) {
       setAiError(err instanceof Error ? err.message : t("pf_error"));

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireUser } from "@/lib/api/requireUser";
 import { encodeAbiParameters, keccak256 } from "viem";
 
 const MORALIS_DEFI = "https://deep-index.moralis.io/api/v2.2/wallets";
@@ -1387,6 +1388,10 @@ async function fetchCardanoDeFi(
 }
 
 export async function GET(request: Request) {
+  // Moralis é pago por chamada: só com sessão e limite por utilizador.
+  const auth = await requireUser(request, { route: "defi-balance", limit: 60 });
+  if (!auth.ok) return auth.response;
+
   const { searchParams } = new URL(request.url);
   const address = searchParams.get("address");
   const chain = (searchParams.get("chain") ?? "eth") as ChainId;

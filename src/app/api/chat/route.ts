@@ -5,56 +5,15 @@ import { cookies } from "next/headers";
 import { createHash } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { NO_ADVICE_RULE } from "@/lib/ai/disclaimer";
-import { FREE_CHAT_LIMIT, ANON_DAILY_CHAT_LIMIT } from "@/lib/plans";
+import { FREE_AI_LIMIT, ANON_DAILY_CHAT_LIMIT } from "@/lib/plans";
+import { checkAiQuota, incrementAiUsage, quotaErrorResponse } from "@/lib/api/entitlement";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const premiumPriceId = process.env.STRIPE_PREMIUM_PRICE_ID ?? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID ?? "";
 
-// Só VERIFICA (o incremento é feito depois de a IA responder com sucesso —
-// antes uma falha 503 do fornecedor consumia a única análise do mês).
-async function checkChatUsage(userId: string): Promise<{ allowed: boolean; count: number; free: boolean }> {
-  try {
-    const admin = getSupabaseAdmin();
-    const month = new Date().toISOString().slice(0, 7); // "YYYY-MM"
-
-    // Linha ativa mais recente (pode haver Stripe + manual/cripto).
-    const { data: sub } = await admin
-      .from("subscriptions")
-      .select("status, current_period_end, price_id")
-      .eq("user_id", userId)
-      .eq("status", "active")
-      .order("current_period_end", { ascending: false, nullsFirst: false })
-      .limit(1)
-      .maybeSingle();
-
-    const isActive = sub?.status === "active" || sub?.status === "trialing";
-    const notExpired = !sub?.current_period_end || new Date(sub.current_period_end).getTime() > Date.now();
-    if (isActive && notExpired) return { allowed: true, count: 0, free: false }; // Pro/Premium: ilimitado
-
-    const { data: usage } = await admin
-      .from("chat_usage")
-      .select("count")
-      .eq("user_id", userId)
-      .eq("month", month)
-      .maybeSingle();
-
-    const currentCount = usage?.count ?? 0;
-    return { allowed: currentCount < FREE_CHAT_LIMIT, count: currentCount, free: true };
-  } catch {
-    return { allowed: true, count: 0, free: false }; // fail open — não bloquear por erro de BD
-  }
-}
-
-async function incrementChatUsage(userId: string, currentCount: number): Promise<void> {
-  try {
-    const admin = getSupabaseAdmin();
-    const month = new Date().toISOString().slice(0, 7);
-    await admin.from("chat_usage").upsert(
-      { user_id: userId, month, count: currentCount + 1, updated_at: new Date().toISOString() },
-      { onConflict: "user_id,month" }
-    );
-  } catch { /* best-effort */ }
-}
+// A verificação e o incremento da quota vivem em src/lib/api/entitlement.ts
+// (partilhados com /api/portfolio-ai): o incremento é feito depois de a IA
+// responder com sucesso — antes uma falha 503 do fornecedor consumia a análise.
 
 // Dados do utilizador entram no prompt como DADOS delimitados, nunca como instruções.
 const asData = (label: string, value: string) => `\n\n<${label}>\n${value.replace(/<\/?dados[^>]*>/gi, "")}\n</${label}>`;
@@ -521,42 +480,40 @@ export async function POST(request: Request) {
     });
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      const { allowed, count, free } = await checkChatUsage(user.id);
-      if (!allowed) {
-        return NextResponse.json({
-          error: `Atingiste o limite de ${FREE_CHAT_LIMIT} análise IA/mês do plano Gratuito. Faz upgrade para Pro para análises ilimitadas.`,
-          code: "limit_reached",
-          limitReached: true,
-          count,
-          limit: FREE_CHAT_LIMIT,
-        }, { status: 429 });
-      }
-      if (free) usageToIncrement = { userId: user.id, count };
+      const quota = await checkAiQuota(user.id);
+      if (!quota.ok) return quotaErrorResponse(quota);
+      if (quota.free) usageToIncrement = { userId: user.id, count: quota.count };
     } else {
       // Anónimos (visitantes das páginas públicas): o chat continua disponível
       // como assistente pré-registo, mas com teto DIÁRIO por IP persistido na
       // BD. O checkRateLimit acima é um Map em memória — na Vercel é por
       // instância e efémero, logo não trava abuso distribuído do custo de IA.
-      try {
-        const admin = getSupabaseAdmin();
-        const ipHash = createHash("sha256").update(`anon-chat:${ip}`).digest("hex").slice(0, 32);
-        const { data, error } = await admin.rpc("api_rate_check", {
-          p_key_hash: ipHash,
-          p_limit: ANON_DAILY_CHAT_LIMIT,
-          p_window_seconds: 86400,
-        });
-        if (!error && data === false) {
-          const res = NextResponse.json({
-            error: "Limite diário de mensagens atingido. Cria uma conta gratuita para continuares a usar o assistente.",
-            code: "anon_limit",
-            limitReached: true,
-          }, { status: 429 });
-          res.headers.set("Retry-After", "86400");
-          return res;
-        }
-      } catch { /* função ainda não migrada → não bloquear o funil */ }
+      // Falha FECHADO: sem BD não há como contar, logo não se gasta IA.
+      const admin = getSupabaseAdmin();
+      const ipHash = createHash("sha256").update(`anon-chat:${ip}`).digest("hex").slice(0, 32);
+      const { data, error } = await admin.rpc("api_rate_check", {
+        p_key_hash: ipHash,
+        p_limit: ANON_DAILY_CHAT_LIMIT,
+        p_window_seconds: 86400,
+      });
+      if (error) throw new Error(error.message);
+      if (data === false) {
+        const res = NextResponse.json({
+          error: "Limite diário de mensagens atingido. Cria uma conta gratuita para continuares a usar o assistente.",
+          code: "anon_limit",
+          limitReached: true,
+        }, { status: 429 });
+        res.headers.set("Retry-After", "86400");
+        return res;
+      }
     }
-  } catch { /* fail open */ }
+  } catch (e) {
+    console.error("[chat] verificação de quota indisponível (fail-closed):", e instanceof Error ? e.message : e);
+    return NextResponse.json(
+      { error: "Não foi possível verificar o teu plano agora. Tenta novamente dentro de instantes.", code: "unavailable" },
+      { status: 503 },
+    );
+  }
 
   let body: { messages?: IncomingMessage[]; pageContext?: string; portfolio?: string; nickname?: string; accountName?: string } | null = null;
   try {
@@ -675,8 +632,8 @@ export async function POST(request: Request) {
     }
 
     // Só agora conta a análise (resposta obtida com sucesso).
-    if (usageToIncrement) await incrementChatUsage(usageToIncrement.userId, usageToIncrement.count);
-    return NextResponse.json({ reply: result.reply, usage: usageToIncrement ? { count: usageToIncrement.count + 1, limit: FREE_CHAT_LIMIT } : undefined });
+    if (usageToIncrement) await incrementAiUsage(usageToIncrement.userId, usageToIncrement.count);
+    return NextResponse.json({ reply: result.reply, usage: usageToIncrement ? { count: usageToIncrement.count + 1, limit: FREE_AI_LIMIT } : undefined });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
       return NextResponse.json({ error: "Timeout ao contactar o serviço de IA.", code: "timeout" }, { status: 504 });

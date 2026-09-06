@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { generateAiChat, friendlyAiError, errorStatus, hasAnyAiProvider, type ChatMessage } from "@/lib/ai/groq";
 import { NO_ADVICE_RULE } from "@/lib/ai/disclaimer";
 import { rateLimit, clientIp } from "@/lib/utils/rateLimit";
+import { getPlanOrNull, planUnavailableResponse, requiresPlanResponse } from "@/lib/api/entitlement";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -28,6 +29,14 @@ export async function POST(request: Request) {
   // Exigir sessão — a página /mercado já exige login (useRequireAuth)
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+
+  // O chat sobre o briefing é Pro/Premium (a UI já o esconde; o servidor decide).
+  const plan = await getPlanOrNull(user.id);
+  if (!plan) return planUnavailableResponse();
+  if (plan === "free") return requiresPlanResponse("pro");
+  if (!rateLimit(`market-chat:u:${user.id}`, 15, 60_000)) {
+    return NextResponse.json({ error: "Demasiados pedidos. Tenta novamente em 1 minuto.", code: "rate_limited" }, { status: 429 });
+  }
 
   if (!hasAnyAiProvider()) return NextResponse.json({ error: "Serviço de IA não configurado." }, { status: 503 });
 

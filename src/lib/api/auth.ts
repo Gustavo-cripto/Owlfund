@@ -59,18 +59,22 @@ export async function checkApiKey(token: string): Promise<KeyCheck> {
   const isPremium = !!premiumPriceId && sub?.price_id === premiumPriceId;
   if (!isPremium) return { ok: false, reason: "premium" };
 
-  // Rate limit por chave (janela fixa). Falha ABERTO se a migração/RPC ainda
-  // não existir — assim é seguro publicar antes de correr supabase-rate-limits.sql.
+  // Rate limit por chave (janela fixa). Falha FECHADO (503): sem o contador não
+  // há como travar abuso, e a API gasta fornecedores pagos por pedido.
   try {
     const { data, error } = await admin.rpc("api_rate_check", {
       p_key_hash: keyHash,
       p_limit: RATE_LIMIT,
       p_window_seconds: RATE_WINDOW_SECONDS,
     });
-    if (error) console.error("[api-auth] api_rate_check indisponível (fail-open):", error.message);
-    if (!error && data === false) return { ok: false, reason: "rate_limited" };
+    if (error) {
+      console.error("[api-auth] api_rate_check indisponível (fail-closed):", error.message);
+      return { ok: false, reason: "unavailable" };
+    }
+    if (data === false) return { ok: false, reason: "rate_limited" };
   } catch (e) {
-    console.error("[api-auth] api_rate_check lançou (fail-open):", e instanceof Error ? e.message : e);
+    console.error("[api-auth] api_rate_check lançou (fail-closed):", e instanceof Error ? e.message : e);
+    return { ok: false, reason: "unavailable" };
   }
 
   // Regista o uso sem bloquear a resposta. (O builder é lazy: só executa no .then —

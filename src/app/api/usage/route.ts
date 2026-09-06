@@ -6,7 +6,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
-import { FREE_CHAT_LIMIT as FREE_AI_LIMIT } from "@/lib/plans";
+import { FREE_AI_LIMIT } from "@/lib/plans";
 
 export async function GET() {
   const cookieStore = await cookies();

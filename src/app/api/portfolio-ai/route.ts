@@ -3,6 +3,7 @@ import { resolveGroqModel } from "@/lib/ai/groq";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { rateLimit, clientIp } from "@/lib/utils/rateLimit";
+import { checkAiQuota, incrementAiUsage, quotaErrorResponse } from "@/lib/api/entitlement";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -152,6 +153,13 @@ export async function POST(request: Request) {
   // Exigir sessão — endpoint usado apenas na página de portefólio (autenticada)
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+  if (!rateLimit(`portfolio-ai:u:${user.id}`, 10, 60_000)) {
+    return NextResponse.json({ error: "Demasiados pedidos. Tenta novamente em 1 minuto.", code: "rate_limited" }, { status: 429 });
+  }
+
+  // Quota mensal do Free (partilhada com o chat "Chain"); Pro/Premium sem limite.
+  const quota = await checkAiQuota(user.id);
+  if (!quota.ok) return quotaErrorResponse(quota);
 
   let body: Body | null = null;
   try {
@@ -171,7 +179,11 @@ export async function POST(request: Request) {
   try {
     const system = buildSystemPrompt(context, typeof nickname === "string" ? nickname.trim().slice(0, 40) : "");
     const reply = await callAI(system, question.trim());
-    return NextResponse.json({ reply });
+    if (quota.free) await incrementAiUsage(user.id, quota.count);
+    return NextResponse.json({
+      reply,
+      usage: quota.free ? { count: quota.count + 1, limit: quota.limit } : undefined,
+    });
   } catch (err) {
     // Log interno; nunca expor detalhes do erro ao cliente.
     console.error("[portfolio-ai]", err instanceof Error ? err.message : err);

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireUser } from "@/lib/api/requireUser";
 
 // Cotações de ações/ETFs/índices (Twelve Data).
 //
@@ -31,7 +32,7 @@ type TwelveQuote = {
   code?: number;
 };
 
-const FRESH_MS = 120_000;            // 2 min: bolsa não mexe ao segundo
+const FRESH_MS = 300_000;            // 5 min: bolsa não mexe ao segundo e os créditos são partilhados por todos
 const STALE_MS = 7 * 24 * 3600_000;  // aceita valores antigos em falha (fecho/fim de semana)
 const cache = new Map<string, { quote: Quote; at: number }>();
 
@@ -91,6 +92,11 @@ async function fetchTwelveData(symbols: string[], apiKey: string): Promise<Fetch
 }
 
 export async function GET(request: Request) {
+  // Os créditos da Twelve Data são partilhados por todos os utilizadores: só
+  // com sessão e com limite por utilizador (antes qualquer visitante os gastava).
+  const auth = await requireUser(request, { route: "traditional", limit: 30 });
+  if (!auth.ok) return auth.response;
+
   const apiKey = (process.env.TWELVEDATA_API_KEY ?? "").trim();
   if (!apiKey) {
     return NextResponse.json(

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { activeSubscribers, type Plan } from "@/lib/api/entitlement";
 import { generateAiText } from "@/lib/ai/groq";
 import { createClient } from "@supabase/supabase-js";
 import { NO_ADVICE_RULE } from "@/lib/ai/disclaimer";
@@ -134,6 +135,25 @@ export async function GET(request: Request) {
     return NextResponse.json({ sent: 0, hour: currentHour });
   }
 
+  // O briefing é Pro/Premium: quem voltou ao Free deixa de o receber (e de
+  // gastar IA + email) — a preferência é desligada para ficar coerente na Conta.
+  let plans: Map<string, Plan>;
+  try {
+    plans = await activeSubscribers(supabase, users.map((u) => u.user_id));
+  } catch (e) {
+    console.error("[briefing] planos indisponíveis — nada enviado:", e instanceof Error ? e.message : e);
+    return NextResponse.json({ error: "subscriptions unavailable" }, { status: 503 });
+  }
+  const lapsed = users.filter((u) => !plans.has(u.user_id));
+  if (lapsed.length > 0) {
+    const { error: offErr } = await supabase
+      .from("news_briefing_schedule")
+      .update({ enabled: false })
+      .in("user_id", lapsed.map((u) => u.user_id));
+    if (offErr) console.error("[briefing] não desligou lapsos:", offErr.message);
+  }
+  const eligible = users.filter((u) => plans.has(u.user_id));
+
   const date = new Date().toLocaleDateString("pt-PT", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: TZ });
   let sent = 0;
   const errors: string[] = [];
@@ -150,7 +170,7 @@ export async function GET(request: Request) {
     return cache.get(mode) ?? null;
   };
 
-  for (const user of users) {
+  for (const user of eligible) {
     const rawMode = (user.mode ?? "crypto") as "crypto" | "tradicional" | "both";
     const modes: Array<"crypto" | "tradicional"> = rawMode === "both" ? ["crypto", "tradicional"] : [rawMode];
     for (const mode of modes) {
@@ -161,5 +181,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ sent, total: users.length, hour: currentHour, errors });
+  return NextResponse.json({ sent, total: users.length, eligible: eligible.length, lapsed: lapsed.length, hour: currentHour, errors });
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireUser } from "@/lib/api/requireUser";
 
 const MORALIS_EVM = "https://deep-index.moralis.io/api/v2.2";
 const MORALIS_SOLANA = "https://solana-gateway.moralis.io/account/mainnet";
@@ -161,6 +162,10 @@ async function resolveEvmNftImage(item: EvmNftItem): Promise<string | undefined>
 }
 
 export async function GET(request: Request) {
+  // Moralis é pago por chamada: só com sessão e limite por utilizador.
+  const auth = await requireUser(request, { route: "nft-balance", limit: 60 });
+  if (!auth.ok) return auth.response;
+
   const { searchParams } = new URL(request.url);
   const address = searchParams.get("address");
   const chain = (searchParams.get("chain") ?? "eth") as ChainId;
