@@ -1034,8 +1034,8 @@ export default function WalletsPage() {
     adaAddresses.forEach((addr) => fetchNftBalance(addr, "ada"));
   }, [adaAddresses.join(",")]);
 
-  const refreshCryptoPrices = async () => {
-    const symbols = Object.keys(cryptoHoldings);
+  const refreshCryptoPrices = async (symbolsArg?: string[]) => {
+    const symbols = symbolsArg ?? Object.keys(cryptoHoldings);
     setCryptoPricesLoading(true);
     setCryptoPricesError(null);
     try {
@@ -1148,13 +1148,21 @@ export default function WalletsPage() {
     }
   };
 
+  // Depende também dos SÍMBOLOS: ao adicionar/remover um ativo manual é preciso
+  // ir buscar o preço desse símbolo. A chave é a lista ordenada (não o objeto),
+  // para não refazer o pedido a cada tecla no valor investido.
+  const cryptoSymbolsKey = useMemo(
+    () => Object.keys(cryptoHoldings).sort().join(","),
+    [cryptoHoldings],
+  );
   useEffect(() => {
     if (walletMode !== "web3") return;
-    refreshCryptoPrices();
-    const id = window.setInterval(refreshCryptoPrices, 60000);
+    const symbols = cryptoSymbolsKey ? cryptoSymbolsKey.split(",") : [];
+    refreshCryptoPrices(symbols);
+    const id = window.setInterval(() => refreshCryptoPrices(symbols), 60000);
     return () => window.clearInterval(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [walletMode]);
+  }, [walletMode, cryptoSymbolsKey]);
 
   const refreshWeb3Prices = async () => {
     setWeb3PricesLoading(true);
@@ -4591,6 +4599,12 @@ export default function WalletsPage() {
                   <span className="font-semibold text-white">
                     {fmtCur(cexHlTotalUsd * usdToEurRate)}
                   </span>
+                </span>
+              )}
+              {cryptoManualTotal > 0 && (
+                <span title={t("wl_manual_hint")}>
+                  <span className="text-slate-500">{t("wl_manual_label")}</span>{" "}
+                  <span className="font-semibold text-white">{fmtCur(cryptoManualTotal)}</span>
                 </span>
               )}
               <span>
