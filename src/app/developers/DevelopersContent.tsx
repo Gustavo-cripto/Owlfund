@@ -45,7 +45,7 @@ function CopyButton({ text, label, done }: { text: string; label: string; done: 
     <button
       type="button"
       onClick={async () => { try { await navigator.clipboard.writeText(text); setOk(true); setTimeout(() => setOk(false), 1500); } catch { /* ignore */ } }}
-      className="absolute right-2 top-2 rounded-md border border-slate-700 bg-slate-900/80 px-2 py-0.5 text-[10px] text-slate-400 hover:text-white"
+      className="shrink-0 rounded-md border border-slate-700 bg-slate-900/80 px-2 py-0.5 text-[10px] text-slate-400 transition hover:text-white"
       aria-label={label}
     >
       {ok ? done : label}
@@ -54,12 +54,16 @@ function CopyButton({ text, label, done }: { text: string; label: string; done: 
 }
 
 function Code({ children, copyLabel, copyDone }: { children: string; copyLabel: string; copyDone: string }) {
+  // O botão vive numa barra ACIMA do código: em ecrãs estreitos o <pre> faz
+  // scroll horizontal e um botão sobreposto tapava o comando.
   return (
-    <div className="relative mt-3">
-      <pre className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/80 p-4 pr-16 text-xs leading-relaxed text-slate-300">
+    <div className="mt-3 overflow-hidden rounded-xl border border-slate-800 bg-slate-950/80">
+      <div className="flex items-center justify-end border-b border-slate-800/70 px-2 py-1">
+        <CopyButton text={children} label={copyLabel} done={copyDone} />
+      </div>
+      <pre className="overflow-x-auto p-4 text-xs leading-relaxed text-slate-300">
         <code>{children}</code>
       </pre>
-      <CopyButton text={children} label={copyLabel} done={copyDone} />
     </div>
   );
 }
@@ -140,11 +144,11 @@ export default function DevelopersContent() {
                 {t("dev_auth_p1")} <Link href="/account?section=api" className="text-orange-300 hover:text-orange-200">{t("dev_auth_link")}</Link> {t("dev_auth_p2")}
               </p>
               <Code copyLabel={copyLabel} copyDone={copyDone}>{`Authorization: Bearer cfa_live_…`}</Code>
-              <ul className="mt-3 space-y-1 text-sm text-slate-400">
-                <li>• {t("dev_auth_base")} <code className="text-slate-300">{BASE}/api/v1</code></li>
-                <li>• {t("dev_auth_format")} <code className="text-slate-300">cfa_live_</code> + 40 hex · {API_LIMITS.perMinute}/min</li>
-                <li>• {t("dev_auth_max_keys")}</li>
-                <li>• {t("dev_auth_cors")}</li>
+              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-400 marker:text-orange-400/70">
+                <li>{t("dev_auth_base")} <code className="text-slate-300">{BASE}/api/v1</code></li>
+                <li>{t("dev_auth_format")} <code className="text-slate-300">cfa_live_</code> + 40 hex · {API_LIMITS.perMinute}/min</li>
+                <li>{t("dev_auth_max_keys")}</li>
+                <li>{t("dev_auth_cors")}</li>
               </ul>
             </section>
 
@@ -196,7 +200,7 @@ export default function DevelopersContent() {
               <p className="mt-2 text-sm leading-relaxed text-slate-400">
                 {t("dev_mcp_p1")} <code className="text-slate-300">{BASE}/api/mcp</code> {t("dev_mcp_p2")}
               </p>
-              <ul className="mt-3 space-y-1 text-sm text-slate-300">
+              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-300 marker:text-orange-400/70">
                 {MCP_TOOLS.map(tool => (
                   <li key={tool.name}>• <code className="text-slate-400">{tool.name}</code> — {t(tool.key)}{tool.arg && <span className="text-slate-500"> ({t("dev_arg")} <code>{tool.arg}</code>)</span>}</li>
                 ))}
@@ -241,12 +245,12 @@ export default function DevelopersContent() {
             {/* Segurança */}
             <section id="security" className="mt-12 scroll-mt-24">
               <h2 className="text-lg font-bold text-white">{t("dev_sec_security")}</h2>
-              <ul className="mt-3 space-y-1.5 text-sm text-slate-400">
-                <li>• {t("dev_sec_1")} <code className="text-slate-300">wallet_8815840fa2</code>. {t("dev_sec_1b")}</li>
-                <li>• {t("dev_sec_2")} <code className="text-slate-300">Cache-Control: no-store</code>.</li>
-                <li>• {t("dev_sec_3")}</li>
-                <li>• {t("dev_sec_4")}</li>
-                <li>• {t("dev_sec_5")}</li>
+              <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm text-slate-400 marker:text-orange-400/70">
+                <li>{t("dev_sec_1")} <code className="text-slate-300">wallet_8815840fa2</code>. {t("dev_sec_1b")}</li>
+                <li>{t("dev_sec_2")} <code className="text-slate-300">Cache-Control: no-store</code>.</li>
+                <li>{t("dev_sec_3")}</li>
+                <li>{t("dev_sec_4")}</li>
+                <li>{t("dev_sec_5")}</li>
               </ul>
             </section>
 
