@@ -25,7 +25,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   // Mantém <html lang> em sincronia com o idioma escolhido (SEO/acessibilidade).
   useEffect(() => {
-    const map: Record<Lang, string> = { pt: "pt-PT", en: "en", es: "es", fr: "fr" };
+    const map: Record<Lang, string> = { pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" };
     document.documentElement.lang = map[lang];
   }, [lang]);
 

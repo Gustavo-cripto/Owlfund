@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { rateLimit } from "@/lib/utils/rateLimit";
 import { createClient } from "@supabase/supabase-js";
 import { createHash } from "crypto";
 
@@ -22,6 +23,10 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!serviceKey) return NextResponse.json({ error: "Service role key não configurada." }, { status: 503 });
 
+  // Anti brute-force dos códigos de recuperação (8 chars): 5 tentativas / 15 min por utilizador.
+  if (!rateLimit(`mfa-recover:${user.id}`, 5, 15 * 60_000)) {
+    return NextResponse.json({ error: "Demasiadas tentativas. Espera 15 minutos." }, { status: 429 });
+  }
   const body = await request.json().catch(() => ({})) as { code?: string };
   const code = (body.code ?? "").trim();
   if (!code) return NextResponse.json({ error: "Código em falta." }, { status: 400 });

@@ -1,13 +1,38 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { btnPrimary } from "@/lib/ui/buttons";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import type { TranslationKey } from "@/lib/i18n/translations";
+
+const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
+const ERR_KEY: Record<string, TranslationKey> = { rate_limited: "beta_err_rate", bad_email: "beta_bad_email", send_failed: "beta_err", bad_request: "beta_err" };
+
+function TelegramCard({ t }: { t: (k: TranslationKey) => string }) {
+  return (
+    <a href="https://t.me/ChainFolioAiBetaBot" target="_blank" rel="noopener noreferrer"
+      className="mt-4 flex items-center gap-3 rounded-xl border border-sky-500/30 bg-sky-500/[0.07] px-4 py-3 transition hover:border-sky-400/50">
+      <span className="text-xl" aria-hidden>💬</span>
+      <span className="text-sm text-slate-300">
+        <span className="font-semibold text-sky-300">{t("beta_bot_title")}</span>
+        <br />
+        {t("beta_bot_desc")} <span className="font-mono text-sky-300">@ChainFolioAiBetaBot</span>
+      </span>
+    </a>
+  );
+}
 
 export default function BetaPage() {
   const { t, lang } = useLanguage();
   const [email, setEmail] = useState("");
+  const [website, setWebsite] = useState(""); // honeypot (invisível)
+  const [already, setAlready] = useState(false);
+
+  // Vindo do registo (/login?next=/beta) com o email já criado.
+  useEffect(() => {
+    try { const e = new URLSearchParams(window.location.search).get("email"); if (e) setEmail(e); } catch { /* ignore */ }
+  }, []);
   const [name, setName] = useState("");
   const [note, setNote] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "ok" | "error">("idle");
@@ -39,6 +64,7 @@ export default function BetaPage() {
           email: email.trim(),
           name: name.trim(),
           note: note.trim(),
+          website,
           lang,
           // Origem do link (?src=twitter etc.) para atribuição por rede.
           src: (() => {
@@ -48,10 +74,12 @@ export default function BetaPage() {
           })(),
         }),
       });
+      const j = (await res.json().catch(() => null)) as { error?: string; already?: boolean } | null;
       if (!res.ok) {
-        const j = (await res.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(j?.error === "beta_closed" ? t("beta_closed_body") : j?.error || t("beta_err"));
+        const code = j?.error ?? "";
+        throw new Error(code === "beta_closed" ? t("beta_closed_body") : t(ERR_KEY[code] ?? "beta_err"));
       }
+      setAlready(!!j?.already);
       setState("ok");
     } catch (e2) {
       setErr(e2 instanceof Error ? e2.message : t("beta_err"));
@@ -79,49 +107,43 @@ export default function BetaPage() {
           <div className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
             <p className="text-lg font-bold text-white">{t("beta_closed_title")}</p>
             <p className="mt-2 text-sm leading-relaxed text-slate-300">{t("beta_closed_body")}</p>
-            <Link href="/pricing" className={`${btnPrimary} mt-4 inline-flex px-5 py-2.5 text-sm`}>
-              {t("nav_pricing")}
+            <Link href={paymentsFrozen ? "/login" : "/pricing"} className={`${btnPrimary} mt-4 inline-flex px-5 py-2.5 text-sm`}>
+              {paymentsFrozen ? t("beta_ok_cta") : t("nav_pricing")}
             </Link>
           </div>
         ) : state === "ok" ? (
           <div className="mt-8 rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.07] p-6">
-            <p className="text-lg font-bold text-emerald-300">{t("beta_ok_title")}</p>
-            <p className="mt-2 text-sm leading-relaxed text-slate-300">{t("beta_ok_body")}</p>
-            <Link href="/login" className={`${btnPrimary} mt-4 inline-flex px-5 py-2.5 text-sm`}>
+            <p className="text-lg font-bold text-emerald-300">{already ? t("beta_already_title") : t("beta_ok_title")}</p>
+            <p className="mt-2 text-sm leading-relaxed text-slate-300">{already ? t("beta_already_body") : t("beta_ok_body")}</p>
+            <Link href={`/login?mode=signup&next=%2Fbeta&email=${encodeURIComponent(email.trim())}`} className={`${btnPrimary} mt-4 inline-flex px-5 py-2.5 text-sm`}>
               {t("beta_ok_cta")}
             </Link>
-            {/* Canal de suporte dos testers — Telegram */}
-            <a
-              href="https://t.me/ChainFolioAiBetaBot"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-4 flex items-center gap-3 rounded-xl border border-sky-500/30 bg-sky-500/[0.07] px-4 py-3 transition hover:border-sky-400/50"
-            >
-              <span className="text-xl">💬</span>
-              <span className="text-sm text-slate-300">
-                <span className="font-semibold text-sky-300">{t("beta_bot_title")}</span>
-                <br />
-                {t("beta_bot_desc")} <span className="font-mono text-sky-300">@ChainFolioAiBetaBot</span>
-              </span>
-            </a>
+            <TelegramCard t={t} />
           </div>
         ) : (
-          <form onSubmit={submit} className="mt-8 space-y-4">
+          <form onSubmit={submit} className="relative mt-8 space-y-4">
             {/* Sem conta no site não há ativação — avisar ANTES de submeter. */}
             <div className="flex flex-col gap-2 rounded-xl border border-amber-500/40 bg-amber-500/[0.08] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm leading-relaxed text-amber-200">{t("beta_account_warn")}</p>
               <Link
-                href="/login"
+                href={`/login?mode=signup&next=%2Fbeta${email.trim() ? `&email=${encodeURIComponent(email.trim())}` : ""}`}
                 className="shrink-0 rounded-lg border border-amber-400/50 px-3 py-1.5 text-center text-xs font-semibold text-amber-300 transition hover:bg-amber-500/20"
               >
                 {t("beta_account_cta")}
               </Link>
             </div>
 
+            {/* Honeypot: bots preenchem; humanos nunca veem. */}
+            <div className="absolute -left-[9999px] top-0 h-px w-px overflow-hidden" aria-hidden>
+              <label htmlFor="beta-website">Website</label>
+              <input id="beta-website" type="text" tabIndex={-1} autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} />
+            </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-300">{t("beta_email_label")}</label>
+              <label htmlFor="beta-email" className="mb-1.5 block text-sm font-medium text-slate-300">{t("beta_email_label")}</label>
               <input
+                id="beta-email"
                 type="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={t("beta_email_ph")}
@@ -130,9 +152,11 @@ export default function BetaPage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-300">{t("beta_name_label")}</label>
+              <label htmlFor="beta-name" className="mb-1.5 block text-sm font-medium text-slate-300">{t("beta_name_label")}</label>
               <input
+                id="beta-name"
                 type="text"
+                autoComplete="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 maxLength={80}
@@ -140,8 +164,9 @@ export default function BetaPage() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-300">{t("beta_note_label")}</label>
+              <label htmlFor="beta-note" className="mb-1.5 block text-sm font-medium text-slate-300">{t("beta_note_label")}</label>
               <textarea
+                id="beta-note"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 rows={3}
@@ -152,29 +177,16 @@ export default function BetaPage() {
             </div>
 
             {state === "error" && (
-              <p className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">{err}</p>
+              <p role="alert" className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">{err}</p>
             )}
 
             <button type="submit" disabled={state === "sending"} className={`${btnPrimary} w-full px-6 py-3 text-base disabled:opacity-60`}>
               {state === "sending" ? t("beta_sending") : t("beta_submit")}
             </button>
-            <p className="text-center text-[11px] text-slate-600">{t("beta_privacy")}</p>
+            <p className="text-center text-[11px] text-slate-600">{t("beta_privacy")} · <Link href="/privacidade" className="underline decoration-dotted">{t("legal_privacy_short")}</Link></p>
 
-            {/* Canal de feedback dos testers — visível já antes da inscrição
-                (também aparece no cartão de sucesso e nos emails). */}
-            <a
-              href="https://t.me/ChainFolioAiBetaBot"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-2 flex items-center gap-3 rounded-xl border border-sky-500/30 bg-sky-500/[0.07] px-4 py-3 transition hover:border-sky-400/50"
-            >
-              <span className="text-xl">💬</span>
-              <span className="text-sm text-slate-300">
-                <span className="font-semibold text-sky-300">{t("beta_bot_title")}</span>
-                <br />
-                {t("beta_bot_desc")} <span className="font-mono text-sky-300">@ChainFolioAiBetaBot</span>
-              </span>
-            </a>
+            {/* Canal de feedback dos testers — visível já antes da inscrição. */}
+            <TelegramCard t={t} />
           </form>
         )}
       </main>

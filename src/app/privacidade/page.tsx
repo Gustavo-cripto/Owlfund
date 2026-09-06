@@ -14,13 +14,16 @@ const SECTIONS: { h: TranslationKey; b: TranslationKey }[] = [
   { h: "pp_s6_h", b: "pp_s6_b" },
   { h: "pp_s7_h", b: "pp_s7_b" },
   { h: "pp_s9_h", b: "pp_s9_b" },
+  { h: "pp_s10_h", b: "pp_s10_b" },
+  { h: "pp_s11_h", b: "pp_s11_b" },
   { h: "pp_s8_h", b: "pp_s8_b" },
 ];
 
-const LAST_UPDATED = "2026-08-03";
+const LAST_UPDATED = "2026-09-06";
 
 export default function PrivacyPage() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const locale = ({ pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" } as Record<string, string>)[lang] ?? "pt-PT";
 
   return (
     <AppShell>
@@ -32,7 +35,7 @@ export default function PrivacyPage() {
 
           <h1 className="mt-6 text-3xl font-bold text-white md:text-4xl">{t("pp_title")}</h1>
           <p className="mt-2 text-xs text-slate-500">
-            {t("legal_updated")}: {LAST_UPDATED}
+            {t("legal_updated")}: {new Date(LAST_UPDATED + "T12:00:00Z").toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}
           </p>
           <p className="mt-6 text-slate-300">{t("pp_intro")}</p>
 

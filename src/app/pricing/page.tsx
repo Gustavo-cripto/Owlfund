@@ -7,7 +7,7 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { CRYPTO_PAYMENTS_ENABLED } from "@/lib/payments/config";
-import { cryptoPrice, CRYPTO_DISCOUNT_PCT } from "@/lib/payments/pricing";
+import { cryptoPrice, CRYPTO_DISCOUNT_PCT , FIAT_PRICES } from "@/lib/payments/pricing";
 
 // ── Feature comparison table data ─────────────────────────────────────────
 
@@ -20,7 +20,7 @@ function Cell({ value }: { value: boolean | string }) {
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function PricingPage() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const supabase = createClient();
 
   const COMPARISON = [
@@ -84,12 +84,14 @@ export default function PricingPage() {
   const [syncing, setSyncing] = useState(false);
   const [billingInterval, setBillingInterval] = useState<"month" | "year">("month");
   const [payMethod, setPayMethod] = useState<"fiat" | "crypto">("fiat");
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
+      try {
       const { data } = await supabase.auth.getUser();
       const user = data.user;
-      if (!user) { setLoading(false); return; }
+      if (!user) return;
       setUserId(user.id);
       try {
         const res = await fetch("/api/subscription");
@@ -106,7 +108,8 @@ export default function PricingPage() {
           if (jf.founder) setFounder(true);
         }
       } catch { /* ignore */ }
-      setLoading(false);
+      } catch { /* sessão corrompida → mostra como visitante */ }
+      finally { setLoading(false); }
     };
     load();
   }, [supabase]);
@@ -117,15 +120,15 @@ export default function PricingPage() {
       const res = await fetch("/api/sync-subscription", { method: "POST" });
       const json = await res.json() as { synced?: boolean; price_id?: string; error?: string };
       if (json.synced) window.location.reload();
-      else alert(json.error ?? "Nenhuma subscrição ativa encontrada no Stripe.");
+      else setNotice(t("pc_sync_none"));
     } catch {
-      alert("Erro ao sincronizar. Tenta novamente.");
+      setNotice(t("pc_sync_error"));
     }
     setSyncing(false);
   };
 
   const handleUpgrade = async (plan: "pro" | "premium") => {
-    if (!userId) { window.location.href = "/login"; return; }
+    if (!userId) { window.location.href = "/login?next=%2Fpricing"; return; }
     try {
       // getSession() pode rebentar se a sessão local estiver corrompida — nesse
       // caso mostramos mensagem em vez de falhar em silêncio (botão "não faz nada").
@@ -138,14 +141,14 @@ export default function PricingPage() {
       });
       const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
       if (data.url) { window.location.href = data.url; return; }
-      alert(data.error ?? t("pc_checkout_error"));
+      setNotice(data.error ?? t("pc_checkout_error"));
     } catch {
-      alert(t("pc_checkout_error"));
+      setNotice(t("pc_checkout_error"));
     }
   };
 
   const handleCryptoUpgrade = async (plan: "pro" | "premium") => {
-    if (!userId) { window.location.href = "/login"; return; }
+    if (!userId) { window.location.href = "/login?next=%2Fpricing"; return; }
     try {
       const res = await fetch("/api/crypto/checkout", {
         method: "POST",
@@ -154,9 +157,9 @@ export default function PricingPage() {
       });
       const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
       if (data.url) { window.location.href = data.url; return; }
-      alert(data.error ?? t("pc_checkout_error"));
+      setNotice(data.error ?? t("pc_checkout_error"));
     } catch {
-      alert(t("pc_checkout_error"));
+      setNotice(t("pc_checkout_error"));
     }
   };
 
@@ -171,16 +174,18 @@ export default function PricingPage() {
   const annual = billingInterval === "year";
   // Preços por plano/intervalo. Anual ≈ 2 meses grátis face ao mensal.
   // Em modo cripto, mostra o preço com desconto em EURC.
-  const fmtEurc = (n: number) => `${n.toFixed(2).replace(".", ",")} EURC`;
+  const locale = ({ pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" } as Record<string, string>)[lang] ?? "pt-PT";
+  const fmtEur = (n: number) => new Intl.NumberFormat(locale, { style: "currency", currency: "EUR", minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 }).format(n);
+  const fmtEurc = (n: number) => `${n.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EURC`;
+  // Preços a partir da fonte única (src/lib/payments/pricing.ts).
   const priceLabel = (plan: "free" | "pro" | "premium") => {
-    if (plan === "free") return "€0";
+    if (plan === "free") return fmtEur(0);
     if (payMethod === "crypto") return fmtEurc(cryptoPrice(plan, annual ? "annual" : "monthly"));
-    if (plan === "pro") return annual ? "€149" : "€14,99";
-    return annual ? "€390" : "€39";
+    return fmtEur(FIAT_PRICES[plan][annual ? "annual" : "monthly"]);
   };
-  // Poupança anual vs 12× mensal (Pro: 179,88−149; Premium: 468−390).
+  // Poupança anual vs 12× mensal, calculada (não fixa).
   const annualSaving = (plan: "pro" | "premium") =>
-    plan === "pro" ? 31 : 78;
+    Math.round(FIAT_PRICES[plan].monthly * 12 - FIAT_PRICES[plan].annual);
 
   return (
     <AppShell>
@@ -214,8 +219,8 @@ export default function PricingPage() {
             <div className="flex flex-wrap justify-center gap-6 text-center">
               {[
                 { value: "10+", label: t("pc_stat_chains") },
-                { value: "6 CEXs 🇪🇺", label: t("pc_stat_cex") },
-                { value: "21 países", label: t("pc_stat_tax") },
+                { value: "6 CEX 🇪🇺", label: t("pc_stat_cex") },
+                { value: `21 ${t("pc_countries_word")}`, label: t("pc_stat_tax") },
                 { value: "API/MCP", label: t("pc_stat_api") },
               ].map((s) => (
                 <div key={s.label} className="text-center">
@@ -323,7 +328,7 @@ export default function PricingPage() {
 
               {/* Pro */}
               <div className={`rounded-2xl border p-6 space-y-5 relative overflow-hidden ${currentPlan === "pro" ? "border-orange-400 bg-orange-500/10" : "border-orange-500/40 bg-orange-500/5"}`}>
-                <div className={`${btnPrimary} absolute top-3 right-3 text-[10px] px-2 py-0.5`}>POPULAR</div>
+                <div className={`${btnPrimary} absolute top-3 right-3 text-[10px] px-2 py-0.5`}>{t("pc_badge_popular")}</div>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-400">Pro</p>
                   <p className="text-3xl font-bold text-white mt-1">{priceLabel("pro")} <span className="text-sm font-normal text-slate-500">{annual ? t("pc_per_year") : t("pc_per_month")}</span></p>
@@ -378,7 +383,7 @@ export default function PricingPage() {
 
               {/* Premium */}
               <div className={`rounded-2xl border p-6 space-y-5 relative overflow-hidden ${currentPlan === "premium" ? "border-violet-400 bg-violet-500/10" : "border-violet-500/40 bg-violet-500/5"}`}>
-                <div className="absolute top-3 right-3 text-[10px] bg-violet-500 text-white font-bold px-2 py-0.5 rounded-full">PROFISSIONAL</div>
+                <div className="absolute top-3 right-3 text-[10px] bg-violet-500 text-white font-bold px-2 py-0.5 rounded-full">{t("pc_badge_pro")}</div>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-400">Premium</p>
                   <p className="text-3xl font-bold text-white mt-1">{priceLabel("premium")} <span className="text-sm font-normal text-slate-500">{annual ? t("pc_per_year") : t("pc_per_month")}</span></p>
@@ -440,7 +445,7 @@ export default function PricingPage() {
                       <thead>
                         <tr className="border-b border-slate-800">
                           <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 w-1/2">{t("pc_feature_col")}</th>
-                          <th className="text-center px-4 py-3 text-xs font-semibold text-slate-400 w-[16%]">Gratuito</th>
+                          <th className="text-center px-4 py-3 text-xs font-semibold text-slate-400 w-[16%]">{t("free")}</th>
                           <th className="text-center px-4 py-3 text-xs font-semibold text-orange-400 w-[16%]">Pro</th>
                           <th className="text-center px-4 py-3 text-xs font-semibold text-violet-400 w-[16%]">Premium</th>
                         </tr>
@@ -501,8 +506,14 @@ export default function PricingPage() {
               </div>
             </div>
 
-            {/* Sync plan */}
-            {userId && currentPlan !== "premium" && (
+            {notice && (
+              <p role="alert" className="rounded-xl border border-amber-500/30 bg-amber-500/[0.06] px-4 py-3 text-center text-sm text-amber-200">
+                {notice} <button type="button" onClick={() => setNotice(null)} className="ml-2 underline">OK</button>
+              </p>
+            )}
+
+            {/* Sync plan — não faz sentido com pagamentos congelados */}
+            {userId && currentPlan !== "premium" && !paymentsFrozen && (
               <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 text-center space-y-3">
                 <p className="text-sm font-semibold text-white">{t("pc_sync_q")}</p>
                 <p className="text-xs text-slate-400">{t("pc_sync_desc")}</p>

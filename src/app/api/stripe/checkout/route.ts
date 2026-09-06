@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getStripe } from "@/lib/stripe";
+import { isFounder } from "@/lib/beta/founder";
 
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL ??
@@ -64,11 +65,21 @@ export async function POST(request: Request) {
   const plan = body2.plan ?? "pro";
   const annual = body2.interval === "year";
 
-  const priceId = plan === "premium"
+  // Preço de fundador (beta testers): usa os price IDs STRIPE_FOUNDER_* quando
+  // existirem (Pro €9,99 / Premium €19, vitalício). Sem eles, cai no preço normal
+  // e fica registado no log — para o Gustavo criar os preços no Stripe.
+  const founder = await isFounder(user.id);
+  const founderPrice = founder
+    ? (plan === "premium"
+        ? (annual ? process.env.STRIPE_FOUNDER_PREMIUM_PRICE_ID_ANNUAL : process.env.STRIPE_FOUNDER_PREMIUM_PRICE_ID)
+        : (annual ? process.env.STRIPE_FOUNDER_PRO_PRICE_ID_ANNUAL : process.env.STRIPE_FOUNDER_PRO_PRICE_ID))
+    : undefined;
+  if (founder && !founderPrice) console.error(`[stripe/checkout] fundador ${user.id} sem STRIPE_FOUNDER_*_PRICE_ID (${plan}/${annual ? "anual" : "mensal"}) — a usar preço normal`);
+  const priceId = founderPrice ?? (plan === "premium"
     ? (annual
         ? process.env.STRIPE_PREMIUM_PRICE_ID_ANNUAL
         : (process.env.STRIPE_PREMIUM_PRICE_ID ?? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID))
-    : (annual ? process.env.STRIPE_PRICE_ID_ANNUAL : process.env.STRIPE_PRICE_ID);
+    : (annual ? process.env.STRIPE_PRICE_ID_ANNUAL : process.env.STRIPE_PRICE_ID));
   if (!priceId) {
     return NextResponse.json(
       { error: annual ? "Preço anual não configurado." : "Stripe price não configurado." },
@@ -108,7 +119,8 @@ export async function POST(request: Request) {
     mode: "subscription",
     ...(customerId ? { customer: customerId } : { customer_email: user.email ?? undefined }),
     line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${siteUrl}/pricing?success=1`,
+    metadata: { user_id: user.id, plan, founder: founder ? "1" : "0" },
+    success_url: `${siteUrl}/account?checkout=success`,
     cancel_url: `${siteUrl}/pricing?canceled=1`,
   });
 

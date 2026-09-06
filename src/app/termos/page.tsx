@@ -13,13 +13,17 @@ const SECTIONS: { h: TranslationKey; b: TranslationKey }[] = [
   { h: "tp_s5_h", b: "tp_s5_b" },
   { h: "tp_s6_h", b: "tp_s6_b" },
   { h: "tp_s7_h", b: "tp_s7_b" },
+  { h: "tp_s9_h", b: "tp_s9_b" },
+  { h: "tp_s10_h", b: "tp_s10_b" },
+  { h: "tp_s11_h", b: "tp_s11_b" },
   { h: "tp_s8_h", b: "tp_s8_b" },
 ];
 
-const LAST_UPDATED = "2026-07-29";
+const LAST_UPDATED = "2026-09-06";
 
 export default function TermsPage() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const locale = ({ pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" } as Record<string, string>)[lang] ?? "pt-PT";
 
   return (
     <AppShell>
@@ -31,7 +35,7 @@ export default function TermsPage() {
 
           <h1 className="mt-6 text-3xl font-bold text-white md:text-4xl">{t("tp_title")}</h1>
           <p className="mt-2 text-xs text-slate-500">
-            {t("legal_updated")}: {LAST_UPDATED}
+            {t("legal_updated")}: {new Date(LAST_UPDATED + "T12:00:00Z").toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}
           </p>
           <p className="mt-6 text-slate-300">{t("tp_intro")}</p>
 
