@@ -7,6 +7,8 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { buildPortfolioSummaryText } from "@/lib/portfolio/summaryText";
 import { loadNickname } from "@/lib/user/nickname";
 import { escapeHtml } from "@/lib/utils/html";
+import type { TranslationKey } from "@/lib/i18n/translations";
+import { FREE_CHAT_LIMIT } from "@/lib/plans";
 import {
   ACCOUNTS_EVENT,
   ALL_ACCOUNTS_ID,
@@ -38,29 +40,20 @@ type ChatWidgetProps = {
 const MESSAGES_BASE = "owlfund.chat.messages.v2";
 const messagesKeyFor = (accountId: string) => accKey(MESSAGES_BASE, accountId);
 // Nome legível da conta ativa (para o cabeçalho e o contexto enviado à IA).
-function activeAccountName(accountId: string): string {
-  if (accountId === ALL_ACCOUNTS_ID) return "Todas as contas";
-  return listAccounts().find((a) => a.id === accountId)?.name ?? "Conta";
+function activeAccountName(accountId: string, t: (k: TranslationKey) => string): string {
+  if (accountId === ALL_ACCOUNTS_ID) return t("gz_all_accounts");
+  return listAccounts().find((a) => a.id === accountId)?.name ?? t("gz_account");
 }
-// O contador de chats grátis é POR UTILIZADOR (não por conta) — mantém-se global
-// para o limite do plano não ser contornável criando várias contas.
-const FREE_CHAT_LIMIT = 5;
+// O limite Free é aplicado pelo SERVIDOR (/api/chat + /api/usage); o cliente só mostra.
+const LOCALE_BY_LANG: Record<string, string> = { pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" };
+const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
+const ERR_KEY: Record<string, TranslationKey> = {
+  rate_limited: "cw_err_rate", limit_reached: "cw_err_limit", anon_limit: "cw_err_anon", unavailable: "cw_err_unavailable",
+  ai_rate_limited: "cw_err_rate", timeout: "cw_err_timeout", internal: "cw_err_generic", provider_error: "cw_err_generic", bad_json: "cw_err_generic", empty: "cw_err_generic",
+};
 
-function getChatMonthKey() {
-  const d = new Date();
-  return `owlfund.chat.count.${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-function getChatCount(): number {
-  try { return parseInt(localStorage.getItem(getChatMonthKey()) ?? "0", 10) || 0; }
-  catch { return 0; }
-}
-function incrementChatCount() {
-  try { localStorage.setItem(getChatMonthKey(), String(getChatCount() + 1)); }
-  catch { /* ignore */ }
-}
-
-function formatTime(ts: number): string {
-  try { return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
+function formatTime(ts: number, locale: string): string {
+  try { return new Date(ts).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }); }
   catch { return ""; }
 }
 
@@ -84,20 +77,23 @@ function renderMarkdown(text: string) {
 export default function ChatWidget({
   withContainer = true,
   messagesMaxHeightClassName = "max-h-56",
-  title = "Chat IA",
-  subtitle = "Pergunta sobre o mercado e a plataforma.",
+  title,
+  subtitle,
   assistantAvatar = "/chain-icon.jpg",
   inputClassName = "",
-  placeholder = "Escreve a tua pergunta...",
+  placeholder,
   isPro = false,
 }: ChatWidgetProps) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const locale = LOCALE_BY_LANG[lang] ?? "pt-PT";
   const pathname = usePathname();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [chatCount, setChatCount] = useState(0);
+  // Contador vindo do servidor (Free): null = desconhecido.
+  const [usage, setUsage] = useState<{ count: number; limit: number } | null>(null);
+  const [serverLimit, setServerLimit] = useState(false);
   const [nick, setNick] = useState("");
   const [acctId, setAcctId] = useState<string>("");
   const [acctName, setAcctName] = useState<string>("");
@@ -106,10 +102,25 @@ export default function ChatWidget({
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setChatCount(getChatCount());
     setNick(loadNickname() || "");
     setAcctId(getActiveAccountId());
   }, []);
+
+  // Uso do mês (só Free) — a verdade está no servidor.
+  useEffect(() => {
+    if (isPro) { setUsage(null); setServerLimit(false); return; }
+    let cancelled = false;
+    fetch("/api/usage")
+      .then(r => r.ok ? r.json() : null)
+      .then((u: { aiUsed?: number; aiLimit?: number } | null) => {
+        if (cancelled || !u || typeof u.aiUsed !== "number") return;
+        const limit = u.aiLimit ?? FREE_CHAT_LIMIT;
+        setUsage({ count: u.aiUsed, limit });
+        setServerLimit(u.aiUsed >= limit);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [isPro]);
 
   // Lê o histórico da conta indicada e substitui o que está no ecrã.
   const loadMessagesFor = (accountId: string) => {
@@ -125,7 +136,7 @@ export default function ChatWidget({
     } catch {
       setMessages([]);
     }
-    setAcctName(activeAccountName(accountId));
+    setAcctName(activeAccountName(accountId, t));
     try { setAcctCount(listAccounts().length); } catch { /* ignore */ }
     // Permite guardar só depois de hidratar (evita apagar a conversa da conta).
     requestAnimationFrame(() => { hydratedRef.current = true; });
@@ -143,7 +154,7 @@ export default function ChatWidget({
     const onAccountsChanged = () => {
       const next = getActiveAccountId();
       setAcctId(prev => (prev === next ? prev : next));
-      setAcctName(activeAccountName(next));
+      setAcctName(activeAccountName(next, t));
     };
     window.addEventListener(ACCOUNTS_EVENT, onAccountsChanged);
     return () => window.removeEventListener(ACCOUNTS_EVENT, onAccountsChanged);
@@ -177,12 +188,9 @@ export default function ChatWidget({
     const trimmed = text.trim();
     if (!trimmed || isLoading) return;
 
-    // Verificar limite mensal para utilizadores Free
-    if (!isPro && chatCount >= FREE_CHAT_LIMIT) {
-      setError(`Atingiste o limite de ${FREE_CHAT_LIMIT} chats/mês do plano Gratuito. Faz upgrade para Pro para chats ilimitados.`);
-      return;
-    }
+    if (serverLimit) return;
 
+    const reqAcct = acctId; // se a conta mudar a meio, a resposta não vai para a conversa errada
     const nextMessages: ChatMessage[] = [...messages, { role: "user", content: trimmed, ts: Date.now() }];
     setMessages(nextMessages);
     setInput("");
@@ -215,24 +223,21 @@ export default function ChatWidget({
       }).finally(() => window.clearTimeout(timeoutId));
 
       if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(payload?.error ?? "Falha ao contactar a IA.");
+        const payload = (await response.json().catch(() => null)) as { error?: string; code?: string; limitReached?: boolean; count?: number; limit?: number } | null;
+        if (payload?.limitReached && payload.code !== "anon_limit") { setServerLimit(true); setUsage({ count: payload.count ?? FREE_CHAT_LIMIT, limit: payload.limit ?? FREE_CHAT_LIMIT }); }
+        throw new Error(payload?.code ?? "provider_error");
       }
 
-      const data = (await response.json()) as { reply?: string };
+      const data = (await response.json()) as { reply?: string; usage?: { count: number; limit: number } };
       const reply = typeof data.reply === "string" ? data.reply : "";
-      if (!reply) throw new Error("Resposta vazia da IA.");
+      if (!reply) throw new Error("provider_error");
+      if (getActiveAccountId() !== reqAcct) return;
 
       setMessages(prev => [...prev, { role: "assistant", content: reply, ts: Date.now() }]);
-      if (!isPro) {
-        incrementChatCount();
-        setChatCount(getChatCount());
-      }
+      if (data.usage) { setUsage(data.usage); setServerLimit(data.usage.count >= data.usage.limit); }
     } catch (err) {
-      const msg = err instanceof DOMException && err.name === "AbortError"
-        ? "Timeout — tenta novamente."
-        : err instanceof Error ? err.message : "Erro inesperado.";
-      setError(msg);
+      const code = err instanceof DOMException && err.name === "AbortError" ? "timeout" : err instanceof Error ? err.message : "internal";
+      setError(t(ERR_KEY[code] ?? "cw_err_generic"));
     } finally {
       setIsLoading(false);
     }
@@ -248,7 +253,8 @@ export default function ChatWidget({
     try { if (acctId) localStorage.removeItem(messagesKeyFor(acctId)); } catch { /* ignore */ }
   };
 
-  const limitReached = !isPro && chatCount >= FREE_CHAT_LIMIT;
+  const limitReached = !isPro && serverLimit;
+  const upgradeHref = paymentsFrozen ? "/beta" : "/pricing";
   // Indicador de conta ativa: só quando há várias contas ou na vista combinada,
   // para não poluir a UI de quem só tem um portefólio.
   const showAcctChip = Boolean(acctName) && (acctCount > 1 || acctId === ALL_ACCOUNTS_ID);
@@ -259,8 +265,8 @@ export default function ChatWidget({
       {withContainer && (
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">{title}</p>
-            <p className="text-sm text-slate-400">{subtitle}</p>
+            <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">{title ?? t("cw_title")}</p>
+            <p className="text-sm text-slate-400">{subtitle ?? t("cw_subtitle")}</p>
           </div>
         </div>
       )}
@@ -329,7 +335,7 @@ export default function ChatWidget({
           </div>
         ) : (
           messages.map((msg, i) => (
-            <div key={i} className={`flex items-end gap-2 animate-fade-in-up ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
+            <div key={`${msg.ts ?? 0}-${i}`} className={`flex items-end gap-2 animate-fade-in-up ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
               {/* Avatar */}
               {msg.role === "assistant" ? (
                 <img src={assistantAvatar} alt="" className="h-8 w-8 flex-shrink-0 rounded-full border-2 border-orange-400/50 object-cover" />
@@ -347,7 +353,7 @@ export default function ChatWidget({
                 }`}>
                   <div className="space-y-0.5">{renderMarkdown(msg.content)}</div>
                 </div>
-                {msg.ts ? <span className="mt-0.5 px-1 text-[9px] text-slate-600">{formatTime(msg.ts)}</span> : null}
+                {msg.ts ? <span className="mt-0.5 px-1 text-[9px] text-slate-600">{formatTime(msg.ts, locale)}</span> : null}
               </div>
             </div>
           ))
@@ -369,17 +375,17 @@ export default function ChatWidget({
 
         {limitReached ? (
           <div className="space-y-1 rounded-xl border border-orange-500/30 bg-orange-500/5 px-3 py-3 text-xs">
-            <p className="font-semibold text-orange-300">🔒 Limite de {FREE_CHAT_LIMIT} chats/mês atingido</p>
-            <p className="text-slate-400">Faz upgrade para Pro para chats ilimitados.</p>
-            <a href="/pricing" className={`${btnPrimary} mt-1 px-4 py-1.5 text-xs`}>
-              Upgrade para Pro →
+            <p className="font-semibold text-orange-300">🔒 {t("cw_limit_title").replace("{n}", String(usage?.limit ?? FREE_CHAT_LIMIT))}</p>
+            <p className="text-slate-400">{paymentsFrozen ? t("cw_limit_beta") : t("cw_limit_desc")}</p>
+            <a href={upgradeHref} className={`${btnPrimary} mt-1 px-4 py-1.5 text-xs`}>
+              {paymentsFrozen ? `🧪 ${t("dash_beta_cta_short")} →` : `${t("acc_upgrade")} →`}
             </a>
           </div>
         ) : (
           <>
-            {!isPro && messages.length > 0 && (
+            {!isPro && usage && messages.length > 0 && (
               <p className="text-right text-[10px] text-slate-600">
-                Chats este mês: <span className={chatCount >= FREE_CHAT_LIMIT - 1 ? "text-amber-400" : "text-slate-500"}>{chatCount}/{FREE_CHAT_LIMIT}</span>
+                {t("cw_month_count")} <span className={usage.count >= usage.limit - 1 ? "text-amber-400" : "text-slate-500"}>{usage.count}/{usage.limit}</span>
               </p>
             )}
             {error && (
@@ -395,7 +401,7 @@ export default function ChatWidget({
       <div className="flex items-center gap-2 border-t border-slate-800/60 pt-3">
         <input
           className={`flex-1 rounded-full border border-slate-800 bg-slate-950 px-4 py-2 text-sm text-slate-200 outline-none transition focus:border-orange-400 placeholder:text-slate-600 ${inputClassName}`}
-          placeholder={placeholder}
+          placeholder={placeholder ?? t("cw_placeholder")}
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}

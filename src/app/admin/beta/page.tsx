@@ -3,11 +3,14 @@
 // Painel admin: beta testers ativos + validade. Acesso restrito (ADMIN_EMAILS).
 import { useEffect, useState } from "react";
 import AppShell from "@/components/AppShell";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 type Tester = { email: string; plan: "pro" | "premium"; activatedAt?: string | null; expiresAt: string | null; daysLeft: number | null; lastSignInAt?: string | null; inactiveDays?: number | null; founder?: boolean };
 type Pending = { email: string; name: string | null; note: string | null; createdAt: string };
 
 export default function AdminBetaPage() {
+  const askConfirm = useConfirm();
+  const [founderMsg, setFounderMsg] = useState<string | null>(null);
   const [state, setState] = useState<"loading" | "ok" | "denied" | "error">("loading");
   const [count, setCount] = useState(0);
   const [testers, setTesters] = useState<Tester[]>([]);
@@ -43,6 +46,7 @@ export default function AdminBetaPage() {
 
   const removeBotWebhook = async () => {
     if (tgBusy) return;
+    if (!(await askConfirm({ message: "Remover o webhook do bot? Os botões de ativação no Telegram deixam de funcionar até reconfigurares.", danger: true, okLabel: "Remover" }))) return;
     setTgBusy(true);
     setTgMsg(null);
     try {
@@ -79,7 +83,9 @@ export default function AdminBetaPage() {
 
   // Marca/desmarca a reserva de preço de fundador de um tester.
   const toggleFounder = async (email: string, on: boolean) => {
+    if (!on && !(await askConfirm({ message: `Remover a reserva de preço de fundador de ${email}?`, danger: true, okLabel: "Remover" }))) return;
     setFounderBusy(email);
+    setFounderMsg(null);
     try {
       const res = await fetch("/api/admin/founder", {
         method: "POST",
@@ -87,10 +93,10 @@ export default function AdminBetaPage() {
         body: JSON.stringify({ email, founder: on }),
       });
       const j = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) alert(j.error ?? "Falhou.");
+      if (!res.ok) setFounderMsg(`❌ ${j.error ?? "Falhou."}`);
       else setTesters((prev) => prev.map((t) => (t.email === email ? { ...t, founder: on } : t)));
     } catch {
-      alert("Falhou.");
+      setFounderMsg("❌ Erro de rede.");
     }
     setFounderBusy(null);
   };
@@ -216,7 +222,7 @@ export default function AdminBetaPage() {
               </div>
 
               {testers.length === 0 ? (
-                <p className="mt-6 text-sm text-slate-500">Ainda não há testers ativos. Atribui um plano (source=&apos;manual&apos;) no Supabase.</p>
+                <p className="mt-6 text-sm text-slate-500">Ainda não há testers ativos. Usa o formulário acima (colar email → Ativar Pro/Premium) ou aceita uma inscrição pendente.</p>
               ) : (
                 <div className="mt-6 overflow-x-auto rounded-2xl border border-slate-800">
                   <table className="w-full text-sm">
@@ -232,7 +238,7 @@ export default function AdminBetaPage() {
                     </thead>
                     <tbody>
                       {testers.map((tst, i) => (
-                        <tr key={i} className="border-t border-slate-800/60">
+                        <tr key={tst.email || i} className="border-t border-slate-800/60">
                           <td className="px-4 py-3 text-slate-200">{tst.email || "—"}</td>
                           <td className="px-4 py-3">
                             <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${tst.plan === "premium" ? "bg-violet-500/15 text-violet-300" : "bg-orange-500/15 text-orange-300"}`}>
@@ -263,6 +269,7 @@ export default function AdminBetaPage() {
                   </table>
                 </div>
               )}
+              {founderMsg && <p className="mt-2 text-xs text-rose-400">{founderMsg}</p>}
 
               {/* Reconfigurar o webhook do bot (usar depois de rodar o token). */}
               <div className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">

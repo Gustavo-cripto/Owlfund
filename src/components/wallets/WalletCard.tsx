@@ -4,6 +4,7 @@ import { useState } from "react";
 import { btnPrimary } from "@/lib/ui/buttons";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
+import NftImage from "@/components/NftImage";
 
 export type NftPreview = {
   id: string;
@@ -95,7 +96,8 @@ export default function WalletCard({
   topContent,
 }: WalletCardProps) {
   const { t } = useLanguage();
-  const { format: fmtCur, hideBalances } = useCurrencyFormat();
+  const { formatUsd, hideBalances } = useCurrencyFormat();
+  void usdToEur; // mantido só por compatibilidade da prop — a conversão é feita pelo formatUsd (taxa real)
   const [showNfts, setShowNfts] = useState(false);
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
@@ -113,7 +115,7 @@ export default function WalletCard({
             {isAvailable ? t("wc_available") : t("wc_unavailable")}
           </span>
           <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold text-sky-300">
-            🔒 Só leitura · Sem acesso a fundos
+            🔒 {t("wc_readonly_badge")}
           </span>
         </div>
       </div>
@@ -152,7 +154,7 @@ export default function WalletCard({
         <div>
           <span className="text-slate-500">{t("wc_value")}</span>{" "}
           {fiatValueUsd != null
-            ? fmtCur(fiatValueUsd * usdToEur)
+            ? formatUsd(fiatValueUsd)
             : "—"}
         </div>
         <div className={`flex flex-wrap items-center gap-2 ${hideDefi ? "hidden" : ""}`}>
@@ -161,7 +163,7 @@ export default function WalletCard({
             ? <span className="animate-pulse">{t("wc_loading")}</span>
             : defiBalanceUsd != null
               ? <span className={defiBalanceUsd >= 0.01 ? "text-emerald-400 font-semibold" : "text-slate-400"}>
-                  {fmtCur(defiBalanceUsd * usdToEur)}
+                  {formatUsd(defiBalanceUsd)}
                 </span>
               : <span className="text-slate-600 text-[11px]">—</span>}
           {address && balanceUnit !== "BTC" && balanceUnit !== "ADA" && (
@@ -186,14 +188,14 @@ export default function WalletCard({
             t("wc_loading2")
           ) : nftCount != null ? (
             <span className="inline-flex items-center gap-2">
-              {nftCount} {nftCount === 1 ? "item" : "itens"}
+              {nftCount} {nftCount === 1 ? t("wc_item") : t("wc_items")}
               {nfts && nfts.length > 0 ? (
                 <button
                   type="button"
                   onClick={() => setShowNfts((v) => !v)}
                   className="rounded-full border border-slate-600 px-2 py-0.5 text-[11px] font-semibold text-slate-300 transition hover:border-slate-500 hover:text-white"
                 >
-                  {showNfts ? t("wc_hide") : "Ver"}
+                  {showNfts ? t("wc_hide") : t("wc_show")}
                 </button>
               ) : null}
             </span>
@@ -221,10 +223,11 @@ export default function WalletCard({
                 >
                   <div className="aspect-square bg-slate-800">
                     {nft.image ? (
-                      <img
+                      <NftImage
                         src={nft.image}
                         alt={nft.name}
                         className="h-full w-full object-cover"
+                        loading="lazy"
                       />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">
@@ -239,7 +242,7 @@ export default function WalletCard({
               ))}
             </div>
             {nfts.length > 20 ? (
-              <p className="mt-2 text-[10px] text-slate-500">Mostrando 20 de {nfts.length}</p>
+              <p className="mt-2 text-[10px] text-slate-500">{t("wc_showing").replace("{n}", "20").replace("{total}", String(nfts.length))}</p>
             ) : null}
           </div>
         ) : null}
@@ -287,7 +290,7 @@ export default function WalletCard({
             onClick={onRefresh}
             disabled={!isConnected || isLoading}
           >
-            Atualizar saldo
+            {t("wc_refresh")}
           </button>
         ) : null}
         {isLoading ? <span className="text-xs text-slate-500 animate-pulse">{loadingMessage ?? t("wc_loading3")}</span> : null}

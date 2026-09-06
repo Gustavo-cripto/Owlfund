@@ -48,6 +48,9 @@ export default function NftImage({ src, tokenUri, alt, className, loading }: Nft
   const [resolvedSrc, setResolvedSrc] = useState<string | undefined>(candidates[0]);
   const [failed, setFailed] = useState(false);
 
+  // Reset quando a prop src muda (lista reordenada com key reutilizada mostrava a imagem antiga).
+  useEffect(() => { setIdx(0); setResolvedSrc(candidates[0]); setFailed(false); }, [candidates]);
+
   // No direct image: fetch the metadata (via proxy if IPFS) and pull out the image.
   useEffect(() => {
     if (src || !tokenUri || failed) return;

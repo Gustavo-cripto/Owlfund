@@ -1,6 +1,11 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+import type { TranslationKey } from "@/lib/i18n/translations";
+
+type T = (k: TranslationKey) => string;
+const LOCALE_BY_LANG: Record<string, string> = { pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" };
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type ConfirmedBlock = {
@@ -27,13 +32,14 @@ type MempoolBlock = {
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-const fmtNum = (n: number) => n.toLocaleString("pt-PT");
+let fmtLocale = "pt-PT";
+const fmtNum = (n: number) => n.toLocaleString(fmtLocale);
 
-function timeAgo(ts: number) {
+function timeAgo(ts: number, t: T) {
   const diff = Math.floor(Date.now() / 1000) - ts;
-  if (diff < 60) return `${diff}s atrás`;
-  if (diff < 3600) return `${Math.floor(diff / 60)} min atrás`;
-  return `${Math.floor(diff / 3600)}h atrás`;
+  if (diff < 60) return t("bb_ago_s").replace("{n}", String(diff));
+  if (diff < 3600) return t("bb_ago_m").replace("{n}", String(Math.floor(diff / 60)));
+  return t("bb_ago_h").replace("{n}", String(Math.floor(diff / 3600)));
 }
 
 function satsToBtc(sats: number) {
@@ -80,9 +86,10 @@ function poolIcon(name: string) {
 
 // ── Confirmed Block Card ────────────────────────────────────────────────────
 function ConfirmedCard({ b }: { b: ConfirmedBlock }) {
+  const { t } = useLanguage();
   const fees = b.extras?.totalFees ?? 0;
   const median = b.extras?.medianFee ?? 1;
-  const pool = b.extras?.pool?.name ?? "Unknown";
+  const pool = b.extras?.pool?.name ?? t("bb_unknown_pool");
   const col = blockGradient(median);
 
   return (
@@ -97,7 +104,7 @@ function ConfirmedCard({ b }: { b: ConfirmedBlock }) {
         <span className={`font-black text-base tracking-tight ${col.accent}`}>
           {fmtNum(b.height)}
         </span>
-        <span className="text-[10px] text-slate-500">{timeAgo(b.timestamp)}</span>
+        <span className="text-[10px] text-slate-500">{timeAgo(b.timestamp, t)}</span>
       </div>
 
       {/* Fee range */}
@@ -112,7 +119,7 @@ function ConfirmedCard({ b }: { b: ConfirmedBlock }) {
 
       {/* Tx count */}
       <div className="text-[11px] text-slate-400">
-        {fmtNum(b.tx_count)} transações
+        {fmtNum(b.tx_count)} {t("bb_txs")}
       </div>
 
       {/* Pool */}
@@ -126,6 +133,7 @@ function ConfirmedCard({ b }: { b: ConfirmedBlock }) {
 
 // ── Mempool Block Card ──────────────────────────────────────────────────────
 function MempoolCard({ b, i }: { b: MempoolBlock; i: number }) {
+  const { t } = useLanguage();
   const median = b.medianFee ?? 1;
   const col = blockGradient(median);
   const etaMin = (i + 1) * 10;
@@ -140,8 +148,8 @@ function MempoolCard({ b, i }: { b: MempoolBlock; i: number }) {
 
       {/* ETA */}
       <div className="flex items-center justify-between">
-        <span className={`font-bold text-[11px] ${col.accent}`}>Em ~{etaMin} min</span>
-        <span className="text-[10px] text-slate-600 border border-slate-700 rounded px-1 py-0.5">PRÓXIMO</span>
+        <span className={`font-bold text-[11px] ${col.accent}`}>{t("bb_eta").replace("{n}", String(etaMin))}</span>
+        <span className="text-[10px] text-slate-600 border border-slate-700 rounded px-1 py-0.5">{t("bb_next")}</span>
       </div>
 
       {/* Fee range */}
@@ -155,13 +163,13 @@ function MempoolCard({ b, i }: { b: MempoolBlock; i: number }) {
       </div>
 
       {/* Tx count */}
-      <div className="text-[11px] text-slate-400">{fmtNum(b.nTx)} transações</div>
+      <div className="text-[11px] text-slate-400">{fmtNum(b.nTx)} {t("bb_txs")}</div>
 
       {/* Size */}
       <div className="flex items-center gap-1.5 mt-auto pt-1 border-t border-white/5">
         <span className="text-[11px] text-slate-500">~{Math.round(b.blockVSize / 1000)} kvB</span>
         <span className="text-[11px] text-slate-600">·</span>
-        <span className="text-[11px] text-slate-500">{fill}% cheio</span>
+        <span className="text-[11px] text-slate-500">{fill}% {t("bb_full")}</span>
       </div>
     </div>
   );
@@ -169,31 +177,40 @@ function MempoolCard({ b, i }: { b: MempoolBlock; i: number }) {
 
 // ── Main component ─────────────────────────────────────────────────────────
 export default function BtcBlocksBar() {
+  const { t, lang } = useLanguage();
+  fmtLocale = LOCALE_BY_LANG[lang] ?? "pt-PT";
   const [confirmed, setConfirmed] = useState<ConfirmedBlock[]>([]);
   const [mempool, setMempool] = useState<MempoolBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const aliveRef = useRef(true);
 
   async function fetchData() {
     try {
       const res = await fetch("/api/btc-blocks", { cache: "no-store" });
       if (!res.ok) throw new Error("fetch failed");
       const data = (await res.json()) as { blocks: ConfirmedBlock[]; mempool: MempoolBlock[] };
+      if (!aliveRef.current) return;
       setConfirmed((data.blocks ?? []).slice(0, 8));
       setMempool((data.mempool ?? []).slice(0, 3));
       setError(false);
     } catch {
-      setError(true);
+      if (aliveRef.current) setError(true);
     } finally {
-      setLoading(false);
+      if (aliveRef.current) setLoading(false);
     }
   }
 
+  // Polling de 30 s só com a tab visível (poupa pedidos em separadores em fundo).
   useEffect(() => {
+    aliveRef.current = true;
     fetchData();
-    const id = setInterval(fetchData, 30_000);
-    return () => clearInterval(id);
+    const tick = () => { if (!document.hidden) void fetchData(); };
+    const id = setInterval(tick, 30_000);
+    const onVis = () => { if (!document.hidden) void fetchData(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => { aliveRef.current = false; clearInterval(id); document.removeEventListener("visibilitychange", onVis); };
   }, []);
 
   const scroll = (dir: "left" | "right") => {
@@ -205,15 +222,15 @@ export default function BtcBlocksBar() {
     <div className="keep-dark border-b border-slate-800/60 bg-slate-950/50 select-none shrink-0">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 pt-2.5 pb-1.5">
-        <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-orange-400/90">₿ Blocos BTC</span>
-        <span className="text-[10px] text-slate-600">ao vivo · mempool.space</span>
+        <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-orange-400/90">₿ {t("bb_title")}</span>
+        <span className="text-[10px] text-slate-600">{t("bb_live")} · mempool.space</span>
         <span className={`ml-1 h-1.5 w-1.5 rounded-full ${error ? "bg-rose-500" : "bg-emerald-500"} animate-pulse`} />
         <div className="ml-auto flex gap-1">
-          <button type="button" onClick={() => scroll("left")}
+          <button type="button" onClick={() => scroll("left")} aria-label="←"
             className="p-1.5 rounded-lg text-slate-600 hover:text-slate-300 hover:bg-white/5 transition">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6" /></svg>
           </button>
-          <button type="button" onClick={() => scroll("right")}
+          <button type="button" onClick={() => scroll("right")} aria-label="→"
             className="p-1.5 rounded-lg text-slate-600 hover:text-slate-300 hover:bg-white/5 transition">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6" /></svg>
           </button>
@@ -233,8 +250,8 @@ export default function BtcBlocksBar() {
         ) : error ? (
           <div className="flex items-center gap-2 py-4 text-xs text-slate-500">
             <span className="text-rose-400">⚠</span>
-            Não foi possível carregar os blocos.
-            <button onClick={fetchData} className="text-orange-400 hover:text-orange-300 underline">Tentar novamente</button>
+            {t("bb_error")}
+            <button type="button" onClick={fetchData} className="text-orange-400 hover:text-orange-300 underline">{t("gz_retry")}</button>
           </div>
         ) : (
           <>
@@ -251,7 +268,7 @@ export default function BtcBlocksBar() {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="9 18 15 12 9 6" />
                   </svg>
-                  <span className="text-[8px] text-slate-700 rotate-90 whitespace-nowrap" style={{ writingMode: "vertical-rl" }}>CONFIRMADO</span>
+                  <span className="text-[8px] text-slate-700 rotate-90 whitespace-nowrap" style={{ writingMode: "vertical-rl" }}>{t("bb_confirmed")}</span>
                 </div>
                 <div className="w-px flex-1 bg-gradient-to-b from-transparent via-slate-700 to-transparent" />
               </div>

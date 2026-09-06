@@ -31,9 +31,13 @@ export default function CryptoConfirmPage() {
       try {
         const res = await fetch("/api/crypto/subscription", { cache: "no-store" });
         if (res.ok) {
-          const j = (await res.json()) as { crypto: { currentPeriodEnd: string | null } | null };
+          const j = (await res.json()) as { crypto: { currentPeriodEnd: string | null; lastPaymentAt?: string | null } | null };
           const end = j.crypto?.currentPeriodEnd ? new Date(j.crypto.currentPeriodEnd) : null;
-          if (end && end.getTime() > Date.now()) {
+          // Só conta como confirmado se o ÚLTIMO pagamento for recente (uma
+          // renovação de quem já tinha subscrição não deve "confirmar" no 1.º poll).
+          const lastPay = j.crypto?.lastPaymentAt ? new Date(j.crypto.lastPaymentAt).getTime() : 0;
+          const recent = lastPay >= startedAt.current - 10 * 60_000;
+          if (end && end.getTime() > Date.now() && recent) {
             setStatus("confirmed");
             return; // pára o polling
           }
@@ -61,6 +65,7 @@ export default function CryptoConfirmPage() {
               <div className="mb-6 h-14 w-14 animate-spin rounded-full border-4 border-orange-500/30 border-t-orange-500" aria-hidden />
               <h1 className="text-2xl font-bold text-white">{t("cc_waiting_title")}</h1>
               <p className="mt-3 max-w-sm text-sm leading-relaxed text-slate-400">{t("cc_waiting_desc")}</p>
+              <a href="/account" className="mt-6 text-xs text-slate-500 underline decoration-dotted hover:text-white">{t("nav_account")} →</a>
             </>
           )}
 

@@ -7,6 +7,10 @@ import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import type { Lang, TranslationKey } from "@/lib/i18n/translations";
 
+const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
+// Itens só com plano Premium (a página gate-a; aqui é só o badge).
+const PREMIUM_HREFS = new Set(["/gestor", "/account?section=api"]);
+
 const LANGS: { code: Lang; flag: string; label: string }[] = [
   { code: "pt", flag: "🇵🇹", label: "PT" },
   { code: "en", flag: "🇬🇧", label: "EN" },
@@ -151,6 +155,8 @@ export default function Sidebar() {
   const { lang, setLang, t } = useLanguage();
   const [email, setEmail] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [sessionKnown, setSessionKnown] = useState(false);
+  const [focused, setFocused] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -162,6 +168,7 @@ export default function Sidebar() {
       if (!mounted) return;
       setIsLoggedIn(!!(data as { session: unknown }).session);
       setEmail((data.session as { user: { email?: string } } | null)?.user?.email ?? null);
+      setSessionKnown(true);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_e: unknown, session: { user: { email?: string } } | null) => {
       setIsLoggedIn(!!session);
@@ -174,16 +181,22 @@ export default function Sidebar() {
   useEffect(() => {
     if (!isLoggedIn) { setIsAdmin(false); return; }
     let mounted = true;
-    fetch("/api/admin/beta-testers")
-      .then((r) => { if (mounted) setIsAdmin(r.ok); })
+    fetch("/api/admin/me")
+      .then((r) => (r.ok ? r.json() : { admin: false }))
+      .then((j: { admin?: boolean }) => { if (mounted) setIsAdmin(!!j.admin); })
       .catch(() => { if (mounted) setIsAdmin(false); });
     return () => { mounted = false; };
   }, [isLoggedIn]);
 
   useEffect(() => { setMobileOpen(false); }, [pathname]);
 
-  const isActive = (href: string) =>
-    pathname === href || pathname?.startsWith(`${href}/`);
+  // Query string conta para o item "API & MCP" (/account?section=api).
+  const search = typeof window !== "undefined" ? window.location.search : "";
+  const isActive = (href: string) => {
+    if (href.includes("?")) return `${pathname}${search}` === href;
+    if (href === "/account") return pathname === "/account" && !search.includes("section=api");
+    return pathname === href || pathname?.startsWith(`${href}/`);
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -198,7 +211,8 @@ export default function Sidebar() {
     leaveTimer.current = setTimeout(() => setHovered(false), 200);
   };
 
-  const expanded = hovered;
+  const expanded = hovered || focused;
+  const homeHref = isLoggedIn ? "/dashboard" : "/";
 
   // Visitantes sem sessão veem um menu mínimo: página inicial + como funciona.
   const homeIcon = (
@@ -224,26 +238,31 @@ export default function Sidebar() {
     : [
         { href: "/", labelKey: "nav_home", icon: homeIcon },
         { href: "/como-funciona", labelKey: "dash_how_title", icon: howIcon },
+        ...(paymentsFrozen ? [{ href: "/beta", labelKey: "nav_beta_signup" as TranslationKey, icon: betaIcon }] : []),
+        { href: "/pricing", labelKey: "nav_pricing" as TranslationKey, icon: NAV_ITEMS.find((n) => n.href === "/pricing")?.icon },
+        { href: "/developers", labelKey: "nav_developers" as TranslationKey, icon: NAV_ITEMS.find((n) => n.href === "/account?section=api")?.icon },
       ];
 
   return (
     <>
       {/* ── Mobile top bar ── */}
       <header className="keep-dark xl:hidden flex items-center justify-between px-4 py-3 bg-black border-b border-white/[0.06]">
-        <a href="/dashboard" className="flex items-center gap-3">
+        <a href={homeHref} className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0">
             <img src="/chainfolioai-icon.png" alt="ChainFolioAI" className="w-10 h-10 object-cover " />
           </div>
           <div>
             <p className="text-sm font-bold text-white tracking-widest leading-none">CHAINFOLIOAI</p>
-            <p className="text-[10px] text-slate-500 leading-tight mt-0.5">Portfolio Analytics</p>
+            <p className="text-[10px] text-slate-500 leading-tight mt-0.5">{t("lp_tagline")}</p>
           </div>
         </a>
         <button
           type="button"
           onClick={() => setMobileOpen((o) => !o)}
           className="p-2 rounded-lg bg-white/5 border border-white/10"
-          aria-label="Menu"
+          aria-label={t("sb_menu")}
+          aria-expanded={mobileOpen}
+          aria-controls="sb-mobile-nav"
         >
           {mobileOpen
             ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
@@ -254,15 +273,16 @@ export default function Sidebar() {
 
       {/* ── Mobile dropdown ── */}
       {mobileOpen && (
-        <nav className="keep-dark xl:hidden bg-black border-b border-white/[0.06] px-3 py-3 grid grid-cols-2 gap-1">
+        <nav id="sb-mobile-nav" className="keep-dark xl:hidden bg-black border-b border-white/[0.06] px-3 py-3 grid grid-cols-2 gap-1">
           {navList.map((item) => (
-            <a key={item.href} href={item.href}
+            <a key={item.href} href={item.href} aria-current={isActive(item.href) ? "page" : undefined}
               className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition ${
                 isActive(item.href) ? "bg-white/10 text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"
               }`}
             >
               <span className={isActive(item.href) ? "text-orange-400" : "text-slate-500"}>{item.icon}</span>
               {t(item.labelKey)}
+              {PREMIUM_HREFS.has(item.href) && <span className="ml-auto rounded-full border border-violet-500/40 px-1.5 text-[9px] text-violet-300">Premium</span>}
             </a>
           ))}
           <div className="col-span-2 mt-1 pt-2 border-t border-white/[0.06] flex items-center justify-between px-2">
@@ -289,21 +309,24 @@ export default function Sidebar() {
       <aside
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
+        onFocusCapture={() => setFocused(true)}
+        onBlurCapture={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocused(false); }}
+        aria-label={t("sb_nav")}
         className={`hidden xl:flex flex-col shrink-0 sticky top-0 h-screen overflow-y-auto bg-black border-r border-white/[0.06] transition-all duration-300 ease-in-out z-40 ${
           expanded ? "w-72 shadow-2xl shadow-black/60" : "w-[72px]"
         }`}
       >
         {/* Brand */}
         <div className={`flex items-center border-b border-white/[0.06] overflow-hidden ${expanded ? "px-5 pt-8 pb-7 gap-4" : "justify-center px-0 py-5"}`}>
-          <a href="/dashboard" className="shrink-0">
+          <a href={homeHref} className="shrink-0">
             <div className={`overflow-hidden border border-white/[0.08] transition-all duration-300 ${expanded ? "w-16 h-16 rounded-2xl" : "w-10 h-10 rounded-xl"}`}>
               <img src="/chainfolioai-icon.png" alt="ChainFolioAI" className="w-full h-full object-cover " />
             </div>
           </a>
           <div className={`transition-all duration-200 overflow-hidden ${expanded ? "opacity-100 w-auto" : "opacity-0 w-0"}`}>
-            <a href="/dashboard">
+            <a href={homeHref}>
               <p className="text-base font-black tracking-[0.14em] leading-none uppercase whitespace-nowrap bg-gradient-to-r from-orange-400 to-amber-300 bg-clip-text text-transparent">CHAINFOLIOAI</p>
-              <p className="text-xs text-slate-500 leading-tight mt-1 whitespace-nowrap">Portfolio Analytics</p>
+              <p className="text-xs text-slate-500 leading-tight mt-1 whitespace-nowrap">{t("lp_tagline")}</p>
             </a>
           </div>
         </div>
@@ -312,10 +335,10 @@ export default function Sidebar() {
         <nav className={`flex-1 py-4 ${expanded ? "px-3" : "px-2"}`}>
           {expanded && (
             <p className="px-3 mb-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-600 whitespace-nowrap">
-              Navigation
+              {t("sb_nav")}
             </p>
           )}
-          <ul className="space-y-1">
+          <ul className={`space-y-1 transition-opacity ${sessionKnown ? "opacity-100" : "opacity-0"}`}>
             {navList.map((item) => {
               const label = t(item.labelKey);
               return (
@@ -323,6 +346,7 @@ export default function Sidebar() {
                   <a
                     href={item.href}
                     title={!expanded ? label : undefined}
+                    aria-current={isActive(item.href) ? "page" : undefined}
                     className={`flex items-center rounded-xl font-medium transition-all duration-150 ${
                       expanded ? "gap-3 px-3 py-3" : "justify-center px-0 py-3"
                     } ${
@@ -336,6 +360,7 @@ export default function Sidebar() {
                     </span>
                     <span className={`transition-all duration-200 overflow-hidden whitespace-nowrap text-[15px] ${expanded ? "opacity-100 w-auto" : "opacity-0 w-0"}`}>
                       {label}
+                      {PREMIUM_HREFS.has(item.href) && <span className="ml-2 rounded-full border border-violet-500/40 px-1.5 text-[9px] text-violet-300 align-middle">Premium</span>}
                     </span>
                   </a>
                 </li>
@@ -348,6 +373,7 @@ export default function Sidebar() {
             {LANGS.map((l) => (
               <button key={l.code} type="button" onClick={() => setLang(l.code)}
                 title={l.label}
+                aria-pressed={lang === l.code}
                 className={`rounded-xl font-medium transition-all duration-150 ${
                   expanded
                     ? "flex items-center justify-center gap-1.5 py-2 px-1 text-xs"

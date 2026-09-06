@@ -4,6 +4,10 @@ import { useState, useMemo, useEffect } from "react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import NftImage from "@/components/NftImage";
+import type { TranslationKey } from "@/lib/i18n/translations";
+
+const LOCALE_BY_LANG: Record<string, string> = { pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" };
 
 type WalletBalance = { label: string; symbol: string; balance?: string; address?: string; network?: string };
 type TokenPrices = Record<string, number>;
@@ -24,13 +28,13 @@ type Props = {
 type TimeFrame = "1h" | "1d" | "1s" | "1m" | "1a" | "tudo";
 type Tab = "overview" | "tokens" | "nfts" | "defi";
 
-const TIMEFRAMES: { key: TimeFrame; label: string }[] = [
-  { key: "1h",   label: "1 hora" },
-  { key: "1d",   label: "1 dia" },
-  { key: "1s",   label: "1 semana" },
-  { key: "1m",   label: "1 mês" },
-  { key: "1a",   label: "1 ano" },
-  { key: "tudo", label: "Tudo" },
+const TIMEFRAMES: { key: TimeFrame; labelKey: TranslationKey }[] = [
+  { key: "1h",   labelKey: "pcs_tf_1h" },
+  { key: "1d",   labelKey: "pcs_tf_1d" },
+  { key: "1s",   labelKey: "pcs_tf_1w" },
+  { key: "1m",   labelKey: "pcs_tf_1m" },
+  { key: "1a",   labelKey: "pcs_tf_1y" },
+  { key: "tudo", labelKey: "pcs_tf_all" },
 ];
 
 const TABS: { key: Tab; labelKey: string }[] = [
@@ -82,26 +86,18 @@ type WalletNfts = { address: string; chain: string; label: string; nfts: NftItem
 type WalletDefi = { address: string; chain: string; label: string; total: number; positions: DefiPosition[]; loading: boolean; error?: string };
 
 
+// Devolve só pontos REAIS (snapshots + valor atual). Sem snapshots no intervalo
+// devolve [] e o gráfico mostra um estado vazio — antes inventava "Início = −3 %"
+// e uma curva horária interpolada a fingir de histórico.
 function buildChartData(
   tf: TimeFrame,
   portfolioTotal: number,
   snapshotTotals: SnapshotTotal[],
-  historicalPrices: HistoricalPrices
+  locale: string,
+  nowLabel: string,
 ): { time: string; value: number }[] {
   const now = Date.now();
   const sorted = [...snapshotTotals].sort((a, b) => a.createdAt - b.createdAt);
-
-  if (tf === "1d" && historicalPrices["1d"] && Object.keys(historicalPrices["1d"]).length > 0) {
-    const pts: { time: string; value: number }[] = [];
-    const past1d = sorted.find(s => now - s.createdAt >= 20 * 3600_000)?.total ?? portfolioTotal;
-    for (let h = 24; h >= 0; h--) {
-      const t = new Date(now - h * 3600_000);
-      const pct = h === 0 ? 1 : h === 24 ? 0 : 1 - h / 24;
-      const val = past1d + (portfolioTotal - past1d) * pct;
-      pts.push({ time: t.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" }), value: Math.max(0, val) });
-    }
-    return pts;
-  }
 
   const msRange: Record<TimeFrame, number> = {
     "1h":   3_600_000,
@@ -113,17 +109,16 @@ function buildChartData(
   };
   const range = msRange[tf];
   const filtered = sorted.filter(s => now - s.createdAt <= range);
+  if (filtered.length === 0) return [];
 
-  if (filtered.length === 0) {
-    const ref = portfolioTotal * 0.97;
-    return [{ time: "Início", value: ref }, { time: "Agora", value: portfolioTotal }];
-  }
-
+  const shortRange = range <= 86_400_000;
   const pts = filtered.map(s => ({
-    time: new Date(s.createdAt).toLocaleDateString("pt-PT", { day: "2-digit", month: "short" }),
+    time: shortRange
+      ? new Date(s.createdAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })
+      : new Date(s.createdAt).toLocaleDateString(locale, { day: "2-digit", month: "short" }),
     value: s.total,
   }));
-  pts.push({ time: "Agora", value: portfolioTotal });
+  pts.push({ time: nowLabel, value: portfolioTotal });
   return pts;
 }
 
@@ -175,7 +170,7 @@ function TokenRow({ wallet, price, pnlToday, total }: { wallet: WalletBalance; p
               {fmtSigned(pnlEur)}
             </p>
             <p className={`text-xs ${pnlPct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-              {pnlPct >= 0 ? "▲" : "▼"} {Math.abs(pnlPct).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
+              {pnlPct >= 0 ? "▲" : "▼"} {hideBalances ? "••" : Math.abs(pnlPct).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
             </p>
           </>
         ) : <p className="text-sm text-slate-600">—</p>}
@@ -186,18 +181,13 @@ function TokenRow({ wallet, price, pnlToday, total }: { wallet: WalletBalance; p
 
 // ── NFT card ─────────────────────────────────────────────────────────────────
 function NftCard({ nft }: { nft: NftItem }) {
-  const [imgErr, setImgErr] = useState(false);
-  const img = nft.image;
-  const isIpfs = img?.startsWith("ipfs://") ?? false;
-  const src = isIpfs && img ? `https://ipfs.io/ipfs/${img.slice(7)}` : img;
+  const src = nft.image;
 
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden hover:border-slate-600 transition group">
       <div className="aspect-square bg-slate-800 relative overflow-hidden">
-        {src && !imgErr ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={src} alt={nft.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            onError={() => setImgErr(true)} />
+        {src ? (
+          <NftImage src={src} alt={nft.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-3xl text-slate-600">🖼️</div>
         )}
@@ -215,7 +205,8 @@ export default function PortfolioChartSection({
   portfolioTotal, pnlToday, snapshotTotals, historicalPrices,
   wallets, tokenPrices, cryptoTotal,
 }: Props) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const locale = LOCALE_BY_LANG[lang] ?? "pt-PT";
   const { format: fmt, formatUsd: fmtUsd, hideBalances } = useCurrencyFormat();
   const fmtCompact = (v: number) => fmt(v, { compact: true });
   const fmtUsdCompact = (v: number) => fmtUsd(v, { compact: true });
@@ -224,10 +215,12 @@ export default function PortfolioChartSection({
   const [nftData, setNftData] = useState<WalletNfts[]>([]);
   const [defiData, setDefiData] = useState<WalletDefi[]>([]);
 
+  const nowLabel = t("pcs_now");
   const chartData = useMemo(
-    () => buildChartData(tf, portfolioTotal, snapshotTotals, historicalPrices),
-    [tf, portfolioTotal, snapshotTotals, historicalPrices]
+    () => buildChartData(tf, portfolioTotal, snapshotTotals, locale, nowLabel),
+    [tf, portfolioTotal, snapshotTotals, locale, nowLabel]
   );
+  void historicalPrices;
 
   const isUp = pnlToday >= 0;
   const chartColor = isUp ? "#10b981" : "#f43f5e";
@@ -247,6 +240,7 @@ export default function PortfolioChartSection({
   useEffect(() => {
     if (tab !== "nfts") return;
     if (nftData.length > 0) return; // already loaded
+    let cancelled = false;
 
     const targets = addressedWallets.map(w => ({
       address: w.address!,
@@ -263,20 +257,24 @@ export default function PortfolioChartSection({
     targets.forEach(async (t, i) => {
       try {
         const res = await fetch(t.url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as { nfts?: NftItem[]; count?: number; error?: string };
+        if (cancelled) return;
         setNftData(prev => {
           const next = [...prev];
           next[i] = { ...next[i], nfts: data.nfts ?? [], loading: false, error: data.error };
           return next;
         });
       } catch (e) {
+        if (cancelled) return;
         setNftData(prev => {
           const next = [...prev];
-          next[i] = { ...next[i], loading: false, error: e instanceof Error ? e.message : "Erro" };
+          next[i] = { ...next[i], loading: false, error: e instanceof Error ? e.message : "—" };
           return next;
         });
       }
     });
+    return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
@@ -284,6 +282,7 @@ export default function PortfolioChartSection({
   useEffect(() => {
     if (tab !== "defi") return;
     if (defiData.length > 0) return;
+    let cancelled = false;
 
     // DeFi supported chains: eth and sol
     const targets = addressedWallets
@@ -303,20 +302,24 @@ export default function PortfolioChartSection({
     targets.forEach(async (t, i) => {
       try {
         const res = await fetch(t.url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as { total?: number; positions?: DefiPosition[]; error?: string };
+        if (cancelled) return;
         setDefiData(prev => {
           const next = [...prev];
           next[i] = { ...next[i], total: data.total ?? 0, positions: data.positions ?? [], loading: false, error: data.error };
           return next;
         });
       } catch (e) {
+        if (cancelled) return;
         setDefiData(prev => {
           const next = [...prev];
-          next[i] = { ...next[i], loading: false, error: e instanceof Error ? e.message : "Erro" };
+          next[i] = { ...next[i], loading: false, error: e instanceof Error ? e.message : "—" };
           return next;
         });
       }
     });
+    return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
@@ -331,11 +334,14 @@ export default function PortfolioChartSection({
           <p className="text-4xl font-black text-white tracking-tight">{fmt(portfolioTotal)}</p>
           <div className="flex items-center gap-1.5 mt-1.5">
             <span className={`text-sm ${isUp ? "text-emerald-400" : "text-rose-400"}`}>
-              {isUp ? "▲" : "▼"} {fmt(Math.abs(pnlToday))} ({Math.abs(pnlPct).toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%) hoje
+              {isUp ? "▲" : "▼"} {fmt(Math.abs(pnlToday))} ({hideBalances ? "••" : Math.abs(pnlPct).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%) {t("pcs_today")}
             </span>
           </div>
         </div>
         <div className="h-[200px] px-0 mt-2">
+          {chartData.length === 0 ? (
+            <div className="flex h-full items-center justify-center px-6 text-center text-xs text-slate-500">{t("pcs_no_history")}</div>
+          ) : (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} margin={{ top: 4, right: 16, bottom: 0, left: 0 }}>
               <defs>
@@ -352,13 +358,14 @@ export default function PortfolioChartSection({
                 dot={false} activeDot={{ r: 4, fill: chartColor, stroke: "#0f172a", strokeWidth: 2 }} />
             </AreaChart>
           </ResponsiveContainer>
+          )}
         </div>
         <div className="flex gap-1 px-4 pb-4 pt-2">
-          {TIMEFRAMES.map(({ key, label }) => (
-            <button key={key} type="button" onClick={() => setTf(key)}
+          {TIMEFRAMES.map(({ key, labelKey }) => (
+            <button key={key} type="button" onClick={() => setTf(key)} aria-pressed={tf === key}
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
                 tf === key ? "bg-slate-700 text-white" : "text-slate-500 hover:text-white hover:bg-slate-800"
-              }`}>{label}</button>
+              }`}>{t(labelKey)}</button>
           ))}
         </div>
       </div>
@@ -440,7 +447,7 @@ export default function PortfolioChartSection({
           ) : (
             <div className="space-y-6">
               {nftData.map((wd) => (
-                <div key={wd.address}>
+                <div key={`${wd.address}-${wd.chain}-${wd.label}`}>
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-xs font-semibold text-slate-300">{wd.label}</span>
                     <span className="text-[10px] text-slate-600 font-mono">{wd.address.slice(0, 6)}…{wd.address.slice(-4)}</span>
@@ -491,7 +498,7 @@ export default function PortfolioChartSection({
               )}
 
               {defiData.map((wd) => (
-                <div key={wd.address} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+                <div key={`${wd.address}-${wd.chain}-${wd.label}`} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-xs font-semibold text-slate-300">{wd.label}</span>
                     <span className="text-[10px] text-slate-600 font-mono">{wd.address.slice(0, 6)}…{wd.address.slice(-4)}</span>

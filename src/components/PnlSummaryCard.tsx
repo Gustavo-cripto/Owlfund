@@ -36,21 +36,21 @@ export default function PnlSummaryCard({
         <div className="mt-4 space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-sm text-slate-400">{t("pnl_position")}</p>
-            <p className="text-lg font-semibold text-emerald-400">{formatSigned(position)}</p>
+            <p className={`text-lg font-semibold ${position >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{formatSigned(position)}</p>
           </div>
           <div className="flex items-center justify-between">
             <p className="text-sm text-slate-400">{t("pnl_today")}</p>
-            <p className="text-lg font-semibold text-orange-300">{formatSigned(today)}</p>
+            <p className={`text-lg font-semibold ${today >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{formatSigned(today)}</p>
           </div>
           {typeof days30 === "number" ? (
             <div className="flex items-center justify-between">
               <p className="text-sm text-slate-400">{t("pnl_30d")}</p>
-              <p className="text-lg font-semibold text-emerald-300">{formatSigned(days30)}</p>
+              <p className={`text-lg font-semibold ${days30 >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{formatSigned(days30)}</p>
             </div>
           ) : null}
           <div className="flex items-center justify-between">
             <p className="text-sm text-slate-400">{t("pnl_daily7")}</p>
-            <p className="text-lg font-semibold text-rose-300">{formatSigned(daily7d)}</p>
+            <p className={`text-lg font-semibold ${daily7d >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{formatSigned(daily7d)}</p>
           </div>
         </div>
         <div className="mt-6 grid grid-cols-3 gap-3">

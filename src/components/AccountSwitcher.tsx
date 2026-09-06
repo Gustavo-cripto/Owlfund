@@ -8,6 +8,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useConfirm } from "./ConfirmDialog";
+
+const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import {
   ACCOUNTS_EVENT,
@@ -33,7 +35,7 @@ export default function AccountSwitcher() {
   const askConfirm = useConfirm();
   const [ready, setReady] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [plan, setPlan] = useState<Plan>("free");
+  const [plan, setPlan] = useState<Plan | "unknown">("unknown");
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [activeId, setActiveId] = useState<string>("");
   const [open, setOpen] = useState(false);
@@ -64,7 +66,7 @@ export default function AccountSwitcher() {
       fetch("/api/subscription")
         .then((r) => (r.ok ? r.json() : null))
         .then((j: { plan?: Plan } | null) => {
-          if (j?.plan) setPlan(j.plan);
+          if (mounted && j?.plan) setPlan(j.plan); // falha → fica "unknown" (não bloquear)
         })
         .catch(() => {});
     };
@@ -95,16 +97,16 @@ export default function AccountSwitcher() {
 
   if (!ready || !isLoggedIn) return null;
 
-  const max = MAX_BY_PLAN[plan];
+  const max = plan === "unknown" ? MAX_BY_PLAN.premium : MAX_BY_PLAN[plan];
   const isAll = activeId === ALL_ACCOUNTS_ID;
   // Mostramos sempre o seletor (paridade desktop/telemóvel). O limite do plano
   // é aplicado no botão "Nova conta" (desativado + CTA de upgrade no Free), não
   // escondendo a UI — antes ficava oculto no desktop quando só havia 1 conta.
 
-  const canCreate = accounts.length < max;
+  const canCreate = plan === "unknown" ? true : accounts.length < max;
   const activeName = isAll
-    ? "Todas as contas"
-    : accounts.find((a) => a.id === activeId)?.name ?? "Conta";
+    ? t("gz_all_accounts")
+    : accounts.find((a) => a.id === activeId)?.name ?? t("gz_account");
 
   const switchTo = (id: string) => {
     setActiveAccountId(id);
@@ -156,7 +158,9 @@ export default function AccountSwitcher() {
         type="button"
         onClick={() => setOpen((o) => !o)}
         className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-orange-500/50 hover:bg-slate-800/70"
-        title="Conta / portefólio"
+        title={t("acs_title")}
+        aria-haspopup="menu"
+        aria-expanded={open}
       >
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-orange-400">
           <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
@@ -170,7 +174,7 @@ export default function AccountSwitcher() {
       {open && (
         <div className="absolute right-0 z-50 mt-2 w-72 rounded-2xl border border-slate-700 bg-slate-900 p-2 shadow-2xl shadow-black/60">
           <p className="px-2 pt-1 pb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-            Contas · {accounts.length}/{max}
+            {t("acs_accounts")} · {accounts.length}/{plan === "unknown" ? "?" : max}
           </p>
 
           <button
@@ -178,7 +182,7 @@ export default function AccountSwitcher() {
             onClick={() => switchTo(ALL_ACCOUNTS_ID)}
             className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm transition ${isAll ? "bg-orange-500/15 text-orange-300" : "text-slate-300 hover:bg-white/5"}`}
           >
-            <span className="font-medium">Todas as contas</span>
+            <span className="font-medium">{t("gz_all_accounts")}</span>
             {isAll && <span className="text-orange-400">✓</span>}
           </button>
 
@@ -204,8 +208,8 @@ export default function AccountSwitcher() {
                       maxLength={40}
                       className="min-w-0 flex-1 rounded-lg border border-slate-600 bg-slate-950 px-2 py-1 text-sm text-white outline-none focus:border-orange-500"
                     />
-                    <button type="button" onClick={saveEdit} aria-label="Guardar" className="shrink-0 rounded-lg px-2 py-1 text-orange-400 hover:bg-white/5">✓</button>
-                    <button type="button" onClick={cancelEdit} aria-label="Cancelar" className="shrink-0 rounded-lg px-2 py-1 text-slate-500 hover:bg-white/5">✕</button>
+                    <button type="button" onClick={saveEdit} aria-label={t("save")} className="shrink-0 rounded-lg px-2 py-1 text-orange-400 hover:bg-white/5">✓</button>
+                    <button type="button" onClick={cancelEdit} aria-label={t("cancel")} className="shrink-0 rounded-lg px-2 py-1 text-slate-500 hover:bg-white/5">✕</button>
                   </>
                 ) : (
                   <>
@@ -217,9 +221,9 @@ export default function AccountSwitcher() {
                       {a.name}
                     </button>
                     {a.id === activeId && <span className="shrink-0 text-sm text-orange-400">✓</span>}
-                    <button type="button" onClick={() => startEdit(a)} aria-label="Renomear" title="Renomear" className="shrink-0 rounded-lg px-1.5 py-1 text-slate-500 transition hover:bg-white/5 hover:text-orange-300">✎</button>
+                    <button type="button" onClick={() => startEdit(a)} aria-label={t("acs_rename")} title={t("acs_rename")} className="shrink-0 rounded-lg px-1.5 py-1 text-slate-500 transition hover:bg-white/5 hover:text-orange-300">✎</button>
                     {accounts.length > 1 && (
-                      <button type="button" onClick={() => onDeleteRow(a)} aria-label="Apagar" title="Apagar" className="shrink-0 rounded-lg px-1.5 py-1 text-slate-500 transition hover:bg-rose-500/10 hover:text-rose-400">🗑</button>
+                      <button type="button" onClick={() => onDeleteRow(a)} aria-label={t("remove")} title={t("remove")} className="shrink-0 rounded-lg px-1.5 py-1 text-slate-500 transition hover:bg-rose-500/10 hover:text-rose-400">🗑</button>
                     )}
                   </>
                 )}
@@ -235,25 +239,21 @@ export default function AccountSwitcher() {
             disabled={!canCreate}
             className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-slate-300 transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            <span className="text-orange-400">＋</span> Nova conta
+            <span className="text-orange-400">＋</span> {t("acs_new")}
           </button>
           {!canCreate && (
             <p className="px-3 py-1 text-[11px] text-slate-500">
-              {plan === "premium" ? "Limite do plano Premium (10)." : (
-                <>Limite do plano. <a href="/pricing" className="text-orange-400 hover:underline">Fazer upgrade</a> para mais.</>
+              {plan === "premium" ? t("acs_limit_premium") : (
+                <>{t("acs_limit_plan")} <a href={paymentsFrozen ? "/beta" : "/pricing"} className="text-orange-400 hover:underline">{paymentsFrozen ? t("dash_beta_cta_short") : t("acs_upgrade")}</a></>
               )}
             </p>
           )}
 
           {isAll && (
-            <p className="px-3 py-2 text-[11px] leading-snug text-slate-500">
-              Vista combinada (só leitura). Escolhe uma conta para adicionar/editar.
-            </p>
+            <p className="px-3 py-2 text-[11px] leading-snug text-slate-500">{t("acs_all_hint")}</p>
           )}
           {!isAll && (
-            <p className="px-3 py-1.5 text-[11px] leading-snug text-slate-500">
-              ✎ renomeia · 🗑 apaga — cada conta é um portefólio no teu login.
-            </p>
+            <p className="px-3 py-1.5 text-[11px] leading-snug text-slate-500">{t("acs_row_hint")}</p>
           )}
         </div>
       )}

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
+import type { TranslationKey } from "@/lib/i18n/translations";
 
 type Allocation = { label: string; symbol: string; value: number; percent: string };
 
@@ -13,23 +14,24 @@ type Props = {
   stablecoinTotal: number;
 };
 
-const PRESETS: Array<{ label: string; changes: Record<string, number> }> = [
-  { label: "Bull Market Cripto +100%", changes: { crypto: 100 } },
-  { label: "Bear Market Cripto -50%", changes: { crypto: -50 } },
-  { label: "Crash -80% (bear extremo)", changes: { crypto: -80 } },
-  { label: "Correção normal -30%", changes: { crypto: -30 } },
-  { label: "Rally BTC +50%", changes: { BTC: 50 } },
-  { label: "Crash ETH -40%", changes: { ETH: -40 } },
-  { label: "Recessão Tradicional -20%", changes: { traditional: -20 } },
-  { label: "NVDA +30% / Cripto -10%", changes: { traditional: 30, crypto: -10 } },
+const PRESETS: Array<{ labelKey: TranslationKey; changes: Record<string, number> }> = [
+  { labelKey: "ss_p_bull", changes: { crypto: 100 } },
+  { labelKey: "ss_p_bear", changes: { crypto: -50 } },
+  { labelKey: "ss_p_crash", changes: { crypto: -80 } },
+  { labelKey: "ss_p_corr", changes: { crypto: -30 } },
+  { labelKey: "ss_p_btc", changes: { BTC: 50 } },
+  { labelKey: "ss_p_eth", changes: { ETH: -40 } },
+  { labelKey: "ss_p_trad", changes: { traditional: -20 } },
+  { labelKey: "ss_p_mix", changes: { traditional: 30, crypto: -10 } },
 ];
 
 export default function ScenarioSimulator({ portfolioTotal, allocations, traditionalTotal, stablecoinTotal }: Props) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const { format: fmt, formatSigned: fmtSigned } = useCurrencyFormat();
   const [sliders, setSliders] = useState<Record<string, number>>({});
+  const locale = ({ pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" } as Record<string, string>)[lang] ?? "pt-PT";
 
-  const cryptoAllocations = allocations.filter(a => a.symbol !== "Stable" && a.symbol !== "Trad." && a.value > 0);
+  const cryptoAllocations = useMemo(() => allocations.filter(a => a.symbol !== "Stable" && a.symbol !== "Trad." && a.value > 0), [allocations]);
 
   const simulated = useMemo(() => {
     let total = stablecoinTotal; // stablecoins não mudam
@@ -63,18 +65,20 @@ export default function ScenarioSimulator({ portfolioTotal, allocations, traditi
         <div className="flex flex-wrap gap-2">
           {PRESETS.map(p => (
             <button
-              key={p.label}
+              key={p.labelKey}
+              type="button"
               onClick={() => applyPreset(p.changes)}
               className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-300 hover:border-orange-400/40 hover:text-orange-200 transition"
             >
-              {p.label}
+              {t(p.labelKey)}
             </button>
           ))}
           <button
+            type="button"
             onClick={() => setSliders({})}
             className="rounded-full border border-rose-500/30 px-3 py-1 text-xs text-rose-400 hover:border-rose-400 transition"
           >
-            ↺ Reset
+            ↺ {t("ss_reset")}
           </button>
         </div>
       </div>
@@ -97,6 +101,7 @@ export default function ScenarioSimulator({ portfolioTotal, allocations, traditi
               </div>
               <input
                 type="range"
+                aria-label={alloc.symbol}
                 min={-90} max={200} step={5}
                 value={val}
                 onChange={e => setSliders(prev => ({ ...prev, [alloc.symbol]: Number(e.target.value) }))}
@@ -126,6 +131,7 @@ export default function ScenarioSimulator({ portfolioTotal, allocations, traditi
               </div>
               <input
                 type="range" min={-90} max={100} step={5}
+                aria-label={t("ss_traditional")}
                 value={val}
                 onChange={e => setSliders(prev => ({ ...prev, traditional: Number(e.target.value) }))}
                 className="w-full accent-orange-500 h-1.5 cursor-pointer"
@@ -149,7 +155,7 @@ export default function ScenarioSimulator({ portfolioTotal, allocations, traditi
             {fmtSigned(diff, { decimals: 0 })}
           </p>
           <p className={`text-sm font-semibold ${diff >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
-            {diffPct >= 0 ? "+" : ""}{diffPct.toFixed(1)}%
+            {diffPct >= 0 ? "+" : ""}{diffPct.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
           </p>
         </div>
       </div>

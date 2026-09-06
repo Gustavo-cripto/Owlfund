@@ -7,7 +7,7 @@ const TRIAL_DAYS = 60;
 
 export type GrantResult = { ok: boolean; error?: string; until?: string };
 
-export async function grantTester(emailRaw: string, plan: "pro" | "premium"): Promise<GrantResult> {
+export async function grantTester(emailRaw: string, plan: "pro" | "premium", opts: { force?: boolean } = {}): Promise<GrantResult> {
   const email = emailRaw.trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { ok: false, error: "Email inválido." };
 
@@ -22,6 +22,18 @@ export async function grantTester(emailRaw: string, plan: "pro" | "premium"): Pr
     if (data.users.length < 1000) break;
   }
   if (!userId) return { ok: false, error: "Este email ainda não tem conta no site." };
+
+  // Nunca sobrescrever uma subscrição PAGA ativa (Stripe/cripto) com um trial manual.
+  if (!opts.force) {
+    const { data: existing } = await admin
+      .from("subscriptions")
+      .select("status, source, current_period_end")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const paidActive = existing && existing.status === "active" && existing.source && existing.source !== "manual"
+      && (!existing.current_period_end || new Date(existing.current_period_end as string).getTime() > Date.now());
+    if (paidActive) return { ok: false, error: `Este utilizador já tem uma subscrição paga ativa (${existing.source}). Não foi alterada.` };
+  }
 
   const end = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
   const price_id = plan === "premium" ? premiumPriceId || "manual_premium" : "manual_pro";

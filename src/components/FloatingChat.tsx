@@ -16,7 +16,8 @@ export default function FloatingChat() {
   const [isOpen, setIsOpen] = useState(false);
   const [isContentReady, setIsContentReady] = useState(false);
   const [showBadge, setShowBadge] = useState(false);
-  const [isPro, setIsPro] = useState(false);
+  // true = Pro/Premium OU plano desconhecido (não mostrar o limite Free por falha de rede).
+  const [isPro, setIsPro] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [, startTransition] = useTransition();
 
@@ -24,18 +25,14 @@ export default function FloatingChat() {
   useEffect(() => {
     const check = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setIsLoggedIn(false); setIsPro(false); return; }
+      if (!user) { setIsLoggedIn(false); setIsPro(true); return; }
       setIsLoggedIn(true);
-      const { data: sub } = await supabase
-        .from("subscriptions")
-        .select("status, current_period_end")
-        .eq("user_id", user.id)
-        .order("current_period_end", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      const active = sub?.status === "active" || sub?.status === "trialing";
-      const notExpired = !sub?.current_period_end || new Date(sub.current_period_end).getTime() > Date.now();
-      setIsPro(active && notExpired);
+      try {
+        const res = await fetch("/api/subscription");
+        if (!res.ok) { setIsPro(true); return; } // unknown → o servidor aplica o limite na mesma
+        const j = await res.json() as { plan?: string };
+        setIsPro(j.plan === "pro" || j.plan === "premium");
+      } catch { setIsPro(true); }
     };
     check();
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => { check(); });
@@ -60,8 +57,10 @@ export default function FloatingChat() {
     catch { /* ignore */ }
   }, [isOpen]);
 
+  // O ChatWidget fica MONTADO depois de aberto pela primeira vez (só se esconde):
+  // fechar o painel com um pedido em curso deixava a resposta perder-se.
   useEffect(() => {
-    if (!isOpen) { setIsContentReady(false); return; }
+    if (!isOpen) return;
     setShowBadge(false);
     try { localStorage.setItem(STORAGE_KEY_SEEN, "1"); } catch { /* ignore */ }
     const t = window.setTimeout(() => setIsContentReady(true), 80);
@@ -102,9 +101,12 @@ export default function FloatingChat() {
   return (
     <div className="pointer-events-none fixed bottom-4 right-4 z-50 flex flex-col items-end gap-3 sm:bottom-6 sm:right-6">
 
-      {/* Chat panel */}
-      {isOpen && (
+      {/* Chat panel (escondido, não desmontado, quando fechado) */}
+      {(isOpen || isContentReady) && (
         <div
+          hidden={!isOpen}
+          role="dialog"
+          aria-label="Chain"
           className="keep-dark pointer-events-auto relative w-[92vw] max-w-[460px] overflow-hidden rounded-3xl border border-slate-700/80 bg-slate-950/92 shadow-2xl shadow-black/50 backdrop-blur"
           style={{ animation: "chat-pop 0.25s ease both" }}
         >
@@ -149,9 +151,6 @@ export default function FloatingChat() {
             {isContentReady && (
               <ChatWidget
                 withContainer={false}
-                title="CHAIN"
-                subtitle="ChainFolioAI · Mercados cripto · Análise técnica"
-                assistantLabel="Chain"
                 messagesMaxHeightClassName="max-h-[52vh]"
                 inputClassName="py-2.5 text-sm"
                 placeholder={t("fch_placeholder")}

@@ -38,6 +38,12 @@ export async function POST(request: Request) {
   // Fim de subscrição → volta ao Free.
   if (ev.action === "end") {
     const admin = getSupabaseAdmin();
+    // Idempotência: um replay de ENDED antigo não pode cancelar uma renovação posterior.
+    try {
+      const { data: seen } = await admin.from("crypto_payments").select("id").eq("provider_event_id", ev.eventId).maybeSingle();
+      if (seen) return NextResponse.json({ received: true, duplicate: true });
+      await admin.from("crypto_payments").insert({ user_id: ev.userId, provider: "helio", provider_event_id: ev.eventId, status: "ended", plan: ev.plan, period: ev.period, amount: 0, currency: null, chain: null });
+    } catch { /* coluna/tabela pode variar — segue */ }
     await admin
       .from("subscriptions")
       .update({ status: "canceled" })
