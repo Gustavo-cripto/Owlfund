@@ -1426,6 +1426,26 @@ export default function WalletsPage() {
     }, 0);
   }, [cryptoHoldings, cryptoPrices, usdToEurRate]);
 
+  // Stablecoins por endereço, em EUR (todas em USD exceto a EURC).
+  const stablecoinTotalEur = useMemo(
+    () =>
+      stablecoinEntries.reduce((sum, e) => {
+        const v = parseFloat(stablecoinBalances[e.id] ?? e.balance ?? "0");
+        if (!Number.isFinite(v)) return sum;
+        return sum + (e.symbol.toUpperCase() === "EURC" ? v : v * usdToEurRate);
+      }, 0),
+    [stablecoinEntries, stablecoinBalances, usdToEurRate],
+  );
+
+  const traditionalInvestedTotal = useMemo(
+    () =>
+      Object.values(traditionalHoldings).reduce((sum, h) => {
+        const v = Number(h.buyValue ?? 0);
+        return Number.isFinite(v) ? sum + v : sum;
+      }, 0),
+    [traditionalHoldings],
+  );
+
   const walletsTotalUsd = useMemo(() => {
     const eth = getFiatValue("ETH", totalEthBalance) ?? 0;
     const sol = getFiatValue("SOL", totalSolBalance) ?? 0;
@@ -2466,6 +2486,12 @@ export default function WalletsPage() {
     return sum;
   }, [coldTokensByAddr]);
 
+  useEffect(() => {
+    // Estes tokens entram no total desta página; sem os gravar no snapshot o
+    // Portefólio ficava aquém do que as Carteiras mostram.
+    updateWalletSnapshot({ tokensUsd: coldTokensExtraUsd });
+  }, [coldTokensExtraUsd]);
+
   /** Remove um endereço adicionado manualmente, da lista certa e do snapshot. */
   const removeManualAddress = (address: string, kind: "eth" | "sol" | "btc" | "ada" | "other", networkLabel: string) => {
     if (kind === "eth") {
@@ -2555,6 +2581,8 @@ export default function WalletsPage() {
         startTransition(() => {
           setStablecoinBalances((prev) => ({ ...prev, [entryId]: balance }));
           setStablecoinBalancesLoading((prev) => ({ ...prev, [entryId]: false }));
+          // O Portefólio lê o saldo do registo guardado, não deste estado.
+          setStablecoinEntries((prev) => prev.map((e) => (e.id === entryId ? { ...e, balance } : e)));
         });
       } catch {
         startTransition(() => {
@@ -4545,7 +4573,7 @@ export default function WalletsPage() {
                 {t("wl_total_all")}
               </p>
               <p className="text-lg font-semibold text-white">
-                {fmtCur((walletsTotalUsd + totalDefiUsd + cexHlTotalUsd + coldTokensExtraUsd) * usdToEurRate + cryptoManualTotal)}
+                {fmtCur((walletsTotalUsd + totalDefiUsd + cexHlTotalUsd + coldTokensExtraUsd) * usdToEurRate + cryptoManualTotal + stablecoinTotalEur)}
               </p>
             </div>
           </div>
@@ -4605,6 +4633,18 @@ export default function WalletsPage() {
                 <span title={t("wl_manual_hint")}>
                   <span className="text-slate-500">{t("wl_manual_label")}</span>{" "}
                   <span className="font-semibold text-white">{fmtCur(cryptoManualTotal)}</span>
+                </span>
+              )}
+              {coldTokensExtraUsd > 0 && (
+                <span title={t("wl_tokens_hint")}>
+                  <span className="text-slate-500">{t("wl_tokens_label")}</span>{" "}
+                  <span className="font-semibold text-white">{fmtCur(coldTokensExtraUsd * usdToEurRate)}</span>
+                </span>
+              )}
+              {stablecoinTotalEur > 0 && (
+                <span>
+                  <span className="text-slate-500">{t("wl_stable_label")}</span>{" "}
+                  <span className="font-semibold text-white">{fmtCur(stablecoinTotalEur)}</span>
                 </span>
               )}
               <span>
@@ -5339,6 +5379,14 @@ export default function WalletsPage() {
                   })
                 )}
               </div>
+              {selectedTraditionalAssets.length > 0 && (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 pt-3">
+                  <span className="text-xs text-slate-400" title={t("wl_trad_total_hint")}>
+                    {t("wl_trad_total")} · {selectedTraditionalAssets.length} {selectedTraditionalAssets.length === 1 ? t("wl_asset_one") : t("wl_asset_many")}
+                  </span>
+                  <span className="text-sm font-semibold text-white">{fmtCur(traditionalInvestedTotal)}</span>
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -329,6 +329,7 @@ export default function PortfolioPage() {
   const [portfolioNote, setPortfolioNote] = useState("");
   const [snapshotCexUsd, setSnapshotCexUsd] = useState(0);
   const [snapshotDefiUsd, setSnapshotDefiUsd] = useState(0);
+  const [snapshotTokensUsd, setSnapshotTokensUsd] = useState(0);
   const [snapshotManualEur, setSnapshotManualEur] = useState<number | null>(null);
   const [usdToEur, setUsdToEur] = useState(0.92); // fallback ~0.92
 
@@ -336,6 +337,7 @@ export default function PortfolioPage() {
     const snap = loadWalletSnapshot();
     if (typeof snap.cexUsd === "number") setSnapshotCexUsd(snap.cexUsd);
     if (typeof snap.defiUsd === "number") setSnapshotDefiUsd(snap.defiUsd);
+    if (typeof snap.tokensUsd === "number") setSnapshotTokensUsd(snap.tokensUsd);
     if (typeof snap.manualEur === "number") setSnapshotManualEur(snap.manualEur);
   }, []);
 
@@ -658,6 +660,7 @@ export default function PortfolioPage() {
 
   const snapshotCexEur = snapshotCexUsd * usdToEur;
   const snapshotDefiEur = snapshotDefiUsd * usdToEur;
+  const snapshotTokensEur = snapshotTokensUsd * usdToEur;
 
   // Valor de cada ativo manual: quantidade × preço em EUR (tokenPrices vem de
   // /api/prices já em euros) e, sem preço para o símbolo, o valor investido.
@@ -678,10 +681,22 @@ export default function PortfolioPage() {
     return manualCryptoItems.reduce((sum, item) => sum + item.value, 0);
   }, [snapshotManualEur, manualCryptoItems]);
 
-  const cryptoTotal = useMemo(() => sumCrypto(wallets, tokenPrices) + manualCryptoTotal + snapshotCexEur + snapshotDefiEur, [wallets, tokenPrices, manualCryptoTotal, snapshotCexEur, snapshotDefiEur]);
+  // As fatias dos manuais têm de somar o mesmo que entra no total (valor de
+  // mercado); antes usavam o valor investido e o anel não batia com o total.
+  const manualCryptoScaled = useMemo(() => {
+    const soma = manualCryptoItems.reduce((sum, item) => sum + item.value, 0);
+    const fator = soma > 0 ? manualCryptoTotal / soma : 1;
+    return manualCryptoItems.map((item) => ({ symbol: item.symbol, value: item.value * fator }));
+  }, [manualCryptoItems, manualCryptoTotal]);
+
+  const cryptoTotal = useMemo(() => sumCrypto(wallets, tokenPrices) + manualCryptoTotal + snapshotCexEur + snapshotDefiEur + snapshotTokensEur, [wallets, tokenPrices, manualCryptoTotal, snapshotCexEur, snapshotDefiEur, snapshotTokensEur]);
   const stablecoinTotal = useMemo(() => {
-    return stablecoinEntries.reduce((sum, e) => sum + (parseFloat(e.balance ?? "0") || 0), 0);
-  }, [stablecoinEntries]);
+    // Saldos em unidades do token: USD para todas exceto a EURC.
+    return stablecoinEntries.reduce((sum, e) => {
+      const v = parseFloat(e.balance ?? "0") || 0;
+      return sum + (e.symbol?.toUpperCase() === "EURC" ? v : v * usdToEur);
+    }, 0);
+  }, [stablecoinEntries, usdToEur]);
   // Stablecoins registadas como "cripto manual" (ex.: USDT no seletor de ativos)
   // também contam como reserva estável no Score — sem afetar o total (já estão
   // incluídas em cryptoTotal, aqui só são reclassificadas para a % de reserva).
@@ -966,14 +981,10 @@ export default function PortfolioPage() {
   const [benchmarkLoading, setBenchmarkLoading] = useState(false);
 
   const cryptoAllocations = useMemo(() => {
-    // As fatias dos manuais têm de somar o mesmo que entra no total (valor de
-    // mercado); antes usavam o valor investido e o anel não batia com o total.
-    const somaItens = manualCryptoItems.reduce((sum, item) => sum + item.value, 0);
-    const fator = somaItens > 0 ? manualCryptoTotal / somaItens : 1;
-    const manualItems = manualCryptoItems.map((item) => ({
+    const manualItems = manualCryptoScaled.map((item) => ({
       label: item.symbol,
       symbol: t("pf_manual"),
-      value: item.value * fator,
+      value: item.value,
     }));
     const items = [
       ...wallets.map((wallet) => ({
@@ -985,13 +996,14 @@ export default function PortfolioPage() {
       ...(stablecoinTotal > 0 ? [{ label: t("pf_stablecoins"), symbol: t("pf_usdt_usdc"), value: stablecoinTotal }] : []),
       ...(snapshotCexEur > 0 ? [{ label: t("pf_cex"), symbol: "CEX", value: snapshotCexEur }] : []),
       ...(snapshotDefiEur > 0 ? [{ label: "DeFi", symbol: "DeFi", value: snapshotDefiEur }] : []),
+      ...(snapshotTokensEur > 0 ? [{ label: t("pf_tokens"), symbol: "Tokens", value: snapshotTokensEur }] : []),
     ];
     const total = items.reduce((sum, item) => sum + item.value, 0);
     return items.map((item) => ({
       ...item,
       percent: getPercent(item.value, total),
     }));
-  }, [wallets, stablecoinTotal, manualCryptoItems, manualCryptoTotal, snapshotCexEur, snapshotDefiEur, t]);
+  }, [wallets, stablecoinTotal, manualCryptoScaled, snapshotCexEur, snapshotDefiEur, snapshotTokensEur, t]);
 
   // ── Métricas viradas a cripto ──
   // Peso do BTC dentro da parte cripto do portefólio
@@ -1344,7 +1356,7 @@ export default function PortfolioPage() {
               BNB: "#f0b90b", MATIC: "#8247e5", AVAX: "#e84142", DOT: "#e6007a",
               LINK: "#2a5ada", UNI: "#ff007a", AAVE: "#b6509e",
               XRP: "#346aa9", LTC: "#345d9d", DOGE: "#c2a633",
-              Stable: "#64748b", "Trad.": "#475569", CEX: "#10b981", DeFi: "#8b5cf6",
+              Stable: "#64748b", "Trad.": "#475569", CEX: "#10b981", DeFi: "#8b5cf6", Tokens: "#f59e0b",
             };
             const assetColor = (name: string) => ASSET_COLOR[name] ?? `hsl(${(name.charCodeAt(0) * 47) % 360},65%,55%)`;
             // Group by symbol — values in EUR
@@ -1353,11 +1365,12 @@ export default function PortfolioPage() {
                 name: w.symbol,
                 value: Number(w.balance) * (tokenPrices[w.symbol] ?? 0),
               })),
-              ...Object.entries(cryptoHoldings).filter(([,h]) => Number(h.buyValue) > 0).map(([k,h]) => ({ name: k, value: Number(h.buyValue) })),
+              ...manualCryptoScaled.filter((i) => i.value > 0).map((i) => ({ name: i.symbol, value: i.value })),
               ...(stablecoinTotal > 0 ? [{ name: t("pf_stable"), value: stablecoinTotal }] : []),
               ...(traditionalTotal > 0 ? [{ name: t("pf_trad"), value: traditionalTotal }] : []),
               ...(snapshotCexEur > 0 ? [{ name: "CEX", value: snapshotCexEur }] : []),
               ...(snapshotDefiEur > 0 ? [{ name: "DeFi", value: snapshotDefiEur }] : []),
+              ...(snapshotTokensEur > 0 ? [{ name: "Tokens", value: snapshotTokensEur }] : []),
             ].filter(d => d.value > 0);
             const grouped: Record<string, number> = {};
             rawEntries.forEach(e => { grouped[e.name] = (grouped[e.name] ?? 0) + e.value; });

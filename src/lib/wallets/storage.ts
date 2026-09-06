@@ -19,6 +19,8 @@ export type WalletSnapshot = {
   defiUsd?: number;
   /** Total dos ativos registados manualmente (já em EUR). */
   manualEur?: number;
+  /** Tokens ERC-20/SPL das carteiras frias, sem o nativo (USD). */
+  tokensUsd?: number;
 };
 
 const walletsKey = () => accKey("portfolio-wallets");
@@ -41,6 +43,7 @@ const normalizeSnapshot = (value: unknown): WalletSnapshot => {
     cexUsd: typeof raw.cexUsd === "number" ? raw.cexUsd : undefined,
     defiUsd: typeof raw.defiUsd === "number" ? raw.defiUsd : undefined,
     manualEur: typeof raw.manualEur === "number" ? raw.manualEur : undefined,
+    tokensUsd: typeof raw.tokensUsd === "number" ? raw.tokensUsd : undefined,
   };
 };
 
@@ -61,6 +64,7 @@ export const loadWalletSnapshot = (): WalletSnapshot => {
         if (typeof snap.cexUsd === "number") merged.cexUsd = (merged.cexUsd ?? 0) + snap.cexUsd;
         if (typeof snap.defiUsd === "number") merged.defiUsd = (merged.defiUsd ?? 0) + snap.defiUsd;
         if (typeof snap.manualEur === "number") merged.manualEur = (merged.manualEur ?? 0) + snap.manualEur;
+        if (typeof snap.tokensUsd === "number") merged.tokensUsd = (merged.tokensUsd ?? 0) + snap.tokensUsd;
       }
       return merged;
     }
@@ -93,5 +97,6 @@ export const updateWalletSnapshot = (patch: WalletSnapshot) => {
   if (typeof patch.cexUsd === "number") next.cexUsd = patch.cexUsd;
   if (typeof patch.defiUsd === "number") next.defiUsd = patch.defiUsd;
   if (typeof patch.manualEur === "number") next.manualEur = patch.manualEur;
+  if (typeof patch.tokensUsd === "number") next.tokensUsd = patch.tokensUsd;
   saveWalletSnapshot(next);
 };
