@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, startTransition } fr
 import { btnPrimary } from "@/lib/ui/buttons";
 
 import AppShell from "@/components/AppShell";
+import { useConfirm } from "@/components/ConfirmDialog";
 import NftImage from "@/components/NftImage";
 import CexSection from "@/components/wallets/CexSection";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -342,6 +343,7 @@ export default function WalletsPage() {
   const supabase = useMemo(() => createClient(), []);
   useRequireAuth("/login");
   const { t } = useLanguage();
+  const askConfirm = useConfirm();
   const { format: fmtCur, symbol: curSym, currency: curCode, rate: curRate, hideBalances } = useCurrencyFormat();
   // Esconde qualquer saldo/quantidade/NFT quando a opção "esconder saldos" está ativa.
   const maskBal = (node: React.ReactNode): React.ReactNode => (hideBalances ? "••••" : node);
@@ -3208,8 +3210,8 @@ export default function WalletsPage() {
                   <button
                     type="button"
                     className="rounded-full border border-rose-400/30 px-3 py-1 text-[11px] font-semibold text-rose-300 transition hover:border-rose-400 hover:text-white"
-                    onClick={() => {
-                      if (!confirm(t("wl_remove_all_confirm"))) return;
+                    onClick={async () => {
+                      if (!(await askConfirm({ message: t("wl_remove_all_confirm"), danger: true, okLabel: t("remove") }))) return;
                       setEthWallets([]);
                       setEthAddress(undefined);
                       setEthBalance(undefined);

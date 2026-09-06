@@ -11,6 +11,7 @@ import {
 } from "@/lib/portfolios/trades";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
+import { useConfirm } from "@/components/ConfirmDialog";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, ReferenceLine } from "recharts";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -67,6 +68,7 @@ export default function HistoricoPage() {
   const { isLoading } = useRequireAuth("/login");
   const { t, lang } = useLanguage();
   const { hideBalances, format: fmtCur, formatSigned } = useCurrencyFormat();
+  const askConfirm = useConfirm();
   const locale = LOCALE_BY_LANG[lang] ?? "pt-PT";
 
   const fmtEur = useCallback((v: number) => fmtCur(v), [fmtCur]);
@@ -152,7 +154,7 @@ export default function HistoricoPage() {
     return ASSET_LIST.find((a) => a.symbol === form.asset) ?? { symbol: form.asset, name: form.asset };
   };
 
-  const handleSubmit = (e?: React.FormEvent) => {
+  const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setFormError(null);
     if (readOnly) { setFormError(t("hx_readonly_all")); return; }
@@ -166,7 +168,7 @@ export default function HistoricoPage() {
     if (!assetInfo) { setFormError(t("hx_asset_required")); return; }
     if (!editId) {
       const dup = txs.find((x) => x.asset === assetInfo.symbol && x.date === form.date && x.type === form.type && x.quantity === qty && x.priceEur === price);
-      if (dup && !window.confirm(t("hx_dup_confirm"))) return;
+      if (dup && !(await askConfirm({ message: t("hx_dup_confirm"), okLabel: t("hx_reg_buy") }))) return;
     }
     const tx: Trade = {
       id: editId ?? tradeId(),

@@ -10,6 +10,7 @@ import {
 } from "recharts";
 
 import AppShell from "@/components/AppShell";
+import { useConfirm } from "@/components/ConfirmDialog";
 import PnlSummaryCard from "@/components/PnlSummaryCard";
 import PortfolioChartSection from "@/components/PortfolioChartSection";
 import ScenarioSimulator from "@/components/ScenarioSimulator";
@@ -291,6 +292,7 @@ export default function PortfolioPage() {
   const supabase = createClient();
   useRequireAuth("/login");
   const { t, lang } = useLanguage();
+  const askConfirm = useConfirm();
   const locale = ({ pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" } as Record<string, string>)[lang] ?? "pt-PT";
   // Durante o beta (pagamentos congelados) os CTAs de upgrade viram convite ao beta.
   const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
@@ -640,7 +642,7 @@ export default function PortfolioPage() {
 
   const handleDeleteSnapshot = async (row: SnapshotRow) => {
     if (!userId) return;
-    if (!window.confirm(t("pfu_del_confirm"))) return;
+    if (!(await askConfirm({ message: t("pfu_del_confirm"), danger: true, okLabel: t("remove") }))) return;
     const { error } = await supabase
       .from("portfolio_snapshots")
       .delete()

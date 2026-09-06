@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Sidebar from "./Sidebar";
 import BtcBlocksBar from "./BtcBlocksBar";
 import AccountSwitcher from "./AccountSwitcher";
+import { ConfirmProvider } from "./ConfirmDialog";
 
 type Tick = { symbol: string; price: string; change: string; up: boolean };
 
@@ -55,6 +56,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
+    <ConfirmProvider>
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col xl:flex-row xl:items-start">
       <Sidebar />
       <div className="flex-1 min-w-0 flex flex-col min-h-screen">
@@ -89,5 +91,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
     </div>
+    </ConfirmProvider>
   );
 }

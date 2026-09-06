@@ -7,6 +7,8 @@
 // - Renomear/apagar é POR conta, diretamente na lista (input inline, sem prompt).
 
 import { useEffect, useRef, useState } from "react";
+import { useConfirm } from "./ConfirmDialog";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 import {
   ACCOUNTS_EVENT,
   ALL_ACCOUNTS_ID,
@@ -27,6 +29,8 @@ type Plan = "free" | "pro" | "premium";
 const MAX_BY_PLAN: Record<Plan, number> = { free: 1, pro: 3, premium: 10 };
 
 export default function AccountSwitcher() {
+  const { t } = useLanguage();
+  const askConfirm = useConfirm();
   const [ready, setReady] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [plan, setPlan] = useState<Plan>("free");
@@ -133,9 +137,9 @@ export default function AccountSwitcher() {
     cancelEdit();
   };
 
-  const onDeleteRow = (a: Account) => {
+  const onDeleteRow = async (a: Account) => {
     if (accounts.length <= 1) return;
-    if (!window.confirm(`Apagar a conta "${a.name}" e os respetivos dados? Esta ação não pode ser desfeita.`)) return;
+    if (!(await askConfirm({ message: t("acs_delete_confirm").replace("{name}", a.name), danger: true, okLabel: t("remove") }))) return;
     const wasActive = a.id === activeId;
     deleteAccount(a.id);
     pushWalletCloud();

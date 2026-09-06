@@ -10,6 +10,7 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { useTheme, useCurrencyFormat, type Theme, type Currency, type NumberFormat } from "@/lib/theme/ThemeContext";
 import { CRYPTO_PAYMENTS_ENABLED } from "@/lib/payments/config";
+import { useConfirm } from "@/components/ConfirmDialog";
 import { NAMESPACED_BASE_KEYS, ACCOUNTS_EVENT, listAccounts, readNamespaced } from "@/lib/portfolios/accounts";
 
 const LOCALE_BY_LANG: Record<string, string> = { pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" };
@@ -58,6 +59,7 @@ const APP_VERSION = "0.1.0";
 // ── API Keys component ────────────────────────────────────────────────────
 function PremiumApiKeys({ isPremium, locale }: { isPremium: boolean; locale: string }) {
   const { t } = useLanguage();
+  const askConfirm = useConfirm();
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [newKeyName, setNewKeyName] = useState("");
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
@@ -102,7 +104,7 @@ function PremiumApiKeys({ isPremium, locale }: { isPremium: boolean; locale: str
   };
 
   const revokeKey = async (id: string) => {
-    if (!confirm(t("ac_revoke_confirm"))) return;
+    if (!(await askConfirm({ message: t("ac_revoke_confirm"), danger: true, okLabel: t("ac_revoke") }))) return;
     setKeysError(null);
     try {
       const res = await fetch("/api/api-keys", {
@@ -209,6 +211,7 @@ function PremiumApiKeys({ isPremium, locale }: { isPremium: boolean; locale: str
 // ── Webhook de alertas (Premium) ──────────────────────────────────────────
 function WebhookConfig({ isPremium }: { isPremium: boolean }) {
   const { t } = useLanguage();
+  const askConfirm = useConfirm();
   const [url, setUrl] = useState("");
   const [secret, setSecret] = useState<string | null>(null);
   const [showSecret, setShowSecret] = useState(false);
@@ -239,7 +242,7 @@ function WebhookConfig({ isPremium }: { isPremium: boolean }) {
     finally { setSaving(false); }
   };
   const remove = async () => {
-    if (!confirm(t("ac_webhook_remove_confirm"))) return;
+    if (!(await askConfirm({ message: t("ac_webhook_remove_confirm"), danger: true, okLabel: t("remove") }))) return;
     setMsg(null);
     try {
       const res = await fetch("/api/webhooks", { method: "DELETE" });
@@ -366,6 +369,7 @@ const SECTIONS: { key: SettingsSection; labelKey: TranslationKey; icon: string }
 export default function AccountPage() {
   const supabase = useMemo(() => createClient(), []);
   const { t, lang, setLang } = useLanguage();
+  const askConfirm = useConfirm();
   const locale = LOCALE_BY_LANG[lang] ?? "pt-PT";
   const {
     theme, currency, hideBalances, numberFormat,
@@ -473,7 +477,7 @@ export default function AccountPage() {
   };
   const handleDeleteAccount = async () => {
     if (deleteInput.trim().toUpperCase() !== t("ac_delete_word").toUpperCase()) return;
-    if (!confirm(t("ac_delete_final_confirm"))) return;
+    if (!(await askConfirm({ message: t("ac_delete_final_confirm"), danger: true, title: t("ac_delete_account"), okLabel: t("ac_delete_button") }))) return;
     setDeleting(true);
     setDeleteError(null);
     try {

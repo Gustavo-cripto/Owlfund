@@ -5,6 +5,7 @@ import { btnPrimary } from "@/lib/ui/buttons";
 
 import AppShell from "@/components/AppShell";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { loadNickname } from "@/lib/user/nickname";
@@ -87,13 +88,6 @@ const saveFavorites = (favorites: Set<string>) => {
   }
 };
 
-type SentimentRow = {
-  symbol: string;
-  name: string;
-  rsi7d: number | null;
-  score: number | null;
-  label: string;
-};
 
 // Locale de UI a partir de <html lang> (o LanguageContext mantém-no em sincronia).
 const uiLocale = () => {
@@ -634,6 +628,21 @@ function LiquidationsFeed({ symbol }: { symbol: string }) {
   );
 }
 
+// Glossário por métrica (tooltip ⓘ): chave de tradução por rótulo do score.
+const GLOSSARY: Record<string, TranslationKey> = {
+  "Long/Short": "mc_gl_ls", Taker: "mc_gl_taker", RSI: "mc_gl_rsi", CVD: "mc_gl_cvd", Funding: "mc_gl_funding", "Put/Call": "mc_gl_pc", OI: "mc_gl_oi",
+};
+
+function Hint({ text, children }: { text: string; children: React.ReactNode }) {
+  return (
+    <span className="group relative inline-flex items-center gap-1">
+      {children}
+      <button type="button" aria-label={text} className="text-[10px] text-slate-500 hover:text-orange-300 focus:outline-none focus-visible:text-orange-300">ⓘ</button>
+      <span role="tooltip" className="pointer-events-none absolute left-0 top-full z-20 mt-1 hidden w-64 rounded-lg border border-slate-700 bg-slate-900 p-2 text-[11px] font-normal leading-relaxed text-slate-300 shadow-xl group-hover:block group-focus-within:block">{text}</span>
+    </span>
+  );
+}
+
 function DerivativesPanel({ data, loading, symbol, updatedAt, error, onRefresh }: { data: DerivData | null; loading: boolean; symbol: string; updatedAt?: number | null; error?: boolean; onRefresh?: () => void }) {
   const { t } = useLanguage();
   const oiVals = (data?.oi ?? []).map((p) => p.v);
@@ -692,7 +701,7 @@ function DerivativesPanel({ data, loading, symbol, updatedAt, error, onRefresh }
                   ["CVD", data.components.cvd], ["Funding", data.components.funding], ["Put/Call", data.components.putCall],
                 ] as [string, number][]).map(([k, v]) => (
                   <li key={k} className="flex items-center justify-between gap-2">
-                    <span className="text-slate-500">{k}</span>
+                    <span className="text-slate-500"><Hint text={t(GLOSSARY[k])}>{k}</Hint></span>
                     <span className={`font-semibold tabular-nums ${v >= 55 ? "text-emerald-400" : v <= 45 ? "text-rose-400" : "text-slate-300"}`}>
                       {v >= 55 ? "↑" : v <= 45 ? "↓" : "→"} {Math.round(v)}
                     </span>
@@ -728,7 +737,7 @@ function DerivativesPanel({ data, loading, symbol, updatedAt, error, onRefresh }
           <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4">
             <div className="flex items-center justify-between">
               <a href={`https://www.coinglass.com/openInterest/${symbol}`} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-white transition hover:text-orange-300">📊 {t("mc_oi")} ↗</a>
-              <p className="text-sm font-bold text-blue-300">{compact(latestOi)}</p>
+              <p className="flex items-center gap-2 text-sm font-bold text-blue-300"><Hint text={t("mc_gl_oi")}>{""}</Hint>{compact(latestOi)}</p>
             </div>
             <div className="mt-3"><DerivMiniChart values={oiVals} color="#3b82f6" id="oi-real-grad" /></div>
             <p className="mt-2 text-[11px] text-slate-500">{t("mc_oi_desc")}</p>
@@ -738,7 +747,7 @@ function DerivativesPanel({ data, loading, symbol, updatedAt, error, onRefresh }
           <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4">
             <div className="flex items-center justify-between">
               <a href="https://www.coinglass.com/LongShortRatio" target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-white transition hover:text-orange-300">⚖️ {t("mc_longshort")} ↗</a>
-              <p className="text-sm font-bold text-slate-200">{latestLs ? `${latestLs.buy.toFixed(0)}/${latestLs.sell.toFixed(0)}` : "—"}</p>
+              <p className="flex items-center gap-2 text-sm font-bold text-slate-200"><Hint text={t("mc_gl_ls")}>{""}</Hint>{latestLs ? `${latestLs.buy.toFixed(0)}/${latestLs.sell.toFixed(0)}` : "—"}</p>
             </div>
             {latestLs ? (
               <>
@@ -780,7 +789,7 @@ function DerivativesPanel({ data, loading, symbol, updatedAt, error, onRefresh }
           {/* Taker buy/sell */}
           <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-white">🅣 {t("mc_taker")}</p>
+              <p className="text-sm font-semibold text-white"><Hint text={t("mc_gl_taker")}>🅣 {t("mc_taker")}</Hint></p>
               <p className="text-sm font-bold text-slate-200">{takerBuyPct == null ? "—" : `${takerBuyPct.toFixed(0)}/${(100 - takerBuyPct).toFixed(0)}`}</p>
             </div>
             {takerBuyPct != null ? (
@@ -801,7 +810,7 @@ function DerivativesPanel({ data, loading, symbol, updatedAt, error, onRefresh }
           {/* Put/Call Ratio (opções) */}
           <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-white">🎯 {t("mc_putcall")}</p>
+              <p className="text-sm font-semibold text-white"><Hint text={t("mc_gl_pc")}>🎯 {t("mc_putcall")}</Hint></p>
               <p className={`text-sm font-bold ${latestPc == null ? "text-slate-400" : latestPc < 1 ? "text-emerald-300" : "text-rose-300"}`}>
                 {latestPc == null ? "—" : latestPc.toFixed(2)}
               </p>
@@ -880,7 +889,6 @@ export default function MercadoPage() {
   const [fearGreedError, setFearGreedError] = useState(false);
   const [fearGreedTick, setFearGreedTick] = useState(0);
   const [fearGreedCountdown, setFearGreedCountdown] = useState<number | null>(null);
-  const [sentimentTop10, setSentimentTop10] = useState<SentimentRow[]>([]);
   const [page, setPage] = useState(0);
   const pageSize = 20;
   const [query, setQuery] = useState("");
@@ -931,7 +939,6 @@ export default function MercadoPage() {
         const response = await fetch("/api/markets");
         const data = (await response.json()) as {
           data?: MarketRow[];
-          sentimentTop10?: SentimentRow[];
           global?: {
             totalMarketCapUsd: number | null; marketCapChange24h: number | null;
             btcDominance: number | null; ethDominance: number | null;
@@ -943,7 +950,6 @@ export default function MercadoPage() {
         }
         setRows(data.data);
         setSelected(data.data[0] ?? null);
-        setSentimentTop10(data.sentimentTop10 ?? []);
         setMarketGlobal(data.global ?? null);
         setPage(0);
       } catch (err) {

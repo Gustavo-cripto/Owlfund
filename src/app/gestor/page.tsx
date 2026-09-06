@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import AppShell from "@/components/AppShell";
+import { useConfirm } from "@/components/ConfirmDialog";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { createClient } from "@/lib/supabase/client";
 import { buildPortfolioSummary, type PortfolioCategory } from "@/lib/portfolio/summaryText";
@@ -96,6 +97,7 @@ function formatMarkdown(text: string): string {
 export default function GestorPage() {
   useRequireAuth();
   const { t, lang } = useLanguage();
+  const askConfirm = useConfirm();
   const { hideBalances, format: fmtCur } = useCurrencyFormat();
   const locale = LOCALE_BY_LANG[lang] ?? "pt-PT";
   // Durante o beta (pagamentos congelados) o CTA de upgrade vira convite ao beta.
@@ -289,8 +291,8 @@ export default function GestorPage() {
   };
 
   // Reinicia a conversa da conta ativa (apaga o histórico persistido + boas-vindas).
-  const resetConversation = () => {
-    if (!window.confirm(t("gz_reset_confirm"))) return;
+  const resetConversation = async () => {
+    if (!(await askConfirm({ message: t("gz_reset_confirm"), danger: true, okLabel: t("gz_clear").replace("🗑 ", "") }))) return;
     try { if (acctId) localStorage.removeItem(gestorKeyFor(acctId)); } catch { /* ignore */ }
     setMessages([buildWelcome()]);
     setSendError(null);
