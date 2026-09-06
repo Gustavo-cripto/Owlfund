@@ -14,7 +14,7 @@ import {
   getActiveAccountId,
   listAccounts,
 } from "@/lib/portfolios/accounts";
-import { escapeHtml } from "@/lib/utils/html";
+import ChatMarkdown from "@/components/ChatMarkdown";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import type { TranslationKey } from "@/lib/i18n/translations";
@@ -81,18 +81,6 @@ function getQuickActions(t: (k: TranslationKey) => string, locale: string) {
   ];
 }
 
-function formatMarkdown(text: string): string {
-  return escapeHtml(text)
-    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*(.+?)\*/g, "<em>$1</em>")
-    .replace(/^### (.+)$/gm, '<p style="font-size:13px;font-weight:500;margin:10px 0 4px">$1</p>')
-    .replace(/^## (.+)$/gm, '<p style="font-size:14px;font-weight:500;margin:12px 0 4px">$1</p>')
-    .replace(/^# (.+)$/gm, '<p style="font-size:15px;font-weight:500;margin:14px 0 4px">$1</p>')
-    .replace(/^- (.+)$/gm, '<li style="margin:3px 0;padding-left:4px">$1</li>')
-    .replace(/(<li[^>]*>.*<\/li>\n?)+/g, (m) => `<ul style="margin:6px 0;padding-left:16px;list-style:disc">${m}</ul>`)
-    .replace(/\n\n/g, '<br style="display:block;margin:4px 0">')
-    .replace(/\n/g, "<br>");
-}
 
 export default function GestorPage() {
   useRequireAuth();
@@ -103,6 +91,7 @@ export default function GestorPage() {
   // Durante o beta (pagamentos congelados) o CTA de upgrade vira convite ao beta.
   const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
   const [sendError, setSendError] = useState<{ text: string; lastUser: string } | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const quickActions = useMemo(() => getQuickActions(t, locale), [t, locale]);
   const lastCountRef = useRef(0);
 
@@ -536,21 +525,43 @@ export default function GestorPage() {
                         ? <img src={userAvatar} alt="" className="w-full h-full object-cover" />
                         : "👤"}
                   </div>
-                  <div className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                  <div className={`group max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                     msg.role === "user"
                       ? "keep-dark bg-violet-600 text-white rounded-tr-sm"
                       : "bg-slate-900 border border-slate-800 text-slate-200 rounded-tl-sm"
                   }`}>
                     {msg.role === "assistant"
-                      ? <div dangerouslySetInnerHTML={{ __html: formatMarkdown(msg.content) }} />
+                      ? <ChatMarkdown content={msg.content} labels={{ copy: t("dev_copy"), copied: t("dev_copied"), downloadCsv: t("gz_download_csv") }} />
                       : msg.content
                     }
-                    <p className="text-[10px] mt-1.5 opacity-50">
+                    <p className="mt-1.5 flex items-center gap-2 text-[10px] opacity-60">
                       {msg.timestamp.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
+                      {msg.role === "assistant" && msg.id !== "welcome" && (
+                        <button
+                          type="button"
+                          onClick={() => { try { void navigator.clipboard.writeText(msg.content).then(() => { setCopiedId(msg.id); setTimeout(() => setCopiedId((p) => (p === msg.id ? null : p)), 1500); }).catch(() => {}); } catch { /* ignore */ } }}
+                          className="rounded border border-slate-700 px-1.5 py-0.5 text-[9px] text-slate-400 opacity-0 transition hover:text-white group-hover:opacity-100 focus:opacity-100"
+                          aria-label={t("gz_copy_msg")}
+                        >
+                          {copiedId === msg.id ? t("dev_copied") : t("gz_copy_msg")}
+                        </button>
+                      )}
                     </p>
                   </div>
                 </div>
               ))}
+
+              {/* Sugestões de seguimento depois de cada resposta */}
+              {!loading && !sendError && messages.length > 1 && messages[messages.length - 1]?.role === "assistant" && (
+                <div className="flex flex-wrap gap-2 pl-10">
+                  {(["gz_fu_1", "gz_fu_2", "gz_fu_3"] as const).map((k) => (
+                    <button key={k} type="button" onClick={() => void sendMessage(t(k))}
+                      className="rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1 text-[11px] text-slate-300 transition hover:border-violet-400/50 hover:text-white">
+                      💬 {t(k)}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {sendError && !loading && (
                 <div className="rounded-xl border border-rose-500/30 bg-rose-500/[0.06] px-4 py-3 text-xs text-rose-200">

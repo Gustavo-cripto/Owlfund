@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { btnPrimary } from "@/lib/ui/buttons";
 import AppShell from "@/components/AppShell";
+import PlanBadge from "@/components/PlanBadge";
 import PnlSummaryCard from "@/components/PnlSummaryCard";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { loadWalletSnapshot, type WalletSnapshot } from "@/lib/wallets/storage";
@@ -34,16 +35,6 @@ const calcTotal = (snapshot: WalletSnapshot, prices: TokenPrices) =>
   sumEntries(snapshot.btc) * (prices.BTC ?? 0) +
   sumEntries(snapshot.ada) * (prices.ADA ?? 0);
 
-function PlanBadge({ plan, size = "sm" }: { plan: "free" | "pro" | "premium" | "all"; size?: "sm" | "xs" }) {
-  const cfg = {
-    free:    { label: "Grátis",  cls: "bg-slate-700/60 text-slate-300 border-slate-600/40" },
-    pro:     { label: "Pro",     cls: "bg-orange-500/20 text-orange-300 border-orange-500/30" },
-    premium: { label: "Premium", cls: "bg-violet-500/20 text-violet-300 border-violet-500/30" },
-    all:     { label: "Todos",   cls: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
-  }[plan];
-  const px = size === "xs" ? "px-1.5 py-0.5 text-[9px]" : "px-2 py-0.5 text-[10px]";
-  return <span className={`rounded-full border font-bold ${px} ${cfg.cls}`}>{cfg.label}</span>;
-}
 
 function LockIcon() {
   return (

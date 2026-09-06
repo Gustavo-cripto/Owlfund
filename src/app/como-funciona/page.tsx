@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { btnPrimary } from "@/lib/ui/buttons";
 import AppShell from "@/components/AppShell";
+import PlanBadge from "@/components/PlanBadge";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import type { TranslationKey } from "@/lib/i18n/translations";
 
@@ -22,7 +23,7 @@ const CARDS: { icon: string; tKey: TranslationKey; dKey: TranslationKey }[] = [
 // /public/screenshots/; se faltar, a linha fica só com o texto (sem partir a página).
 // A ordem do array é a ordem no ecrã — os números das chaves (cf_tN) são a ordem
 // em que foram criadas, por isso não têm de coincidir.
-const TOOLS: { img: string; w: number; h: number; t: TranslationKey; d: TranslationKey; b: TranslationKey[] }[] = [
+const TOOLS: { img: string; w: number; h: number; t: TranslationKey; d: TranslationKey; b: TranslationKey[]; plan?: "pro" | "premium" }[] = [
   { img: "/screenshots/dashboard.webp", w: 1600, h: 487,   t: "cf_t1_t", d: "cf_t1_d", b: ["cf_t1_b1", "cf_t1_b2", "cf_t1_b3"] },
   { img: "/screenshots/portfolio.webp", w: 1600, h: 801,   t: "cf_t2_t", d: "cf_t2_d", b: ["cf_t2_b1", "cf_t2_b2", "cf_t2_b3"] },
   { img: "/screenshots/wallets.webp", w: 1600, h: 695,     t: "cf_t3_t", d: "cf_t3_d", b: ["cf_t3_b1", "cf_t3_b2", "cf_t3_b3"] },
@@ -32,7 +33,7 @@ const TOOLS: { img: string; w: number; h: number; t: TranslationKey; d: Translat
   { img: "/screenshots/fire.webp", w: 1600, h: 692,        t: "cf_t8_t", d: "cf_t8_d", b: ["cf_t8_b1", "cf_t8_b2", "cf_t8_b3"] },
   { img: "/screenshots/historico.webp", w: 1600, h: 700,   t: "cf_t9_t", d: "cf_t9_d", b: ["cf_t9_b1", "cf_t9_b2", "cf_t9_b3"] },
   { img: "/screenshots/chat.webp", w: 1600, h: 700,        t: "cf_t6_t", d: "cf_t6_d", b: ["cf_t6_b1", "cf_t6_b2", "cf_t6_b3"] },
-  { img: "/screenshots/developers.webp", w: 1600, h: 700,  t: "cf_t10_t", d: "cf_t10_d", b: ["cf_t10_b1", "cf_t10_b2", "cf_t10_b3"] },
+  { img: "/screenshots/developers.webp", w: 1600, h: 700,  t: "cf_t10_t", d: "cf_t10_d", b: ["cf_t10_b1", "cf_t10_b2", "cf_t10_b3"], plan: "premium" },
 ];
 
 // Passos reais do fluxo (durante o beta inclui a inscrição com o mesmo email).
@@ -70,7 +71,7 @@ function ToolRow({ tool, index }: { tool: (typeof TOOLS)[number]; index: number 
         </figure>
       )}
       <div className={`${reverse ? "md:order-1" : ""} ${imgOk ? "" : "md:col-span-2 md:max-w-2xl md:mx-auto"}`}>
-        <h3 className="text-xl font-bold text-white md:text-2xl">{t(tool.t)}</h3>
+        <h3 className="flex items-center gap-2.5 text-xl font-bold text-white md:text-2xl">{t(tool.t)}{tool.plan && <PlanBadge plan={tool.plan} />}</h3>
         <p className="mt-3 leading-relaxed text-slate-400">{t(tool.d)}</p>
         <ul className="mt-5 space-y-2.5">
           {tool.b.map((b) => (

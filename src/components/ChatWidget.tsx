@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { buildPortfolioSummaryText } from "@/lib/portfolio/summaryText";
 import { loadNickname } from "@/lib/user/nickname";
-import { escapeHtml } from "@/lib/utils/html";
+import ChatMarkdown from "@/components/ChatMarkdown";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { FREE_CHAT_LIMIT } from "@/lib/plans";
 import {
@@ -57,22 +57,6 @@ function formatTime(ts: number, locale: string): string {
   catch { return ""; }
 }
 
-// Renderiza texto com **bold**, *italic* e listas
-function renderMarkdown(text: string) {
-  const lines = text.split("\n");
-  return lines.map((line, i) => {
-    const isBullet = /^[-•*]\s/.test(line);
-    const content = escapeHtml(line.replace(/^[-•*]\s/, ""))
-      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-      .replace(/\*(.+?)\*/g, "<em>$1</em>")
-      .replace(/`(.+?)`/g, "<code class=\"bg-slate-800 px-1 rounded text-orange-300 text-xs\">$1</code>");
-    return (
-      <span key={i} className={`block ${isBullet ? "pl-3 before:content-['•'] before:mr-2 before:text-orange-400" : ""} ${i > 0 && !isBullet ? "mt-1.5" : ""}`}
-        dangerouslySetInnerHTML={{ __html: content }}
-      />
-    );
-  });
-}
 
 export default function ChatWidget({
   withContainer = true,
@@ -351,7 +335,7 @@ export default function ChatWidget({
                     ? "rounded-2xl rounded-br-md border border-orange-500/25 bg-orange-500/15 text-slate-100"
                     : "rounded-2xl rounded-bl-md border border-slate-700/50 bg-slate-800/70 text-slate-200"
                 }`}>
-                  <div className="space-y-0.5">{renderMarkdown(msg.content)}</div>
+                  <ChatMarkdown content={msg.content} labels={{ copy: t("dev_copy"), copied: t("dev_copied"), downloadCsv: t("gz_download_csv") }} />
                 </div>
                 {msg.ts ? <span className="mt-0.5 px-1 text-[9px] text-slate-600">{formatTime(msg.ts, locale)}</span> : null}
               </div>

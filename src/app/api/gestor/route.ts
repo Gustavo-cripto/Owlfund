@@ -144,7 +144,9 @@ REGRAS:
 - Nunca inventes saldos ou movimentos que não existam no contexto.
 - Não dês recomendações diretas de compra/venda — apresenta análise e cenários com riscos.
 - Respostas estruturadas: máx 4 parágrafos ou lista com bullets. Usa markdown.
-- Para cálculos fiscais: indica sempre que são estimativas e recomenda validação com contabilista.`;
+- Para cálculos fiscais: indica sempre que são estimativas e recomenda validação com contabilista.
+- FORMATO: para dados tabulares usa SEMPRE tabelas markdown (linha de cabeçalho + linha |---|---|; máx. 5 colunas) — NUNCA tabelas ASCII desenhadas com traços nem barras invertidas no fim das linhas.
+- Quando o utilizador pedir CSV/exportação, coloca o conteúdo num bloco de código \`\`\`csv (a aplicação mostra um botão para transferir o ficheiro) — sem instruções de "copia e cola".`;
 }
 
 // ── Route handler ─────────────────────────────────────────────────────────────

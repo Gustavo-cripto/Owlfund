@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { btnPrimary } from "@/lib/ui/buttons";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
+import PlanBadge from "@/components/PlanBadge";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import type { Lang, TranslationKey } from "@/lib/i18n/translations";
 
@@ -282,7 +283,7 @@ export default function Sidebar() {
             >
               <span className={isActive(item.href) ? "text-orange-400" : "text-slate-500"}>{item.icon}</span>
               {t(item.labelKey)}
-              {PREMIUM_HREFS.has(item.href) && <span className="ml-auto rounded-full border border-violet-500/40 px-1.5 text-[9px] text-violet-300">Premium</span>}
+              {PREMIUM_HREFS.has(item.href) && <PlanBadge plan="premium" size="xs" className="ml-auto" />}
             </a>
           ))}
           <div className="col-span-2 mt-1 pt-2 border-t border-white/[0.06] flex items-center justify-between px-2">
@@ -360,7 +361,7 @@ export default function Sidebar() {
                     </span>
                     <span className={`transition-all duration-200 overflow-hidden whitespace-nowrap text-[15px] ${expanded ? "opacity-100 w-auto" : "opacity-0 w-0"}`}>
                       {label}
-                      {PREMIUM_HREFS.has(item.href) && <span className="ml-2 rounded-full border border-violet-500/40 px-1.5 text-[9px] text-violet-300 align-middle">Premium</span>}
+                      {PREMIUM_HREFS.has(item.href) && <PlanBadge plan="premium" size="xs" className="ml-2 align-middle" />}
                     </span>
                   </a>
                 </li>

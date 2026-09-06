@@ -1,5 +1,7 @@
 "use client";
 
+import PlanBadge from "@/components/PlanBadge";
+
 import { useState, useEffect } from "react";
 import { btnPrimary } from "@/lib/ui/buttons";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -291,7 +293,7 @@ export default function CexSection({
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{t("cx_cex")}</p>
+            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{t("cx_cex")} <PlanBadge plan="pro" size="xs" /></p>
             <p className="text-sm text-slate-300 mt-0.5">Kraken · Coinbase · OKX · Bybit · Crypto.com · Bitpanda · Binance · CoinEx — via API Key (read-only)</p>
           </div>
           <button

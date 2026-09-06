@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import AppShell from "@/components/AppShell";
 import PnlSummaryCard from "@/components/PnlSummaryCard";
+import PlanBadge from "@/components/PlanBadge";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import { btnPrimary, btnSecondary } from "@/lib/ui/buttons";
 
 // Durante o beta os pagamentos estão congelados: os CTAs de planos pagos
@@ -32,17 +34,18 @@ const STATS = [
   { value: "€0", k: "lp_st2" },
 ] as const;
 
-const TOOLS = [
+// `plan` marca ferramentas só abertas em planos pagos (selo no cartão).
+const TOOLS: ReadonlyArray<{ icon: string; t: TranslationKey; d: TranslationKey; plan?: "pro" | "premium" }> = [
   { icon: "📊", t: "lp_t1_t", d: "lp_t1_d" },
-  { icon: "🤖", t: "lp_t2_t", d: "lp_t2_d" },
+  { icon: "🤖", t: "lp_t2_t", d: "lp_t2_d", plan: "premium" },
   { icon: "🧮", t: "lp_t3_t", d: "lp_t3_d" },
   { icon: "🔥", t: "lp_t4_t", d: "lp_t4_d" },
   { icon: "🐋", t: "lp_t5_t", d: "lp_t5_d" },
   { icon: "🌐", t: "lp_t6_t", d: "lp_t6_d" },
-  { icon: "🗂️", t: "lp_t7_t", d: "lp_t7_d" },
+  { icon: "🗂️", t: "lp_t7_t", d: "lp_t7_d", plan: "pro" },
   { icon: "📒", t: "lp_t8_t", d: "lp_t8_d" },
-  { icon: "🔌", t: "lp_t9_t", d: "lp_t9_d" },
-] as const;
+  { icon: "🔌", t: "lp_t9_t", d: "lp_t9_d", plan: "premium" },
+];
 
 const PLANS = [
   { name: "Free", price: "€0", paid: false, popular: false, desc: "lp_plan_free_desc", feats: ["lp_plan_free_1", "lp_plan_free_2", "lp_plan_free_3", "lp_plan_free_4"] },
@@ -409,7 +412,7 @@ export default function Home() {
                   className={`card-hover rounded-2xl border border-slate-800 bg-slate-950/50 p-6 animate-fade-in-up delay-${Math.min(i * 100, 500)}`}
                 >
                   <div className="mb-4 text-3xl leading-none">{f.icon}</div>
-                  <h3 className="text-base font-bold text-white">{t(f.t)}</h3>
+                  <h3 className="flex items-center gap-2 text-base font-bold text-white">{t(f.t)}{f.plan && <PlanBadge plan={f.plan} size="xs" />}</h3>
                   <p className="mt-2 text-sm text-slate-400 leading-relaxed">{t(f.d)}</p>
                 </div>
               ))}

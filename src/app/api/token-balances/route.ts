@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/api/requireUser";
+import { getUsdPrices } from "@/lib/api/whales";
 
 const MORALIS_EVM = "https://deep-index.moralis.io/api/v2.2";
 const MORALIS_SOL = "https://solana-gateway.moralis.io/account/mainnet";
 
-type ChainId = "eth" | "sol";
+type ChainId = "eth" | "sol" | "btc";
 
 type EvmToken = {
   token_address?: string;
@@ -54,6 +55,23 @@ function isEvmAddress(a: string) {
 function isSolAddress(a: string) {
   return typeof a === "string" && a.length >= 32 && a.length <= 44;
 }
+function isBtcAddress(a: string) {
+  return /^(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,62}$/.test(a);
+}
+
+// Saldo BTC on-chain (sem Moralis): mempool.space com fallback blockstream.
+async function fetchBtcBalance(address: string): Promise<number | null> {
+  for (const url of [`https://mempool.space/api/address/${address}`, `https://blockstream.info/api/address/${address}`]) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(8000), next: { revalidate: 120 } });
+      if (!res.ok) continue;
+      const data = await res.json() as { chain_stats?: { funded_txo_sum?: number; spent_txo_sum?: number } };
+      const stats = data.chain_stats ?? (data as { funded_txo_sum?: number; spent_txo_sum?: number });
+      return (Number(stats?.funded_txo_sum ?? 0) - Number(stats?.spent_txo_sum ?? 0)) / 1e8;
+    } catch { continue; }
+  }
+  return null;
+}
 
 // CoinGecko IDs para símbolos comuns — fallback de preços quando Moralis não devolve usd_price
 const COINGECKO_SYMBOLS: Record<string, string> = {
@@ -99,6 +117,21 @@ export async function GET(request: Request) {
   const chain = (searchParams.get("chain") ?? "eth") as ChainId;
 
   if (!address) return NextResponse.json({ error: "Endereço obrigatório.", tokens: [] }, { status: 400 });
+
+  // ── Bitcoin (não precisa de Moralis) — antes devolvia sempre 0 e as baleias
+  // BTC apareciam com "0,00 US$".
+  if (chain === "btc") {
+    if (!isBtcAddress(address)) return NextResponse.json({ error: "Endereço BTC inválido.", tokens: [] }, { status: 400 });
+    const balance = await fetchBtcBalance(address);
+    if (balance == null) return NextResponse.json({ error: "Falha ao consultar o saldo BTC.", tokens: [] }, { status: 503 });
+    const { btc: btcUsd } = await getUsdPrices();
+    const usdPrice = btcUsd ?? 0;
+    const usdValue = balance * usdPrice;
+    const tokens: TokenBalance[] = balance > 0
+      ? [{ address, symbol: "BTC", name: "Bitcoin", balance: balance.toFixed(8), usdValue, usdPrice, chain: "btc" }]
+      : [];
+    return NextResponse.json({ tokens, totalUsd: usdValue });
+  }
 
   const moralisKey = process.env.MORALIS_API_KEY;
   if (!moralisKey) return NextResponse.json({ error: "MORALIS_API_KEY não configurada.", tokens: [] }, { status: 503 });
