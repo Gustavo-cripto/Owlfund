@@ -202,7 +202,7 @@ export default function DevelopersContent() {
               </p>
               <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-300 marker:text-orange-400/70">
                 {MCP_TOOLS.map(tool => (
-                  <li key={tool.name}>• <code className="text-slate-400">{tool.name}</code> — {t(tool.key)}{tool.arg && <span className="text-slate-500"> ({t("dev_arg")} <code>{tool.arg}</code>)</span>}</li>
+                  <li key={tool.name}><code className="text-slate-400">{tool.name}</code> — {t(tool.key)}{tool.arg && <span className="text-slate-500"> ({t("dev_arg")} <code>{tool.arg}</code>)</span>}</li>
                 ))}
               </ul>
               <p className="mt-3 text-xs text-amber-200/90">⚠️ {t("dev_mcp_401")}</p>
