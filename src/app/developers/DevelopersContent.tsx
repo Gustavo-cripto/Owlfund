@@ -186,7 +186,10 @@ export default function DevelopersContent() {
                     <Code copyLabel={copyLabel} copyDone={copyDone}>{e.response}</Code>
                     {e.errors && (
                       <p className="mt-3 text-[11px] text-slate-500">
-                        {t("dev_specific_errors")}: {e.errors.map(x => <code key={x} className="mr-1 rounded bg-rose-500/10 px-1 text-rose-300">{x}</code>)}
+                        {t("dev_specific_errors")}:{" "}
+                        <span className="inline-flex flex-wrap gap-1 align-middle">
+                          {e.errors.map(x => <code key={x} className="rounded border border-slate-700/70 bg-slate-800/60 px-1.5 py-0.5 text-slate-300">{x}</code>)}
+                        </span>
                       </p>
                     )}
                   </div>
