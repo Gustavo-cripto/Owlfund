@@ -26,7 +26,7 @@ import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import { traditionalAssets } from "@/lib/traditional/assets";
 import { loadTraditionalHoldings, type TraditionalHoldings } from "@/lib/traditional/storage";
-import { loadCryptoHoldings, loadStablecoinEntries, type CryptoHoldings, type StablecoinEntry } from "@/lib/crypto/storage";
+import { cryptoHoldingValueEur, loadCryptoHoldings, loadStablecoinEntries, type CryptoHoldings, type StablecoinEntry } from "@/lib/crypto/storage";
 import { loadNickname } from "@/lib/user/nickname";
 
 const stripePromise = loadStripe(
@@ -659,16 +659,24 @@ export default function PortfolioPage() {
   const snapshotCexEur = snapshotCexUsd * usdToEur;
   const snapshotDefiEur = snapshotDefiUsd * usdToEur;
 
+  // Valor de cada ativo manual: quantidade × preço em EUR (tokenPrices vem de
+  // /api/prices já em euros) e, sem preço para o símbolo, o valor investido.
+  const manualCryptoItems = useMemo(
+    () =>
+      Object.entries(cryptoHoldings).map(([symbol, holding]) => ({
+        symbol,
+        value: cryptoHoldingValueEur(holding, tokenPrices[symbol]),
+      })),
+    [cryptoHoldings, tokenPrices],
+  );
+
   const manualCryptoTotal = useMemo(() => {
-    // O snapshot guarda o valor de mercado dos manuais (quantidade × preço), calculado
-    // na página de Carteiras onde há preços por símbolo. Preferimo-lo aqui para o total
-    // refletir o mercado; caímos no valor investido quando o snapshot ainda não existe.
+    // O snapshot guarda o valor de mercado dos manuais calculado na página de
+    // Carteiras, que tem preços de mais símbolos (CoinEx/CoinGecko) do que os
+    // quatro de /api/prices. Preferimo-lo; senão somamos o que conseguimos aqui.
     if (snapshotManualEur != null && snapshotManualEur > 0) return snapshotManualEur;
-    return Object.values(cryptoHoldings).reduce((sum, holding) => {
-      const value = Number(holding.buyValue ?? 0);
-      return Number.isFinite(value) ? sum + value : sum;
-    }, 0);
-  }, [snapshotManualEur, cryptoHoldings]);
+    return manualCryptoItems.reduce((sum, item) => sum + item.value, 0);
+  }, [snapshotManualEur, manualCryptoItems]);
 
   const cryptoTotal = useMemo(() => sumCrypto(wallets, tokenPrices) + manualCryptoTotal + snapshotCexEur + snapshotDefiEur, [wallets, tokenPrices, manualCryptoTotal, snapshotCexEur, snapshotDefiEur]);
   const stablecoinTotal = useMemo(() => {
@@ -958,10 +966,14 @@ export default function PortfolioPage() {
   const [benchmarkLoading, setBenchmarkLoading] = useState(false);
 
   const cryptoAllocations = useMemo(() => {
-    const manualItems = Object.entries(cryptoHoldings).map(([symbol, holding]) => ({
-      label: symbol,
+    // As fatias dos manuais têm de somar o mesmo que entra no total (valor de
+    // mercado); antes usavam o valor investido e o anel não batia com o total.
+    const somaItens = manualCryptoItems.reduce((sum, item) => sum + item.value, 0);
+    const fator = somaItens > 0 ? manualCryptoTotal / somaItens : 1;
+    const manualItems = manualCryptoItems.map((item) => ({
+      label: item.symbol,
       symbol: t("pf_manual"),
-      value: Number(holding.buyValue ?? 0),
+      value: item.value * fator,
     }));
     const items = [
       ...wallets.map((wallet) => ({
@@ -979,7 +991,7 @@ export default function PortfolioPage() {
       ...item,
       percent: getPercent(item.value, total),
     }));
-  }, [wallets, stablecoinTotal, cryptoHoldings, snapshotCexEur, snapshotDefiEur, t]);
+  }, [wallets, stablecoinTotal, manualCryptoItems, manualCryptoTotal, snapshotCexEur, snapshotDefiEur, t]);
 
   // ── Métricas viradas a cripto ──
   // Peso do BTC dentro da parte cripto do portefólio
