@@ -24,16 +24,16 @@ const CARDS: { icon: string; tKey: TranslationKey; dKey: TranslationKey }[] = [
 // A ordem do array é a ordem no ecrã — os números das chaves (cf_tN) são a ordem
 // em que foram criadas, por isso não têm de coincidir.
 const TOOLS: { img: string; w: number; h: number; t: TranslationKey; d: TranslationKey; b: TranslationKey[]; plan?: "pro" | "premium" }[] = [
-  { img: "/screenshots/dashboard.webp", w: 1600, h: 487,   t: "cf_t1_t", d: "cf_t1_d", b: ["cf_t1_b1", "cf_t1_b2", "cf_t1_b3"] },
-  { img: "/screenshots/portfolio.webp", w: 1600, h: 801,   t: "cf_t2_t", d: "cf_t2_d", b: ["cf_t2_b1", "cf_t2_b2", "cf_t2_b3"] },
-  { img: "/screenshots/wallets.webp", w: 1600, h: 695,     t: "cf_t3_t", d: "cf_t3_d", b: ["cf_t3_b1", "cf_t3_b2", "cf_t3_b3"] },
-  { img: "/screenshots/market.webp", w: 1600, h: 688,      t: "cf_t4_t", d: "cf_t4_d", b: ["cf_t4_b1", "cf_t4_b2", "cf_t4_b3"] },
-  { img: "/screenshots/smart-money.webp", w: 1600, h: 690, t: "cf_t7_t", d: "cf_t7_d", b: ["cf_t7_b1", "cf_t7_b2", "cf_t7_b3"] },
-  { img: "/screenshots/fiscalidade.webp", w: 1600, h: 695, t: "cf_t5_t", d: "cf_t5_d", b: ["cf_t5_b1", "cf_t5_b2", "cf_t5_b3"] },
-  { img: "/screenshots/fire.webp", w: 1600, h: 692,        t: "cf_t8_t", d: "cf_t8_d", b: ["cf_t8_b1", "cf_t8_b2", "cf_t8_b3"] },
-  { img: "/screenshots/historico.webp", w: 1600, h: 700,   t: "cf_t9_t", d: "cf_t9_d", b: ["cf_t9_b1", "cf_t9_b2", "cf_t9_b3"] },
-  { img: "/screenshots/chat.webp", w: 1600, h: 700,        t: "cf_t6_t", d: "cf_t6_d", b: ["cf_t6_b1", "cf_t6_b2", "cf_t6_b3"] },
-  { img: "/screenshots/developers.webp", w: 1600, h: 700,  t: "cf_t10_t", d: "cf_t10_d", b: ["cf_t10_b1", "cf_t10_b2", "cf_t10_b3"], plan: "premium" },
+  { img: "/screenshots/dashboard.webp", w: 1600, h: 863,   t: "cf_t1_t", d: "cf_t1_d", b: ["cf_t1_b1", "cf_t1_b2", "cf_t1_b3"] },
+  { img: "/screenshots/portfolio.webp", w: 1600, h: 816,   t: "cf_t2_t", d: "cf_t2_d", b: ["cf_t2_b1", "cf_t2_b2", "cf_t2_b3"] },
+  { img: "/screenshots/wallets.webp", w: 1600, h: 820,     t: "cf_t3_t", d: "cf_t3_d", b: ["cf_t3_b1", "cf_t3_b2", "cf_t3_b3"] },
+  { img: "/screenshots/market.webp", w: 1600, h: 827,      t: "cf_t4_t", d: "cf_t4_d", b: ["cf_t4_b1", "cf_t4_b2", "cf_t4_b3"] },
+  { img: "/screenshots/smart-money.webp", w: 1600, h: 820, t: "cf_t7_t", d: "cf_t7_d", b: ["cf_t7_b1", "cf_t7_b2", "cf_t7_b3"] },
+  { img: "/screenshots/fiscalidade.webp", w: 1600, h: 836, t: "cf_t5_t", d: "cf_t5_d", b: ["cf_t5_b1", "cf_t5_b2", "cf_t5_b3"] },
+  { img: "/screenshots/fire.webp", w: 1600, h: 899,        t: "cf_t8_t", d: "cf_t8_d", b: ["cf_t8_b1", "cf_t8_b2", "cf_t8_b3"] },
+  { img: "/screenshots/historico.webp", w: 1600, h: 813,   t: "cf_t9_t", d: "cf_t9_d", b: ["cf_t9_b1", "cf_t9_b2", "cf_t9_b3"] },
+  { img: "/screenshots/chat.webp", w: 1600, h: 820,        t: "cf_t6_t", d: "cf_t6_d", b: ["cf_t6_b1", "cf_t6_b2", "cf_t6_b3"] },
+  { img: "", w: 0, h: 0,  t: "cf_t10_t", d: "cf_t10_d", b: ["cf_t10_b1", "cf_t10_b2", "cf_t10_b3"], plan: "premium" },
 ];
 
 // Passos reais do fluxo (durante o beta inclui a inscrição com o mesmo email).
@@ -52,7 +52,7 @@ const FLOW: Array<{ t: TranslationKey; d: TranslationKey; href: string }> = paym
 
 function ToolRow({ tool, index }: { tool: (typeof TOOLS)[number]; index: number }) {
   const { t } = useLanguage();
-  const [imgOk, setImgOk] = useState(true);
+  const [imgOk, setImgOk] = useState(Boolean(tool.img));
   const reverse = index % 2 === 1;
   return (
     <div className="grid items-center gap-8 md:grid-cols-2">

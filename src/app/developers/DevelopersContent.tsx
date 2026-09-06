@@ -128,7 +128,7 @@ export default function DevelopersContent() {
               <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-violet-500/30 bg-violet-500/[0.06] px-5 py-3 text-sm text-violet-100">
                 <span>💎 {paymentsFrozen ? t("dev_banner_beta") : t("dev_banner_premium_needed")}</span>
                 <Link href={plan === "anon" && !paymentsFrozen ? "/login" : upgradeHref} className="rounded-xl bg-violet-500 px-4 py-1.5 text-xs font-bold text-white hover:bg-violet-400">
-                  {paymentsFrozen ? `🧪 ${t("dash_beta_cta_short")} →` : `${t("gz_upgrade")} →`}
+                  {paymentsFrozen ? `🧪 ${t("dev_beta_cta")} →` : `${t("gz_upgrade")} →`}
                 </Link>
               </div>
             )}
