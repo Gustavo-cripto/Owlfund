@@ -142,18 +142,46 @@ export async function GET(request: Request) {
     const rawTokens: EvmToken[] = [];
 
     // /wallets/{address}/tokens inclui preços (usd_price, usd_value) e o token nativo.
+    // Cache de 5 min por endereço+rede: a Moralis cobra créditos por chamada e a
+    // quota gratuita esgotava-se com a watchlist a pedir saldos a cada minuto.
+    const failed: string[] = [];
+    let quotaOrAuth = false;
     await Promise.allSettled(evmChains.map(async (c) => {
       try {
         const res = await fetch(
           `${MORALIS_EVM}/wallets/${address}/tokens?chain=${c}&exclude_spam=true&limit=100`,
-          { headers: { Accept: "application/json", "X-API-Key": moralisKey }, next: { revalidate: 120 } }
+          { headers: { Accept: "application/json", "X-API-Key": moralisKey }, next: { revalidate: 300 } }
         );
-        if (!res.ok) return;
+        if (!res.ok) {
+          failed.push(`${c}:${res.status}`);
+          if (res.status === 401 || res.status === 403 || res.status === 429) quotaOrAuth = true;
+          return;
+        }
         const data = await res.json() as EvmToken[] | { result?: EvmToken[] };
         const list = Array.isArray(data) ? data : (data as { result?: EvmToken[] }).result ?? [];
         rawTokens.push(...list.filter(t => !t.possible_spam));
-      } catch { /* skip */ }
+      } catch (e) {
+        failed.push(`${c}:erro`);
+        console.error("[token-balances] Moralis", c, e instanceof Error ? e.message : e);
+      }
     }));
+
+    // Antes, um erro da Moralis (quota esgotada, chave inválida) era engolido e a
+    // carteira aparecia a "0,00 US$" sem explicação. Se a mainnet falhou, ou
+    // falharam todas as redes, dizemos a verdade em vez de inventar um zero.
+    if (failed.length > 0) console.error(`[token-balances] ${address.slice(0, 10)}… falhas Moralis: ${failed.join(", ")}`);
+    if (failed.length === evmChains.length || failed.some((f) => f.startsWith("eth:"))) {
+      return NextResponse.json(
+        {
+          error: quotaOrAuth
+            ? "Fornecedor de saldos (Moralis) recusou o pedido — quota diária esgotada ou chave inválida. Tenta mais tarde."
+            : "Fornecedor de saldos (Moralis) indisponível. Tenta mais tarde.",
+          code: quotaOrAuth ? "provider_quota" : "provider_unavailable",
+          tokens: [],
+        },
+        { status: 503 },
+      );
+    }
 
     // IMPORTANTE: usar SÓ os preços do Moralis (por contrato, não por símbolo).
     // Um fallback por símbolo daria a um token de spam "BTC" o preço real do Bitcoin → portefólio inflado.

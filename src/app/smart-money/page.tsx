@@ -314,12 +314,14 @@ export default function SmartMoneyPage() {
     saveAlerts(alerts);
   }, [alerts]);
 
-  // Premium RT: auto-refresh todos os 60s
+  // Premium RT: saldos das carteiras vigiadas a cada 5 min. Cada refresh são 4
+  // chamadas pagas à Moralis por carteira — a cada 60 s esgotava a quota diária
+  // e todas as carteiras passavam a mostrar 0. (Os movimentos continuam a 60 s.)
   useEffect(() => {
     if (!isPremium || watchlist.length === 0) return;
     const interval = setInterval(() => {
       watchlist.forEach((entry) => fetchWalletData(entry));
-    }, 60_000);
+    }, 300_000);
     return () => clearInterval(interval);
   }, [isPremium, watchlist, fetchWalletData]);
 
