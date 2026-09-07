@@ -166,7 +166,7 @@ export async function POST(req: NextRequest) {
       ${src ? `<tr><td style="padding:6px 0;color:#94a3b8">Origem</td><td style="padding:6px 0;color:#fb923c;font-weight:700">${esc(src)}</td></tr>` : ""}
       <tr><td style="padding:6px 0;color:#94a3b8">Validade</td><td style="padding:6px 0;color:#e2e8f0">${TRIAL_DAYS} dias após ativação (indicativo até ${untilStr})</td></tr>
     </table>
-    <p style="background:#1f2937;border-radius:10px;padding:12px 14px;color:#e2e8f0">▶ <b>Para ativar:</b> abre o <a href="${SITE}/admin/beta?email=${encodeURIComponent(email)}" style="color:#fb923c;font-weight:700">painel de ativação</a> e clica em Ativar Pro/Premium (${TRIAL_DAYS} dias). Depois o tester recarrega.</p>
+    <p style="background:#1f2937;border-radius:10px;padding:12px 14px;color:#e2e8f0">▶ <b>Para ativar:</b> abre o <a href="${SITE}/admin/beta?email=${encodeURIComponent(email)}" style="color:#fb923c;font-weight:700">painel de ativação</a> e clica em Ativar Premium (${TRIAL_DAYS} dias). Depois o tester recarrega.</p>
     <p style="color:#64748b;font-size:12px">IP: ${esc(ip)} · ${new Date().toISOString()}</p>
   `);
 
@@ -198,9 +198,10 @@ export async function POST(req: NextRequest) {
   const canButtons = `g:premium:${email}`.length <= 64;
   const replyMarkup = canButtons
     ? {
+        // Todos os testers do beta recebem Premium; o botão Pro foi retirado para
+        // um toque distraído não dar o plano errado (o painel /admin/beta mantém os dois).
         inline_keyboard: [[
-          { text: "✅ Ativar Pro", callback_data: `g:pro:${email}` },
-          { text: "✅ Ativar Premium", callback_data: `g:premium:${email}` },
+          { text: "✅ Ativar Premium (60 dias)", callback_data: `g:premium:${email}` },
         ]],
       }
     : undefined;
@@ -209,7 +210,7 @@ export async function POST(req: NextRequest) {
       (name ? `\n👤 ${tgEsc(name)}` : "") +
       (note ? `\n📝 ${tgEsc(note)}` : "") +
       (src ? `\n📣 via ${tgEsc(src)}` : "") +
-      `\n\n${canButtons ? "Toca num botão para ativar (60 dias) 👇" : `▶ <a href="${SITE}/admin/beta?email=${encodeURIComponent(email)}">Ativar no painel</a> (Pro/Premium · ${TRIAL_DAYS} dias)`}`,
+      `\n\n${canButtons ? "Toca num botão para ativar (60 dias) 👇" : `▶ <a href="${SITE}/admin/beta?email=${encodeURIComponent(email)}">Ativar no painel</a> (Premium · ${TRIAL_DAYS} dias)`}`,
     replyMarkup,
   ).catch(() => {});
 
