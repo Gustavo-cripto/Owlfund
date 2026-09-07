@@ -20,8 +20,24 @@ type WhaleTx = {
 };
 
 // ── ETH (Etherscan) ──────────────────────────────────────────────────────────
-const ETHERSCAN_API = "https://api.etherscan.io/api";
-const API_KEY = process.env.ETHERSCAN_API_KEY ?? "";
+// A API V1 (/api) foi desativada pela Etherscan: só a V2 funciona e exige chave
+// (gratuita em https://etherscan.io/apis). Sem ETHERSCAN_API_KEY o histórico
+// ETH não existe — dizemo-lo em vez de devolver uma lista vazia.
+const ETHERSCAN_API = "https://api.etherscan.io/v2/api";
+const API_KEY = (process.env.ETHERSCAN_API_KEY ?? "").trim();
+
+function requireEtherscanKey() {
+  if (!API_KEY) throw new Error("Histórico ETH indisponível: falta ETHERSCAN_API_KEY (a API V2 da Etherscan exige chave).");
+}
+
+// status "0" + result "No transactions found" é uma lista vazia legítima; qualquer
+// outra mensagem (chave inválida, limite) é um erro que o utilizador deve ver.
+function etherscanList(data: { status: string; message?: string; result: EtherscanTx[] | string }): EtherscanTx[] {
+  if (Array.isArray(data.result)) return data.result;
+  const msg = String(data.result ?? data.message ?? "");
+  if (/no transactions found/i.test(msg) || /no records found/i.test(msg)) return [];
+  throw new Error(`Etherscan: ${msg || "resposta inválida"}`);
+}
 
 type EtherscanTx = {
   hash: string; from: string; to: string; value: string;
@@ -30,33 +46,33 @@ type EtherscanTx = {
 };
 
 async function getEthTxs(address: string): Promise<EtherscanTx[]> {
+  requireEtherscanKey();
   const params = new URLSearchParams({
     module: "account", action: "tokentx", address,
     startblock: "0", endblock: "99999999", page: "1", offset: "100", sort: "desc",
-    ...(API_KEY ? { apikey: API_KEY } : {}),
+    chainid: "1", apikey: API_KEY,
   });
   const res = await fetch(`${ETHERSCAN_API}?${params}`, {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; ChainFolioAI/1.0)" }, cache: "no-store",
   });
   if (!res.ok) throw new Error(`etherscan ${res.status}`);
-  const data = (await res.json()) as { status: string; result: EtherscanTx[] | string };
-  if (data.status !== "1" || !Array.isArray(data.result)) return [];
-  return data.result;
+  const data = (await res.json()) as { status: string; message?: string; result: EtherscanTx[] | string };
+  return etherscanList(data);
 }
 
 async function getEthNativeTxs(address: string): Promise<EtherscanTx[]> {
+  requireEtherscanKey();
   const params = new URLSearchParams({
     module: "account", action: "txlist", address,
     startblock: "0", endblock: "99999999", page: "1", offset: "30", sort: "desc",
-    ...(API_KEY ? { apikey: API_KEY } : {}),
+    chainid: "1", apikey: API_KEY,
   });
   const res = await fetch(`${ETHERSCAN_API}?${params}`, {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; ChainFolioAI/1.0)" }, cache: "no-store",
   });
   if (!res.ok) return [];
-  const data = (await res.json()) as { status: string; result: EtherscanTx[] | string };
-  if (data.status !== "1" || !Array.isArray(data.result)) return [];
-  return data.result.map((tx) => ({ ...tx, tokenSymbol: "ETH", tokenDecimal: "18", tokenName: "Ethereum" }));
+  const data = (await res.json()) as { status: string; message?: string; result: EtherscanTx[] | string };
+  return etherscanList(data).map((tx) => ({ ...tx, tokenSymbol: "ETH", tokenDecimal: "18", tokenName: "Ethereum" }));
 }
 
 function toUsd(value: string, decimals: string, priceUsd: number): number {
