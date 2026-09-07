@@ -73,7 +73,8 @@ export function launchReadiness() {
     providers: {
       resend: has("RESEND_API_KEY"),
       twelveData: has("TWELVEDATA_API_KEY"),
-      moralis: has("MORALIS_API_KEY"),
+      alchemy: has("ALCHEMY_API_KEY"), // fornecedor principal EVM (saldos, NFTs, transfers)
+      moralis: has("MORALIS_API_KEY"),  // alternativa; plano gratuito terminou em set 2026
       helius: has("HELIUS_API_KEY"),
       etherscan: has("ETHERSCAN_API_KEY"), // V2 exige chave; sem ela não há histórico ETH no Smart Money
       ai: has("GROQ_API_KEY") || has("OPENAI_API_KEY") || has("XAI_API_KEY"),

@@ -68,7 +68,7 @@ row("STRIPE_FOUNDER_PRO_PRICE_ID_ANNUAL", f["proAnnual"])
 row("STRIPE_FOUNDER_PREMIUM_PRICE_ID", f["premiumMonthly"])
 row("STRIPE_FOUNDER_PREMIUM_PRICE_ID_ANNUAL", f["premiumAnnual"])
 print("  Fornecedores:")
-for k, lbl in [("ai","IA (Groq/OpenAI/xAI)"),("resend","Resend"),("twelveData","Twelve Data"),("moralis","Moralis"),("helius","Helius"),("etherscan","Etherscan (V2, obrigatória p/ histórico ETH)")]:
+for k, lbl in [("ai","IA (Groq/OpenAI/xAI)"),("resend","Resend"),("twelveData","Twelve Data"),("alchemy","Alchemy (EVM: saldos/NFTs/transfers)"),("moralis","Moralis (alternativa, plano pago)"),("helius","Helius"),("etherscan","Etherscan (V2, obrigatória p/ histórico ETH)")]:
     row(lbl, pr[k])
 print("  Operações:")
 row("CRON_SECRET", o["cronSecret"]); row("ADMIN_EMAILS", o["adminEmails"]); row("Telegram (token + chat id)", o["telegram"])

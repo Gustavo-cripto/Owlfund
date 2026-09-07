@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/api/requireUser";
+import { alchemyNftsForOwner, hasAlchemy, type EvmChainKey } from "@/lib/providers/alchemy";
+import { heliusAssetsByOwner, hasHelius } from "@/lib/providers/helius";
 
 const MORALIS_EVM = "https://deep-index.moralis.io/api/v2.2";
 const MORALIS_SOLANA = "https://solana-gateway.moralis.io/account/mainnet";
@@ -177,6 +179,14 @@ export async function GET(request: Request) {
 
   // Handle specific EVM L2 chains
   if (evmChain && EVM_L2_CHAINS_NFT.includes(evmChain) && isEvmAddress(address)) {
+    if (hasAlchemy()) {
+      try {
+        const { nfts, total } = await alchemyNftsForOwner(address, evmChain as EvmChainKey);
+        return NextResponse.json({ count: total, nfts: nfts.map((n) => ({ ...n, image: toImageUrl(n.image) })), provider: "alchemy" });
+      } catch (e) {
+        console.error("[nft-balance] Alchemy", evmChain, e instanceof Error ? e.message : e);
+      }
+    }
     const moralisKey = process.env.MORALIS_API_KEY;
     if (!moralisKey) return NextResponse.json({ count: 0, nfts: [] });
     try {
@@ -340,9 +350,26 @@ export async function GET(request: Request) {
   const moralisKey = process.env.MORALIS_API_KEY;
 
   if (chain === "eth" && isEvmAddress(address)) {
+    if (hasAlchemy()) {
+      try {
+        const results = await Promise.allSettled((["eth", "polygon"] as EvmChainKey[]).map((c) => alchemyNftsForOwner(address, c)));
+        const ok = results.filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof alchemyNftsForOwner>>> => r.status === "fulfilled");
+        if (ok.length > 0 || !moralisKey) {
+          const nfts = ok.flatMap((r) => r.value.nfts.map((n) => ({ ...n, image: toImageUrl(n.image) })));
+          const count = ok.reduce((sum, r) => sum + r.value.total, 0);
+          if (ok.length === 0) {
+            console.error("[nft-balance] Alchemy falhou em todas as redes", results.map((r) => (r.status === "rejected" ? String(r.reason) : "")).join("; "));
+            return NextResponse.json({ error: "Fornecedor de NFTs (Alchemy) indisponível. Tenta mais tarde.", count: 0, nfts: [] }, { status: 503 });
+          }
+          return NextResponse.json({ count, nfts, provider: "alchemy" });
+        }
+      } catch (e) {
+        console.error("[nft-balance] Alchemy", e instanceof Error ? e.message : e);
+      }
+    }
     if (!moralisKey) {
       return NextResponse.json(
-        { error: "Configura MORALIS_API_KEY para ver NFTs EVM.", count: 0, nfts: [] },
+        { error: "Sem fornecedor de NFTs configurado (ALCHEMY_API_KEY).", count: 0, nfts: [] },
         { status: 503 }
       );
     }
@@ -412,7 +439,19 @@ export async function GET(request: Request) {
       } catch { /* fallback */ }
     }
 
-    // 2. Moralis — com resolução de metadata_uri para imagens em falta
+    // 2. Helius DAS — NFTs com imagem, mesma chave já usada para as baleias SOL
+    if (hasHelius()) {
+      try {
+        const { nfts } = await heliusAssetsByOwner(address.trim());
+        if (nfts.length > 0) {
+          return NextResponse.json({ count: nfts.length, nfts: nfts.slice(0, 50).map((n) => ({ ...n, image: toImageUrl(n.image) })), provider: "helius" });
+        }
+      } catch (e) {
+        console.error("[nft-balance] Helius", e instanceof Error ? e.message : e);
+      }
+    }
+
+    // 3. Moralis — com resolução de metadata_uri para imagens em falta
     if (moralisKey) {
       try {
         const res = await fetch(

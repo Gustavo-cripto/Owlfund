@@ -1,6 +1,8 @@
 // Deteção de movimentos de carteiras ("whales"), partilhada pela rota interna
 // (/api/smart-money-rt) e pela API pública (/api/v1/whales) e MCP.
 
+import { alchemyErc20Transfers, hasAlchemy } from "@/lib/providers/alchemy";
+
 export type WatchEntry = { address: string; label: string; chain: "eth" | "sol" | "btc" };
 
 // Endereços são alfanuméricos (0x-hex, base58, bech32). Rejeita tudo o resto —
@@ -73,6 +75,30 @@ function withUsd(base: string, usdValue: number | null): string {
 }
 
 export async function fetchEthMovements(address: string, label: string, prices: UsdPrices): Promise<Movement[]> {
+  // Alchemy (principal): últimas transferências ERC-20 de/para o endereço.
+  if (hasAlchemy()) {
+    try {
+      const transfers = await alchemyErc20Transfers(address, 5);
+      const movs: Movement[] = [];
+      for (const t of transfers) {
+        const amount = t.value ?? 0;
+        if (amount <= 0) continue;
+        const sym = t.asset ?? "?";
+        const usdValue = ethTransferUsd(sym, amount, prices.eth);
+        movs.push({
+          address, label, chain: "eth",
+          type: classify(usdValue),
+          description: withUsd(`${amount.toFixed(2)} ${sym}`, usdValue),
+          usdValue,
+          timestamp: t.timestamp,
+        });
+      }
+      return movs.slice(0, 2);
+    } catch (e) {
+      console.error("[whales] Alchemy", e instanceof Error ? e.message : e);
+      // cai na Moralis, se existir
+    }
+  }
   try {
     const apiKey = process.env.MORALIS_API_KEY ?? "";
     if (!apiKey) return [];

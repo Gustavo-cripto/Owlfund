@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/api/requireUser";
 import { getUsdPrices } from "@/lib/api/whales";
+import { alchemyTokensByWallet, hasAlchemy, AlchemyError } from "@/lib/providers/alchemy";
+import { heliusAssetsByOwner, hasHelius, HeliusError } from "@/lib/providers/helius";
 
 const MORALIS_EVM = "https://deep-index.moralis.io/api/v2.2";
 const MORALIS_SOL = "https://solana-gateway.moralis.io/account/mainnet";
@@ -133,10 +135,77 @@ export async function GET(request: Request) {
     return NextResponse.json({ tokens, totalUsd: usdValue });
   }
 
-  const moralisKey = process.env.MORALIS_API_KEY;
-  if (!moralisKey) return NextResponse.json({ error: "MORALIS_API_KEY não configurada.", tokens: [] }, { status: 503 });
+  const moralisKey = (process.env.MORALIS_API_KEY ?? "").trim();
+  const providerDown = (name: string, status: number) =>
+    NextResponse.json(
+      {
+        error: status === 401 || status === 403 || status === 429
+          ? `Fornecedor de saldos (${name}) recusou o pedido — chave inválida ou quota esgotada. Tenta mais tarde.`
+          : `Fornecedor de saldos (${name}) indisponível. Tenta mais tarde.`,
+        code: status === 401 || status === 403 || status === 429 ? "provider_quota" : "provider_unavailable",
+        tokens: [],
+      },
+      { status: 503 },
+    );
 
-  // ── EVM tokens ──
+  // ── EVM via Alchemy (principal). Nativo + ERC-20 com preços em 4 redes numa chamada.
+  if (chain === "eth" && isEvmAddress(address) && hasAlchemy()) {
+    try {
+      const list = await alchemyTokensByWallet(address, ["eth", "polygon", "arbitrum", "base"]);
+      // Anti-spam: denylist + só tokens com preço conhecido (ou o nativo). Um
+      // token sem preço na Alchemy é ilíquido/airdrop e não entra no total.
+      const tokens: TokenBalance[] = list
+        .filter((t) => !SCAM_SYMBOLS.has(t.symbol))
+        .filter((t) => t.tokenAddress === null || t.usdPrice > 0)
+        .map((t) => ({
+          address: t.tokenAddress ?? "native",
+          symbol: t.symbol,
+          name: t.name,
+          logo: t.logo,
+          balance: t.balance.toFixed(6),
+          usdValue: t.usdValue,
+          usdPrice: t.usdPrice,
+          chain: "eth" as const,
+        }))
+        .sort((a, b) => b.usdValue - a.usdValue);
+      const totalUsd = tokens.reduce((sum, t) => sum + t.usdValue, 0);
+      return NextResponse.json({ tokens, totalUsd, provider: "alchemy" });
+    } catch (e) {
+      const status = e instanceof AlchemyError ? e.status : 0;
+      console.error("[token-balances] Alchemy", address.slice(0, 10) + "…", e instanceof Error ? e.message : e);
+      if (!moralisKey) return providerDown("Alchemy", status);
+      // com Moralis configurada, tenta-a a seguir
+    }
+  }
+
+  // ── Solana via Helius DAS (principal): tokens SPL com preços + saldo nativo.
+  if (chain === "sol" && isSolAddress(address) && hasHelius()) {
+    try {
+      const { fungibles, native } = await heliusAssetsByOwner(address);
+      const tokens: TokenBalance[] = fungibles
+        .filter((t) => !SCAM_SYMBOLS.has(t.symbol) && t.usdPrice > 0)
+        .map((t) => ({ address: t.mint, symbol: t.symbol, name: t.name, logo: t.logo, balance: String(t.balance), usdValue: t.usdValue, usdPrice: t.usdPrice, chain: "sol" as const }));
+      if (native && native.sol > 0) {
+        tokens.unshift({ address: "native", symbol: "SOL", name: "Solana", balance: native.sol.toFixed(6), usdValue: native.usdValue, usdPrice: native.usdPrice, chain: "sol" });
+      }
+      tokens.sort((a, b) => b.usdValue - a.usdValue);
+      const totalUsd = tokens.reduce((sum, t) => sum + t.usdValue, 0);
+      return NextResponse.json({ tokens: tokens.slice(0, 30), totalUsd, provider: "helius" });
+    } catch (e) {
+      const status = e instanceof HeliusError ? e.status : 0;
+      console.error("[token-balances] Helius", address.slice(0, 10) + "…", e instanceof Error ? e.message : e);
+      if (!moralisKey) return providerDown("Helius", status);
+    }
+  }
+
+  if (!moralisKey) {
+    return NextResponse.json(
+      { error: "Sem fornecedor de saldos configurado (ALCHEMY_API_KEY para EVM, HELIUS_API_KEY para Solana).", code: "provider_missing", tokens: [] },
+      { status: 503 },
+    );
+  }
+
+  // ── EVM tokens via Moralis (alternativa) ──
   if (chain === "eth" && isEvmAddress(address)) {
     const evmChains = ["eth", "polygon", "arbitrum", "base"] as const;
     const rawTokens: EvmToken[] = [];

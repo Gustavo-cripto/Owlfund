@@ -1520,8 +1520,10 @@ export async function GET(request: Request) {
         } catch { /* skip chain */ }
       }
     }
-    if (total > 0 || results.some((r) => r.status === "fulfilled" && r.value))
-      return NextResponse.json({ total, positions });
+    // Se a Moralis falhar (plano terminado → 401) os contratos Uniswap continuam
+    // a responder: devolvemos o que há, marcado como parcial, em vez de um erro.
+    const moralisOk = results.some((r) => r.status === "fulfilled" && r.value);
+    return NextResponse.json({ total, positions, provider: moralisOk ? "moralis" : "onchain", partial: !moralisOk });
   }
 
   const shyftKey = process.env.SHYFT_API_KEY;

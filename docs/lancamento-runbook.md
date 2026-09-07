@@ -59,7 +59,7 @@ Premium 19 € (vitalícios) — prometidos por email aos testers.
 
 - **Twelve Data** — plano gratuito = 8 créditos/min partilhados por todos (cache de 5 min no servidor). Sinal de alarme: cotações a aparecer como "desatualizadas" na página de Carteiras/Mercado. Solução: plano pago, mesma `TWELVEDATA_API_KEY`.
 - **Resend** — 100 emails/dia no gratuito; o briefing diário vai a todos os Pro/Premium. Sinal: cron `news-briefing` com `errors` no log. Solução: plano pago.
-- **Moralis / Helius** — ver quotas no dashboard de cada um; o servidor já limita por utilizador.
+- **Alchemy** (fornecedor principal EVM: saldos com preços, NFTs, transferências das baleias) — plano gratuito com 300 M CU/mês; ver consumo em dashboard.alchemy.com. **Moralis** ficou como alternativa: o plano gratuito terminou em set 2026 (Starter 149 $/mês) — só volta a ser usada se `MORALIS_API_KEY` tiver plano ativo. **Helius** (Solana: saldos, NFTs, movimentos) — ver quota no dashboard.
 
 ## 5. Cripto (opcional, sem data)
 
