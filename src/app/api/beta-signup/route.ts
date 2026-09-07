@@ -170,30 +170,18 @@ export async function POST(req: NextRequest) {
     <p style="color:#64748b;font-size:12px">IP: ${esc(ip)} · ${new Date().toISOString()}</p>
   `);
 
-  try {
-    await resend.emails.send({ from: FROM, to: TO, replyTo: email, subject: `Beta tester: ${email}`, html: notify, text: toText(notify) });
-  } catch (e) {
-    console.error("[beta-signup] notificação", e instanceof Error ? e.message : e);
-    return NextResponse.json({ error: "send_failed" }, { status: 502 });
-  }
-  // 2) Boas-vindas ao tester — com await (em serverless um envio não aguardado é abortado).
-  const w = welcome(lang, name, untilStr);
-  await resend.emails.send({
-    from: FROM, to: email, replyTo: "suporte@chainfolioai.com", subject: w.subject, html: w.html, text: toText(w.html),
-    headers: { "List-Unsubscribe": "<mailto:suporte@chainfolioai.com?subject=remover>", "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
-  }).then(({ error }) => { if (error) console.error("[beta-signup] welcome", error.message); }, (e: unknown) => console.error("[beta-signup] welcome", e));
-
-  // Guarda a inscrição para aparecer no painel (best-effort; ignora se a tabela
-  // ainda não existir — mas regista o erro).
+  // Ordem à prova de falhas (lançamento com muitas inscrições): 1) gravar a
+  // inscrição — nunca se perde; 2) Telegram com botão de ativação (canal
+  // principal); 3) email para o admin SÓ se o Telegram falhar; 4) boas-vindas ao
+  // tester, sem bloquear. Antes, o email ao admin ia primeiro e, se o Resend
+  // recusasse (quota diária), a inscrição inteira devolvia erro ao tester.
+  let stored = false;
   try {
     const noteDb = [src ? `[via ${src}]` : "", note].filter(Boolean).join(" ") || null;
     const { error } = await getSupabaseAdmin().from("beta_signups").insert({ email, name: name || null, note: noteDb, lang, ip });
-    if (error) console.error("[beta-signup] insert", error.message);
+    if (error) console.error("[beta-signup] insert", error.message); else stored = true;
   } catch (e) { console.error("[beta-signup] insert", e instanceof Error ? e.message : e); }
 
-  // 3) Notificação no Bot ChainFolioAI (Telegram), se configurado.
-  // IMPORTANTE: await — em serverless, sem await o envio é abortado quando a
-  // função devolve a resposta.
   // Botões one-tap (callback_data tem limite de 64 bytes → só se o email couber).
   const canButtons = `g:premium:${email}`.length <= 64;
   const replyMarkup = canButtons
@@ -205,14 +193,36 @@ export async function POST(req: NextRequest) {
         ]],
       }
     : undefined;
-  await sendTelegram(
+  // await — em serverless, sem await o envio é abortado quando a função devolve.
+  const telegramOk = await sendTelegram(
     `🎉 <b>Novo beta tester</b>\n📧 ${tgEsc(email)}` +
       (name ? `\n👤 ${tgEsc(name)}` : "") +
       (note ? `\n📝 ${tgEsc(note)}` : "") +
       (src ? `\n📣 via ${tgEsc(src)}` : "") +
       `\n\n${canButtons ? "Toca num botão para ativar (60 dias) 👇" : `▶ <a href="${SITE}/admin/beta?email=${encodeURIComponent(email)}">Ativar no painel</a> (Premium · ${TRIAL_DAYS} dias)`}`,
     replyMarkup,
-  ).catch(() => {});
+  ).catch(() => false);
+
+  let adminMailOk = false;
+  if (!telegramOk) {
+    try {
+      const { error } = await resend.emails.send({ from: FROM, to: TO, replyTo: email, subject: `Beta tester: ${email}`, html: notify, text: toText(notify) });
+      if (error) console.error("[beta-signup] notificação", error.message); else adminMailOk = true;
+    } catch (e) {
+      console.error("[beta-signup] notificação", e instanceof Error ? e.message : e);
+    }
+  }
+  if (!stored && !telegramOk && !adminMailOk) {
+    // Nada ficou registado em lado nenhum: só aqui é honesto devolver erro.
+    return NextResponse.json({ error: "send_failed" }, { status: 502 });
+  }
+
+  // Boas-vindas ao tester (best-effort; a inscrição já está segura).
+  const w = welcome(lang, name, untilStr);
+  await resend.emails.send({
+    from: FROM, to: email, replyTo: "suporte@chainfolioai.com", subject: w.subject, html: w.html, text: toText(w.html),
+    headers: { "List-Unsubscribe": "<mailto:suporte@chainfolioai.com?subject=remover>", "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
+  }).then(({ error }) => { if (error) console.error("[beta-signup] welcome", error.message); }, (e: unknown) => console.error("[beta-signup] welcome", e));
 
   return NextResponse.json({ ok: true });
 }
