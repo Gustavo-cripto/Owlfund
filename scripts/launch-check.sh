@@ -13,8 +13,8 @@ BASE="${1:-https://chainfolioai.com}"
 TOKEN="${ADMIN_STATS_TOKEN:-}"
 ok=0; bad=0
 
-check() { # descrição, esperado, código obtido
-  if [ "$3" = "$2" ]; then printf "  ✅ %-52s %s\n" "$1" "$3"; ok=$((ok+1));
+check() { # descrição, esperado (pode ser "401|403"), código obtido
+  if echo "$3" | grep -Eq "^($2)$"; then printf "  ✅ %-52s %s\n" "$1" "$3"; ok=$((ok+1));
   else printf "  ❌ %-52s %s (esperado %s)\n" "$1" "$3" "$2"; bad=$((bad+1)); fi
 }
 code() { curl -s -o /dev/null -w "%{http_code}" "$@"; }
@@ -33,7 +33,7 @@ check "GET  /api/nft-balance"    401 "$(code "$BASE/api/nft-balance?address=0x00
 check "GET  /api/token-balances" 401 "$(code "$BASE/api/token-balances?address=0x0000000000000000000000000000000000000001&chain=eth")"
 check "GET  /api/v1/whales (chave inválida)" 401 "$(code -H 'Authorization: Bearer cfa_live_0000000000000000000000000000000000000000' "$BASE/api/v1/whales")"
 check "GET  /api/cron/beta-expiry (sem segredo)" 401 "$(code "$BASE/api/cron/beta-expiry")"
-check "POST /api/stripe/checkout (sem sessão)" 401 "$(code -X POST -H "$J" -d '{"plan":"pro"}' "$BASE/api/stripe/checkout")"
+check "POST /api/stripe/checkout (sem sessão; 403 = congelado)" "401|403" "$(code -X POST -H "$J" -d '{"plan":"pro"}' "$BASE/api/stripe/checkout")"
 
 echo
 echo "── 2) Env vars do lançamento (via /api/v1/admin/stats)"
