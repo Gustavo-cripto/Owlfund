@@ -9,7 +9,6 @@ import { FREE_AI_LIMIT, ANON_DAILY_CHAT_LIMIT } from "@/lib/plans";
 import { checkAiQuota, incrementAiUsage, quotaErrorResponse } from "@/lib/api/entitlement";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-const premiumPriceId = process.env.STRIPE_PREMIUM_PRICE_ID ?? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID ?? "";
 
 // A verificação e o incremento da quota vivem em src/lib/api/entitlement.ts
 // (partilhados com /api/portfolio-ai): o incremento é feito depois de a IA

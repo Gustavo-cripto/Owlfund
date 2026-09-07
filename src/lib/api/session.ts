@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { isPremiumPriceId } from "@/lib/payments/priceIds";
 import { cookies } from "next/headers";
 
 // Sessão por cookie + verificação Premium, partilhada pelas rotas de webhooks
@@ -6,10 +7,6 @@ import { cookies } from "next/headers";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-const premiumPriceId =
-  process.env.STRIPE_PREMIUM_PRICE_ID ??
-  process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID ??
-  "";
 
 export async function getSessionUser() {
   const cookieStore = await cookies();
@@ -33,5 +30,5 @@ export async function isUserPremium(
     .order("current_period_end", { ascending: false, nullsFirst: false })
     .limit(1)
     .maybeSingle();
-  return !!premiumPriceId && sub?.price_id === premiumPriceId;
+  return isPremiumPriceId(sub?.price_id);
 }

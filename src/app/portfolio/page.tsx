@@ -491,8 +491,18 @@ export default function PortfolioPage() {
         : null;
 
       const pro = isActive && (!periodEnd || periodEnd > Date.now());
-      const premiumPriceId = process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID;
-      const premium = pro && !!premiumPriceId && subscription?.price_id === premiumPriceId;
+      // Premium decide-se no servidor (reconhece mensal, anual e fundador);
+      // o espelho público do price_id fica só como último recurso.
+      let premium = false;
+      try {
+        const r = await fetch("/api/subscription", { cache: "no-store" });
+        const j = (await r.json().catch(() => null)) as { plan?: string } | null;
+        if (r.ok && j?.plan) premium = j.plan === "premium";
+        else throw new Error("plan unavailable");
+      } catch {
+        const premiumPriceId = process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID;
+        premium = pro && !!premiumPriceId && subscription?.price_id === premiumPriceId;
+      }
       setIsPro(pro);
       setIsPremium(premium);
 

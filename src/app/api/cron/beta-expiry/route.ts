@@ -7,6 +7,7 @@
 //  2× e um dia falhado é apanhado no seguinte). Idioma do tester lido de
 //  beta_signups (pt/en; es/fr caem em en).
 import { NextResponse } from "next/server";
+import { isPremiumPriceId } from "@/lib/payments/priceIds";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { verifyCronAuth } from "@/lib/api/cron-auth";
 import { sendTelegram, tgEsc } from "@/lib/notify/telegram";
@@ -17,7 +18,6 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const TO = process.env.BETA_SIGNUP_TO ?? "suporte@chainfolioai.com";
-const premiumPriceId = process.env.STRIPE_PREMIUM_PRICE_ID ?? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID ?? "";
 const DAY = 86_400_000;
 const OFFER_DAY = 10; // dia 50 do trial: oferta de fundador (faltam ≤10 dias)
 const BOT = '<a href="https://t.me/ChainFolioAiBetaBot" style="color:#38bdf8;font-weight:700">@ChainFolioAiBetaBot</a>';
@@ -125,7 +125,7 @@ export async function GET(request: Request) {
     for (const r of data ?? []) if (r.email) langByEmail.set(String(r.email).toLowerCase(), String(r.lang ?? "pt"));
   } catch { /* tabela opcional */ }
   const langOf = (email: string): Lang => pick(langByEmail.get(email.toLowerCase()) ?? "pt");
-  const planOf = (priceId: unknown) => (premiumPriceId && priceId === premiumPriceId ? "Premium" : "Pro");
+  const planOf = (priceId: unknown) => (isPremiumPriceId(priceId) ? "Premium" : "Pro");
 
   // ── 1) Ativos a terminar nos próximos 11 dias ─────────────────────────────
   const horizon = new Date(now.getTime() + (OFFER_DAY + 1) * DAY);

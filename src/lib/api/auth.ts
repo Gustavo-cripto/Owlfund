@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isPremiumPriceId } from "@/lib/payments/priceIds";
 import { createHash } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { apiJson } from "@/lib/api/response";
 
-// Preço Premium (o acesso à API/MCP é uma funcionalidade Premium).
-const premiumPriceId =
-  process.env.STRIPE_PREMIUM_PRICE_ID ??
-  process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID ??
-  "";
 
 // Formato da chave: cfa_live_<40 hex> (ChainFolioAI). Aceita também o prefixo
 // antigo owf_live_ para não invalidar chaves já geradas.
@@ -56,7 +52,7 @@ export async function checkApiKey(token: string): Promise<KeyCheck> {
     .limit(1)
     .maybeSingle();
 
-  const isPremium = !!premiumPriceId && sub?.price_id === premiumPriceId;
+  const isPremium = isPremiumPriceId(sub?.price_id); // o acesso à API/MCP é Premium
   if (!isPremium) return { ok: false, reason: "premium" };
 
   // Rate limit por chave (janela fixa). Falha FECHADO (503): sem o contador não

@@ -1,13 +1,13 @@
 // Lista de beta testers ativos (atribuições manuais). Só para admins — definidos
 // na env ADMIN_EMAILS (emails separados por vírgula). Sem ADMIN_EMAILS => ninguém.
 import { NextResponse } from "next/server";
+import { isPremiumPriceId } from "@/lib/payments/priceIds";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-const premiumPriceId = process.env.STRIPE_PREMIUM_PRICE_ID ?? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID ?? "";
 const ADMINS = (process.env.ADMIN_EMAILS ?? "")
   .split(",")
   .map((s) => s.trim().toLowerCase())
@@ -71,7 +71,7 @@ export async function GET() {
       : null;
     testers.push({
       email: em,
-      plan: premiumPriceId && s.price_id === premiumPriceId ? "premium" : "pro",
+      plan: isPremiumPriceId(s.price_id) ? "premium" : "pro",
       activatedAt,
       expiresAt: s.current_period_end ?? null,
       daysLeft,

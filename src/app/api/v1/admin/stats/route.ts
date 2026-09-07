@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { apiJson } from "@/lib/api/response";
 import { verifyAdminAuth } from "@/lib/api/admin-auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { isPremiumPriceId, launchReadiness, priceLabel } from "@/lib/payments/priceIds";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,17 +12,8 @@ export const dynamic = "force-dynamic";
 // uso e pagamentos. Cada bloco falha de forma isolada: se uma tabela/coluna nao
 // existir, esse campo vem a null em vez de derrubar a resposta toda.
 
-// Mapa price_id -> etiqueta de plano (definido nas env vars do projeto).
-function planLabel(priceId: string | null): string {
-  if (!priceId) return "desconhecido";
-  const map: Record<string, string> = {
-    [process.env.STRIPE_PRICE_ID ?? "_pm"]: "pro_mensal",
-    [process.env.STRIPE_PRICE_ID_ANNUAL ?? "_pa"]: "pro_anual",
-    [process.env.STRIPE_PREMIUM_PRICE_ID ?? "_prm"]: "premium_mensal",
-    [process.env.STRIPE_PREMIUM_PRICE_ID_ANNUAL ?? "_pra"]: "premium_anual",
-  };
-  return map[priceId] ?? "outro";
-}
+// Etiquetas de preço (inclui anual e fundador) — src/lib/payments/priceIds.ts
+const planLabel = (priceId: string | null): string => priceLabel(priceId);
 
 const ISO = (d: Date) => d.toISOString();
 const daysAgo = (n: number) => new Date(Date.now() - n * 86400_000);
@@ -239,8 +231,6 @@ export async function GET(req: NextRequest) {
   };
   const betaTesters: BetaTester[] = [];
   try {
-    const premiumPriceId =
-      process.env.STRIPE_PREMIUM_PRICE_ID ?? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID ?? "";
     const { data: manualSubs } = await admin
       .from("subscriptions")
       .select("user_id, price_id, current_period_end")
@@ -259,7 +249,7 @@ export async function GET(req: NextRequest) {
       const daysLeft = end ? Math.ceil((end.getTime() - now.getTime()) / 86_400_000) : null;
       betaTesters.push({
         email,
-        plan: premiumPriceId && sub.price_id === premiumPriceId ? "premium" : "pro",
+        plan: isPremiumPriceId(sub.price_id) ? "premium" : "pro",
         activatedAt: end ? new Date(end.getTime() - 60 * 86_400_000).toISOString() : null,
         expiresAt: (sub.current_period_end as string) ?? null,
         daysLeft,
@@ -273,6 +263,8 @@ export async function GET(req: NextRequest) {
 
   return apiJson({
     generatedAt: ISO(now),
+    // Prontidão para o lançamento (só sim/não por env var) — scripts/launch-check.sh
+    launch: launchReadiness(),
     accounts,
     plans,
     betaTesters,

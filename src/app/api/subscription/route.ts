@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
+import { isPremiumPriceId } from "@/lib/payments/priceIds";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-const premiumPriceId = process.env.STRIPE_PREMIUM_PRICE_ID ?? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID ?? "";
 
 export async function GET() {
   try {
@@ -35,8 +35,7 @@ export async function GET() {
 
     if (!sub) return NextResponse.json({ plan: "free" });
 
-    const plan =
-      premiumPriceId && sub.price_id === premiumPriceId ? "premium" : "pro";
+    const plan = isPremiumPriceId(sub.price_id) ? "premium" : "pro";
 
     return NextResponse.json({ plan });
   } catch {

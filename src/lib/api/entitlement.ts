@@ -13,11 +13,9 @@ import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { FREE_AI_LIMIT } from "@/lib/plans";
+import { isPremiumPriceId } from "@/lib/payments/priceIds";
 
 export type Plan = "free" | "pro" | "premium";
-
-const premiumPriceId =
-  process.env.STRIPE_PREMIUM_PRICE_ID ?? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID ?? "";
 
 const notExpired = () => `current_period_end.is.null,current_period_end.gt.${new Date().toISOString()}`;
 
@@ -33,7 +31,7 @@ export async function activeSubscribers(client: Pick<SupabaseClient, "from">, us
     .or(notExpired());
   if (error) throw new Error(error.message);
   for (const row of (data ?? []) as Array<{ user_id: string; price_id: string | null }>) {
-    const plan: Plan = premiumPriceId && row.price_id === premiumPriceId ? "premium" : "pro";
+    const plan: Plan = isPremiumPriceId(row.price_id) ? "premium" : "pro";
     if (plan === "premium" || !plans.has(row.user_id)) plans.set(row.user_id, plan);
   }
   return plans;
