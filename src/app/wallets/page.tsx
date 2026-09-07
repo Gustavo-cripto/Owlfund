@@ -2551,7 +2551,9 @@ export default function WalletsPage() {
     setStablecoinAddError(null);
     const addr = stablecoinAddAddress.trim();
     if (!isEvmAddress(addr)) {
-      setStablecoinAddError(t("wl_invalid_evm"));
+      // Quem escreve "3000" aqui quer registar um montante — esse campo é o dos
+      // ativos manuais; aqui só entram endereços 0x… para ler o saldo on-chain.
+      setStablecoinAddError(/^[\d.,\s]+$/.test(addr) ? t("wl_stable_is_address") : t("wl_invalid_evm"));
       return;
     }
     if (stablecoinEntries.some((e) => e.symbol === stablecoinAddSymbol && e.address.toLowerCase() === addr.toLowerCase())) {
