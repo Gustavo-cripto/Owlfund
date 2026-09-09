@@ -35,10 +35,13 @@ function isInternalCall(req: NextRequest): boolean {
 // e spam direto a este endpoint nao inflam as estatisticas.
 // MANUTENCAO: ao adicionar uma pagina nova ao site, junta o seu segmento aqui.
 const ALLOWED = new Set([
-  "account", "como-funciona", "crypto", "dashboard", "developers", "fire",
+  "account", "beta", "como-funciona", "crypto", "dashboard", "developers", "fire",
   "fiscalidade", "gestor", "historico", "login", "mercado", "portfolio",
   "pricing", "privacidade", "reset-password", "smart-money", "termos", "wallets",
 ]);
+// "beta" faltava aqui: as visitas a /beta — a pagina de inscricao no beta, o
+// passo mais importante do funil — foram descartadas em silencio desde que a
+// pagina existe. "admin" fica de fora de proposito (painel interno).
 
 function isRealPage(path: string): boolean {
   if (!path.startsWith("/")) return false;
@@ -54,8 +57,10 @@ export async function POST(req: NextRequest) {
   try {
     if (!isInternalCall(req)) return new Response(null, { status: 204 });
 
-    const body = (await req.json().catch(() => ({}))) as { path?: unknown };
+    const body = (await req.json().catch(() => ({}))) as { path?: unknown; bot?: unknown };
     const path = typeof body.path === "string" ? body.path : "";
+    // O middleware classifica pelo User-Agent; guardamos so a marca, nunca o UA.
+    const isBot = body.bot === true;
     if (!isRealPage(path)) return new Response(null, { status: 204 });
 
     const admin = getSupabaseAdmin();
@@ -73,7 +78,7 @@ export async function POST(req: NextRequest) {
       if (!error && data === false) return new Response(null, { status: 204 });
     } catch { /* função ainda não migrada → não perder tracking legítimo */ }
 
-    await admin.from("page_views").insert({ path });
+    await admin.from("page_views").insert({ path, is_bot: isBot });
   } catch {
     /* nunca deixar o tracking quebrar a navegacao */
   }

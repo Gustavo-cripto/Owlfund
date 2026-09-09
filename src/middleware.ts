@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest, type NextFetchEvent } from "next/server";
 import { isProtectedPath } from "@/lib/auth/redirects";
+import { isBotUserAgent } from "@/lib/analytics/bots";
 
 // Regista uma visualizacao de pagina (fire-and-forget via waitUntil, sem atrasar
 // a resposta). So conta navegacoes reais: GET, sem prefetch, fora de /api e das
@@ -29,7 +30,7 @@ function trackPageView(request: NextRequest, event: NextFetchEvent): void {
     fetch(new URL("/api/track", request.url), {
       method: "POST",
       headers,
-      body: JSON.stringify({ path }),
+      body: JSON.stringify({ path, bot: isBotUserAgent(request.headers.get("user-agent")) }),
     }).catch(() => {}),
   );
 }
