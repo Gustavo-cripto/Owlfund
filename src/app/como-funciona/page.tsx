@@ -28,7 +28,7 @@ const TOOLS: { img: string; w: number; h: number; t: TranslationKey; d: Translat
   { img: "/screenshots/portfolio.webp", w: 1600, h: 821,   t: "cf_t2_t", d: "cf_t2_d", b: ["cf_t2_b1", "cf_t2_b2", "cf_t2_b3"] },
   { img: "/screenshots/wallets.webp", w: 1600, h: 1096,     t: "cf_t3_t", d: "cf_t3_d", b: ["cf_t3_b1", "cf_t3_b2", "cf_t3_b3"] },
   { img: "/screenshots/market.webp", w: 1600, h: 827,      t: "cf_t4_t", d: "cf_t4_d", b: ["cf_t4_b1", "cf_t4_b2", "cf_t4_b3"] },
-  { img: "/screenshots/smart-money.webp", w: 1600, h: 820, t: "cf_t7_t", d: "cf_t7_d", b: ["cf_t7_b1", "cf_t7_b2", "cf_t7_b3"] },
+  { img: "/screenshots/smart-money.webp", w: 1600, h: 817, t: "cf_t7_t", d: "cf_t7_d", b: ["cf_t7_b1", "cf_t7_b2", "cf_t7_b3"] },
   { img: "/screenshots/fiscalidade.webp", w: 1600, h: 836, t: "cf_t5_t", d: "cf_t5_d", b: ["cf_t5_b1", "cf_t5_b2", "cf_t5_b3"] },
   { img: "/screenshots/fire.webp", w: 1600, h: 899,        t: "cf_t8_t", d: "cf_t8_d", b: ["cf_t8_b1", "cf_t8_b2", "cf_t8_b3"] },
   { img: "/screenshots/historico.webp", w: 1600, h: 813,   t: "cf_t9_t", d: "cf_t9_d", b: ["cf_t9_b1", "cf_t9_b2", "cf_t9_b3"] },

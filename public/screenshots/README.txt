@@ -1,13 +1,14 @@
 Screenshots da app para a landing ("Ve por dentro") e para a pagina
 /como-funciona ("Ferramenta a ferramenta").
 
-FICHEIROS ATUAIS (WebP, 1600px de largura) — atualizados a 2026-09-06:
+FICHEIROS ATUAIS (WebP, 1600px de largura) — atualizados a 2026-09-10
+(portfolio, wallets e smart-money sao de 7-10 set; as outras 6 de 6 set):
 
   dashboard.webp     -> /dashboard     (o que cada plano desbloqueia)
   portfolio.webp     -> /portfolio     (PNL por periodo, alocacao, evolucao)
-  wallets.webp       -> /wallets       (multi-cadeia, so-leitura)
+  wallets.webp       -> /wallets       (ETH+SOL ligados, WalletConnect QR)
   market.webp        -> /mercado       (grafico TradingView + BTC)
-  smart-money.webp   -> /smart-money   (watchlist de baleias)
+  smart-money.webp   -> /smart-money   (Satoshi + Vitalik com saldos reais)
   fiscalidade.webp   -> /fiscalidade   (legislacao dos 21 paises)
   fire.webp          -> /fire          (resultado + cenarios what-if)
   historico.webp     -> /historico     (registo manual + importar CSV)
