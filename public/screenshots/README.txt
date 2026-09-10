@@ -13,7 +13,7 @@ FICHEIROS ATUAIS (WebP, 1600px de largura) — atualizados a 2026-09-10
   fire.webp          -> /fire          (resultado + cenarios what-if)
   historico.webp     -> /historico     (registo manual + importar CSV)
   chat.webp          -> /gestor        (Block, o Gestor Dedicado IA)
-  (falta developers.webp -> /developers; sem imagem a linha mostra so o texto)
+  developers.webp    -> /account?section=api (criar chaves API & MCP, webhook)
 
 COMO SUBSTITUIR UMA IMAGEM
 1. Tira a captura com "esconder saldos" LIGADO (Conta -> Privacidade).

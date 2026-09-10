@@ -33,7 +33,7 @@ const TOOLS: { img: string; w: number; h: number; t: TranslationKey; d: Translat
   { img: "/screenshots/fire.webp", w: 1600, h: 899,        t: "cf_t8_t", d: "cf_t8_d", b: ["cf_t8_b1", "cf_t8_b2", "cf_t8_b3"] },
   { img: "/screenshots/historico.webp", w: 1600, h: 813,   t: "cf_t9_t", d: "cf_t9_d", b: ["cf_t9_b1", "cf_t9_b2", "cf_t9_b3"] },
   { img: "/screenshots/chat.webp", w: 1600, h: 820,        t: "cf_t6_t", d: "cf_t6_d", b: ["cf_t6_b1", "cf_t6_b2", "cf_t6_b3"] },
-  { img: "", w: 0, h: 0,  t: "cf_t10_t", d: "cf_t10_d", b: ["cf_t10_b1", "cf_t10_b2", "cf_t10_b3"], plan: "premium" },
+  { img: "/screenshots/developers.webp", w: 1600, h: 819, t: "cf_t10_t", d: "cf_t10_d", b: ["cf_t10_b1", "cf_t10_b2", "cf_t10_b3"], plan: "premium" },
 ];
 
 // Passos reais do fluxo (durante o beta inclui a inscrição com o mesmo email).
