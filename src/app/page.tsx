@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { SOCIAL_LINKS } from "@/lib/social";
 import AppShell from "@/components/AppShell";
 import PnlSummaryCard from "@/components/PnlSummaryCard";
 import PlanBadge from "@/components/PlanBadge";
@@ -657,7 +658,23 @@ export default function Home() {
               <a href="/termos" className="transition hover:text-slate-300">{t("legal_terms_short")}</a>
               <a href="/login" className="transition hover:text-slate-300">{t("lp_login")}</a>
             </div>
-            <p className="text-xs text-slate-600">© {new Date().getFullYear()} ChainFolioAI · {t("lp_rights")}</p>
+            <div className="flex flex-col gap-2 md:items-end">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                <span className="text-xs uppercase tracking-[0.2em] text-slate-600">{t("lp_follow")}</span>
+                {SOCIAL_LINKS.map((s) => (
+                  <a
+                    key={s.label}
+                    href={s.href}
+                    target="_blank"
+                    rel="me noopener noreferrer"
+                    className="text-slate-500 transition hover:text-orange-300"
+                  >
+                    {s.label}
+                  </a>
+                ))}
+              </div>
+              <p className="text-xs text-slate-600">© {new Date().getFullYear()} ChainFolioAI · {t("lp_rights")}</p>
+            </div>
           </div>
           <p className="mx-auto mt-6 w-full max-w-6xl px-6 text-center text-[11px] text-slate-600">⚠️ {t("lp_disclaimer")}</p>
         </footer>

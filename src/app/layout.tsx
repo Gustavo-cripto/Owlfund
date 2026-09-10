@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SOCIAL_URLS } from "@/lib/social";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
@@ -22,6 +23,8 @@ const JSON_LD = {
       name: "ChainFolioAI",
       url: SITE_URL,
       logo: `${SITE_URL}/chainfolioai-icon.png`,
+      // Diz ao Google e aos modelos de IA que estes perfis sao mesmo da marca.
+      sameAs: SOCIAL_URLS,
     },
     {
       "@type": "SoftwareApplication",
