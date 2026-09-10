@@ -48,9 +48,9 @@ const COPY = {
       html: shell(`<p style="color:#fff;font-size:17px;font-weight:700">Estás connosco desde o início — isso conta. 🏆</p>
         <p>Faltam cerca de 10 dias para o fim do teu período beta (${plan}). Como <b>fundador</b>, garantimos-te para sempre:</p>
         <table style="width:100%;border-collapse:collapse;font-size:14px;margin:6px 0">
-          <tr><td style="padding:8px 10px;background:#1f2937;border-radius:8px 0 0 8px;color:#fff"><b>Premium Fundador</b></td><td style="padding:8px 10px;background:#1f2937;text-align:right"><b style="color:#fb923c">€19/mês</b> <span style="color:#64748b;text-decoration:line-through">€39</span></td></tr>
+          <tr><td style="padding:8px 10px;background:#1f2937;border-radius:8px 0 0 8px;color:#fff"><b>Premium Fundador</b></td><td style="padding:8px 10px;background:#1f2937;text-align:right"><b style="color:#fb923c">€19/mês</b> <span style="color:#64748b;text-decoration:line-through">€39</span><br><span style="color:#94a3b8;font-size:13px">ou <b style="color:#fb923c">€190/ano</b> <span style="text-decoration:line-through">€390</span></span></td></tr>
           <tr><td colspan="2" style="height:6px"></td></tr>
-          <tr><td style="padding:8px 10px;background:#1f2937;border-radius:8px 0 0 8px;color:#fff"><b>Pro Fundador</b></td><td style="padding:8px 10px;background:#1f2937;text-align:right"><b style="color:#fb923c">€9,99/mês</b> <span style="color:#64748b;text-decoration:line-through">€14,99</span></td></tr>
+          <tr><td style="padding:8px 10px;background:#1f2937;border-radius:8px 0 0 8px;color:#fff"><b>Pro Fundador</b></td><td style="padding:8px 10px;background:#1f2937;text-align:right"><b style="color:#fb923c">€9,99/mês</b> <span style="color:#64748b;text-decoration:line-through">€14,99</span><br><span style="color:#94a3b8;font-size:13px">ou <b style="color:#fb923c">€99/ano</b> <span style="text-decoration:line-through">€149</span></span></td></tr>
         </table>
         <p style="color:#94a3b8;font-size:13px">Preço <b>vitalício</b> enquanto mantiveres a subscrição — mesmo quando os preços subirem. O pagamento só abre no lançamento; até lá não pagas nada.</p>
         <p style="background:#0c4a6e33;border:1px solid #0ea5e955;border-radius:10px;padding:12px 14px">👉 <b>Para reservar o teu preço de fundador</b>, responde no Telegram: ${BOT} — e aproveita para nos dizeres o que gostaste e o que faltou (o teu balanço vale ouro 🙏).</p>`),
@@ -60,9 +60,9 @@ const COPY = {
       html: shell(`<p style="color:#fff;font-size:17px;font-weight:700">You've been with us from the start — that counts. 🏆</p>
         <p>About 10 days left of your beta period (${plan}). As a <b>founder</b>, we guarantee you for life:</p>
         <table style="width:100%;border-collapse:collapse;font-size:14px;margin:6px 0">
-          <tr><td style="padding:8px 10px;background:#1f2937;border-radius:8px 0 0 8px;color:#fff"><b>Founder Premium</b></td><td style="padding:8px 10px;background:#1f2937;text-align:right"><b style="color:#fb923c">€19/month</b> <span style="color:#64748b;text-decoration:line-through">€39</span></td></tr>
+          <tr><td style="padding:8px 10px;background:#1f2937;border-radius:8px 0 0 8px;color:#fff"><b>Founder Premium</b></td><td style="padding:8px 10px;background:#1f2937;text-align:right"><b style="color:#fb923c">€19/month</b> <span style="color:#64748b;text-decoration:line-through">€39</span><br><span style="color:#94a3b8;font-size:13px">or <b style="color:#fb923c">€190/year</b> <span style="text-decoration:line-through">€390</span></span></td></tr>
           <tr><td colspan="2" style="height:6px"></td></tr>
-          <tr><td style="padding:8px 10px;background:#1f2937;border-radius:8px 0 0 8px;color:#fff"><b>Founder Pro</b></td><td style="padding:8px 10px;background:#1f2937;text-align:right"><b style="color:#fb923c">€9.99/month</b> <span style="color:#64748b;text-decoration:line-through">€14.99</span></td></tr>
+          <tr><td style="padding:8px 10px;background:#1f2937;border-radius:8px 0 0 8px;color:#fff"><b>Founder Pro</b></td><td style="padding:8px 10px;background:#1f2937;text-align:right"><b style="color:#fb923c">€9.99/month</b> <span style="color:#64748b;text-decoration:line-through">€14.99</span><br><span style="color:#94a3b8;font-size:13px">or <b style="color:#fb923c">€99/year</b> <span style="text-decoration:line-through">€149</span></span></td></tr>
         </table>
         <p style="color:#94a3b8;font-size:13px"><b>Lifetime</b> price as long as you keep the subscription — even when prices go up. Payments only open at launch; until then you pay nothing.</p>
         <p style="background:#0c4a6e33;border:1px solid #0ea5e955;border-radius:10px;padding:12px 14px">👉 <b>To reserve your founder price</b>, reply on Telegram: ${BOT} — and tell us what you liked and what was missing (your feedback is gold 🙏).</p>`),
@@ -74,14 +74,14 @@ const COPY = {
       html: shell(`<p style="color:#fff;font-size:16px;font-weight:700">Os teus 60 dias de beta terminaram — obrigado! 🙏</p>
         <p>A tua conta voltou ao plano <b>Free</b>: os teus dados, carteiras e histórico ficam todos guardados e podes continuar a usar o site.</p>
         <p style="background:#1f2937;border-radius:10px;padding:12px 14px">📝 <b>Último pedido:</b> um balanço final em 2 minutos — o que valeu a pena, o que faltou? Responde no Telegram: ${BOT}</p>
-        <p style="background:#3b271433;border:1px solid #f9731655;border-radius:10px;padding:12px 14px">🏆 O teu <b>preço de fundador</b> fica garantido: <b>Premium €19/mês</b> (em vez de €39) ou <b>Pro €9,99/mês</b> (em vez de €14,99) — vitalício enquanto fores subscritor. Reserva respondendo no Telegram: ${BOT}. Avisamos-te em primeira mão quando o pagamento abrir.</p>`),
+        <p style="background:#3b271433;border:1px solid #f9731655;border-radius:10px;padding:12px 14px">🏆 O teu <b>preço de fundador</b> fica garantido: <b>Premium €19/mês</b> (em vez de €39) ou <b>Pro €9,99/mês</b> (em vez de €14,99) — e, se preferires anual, <b>€190</b> ou <b>€99</b> (em vez de €390 e €149). Vitalício enquanto fores subscritor. Reserva respondendo no Telegram: ${BOT}. Avisamos-te em primeira mão quando o pagamento abrir.</p>`),
     }),
     en: () => ({
       subject: "Thank you for testing ChainFolioAI",
       html: shell(`<p style="color:#fff;font-size:16px;font-weight:700">Your 60 beta days are over — thank you! 🙏</p>
         <p>Your account is back on the <b>Free</b> plan: your data, wallets and history are all kept and you can keep using the site.</p>
         <p style="background:#1f2937;border-radius:10px;padding:12px 14px">📝 <b>One last ask:</b> a 2-minute final review — what was worth it, what was missing? Reply on Telegram: ${BOT}</p>
-        <p style="background:#3b271433;border:1px solid #f9731655;border-radius:10px;padding:12px 14px">🏆 Your <b>founder price</b> is guaranteed: <b>Premium €19/month</b> (instead of €39) or <b>Pro €9.99/month</b> (instead of €14.99) — for life while you subscribe. Reserve it by replying on Telegram: ${BOT}. You'll be the first to know when payments open.</p>`),
+        <p style="background:#3b271433;border:1px solid #f9731655;border-radius:10px;padding:12px 14px">🏆 Your <b>founder price</b> is guaranteed: <b>Premium €19/month</b> (instead of €39) or <b>Pro €9.99/month</b> (instead of €14.99) — or, on annual billing, <b>€190</b> and <b>€99</b> (instead of €390 and €149). For life while you subscribe. Reserve it by replying on Telegram: ${BOT}. You'll be the first to know when payments open.</p>`),
     }),
   },
 };

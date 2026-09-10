@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
     if (chatId) {
       await sendMsg(
         chatId,
-        `🏆 <b>Preço de fundador reservado!</b>\n📧 ${res.email}\n💶 Pro €9,99/mês · Premium €19/mês (vitalício)\n\nO tester vê a reserva na página de planos; o preço aplica-se automaticamente quando os pagamentos abrirem.`,
+        `🏆 <b>Preço de fundador reservado!</b>\n📧 ${res.email}\n💶 Pro €9,99/mês ou €99/ano · Premium €19/mês ou €190/ano (vitalício)\n\nO tester vê a reserva na página de planos; o preço aplica-se automaticamente quando os pagamentos abrirem.`,
       );
     }
     return NextResponse.json({ ok: true });
