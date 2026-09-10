@@ -107,7 +107,7 @@ const SCREENSHOTS = [
   { src: "/screenshots/dashboard.webp", w: 1600, h: 863, t: "lp_shot_dash_t", d: "lp_shot_dash_d" },
   { src: "/screenshots/portfolio.webp", w: 1600, h: 821, t: "lp_shot_pf_t", d: "lp_shot_pf_d" },
   { src: "/screenshots/market.webp", w: 1600, h: 827, t: "lp_shot_mkt_t", d: "lp_shot_mkt_d" },
-  { src: "/screenshots/wallets.webp", w: 1600, h: 820, t: "lp_shot_wal_t", d: "lp_shot_wal_d" },
+  { src: "/screenshots/wallets.webp", w: 1600, h: 1096, t: "lp_shot_wal_t", d: "lp_shot_wal_d" },
 ] as const;
 
 // Secção "Vê por dentro": mostra apenas os screenshots que existem em
