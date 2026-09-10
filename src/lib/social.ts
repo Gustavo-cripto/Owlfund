@@ -7,7 +7,7 @@
 // oficial. Se um dia quiseres um "criado por", é um link à parte.
 
 export const SOCIAL_LINKS = [
-  { label: "Bluesky", href: "https://bsky.app/profile/chainfolioai.bsky.social" },
+  { label: "Bluesky", href: "https://bsky.app/profile/chainfolioai.com" },
   { label: "X", href: "https://x.com/ChainFolioAi" },
   { label: "Threads", href: "https://www.threads.net/@chainfolioai" },
   { label: "Reddit", href: "https://www.reddit.com/user/ChainFolioAi" },
