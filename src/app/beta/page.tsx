@@ -122,15 +122,13 @@ export default function BetaPage() {
           </div>
         ) : (
           <form onSubmit={submit} className="relative mt-8 space-y-4">
-            {/* Sem conta no site não há ativação — avisar ANTES de submeter. */}
-            <div className="flex flex-col gap-2 rounded-xl border border-amber-500/40 bg-amber-500/[0.08] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            {/* A conta e precisa para ativar, mas NAO antes de submeter: o botao
+                "criar conta" que aqui estava levava a pessoa para fora da pagina
+                antes de deixar o email, e a inscricao perdia-se. Fica so a nota;
+                o convite a criar conta vive no estado de sucesso, ja com o email
+                preenchido. (31 visitas humanas -> 1 inscricao, 9-11 set.) */}
+            <div className="rounded-xl border border-amber-500/40 bg-amber-500/[0.08] px-4 py-3">
               <p className="text-sm leading-relaxed text-amber-200">{t("beta_account_warn")}</p>
-              <Link
-                href={`/login?mode=signup&next=%2Fbeta${email.trim() ? `&email=${encodeURIComponent(email.trim())}` : ""}`}
-                className="shrink-0 rounded-lg border border-amber-400/50 px-3 py-1.5 text-center text-xs font-semibold text-amber-300 transition hover:bg-amber-500/20"
-              >
-                {t("beta_account_cta")}
-              </Link>
             </div>
 
             {/* Honeypot: bots preenchem; humanos nunca veem. */}
