@@ -1,3 +1,4 @@
+import { COUNTRIES } from "@/lib/tax/countries";
 import type { MetadataRoute } from "next";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://chainfolioai.com";
@@ -13,6 +14,7 @@ const PAGES: Array<{ path: string; priority: number; changeFrequency: MetadataRo
   { path: "/pricing", priority: 0.9, changeFrequency: "weekly" },
   { path: "/como-funciona", priority: 0.8, changeFrequency: "monthly" },
   { path: "/developers", priority: 0.6, changeFrequency: "monthly" },
+  { path: "/guias/impostos-cripto", priority: 0.8, changeFrequency: "monthly" },
   { path: "/login", priority: 0.4, changeFrequency: "yearly" },
   { path: "/termos", priority: 0.3, changeFrequency: "yearly" },
   { path: "/privacidade", priority: 0.3, changeFrequency: "yearly" },
@@ -20,10 +22,19 @@ const PAGES: Array<{ path: string; priority: number; changeFrequency: MetadataRo
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const lastModified = new Date();
-  return PAGES.map(({ path, priority, changeFrequency }) => ({
+  const fixed = PAGES.map(({ path, priority, changeFrequency }) => ({
     url: `${SITE_URL}${path}`,
     lastModified,
     changeFrequency,
     priority,
   }));
+  // Uma entrada por país do guia fiscal (21). Geradas da mesma lista que as
+  // páginas, para o sitemap não ficar desatualizado quando se acrescentar um país.
+  const guias = COUNTRIES.map((c) => ({
+    url: `${SITE_URL}/guias/impostos-cripto/${c.slug}`,
+    lastModified,
+    changeFrequency: "monthly" as const,
+    priority: 0.7,
+  }));
+  return [...fixed, ...guias];
 }

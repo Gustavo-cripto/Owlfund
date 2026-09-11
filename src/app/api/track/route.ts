@@ -36,6 +36,7 @@ function isInternalCall(req: NextRequest): boolean {
 // MANUTENCAO: ao adicionar uma pagina nova ao site, junta o seu segmento aqui.
 const ALLOWED = new Set([
   "account", "beta", "como-funciona", "crypto", "dashboard", "developers", "fire",
+  "guias",
   "fiscalidade", "gestor", "historico", "login", "mercado", "portfolio",
   "pricing", "privacidade", "reset-password", "smart-money", "termos", "wallets",
 ]);

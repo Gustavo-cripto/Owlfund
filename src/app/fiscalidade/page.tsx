@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { TAX_REGIMES } from "@/lib/tax/countries";
 import { btnPrimary } from "@/lib/ui/buttons";
 import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
@@ -271,33 +272,10 @@ export default function FiscalidadePage() {
     check();
   }, [userId]);
 
-  // allowance: isenção anual aplicada ao cálculo — "deduct" abate ao ganho tributável;
-  // "threshold" (Freigrenze alemã) isenta TUDO se o total ficar abaixo, senão tributa tudo.
-  const taxRates: Record<string, { short: number; long: number; longDays: number; longLabel: string; allowance?: { amount: number; kind: "deduct" | "threshold"; label: string } }> = {
-    PT: { short: 0.28, long: 0.0,  longDays: 365, longLabel: "Isento (>1 ano)" },
-    ES: { short: 0.19, long: 0.19, longDays: 0,   longLabel: "19–30% (escala, sem distinção temporal)" },
-    FR: { short: 0.30, long: 0.30, longDays: 0,   longLabel: "30% (flat tax)" },
-    DE: { short: 0.45, long: 0.0,  longDays: 365, longLabel: "Isento (>1 ano)", allowance: { amount: 1000, kind: "threshold", label: "Freigrenze €1.000/ano" } },
-    // Pro countries
-    GB: { short: 0.24, long: 0.24, longDays: 0,   longLabel: "18%/24% (sem distinção temporal)", allowance: { amount: 3500, kind: "deduct", label: "Isenção anual £3.000 (≈€3.500)" } },
-    NL: { short: 0.0,  long: 0.0,  longDays: 0,   longLabel: "Box 3 tributa património, não mais-valias" },
-    IT: { short: 0.33, long: 0.33, longDays: 0,   longLabel: "33% (flat, desde 2026)" },
-    BR: { short: 0.15, long: 0.15, longDays: 0,   longLabel: "15% (isenção < R$35k/mês)" },
-    BE: { short: 0.10, long: 0.10, longDays: 0,   longLabel: "10% (gestão privada; especulativo 33%)", allowance: { amount: 10000, kind: "deduct", label: "Isenção anual €10.000 (regime 2026)" } },
-    IE: { short: 0.33, long: 0.33, longDays: 0,   longLabel: "33% (CGT, sem distinção temporal)", allowance: { amount: 1270, kind: "deduct", label: "Isenção anual €1.270" } },
-    AT: { short: 0.275,long: 0.275,longDays: 0,   longLabel: "27,5% (flat, sem distinção temporal)" },
-    PL: { short: 0.19, long: 0.19, longDays: 0,   longLabel: "19% (flat, PIT-38)" },
-    LU: { short: 0.42, long: 0.0,  longDays: 183, longLabel: "Isento (>6 meses)", allowance: { amount: 500, kind: "threshold", label: "Isento se ganhos especulativos < €500/ano" } },
-    // Premium countries
-    US: { short: 0.37, long: 0.20, longDays: 365, longLabel: "0–20% (>1 ano)" },
-    CA: { short: 0.27, long: 0.27, longDays: 0,   longLabel: "27% (50% inclusion rate)" },
-    AU: { short: 0.45, long: 0.225,longDays: 365, longLabel: "50% desconto (>1 ano)" },
-    CH: { short: 0.0,  long: 0.0,  longDays: 0,   longLabel: "Isento (investidor privado)" },
-    AE: { short: 0.0,  long: 0.0,  longDays: 0,   longLabel: "0% (sem imposto)" },
-    SG: { short: 0.0,  long: 0.0,  longDays: 0,   longLabel: "0% (investidor privado)" },
-    MX: { short: 0.35, long: 0.35, longDays: 0,   longLabel: "1,92–35% (ISR progressivo)", allowance: { amount: 3000, kind: "deduct", label: "Isenção anual MX$60.000 (≈€3.000)" } },
-    AR: { short: 0.15, long: 0.15, longDays: 0,   longLabel: "15% (imposto cedular, flat)" },
-  };
+  // Taxas e isenções vêm de src/lib/tax/countries.ts — a MESMA fonte que os
+  // guias públicos em /guias/impostos-cripto, para o site nunca dizer 28% num
+  // sítio e 30% no outro.
+  const taxRates = TAX_REGIMES;
   const regime = taxRates[country] ?? taxRates["PT"];
 
   // FIFO: calcular eventos de mais-valias
