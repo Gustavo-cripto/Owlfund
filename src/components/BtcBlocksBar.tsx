@@ -268,7 +268,7 @@ export default function BtcBlocksBar() {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="9 18 15 12 9 6" />
                   </svg>
-                  <span className="text-[8px] text-slate-700 rotate-90 whitespace-nowrap" style={{ writingMode: "vertical-rl" }}>{t("bb_confirmed")}</span>
+                  <span className="text-[8px] text-slate-500 rotate-90 whitespace-nowrap" style={{ writingMode: "vertical-rl" }}>{t("bb_confirmed")}</span>
                 </div>
                 <div className="w-px flex-1 bg-gradient-to-b from-transparent via-slate-700 to-transparent" />
               </div>
