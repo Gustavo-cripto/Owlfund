@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import AppShell from "@/components/AppShell";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -97,7 +98,11 @@ export default async function PaisGuia({ params }: { params: Promise<{ pais: str
   };
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-6 py-12">
+    <AppShell>
+      {/* Sem este embrulho o conteudo herda o fundo claro do layout e o
+          texto branco fica invisivel — foi o que aconteceu na 1.a versao. */}
+      <div className="min-h-screen bg-slate-950 text-slate-100">
+        <main className="mx-auto w-full max-w-4xl px-6 py-12">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       <nav className="text-xs text-slate-500">
@@ -174,6 +179,8 @@ export default async function PaisGuia({ params }: { params: Promise<{ pais: str
         particularidades (residência, atividade profissional, staking, mineração). Confirma com um
         contabilista ou com a autoridade fiscal antes de declarar.
       </p>
-    </main>
+        </main>
+      </div>
+    </AppShell>
   );
 }
