@@ -23,10 +23,14 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     if (stored && stored in translations) setLangState(stored);
   }, []);
 
-  // Mantém <html lang> em sincronia com o idioma escolhido (SEO/acessibilidade).
+  // Mantém <html lang> em sincronia com o idioma escolhido (SEO/acessibilidade)
+  // e leva o idioma ao servidor num cookie: as rotas de API devolvem frases que
+  // o ecrã mostra tal e qual, e sem isto sairiam sempre em português.
+  // É só preferência de apresentação — nunca serve para autorizar nada.
   useEffect(() => {
     const map: Record<Lang, string> = { pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" };
     document.documentElement.lang = map[lang];
+    document.cookie = `cfa-lang=${lang}; path=/; max-age=31536000; SameSite=Lax`;
   }, [lang]);
 
   const setLang = (l: Lang) => {

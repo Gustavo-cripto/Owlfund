@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiMsg } from "@/lib/api/apiMessages";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getStripe } from "@/lib/stripe";
@@ -7,7 +8,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     const cookieStore = await cookies();
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
@@ -69,7 +70,7 @@ export async function POST() {
   } catch (err) {
     console.error("[sync-subscription]", err instanceof Error ? err.message : err);
     return NextResponse.json(
-      { error: "Não foi possível sincronizar a subscrição." },
+      { error: apiMsg(request, "sync_failed") },
       { status: 500 }
     );
   }

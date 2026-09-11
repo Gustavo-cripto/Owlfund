@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiMsg } from "@/lib/api/apiMessages";
 import { requireUser } from "@/lib/api/requireUser";
 import { alchemyNftsForOwner, hasAlchemy, type EvmChainKey } from "@/lib/providers/alchemy";
 import { heliusAssetsByOwner, hasHelius } from "@/lib/providers/helius";
@@ -174,7 +175,7 @@ export async function GET(request: Request) {
   const evmChain = searchParams.get("evmChain") as EvmL2ChainNFT | null;
 
   if (!address?.trim()) {
-    return NextResponse.json({ error: "Endereço obrigatório." }, { status: 400 });
+    return NextResponse.json({ error: apiMsg(request, "address_required") }, { status: 400 });
   }
 
   // Handle specific EVM L2 chains
@@ -216,18 +217,18 @@ export async function GET(request: Request) {
   }
 
   if (!["eth", "sol", "btc", "ada"].includes(chain)) {
-    return NextResponse.json({ error: "Chain inválida." }, { status: 400 });
+    return NextResponse.json({ error: apiMsg(request, "chain_invalid") }, { status: 400 });
   }
 
   if (!validateAddressForChain(address.trim(), chain)) {
-    return NextResponse.json({ error: `Endereço inválido para ${chain}.` }, { status: 400 });
+    return NextResponse.json({ error: apiMsg(request, "address_invalid_for_chain", { chain }) }, { status: 400 });
   }
 
   if (chain === "ada" && address.trim().startsWith("addr1")) {
     const projectId = process.env.BLOCKFROST_PROJECT_ID;
     if (!projectId) {
       return NextResponse.json(
-        { error: "Configura BLOCKFROST_PROJECT_ID para ver NFTs Cardano.", count: 0, nfts: [] },
+        { error: apiMsg(request, "cardano_nfts_unconfigured"), count: 0, nfts: [] },
         { status: 503 }
       );
     }
@@ -359,7 +360,7 @@ export async function GET(request: Request) {
           const count = ok.reduce((sum, r) => sum + r.value.total, 0);
           if (ok.length === 0) {
             console.error("[nft-balance] Alchemy falhou em todas as redes", results.map((r) => (r.status === "rejected" ? String(r.reason) : "")).join("; "));
-            return NextResponse.json({ error: "Fornecedor de NFTs (Alchemy) indisponível. Tenta mais tarde.", count: 0, nfts: [] }, { status: 503 });
+            return NextResponse.json({ error: apiMsg(request, "nft_provider_down"), count: 0, nfts: [] }, { status: 503 });
           }
           return NextResponse.json({ count, nfts, provider: "alchemy" });
         }

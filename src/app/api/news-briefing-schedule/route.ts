@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiMsg } from "@/lib/api/apiMessages";
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
   const user = await getUser(request.headers.get("Authorization"));
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  if (!serviceKey) return NextResponse.json({ error: "Service role key não configurada." }, { status: 503 });
+  if (!serviceKey) return NextResponse.json({ error: apiMsg(request, "server_unconfigured") }, { status: 503 });
 
   const body = await request.json() as { enabled: boolean; hour_utc: number; mode: "crypto" | "tradicional" | "both" };
 
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
     const isActive = sub?.status === "active" || sub?.status === "trialing";
     const notExpired = !sub?.current_period_end || new Date(sub.current_period_end).getTime() > Date.now();
     if (!isActive || !notExpired) {
-      return NextResponse.json({ error: "O briefing diário requer o Plano Pro.", requiresPro: true }, { status: 403 });
+      return NextResponse.json({ error: apiMsg(request, "briefing_requires_pro"), requiresPro: true }, { status: 403 });
     }
   }
 

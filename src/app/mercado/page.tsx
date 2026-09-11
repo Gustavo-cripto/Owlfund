@@ -1648,7 +1648,7 @@ export default function MercadoPage() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Total</p>
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-500">{t("total")}</p>
                   <p className="text-lg font-semibold text-white">
                     {fmtCur(traditionalTotal)}
                   </p>
@@ -1861,7 +1861,7 @@ export default function MercadoPage() {
                         >
                           <option value="marketCapUsd">{t("mc_mcap")}</option>
                           <option value="volume24hUsd">{t("mc_sort_vol")}</option>
-                          <option value="priceUsd">Preço</option>
+                          <option value="priceUsd">{t("mc_sort_price")}</option>
                           <option value="change24h">{t("mc_sort_change")}</option>
                           <option value="symbol">{t("mc_sort_symbol")}</option>
                         </select>
@@ -1921,7 +1921,7 @@ export default function MercadoPage() {
                         <th className="px-4 py-3">30d</th>
                         <th className="px-4 py-3">{t("mc_col_mcap_usd")}</th>
                         <th className="px-4 py-3">{t("mc_col_vol_usd")}</th>
-                        <th className="px-4 py-3" title="Variação de preço nos últimos 7 dias">{t("mc_col_trend")}</th>
+                        <th className="px-4 py-3" title={t("mc_trend_tip")}>{t("mc_col_trend")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2159,7 +2159,7 @@ export default function MercadoPage() {
                           }
                         }}
                       >
-                        {newsBriefingLoading ? "A analisar…" : "🤖 Análise IA"}
+                        {newsBriefingLoading ? t("mc_analyzing") : `🤖 ${t("mc_ai_analysis")}`}
                       </button>
                       )}
                     </div>

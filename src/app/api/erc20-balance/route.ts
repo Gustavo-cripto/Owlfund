@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiMsg } from "@/lib/api/apiMessages";
 import { createPublicClient, http, parseAbi, formatUnits } from "viem";
 import { mainnet } from "viem/chains";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -38,10 +39,10 @@ export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token")?.toUpperCase();
 
   if (!address || !/^0x[0-9a-fA-F]{40}$/.test(address)) {
-    return NextResponse.json({ error: "Endereço EVM inválido." }, { status: 400 });
+    return NextResponse.json({ error: apiMsg(req, "address_invalid") }, { status: 400 });
   }
   if (!token || !TOKEN_ADDRESSES[token]) {
-    return NextResponse.json({ error: `Token não suportado: ${token}` }, { status: 400 });
+    return NextResponse.json({ error: apiMsg(req, "token_unsupported", { token: token ?? "" }) }, { status: 400 });
   }
 
   const tokenAddress = TOKEN_ADDRESSES[token];

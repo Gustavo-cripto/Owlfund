@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiMsg } from "@/lib/api/apiMessages";
 import { rateLimit } from "@/lib/utils/rateLimit";
 import { createClient } from "@supabase/supabase-js";
 import { createHash } from "crypto";
@@ -21,15 +22,15 @@ async function getUser(authHeader: string | null) {
 export async function POST(request: Request) {
   const user = await getUser(request.headers.get("Authorization"));
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!serviceKey) return NextResponse.json({ error: "Service role key não configurada." }, { status: 503 });
+  if (!serviceKey) return NextResponse.json({ error: apiMsg(request, "server_unconfigured") }, { status: 503 });
 
   // Anti brute-force dos códigos de recuperação (8 chars): 5 tentativas / 15 min por utilizador.
   if (!rateLimit(`mfa-recover:${user.id}`, 5, 15 * 60_000)) {
-    return NextResponse.json({ error: "Demasiadas tentativas. Espera 15 minutos." }, { status: 429 });
+    return NextResponse.json({ error: apiMsg(request, "mfa_too_many") }, { status: 429 });
   }
   const body = await request.json().catch(() => ({})) as { code?: string };
   const code = (body.code ?? "").trim();
-  if (!code) return NextResponse.json({ error: "Código em falta." }, { status: 400 });
+  if (!code) return NextResponse.json({ error: apiMsg(request, "code_missing") }, { status: 400 });
 
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
 
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
     .limit(1)
     .maybeSingle();
 
-  if (!match) return NextResponse.json({ error: "Código inválido ou já usado." }, { status: 400 });
+  if (!match) return NextResponse.json({ error: apiMsg(request, "mfa_code_invalid") }, { status: 400 });
 
   // Marcar como usado.
   await admin.from("mfa_recovery_codes").update({ used_at: new Date().toISOString() }).eq("id", match.id);

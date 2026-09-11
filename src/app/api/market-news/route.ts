@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiMsg } from "@/lib/api/apiMessages";
 import { unstable_cache } from "next/cache";
 import { generateAiText, friendlyAiError, errorStatus, hasAnyAiProvider } from "@/lib/ai/groq";
 import { NO_ADVICE_RULE } from "@/lib/ai/disclaimer";
@@ -197,7 +198,7 @@ export async function POST(request: Request) {
   const body = await request.json() as { mode?: MarketMode; lang?: string };
   const { mode = "crypto", lang = "pt" } = body;
 
-  if (!hasAnyAiProvider()) return NextResponse.json({ error: "Serviço de IA não configurado." }, { status: 503 });
+  if (!hasAnyAiProvider()) return NextResponse.json({ error: apiMsg(request, "ai_unconfigured") }, { status: 503 });
 
   try {
     const result = await generateMarketBriefing(mode, lang);

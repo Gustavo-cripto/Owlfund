@@ -269,7 +269,7 @@ function SnapshotList({ snapshots, onRestore, onDelete, locale, hideBalances }: 
           <button
             type="button"
             onClick={() => onDelete(row)}
-            aria-label="🗑"
+            aria-label={t("remove")}
             className="rounded-full border border-rose-500/30 px-3 py-2 text-xs font-semibold text-rose-300/80 transition hover:border-rose-400 hover:text-rose-300"
           >
             🗑
@@ -298,7 +298,7 @@ export default function PortfolioPage() {
   const locale = ({ pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" } as Record<string, string>)[lang] ?? "pt-PT";
   // Durante o beta (pagamentos congelados) os CTAs de upgrade viram convite ao beta.
   const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
-  const { format: fmt, formatSigned: fmtSigned, convert: fx, symbol: curSym, hideBalances } = useCurrencyFormat();
+  const { format: fmt, formatSigned: fmtSigned, convert: fx, symbol: curSym, hideBalances, numberFormat } = useCurrencyFormat();
   const [wallets, setWallets] = useState<WalletBalance[]>([]);
   const [tokenPrices, setTokenPrices] = useState<TokenPrices>({});
   const [historicalPrices, setHistoricalPrices] = useState<HistoricalPrices>({ "1d": {}, "7d": {}, "30d": {} });
@@ -1784,13 +1784,13 @@ export default function PortfolioPage() {
                 spacer(8);
 
                 head(t("pf_summary"));
-                kv2(`${t("total")}: ${curSym} ${formatValue(fx(portfolioTotal), locale)}`, `${t("pf_crypto")}: ${curSym} ${formatValue(fx(cryptoTotal), locale)}`);
-                kv2(`${t("pf_traditional")}: ${curSym} ${formatValue(fx(traditionalTotal), locale)}`, stablecoinTotal > 0 ? `${t("pf_stablecoins")}: ${curSym} ${formatValue(fx(stablecoinTotal), locale)}` : undefined);
+                kv2(`${t("total")}: ${curSym} ${formatValue(fx(portfolioTotal), numberFormat)}`, `${t("pf_crypto")}: ${curSym} ${formatValue(fx(cryptoTotal), numberFormat)}`);
+                kv2(`${t("pf_traditional")}: ${curSym} ${formatValue(fx(traditionalTotal), numberFormat)}`, stablecoinTotal > 0 ? `${t("pf_stablecoins")}: ${curSym} ${formatValue(fx(stablecoinTotal), numberFormat)}` : undefined);
                 spacer(3);
 
                 head("PNL");
-                kv2(`${t("pf_position")}: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.position)), locale)} ${pnlSummary.position >= 0 ? `(${t("pfx_gain")})` : `(${t("pfx_loss")})`}`, `${t("pf_today")}: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.today)), locale)}`);
-                kv2(`${t("pc_30_days")}: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.days30 ?? 0)), locale)}`);
+                kv2(`${t("pf_position")}: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.position)), numberFormat)} ${pnlSummary.position >= 0 ? `(${t("pfx_gain")})` : `(${t("pfx_loss")})`}`, `${t("pf_today")}: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.today)), numberFormat)}`);
+                kv2(`${t("pc_30_days")}: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.days30 ?? 0)), numberFormat)}`);
                 spacer(3);
 
                 if (advancedMetrics) {
@@ -1823,7 +1823,7 @@ export default function PortfolioPage() {
                   doc.setFontSize(10);
                   doc.setFont("helvetica", "normal");
                   doc.setTextColor(226, 232, 240);
-                  doc.text(`${a.label} (${a.symbol}): ${curSym} ${formatValue(fx(a.value), locale)} · ${a.percent}%`, 15, y);
+                  doc.text(`${a.label} (${a.symbol}): ${curSym} ${formatValue(fx(a.value), numberFormat)} · ${a.percent}%`, 15, y);
                   doc.setTextColor(255, 255, 255);
                   y += 6;
                 });
@@ -2302,7 +2302,7 @@ export default function PortfolioPage() {
                     type="button"
                     disabled={isBillingLoading}
                   >
-                    {isBillingLoading ? t("pf_starting") : "✨ Ativar plano Pro"}
+                    {isBillingLoading ? t("pf_starting") : `✨ ${t("pf_activate_pro")}`}
                   </button>
                   )
                 ) : null}

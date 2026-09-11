@@ -175,5 +175,5 @@ export function useCurrencyFormat() {
   const formatUsd = (usdValue: number, opts?: { compact?: boolean; decimals?: number }): string =>
     format(usdValue * usdToEur, opts);
 
-  return { format, formatSigned, formatUsd, convert, usdToEur, symbol: sym, currency, rate, hideBalances };
+  return { format, formatSigned, formatUsd, convert, usdToEur, symbol: sym, currency, rate, hideBalances, numberFormat };
 }

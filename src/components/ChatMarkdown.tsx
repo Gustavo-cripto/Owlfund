@@ -9,7 +9,7 @@
 import { Fragment, useState, type ReactNode } from "react";
 
 export type ChatMarkdownLabels = { copy: string; copied: string; downloadCsv: string };
-const DEFAULT_LABELS: ChatMarkdownLabels = { copy: "Copiar", copied: "Copiado ✓", downloadCsv: "Transferir .csv" };
+const DEFAULT_LABELS: ChatMarkdownLabels = { copy: "Copy", copied: "Copied ✓", downloadCsv: "Download .csv" }  // so usado se um call-site esquecer os labels traduzidos;
 
 // ── Inline: `código`, **negrito**, *itálico* ─────────────────────────────────
 function inline(text: string, key: string): ReactNode[] {

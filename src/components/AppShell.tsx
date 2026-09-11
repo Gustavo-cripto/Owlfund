@@ -5,6 +5,7 @@ import Sidebar from "./Sidebar";
 import BtcBlocksBar from "./BtcBlocksBar";
 import AccountSwitcher from "./AccountSwitcher";
 import { ConfirmProvider } from "./ConfirmDialog";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 type Tick = { symbol: string; price: string; change: string; up: boolean };
 
@@ -31,6 +32,7 @@ const fmtPrice = (v: number) =>
   v >= 1000 ? `$ ${v.toLocaleString("pt-PT", { maximumFractionDigits: 0 })}` : v >= 1 ? `$ ${v.toLocaleString("pt-PT", { maximumFractionDigits: 2 })}` : `$ ${v.toLocaleString("pt-PT", { maximumFractionDigits: 4 })}`;
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
+  const { t: tr } = useLanguage();  // `t` esta ocupado pela variavel do map do ticker
   const [ticks, setTicks] = useState<Tick[]>(TICKER_DATA);
   const [live, setLive] = useState(false);
 
@@ -61,15 +63,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="flex-1 min-w-0 flex flex-col min-h-screen">
         {/* ── Price ticker (real via /api/markets; fallback estático marcado como exemplo) ── */}
-        <div className="relative border-b border-slate-800/60 bg-slate-900/50 py-2 overflow-hidden select-none shrink-0" title={live ? "CoinEx / CoinGecko · 24h" : "exemplo"}>
-          {!live && <span className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded bg-slate-800 px-1.5 text-[9px] uppercase tracking-wider text-slate-500">demo</span>}
+        <div className="relative border-b border-slate-800/60 bg-slate-900/50 py-2 overflow-hidden select-none shrink-0" title={live ? tr("app_ticker_tip") : tr("app_ticker_demo_tip")}>
+          {!live && <span className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded bg-slate-800 px-1.5 text-[9px] uppercase tracking-wider text-slate-500">{tr("app_ticker_demo")}</span>}
           <div className="flex animate-ticker" style={{ width: "max-content" }}>
-            {[...ticks, ...ticks, ...ticks].map((t, i) => (
+            {[...ticks, ...ticks, ...ticks].map((tick, i) => (
               <span key={i} className="inline-flex items-center gap-1.5 mx-6 text-xs font-mono whitespace-nowrap">
-                <span className="font-bold text-slate-300 tracking-wide">{t.symbol}</span>
-                <span className="text-slate-500">{t.price}</span>
-                <span className={`font-semibold ${t.up ? "text-emerald-400" : "text-rose-400"}`}>
-                  {t.change}
+                <span className="font-bold text-slate-300 tracking-wide">{tick.symbol}</span>
+                <span className="text-slate-500">{tick.price}</span>
+                <span className={`font-semibold ${tick.up ? "text-emerald-400" : "text-rose-400"}`}>
+                  {tick.change}
                 </span>
                 <span className="text-slate-700">·</span>
               </span>

@@ -226,11 +226,11 @@ export default function BtcBlocksBar() {
         <span className="text-[10px] text-slate-600">{t("bb_live")} · mempool.space</span>
         <span className={`ml-1 h-1.5 w-1.5 rounded-full ${error ? "bg-rose-500" : "bg-emerald-500"} animate-pulse`} />
         <div className="ml-auto flex gap-1">
-          <button type="button" onClick={() => scroll("left")} aria-label="←"
+          <button type="button" onClick={() => scroll("left")} aria-label={t("previous")}
             className="p-1.5 rounded-lg text-slate-600 hover:text-slate-300 hover:bg-white/5 transition">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6" /></svg>
           </button>
-          <button type="button" onClick={() => scroll("right")} aria-label="→"
+          <button type="button" onClick={() => scroll("right")} aria-label={t("next")}
             className="p-1.5 rounded-lg text-slate-600 hover:text-slate-300 hover:bg-white/5 transition">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6" /></svg>
           </button>

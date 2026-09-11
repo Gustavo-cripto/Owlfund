@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiMsg } from "@/lib/api/apiMessages";
 import { requireUser } from "@/lib/api/requireUser";
 import { encodeAbiParameters, keccak256 } from "viem";
 
@@ -1398,7 +1399,7 @@ export async function GET(request: Request) {
   const evmChain = searchParams.get("evmChain") as EvmL2Chain | null;
 
   if (!address?.trim()) {
-    return NextResponse.json({ error: "Endereço obrigatório." }, { status: 400 });
+    return NextResponse.json({ error: apiMsg(request, "address_required") }, { status: 400 });
   }
 
   // Handle specific EVM L2 chains (arbitrum, base, optimism, etc.)
@@ -1449,12 +1450,12 @@ export async function GET(request: Request) {
   }
 
   if (!["eth", "sol", "btc", "ada"].includes(chain)) {
-    return NextResponse.json({ error: "Chain inválida. Usa eth, sol, btc ou ada." }, { status: 400 });
+    return NextResponse.json({ error: apiMsg(request, "chain_invalid_list") }, { status: 400 });
   }
 
   if (!validateAddressForChain(address.trim(), chain)) {
     return NextResponse.json(
-      { error: `Endereço inválido para ${chain}.` },
+      { error: apiMsg(request, "address_invalid_for_chain", { chain }) },
       { status: 400 }
     );
   }

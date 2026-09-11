@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiMsg } from "@/lib/api/apiMessages";
 import { randomBytes } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getSessionUser, isUserPremium } from "@/lib/api/session";
@@ -50,9 +51,9 @@ function isValidHttpsUrl(u: string): boolean {
 
 // GET — devolve a config do webhook do utilizador (com o segredo, para ele
 // poder verificar a assinatura HMAC).
-export async function GET() {
+export async function GET(req: NextRequest) {
   const { supabase, user } = await getSessionUser();
-  if (!user) return NextResponse.json({ error: "Não autenticado.", code: "UNAUTHENTICATED" }, { status: 401 });
+  if (!user) return NextResponse.json({ error: apiMsg(req, "not_authenticated"), code: "UNAUTHENTICATED" }, { status: 401 });
   if (!(await isUserPremium(supabase, user.id))) return NextResponse.json({ error: "Requer Premium.", code: "PREMIUM_REQUIRED" }, { status: 403 });
 
   const admin = getSupabaseAdmin();
@@ -68,13 +69,13 @@ export async function GET() {
 // POST — cria ou atualiza o webhook { url }. Gera um segredo na primeira vez.
 export async function POST(req: NextRequest) {
   const { supabase, user } = await getSessionUser();
-  if (!user) return NextResponse.json({ error: "Não autenticado.", code: "UNAUTHENTICATED" }, { status: 401 });
+  if (!user) return NextResponse.json({ error: apiMsg(req, "not_authenticated"), code: "UNAUTHENTICATED" }, { status: 401 });
   if (!(await isUserPremium(supabase, user.id))) return NextResponse.json({ error: "Requer Premium.", code: "PREMIUM_REQUIRED" }, { status: 403 });
 
   const body = await req.json().catch(() => ({})) as { url?: string; enabled?: boolean };
   const url = (body.url ?? "").trim();
   if (!isValidHttpsUrl(url)) {
-    return NextResponse.json({ error: "URL inválido — tem de ser https://", code: "INVALID_URL" }, { status: 400 });
+    return NextResponse.json({ error: apiMsg(req, "webhook_url_invalid"), code: "INVALID_URL" }, { status: 400 });
   }
 
   const admin = getSupabaseAdmin();
@@ -94,9 +95,9 @@ export async function POST(req: NextRequest) {
 }
 
 // DELETE — remove o webhook.
-export async function DELETE() {
+export async function DELETE(req: NextRequest) {
   const { user } = await getSessionUser();
-  if (!user) return NextResponse.json({ error: "Não autenticado.", code: "UNAUTHENTICATED" }, { status: 401 });
+  if (!user) return NextResponse.json({ error: apiMsg(req, "not_authenticated"), code: "UNAUTHENTICATED" }, { status: 401 });
 
   const admin = getSupabaseAdmin();
   await admin.from("webhook_config").delete().eq("user_id", user.id);

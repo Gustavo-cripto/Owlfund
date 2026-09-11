@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiMsg } from "@/lib/api/apiMessages";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
   // NEXT_PUBLIC_PAYMENTS_ENABLED=true na Vercel (a UI de /pricing usa a mesma flag).
   if (process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true") {
     return NextResponse.json(
-      { error: "Os pagamentos abrem no lançamento. Durante o beta, o acesso Pro/Premium é gratuito — inscreve-te em chainfolioai.com/beta." },
+      { error: apiMsg(request, "payments_frozen") },
       { status: 403 },
     );
   }

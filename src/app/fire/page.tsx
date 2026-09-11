@@ -323,7 +323,7 @@ export default function FirePage() {
               ))}
               <div>
                 <label className="text-xs text-slate-400 block mb-1.5">{t("fire_current_portfolio")}</label>
-                <input type="number" placeholder="Ex: 50000" value={portfolioOverride}
+                <input type="number" placeholder={t("fire_ph_example")} value={portfolioOverride}
                   onChange={e => setPortfolioOverride(e.target.value)}
                   className="w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
                 {livePortfolio !== null && Number(portfolioOverride) !== Math.round(livePortfolio) && (

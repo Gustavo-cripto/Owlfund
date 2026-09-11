@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiMsg } from "@/lib/api/apiMessages";
 import { requireUser } from "@/lib/api/requireUser";
 import { getUsdPrices } from "@/lib/api/whales";
 import { alchemyTokensByWallet, hasAlchemy, AlchemyError } from "@/lib/providers/alchemy";
@@ -118,14 +119,14 @@ export async function GET(request: Request) {
   const address = (searchParams.get("address") ?? "").trim();
   const chain = (searchParams.get("chain") ?? "eth") as ChainId;
 
-  if (!address) return NextResponse.json({ error: "Endereço obrigatório.", tokens: [] }, { status: 400 });
+  if (!address) return NextResponse.json({ error: apiMsg(request, "address_required"), tokens: [] }, { status: 400 });
 
   // ── Bitcoin (não precisa de Moralis) — antes devolvia sempre 0 e as baleias
   // BTC apareciam com "0,00 US$".
   if (chain === "btc") {
-    if (!isBtcAddress(address)) return NextResponse.json({ error: "Endereço BTC inválido.", tokens: [] }, { status: 400 });
+    if (!isBtcAddress(address)) return NextResponse.json({ error: apiMsg(request, "btc_address_invalid"), tokens: [] }, { status: 400 });
     const balance = await fetchBtcBalance(address);
-    if (balance == null) return NextResponse.json({ error: "Falha ao consultar o saldo BTC.", tokens: [] }, { status: 503 });
+    if (balance == null) return NextResponse.json({ error: apiMsg(request, "btc_balance_failed"), tokens: [] }, { status: 503 });
     const { btc: btcUsd } = await getUsdPrices();
     const usdPrice = btcUsd ?? 0;
     const usdValue = balance * usdPrice;
@@ -200,7 +201,7 @@ export async function GET(request: Request) {
 
   if (!moralisKey) {
     return NextResponse.json(
-      { error: "Sem fornecedor de saldos configurado (ALCHEMY_API_KEY para EVM, HELIUS_API_KEY para Solana).", code: "provider_missing", tokens: [] },
+      { error: apiMsg(request, "balances_provider_missing"), code: "provider_missing", tokens: [] },
       { status: 503 },
     );
   }

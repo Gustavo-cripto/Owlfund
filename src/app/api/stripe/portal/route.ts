@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiMsg } from "@/lib/api/apiMessages";
 
 import { getStripe } from "@/lib/stripe";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -9,7 +10,7 @@ const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL ??
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 
-export async function POST() {
+export async function POST(request: Request) {
   // Verificar sessão — não aceitar userId do body
   const cookieStore = await cookies();
   const supabaseAuth = createServerClient(
@@ -38,7 +39,7 @@ export async function POST() {
     .maybeSingle();
 
   if (!profile?.stripe_customer_id) {
-    return NextResponse.json({ error: "Sem subscrição ativa." }, { status: 404 });
+    return NextResponse.json({ error: apiMsg(request, "no_subscription") }, { status: 404 });
   }
 
   const session = await stripe.billingPortal.sessions.create({
