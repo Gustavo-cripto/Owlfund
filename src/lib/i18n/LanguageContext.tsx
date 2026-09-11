@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { translations, type Lang, type TranslationKey } from "./translations";
 
 type LanguageContextValue = {
@@ -34,7 +34,18 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("owlfund-lang", l);
   };
 
-  const t = (key: TranslationKey): string => translations[lang][key] ?? translations.pt[key];
+  // `t` tem identidade estavel e le sempre o idioma atual por referencia.
+  //
+  // Porque: dezenas de useCallback/useEffect pelo site nao listam `t` nas
+  // dependencias. Com um `t` recriado a cada render, esses callbacks ficavam
+  // presos ao idioma que estava ativo quando foram criados — a pessoa trocava
+  // para ingles e a mensagem de erro seguinte ainda saia em portugues.
+  const langRef = useRef(lang);
+  langRef.current = lang;
+  const t = useCallback(
+    (key: TranslationKey): string => translations[langRef.current][key] ?? translations.pt[key],
+    [],
+  );
 
   return (
     <LanguageContext.Provider value={{ lang, setLang, t }}>

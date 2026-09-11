@@ -294,14 +294,14 @@ export default function CexSection({
         <div className="flex items-center justify-between">
           <div>
             <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{t("cx_cex")} <PlanBadge plan="pro" size="xs" /></p>
-            <p className="text-sm text-slate-300 mt-0.5">Kraken · Coinbase · OKX · Bybit · Crypto.com · Bitpanda · Binance · CoinEx — via API Key (read-only)</p>
+            <p className="text-sm text-slate-300 mt-0.5">Kraken · Coinbase · OKX · Bybit · Crypto.com · Bitpanda · Binance · CoinEx — {t("cx_subtitle_cex")}</p>
           </div>
           <button
             type="button"
             onClick={() => setShowAddCex((v) => !v)}
             className="rounded-xl bg-orange-500/90 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-orange-400 transition"
           >
-            + Adicionar CEX
+            {t("cx_add_cex")}
           </button>
         </div>
 
@@ -319,7 +319,7 @@ export default function CexSection({
                       : "border-slate-700 text-slate-400 hover:border-slate-500"
                   }`}
                 >
-                  {ex.label}{ex.mica ? <span className="ml-1 text-[9px] text-emerald-400" title="Licenciada MiCA (UE)">🇪🇺</span> : null}
+                  {ex.label}{ex.mica ? <span className="ml-1 text-[9px] text-emerald-400" title={t("cx_mica_tip")}>🇪🇺</span> : null}
                 </button>
               ))}
             </div>
@@ -332,7 +332,7 @@ export default function CexSection({
             />
             <input
               type="text"
-              placeholder={newExchange === "coinex" ? "Access ID (API Key)" : newExchange === "coinbase" ? "organizations/…/apiKeys/… (API key name)" : "API Key"}
+              placeholder={newExchange === "coinex" ? t("cx_ph_accessid") : newExchange === "coinbase" ? t("cx_ph_cbname") : t("cx_ph_apikey")}
               value={newKey}
               onChange={(e) => setNewKey(e.target.value)}
               className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-orange-500 font-mono"
@@ -349,7 +349,7 @@ export default function CexSection({
             ) : newExchange !== "bitpanda" && (
               <input
                 type="password"
-                placeholder={newExchange === "coinex" ? "Secret Key" : "API Secret"}
+                placeholder={newExchange === "coinex" ? t("cx_ph_secretkey") : t("cx_ph_apisecret")}
                 value={newSecret}
                 onChange={(e) => setNewSecret(e.target.value)}
                 className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-orange-500 font-mono"
@@ -358,23 +358,23 @@ export default function CexSection({
             {newExchange === "okx" && (
               <input
                 type="password"
-                placeholder="Passphrase (definida ao criar a chave)"
+                placeholder={t("cx_ph_passphrase")}
                 value={newPassphrase}
                 onChange={(e) => setNewPassphrase(e.target.value)}
                 className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-orange-500 font-mono"
               />
             )}
             {newExchange === "bitpanda" && (
-              <p className="text-[10px] text-emerald-400">Bitpanda: basta a API key (não tem secret).</p>
+              <p className="text-[10px] text-emerald-400">{t("cx_note_bitpanda")}</p>
             )}
             {newExchange === "coinbase" && (
-              <p className="text-[10px] text-sky-300">Coinbase: cria uma chave em Developer Platform → API keys (permissão só <span className="font-mono">View</span>). Cola o <span className="font-mono">name</span> no campo da chave e a <span className="font-mono">privateKey</span> (PEM) no campo grande — o ficheiro JSON descarregado tem os dois.</p>
+              <p className="text-[10px] text-sky-300">{t("cx_note_coinbase")}</p>
             )}
             {newExchange === "binance" && (
-              <p className="text-[10px] text-amber-400">⚠️ A Binance não obteve licença MiCA e está a encerrar serviços na UE — considera uma exchange licenciada 🇪🇺.</p>
+              <p className="text-[10px] text-amber-400">{t("cx_warn_binance")}</p>
             )}
             {newExchange === "coinex" && (
-              <p className="text-[10px] text-orange-400">CoinEx: o campo “Access ID” é o que aparece como chave na página de API Keys. O “Secret Key” é a chave de assinatura.</p>
+              <p className="text-[10px] text-orange-400">{t("cx_note_coinex")}</p>
             )}
             <details className="rounded-lg border border-sky-500/20 bg-sky-500/[0.05] px-3 py-2">
               <summary className="cursor-pointer text-[11px] font-semibold text-sky-300">🔑 {t("cx_guide_title")}</summary>
@@ -386,11 +386,13 @@ export default function CexSection({
                   </a>
                 </li>
                 <li>2. {t("cx_guide_s2")}</li>
+                {/* Read/Trade/Withdraw ficam em ingles de proposito: e assim que aparecem
+                    na interface da propria exchange, e o utilizador tem de as encontrar la. */}
                 <li>3. {t("cx_guide_s3")} <span className="font-mono text-emerald-300">✓ Read</span> · <span className="font-mono text-rose-300">✗ Trade</span> · <span className="font-mono text-rose-300">✗ Withdraw</span></li>
                 <li>4. {t("cx_guide_s4")}</li>
               </ol>
             </details>
-            <p className="text-[10px] text-slate-600">⚠️ Usa apenas chaves read-only. Nunca partilhes chaves com permissão de trade/withdrawal.</p>
+            <p className="text-[10px] text-slate-600">{t("cx_warn_readonly")}</p>
             <div className="flex gap-2">
               <button
                 type="button"
@@ -398,14 +400,14 @@ export default function CexSection({
                 disabled={!newKey || (newExchange !== "bitpanda" && !newSecret) || (newExchange === "okx" && !newPassphrase)}
                 className={`${btnPrimary} px-4 py-2 text-xs`}
               >
-                Ligar
+                {t("cx_connect")}
               </button>
               <button
                 type="button"
                 onClick={() => setShowAddCex(false)}
                 className="rounded-lg border border-slate-700 px-4 py-2 text-xs text-slate-400 hover:border-slate-500 transition"
               >
-                Cancelar
+                {t("cx_cancel")}
               </button>
             </div>
           </div>
@@ -432,14 +434,14 @@ export default function CexSection({
                     title={t("cx_refresh_bal")}
                   >
                     <span className={acc.loading ? "animate-spin" : ""}>↻</span>
-                    {acc.loading ? "A atualizar…" : t("cx_refresh")}
+                    {acc.loading ? t("cx_updating") : t("cx_refresh")}
                   </button>
                   <button
                     type="button"
                     onClick={() => setCexAccounts((prev) => prev.filter((a) => a.id !== acc.id))}
                     className="text-xs text-slate-600 hover:text-rose-400 transition"
                   >
-                    Remover
+                    {t("cx_remove")}
                   </button>
                 </div>
               </div>
@@ -496,7 +498,7 @@ export default function CexSection({
             onClick={() => setShowAddHl((v) => !v)}
             className="rounded-xl bg-orange-500/90 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-orange-400 transition"
           >
-            + Adicionar
+            {t("cx_add")}
           </button>
         </div>
 
@@ -504,7 +506,7 @@ export default function CexSection({
           <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-4 space-y-3">
             <input
               type="text"
-              placeholder="Endereço EVM (0x...)"
+              placeholder={t("cx_ph_evm_addr")}
               value={newHlAddress}
               onChange={(e) => setNewHlAddress(e.target.value)}
               className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-orange-500 font-mono"
@@ -516,14 +518,14 @@ export default function CexSection({
                 disabled={!newHlAddress.startsWith("0x")}
                 className={`${btnPrimary} px-4 py-2 text-xs`}
               >
-                Carregar
+                {t("cx_load")}
               </button>
               <button
                 type="button"
                 onClick={() => setShowAddHl(false)}
                 className="rounded-lg border border-slate-700 px-4 py-2 text-xs text-slate-400 hover:border-slate-500 transition"
               >
-                Cancelar
+                {t("cx_cancel")}
               </button>
             </div>
           </div>
@@ -547,14 +549,14 @@ export default function CexSection({
                     title={t("cx_refresh_bal")}
                   >
                     <span className={acc.loading ? "animate-spin" : ""}>↻</span>
-                    {acc.loading ? "A atualizar…" : t("cx_refresh")}
+                    {acc.loading ? t("cx_updating") : t("cx_refresh")}
                   </button>
                   <button
                     type="button"
                     onClick={() => setHlAccounts((prev) => prev.filter((a) => a.address !== acc.address))}
                     className="text-xs text-slate-600 hover:text-rose-400 transition"
                   >
-                    Remover
+                    {t("cx_remove")}
                   </button>
                 </div>
               </div>
@@ -722,7 +724,7 @@ export default function CexSection({
                         onClick={() => onRemoveAddress?.(e.address, e.kind, e.networkLabel)}
                         className="rounded-full border border-rose-400/40 px-2.5 py-1 text-[10px] font-semibold text-rose-300 transition hover:border-rose-400 hover:text-white"
                       >
-                        Remover
+                        {t("cx_remove")}
                       </button>
                     </div>
                     {/* Saldo · NFTs · DeFi */}

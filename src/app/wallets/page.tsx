@@ -231,11 +231,11 @@ const MANUAL_ADD_TO_BTC_NETWORK: Record<string, string> = {
   liquid: "Liquid",
   rootstock: "Rootstock (RSK)",
   stacks: "Stacks",
-  lightning: "Lightning (em breve)",
+  lightning: "Lightning",
 };
 const btcNetworkOptions: Array<{ id: string; label: string }> = [
   ...Object.entries(MANUAL_ADD_TO_BTC_NETWORK).map(([id, label]) => ({ id, label })),
-  { id: "outro", label: "Outro (qualquer endereço)" },
+  { id: "outro", label: "Outro (qualquer endereço)" },  // traduzido na apresentacao por btcNetLabel
 ];
 
 /** Redes para "Adicionar endereço manual (todas as redes)". ETH, SOL, BTC e ADA têm suporte a saldo. */
@@ -344,6 +344,12 @@ export default function WalletsPage() {
   const supabase = useMemo(() => createClient(), []);
   useRequireAuth("/login");
   const { t } = useLanguage();
+  // Os rotulos das redes BTC sao tambem o nome com que a carteira fica guardada,
+  // por isso a traducao acontece so na apresentacao.
+  const btcNetLabel = (id: string) =>
+    id === "lightning" ? `Lightning (${t("wl_soon")})`
+      : id === "outro" ? t("wl_btc_other")
+        : btcNetworkOptions.find((o) => o.id === id)?.label ?? "Bitcoin";
   const askConfirm = useConfirm();
   const { format: fmtCur, symbol: curSym, currency: curCode, rate: curRate, hideBalances } = useCurrencyFormat();
   // Esconde qualquer saldo/quantidade/NFT quando a opção "esconder saldos" está ativa.
@@ -885,7 +891,7 @@ export default function WalletsPage() {
       setDefiTotals((prev) => ({ ...prev, [key]: total }));
       setDefiErrors((prev) => ({ ...prev, [key]: null }));
     } catch (error) {
-      setDefiErrors((prev) => ({ ...prev, [key]: error instanceof Error ? error.message : "Erro DeFi." }));
+      setDefiErrors((prev) => ({ ...prev, [key]: error instanceof Error ? error.message : t("wl_err_defi") }));
       setDefiTotals((prev) => ({ ...prev, [key]: null }));
     } finally {
       setDefiLoading((prev) => ({ ...prev, [key]: false }));
@@ -909,7 +915,7 @@ export default function WalletsPage() {
       setNftsByKey((prev) => ({ ...prev, [key]: data.nfts ?? [] }));
       setNftErrors((prev) => ({ ...prev, [key]: null }));
     } catch (error) {
-      setNftErrors((prev) => ({ ...prev, [key]: error instanceof Error ? error.message : "Erro NFT." }));
+      setNftErrors((prev) => ({ ...prev, [key]: error instanceof Error ? error.message : t("wl_err_nft") }));
     } finally {
       setNftLoading((prev) => ({ ...prev, [key]: false }));
     }
@@ -926,7 +932,7 @@ export default function WalletsPage() {
       );
       const data = (await response.json()) as { total?: number; error?: string };
       if (!response.ok) {
-        const msg = data?.error ?? "Falha ao consultar DeFi.";
+        const msg = data?.error ?? t("wl_err_defi");
         setDefiTotals((prev) => ({ ...prev, [key]: null }));
         setDefiErrors((prev) => ({ ...prev, [key]: msg }));
         return;
@@ -1004,7 +1010,7 @@ export default function WalletsPage() {
       const data = (await response.json()) as { count?: number; nfts?: Array<{ id: string; name: string; image?: string; tokenUri?: string; tokenAddress?: string; tokenId?: string }>; error?: string };
       if (!response.ok) {
         setNftCounts((prev) => ({ ...prev, [key]: 0 }));
-        setNftErrors((prev) => ({ ...prev, [key]: data?.error ?? "Falha ao consultar NFTs." }));
+        setNftErrors((prev) => ({ ...prev, [key]: data?.error ?? t("wl_err_nft") }));
         setNftsByKey((prev) => ({ ...prev, [key]: [] }));
         return;
       }
@@ -1043,7 +1049,7 @@ export default function WalletsPage() {
       const response = await fetch("/api/markets");
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(payload?.error ?? "Falha ao obter preços.");
+        throw new Error(payload?.error ?? t("wl_err_prices"));
       }
       const payload = (await response.json()) as {
         data?: MarketRow[];
@@ -1120,8 +1126,8 @@ export default function WalletsPage() {
     const allowed = getAllowedHosts();
     if (allowed.length && !allowed.includes(host)) {
       confirmRef.current = {
-        title: "Domínio não autorizado",
-        description: `Este domínio (${host || "atual"}) não está autorizado para ligação.`,
+        title: t("wl_unauth_domain"),
+        description: t("wl_unauth_domain_d").replace("{host}", host || t("wl_domain_current")),
         onConfirm: () => {},
       };
       setConfirmError(t("wl_blocked_security"));
@@ -1170,7 +1176,7 @@ export default function WalletsPage() {
     try {
       const response = await fetch("/api/markets");
       if (!response.ok) {
-        throw new Error("Falha ao obter preços.");
+        throw new Error(t("wl_err_prices"));
       }
       const payload = (await response.json()) as { data?: MarketRow[] };
       const map: Record<string, MarketRow> = {};
@@ -1623,7 +1629,7 @@ export default function WalletsPage() {
       const selectedProvider = getEvmProviderById(selectedEvmProvider);
       if (!selectedProvider) {
         const label = getEvmProviderLabel(selectedEvmProvider);
-        throw new Error(`${label} não está disponível. Instala a extensão.`);
+        throw new Error(t("wl_ext_missing").replace("{wallet}", label));
       }
       // Switch network BEFORE requesting accounts so MetaMask connects on the right chain
       if (selectedEthConnectNetwork !== "Ethereum") {
@@ -1685,13 +1691,13 @@ export default function WalletsPage() {
   const handleWalletConnect = () => {
     const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
     if (!projectId) {
-      setEthError("WalletConnect não configurado. Adiciona NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ao .env.");
+      setEthError(t("wl_wc_missing"));
       return;
     }
     const host = typeof window !== "undefined" ? window.location.hostname : "";
     requestConfirm({
       title: `${t("wl_connect_wallet")} WalletConnect`,
-      description: `Vai abrir um QR code para ligares qualquer carteira mobile ao domínio ${host || "atual"}.`,
+      description: t("wl_wc_qr_desc").replace("{host}", host || t("wl_domain_current")),
       onConfirm: handleWalletConnectInternal,
     });
   };
@@ -1795,8 +1801,8 @@ export default function WalletsPage() {
   const handleAddEthWallet = () => {
     const host = typeof window !== "undefined" ? window.location.hostname : "";
     requestConfirm({
-      title: "Adicionar endereço Ethereum",
-      description: `Confirma a adição do endereço ${ethNewAddress || "indefinido"} no domínio ${host || "atual"}.`,
+      title: t("wl_add_addr_title").replace("{chain}", "Ethereum"),
+      description: t("wl_add_addr_desc").replace("{addr}", ethNewAddress || t("wl_addr_undefined")).replace("{host}", host || t("wl_domain_current")),
       onConfirm: () =>
         new Promise<void>((resolve) => {
           window.setTimeout(() => {
@@ -1928,8 +1934,8 @@ export default function WalletsPage() {
   const handleAddSolWallet = () => {
     const host = typeof window !== "undefined" ? window.location.hostname : "";
     requestConfirm({
-      title: "Adicionar endereço Solana",
-      description: `Confirma a adição do endereço ${solNewAddress || "indefinido"} no domínio ${host || "atual"}.`,
+      title: t("wl_add_addr_title").replace("{chain}", "Solana"),
+      description: t("wl_add_addr_desc").replace("{addr}", solNewAddress || t("wl_addr_undefined")).replace("{host}", host || t("wl_domain_current")),
       onConfirm: () =>
         new Promise<void>((resolve) => {
           window.setTimeout(() => {
@@ -2092,8 +2098,8 @@ export default function WalletsPage() {
   const handleAddBtcWallet = () => {
     const host = typeof window !== "undefined" ? window.location.hostname : "";
     requestConfirm({
-      title: "Adicionar endereço Bitcoin",
-      description: `Confirma a adição do endereço ${btcNewAddress || "indefinido"} no domínio ${host || "atual"}.`,
+      title: t("wl_add_addr_title").replace("{chain}", "Bitcoin"),
+      description: t("wl_add_addr_desc").replace("{addr}", btcNewAddress || t("wl_addr_undefined")).replace("{host}", host || t("wl_domain_current")),
       onConfirm: () =>
         new Promise<void>((resolve) => {
           window.setTimeout(() => {
@@ -2110,10 +2116,10 @@ export default function WalletsPage() {
     try {
       setAdaLoading(true);
       setAdaError(null);
-      setAdaLoadingMsg("A aguardar aprovação…");
+      setAdaLoadingMsg(t("wl_ada_waiting"));
       // After 3s update message with clearer instructions
       msgTimer = setTimeout(() => {
-        setAdaLoadingMsg("👉 Clica no ícone do Eternl na barra de extensões do Chrome (canto superior direito) → deverá aparecer um pedido de ligação para aprovar");
+        setAdaLoadingMsg(t("wl_ada_click_ext"));
       }, 3000);
       // Timeout: if the wallet never responds (e.g. popup dismissed silently)
       const timeout = new Promise<never>((_, reject) =>
@@ -2150,7 +2156,7 @@ export default function WalletsPage() {
         msg.toLowerCase().includes("account") ||
         msg.toLowerCase().includes("dapp connector")
       ) {
-        setAdaError("Sem conta dApp configurada no Eternl. Abre o Eternl → Settings → dApp Connector → cria/ativa uma conta. Ou adiciona o endereço manualmente abaixo.");
+        setAdaError(t("wl_ada_no_dapp"));
       } else {
         setAdaError(msg);
       }
@@ -2189,7 +2195,7 @@ export default function WalletsPage() {
             // CIP-45: the wallet API is injected at window.cardano[name.toLowerCase()]
             // as a standard CIP-30 provider that still needs enable() to be called.
             const provider = (window.cardano as Record<string, { enable: () => Promise<EternlApi> }> | undefined)?.[name.toLowerCase()];
-            if (!provider) { setAdaError("Carteira ligada mas a API não foi encontrada."); return; }
+            if (!provider) { setAdaError(t("wl_ada_no_api")); return; }
             const api = await provider.enable();
 
             const hexToBytes = (hex: string) =>
@@ -2201,7 +2207,7 @@ export default function WalletsPage() {
               const CardanoWasm = await import("@emurgo/cardano-serialization-lib-browser");
               address = CardanoWasm.Address.from_bytes(hexToBytes(changeHex)).to_bech32();
             }
-            if (!address) { setAdaError("Não foi possível obter o endereço da carteira."); return; }
+            if (!address) { setAdaError(t("wl_ada_no_address")); return; }
 
             const balHex = await api.getBalance().catch(() => "");
             let balance = "0";
@@ -2224,7 +2230,7 @@ export default function WalletsPage() {
             setAdaPeerAddress(null);
             setAdaPeerConnecting(false);
           } catch (e) {
-            setAdaError(e instanceof Error ? e.message : "Erro ao ligar via peer connect.");
+            setAdaError(e instanceof Error ? e.message : t("wl_ada_peer_err"));
           }
         },
         onApiEject: (_name: string, _address: string) => {},
@@ -2239,7 +2245,7 @@ export default function WalletsPage() {
         }
       }, 300);
     } catch (e) {
-      setAdaError(e instanceof Error ? e.message : "Erro ao iniciar peer connect.");
+      setAdaError(e instanceof Error ? e.message : t("wl_ada_peer_start_err"));
       setAdaPeerConnecting(false);
     }
   };
@@ -2523,11 +2529,11 @@ export default function WalletsPage() {
     const amountStr = manualCryptoAssetAmountUsd.trim();
     const amount = amountStr === "" ? NaN : Number(amountStr);
     if (!symbol) {
-      setManualCryptoAssetError("Escolhe um ativo.");
+      setManualCryptoAssetError(t("wl_pick_asset"));
       return;
     }
     if (!Number.isFinite(amount) || amount <= 0) {
-      setManualCryptoAssetError(`Insere um valor em ${curCode} válido.`);
+      setManualCryptoAssetError(t("wl_invalid_value").replace("{cur}", curCode));
       return;
     }
     const qtyRaw = manualCryptoAssetQty.trim();
@@ -2557,7 +2563,7 @@ export default function WalletsPage() {
       return;
     }
     if (stablecoinEntries.some((e) => e.symbol === stablecoinAddSymbol && e.address.toLowerCase() === addr.toLowerCase())) {
-      setStablecoinAddError("Este endereço já está adicionado para essa stablecoin.");
+      setStablecoinAddError(t("wl_stable_dup"));
       return;
     }
     const id = `stable-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -2845,8 +2851,8 @@ export default function WalletsPage() {
   const handleAddAdaWallet = () => {
     const host = typeof window !== "undefined" ? window.location.hostname : "";
     requestConfirm({
-      title: "Adicionar endereço Cardano",
-      description: `Confirma a adição do endereço ${adaNewAddress || "indefinido"} no domínio ${host || "atual"}.`,
+      title: t("wl_add_addr_title").replace("{chain}", "Cardano"),
+      description: t("wl_add_addr_desc").replace("{addr}", adaNewAddress || t("wl_addr_undefined")).replace("{host}", host || t("wl_domain_current")),
       onConfirm: () =>
         new Promise<void>((resolve) => {
           window.setTimeout(() => {
@@ -2909,7 +2915,7 @@ export default function WalletsPage() {
                 {t("nav_wallets")}: <span className={totalWallets >= FREE_WALLET_LIMIT ? "text-rose-400 font-semibold" : "text-slate-300 font-semibold"}>{totalWallets}/{FREE_WALLET_LIMIT}</span>
                 {" "}({t("free")}){" "}
                 {totalWallets >= FREE_WALLET_LIMIT && (
-                  <a href={paymentsFrozen ? "/beta" : "/pricing"} className="text-orange-400 underline hover:text-orange-300">{paymentsFrozen ? `🧪 ${t("dash_beta_cta_short")} →` : "Upgrade para Pro →"}</a>
+                  <a href={paymentsFrozen ? "/beta" : "/pricing"} className="text-orange-400 underline hover:text-orange-300">{paymentsFrozen ? `🧪 ${t("dash_beta_cta_short")} →` : t("wl_upgrade_pro")}</a>
                 )}
               </p>
             </div>
@@ -3038,7 +3044,7 @@ export default function WalletsPage() {
             title="Ethereum"
             description={
               ethWallets.length > 0
-                ? `${selectedEthConnectNetwork === "Ethereum" ? "ETH Mainnet" : selectedEthConnectNetwork} · ${ethWallets.length} rede(s) ligada(s)`
+                ? `${selectedEthConnectNetwork === "Ethereum" ? "ETH Mainnet" : selectedEthConnectNetwork} · ${t("wl_networks_n").replace("{n}", String(ethWallets.length))}`
                 : "MetaMask (ETH)"
             }
             address={ethActiveEntry?.address ?? ethAddress ?? ethWallets[0]?.address}
@@ -3327,7 +3333,7 @@ export default function WalletsPage() {
                               setEthShown((prev) => ({ ...prev, [item.address ?? ""]: !prev[item.address ?? ""] }))
                             }
                             className="rounded-full border border-slate-700 px-2 py-1 text-[10px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                            title={ethShown[item.address ?? ""] ? "Ocultar" : "Mostrar"}
+                            title={ethShown[item.address ?? ""] ? t("wc_hide") : t("ac_show")}
                           >
                             {ethShown[item.address ?? ""] ? "🙈" : "👁️"}
                           </button>
@@ -3361,7 +3367,7 @@ export default function WalletsPage() {
                             : itemNftLoading
                             ? t("wl_loading")
                             : itemNftCount != null
-                              ? `${itemNftCount} ${itemNftCount === 1 ? "item" : "itens"}`
+                              ? `${itemNftCount} ${itemNftCount === 1 ? t("wc_item") : t("wc_items")}`
                               : "—"}
                         </p>
                         {!hideBalances && itemNfts.length > 0 && (
@@ -3755,7 +3761,7 @@ export default function WalletsPage() {
                               : itemNftLoading
                               ? t("wl_loading")
                               : itemNftCount != null
-                                ? `${itemNftCount} ${itemNftCount === 1 ? "item" : "itens"}`
+                                ? `${itemNftCount} ${itemNftCount === 1 ? t("wc_item") : t("wc_items")}`
                                 : "—"}
                           </p>
                           {!hideBalances && itemNfts.length > 0 && (
@@ -3919,7 +3925,7 @@ export default function WalletsPage() {
               </div>
             }
             extraBalance={{
-              label: "Saldo dos RUNES:",
+              label: t("wl_runes_balance"),
               content:
                 !btcAddress && btcWallets.length === 0 ? (
                   <span className="text-slate-500">—</span>
@@ -3956,7 +3962,7 @@ export default function WalletsPage() {
                     className="flex w-full items-center justify-between rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition hover:border-slate-600"
                     onClick={() => setBtcNewNetworkSelectOpen((prev) => !prev)}
                   >
-                    <span>{btcNetworkOptions.find((o) => o.id === btcNewLabel)?.label ?? "Bitcoin"}</span>
+                    <span>{btcNetLabel(btcNewLabel)}</span>
                     <span className="text-slate-500 text-[10px] shrink-0">{btcNewNetworkSelectOpen ? "▲" : "▼"}</span>
                   </button>
                   {btcNewNetworkSelectOpen ? (
@@ -3988,7 +3994,7 @@ export default function WalletsPage() {
                                 setBtcNewNetworkSelectFilter("");
                               }}
                             >
-                              {opt.label}
+                              {btcNetLabel(opt.id)}
                             </button>
                           ))}
                       </div>
@@ -4082,7 +4088,7 @@ export default function WalletsPage() {
                                 : itemNftLoading
                                 ? t("wl_loading")
                                 : itemNftCount != null
-                                  ? `${itemNftCount} ${itemNftCount === 1 ? "item" : "itens"}`
+                                  ? `${itemNftCount} ${itemNftCount === 1 ? t("wc_item") : t("wc_items")}`
                                   : "—"}
                             </p>
                             {!hideBalances && itemNfts.length > 0 && (
@@ -4236,7 +4242,7 @@ export default function WalletsPage() {
               {!adaAddress && adaWallets.length === 0 && (
                 <details className="rounded-xl border border-slate-800 bg-slate-900/40">
                   <summary className="cursor-pointer px-4 py-2.5 text-xs text-slate-400 hover:text-slate-200 transition select-none">
-                    ℹ️ Como ligar o Eternl pela primeira vez
+                    ℹ️ {t("wl_eternl_howto")}
                   </summary>
                   <div className="px-4 pb-4 pt-2 space-y-1.5 text-xs text-slate-400">
                     <p className="font-semibold text-slate-300 mb-2">{t("wl_eternl_before")}</p>
@@ -4259,7 +4265,7 @@ export default function WalletsPage() {
                       onClick={() => void handleAdaPeerConnect()}
                       className="w-full rounded-xl border border-slate-700 py-2 text-xs text-slate-400 hover:border-orange-500/40 hover:text-orange-300 transition"
                     >
-                      📱 Ligar via Código / QR (Eternl mobile)
+                      📱 {t("wl_ada_qr_btn")}
                     </button>
                   )}
                   {adaPeerConnecting && !adaPeerAddress && (
@@ -4270,8 +4276,8 @@ export default function WalletsPage() {
                       <p className="text-xs font-semibold text-orange-400">{t("wl_cip45_code")}</p>
                       <div ref={adaQrCanvasRef} className="flex justify-center" />
                       <p className="text-[10px] text-slate-500 break-all font-mono bg-slate-950 rounded p-2 select-all">{adaPeerAddress}</p>
-                      <p className="text-[11px] text-slate-400">No Eternl: abre o menu → <strong className="text-slate-200">Ligar DApp</strong> → cola o código acima ou aponta a câmara ao QR.</p>
-                      <button type="button" onClick={() => { setAdaPeerAddress(null); setAdaPeerConnecting(false); }} className="text-xs text-slate-500 hover:text-slate-300">✕ Cancelar</button>
+                      <p className="text-[11px] text-slate-400">{t("wl_ada_qr_hint_a")} <strong className="text-slate-200">{t("wl_ada_link_dapp")}</strong> {t("wl_ada_qr_hint_b")}</p>
+                      <button type="button" onClick={() => { setAdaPeerAddress(null); setAdaPeerConnecting(false); }} className="text-xs text-slate-500 hover:text-slate-300">✕ {t("cancel")}</button>
                     </div>
                   )}
                 </div>
@@ -4879,7 +4885,7 @@ export default function WalletsPage() {
                 onChange={(e) => { const s = e.target.value; if (s) toggleCryptoHolding(s); }}
                 className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 outline-none hover:border-orange-400 transition cursor-pointer"
               >
-                <option value="">+ Adicionar ativo manual</option>
+                <option value="">{t("wl_add_manual_asset")}</option>
                 {marketRows.filter((r) => !cryptoHoldings[r.symbol]).slice(0, 50).map((r) => (
                   <option key={r.symbol} value={r.symbol}>{r.symbol} · {r.name}</option>
                 ))}
@@ -5062,7 +5068,7 @@ export default function WalletsPage() {
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="Ticker (AMZN, VTI, PLTR…)"
+                  placeholder={t("wl_ph_ticker")}
                   value={customTickerInput}
                   onChange={(e) => setCustomTickerInput(e.target.value.toUpperCase())}
                   onKeyDown={(e) => {
@@ -5198,7 +5204,7 @@ export default function WalletsPage() {
                   className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 outline-none"
                 >
                   <option value="date">{t("wl_buy_date")}</option>
-                  <option value="marketCap">Market cap</option>
+                  <option value="marketCap">{t("mc_sort_mcap")}</option>
                 </select>
                 <button
                   type="button"
@@ -5207,7 +5213,7 @@ export default function WalletsPage() {
                   }
                   className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
                 >
-                  {traditionalSortDir === "asc" ? "Asc" : "Desc"}
+                  {traditionalSortDir === "asc" ? t("wl_asc") : t("wl_desc")}
                 </button>
               </div>
 
@@ -5304,7 +5310,7 @@ export default function WalletsPage() {
                             disabled={!asset.alphaSymbol || isQuoteLoading}
                             className="rounded-full border border-orange-400/40 px-3 py-2 text-[11px] font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
                           >
-                            {isQuoteLoading ? "A atualizar..." : "Atualizar preço"}
+                            {isQuoteLoading ? t("wl_updating") : t("wl_update_price")}
                           </button>
                           <button
                             type="button"
@@ -5467,14 +5473,14 @@ export default function WalletsPage() {
               className="min-w-[200px] flex-1 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
               placeholder={
                 MANUAL_ADD_TO_EVM_NETWORK[manualAddNetwork]
-                  ? "Endereço 0x... (EVM/L2)"
+                  ? t("wl_ph_evm")
                   : MANUAL_ADD_TO_SOL_NETWORK[manualAddNetwork]
-                    ? "Endereço Solana (base58)"
+                    ? t("wl_ph_sol")
                     : manualAddNetwork === "btc"
-                      ? "Endereço BTC"
+                      ? t("wl_addr_btc")
                       : manualAddNetwork === "ada"
-                        ? "Endereço addr1... ou stake1..."
-                        : "Endereço (suporte em breve)"
+                        ? t("wl_ph_ada")
+                        : t("wl_ph_soon")
               }
               value={manualAddAddress}
               onChange={(e) => setManualAddAddress(e.target.value)}
@@ -5503,7 +5509,7 @@ export default function WalletsPage() {
         <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
           <h3 className="text-sm font-semibold text-white">{t("wl_manual_crypto")}</h3>
           <p className="mt-1 text-xs text-slate-500">
-            {t("wl_manual_asset_intro")} <span className="text-slate-300 font-medium">{curCode} ({curSym})</span>. O ativo aparece na Carteira Cripto em baixo.
+            {t("wl_manual_asset_intro")} <span className="text-slate-300 font-medium">{curCode} ({curSym})</span>. {t("wl_manual_asset_tail")}
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <div className="relative min-w-[220px]" ref={manualCryptoSelectRef}>
@@ -5547,7 +5553,7 @@ export default function WalletsPage() {
                       if (filtered.length === 0) {
                         return (
                           <p className="px-3 py-4 text-center text-xs text-slate-500">
-                            {list.length === 0 ? "A carregar lista da API..." : "Nenhum ativo encontrado"}
+                            {list.length === 0 ? t("wl_loading_api") : t("wl_no_asset_found")}
                           </p>
                         );
                       }
@@ -5631,7 +5637,7 @@ export default function WalletsPage() {
             <input
               type="text"
               className="min-w-0 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-orange-400"
-              placeholder={`Endereço de ${stablecoinAddSymbol} (0x...)`}
+              placeholder={t("wl_ph_stable_addr").replace("{sym}", stablecoinAddSymbol)}
               value={stablecoinAddAddress}
               onChange={(e) => setStablecoinAddAddress(e.target.value)}
             />
@@ -5678,7 +5684,7 @@ export default function WalletsPage() {
                         </span>
                       </td>
                       <td className="py-2 pr-2 text-right tabular-nums">
-                        {stablecoinBalancesLoading[e.id] ? "A carregar…" : (stablecoinBalances[e.id] ?? "—")}
+                        {stablecoinBalancesLoading[e.id] ? t("wl_loading") : (stablecoinBalances[e.id] ?? "—")}
                       </td>
                       <td className="py-2">
                         <button
@@ -5728,7 +5734,7 @@ export default function WalletsPage() {
                 <p className="text-sm text-slate-400">{t("wl_cex_hw_desc")}</p>
               </div>
               <a href={paymentsFrozen ? "/beta" : "/pricing"} className={`${btnPrimary} shrink-0 px-5 py-2.5 text-sm`}>
-                {paymentsFrozen ? `🧪 ${t("dash_beta_cta_short")} →` : "Upgrade para Pro →"}
+                {paymentsFrozen ? `🧪 ${t("dash_beta_cta_short")} →` : t("wl_upgrade_pro")}
               </a>
             </div>
           </div>
