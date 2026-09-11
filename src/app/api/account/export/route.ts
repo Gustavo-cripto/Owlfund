@@ -63,7 +63,7 @@ export async function GET() {
     status: 200,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Content-Disposition": `attachment; filename="chainfolioai-dados-${date}.json"`,
+      "Content-Disposition": `attachment; filename="chainfolioai-data-${date}.json"`,
       "Cache-Control": "no-store",
     },
   });

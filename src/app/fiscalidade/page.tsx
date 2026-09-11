@@ -390,14 +390,14 @@ export default function FiscalidadePage() {
     const wb = new ExcelJS.Workbook();
     wb.creator = "ChainFolioAI";
     wb.created = new Date();
-    const ws = wb.addWorksheet("Fiscalidade");
+    const ws = wb.addWorksheet(t("nav_fiscalidade"));
 
     const logoUrl = await loadLogo();
     const logoImgId = logoUrl ? wb.addImage({ base64: logoUrl.split(",")[1], extension: "png" }) : null;
 
     const NCOL = 10;
     [10, 12, 12, 12, 14, 14, 14, 12, 8, 14].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
-    const money = '#,##0.00 "€"';
+    const money = '#,##0.00 "€"';  // base fiscal é sempre o euro (ver nota do PDF)
     const pctFmt = '0"%"';
     const BRAND = "FFF97316";
     const DARK = "FF0F172A";
@@ -414,7 +414,7 @@ export default function FiscalidadePage() {
     };
     const boldRow = (r: import("exceljs").Row) => { r.eachCell((c) => { c.font = { bold: true }; }); return r; };
 
-    const titleRow = bandRow(`ChainFolioAI — Relatório fiscal ${new Date().getFullYear()}`, DARK, 14);
+    const titleRow = bandRow(`ChainFolioAI — ${t("fisc_pdf_title")} ${new Date().getFullYear()}`, DARK, 14);
     if (logoImgId != null) {
       titleRow.height = 46;
       titleRow.getCell(1).alignment = { vertical: "middle", indent: 8 };
@@ -423,34 +423,34 @@ export default function FiscalidadePage() {
       titleRow.height = 24;
     }
     ([
-      ["País", `${country} (${(regime.short * 100).toFixed(0)}% / ${regime.longLabel})`],
+      [t("fisc_pdf_country"), `${country} (${(regime.short * 100).toFixed(0)}% / ${regime.longLabel[lang]})`],
       [t("hx_date"), new Date().toLocaleString(uiLocale, { dateStyle: "short", timeStyle: "short" })],
-      ["Método", "FIFO / EUR"],
+      [t("fisc_pdf_method_label"), "FIFO / EUR"],
     ] as [string, string][]).forEach(([k, v]) => {
       const r = ws.addRow([k, v]);
       r.getCell(1).font = { bold: true, color: { argb: "FF64748B" } };
     });
     ws.addRow([]);
 
-    bandRow("RESUMO", BRAND);
-    boldRow(ws.addRow(["Métrica", "Valor"]));
+    bandRow(t("fisc_pdf_summary").toUpperCase(), BRAND);
+    boldRow(ws.addRow([t("pfx_metric"), t("pfx_value")]));
     const metric = (label: string, value: number, fmt?: string) => {
       const r = ws.addRow([label, value]);
       if (fmt) r.getCell(2).numFmt = fmt;
     };
-    metric("Ganho total", summary.totalGain, money);
-    metric("Tributável", summary.taxable, money);
-    metric("Isento (longo prazo)", summary.exempt, money);
-    metric("Perdas realizadas", summary.losses, money);
-    if (summary.allowanceUsed > 0 && regime.allowance) metric(`Isenção aplicada (${regime.allowance.label[lang === "en" ? "en" : "pt"]})`, -summary.allowanceUsed, money);
-    metric("Imposto estimado", summary.tax, money);
-    metric("Nº de eventos", taxEvents.length, "0");
+    metric(t("fc_total_gains"), summary.totalGain, money);
+    metric(t("fisc_x_taxable"), summary.taxable, money);
+    metric(t("fc_exempt_long"), summary.exempt, money);
+    metric(t("fc_realized_losses"), summary.losses, money);
+    if (summary.allowanceUsed > 0 && regime.allowance) metric(`${t("fisc_x_allowance")} (${regime.allowance.label[lang]})`, -summary.allowanceUsed, money);
+    metric(t("fc_estimated_tax"), summary.tax, money);
+    metric(t("fisc_pdf_num_events"), taxEvents.length, "0");
     ws.addRow([]);
 
-    bandRow("EVENTOS FISCAIS", BRAND);
-    boldRow(ws.addRow(["Ativo", "Compra", "Venda", "Qtd", "P.Compra (€)", "P.Venda (€)", "Ganho (€)", "Tipo", "Taxa", "Imposto (€)"]));
+    bandRow(t("fisc_pdf_events").toUpperCase(), BRAND);
+    boldRow(ws.addRow([t("fc_col_asset"), t("fc_col_buy"), t("fc_col_sell"), t("fc_col_qtd"), `${t("fc_col_buyp")} (€)`, `${t("fc_col_sellp")} (€)`, `${t("fc_col_gain")} (€)`, t("fc_col_type"), t("fc_col_rate"), `${t("fc_col_tax")} (€)`]));
     if (taxEvents.length === 0) {
-      const r = ws.addRow(["Sem eventos fiscais no período"]);
+      const r = ws.addRow([t("fisc_x_no_events")]);
       r.getCell(1).font = { italic: true, color: { argb: "FF94A3B8" } };
     } else {
       taxEvents.forEach((e) => {
@@ -472,7 +472,7 @@ export default function FiscalidadePage() {
 
     const buf = await wb.xlsx.writeBuffer();
     const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-    await shareOrDownload(blob, `chainfolioai-fiscalidade-${country}-${new Date().getFullYear()}.xlsx`);
+    await shareOrDownload(blob, `chainfolioai-tax-report-${country}-${new Date().getFullYear()}.xlsx`);
   };
 
   const loadLogo = (): Promise<string | null> =>
@@ -535,7 +535,7 @@ export default function FiscalidadePage() {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     doc.setTextColor(107, 114, 128);
-    doc.text(`${t("fisc_pdf_generated")}: ${new Date().toLocaleDateString(uiLocale, { day: "numeric", month: "long", year: "numeric" })}  ·  ${t("fisc_pdf_country")}: ${country} (${(regime.short * 100).toFixed(0)}% / ${regime.longLabel})`, cx, y, { align: "center" });
+    doc.text(`${t("fisc_pdf_generated")}: ${new Date().toLocaleDateString(uiLocale, { day: "numeric", month: "long", year: "numeric" })}  ·  ${t("fisc_pdf_country")}: ${country} (${(regime.short * 100).toFixed(0)}% / ${regime.longLabel[lang]})`, cx, y, { align: "center" });
     y += 8;
 
     // Summary box (compact)
@@ -759,7 +759,7 @@ export default function FiscalidadePage() {
           <div className="rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
               { label: t("fc_short_1y"), value: `${(regime.short * 100).toFixed(0)}%`, color: "text-rose-400" },
-              { label: t("fc_long_term"), value: regime.longLabel, color: "text-emerald-400" },
+              { label: t("fc_long_term"), value: regime.longLabel[lang], color: "text-emerald-400" },
               { label: t("fc_method"), value: "FIFO", color: "text-orange-300" },
               { label: t("fc_base_currency"), value: "EUR", color: "text-slate-300" },
             ].map(item => (
@@ -865,7 +865,7 @@ export default function FiscalidadePage() {
               </div>
               {summary.allowanceUsed > 0 && regime.allowance && (
                 <p className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-4 py-2.5 text-xs text-emerald-300">
-                  ✂️ {regime.allowance.label[lang === "en" ? "en" : "pt"]}: −{fmtEur(summary.allowanceUsed)} {t("fisc_allowance_applied")}
+                  ✂️ {regime.allowance.label[lang]}: −{fmtEur(summary.allowanceUsed)} {t("fisc_allowance_applied")}
                 </p>
               )}
 

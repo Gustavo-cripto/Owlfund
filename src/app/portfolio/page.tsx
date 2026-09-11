@@ -217,7 +217,9 @@ const toNumber = (value?: string) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const formatValue = (value: number, locale = "pt-PT") => {
+// `locale` é obrigatório de propósito: com um valor por omissão, o PDF saiu
+// meses a fio com separadores portugueses para quem o gerava em EN/ES/FR.
+const formatValue = (value: number, locale: string) => {
   return value.toLocaleString(locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -1782,13 +1784,13 @@ export default function PortfolioPage() {
                 spacer(8);
 
                 head(t("pf_summary"));
-                kv2(`${t("total")}: ${curSym} ${formatValue(fx(portfolioTotal))}`, `${t("pf_crypto")}: ${curSym} ${formatValue(fx(cryptoTotal))}`);
-                kv2(`${t("pf_traditional")}: ${curSym} ${formatValue(fx(traditionalTotal))}`, stablecoinTotal > 0 ? `${t("pf_stablecoins")}: ${curSym} ${formatValue(fx(stablecoinTotal))}` : undefined);
+                kv2(`${t("total")}: ${curSym} ${formatValue(fx(portfolioTotal), locale)}`, `${t("pf_crypto")}: ${curSym} ${formatValue(fx(cryptoTotal), locale)}`);
+                kv2(`${t("pf_traditional")}: ${curSym} ${formatValue(fx(traditionalTotal), locale)}`, stablecoinTotal > 0 ? `${t("pf_stablecoins")}: ${curSym} ${formatValue(fx(stablecoinTotal), locale)}` : undefined);
                 spacer(3);
 
                 head("PNL");
-                kv2(`${t("pf_position")}: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.position)))} ${pnlSummary.position >= 0 ? `(${t("pfx_gain")})` : `(${t("pfx_loss")})`}`, `${t("pf_today")}: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.today)))}`);
-                kv2(`${t("pc_30_days")}: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.days30 ?? 0)))}`);
+                kv2(`${t("pf_position")}: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.position)), locale)} ${pnlSummary.position >= 0 ? `(${t("pfx_gain")})` : `(${t("pfx_loss")})`}`, `${t("pf_today")}: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.today)), locale)}`);
+                kv2(`${t("pc_30_days")}: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.days30 ?? 0)), locale)}`);
                 spacer(3);
 
                 if (advancedMetrics) {
@@ -1821,7 +1823,7 @@ export default function PortfolioPage() {
                   doc.setFontSize(10);
                   doc.setFont("helvetica", "normal");
                   doc.setTextColor(226, 232, 240);
-                  doc.text(`${a.label} (${a.symbol}): ${curSym} ${formatValue(fx(a.value))} · ${a.percent}%`, 15, y);
+                  doc.text(`${a.label} (${a.symbol}): ${curSym} ${formatValue(fx(a.value), locale)} · ${a.percent}%`, 15, y);
                   doc.setTextColor(255, 255, 255);
                   y += 6;
                 });

@@ -237,7 +237,7 @@ export default function HistoricoPage() {
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = `chainfolio-historico-${todayIso()}.csv`; a.click();
+    a.href = url; a.download = `chainfolioai-trades-${todayIso()}.csv`; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 

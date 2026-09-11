@@ -178,7 +178,8 @@ export default function FirePage() {
     const W = doc.internal.pageSize.getWidth();
     const cx = W / 2;
     const M = 16;
-    const eur = (v: number) => `EUR ${Math.round(v).toLocaleString("en-US")}`;
+    const locale = ({ pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" } as Record<string, string>)[lang] ?? "pt-PT";
+    const eur = (v: number) => `EUR ${Math.round(v).toLocaleString(locale)}`;
 
     doc.setFillColor(249, 115, 22);
     doc.rect(0, 0, W, 3, "F");
@@ -191,7 +192,6 @@ export default function FirePage() {
     doc.setFontSize(13); doc.setTextColor(15, 23, 42);
     doc.text(t("fire_pdf_title"), cx, y, { align: "center" });
     y += 6;
-    const locale = ({ pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" } as Record<string, string>)[lang] ?? "pt-PT";
     doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(148, 163, 184);
     doc.text(new Date().toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" }), cx, y, { align: "center" });
     y += 10;
@@ -252,7 +252,7 @@ export default function FirePage() {
     doc.text("chainfolioai.com", cx, pageH - 8, { align: "center" });
 
     // Telemóvel: folha de partilha nativa; desktop: download (padrão da fiscalidade).
-    const filename = `chainfolioai-plano-fire-${new Date().getFullYear()}.pdf`;
+    const filename = `chainfolioai-fire-plan-${new Date().getFullYear()}.pdf`;
     const blob = doc.output("blob");
     const nav = navigator as Navigator & {
       canShare?: (d: { files: File[] }) => boolean;
