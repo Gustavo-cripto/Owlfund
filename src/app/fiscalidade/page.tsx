@@ -97,7 +97,7 @@ function buildCountryLaw(t: (k: TranslationKey) => string): Country[] {
 }
 
 function LegislationSection({ isPro, isPremium }: { isPro: boolean; isPremium: boolean }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [selected, setSelected] = useState<string | null>(null);
   const COUNTRY_LAW = buildCountryLaw(t);
   const selectedCountry = COUNTRY_LAW.find((c) => c.code === selected);
@@ -112,6 +112,14 @@ function LegislationSection({ isPro, isPremium }: { isPro: boolean; isPremium: b
         <p className="mt-1 text-sm text-slate-400">
           {t("fc_law_subtitle")}
         </p>
+        {/* Os guias publicos tem as regras dos 21 paises sem bloqueio de plano —
+            util sobretudo para quem aqui ve um pais fechado. */}
+        <a
+          href={lang === "pt" ? "/guias/impostos-cripto" : "/guides/crypto-tax"}
+          className="mt-2 inline-block text-sm font-medium text-orange-300 transition hover:text-orange-200"
+        >
+          {t("fc_public_guides")} →
+        </a>
       </div>
 
       {/* Country grid */}

@@ -152,7 +152,7 @@ function AppScreenshots() {
 }
 
 export default function Home() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const supabase = createClient();
   const [isReady, setIsReady] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -652,7 +652,7 @@ export default function Home() {
               <a href="#comparacao" className="transition hover:text-slate-300">{t("lp_cmp_tag")}</a>
               <a href="/como-funciona" className="transition hover:text-slate-300">{t("dash_how_title")}</a>
               <a href="/developers" className="transition hover:text-slate-300">API</a>
-              <a href="/guias/impostos-cripto" className="transition hover:text-slate-300">{t("lp_guides_tag")}</a>
+              <a href={lang === "pt" ? "/guias/impostos-cripto" : "/guides/crypto-tax"} className="transition hover:text-slate-300">{t("lp_guides_tag")}</a>
               {paymentsFrozen && <a href="/beta" className="transition hover:text-slate-300">{t("nav_beta")}</a>}
               <a href="#faq" className="transition hover:text-slate-300">{t("lp_faq_tag")}</a>
               <a href="/privacidade" className="transition hover:text-slate-300">{t("legal_privacy_short")}</a>
