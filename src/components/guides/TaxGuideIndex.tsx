@@ -53,7 +53,7 @@ export default function TaxGuideIndex({ lang }: { lang: GuideLang }) {
           </nav>
 
           <h1 className="mt-4 text-3xl font-bold text-white sm:text-4xl">{c.indexTitle}</h1>
-          <p className="mt-3 max-w-3xl text-slate-400">{c.indexIntro(TAX_DATA_VERIFIED)}</p>
+          <p className="mt-3 max-w-3xl text-slate-400">{c.indexIntro(TAX_DATA_VERIFIED[lang])}</p>
 
           <div className="mt-8 overflow-x-auto rounded-2xl border border-slate-800">
             <table className="w-full min-w-[640px] text-left text-sm">
@@ -78,7 +78,7 @@ export default function TaxGuideIndex({ lang }: { lang: GuideLang }) {
                     <td className="px-4 py-3 tabular-nums text-slate-200">{text.taxShort}</td>
                     <td className="px-4 py-3 text-slate-300">{text.taxLong}</td>
                     <td className="px-4 py-3 text-slate-400">{text.threshold}</td>
-                    <td className="px-4 py-3 text-slate-400">{country.regime.allowance?.label ?? c.none}</td>
+                    <td className="px-4 py-3 text-slate-400">{country.regime.allowance?.label[lang] ?? c.none}</td>
                   </tr>
                 ))}
               </tbody>

@@ -20,7 +20,7 @@ export default function TaxGuideCountry({ lang, country }: { lang: GuideLang; co
     { label: c.factShort, value: text.taxShort },
     { label: c.factLong, value: text.taxLong },
     { label: c.factThreshold, value: text.threshold },
-    { label: c.factAllowance, value: country.regime.allowance?.label ?? c.notApplicable },
+    { label: c.factAllowance, value: country.regime.allowance?.label[lang] ?? c.notApplicable },
     { label: c.factLaw, value: country.law },
   ];
 
@@ -60,7 +60,7 @@ export default function TaxGuideCountry({ lang, country }: { lang: GuideLang; co
             acceptedAnswer: {
               "@type": "Answer",
               text: country.regime.allowance
-                ? c.faqAllowanceYes(country.regime.allowance.label)
+                ? c.faqAllowanceYes(country.regime.allowance.label[lang])
                 : c.faqAllowanceNo(text.name),
             },
           },
@@ -89,7 +89,7 @@ export default function TaxGuideCountry({ lang, country }: { lang: GuideLang; co
             <span aria-hidden>{country.flag}</span>
             {c.countryTitle(text.name)}
           </h1>
-          <p className="mt-2 text-sm text-slate-500">{c.verifiedOn(TAX_DATA_VERIFIED)}</p>
+          <p className="mt-2 text-sm text-slate-500">{c.verifiedOn(TAX_DATA_VERIFIED[lang])}</p>
 
           <div className="mt-8 grid gap-3 sm:grid-cols-2">
             {facts.map((f) => (

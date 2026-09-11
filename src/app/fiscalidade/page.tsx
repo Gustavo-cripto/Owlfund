@@ -442,7 +442,7 @@ export default function FiscalidadePage() {
     metric("Tributável", summary.taxable, money);
     metric("Isento (longo prazo)", summary.exempt, money);
     metric("Perdas realizadas", summary.losses, money);
-    if (summary.allowanceUsed > 0 && regime.allowance) metric(`Isenção aplicada (${regime.allowance.label})`, -summary.allowanceUsed, money);
+    if (summary.allowanceUsed > 0 && regime.allowance) metric(`Isenção aplicada (${regime.allowance.label[lang === "en" ? "en" : "pt"]})`, -summary.allowanceUsed, money);
     metric("Imposto estimado", summary.tax, money);
     metric("Nº de eventos", taxEvents.length, "0");
     ws.addRow([]);
@@ -865,7 +865,7 @@ export default function FiscalidadePage() {
               </div>
               {summary.allowanceUsed > 0 && regime.allowance && (
                 <p className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-4 py-2.5 text-xs text-emerald-300">
-                  ✂️ {regime.allowance.label}: −{fmtEur(summary.allowanceUsed)} {t("fisc_allowance_applied")}
+                  ✂️ {regime.allowance.label[lang === "en" ? "en" : "pt"]}: −{fmtEur(summary.allowanceUsed)} {t("fisc_allowance_applied")}
                 </p>
               )}
 
