@@ -151,6 +151,10 @@ export function useCurrencyFormat() {
     const converted = eurValue * rate;
 
     if (opts?.compact) {
+      // B e T existiam em falta: uma capitalizacao de mercado de 2,3 biliões
+      // saía como "2300000.00M".
+      if (Math.abs(converted) >= 1e12) return `${sym} ${(converted / 1e12).toFixed(2)}T`;
+      if (Math.abs(converted) >= 1e9) return `${sym} ${(converted / 1e9).toFixed(2)}B`;
       if (Math.abs(converted) >= 1_000_000) return `${sym} ${(converted / 1_000_000).toFixed(2)}M`;
       if (Math.abs(converted) >= 1_000) return `${sym} ${(converted / 1_000).toFixed(1)}K`;
     }
@@ -175,5 +179,25 @@ export function useCurrencyFormat() {
   const formatUsd = (usdValue: number, opts?: { compact?: boolean; decimals?: number }): string =>
     format(usdValue * usdToEur, opts);
 
-  return { format, formatSigned, formatUsd, convert, usdToEur, symbol: sym, currency, rate, hideBalances, numberFormat, rates };
+  /**
+   * Como formatUsd, mas NUNCA esconde o valor.
+   * "Esconder saldos" serve para tapar o dinheiro de quem esta a ver — nao o
+   * preco publico do Bitcoin. Usar so para dados de mercado, nunca para saldos.
+   */
+  const formatMarketUsd = (usdValue: number, opts?: { compact?: boolean; decimals?: number }): string => {
+    const converted = usdValue * usdToEur * rate;
+    if (opts?.compact) {
+      if (Math.abs(converted) >= 1e12) return `${sym} ${(converted / 1e12).toFixed(2)}T`;
+      if (Math.abs(converted) >= 1e9) return `${sym} ${(converted / 1e9).toFixed(2)}B`;
+      if (Math.abs(converted) >= 1_000_000) return `${sym} ${(converted / 1_000_000).toFixed(2)}M`;
+      if (Math.abs(converted) >= 1_000) return `${sym} ${(converted / 1_000).toFixed(1)}K`;
+    }
+    const decimals = opts?.decimals ?? (currency === "BTC" ? 6 : 2);
+    return `${sym} ${converted.toLocaleString(numberFormat, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    })}`;
+  };
+
+  return { format, formatSigned, formatUsd, formatMarketUsd, convert, usdToEur, symbol: sym, currency, rate, hideBalances, numberFormat, rates };
 }

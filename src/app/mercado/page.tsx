@@ -99,20 +99,6 @@ const uiLocale = () => {
   return ({ pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" } as Record<string, string>)[l] ?? "pt-PT";
 };
 
-const formatCurrency = (value: number, digits = 2) =>
-  value.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  });
-
-const formatCompact = (value: number) =>
-  value.toLocaleString("en-US", {
-    notation: "compact",
-    maximumFractionDigits: 2,
-  });
-
 const formatPercent = (value: number) => `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
 
 const hashSeed = (value: string) =>
@@ -836,7 +822,7 @@ function DerivativesPanel({ data, loading, symbol, updatedAt, error, onRefresh }
 export default function MercadoPage() {
   useRequireAuth("/login");
   const { t, lang } = useLanguage();
-  const { format: fmtCur, rates: fxRates } = useCurrencyFormat();
+  const { format: fmtCur, rates: fxRates, formatMarketUsd: fmtMkt, currency: curCode } = useCurrencyFormat();
   const [userPlan, setUserPlan] = useState<"unknown" | "free" | "pro" | "premium">("unknown");
   useEffect(() => {
     fetch("/api/subscription").then(r => r.json()).then((d: { plan?: string }) => {
@@ -1842,7 +1828,7 @@ export default function MercadoPage() {
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl border border-slate-800 bg-slate-900/60 px-5 py-3 text-sm">
               {marketGlobal.totalMarketCapUsd != null && (
                 <span className="text-slate-300">
-                  {t("mc_total_cap")}: <b className="text-white">${(marketGlobal.totalMarketCapUsd / 1e12).toFixed(2)}T</b>
+                  {t("mc_total_cap")}: <b className="text-white">{fmtMkt(marketGlobal.totalMarketCapUsd, { compact: true })}</b>
                   {marketGlobal.marketCapChange24h != null && (
                     <span className={marketGlobal.marketCapChange24h >= 0 ? "ml-1 text-emerald-400" : "ml-1 text-rose-400"}>
                       ({marketGlobal.marketCapChange24h >= 0 ? "+" : ""}{marketGlobal.marketCapChange24h.toFixed(2)}%)
@@ -1963,13 +1949,13 @@ export default function MercadoPage() {
                       <tr className="border-b border-slate-800">
                         <th className="px-4 py-3">#</th>
                         <th className="px-4 py-3">{t("mc_col_crypto")}</th>
-                        <th className="px-4 py-3">{t("mc_col_price_usd")}</th>
+                        <th className="px-4 py-3">{t("mc_sort_price")} ({curCode})</th>
                         <th className="px-4 py-3">1h</th>
                         <th className="px-4 py-3" title="24h">{t("mc_sort_change")}</th>
                         <th className="px-4 py-3">7d</th>
                         <th className="px-4 py-3">30d</th>
-                        <th className="px-4 py-3">{t("mc_col_mcap_usd")}</th>
-                        <th className="px-4 py-3">{t("mc_col_vol_usd")}</th>
+                        <th className="px-4 py-3">{t("mc_mcap")} ({curCode})</th>
+                        <th className="px-4 py-3">{t("mc_sort_vol")} ({curCode})</th>
                         <th className="px-4 py-3" title={t("mc_trend_tip")}>{t("mc_col_trend")}</th>
                       </tr>
                     </thead>
@@ -2023,7 +2009,7 @@ export default function MercadoPage() {
                             </div>
                           </td>
                           <td className="px-4 py-4 font-semibold text-white">
-                            {formatCurrency(row.priceUsd, row.priceUsd < 1 ? 6 : 2)}
+                            {fmtMkt(row.priceUsd, { decimals: row.priceUsd < 1 ? 6 : 2 })}
                           </td>
                           <td className={`px-4 py-4 font-semibold ${row.change1h == null ? "text-slate-500" : row.change1h >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
                             {row.change1h == null ? "—" : formatPercent(row.change1h)}
@@ -2042,10 +2028,10 @@ export default function MercadoPage() {
                             {row.change30d == null ? "—" : formatPercent(row.change30d)}
                           </td>
                           <td className="px-4 py-4 text-slate-300">
-                            {row.marketCapUsd ? formatCompact(row.marketCapUsd) : "—"}
+                            {row.marketCapUsd ? fmtMkt(row.marketCapUsd, { compact: true }) : "—"}
                           </td>
                           <td className="px-4 py-4 text-slate-300">
-                            {formatCompact(row.volume24hUsd)}
+                            {fmtMkt(row.volume24hUsd, { compact: true })}
                           </td>
                           <td className="px-4 py-4" onClick={selectRow}>
                             <TrendSparkline
