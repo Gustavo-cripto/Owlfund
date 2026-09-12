@@ -15,9 +15,14 @@ function trackPageView(request: NextRequest, event: NextFetchEvent): void {
   if (isPrefetch) return;
 
   const path = request.nextUrl.pathname;
-  // So paginas: fora /api, auth, e ficheiros estaticos/crawler (robots.txt,
+  // So paginas: fora /api, /auth e ficheiros estaticos/crawler (robots.txt,
   // sitemap.xml, e qualquer path com extensao) - esses nao sao page views.
-  if (path.startsWith("/api") || path.startsWith("/login") || path.startsWith("/auth") || path.includes(".")) return;
+  //
+  // /login E contado: era o unico passo do funil invisivel, e sem ele nao da
+  // para saber quantos dos que veem /beta chegam sequer a criar conta. Guardamos
+  // so o pathname (nunca a query nem o User-Agent), por isso nao ha risco de
+  // apanhar tokens. /auth continua de fora: e o callback do OAuth.
+  if (path.startsWith("/api") || path.startsWith("/auth") || path.includes(".")) return;
 
   // TRACK_SECRET (quando definido) prova a /api/track que o pedido vem daqui e
   // não de fora — o beacon escreve com o service role, por isso não pode aceitar
