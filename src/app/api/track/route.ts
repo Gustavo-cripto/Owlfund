@@ -39,7 +39,14 @@ const ALLOWED = new Set([
   "guias", "guides",
   "fiscalidade", "gestor", "historico", "login", "mercado", "portfolio",
   "pricing", "privacidade", "reset-password", "smart-money", "termos", "wallets",
+  // Slugs das paginas publicas nos outros idiomas (/en/how-it-works, /fr/tarifs...).
+  "how-it-works", "precios", "tarifs", "comment-ca-marche",
 ]);
+
+// Prefixos de idioma: /fr/tarifs conta como uma visita a "tarifs", nao a "fr".
+// Sem isto todas as visitas as versoes traduzidas eram descartadas em silencio
+// — foi exatamente o que aconteceu com o /beta durante meses.
+const LOCALE_PREFIXES = new Set(["en", "es", "fr"]);
 // "beta" faltava aqui: as visitas a /beta — a pagina de inscricao no beta, o
 // passo mais importante do funil — foram descartadas em silencio desde que a
 // pagina existe. "admin" fica de fora de proposito (painel interno).
@@ -47,7 +54,10 @@ const ALLOWED = new Set([
 function isRealPage(path: string): boolean {
   if (!path.startsWith("/")) return false;
   if (path === "/") return true;
-  const seg = path.split("/")[1]?.toLowerCase() ?? "";
+  const parts = path.split("/").filter(Boolean).map((p) => p.toLowerCase());
+  // A raiz de um idioma (/en, /fr) e uma pagina — e a landing nessa lingua.
+  if (parts.length === 1 && LOCALE_PREFIXES.has(parts[0])) return true;
+  const seg = (LOCALE_PREFIXES.has(parts[0] ?? "") ? parts[1] : parts[0]) ?? "";
   return ALLOWED.has(seg);
 }
 
