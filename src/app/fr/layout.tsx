@@ -1,11 +1,8 @@
-import type { Metadata } from "next";
 import { LanguageProvider } from "@/lib/i18n/LanguageContext";
-import { pageMetadata } from "@/lib/i18n/pageMeta";
 
-// O idioma vem do endereco, nao do browser: quem abre /fr tem de ver "fr",
-// e o Google tem de receber o HTML nessa lingua.
-export const metadata: Metadata = pageMetadata("home", "fr");
-
+// So fixa a lingua a partir do endereco. A metadata vive em cada page.tsx:
+// declarar aqui um titulo absoluto apagava o "· ChainFolioAI" que o layout
+// raiz junta aos titulos das paginas filhas.
 export default function Layout({ children }: { children: React.ReactNode }) {
   return <LanguageProvider initialLang="fr">{children}</LanguageProvider>;
 }
