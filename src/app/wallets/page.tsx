@@ -62,8 +62,10 @@ import { pushWalletCloud, pullWalletCloud } from "@/lib/portfolios/cloudSync";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { traditionalAssets, traditionalCategories } from "@/lib/traditional/assets";
 import {
+  hasQuantity,
   loadTraditionalHoldings,
   saveTraditionalHoldings,
+  traditionalHoldingValueEur,
   type TraditionalHoldings,
 } from "@/lib/traditional/storage";
 import {
@@ -79,6 +81,9 @@ import {
 type TraditionalQuote = {
   symbol: string;
   price: number | null;
+  /** Moeda do instrumento (USD, EUR, GBP...). Necessaria para converter
+   *  quantidade x preco no total do portefolio. */
+  currency?: string | null;
   changePercent: number | null;
   volume: number | null;
   updatedAt?: string;
@@ -351,7 +356,7 @@ export default function WalletsPage() {
       : id === "outro" ? t("wl_btc_other")
         : btcNetworkOptions.find((o) => o.id === id)?.label ?? "Bitcoin";
   const askConfirm = useConfirm();
-  const { format: fmtCur, symbol: curSym, currency: curCode, rate: curRate, hideBalances } = useCurrencyFormat();
+  const { format: fmtCur, symbol: curSym, currency: curCode, rate: curRate, hideBalances, rates: fxRates } = useCurrencyFormat();
   // Esconde qualquer saldo/quantidade/NFT quando a opção "esconder saldos" está ativa.
   const maskBal = (node: React.ReactNode): React.ReactNode => (hideBalances ? "••••" : node);
   const [isClient, setIsClient] = useState(false);
@@ -1359,7 +1364,19 @@ export default function WalletsPage() {
     });
   };
 
-  const updateTraditionalBuy = (assetId: string, next: { buyValue?: number; buyDate?: string }) => {
+  // Preco de uma cotacao convertido para EUR, a partir da moeda que a fonte
+  // indica. Devolve undefined quando nao ha cotacao ou nao sabemos converter —
+  // nesse caso o valor do ativo continua a ser o investido, como antes.
+  const quotePriceEur = (quote?: TraditionalQuote): number | undefined => {
+    if (!quote || quote.price == null || !Number.isFinite(quote.price)) return undefined;
+    const cur = (quote.currency ?? "USD").toUpperCase();  // sem moeda, as bolsas do plano gratuito sao americanas
+    if (cur === "EUR") return quote.price;
+    const perEur = (fxRates as Record<string, number>)[cur];
+    if (!perEur || perEur <= 0) return undefined;
+    return quote.price / perEur;
+  };
+
+  const updateTraditionalBuy = (assetId: string, next: { buyValue?: number; buyDate?: string; quantity?: number }) => {
     setTraditionalHoldings((prev) => {
       const nextHoldings = {
         ...prev,
@@ -1453,6 +1470,25 @@ export default function WalletsPage() {
     [traditionalHoldings],
   );
 
+  // Valor a precos de hoje. Cada ativo com quantidade conta quantidade x preco;
+  // os que so tem montante investido continuam a contar esse montante.
+  const traditionalMarketTotal = useMemo(
+    () =>
+      Object.entries(traditionalHoldings).reduce((sum, [id, h]) => {
+        const asset = allTraditionalAssets.find((a) => a.id === id);
+        const quote = asset?.alphaSymbol ? traditionalQuotes[asset.alphaSymbol] : undefined;
+        return sum + traditionalHoldingValueEur(h, quotePriceEur(quote));
+      }, 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [traditionalHoldings, traditionalQuotes, allTraditionalAssets, fxRates],
+  );
+
+  /** Quantos dos ativos escolhidos ja tem quantidade (logo, valor de mercado). */
+  const traditionalWithQty = useMemo(
+    () => Object.values(traditionalHoldings).filter((h) => hasQuantity(h)).length,
+    [traditionalHoldings],
+  );
+
   const walletsTotalUsd = useMemo(() => {
     const eth = getFiatValue("ETH", totalEthBalance) ?? 0;
     const sol = getFiatValue("SOL", totalSolBalance) ?? 0;
@@ -1510,6 +1546,12 @@ export default function WalletsPage() {
     // dashboard, nos snapshots da Supabase e noutros dispositivos.
     updateWalletSnapshot({ manualEur: cryptoManualTotal });
   }, [cryptoManualTotal]);
+
+  useEffect(() => {
+    // O mesmo para os tradicionais: so esta pagina tem as cotacoes, por isso e
+    // aqui que se calcula o valor de mercado que o Dashboard e o Portefolio leem.
+    updateWalletSnapshot({ traditionalEur: traditionalMarketTotal });
+  }, [traditionalMarketTotal]);
 
   const sortedCryptoSymbols = useMemo(() => {
     const dir = cryptoSortDir === "asc" ? 1 : -1;
@@ -5239,8 +5281,47 @@ export default function WalletsPage() {
                         <div>
                           <p className="font-semibold text-white">{asset.label}</p>
                           <p className="text-slate-500">{asset.category}</p>
+                          {(() => {
+                            // O valor de hoje so aparece quando ha quantidade E cotacao:
+                            // sem quantidade nao existe valor de mercado, e apresentar o
+                            // montante investido como se fosse o valor atual seria mentira.
+                            const priceEur = quotePriceEur(quote);
+                            if (!hasQuantity(buy) || priceEur == null) return null;
+                            const nowEur = traditionalHoldingValueEur(buy, priceEur);
+                            const invested = Number(buy.buyValue ?? 0);
+                            const diff = invested > 0 ? nowEur - invested : null;
+                            return (
+                              <p className="mt-1 text-[11px] text-slate-400">
+                                {t("wl_market_value")}:{" "}
+                                <span className="font-semibold text-white">{fmtCur(nowEur)}</span>
+                                {diff != null && !hideBalances ? (
+                                  <span className={diff >= 0 ? " text-emerald-300" : " text-rose-300"}>
+                                    {" "}
+                                    ({diff >= 0 ? "+" : "−"}
+                                    {fmtCur(Math.abs(diff))})
+                                  </span>
+                                ) : null}
+                              </p>
+                            );
+                          })()}
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            min="0"
+                            step="any"
+                            placeholder={t("wl_quantity")}
+                            title={t("wl_trad_qty_hint")}
+                            value={buy.quantity ?? ""}
+                            onChange={(event) => {
+                              const value = event.target.value;
+                              updateTraditionalBuy(asset.id, {
+                                quantity: value === "" ? undefined : Number(value),
+                              });
+                            }}
+                            className="w-28 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
+                          />
                           <input
                             type="number"
                             inputMode="decimal"
@@ -5267,7 +5348,9 @@ export default function WalletsPage() {
                           <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
                             {t("wl_current_price")}{" "}
                             <span className="font-semibold text-white">
-                              {quote?.price != null ? quote.price.toFixed(2) : "—"}
+                              {quote?.price != null
+                                ? `${quote.price.toFixed(2)} ${(quote.currency ?? "USD").toUpperCase()}`
+                                : "—"}
                             </span>
                           </span>
                           <div className="flex items-center gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
@@ -5389,10 +5472,13 @@ export default function WalletsPage() {
               </div>
               {selectedTraditionalAssets.length > 0 && (
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 pt-3">
-                  <span className="text-xs text-slate-400" title={t("wl_trad_total_hint")}>
-                    {t("wl_trad_total")} · {selectedTraditionalAssets.length} {selectedTraditionalAssets.length === 1 ? t("wl_asset_one") : t("wl_asset_many")}
+                  <span
+                    className="text-xs text-slate-400"
+                    title={traditionalWithQty > 0 ? t("wl_trad_market_hint") : t("wl_trad_total_hint")}
+                  >
+                    {traditionalWithQty > 0 ? t("wl_trad_market") : t("wl_trad_total")} · {selectedTraditionalAssets.length} {selectedTraditionalAssets.length === 1 ? t("wl_asset_one") : t("wl_asset_many")}
                   </span>
-                  <span className="text-sm font-semibold text-white">{fmtCur(traditionalInvestedTotal)}</span>
+                  <span className="text-sm font-semibold text-white">{fmtCur(traditionalWithQty > 0 ? traditionalMarketTotal : traditionalInvestedTotal)}</span>
                 </div>
               )}
             </div>

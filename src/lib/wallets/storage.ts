@@ -21,6 +21,9 @@ export type WalletSnapshot = {
   manualEur?: number;
   /** Tokens ERC-20/SPL das carteiras frias, sem o nativo (USD). */
   tokensUsd?: number;
+  /** Total dos ativos tradicionais a valor de MERCADO (ja em EUR).
+   *  So a pagina de Carteiras tem as cotacoes; as outras leem daqui. */
+  traditionalEur?: number;
 };
 
 const walletsKey = () => accKey("portfolio-wallets");

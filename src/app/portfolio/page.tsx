@@ -333,6 +333,7 @@ export default function PortfolioPage() {
   const [snapshotDefiUsd, setSnapshotDefiUsd] = useState(0);
   const [snapshotTokensUsd, setSnapshotTokensUsd] = useState(0);
   const [snapshotManualEur, setSnapshotManualEur] = useState<number | null>(null);
+  const [snapshotTraditionalEur, setSnapshotTraditionalEur] = useState<number | null>(null);
   const [usdToEur, setUsdToEur] = useState(0.92); // fallback ~0.92
 
   useEffect(() => {
@@ -341,6 +342,7 @@ export default function PortfolioPage() {
     if (typeof snap.defiUsd === "number") setSnapshotDefiUsd(snap.defiUsd);
     if (typeof snap.tokensUsd === "number") setSnapshotTokensUsd(snap.tokensUsd);
     if (typeof snap.manualEur === "number") setSnapshotManualEur(snap.manualEur);
+    if (typeof snap.traditionalEur === "number") setSnapshotTraditionalEur(snap.traditionalEur);
   }, []);
 
   // Buscar benchmark + crypto prices via proxy server-side (evita rate limits CoinGecko)
@@ -728,12 +730,22 @@ export default function PortfolioPage() {
       return Number.isFinite(value) ? sum + value : sum;
     }, 0);
   }, [cryptoHoldings]);
-  const traditionalTotal = useMemo(() => {
+  // Valor investido nos tradicionais — a base quando não há cotações.
+  const traditionalInvested = useMemo(() => {
     return Object.values(traditionalHoldings).reduce((sum, holding) => {
       const value = Number(holding.buyValue ?? 0);
       return Number.isFinite(value) ? sum + value : sum;
     }, 0);
   }, [traditionalHoldings]);
+
+  // Esta página não tem as cotações das bolsas (só a de Carteiras as pede, para
+  // não gastar duas vezes os 8 créditos/min do plano gratuito). Por isso lê o
+  // valor de mercado que a página de Carteiras deixou no snapshot — o mesmo
+  // caminho que os ativos cripto manuais já usavam.
+  const traditionalTotal = useMemo(() => {
+    if (snapshotTraditionalEur != null && snapshotTraditionalEur > 0) return snapshotTraditionalEur;
+    return traditionalInvested;
+  }, [snapshotTraditionalEur, traditionalInvested]);
   const portfolioTotal = cryptoTotal + stablecoinTotal + traditionalTotal;
 
   // Auto-snapshot: guardar automaticamente se passaram mais de 24h desde o último
@@ -1058,11 +1070,16 @@ export default function PortfolioPage() {
     const byCategory: Record<string, number> = {};
     const byAsset: Array<{ label: string; value: number; category: string }> = [];
 
+    // As fatias têm de somar o mesmo que entra no total. Sem cotações por
+    // ativo aqui, escalamos os valores investidos até ao total de mercado —
+    // igual ao que já se faz com a cripto manual.
+    const fator = traditionalInvested > 0 ? traditionalTotal / traditionalInvested : 1;
     traditionalAssets.forEach((asset) => {
       const holding = traditionalHoldings[asset.id];
       if (!holding) return;
-      const value = Number(holding.buyValue ?? 0);
-      if (!Number.isFinite(value) || value <= 0) return;
+      const invested = Number(holding.buyValue ?? 0);
+      if (!Number.isFinite(invested) || invested <= 0) return;
+      const value = invested * fator;
       byCategory[asset.category] = (byCategory[asset.category] ?? 0) + value;
       byAsset.push({ label: asset.label, value, category: asset.category });
     });
@@ -1079,7 +1096,7 @@ export default function PortfolioPage() {
       })),
       assets: byAsset,
     };
-  }, [traditionalHoldings]);
+  }, [traditionalHoldings, traditionalInvested, traditionalTotal]);
 
   // Concentração / diversificação (a partir das posições atuais)
   const concentration = useMemo(() => {

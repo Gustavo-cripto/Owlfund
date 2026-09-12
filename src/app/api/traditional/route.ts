@@ -16,6 +16,10 @@ export const dynamic = "force-dynamic";
 type Quote = {
   symbol: string;
   price: number | null;
+  /** Moeda do instrumento (USD nas bolsas americanas, EUR nas europeias).
+   *  Sem isto nao da para converter quantidade x preco para o total do
+   *  portefolio — assumir USD daria valores errados num ETF cotado em euros. */
+  currency: string | null;
   changePercent: number | null;
   volume: number | null;
   updatedAt?: string;
@@ -24,6 +28,7 @@ type Quote = {
 type TwelveQuote = {
   symbol?: string;
   close?: string;
+  currency?: string;
   percent_change?: string;
   volume?: string;
   datetime?: string;
@@ -43,6 +48,7 @@ function toQuote(sym: string, q: TwelveQuote): Quote {
   return {
     symbol: q.symbol ?? sym,
     price: q.close != null ? Number(q.close) : null,
+    currency: q.currency ? String(q.currency).toUpperCase() : null,
     changePercent: q.percent_change != null ? Number(q.percent_change) : null,
     volume: q.volume != null ? Number(q.volume) : null,
     updatedAt: q.datetime?.slice(0, 10),

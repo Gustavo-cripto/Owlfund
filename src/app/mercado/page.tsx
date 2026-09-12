@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { btnPrimary } from "@/lib/ui/buttons";
 
 import AppShell from "@/components/AppShell";
@@ -15,8 +15,10 @@ import {
   type TraditionalAsset,
 } from "@/lib/traditional/assets";
 import {
+  hasQuantity,
   loadTraditionalHoldings,
   saveTraditionalHoldings,
+  traditionalHoldingValueEur,
   type TraditionalHoldings,
 } from "@/lib/traditional/storage";
 import {
@@ -59,6 +61,8 @@ type DerivData = {
 type TraditionalQuote = {
   symbol: string;
   price: number | null;
+  /** Moeda do instrumento (USD, EUR, GBP...), vinda da fonte de cotações. */
+  currency?: string | null;
   changePercent: number | null;
   volume: number | null;
   updatedAt?: string;
@@ -832,7 +836,7 @@ function DerivativesPanel({ data, loading, symbol, updatedAt, error, onRefresh }
 export default function MercadoPage() {
   useRequireAuth("/login");
   const { t, lang } = useLanguage();
-  const { format: fmtCur } = useCurrencyFormat();
+  const { format: fmtCur, rates: fxRates } = useCurrencyFormat();
   const [userPlan, setUserPlan] = useState<"unknown" | "free" | "pro" | "premium">("unknown");
   useEffect(() => {
     fetch("/api/subscription").then(r => r.json()).then((d: { plan?: string }) => {
@@ -1071,7 +1075,7 @@ export default function MercadoPage() {
 
   const updateTraditionalHolding = (
     assetId: string,
-    next: { buyValue?: number; buyDate?: string }
+    next: { buyValue?: number; buyDate?: string; quantity?: number }
   ) => {
     setTraditionalHoldings((prev) => {
       const nextHoldings = {
@@ -1271,12 +1275,25 @@ export default function MercadoPage() {
     return traditionalAssets.filter((asset) => asset.category === traditionalCategory);
   }, [traditionalCategory]);
 
+  // Preço da cotação em EUR, a partir da moeda que a fonte indica.
+  const quotePriceEur = useCallback((quote?: TraditionalQuote): number | undefined => {
+    if (!quote || quote.price == null || !Number.isFinite(quote.price)) return undefined;
+    const cur = (quote.currency ?? "USD").toUpperCase();
+    if (cur === "EUR") return quote.price;
+    const perEur = (fxRates as Record<string, number>)[cur];
+    if (!perEur || perEur <= 0) return undefined;
+    return quote.price / perEur;
+  }, [fxRates]);
+
+  // Ativos com quantidade contam ao preço de hoje; os restantes, ao investido.
   const traditionalTotal = useMemo(() => {
     return selectedTraditionalAssets.reduce((sum, asset) => {
-      const value = Number(traditionalHoldings[asset.id]?.buyValue ?? 0);
-      return Number.isFinite(value) ? sum + value : sum;
+      const h = traditionalHoldings[asset.id];
+      if (!h) return sum;
+      const quote = asset.alphaSymbol ? traditionalQuotes[asset.alphaSymbol] : undefined;
+      return sum + traditionalHoldingValueEur(h, quotePriceEur(quote));
     }, 0);
-  }, [selectedTraditionalAssets, traditionalHoldings]);
+  }, [selectedTraditionalAssets, traditionalHoldings, traditionalQuotes, quotePriceEur]);
 
   const selectedCryptoAssets = useMemo(() => {
     const symbols = Object.keys(cryptoHoldings);
@@ -1613,9 +1630,11 @@ export default function MercadoPage() {
                         {isInPortfolio ? t("mc_in_wallet") : t("mc_add")}
                       </button>
                       <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
-                        Preço:{" "}
+                        {t("mc_sort_price")}:{" "}
                         <span className="font-semibold text-white">
-                          {quote?.price != null ? quote.price.toFixed(2) : "—"}
+                          {quote?.price != null
+                            ? `${quote.price.toFixed(2)} ${(quote.currency ?? "USD").toUpperCase()}`
+                            : "—"}
                         </span>
                       </span>
                       <button
@@ -1697,8 +1716,36 @@ export default function MercadoPage() {
                         <div>
                           <p className="font-semibold text-white">{asset.label}</p>
                           <p className="text-slate-500">{asset.category}</p>
+                          {(() => {
+                            const priceEur = quotePriceEur(quote);
+                            if (!hasQuantity(holding) || priceEur == null) return null;
+                            return (
+                              <p className="mt-1 text-[11px] text-slate-400">
+                                {t("wl_market_value")}:{" "}
+                                <span className="font-semibold text-white">
+                                  {fmtCur(traditionalHoldingValueEur(holding, priceEur))}
+                                </span>
+                              </p>
+                            );
+                          })()}
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            min="0"
+                            step="any"
+                            placeholder={t("wl_quantity")}
+                            title={t("wl_trad_qty_hint")}
+                            value={holding.quantity ?? ""}
+                            onChange={(event) => {
+                              const value = event.target.value;
+                              updateTraditionalHolding(asset.id, {
+                                quantity: value === "" ? undefined : Number(value),
+                              });
+                            }}
+                            className="w-28 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
+                          />
                           <input
                             type="number"
                             inputMode="decimal"
@@ -1725,7 +1772,9 @@ export default function MercadoPage() {
                           <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
                             {t("wl_current_price")}{" "}
                             <span className="font-semibold text-white">
-                              {quote?.price != null ? quote.price.toFixed(2) : "—"}
+                              {quote?.price != null
+                            ? `${quote.price.toFixed(2)} ${(quote.currency ?? "USD").toUpperCase()}`
+                            : "—"}
                             </span>
                           </span>
                           <div className="flex items-center gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">

@@ -7,7 +7,8 @@ import PlanBadge from "@/components/PlanBadge";
 import PnlSummaryCard from "@/components/PnlSummaryCard";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { loadWalletSnapshot, type WalletSnapshot } from "@/lib/wallets/storage";
-import { loadCryptoHoldings } from "@/lib/crypto/storage";
+import { loadCryptoHoldings, loadStablecoinEntries } from "@/lib/crypto/storage";
+import { loadTraditionalHoldings } from "@/lib/traditional/storage";
 import { createClient } from "@/lib/supabase/client";
 import { loadNickname, saveNickname, nicknameFromMetadata } from "@/lib/user/nickname";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -116,8 +117,28 @@ export default function DashboardPage() {
           typeof snapshot.manualEur === "number" && snapshot.manualEur > 0
             ? snapshot.manualEur
             : manualLocal;
-        // Ativos que não são carteiras on-chain: CEX/DeFi (USD) + manuais (EUR).
-        const extras = ((snapshot.cexUsd ?? 0) + (snapshot.defiUsd ?? 0)) * usdToEur + manualEur;
+        // Ativos tradicionais: o valor de mercado é calculado na página de
+        // Carteiras (a única com as cotações) e deixado no snapshot; sem ele,
+        // vale o investido guardado localmente.
+        const traditionalLocal = Object.values(loadTraditionalHoldings()).reduce(
+          (s, h) => s + (Number.isFinite(Number(h.buyValue)) ? Number(h.buyValue) : 0), 0,
+        );
+        const traditionalEur =
+          typeof snapshot.traditionalEur === "number" && snapshot.traditionalEur > 0
+            ? snapshot.traditionalEur
+            : traditionalLocal;
+        // Stablecoins por endereço: todas em USD exceto a EURC.
+        const stableEur = loadStablecoinEntries().reduce((s, e) => {
+          const v = parseFloat(e.balance ?? "0");
+          if (!Number.isFinite(v)) return s;
+          return s + (e.symbol?.toUpperCase() === "EURC" ? v : v * usdToEur);
+        }, 0);
+        // Tudo o que não são carteiras on-chain. Antes faltavam aqui os ativos
+        // tradicionais, as stablecoins e os tokens das carteiras frias — o
+        // "Total" do Dashboard era menor do que o do Portefólio para a mesma conta.
+        const extras =
+          ((snapshot.cexUsd ?? 0) + (snapshot.defiUsd ?? 0) + (snapshot.tokensUsd ?? 0)) * usdToEur +
+          manualEur + traditionalEur + stableEur;
         const onChainCount =
           (snapshot.eth?.length ?? 0) + (snapshot.sol?.length ?? 0) +
           (snapshot.btc?.length ?? 0) + (snapshot.ada?.length ?? 0);

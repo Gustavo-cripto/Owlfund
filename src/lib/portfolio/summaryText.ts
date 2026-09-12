@@ -77,10 +77,17 @@ export async function buildPortfolioSummary(): Promise<PortfolioSummary> {
     typeof snap.manualEur === "number" && snap.manualEur > 0 ? snap.manualEur : manualFromHoldings;
 
   const stableEur = stables.reduce((s, e) => s + (parseFloat(e.balance ?? "0") || 0), 0);
-  const traditionalEur = Object.values(traditional).reduce((s, h) => {
+  // Tradicionais: preferir o valor de MERCADO que a página de Carteiras deixou
+  // no snapshot (quantidade × cotação); sem ele, o investido. É o mesmo caminho
+  // dos ativos cripto manuais, logo acima.
+  const traditionalInvested = Object.values(traditional).reduce((s, h) => {
     const v = Number(h.buyValue ?? 0);
     return Number.isFinite(v) ? s + v : s;
   }, 0);
+  const traditionalEur =
+    typeof snap.traditionalEur === "number" && snap.traditionalEur > 0
+      ? snap.traditionalEur
+      : traditionalInvested;
 
   const total = onChainEur + cexEur + defiEur + manualCryptoEur + stableEur + traditionalEur;
 
