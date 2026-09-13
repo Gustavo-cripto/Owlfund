@@ -40,7 +40,7 @@ const ALLOWED = new Set([
   "fiscalidade", "gestor", "historico", "login", "mercado", "portfolio",
   "pricing", "privacidade", "reset-password", "smart-money", "termos", "wallets",
   // Slugs das paginas publicas nos outros idiomas (/en/how-it-works, /fr/tarifs...).
-  "how-it-works", "precios", "tarifs", "comment-ca-marche",
+  "how-it-works", "precios", "tarifs", "comment-ca-marche", "feedback",
 ]);
 
 // Prefixos de idioma: /fr/tarifs conta como uma visita a "tarifs", nao a "fr".

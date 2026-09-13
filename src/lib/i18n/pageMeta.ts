@@ -118,6 +118,12 @@ const META: Record<PublicPage, Record<Lang, Meta>> = {
       description: "Connectez-vous à votre compte ChainFolioAI pour accéder à votre portefeuille.",
     },
   },
+  feedback: {
+    pt: { title: "O que te fez parar?", description: "Uma pergunta, uma frase. Ajuda-nos a perceber o que falhou." },
+    en: { title: "What made you stop?", description: "One question, one sentence. Help us understand what went wrong." },
+    es: { title: "¿Qué te hizo parar?", description: "Una pregunta, una frase. Ayúdanos a entender qué falló." },
+    fr: { title: "Qu'est-ce qui vous a fait arrêter ?", description: "Une question, une phrase. Aidez-nous à comprendre ce qui a coincé." },
+  },
 };
 
 const OG_LOCALE: Record<Lang, string> = {

@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 
 const KIND = "nudge-inactive";
 
-function corpo(): { subject: string; html: string } {
+function corpo(email: string): { subject: string; html: string } {
   // Texto pedido pelo Gustavo (2026-09-13): humano, simpatico, e sempre a
   // convidar a voltar — mas com uma pergunta so, e sem prometer nada que o
   // produto nao faca. "Ha uns dias" de proposito: serve a quem entrou a 2 ou a
@@ -34,6 +34,8 @@ function corpo(): { subject: string; html: string } {
     p(esc("E se quiseres dar uma segunda oportunidade, o teu acesso Premium dos 60 dias continua ativo. Entra em ") +
       `<a href="https://chainfolioai.com" style="color:#ea580c;text-decoration:underline">chainfolioai.com</a>` +
       esc(" — e se ficares preso em algum passo, responde a este email e ajudamos-te a ligar tudo.")) +
+    p(esc("Se preferires responder em 30 segundos, sem escrever email: ") +
+      `<a href="https://chainfolioai.com/feedback?e=${encodeURIComponent(email)}" style="color:#ea580c;text-decoration:underline">chainfolioai.com/feedback</a>`) +
     p(esc("Obrigado por teres experimentado,")) +
     p(`<strong>${esc("ChainFolioAI")}</strong>`) +
     `</div>`;
@@ -58,7 +60,7 @@ export async function POST(request: Request) {
   const novo = await markSent(admin, user.id, KIND, false);
   if (!novo) return NextResponse.json({ ok: false, reason: "ja_enviado" });
 
-  const { subject, html } = corpo();
+  const { subject, html } = corpo(email);
   const ok = await sendEmail({ to: email, subject, html, from: FROM, replyTo: REPLY_TO, unsubscribe: false, tag: KIND });
   return NextResponse.json({ ok, to: email });
 }
