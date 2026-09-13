@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { TAX_REGIMES } from "@/lib/tax/countries";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { COUNTRIES, TAX_REGIMES } from "@/lib/tax/countries";
+import { loadFxTable, type FxTable } from "@/lib/fx/historical";
+import { CURRENCY_SIGN } from "@/lib/currency/symbols";
 import { btnPrimary } from "@/lib/ui/buttons";
 import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
-import { useTheme } from "@/lib/theme/ThemeContext";
+import { useTheme, useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { createClient } from "@/lib/supabase/client";
 import { jsPDF } from "jspdf";
@@ -246,6 +248,11 @@ export default function FiscalidadePage() {
   const { isLoading, userId } = useRequireAuth("/login");
   const { t, lang } = useLanguage();
   const { hideBalances } = useTheme();
+  // A pessoa escreve os precos na moeda que escolheu ver o site; a app guarda
+  // em euros (a unidade interna) a taxa DA DATA da transacao.
+  const { currency: inputCurrency } = useCurrencyFormat();
+  const inputSymbol = CURRENCY_SIGN[inputCurrency] ?? inputCurrency;
+  const [addError, setAddError] = useState<string | null>(null);
   const uiLocale = LOCALE_BY_LANG[lang] ?? "pt-PT";
   const [isPro, setIsPro] = useState(false);
   // Uma exportacao que rebenta tem de o dizer — nao ficar em silencio.
@@ -289,17 +296,56 @@ export default function FiscalidadePage() {
   const taxRates = TAX_REGIMES;
   const regime = taxRates[country] ?? taxRates["PT"];
 
+  // ── Moeda do relatorio ────────────────────────────────────────────────────
+  // Declara-se na moeda do pais: um relatorio do IRS em euros nao serve para
+  // declarar nos EUA. A app guarda tudo em euros, por isso cada perna da
+  // operacao e convertida a taxa DA SUA data — a compra a taxa do dia da
+  // compra, a venda a taxa do dia da venda. E assim que as autoridades
+  // fiscais calculam, e por isso e que a taxa de hoje nao serve.
+  const reportCurrency = COUNTRIES.find((c) => c.code === country)?.currency ?? "EUR";
+  const reportSymbol = CURRENCY_SIGN[reportCurrency] ?? reportCurrency;
+  const [fx, setFx] = useState<FxTable | null>(null);
+  const [fxLoading, setFxLoading] = useState(false);
+
+  useEffect(() => {
+    if (reportCurrency === "EUR" || trades.length === 0) { setFx(null); return; }
+    let vivo = true;
+    setFxLoading(true);
+    (async () => {
+      const tabela = await loadFxTable(trades.map((t) => t.date), [reportCurrency]);
+      if (vivo) { setFx(tabela); setFxLoading(false); }
+    })();
+    return () => { vivo = false; };
+  }, [reportCurrency, trades]);
+
+  /** Converte um valor em euros para a moeda do relatorio, a taxa da data. */
+  const toReport = useCallback(
+    (eur: number, date: string): number | null => {
+      if (reportCurrency === "EUR") return eur;
+      if (!fx) return null;
+      return fx.convert(eur, "EUR", reportCurrency, date);
+    },
+    [fx, reportCurrency],
+  );
+
+  /** True quando faltou alguma taxa e os numeros nao podem ser mostrados. */
+  const [fxIncomplete, setFxIncomplete] = useState(false);
+
   // FIFO: calcular eventos de mais-valias
   const taxEvents = useMemo<TaxEvent[]>(() => {
     const events: TaxEvent[] = [];
+    let faltou = false;
     const pool: Record<string, Array<{ amount: number; price: number; date: string }>> = {};
 
     const sorted = [...trades].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     for (const tr of sorted) {
+      // Preco convertido a taxa da data desta transacao.
+      const preco = toReport(tr.price, tr.date);
+      if (preco == null) { faltou = true; continue; }
       if (tr.type === "compra") {
         if (!pool[tr.asset]) pool[tr.asset] = [];
-        pool[tr.asset].push({ amount: tr.amount, price: tr.price, date: tr.date });
+        pool[tr.asset].push({ amount: tr.amount, price: preco, date: tr.date });
       } else {
         // venda — FIFO
         let remaining = tr.amount;
@@ -309,13 +355,14 @@ export default function FiscalidadePage() {
           const days = calcDays(lot.date, tr.date);
           const isLong = days >= regime.longDays && regime.longDays > 0;
           const rate = isLong ? regime.long : regime.short;
-          const gain = (tr.price - lot.price) * used;
+          // A compra ja esta a taxa do dia da compra; a venda, a do dia da venda.
+          const gain = (preco - lot.price) * used;
           events.push({
             asset: tr.asset,
             buyDate: lot.date,
             sellDate: tr.date,
             buyPrice: lot.price,
-            sellPrice: tr.price,
+            sellPrice: preco,
             amount: used,
             gain,
             holding: isLong ? "longo" : "curto",
@@ -327,8 +374,10 @@ export default function FiscalidadePage() {
         }
       }
     }
+    if (faltou !== fxIncomplete) setFxIncomplete(faltou);
     return events;
-  }, [trades, regime]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trades, regime, toReport]);
 
   // Vendas sem lote de compra correspondente — excluídas do FIFO, mas o
   // utilizador tem de saber (custo de aquisição em falta).
@@ -401,7 +450,7 @@ export default function FiscalidadePage() {
 
     const NCOL = 10;
     [10, 12, 12, 12, 14, 14, 14, 12, 8, 14].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
-    const money = '#,##0.00 "€"';  // base fiscal é sempre o euro (ver nota do PDF)
+    const money = `#,##0.00 "${reportSymbol}"`;  // moeda do pais onde se declara
     const pctFmt = '0"%"';
     const BRAND = "FFF97316";
     const DARK = "FF0F172A";
@@ -429,7 +478,7 @@ export default function FiscalidadePage() {
     ([
       [t("fisc_pdf_country"), `${country} (${(regime.short * 100).toFixed(0)}% / ${regime.longLabel[lang]})`],
       [t("hx_date"), new Date().toLocaleString(uiLocale, { dateStyle: "short", timeStyle: "short" })],
-      [t("fisc_pdf_method_label"), "FIFO / EUR"],
+      [t("fisc_pdf_method_label"), `FIFO / ${reportCurrency}`],
     ] as [string, string][]).forEach(([k, v]) => {
       const r = ws.addRow([k, v]);
       r.getCell(1).font = { bold: true, color: { argb: "FF64748B" } };
@@ -452,7 +501,7 @@ export default function FiscalidadePage() {
     ws.addRow([]);
 
     bandRow(t("fisc_pdf_events").toUpperCase(), BRAND);
-    boldRow(ws.addRow([t("fc_col_asset"), t("fc_col_buy"), t("fc_col_sell"), t("fc_col_qtd"), `${t("fc_col_buyp")} (€)`, `${t("fc_col_sellp")} (€)`, `${t("fc_col_gain")} (€)`, t("fc_col_type"), t("fc_col_rate"), `${t("fc_col_tax")} (€)`]));
+    boldRow(ws.addRow([t("fc_col_asset"), t("fc_col_buy"), t("fc_col_sell"), t("fc_col_qtd"), `${t("fc_col_buyp")} (${reportSymbol})`, `${t("fc_col_sellp")} (${reportSymbol})`, `${t("fc_col_gain")} (${reportSymbol})`, t("fc_col_type"), t("fc_col_rate"), `${t("fc_col_tax")} (${reportSymbol})`]));
     if (taxEvents.length === 0) {
       const r = ws.addRow([t("fisc_x_no_events")]);
       r.getCell(1).font = { italic: true, color: { argb: "FF94A3B8" } };
@@ -508,7 +557,7 @@ export default function FiscalidadePage() {
   const exportPDF = async () => {
     setExportError(null);
     try {
-    const eur = (v: number) => `EUR ${Math.abs(v).toLocaleString(uiLocale, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+    const eur = (v: number) => `${reportCurrency} ${Math.abs(v).toLocaleString(uiLocale, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
     const eurN = (v: number) => Math.abs(v).toLocaleString(uiLocale, { maximumFractionDigits: 0 });
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     const W = doc.internal.pageSize.getWidth();
@@ -619,7 +668,7 @@ export default function FiscalidadePage() {
       // Euro value below the quantity
       doc.setFontSize(6);
       doc.setTextColor(148, 163, 184);
-      doc.text(`EUR ${eurN(e.amount * e.sellPrice)}`, colsX[3], y + 3.2);
+      doc.text(`${reportCurrency} ${eurN(e.amount * e.sellPrice)}`, colsX[3], y + 3.2);
       y += rowH;
     });
 
@@ -656,7 +705,7 @@ export default function FiscalidadePage() {
       [t("fisc_pdf_net_gain"), `${summary.totalGain >= 0 ? "+" : "-"}${eur(summary.totalGain)}`],
       [t("fisc_pdf_eff_rate"), `${effRate.toFixed(1)}%`],
       [t("fisc_pdf_num_events"), String(taxEvents.length)],
-      [t("fisc_pdf_method_label"), "FIFO / EUR"],
+      [t("fisc_pdf_method_label"), `FIFO / ${reportCurrency}`],
     ];
     const bx = M, bw = W - M * 2;
     const rowsN = Math.ceil(stats.length / 2);
@@ -709,7 +758,7 @@ export default function FiscalidadePage() {
 
   if (isLoading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-400 animate-pulse">{t("loading")}</p></div>;
 
-  const fmtEur = (v: number) => `€ ${Math.abs(v).toLocaleString(uiLocale, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  const fmtEur = (v: number) => `${reportSymbol} ${Math.abs(v).toLocaleString(uiLocale, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
   return (
     <AppShell>
@@ -775,7 +824,7 @@ export default function FiscalidadePage() {
               { label: t("fc_short_1y"), value: `${(regime.short * 100).toFixed(0)}%`, color: "text-rose-400" },
               { label: t("fc_long_term"), value: regime.longLabel[lang], color: "text-emerald-400" },
               { label: t("fc_method"), value: "FIFO", color: "text-orange-300" },
-              { label: t("fc_base_currency"), value: "EUR", color: "text-slate-300" },
+              { label: t("fc_base_currency"), value: reportCurrency, color: "text-slate-300" },
             ].map(item => (
               <div key={item.label} className="text-center">
                 <p className={`text-lg font-bold ${item.color}`}>{item.value}</p>
@@ -800,28 +849,42 @@ export default function FiscalidadePage() {
               <input type="number" placeholder={t("fisc_amount")} value={newTrade.amount || ""} min="0" max="999999999" step="any"
                 onChange={e => { const v = Number(e.target.value); if (Number.isFinite(v) && v >= 0) setNewTrade(tr => ({ ...tr, amount: v })); }}
                 className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
-              <input type="number" placeholder={t("fisc_price")} value={newTrade.price || ""} min="0" max="999999999" step="any"
+              <input type="number" placeholder={`${t("fisc_price")} (${inputSymbol})`} value={newTrade.price || ""} min="0" max="999999999" step="any"
                 onChange={e => { const v = Number(e.target.value); if (Number.isFinite(v) && v >= 0) setNewTrade(tr => ({ ...tr, price: v })); }}
                 className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
               <input type="date" value={newTrade.date}
                 onChange={e => setNewTrade(tr => ({ ...tr, date: e.target.value }))}
                 className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500" />
-              <button onClick={() => {
+              <button onClick={async () => {
                 if (!newTrade.asset || newTrade.amount <= 0 || newTrade.price <= 0) return;
-                const entry = { ...newTrade, id: tradeId(), asset: newTrade.asset.toUpperCase() };
+                setAddError(null);
+                // Converter para euros a taxa do dia da transacao. Se nao houver
+                // taxa, nao gravamos nada a meio: um preco errado no historico
+                // contamina o FIFO e o imposto de todos os anos seguintes.
+                let precoEur = newTrade.price;
+                if (inputCurrency !== "EUR") {
+                  const tabela = await loadFxTable([newTrade.date], [inputCurrency]);
+                  const convertido = tabela.convert(newTrade.price, inputCurrency, "EUR", newTrade.date);
+                  if (convertido == null) { setAddError(t("fisc_fx_missing")); return; }
+                  precoEur = convertido;
+                }
+                const entry = { ...newTrade, id: tradeId(), asset: newTrade.asset.toUpperCase(), price: precoEur };
                 setTrades(prev => [...prev, entry]);
-                upsertTrade({ id: entry.id, type: entry.type, asset: entry.asset, assetName: entry.asset, quantity: entry.amount, priceEur: entry.price, totalEur: entry.amount * entry.price, date: entry.date, exchange: entry.exchange, notes: "" });
+                upsertTrade({ id: entry.id, type: entry.type, asset: entry.asset, assetName: entry.asset, quantity: entry.amount, priceEur: entry.price, totalEur: entry.amount * entry.price, date: entry.date, exchange: entry.exchange, notes: "", currency: inputCurrency, priceInput: newTrade.price });
                 pushWalletCloud();
                 setNewTrade(emptyTrade());
               }} className={`${btnPrimary} px-4 py-2 text-sm`}>
                 + {t("add")}
               </button>
             </div>
+            {addError && (
+              <p className="mt-2 rounded-xl border border-rose-500/40 bg-rose-500/[0.08] px-4 py-2.5 text-xs text-rose-200">{addError}</p>
+            )}
             {newTrade.amount > 0 && newTrade.price > 0 && (
               <p className="mt-3 text-xs text-slate-400">
-                {newTrade.amount} {newTrade.asset || "—"} × € {newTrade.price.toLocaleString(uiLocale)} =
+                {newTrade.amount} {newTrade.asset || "—"} × {inputSymbol} {newTrade.price.toLocaleString(uiLocale)} =
                 <span className="ml-1 font-semibold text-orange-300">
-                  € {(newTrade.amount * newTrade.price).toLocaleString(uiLocale, { maximumFractionDigits: 2 })}
+                  {inputSymbol} {(newTrade.amount * newTrade.price).toLocaleString(uiLocale, { maximumFractionDigits: 2 })}
                 </span>
               </p>
             )}
@@ -850,6 +913,20 @@ export default function FiscalidadePage() {
                 ))}
               </div>
             </div>
+          )}
+
+          {/* Moeda do relatorio: dizer sempre como e feita a conversao, e avisar
+              quando faltou alguma taxa — um numero errado numa declaracao e pior
+              do que numero nenhum. */}
+          {reportCurrency !== "EUR" && (
+            <p className="rounded-xl border border-sky-500/30 bg-sky-500/[0.06] px-4 py-2.5 text-xs leading-relaxed text-sky-200">
+              💱 {t("fisc_fx_note")}{fxLoading ? ` · ${t("loading")}` : ""}
+            </p>
+          )}
+          {fxIncomplete && (
+            <p className="rounded-xl border border-amber-500/40 bg-amber-500/[0.08] px-4 py-2.5 text-xs leading-relaxed text-amber-200">
+              ⚠️ {t("fisc_fx_incomplete")}
+            </p>
           )}
 
           {/* Resultados */}
@@ -933,10 +1010,10 @@ export default function FiscalidadePage() {
                           <td className="py-2 pr-4 text-slate-400">{e.buyDate}</td>
                           <td className="py-2 pr-4 text-slate-400">{e.sellDate}</td>
                           <td className="py-2 pr-4 text-slate-300">{e.amount.toFixed(4)}</td>
-                          <td className="py-2 pr-4 text-slate-300">€ {e.buyPrice.toFixed(0)}</td>
-                          <td className="py-2 pr-4 text-slate-300">€ {e.sellPrice.toFixed(0)}</td>
+                          <td className="py-2 pr-4 text-slate-300">{reportSymbol} {e.buyPrice.toFixed(0)}</td>
+                          <td className="py-2 pr-4 text-slate-300">{reportSymbol} {e.sellPrice.toFixed(0)}</td>
                           <td className={`py-2 pr-4 font-semibold ${e.gain >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                            {e.gain >= 0 ? "+" : ""}€ {e.gain.toLocaleString(uiLocale, { maximumFractionDigits: 0 })}
+                            {e.gain >= 0 ? "+" : ""}{reportSymbol} {e.gain.toLocaleString(uiLocale, { maximumFractionDigits: 0 })}
                           </td>
                           <td className="py-2 pr-4">
                             <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${e.holding === "longo" ? "bg-emerald-500/20 text-emerald-400" : "bg-orange-500/20 text-orange-400"}`}>
@@ -945,7 +1022,7 @@ export default function FiscalidadePage() {
                           </td>
                           <td className="py-2 pr-4 text-slate-400">{(e.taxRate * 100).toFixed(0)}%</td>
                           <td className={`py-2 font-semibold ${e.gain > 0 && e.taxRate > 0 ? "text-orange-400" : "text-emerald-400"}`}>
-                            {e.gain > 0 && e.taxRate > 0 ? `€ ${(e.gain * e.taxRate).toLocaleString(uiLocale, { maximumFractionDigits: 0 })}` : t("fc_exempt")}
+                            {e.gain > 0 && e.taxRate > 0 ? `${reportSymbol} ${(e.gain * e.taxRate).toLocaleString(uiLocale, { maximumFractionDigits: 0 })}` : t("fc_exempt")}
                           </td>
                         </tr>
                       ))}

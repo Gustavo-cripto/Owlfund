@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { currencySign } from "@/lib/currency/symbols";
 import type { Lang } from "@/lib/i18n/translations";
 
 export type Theme = "dark" | "light" | "system";
@@ -162,10 +163,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 export const useTheme = () => useContext(ThemeContext);
 
 // ── Currency formatting helper ────────────────────────────────────────────
-const CURRENCY_SYMBOL: Record<Currency, string> = {
-  EUR: "€", USD: "$", GBP: "£", CHF: "CHF", CAD: "CA$", AUD: "A$",
-  BRL: "R$", PLN: "zł", MXN: "MX$", SGD: "S$", BTC: "₿",
-};
+const CURRENCY_SYMBOL = (c: Currency): string => currencySign(c);
 
 export function useCurrencyFormat() {
   const { currency, numberFormat, hideBalances, rates } = useTheme();
@@ -174,7 +172,7 @@ export function useCurrencyFormat() {
   const { lang } = useLanguage();
   const numberLocale = numberFormat === "auto" ? (NUMBER_LOCALE[lang] ?? "pt-PT") : numberFormat;
   const rate = rates[currency] ?? 1;
-  const sym = CURRENCY_SYMBOL[currency];
+  const sym = CURRENCY_SYMBOL(currency);
 
   // Convert an EUR amount into the selected currency (no formatting).
   const convert = (eurValue: number): number => eurValue * rate;

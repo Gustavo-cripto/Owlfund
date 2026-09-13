@@ -16,8 +16,21 @@ export type Trade = {
   asset: string;          // símbolo, ex. "BTC"
   assetName: string;      // nome, ex. "Bitcoin"
   quantity: number;
-  priceEur: number;       // preço unitário em EUR
+  /**
+   * Preço unitário em EUR — a unidade interna de toda a app.
+   *
+   * Quem regista em dolares fica com o valor convertido a taxa DA DATA da
+   * transacao (nao a de hoje), e o que escreveu guarda-se em `priceInput` +
+   * `currency`. Assim o portefolio, o PNL e os graficos continuam a somar numa
+   * so moeda, e o relatorio fiscal reconverte para a moeda do pais onde se
+   * declara — tambem a taxa de cada data.
+   */
+  priceEur: number;
   totalEur: number;       // quantity × priceEur (recalculado na leitura)
+  /** Moeda em que a pessoa registou o preço. Ausente = EUR (registos antigos). */
+  currency?: string;
+  /** Preço unitário tal como foi escrito, na moeda acima. */
+  priceInput?: number;
   date: string;           // "YYYY-MM-DD"
   exchange: string;
   notes: string;
@@ -52,6 +65,8 @@ export function sanitizeTrade(raw: unknown): Trade | null {
   const asset = String(r.asset ?? "").toUpperCase().replace(/[^A-Z0-9.\-]/g, "").slice(0, 12);
   const quantity = num(r.quantity);
   const priceEur = num(r.priceEur);
+  const currency = typeof r.currency === "string" && /^[A-Z]{3}$/.test(r.currency) ? r.currency : undefined;
+  const priceInput = Number.isFinite(num(r.priceInput)) ? num(r.priceInput) : undefined;
   const date = typeof r.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : "";
   const deleted = r.deleted === true;
   const updatedAt = Number.isFinite(num(r.updatedAt)) ? num(r.updatedAt) : undefined;
@@ -62,6 +77,7 @@ export function sanitizeTrade(raw: unknown): Trade | null {
     assetName: typeof r.assetName === "string" ? r.assetName : asset,
     quantity, priceEur,
     totalEur: quantity * priceEur,
+    currency, priceInput,
     date,
     exchange: typeof r.exchange === "string" ? r.exchange : "",
     notes: typeof r.notes === "string" ? r.notes : "",
