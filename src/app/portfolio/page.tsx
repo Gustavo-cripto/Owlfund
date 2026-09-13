@@ -1758,7 +1758,9 @@ export default function PortfolioPage() {
                 try {
                 const { default: jsPDF } = await import("jspdf");
                 const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-                const now = new Date().toLocaleDateString(locale, { day: "2-digit", month: "long", year: "numeric" });
+                // Com a hora: dois relatorios do mesmo dia eram indistinguiveis, e ficamos
+                // sem saber se estavamos a olhar para a exportacao nova ou para a antiga.
+                const now = new Date().toLocaleString(locale, { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
                 let y = 20;
                 const spacer = (n = 4) => { y += n; };
                 const checkPage = () => {
