@@ -2,6 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest, type NextFetchEvent } from "next/server";
 import { isProtectedPath } from "@/lib/auth/redirects";
 import { isBotUserAgent } from "@/lib/analytics/bots";
+import { pageFromPath, pageUrl } from "@/lib/i18n/routes";
+import type { Lang } from "@/lib/i18n/translations";
 
 // Regista uma visualizacao de pagina (fire-and-forget via waitUntil, sem atrasar
 // a resposta). So conta navegacoes reais: GET, sem prefetch, fora de /api e das
@@ -40,7 +42,73 @@ function trackPageView(request: NextRequest, event: NextFetchEvent): void {
   );
 }
 
+// Idioma pedido pelo browser, entre os que o site tem.
+//
+// Devolve null quando nao ha cabecalho, quando o primeiro reconhecido e o
+// portugues, ou quando nenhum e reconhecido. Sem cabecalho e caso comum e
+// deliberado: o Googlebot rastreia assim, e queremos que continue a ver a
+// versao portuguesa em "/" e a seguir os hreflang para as outras — nao que
+// seja atirado para /en.
+function langFromHeader(header: string | null): Lang | null {
+  if (!header) return null;
+  const preferencias = header
+    .split(",")
+    .map((parte) => {
+      const [tag, ...params] = parte.trim().split(";");
+      const q = params.find((x) => x.trim().startsWith("q="));
+      return { tag: tag.trim().toLowerCase(), q: q ? Number(q.split("=")[1]) : 1 };
+    })
+    .filter((x) => x.tag && Number.isFinite(x.q))
+    .sort((a, b) => b.q - a.q);
+  for (const { tag } of preferencias) {
+    const base = tag.split("-")[0];
+    if (base === "pt") return null;                       // ja e o idioma de "/"
+    if (base === "en" || base === "es" || base === "fr") return base as Lang;
+  }
+  return null;
+}
+
+/**
+ * Primeira visita a uma pagina publica sem prefixo de idioma: manda a pessoa
+ * para a versao na lingua do browser.
+ *
+ * Sem isto, o site respondia em portugues a toda a gente — o /en existia mas so
+ * la chegava quem reparasse na bandeira. Anulava o alcance dos guias em ingles
+ * e dos anuncios em comunidades internacionais.
+ *
+ * Guardas: so paginas publicas, so sem prefixo, e NUNCA por cima de uma escolha
+ * ja feita (o cookie cfa-lang manda sempre). 307 e nao 301: a escolha do
+ * visitante pode mudar, e um permanente ficaria preso na cache do browser.
+ */
+function idiomaRedirect(request: NextRequest): URL | null {
+  const path = request.nextUrl.pathname;
+  const aqui = pageFromPath(path);
+  if (!aqui || aqui.lang !== "pt") return null;           // so paginas publicas, so sem prefixo
+  // O login fica de fora: nao e pagina de descoberta e esta no meio de fluxos
+  // de autenticacao (?next=, ?error=, callback do OAuth). Mais a perder do que
+  // a ganhar. Quem vem da landing inglesa ja recebe /en/login pelo link.
+  if (aqui.page === "login") return null;
+  if (request.cookies.get("cfa-lang")) return null;       // escolha ja feita manda
+  const lang = langFromHeader(request.headers.get("accept-language"));
+  if (!lang) return null;
+  const destino = new URL(pageUrl(aqui.page, lang), request.url);
+  destino.search = request.nextUrl.search;                // nao perder ?next=, ?mode=…
+  return destino;
+}
+
 export async function middleware(request: NextRequest, event: NextFetchEvent) {
+  const paraOutroIdioma = request.method === "GET" ? idiomaRedirect(request) : null;
+  if (paraOutroIdioma) {
+    const redirect = NextResponse.redirect(paraOutroIdioma, 307);
+    // Sem isto a cache serve a lingua do primeiro visitante a todos os
+    // seguintes — um portugues apanharia a pagina inglesa.
+    redirect.headers.set("Vary", "Accept-Language, Cookie");
+    // A visita e contada no destino. Contar aqui tambem duplicava a mesma
+    // pessoa em duas linhas e estragava exatamente os numeros do funil que
+    // esta alteracao existe para melhorar.
+    return redirect;
+  }
+
   let response = NextResponse.next({ request });
 
   trackPageView(request, event);

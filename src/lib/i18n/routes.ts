@@ -11,7 +11,7 @@
 
 import type { Lang } from "./translations";
 
-export type PublicPage = "home" | "pricing" | "howItWorks" | "beta";
+export type PublicPage = "home" | "pricing" | "howItWorks" | "beta" | "login";
 
 /** Slug de cada página em cada idioma. "" = raiz do idioma. */
 export const PAGE_SLUG: Record<PublicPage, Record<Lang, string>> = {
@@ -19,6 +19,10 @@ export const PAGE_SLUG: Record<PublicPage, Record<Lang, string>> = {
   pricing: { pt: "pricing", en: "pricing", es: "precios", fr: "tarifs" },
   howItWorks: { pt: "como-funciona", en: "how-it-works", es: "como-funciona", fr: "comment-ca-marche" },
   beta: { pt: "beta", en: "beta", es: "beta", fr: "beta" },
+  // O login nao e uma pagina de destino de pesquisa, mas precisa de endereco
+  // por idioma: os CTA da landing inglesa mandavam para /login e o separador do
+  // browser piscava em portugues antes de a pagina hidratar.
+  login: { pt: "login", en: "login", es: "login", fr: "login" },
 };
 
 /** Prefixo do idioma. O português não tem — é o idioma de origem do site. */

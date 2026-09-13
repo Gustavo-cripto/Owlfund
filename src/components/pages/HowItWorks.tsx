@@ -148,7 +148,7 @@ export default function HowItWorks() {
           <p className="mt-16 rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-3 text-center text-xs text-slate-500">⚠️ {t("lp_disclaimer")}</p>
 
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <a href="/login" className={`${btnPrimary} px-8 py-3.5 text-base`}>
+            <a href={`${pageUrl("login", lang)}?mode=signup`} className={`${btnPrimary} px-8 py-3.5 text-base`}>
               {t("lp_plan_cta")}
             </a>
             {paymentsFrozen && (

@@ -284,7 +284,7 @@ export default function Landing() {
             </p>
             <p className="animate-fade-in-up delay-200 text-sm font-semibold text-orange-300/90">{t("lp_audience")}</p>
             <div className="animate-fade-in-up delay-300 flex flex-wrap gap-4">
-              <a href="/login" className={`${btnPrimary} px-8 py-3.5 text-base`}>
+              <a href={`${pageUrl("login", lang)}?mode=signup`} className={`${btnPrimary} px-8 py-3.5 text-base`}>
                 {t("lp_plan_cta")} →
               </a>
               {paymentsFrozen ? (
@@ -457,7 +457,7 @@ export default function Landing() {
             </table>
           </div>
           <div className="mt-8 text-center">
-            <a href="/login" className={`${btnPrimary} px-8 py-3.5 text-base`}>
+            <a href={`${pageUrl("login", lang)}?mode=signup`} className={`${btnPrimary} px-8 py-3.5 text-base`}>
               {t("lp_plan_cta")}
             </a>
           </div>
@@ -624,7 +624,7 @@ export default function Landing() {
               <h2 className="text-3xl font-bold text-white md:text-4xl">{t("lp_ready")}</h2>
               <p className="mt-4 text-slate-400 max-w-sm mx-auto">{t("lp_final_sub")}</p>
               <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-                <a href="/login" className={`${btnPrimary} w-full px-10 py-4 text-base sm:w-auto`}>
+                <a href={`${pageUrl("login", lang)}?mode=signup`} className={`${btnPrimary} w-full px-10 py-4 text-base sm:w-auto`}>
                   {t("lp_final_cta1")}
                 </a>
                 <a href={paymentsFrozen ? "/beta" : "/login"} className={`${btnSecondary} w-full px-10 py-4 text-base sm:w-auto`}>
@@ -658,7 +658,7 @@ export default function Landing() {
               <a href="#faq" className="transition hover:text-slate-300">{t("lp_faq_tag")}</a>
               <a href="/privacidade" className="transition hover:text-slate-300">{t("legal_privacy_short")}</a>
               <a href="/termos" className="transition hover:text-slate-300">{t("legal_terms_short")}</a>
-              <a href="/login" className="transition hover:text-slate-300">{t("lp_login")}</a>
+              <a href={pageUrl("login", lang)} className="transition hover:text-slate-300">{t("lp_login")}</a>
             </div>
             <div className="flex flex-col gap-2 md:items-end">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">

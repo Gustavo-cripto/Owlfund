@@ -100,6 +100,24 @@ const META: Record<PublicPage, Record<Lang, Meta>> = {
         "Rejoignez la bêta de ChainFolioAI : testez la plateforme, donnez votre avis et recevez Premium gratuitement pendant 60 jours.",
     },
   },
+  login: {
+    pt: {
+      title: "Entrar",
+      description: "Entra na tua conta ChainFolioAI para acederes ao teu portefólio.",
+    },
+    en: {
+      title: "Log in",
+      description: "Log in to your ChainFolioAI account to access your portfolio.",
+    },
+    es: {
+      title: "Entrar",
+      description: "Entra en tu cuenta ChainFolioAI para acceder a tu cartera.",
+    },
+    fr: {
+      title: "Connexion",
+      description: "Connectez-vous à votre compte ChainFolioAI pour accéder à votre portefeuille.",
+    },
+  },
 };
 
 const OG_LOCALE: Record<Lang, string> = {
