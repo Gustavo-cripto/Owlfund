@@ -11,7 +11,7 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useTheme, useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { createClient } from "@/lib/supabase/client";
-import { jsPDF } from "jspdf";
+import type { jsPDF } from "jspdf";  // so o tipo: a biblioteca (~300 kB) carrega no clique
 import { loadExcelJS } from "@/lib/export/excel";
 import { ACCOUNTS_EVENT } from "@/lib/portfolios/accounts";
 import { pushWalletCloud } from "@/lib/portfolios/cloudSync";
@@ -555,11 +555,14 @@ export default function FiscalidadePage() {
     });
 
   const exportPDF = async () => {
+    // Carregar so quando se exporta: em import estatico, o jsPDF entrava no
+    // bundle inicial da pagina para toda a gente, incluindo quem nunca exporta.
+    const { jsPDF: JsPDF } = await import("jspdf");
     setExportError(null);
     try {
     const eur = (v: number) => `${reportCurrency} ${Math.abs(v).toLocaleString(uiLocale, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
     const eurN = (v: number) => Math.abs(v).toLocaleString(uiLocale, { maximumFractionDigits: 0 });
-    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const doc = new JsPDF({ unit: "mm", format: "a4" });
     const W = doc.internal.pageSize.getWidth();
     const cx = W / 2;
     const M = 14;

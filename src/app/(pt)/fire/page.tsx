@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { createClient } from "@/lib/supabase/client";
-import { jsPDF } from "jspdf";
+import type { jsPDF } from "jspdf";  // so o tipo: a biblioteca (~300 kB) carrega no clique
 import { AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, ReferenceLine } from "recharts";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useTheme, useCurrencyFormat } from "@/lib/theme/ThemeContext";
@@ -198,7 +198,10 @@ export default function FirePage() {
 
   // PDF de 1 página com o plano — mesmo padrão visual dos exports da fiscalidade.
   const exportPlanPDF = async () => {
-    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    // Carregar so quando se exporta: em import estatico, o jsPDF entrava no
+    // bundle inicial da pagina para toda a gente, incluindo quem nunca exporta.
+    const { jsPDF: JsPDF } = await import("jspdf");
+    const doc = new JsPDF({ unit: "mm", format: "a4" });
     const W = doc.internal.pageSize.getWidth();
     const cx = W / 2;
     const M = 16;
