@@ -1113,6 +1113,13 @@ export default function AccountPage() {
                           { value: "EUR", label: "€ EUR — Euro" },
                           { value: "USD", label: `$ USD — ${t("ac_cur_usd")}` },
                           { value: "GBP", label: `£ GBP — ${t("ac_cur_gbp")}` },
+                          { value: "CHF", label: `CHF — ${t("ac_cur_chf")}` },
+                          { value: "CAD", label: `CA$ CAD — ${t("ac_cur_cad")}` },
+                          { value: "AUD", label: `A$ AUD — ${t("ac_cur_aud")}` },
+                          { value: "BRL", label: `R$ BRL — ${t("ac_cur_brl")}` },
+                          { value: "PLN", label: `zł PLN — ${t("ac_cur_pln")}` },
+                          { value: "MXN", label: `MX$ MXN — ${t("ac_cur_mxn")}` },
+                          { value: "SGD", label: `S$ SGD — ${t("ac_cur_sgd")}` },
                           { value: "BTC", label: "₿ BTC — Bitcoin" },
                         ]} />
                     </SettingRow>

@@ -238,6 +238,8 @@ const STABLE_SYMBOLS = new Set([
 
 function SnapshotList({ snapshots, onRestore, onDelete, locale, hideBalances }: { snapshots: SnapshotRow[]; onRestore: (row: SnapshotRow) => void; onDelete: (row: SnapshotRow) => void; locale: string; hideBalances: boolean }) {
   const { t } = useLanguage();
+  // O total do snapshot esta guardado em euros; mostra-se na moeda escolhida.
+  const { format: fmtCur } = useCurrencyFormat();
   const [expanded, setExpanded] = useState(false);
   const visible = expanded ? snapshots : snapshots.slice(0, 3);
   const hasMore = snapshots.length > 3;
@@ -256,7 +258,7 @@ function SnapshotList({ snapshots, onRestore, onDelete, locale, hideBalances }: 
             </p>
             <p className="text-xs text-slate-500">
               {typeof total === "number" && total > 0
-                ? (hideBalances ? "••••" : `€ ${Math.round(total).toLocaleString(locale)}`)
+                ? fmtCur(total, { decimals: 0 })
                 : `ID #${row.id}`}
             </p>
           </div>

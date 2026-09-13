@@ -5,7 +5,12 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import type { Lang } from "@/lib/i18n/translations";
 
 export type Theme = "dark" | "light" | "system";
-export type Currency = "EUR" | "USD" | "GBP" | "BTC";
+// As moedas acompanham os paises dos guias fiscais: euro (10 paises), libra,
+// dolar, franco suico, dolares canadiano/australiano, real, zloti, peso
+// mexicano e dolar de Singapura. Ficam de fora o dirham (AE) e o peso
+// argentino (AR): a fonte de cambios do BCE nao os publica, e preferimos nao
+// oferecer uma moeda cuja taxa nao sabemos ir buscar.
+export type Currency = "EUR" | "USD" | "GBP" | "CHF" | "CAD" | "AUD" | "BRL" | "PLN" | "MXN" | "SGD" | "BTC";
 /** "auto" segue o idioma do site; as outras forçam um formato. */
 export type NumberFormat = "auto" | "pt-PT" | "en-US";
 
@@ -39,7 +44,11 @@ const DEFAULTS: AppSettings = {
 
 // EUR-based FX rates: how much 1 EUR is worth in each currency.
 export type FxRates = Record<Currency, number>;
-const STATIC_RATES: FxRates = { EUR: 1, USD: 1.08, GBP: 0.86, BTC: 0.0000107 };
+// Valores de recurso, so ate a /api/fx responder. Nao precisam de ser exatos.
+const STATIC_RATES: FxRates = {
+  EUR: 1, USD: 1.16, GBP: 0.86, CHF: 0.94, CAD: 1.60, AUD: 1.76,
+  BRL: 6.30, PLN: 4.25, MXN: 21.5, SGD: 1.50, BTC: 0.0000107,
+};
 
 type ThemeContextValue = AppSettings & {
   setSetting: <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => void;
@@ -153,7 +162,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 export const useTheme = () => useContext(ThemeContext);
 
 // ── Currency formatting helper ────────────────────────────────────────────
-const CURRENCY_SYMBOL: Record<Currency, string> = { EUR: "€", USD: "$", GBP: "£", BTC: "₿" };
+const CURRENCY_SYMBOL: Record<Currency, string> = {
+  EUR: "€", USD: "$", GBP: "£", CHF: "CHF", CAD: "CA$", AUD: "A$",
+  BRL: "R$", PLN: "zł", MXN: "MX$", SGD: "S$", BTC: "₿",
+};
 
 export function useCurrencyFormat() {
   const { currency, numberFormat, hideBalances, rates } = useTheme();

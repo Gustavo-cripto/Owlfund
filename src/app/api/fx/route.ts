@@ -1,26 +1,42 @@
 import { NextResponse } from "next/server";
 
-// Live EUR-based FX rates: how much 1 EUR is worth in each currency.
-// Fiat (USD, GBP) from frankfurter.app; BTC from CoinGecko. Cached 60s.
+// Taxas de câmbio com base no euro: quanto vale 1 EUR em cada moeda.
+//
+// Moeda fiduciária do feed do BCE (frankfurter, gratuito e sem chave); o
+// bitcoin da CoinGecko. As moedas aqui são as dos países dos guias fiscais.
+//
+// O endereço é `api.frankfurter.dev/v1/`: o antigo `api.frankfurter.app`
+// passou a responder 301 e só funcionava porque o fetch segue redireções —
+// uma dependência silenciosa que mais dia menos dia deixava de funcionar.
 export const revalidate = 60;
 
-type Rates = { EUR: number; USD: number; GBP: number; BTC: number };
+const FIAT = ["USD", "GBP", "CHF", "CAD", "AUD", "BRL", "PLN", "MXN", "SGD"] as const;
 
-const FALLBACK: Rates = { EUR: 1, USD: 1.08, GBP: 0.86, BTC: 0.0000107 };
+type Rates = Record<string, number>;
+
+// Só até a chamada responder. Não precisam de ser exatos.
+const FALLBACK: Rates = {
+  EUR: 1, USD: 1.16, GBP: 0.86, CHF: 0.94, CAD: 1.60, AUD: 1.76,
+  BRL: 6.30, PLN: 4.25, MXN: 21.5, SGD: 1.50, BTC: 0.0000107,
+};
 
 export async function GET() {
   const rates: Rates = { ...FALLBACK };
 
   try {
     const [fiatRes, btcRes] = await Promise.all([
-      fetch("https://api.frankfurter.app/latest?from=EUR&to=USD,GBP", { next: { revalidate: 60 } }),
+      fetch(`https://api.frankfurter.dev/v1/latest?base=EUR&symbols=${FIAT.join(",")}`, { next: { revalidate: 60 } }),
       fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=eur", { next: { revalidate: 60 } }),
     ]);
 
     if (fiatRes.ok) {
-      const j = (await fiatRes.json()) as { rates?: { USD?: number; GBP?: number } };
-      if (typeof j.rates?.USD === "number") rates.USD = j.rates.USD;
-      if (typeof j.rates?.GBP === "number") rates.GBP = j.rates.GBP;
+      const j = (await fiatRes.json()) as { rates?: Record<string, number> };
+      for (const c of FIAT) {
+        const v = j.rates?.[c];
+        // Uma moeda em falta fica com o valor de recurso, em vez de ir a zero
+        // e transformar todos os saldos em 0,00.
+        if (typeof v === "number" && v > 0) rates[c] = v;
+      }
     }
 
     if (btcRes.ok) {
@@ -29,7 +45,7 @@ export async function GET() {
       if (typeof eurPerBtc === "number" && eurPerBtc > 0) rates.BTC = 1 / eurPerBtc;
     }
   } catch {
-    /* keep fallback */
+    /* fica o recurso */
   }
 
   return NextResponse.json({ rates, updatedAt: Date.now() });
