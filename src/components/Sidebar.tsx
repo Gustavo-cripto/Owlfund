@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 import PlanBadge from "@/components/PlanBadge";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { pageUrl } from "@/lib/i18n/routes";
 import type { Lang, TranslationKey } from "@/lib/i18n/translations";
 
 const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
@@ -237,10 +238,10 @@ export default function Sidebar() {
         ...(isAdmin ? [{ href: "/admin/beta", labelKey: "nav_beta" as TranslationKey, icon: betaIcon }] : []),
       ]
     : [
-        { href: "/", labelKey: "nav_home", icon: homeIcon },
-        { href: "/como-funciona", labelKey: "dash_how_title", icon: howIcon },
-        ...(paymentsFrozen ? [{ href: "/beta", labelKey: "nav_beta_signup" as TranslationKey, icon: betaIcon }] : []),
-        { href: "/pricing", labelKey: "nav_pricing" as TranslationKey, icon: NAV_ITEMS.find((n) => n.href === "/pricing")?.icon },
+        { href: pageUrl("home", lang), labelKey: "nav_home", icon: homeIcon },
+        { href: pageUrl("howItWorks", lang), labelKey: "dash_how_title", icon: howIcon },
+        ...(paymentsFrozen ? [{ href: pageUrl("beta", lang), labelKey: "nav_beta_signup" as TranslationKey, icon: betaIcon }] : []),
+        { href: pageUrl("pricing", lang), labelKey: "nav_pricing" as TranslationKey, icon: NAV_ITEMS.find((n) => n.href === "/pricing")?.icon },
         { href: "/developers", labelKey: "nav_developers" as TranslationKey, icon: NAV_ITEMS.find((n) => n.href === "/account?section=api")?.icon },
       ];
 
@@ -300,7 +301,7 @@ export default function Sidebar() {
             {isLoggedIn ? (
               <button type="button" onClick={handleLogout} className="text-xs text-slate-500 hover:text-white transition">{t("logout")}</button>
             ) : (
-              <a href="/login" className={`${btnPrimary} px-3 py-1.5 text-xs`}>{t("lp_login")}</a>
+              <a href={pageUrl("login", lang)} className={`${btnPrimary} px-3 py-1.5 text-xs`}>{t("lp_login")}</a>
             )}
           </div>
         </nav>
@@ -414,7 +415,7 @@ export default function Sidebar() {
             </button>
           ) : (
             <a
-              href="/login"
+              href={pageUrl("login", lang)}
               title={!expanded ? t("lp_login") : undefined}
               className={`w-full flex items-center rounded-xl bg-orange-500 font-bold text-slate-950 hover:bg-orange-400 transition ${
                 expanded ? "gap-2.5 px-3 py-2.5" : "justify-center py-3 px-0"

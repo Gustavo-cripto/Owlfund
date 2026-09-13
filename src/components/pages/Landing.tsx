@@ -14,7 +14,6 @@ import { btnPrimary, btnSecondary } from "@/lib/ui/buttons";
 // Durante o beta os pagamentos estão congelados: os CTAs de planos pagos
 // apontam para o convite /beta (Pro/Premium grátis 60 dias).
 const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
-const paidHref = paymentsFrozen ? "/beta" : "/pricing";
 
 const STEPS = (paymentsFrozen
   ? [
@@ -500,7 +499,7 @@ export default function Landing() {
                   ))}
                 </ul>
                 <a
-                  href={p.paid ? paidHref : "/login"}
+                  href={p.paid ? pageUrl(paymentsFrozen ? "beta" : "pricing", lang) : `${pageUrl("login", lang)}?mode=signup`}
                   className={`${p.popular ? btnPrimary : btnSecondary} mt-6 w-full px-5 py-3 text-sm`}
                 >
                   {p.paid ? (paymentsFrozen ? `🧪 ${t("lp_plan_beta_cta")}` : t("lp_plan_choose")) : t("lp_plan_cta")}
@@ -627,7 +626,7 @@ export default function Landing() {
                 <a href={`${pageUrl("login", lang)}?mode=signup`} className={`${btnPrimary} w-full px-10 py-4 text-base sm:w-auto`}>
                   {t("lp_final_cta1")}
                 </a>
-                <a href={paymentsFrozen ? "/beta" : "/login"} className={`${btnSecondary} w-full px-10 py-4 text-base sm:w-auto`}>
+                <a href={paymentsFrozen ? pageUrl("beta", lang) : pageUrl("login", lang)} className={`${btnSecondary} w-full px-10 py-4 text-base sm:w-auto`}>
                   {paymentsFrozen ? `🧪 ${t("lp_hero_beta_cta")}` : t("lp_final_cta2")} →
                 </a>
               </div>
