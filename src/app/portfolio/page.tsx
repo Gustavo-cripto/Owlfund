@@ -220,10 +220,10 @@ const toNumber = (value?: string) => {
 
 // `locale` é obrigatório de propósito: com um valor por omissão, o PDF saiu
 // meses a fio com separadores portugueses para quem o gerava em EN/ES/FR.
-const formatValue = (value: number, locale: string) => {
+const formatValue = (value: number, locale: string, decimals = 2) => {
   return value.toLocaleString(locale, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
   });
 };
 
@@ -299,7 +299,10 @@ export default function PortfolioPage() {
   const locale = ({ pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" } as Record<string, string>)[lang] ?? "pt-PT";
   // Durante o beta (pagamentos congelados) os CTAs de upgrade viram convite ao beta.
   const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
-  const { format: fmt, formatSigned: fmtSigned, convert: fx, symbol: curSym, hideBalances, numberFormat } = useCurrencyFormat();
+  const { format: fmt, formatSigned: fmtSigned, convert: fx, symbol: curSym, currency: curCode, hideBalances, numberFormat } = useCurrencyFormat();
+  // Em bitcoin, duas casas decimais nao chegam: um portefolio de 3.446 € da
+  // 0,036872 ₿ e sairia como "₿ 0,04" nos ficheiros — o ecra ja usava seis.
+  const moneyDecimals = curCode === "BTC" ? 6 : 2;
   const [wallets, setWallets] = useState<WalletBalance[]>([]);
   const [tokenPrices, setTokenPrices] = useState<TokenPrices>({});
   const [historicalPrices, setHistoricalPrices] = useState<HistoricalPrices>({ "1d": {}, "7d": {}, "30d": {} });
@@ -1823,13 +1826,13 @@ export default function PortfolioPage() {
                 spacer(8);
 
                 head(t("pf_summary"));
-                kv2(`${t("total")}: ${curSym} ${formatValue(fx(portfolioTotal), numberFormat)}`, `${t("pf_crypto")}: ${curSym} ${formatValue(fx(cryptoTotal), numberFormat)}`);
-                kv2(`${t("pf_traditional")}: ${curSym} ${formatValue(fx(traditionalTotal), numberFormat)}`, stablecoinTotal > 0 ? `${t("pf_stablecoins")}: ${curSym} ${formatValue(fx(stablecoinTotal), numberFormat)}` : undefined);
+                kv2(`${t("total")}: ${curSym} ${formatValue(fx(portfolioTotal), numberFormat, moneyDecimals)}`, `${t("pf_crypto")}: ${curSym} ${formatValue(fx(cryptoTotal), numberFormat, moneyDecimals)}`);
+                kv2(`${t("pf_traditional")}: ${curSym} ${formatValue(fx(traditionalTotal), numberFormat, moneyDecimals)}`, stablecoinTotal > 0 ? `${t("pf_stablecoins")}: ${curSym} ${formatValue(fx(stablecoinTotal), numberFormat, moneyDecimals)}` : undefined);
                 spacer(3);
 
                 head("PNL");
-                kv2(`${t("pf_position")}: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.position)), numberFormat)} ${pnlSummary.position >= 0 ? `(${t("pfx_gain")})` : `(${t("pfx_loss")})`}`, `${t("pf_today")}: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.today)), numberFormat)}`);
-                kv2(`${t("pc_30_days")}: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.days30 ?? 0)), numberFormat)}`);
+                kv2(`${t("pf_position")}: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.position)), numberFormat, moneyDecimals)} ${pnlSummary.position >= 0 ? `(${t("pfx_gain")})` : `(${t("pfx_loss")})`}`, `${t("pf_today")}: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.today)), numberFormat, moneyDecimals)}`);
+                kv2(`${t("pc_30_days")}: ${curSym} ${formatValue(fx(Math.abs(pnlSummary.days30 ?? 0)), numberFormat, moneyDecimals)}`);
                 spacer(3);
 
                 if (advancedMetrics) {
@@ -1874,7 +1877,7 @@ export default function PortfolioPage() {
                   doc.setFontSize(10);
                   doc.setFont("helvetica", "normal");
                   doc.setTextColor(226, 232, 240);
-                  doc.text(`${a.label} (${a.symbol}): ${curSym} ${formatValue(fx(a.value), numberFormat)} · ${num(pctTotal(a.value), 1)}%`, 15, y);
+                  doc.text(`${a.label} (${a.symbol}): ${curSym} ${formatValue(fx(a.value), numberFormat, moneyDecimals)} · ${num(pctTotal(a.value), 1)}%`, 15, y);
                   doc.setTextColor(255, 255, 255);
                   y += 6;
                 });
@@ -1922,7 +1925,7 @@ export default function PortfolioPage() {
                 const logoImgId = logoUrl ? wb.addImage({ base64: logoUrl.split(",")[1], extension: "png" }) : null;
 
                 [26, 22, 16, 18, 12].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
-                const money = `#,##0.00 "${curSym}"`;
+                const money = curCode === "BTC" ? `#,##0.000000 "${curSym}"` : `#,##0.00 "${curSym}"`;
                 const pctFmt = '0.00"%"';
                 const BRAND = "FFF97316";
                 const DARK = "FF0F172A";
