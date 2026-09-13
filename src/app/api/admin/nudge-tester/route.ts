@@ -20,16 +20,22 @@ export const dynamic = "force-dynamic";
 const KIND = "nudge-inactive";
 
 function corpo(): { subject: string; html: string } {
-  const subject = "Uma pergunta sobre o ChainFolioAI";
-  const p = (t: string) => `<p style="margin:0 0 14px 0;font-size:15px;line-height:1.55;color:#111">${esc(t)}</p>`;
+  // Texto pedido pelo Gustavo (2026-09-13): humano, simpatico, e sempre a
+  // convidar a voltar — mas com uma pergunta so, e sem prometer nada que o
+  // produto nao faca. "Ha uns dias" de proposito: serve a quem entrou a 2 ou a
+  // 10 de setembro. Um unico link, o dominio em claro, sem parametros.
+  const subject = "Ficámos com saudades — e com uma pergunta";
+  const p = (t: string) => `<p style="margin:0 0 14px 0;font-size:15px;line-height:1.6;color:#111">${t}</p>`;
   const html =
     `<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px 20px">` +
-    p("Olá,") +
-    p("Criaste conta no ChainFolioAI a 2 de setembro e não voltaste a entrar. Não te escrevo para te pedir que voltes — escrevo para perceber o que te fez parar.") +
-    p("Se tiveres um minuto, responde só com uma frase. Qualquer coisa serve: não percebeste o que fazer a seguir, faltava a exchange que usas, não carregou, achaste que não valia a pena, ou não era o que procuravas.") +
-    p("É a informação mais útil que posso receber agora, e não há resposta errada.") +
-    p("Obrigado,") +
-    p("ChainFolioAI") +
+    p(esc("Olá,")) +
+    p(esc("Criaste conta no ChainFolioAI há uns dias, deste uma volta e não voltaste. Acontece — e não há problema nenhum. Mas foste das primeiras pessoas de fora a experimentar isto, e isso conta muito para nós.")) +
+    p(esc("Estamos a melhorar o produto todos os dias, em grande parte com o que os primeiros testers nos dizem. Por isso a pergunta, e podes responder com uma frase só: o que te fez parar? Não percebeste o que fazer a seguir, faltava a tua exchange, algo não carregou, ou simplesmente não era o que procuravas — tudo serve, e não há resposta errada.")) +
+    p(esc("E se quiseres dar uma segunda oportunidade, o teu acesso Premium dos 60 dias continua ativo. Entra em ") +
+      `<a href="https://chainfolioai.com" style="color:#ea580c;text-decoration:underline">chainfolioai.com</a>` +
+      esc(" — e se ficares preso em algum passo, responde a este email e ajudamos-te a ligar tudo.")) +
+    p(esc("Obrigado por teres experimentado,")) +
+    p(`<strong>${esc("ChainFolioAI")}</strong>`) +
     `</div>`;
   return { subject, html };
 }
