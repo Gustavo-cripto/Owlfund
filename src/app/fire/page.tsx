@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import AppShell from "@/components/AppShell";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { createClient } from "@/lib/supabase/client";
 import { jsPDF } from "jspdf";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, ReferenceLine } from "recharts";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
-import { useTheme } from "@/lib/theme/ThemeContext";
+import { useTheme, useCurrencyFormat } from "@/lib/theme/ThemeContext";
 
 // Regra dos 4% (Trinity Study): património necessário = despesas anuais × 25.
 // Lean=20× (levantamento 5%), Regular=25× (4%), Fat=33× (3%) — selecionável.
@@ -16,6 +16,12 @@ export default function FirePage() {
   const { isLoading, userId } = useRequireAuth("/login");
   const { t, lang } = useLanguage();
   const { hideBalances } = useTheme();
+  const { convert, symbol: curSym, currency: curCode, rates, numberFormat } = useCurrencyFormat();
+  // O plano vive na moeda escolhida. Os limites dos sliders estao pensados em
+  // euros (500-20.000 de despesas, etc.); convertidos, valem o mesmo em dolares
+  // ou em bitcoin — sem isto, um americano arrastava o slider em euros e um
+  // utilizador em BTC via "500 a 20.000 ₿".
+  const cur = (eur: number) => convert(eur);
 
   // Inputs do utilizador — persistidos localmente para a página abrir com o plano dele
   const saved = useMemo<Record<string, number | string>>(() => {
@@ -36,9 +42,28 @@ export default function FirePage() {
       localStorage.setItem("fire-plan-v1", JSON.stringify({
         exp: monthlyExpenses, inv: monthlyInvestment, ret: annualReturn,
         inf: inflationRate, age: currentAge, pv: portfolioOverride, mult: fireMultiple,
+        cur: curCode,
       }));
     } catch { /* modo privado, etc. */ }
-  }, [monthlyExpenses, monthlyInvestment, annualReturn, inflationRate, currentAge, portfolioOverride, fireMultiple]);
+  }, [monthlyExpenses, monthlyInvestment, annualReturn, inflationRate, currentAge, portfolioOverride, fireMultiple, curCode]);
+
+  // Ao trocar de moeda, os valores acompanham: quem tinha 2.000 €/mes de
+  // despesas passa a ver o equivalente em dolares, e nao "2.000 $" — que seria
+  // outro plano. Converte-se uma vez por mudanca de moeda (nunca quando as
+  // taxas de cambio se atualizam, senao convertia em cada minuto).
+  const moedaAnterior = useRef<string>((typeof saved["cur"] === "string" ? (saved["cur"] as string) : curCode));
+  useEffect(() => {
+    const de = moedaAnterior.current;
+    if (de === curCode) return;
+    const taxaDe = (rates as Record<string, number>)[de] ?? 1;
+    const taxaPara = (rates as Record<string, number>)[curCode] ?? 1;
+    const f = taxaPara / taxaDe;
+    if (!Number.isFinite(f) || f <= 0) { moedaAnterior.current = curCode; return; }
+    setMonthlyExpenses((v) => Math.round(v * f * 100) / 100);
+    setMonthlyInvestment((v) => Math.round(v * f * 100) / 100);
+    setPortfolioOverride((v) => (v.trim() === "" ? v : String(Math.round(Number(v) * f * 100) / 100)));
+    moedaAnterior.current = curCode;
+  }, [curCode, rates]);
 
   // Último snapshot do portefólio (para pré-preencher com 1 clique)
   const [livePortfolio, setLivePortfolio] = useState<number | null>(null);
@@ -54,7 +79,7 @@ export default function FirePage() {
           .order("created_at", { ascending: false })
           .limit(1);
         const tot = (data?.[0]?.data as { _totalEur?: number } | undefined)?._totalEur;
-        if (typeof tot === "number" && tot > 0) setLivePortfolio(tot);
+        if (typeof tot === "number" && tot > 0) setLivePortfolio(tot);  // em EUR; convertido na apresentacao
       } catch { /* ignore */ }
     })();
   }, [userId]);
@@ -95,12 +120,12 @@ export default function FirePage() {
   // E se investisses mais por mês?
   const whatIf = useMemo(() => {
     if (yearsToFire === null || yearsToFire === 0) return [];
-    return [100, 250, 500].map((extra) => {
+    return [cur(100), cur(250), cur(500)].map((extra) => {
       const y = calcYears(portfolioValue, monthlyInvestment + extra, fireTarget);
       return { extra, years: y, saved: y !== null ? yearsToFire - y : null };
     }).filter((w) => w.years !== null && (w.saved ?? 0) > 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [yearsToFire, portfolioValue, monthlyInvestment, fireTarget, monthlyReal, realReturn]);
+  }, [yearsToFire, portfolioValue, monthlyInvestment, fireTarget, monthlyReal, realReturn, curCode]);
 
   const progressPct = fireTarget > 0 ? Math.min(100, (portfolioValue / fireTarget) * 100) : 0;
   const passiveNow = portfolioValue * (swr / 100) / 12; // €/mês que o património atual já geraria
@@ -150,7 +175,6 @@ export default function FirePage() {
       { label: t("fire_bonds"), rec: t("fire_bonds_desc"), value: total * 0.15, pct: "15" },
       { label: t("fire_cash"), rec: t("fire_cash_desc"), value: total * 0.10, pct: "10" },
     ];
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [portfolioValue, fireTarget, monthlyExpenses, t]);
 
   const loadLogo = (): Promise<string | null> =>
@@ -179,7 +203,10 @@ export default function FirePage() {
     const cx = W / 2;
     const M = 16;
     const locale = ({ pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" } as Record<string, string>)[lang] ?? "pt-PT";
-    const eur = (v: number) => `EUR ${Math.round(v).toLocaleString(locale)}`;
+    // O relatorio sai na moeda escolhida — um plano FIRE em euros nao serve a
+    // quem vive e poupa em dolares.
+    const money = (v: number) =>
+      `${curSym} ${v.toLocaleString(locale, { maximumFractionDigits: curCode === "BTC" ? 6 : 0 })}`;
 
     doc.setFillColor(249, 115, 22);
     doc.rect(0, 0, W, 3, "F");
@@ -222,27 +249,27 @@ export default function FirePage() {
     };
     doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.setTextColor(249, 115, 22);
     doc.text(t("fire_params").toUpperCase(), M, y); y += 7;
-    line(t("fire_monthly_expenses"), eur(monthlyExpenses));
-    line(t("fire_monthly_investment"), eur(monthlyInvestment));
+    line(t("fire_monthly_expenses"), money(monthlyExpenses));
+    line(t("fire_monthly_investment"), money(monthlyInvestment));
     line(t("fire_annual_return"), `${annualReturn}%`);
     line(t("fire_inflation"), `${inflationRate}%`);
     line(t("fire_current_age"), `${currentAge} ${t("fire_years")}`);
-    if (portfolioValue > 0) line(t("fire_current_portfolio"), eur(portfolioValue));
+    if (portfolioValue > 0) line(t("fire_current_portfolio"), money(portfolioValue));
     y += 3;
     doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.setTextColor(249, 115, 22);
     doc.text(t("fire_target").toUpperCase(), M, y); y += 7;
-    line(t("fire_target"), eur(fireTarget));
+    line(t("fire_target"), money(fireTarget));
     line(`${t("fire_expenses_x")} ×${fireMultiple}`, `${t("fire_swr_label")} ${swr.toFixed(1)}%`);
     if (portfolioValue > 0) {
       line(t("fire_progress_title"), `${progressPct.toFixed(1)}%`);
-      line(t("fire_passive_title"), `${eur(passiveNow)}/${t("fire_month_short")}`);
+      line(t("fire_passive_title"), `${money(passiveNow)}/${t("fire_month_short")}`);
       if (coastYears !== null) line(t("fire_coast_title"), coastYears === 0 ? "FIRE" : `${coastYears} ${t("fire_years")}`);
     }
     if (whatIf.length > 0) {
       y += 3;
       doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.setTextColor(249, 115, 22);
       doc.text(t("fire_whatif_pdf").toUpperCase(), M, y); y += 7;
-      whatIf.forEach((w) => line(`+${eur(w.extra)}/${t("fire_month_short")}`, `${w.years} ${t("fire_years")} (−${w.saved})`));
+      whatIf.forEach((w) => line(`+${money(w.extra)}/${t("fire_month_short")}`, `${w.years} ${t("fire_years")} (−${w.saved})`));
     }
 
     const pageH = doc.internal.pageSize.getHeight();
@@ -268,7 +295,11 @@ export default function FirePage() {
   if (isLoading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-400 animate-pulse">{t("loading")}</p></div>;
 
   const trim = (v: number) => Number.isInteger(v) ? v.toFixed(0) : v.toFixed(1);
-  const fmt = (v: number) => hideBalances ? "••••" : v >= 1_000_000 ? `€ ${trim(v / 1_000_000)}M` : v >= 1_000 ? `€ ${trim(v / 1_000)}K` : `€ ${Math.round(v)}`;
+  const fmt = (v: number) =>
+    hideBalances ? "••••"
+      : v >= 1_000_000 ? `${curSym} ${trim(v / 1_000_000)}M`
+        : v >= 1_000 ? `${curSym} ${trim(v / 1_000)}K`
+          : `${curSym} ${v.toLocaleString(numberFormat, { maximumFractionDigits: curCode === "BTC" ? 6 : 0 })}`;
 
   return (
     <AppShell>
@@ -301,8 +332,8 @@ export default function FirePage() {
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-5">{t("fire_params")}</p>
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {[
-                { label: t("fire_monthly_expenses"), key: "monthlyExpenses", value: monthlyExpenses, set: setMonthlyExpenses, min: 500, max: 20000, step: 100, hint: t("fire_hint_expenses") },
-                { label: t("fire_monthly_investment"), key: "monthlyInvestment", value: monthlyInvestment, set: setMonthlyInvestment, min: 0, max: 10000, step: 50, hint: t("fire_hint_investment") },
+                { label: `${t("fire_monthly_expenses")} (${curSym})`, key: "monthlyExpenses", value: monthlyExpenses, set: setMonthlyExpenses, min: cur(500), max: cur(20000), step: cur(100), hint: t("fire_hint_expenses") },
+                { label: `${t("fire_monthly_investment")} (${curSym})`, key: "monthlyInvestment", value: monthlyInvestment, set: setMonthlyInvestment, min: 0, max: cur(10000), step: cur(50), hint: t("fire_hint_investment") },
                 { label: t("fire_annual_return"), key: "annualReturn", value: annualReturn, set: setAnnualReturn, min: 1, max: 20, step: 0.5, hint: t("fire_hint_return") },
                 { label: t("fire_inflation"), key: "inflationRate", value: inflationRate, set: setInflationRate, min: 0, max: 10, step: 0.5, hint: t("fire_hint_inflation") },
                 { label: t("fire_current_age"), key: "currentAge", value: currentAge, set: setCurrentAge, min: 18, max: 70, step: 1, hint: t("fire_hint_age") },
@@ -310,26 +341,26 @@ export default function FirePage() {
                 <div key={f.key}>
                   <div className="flex justify-between mb-1.5">
                     <label className="text-xs text-slate-400">{f.label}</label>
-                    <span className="text-xs font-bold text-orange-300">{f.key.includes("Return") || f.key.includes("inflation") || f.key.includes("Rate") ? `${f.value}%` : f.key === "currentAge" ? `${f.value} ${t("fire_years")}` : hideBalances ? "••••" : `€ ${f.value.toLocaleString()}`}</span>
+                    <span className="text-xs font-bold text-orange-300">{f.key.includes("Return") || f.key.includes("inflation") || f.key.includes("Rate") ? `${f.value}%` : f.key === "currentAge" ? `${f.value} ${t("fire_years")}` : hideBalances ? "••••" : `${curSym} ${f.value.toLocaleString(numberFormat, { maximumFractionDigits: curCode === "BTC" ? 6 : 2 })}`}</span>
                   </div>
                   <input type="range" min={f.min} max={f.max} step={f.step} value={f.value}
                     onChange={e => f.set(Number(e.target.value))}
                     className="w-full accent-orange-500 h-1.5 cursor-pointer" />
                   <div className="flex justify-between text-[9px] text-slate-600 mt-0.5">
-                    <span>{f.min}</span><span>{f.max}</span>
+                    <span>{f.key.includes("Return") || f.key.includes("inflation") || f.key === "currentAge" ? f.min : fmt(f.min)}</span><span>{f.key.includes("Return") || f.key.includes("inflation") || f.key === "currentAge" ? f.max : fmt(f.max)}</span>
                   </div>
                   <p className="text-[10px] leading-snug text-slate-500 mt-1.5">{f.hint}</p>
                 </div>
               ))}
               <div>
-                <label className="text-xs text-slate-400 block mb-1.5">{t("fire_current_portfolio")}</label>
+                <label className="text-xs text-slate-400 block mb-1.5">{t("fire_current_portfolio").replace(" —", ` (${curSym}) —`)}</label>
                 <input type="number" placeholder={t("fire_ph_example")} value={portfolioOverride}
                   onChange={e => setPortfolioOverride(e.target.value)}
                   className="w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
-                {livePortfolio !== null && Number(portfolioOverride) !== Math.round(livePortfolio) && (
-                  <button type="button" onClick={() => setPortfolioOverride(String(Math.round(livePortfolio)))}
+                {livePortfolio !== null && Number(portfolioOverride) !== Math.round(cur(livePortfolio)) && (
+                  <button type="button" onClick={() => setPortfolioOverride(String(Math.round(cur(livePortfolio) * 100) / 100))}
                     className="mt-1.5 rounded-lg border border-orange-500/40 bg-orange-500/10 px-2.5 py-1 text-[11px] font-semibold text-orange-300 transition hover:bg-orange-500/20">
-                    📊 {t("fire_use_live")} {hideBalances ? "••••" : fmt(livePortfolio)}
+                    📊 {t("fire_use_live")} {hideBalances ? "••••" : fmt(cur(livePortfolio))}
                   </button>
                 )}
                 <p className="text-[10px] leading-snug text-slate-500 mt-1.5">{t("fire_hint_portfolio")}</p>
@@ -405,7 +436,7 @@ export default function FirePage() {
                   <button key={w.extra} type="button" onClick={() => setMonthlyInvestment(monthlyInvestment + w.extra)}
                     title={t("fire_whatif_apply")}
                     className="rounded-xl border border-slate-700 bg-slate-800/60 px-3 py-2 text-xs text-slate-300 transition hover:border-orange-400/50 hover:text-orange-200">
-                    +€{w.extra}/{t("fire_month_short")} → <b className="text-white">{w.years} {t("fire_years")}</b>{" "}
+                    +{fmt(w.extra)}/{t("fire_month_short")} → <b className="text-white">{w.years} {t("fire_years")}</b>{" "}
                     <span className="font-semibold text-emerald-400">(−{w.saved})</span>
                   </button>
                 ))}
@@ -446,7 +477,7 @@ export default function FirePage() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                   <XAxis dataKey="idade" tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={v => `${v}a`} />
-                  <YAxis tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={v => hideBalances ? "" : v >= 1000000 ? `€${(v/1000000).toFixed(1)}M` : `€${(v/1000).toFixed(0)}K`} width={70} />
+                  <YAxis tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={v => hideBalances ? "" : v >= 1000000 ? `${curSym}${(v/1000000).toFixed(1)}M` : `${curSym}${(v/1000).toFixed(0)}K`} width={70} />
                   <Tooltip contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }} labelStyle={{ color: "#94a3b8" }}
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     formatter={(v: any, name: any) => [fmt(typeof v === "number" ? v : 0), name === "patrimonio" ? t("fire_patrimony") : t("fire_goal")]} />
