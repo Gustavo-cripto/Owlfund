@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { btnPrimary } from "@/lib/ui/buttons";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -53,7 +54,7 @@ export default function Feedback() {
           <div className="mt-8 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-6">
             <p className="text-lg font-bold text-white">{t("fb_thanks_title")}</p>
             <p className="mt-2 text-sm text-slate-300">{t("fb_thanks_body")}</p>
-            <a href="/" className={`${btnPrimary} mt-5 inline-flex px-5 py-2.5 text-sm`}>{t("fb_back")}</a>
+            <Link href="/" className={`${btnPrimary} mt-5 inline-flex px-5 py-2.5 text-sm`}>{t("fb_back")}</Link>
           </div>
         ) : (
           <form onSubmit={submit} className="mt-8 space-y-5">
