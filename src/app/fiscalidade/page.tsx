@@ -10,6 +10,7 @@ import { useTheme } from "@/lib/theme/ThemeContext";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { createClient } from "@/lib/supabase/client";
 import { jsPDF } from "jspdf";
+import { loadExcelJS } from "@/lib/export/excel";
 import { ACCOUNTS_EVENT } from "@/lib/portfolios/accounts";
 import { pushWalletCloud } from "@/lib/portfolios/cloudSync";
 import { deleteTrade, loadTrades, tradeId, upsertTrade } from "@/lib/portfolios/trades";
@@ -247,6 +248,8 @@ export default function FiscalidadePage() {
   const { hideBalances } = useTheme();
   const uiLocale = LOCALE_BY_LANG[lang] ?? "pt-PT";
   const [isPro, setIsPro] = useState(false);
+  // Uma exportacao que rebenta tem de o dizer — nao ficar em silencio.
+  const [exportError, setExportError] = useState<string | null>(null);
   const [isPremium, setIsPremium] = useState(false);
   // Fonte única: o Histórico (/historico) da conta ativa. O que se adiciona aqui
   // fica também lá — e vice-versa.
@@ -385,8 +388,9 @@ export default function FiscalidadePage() {
 
   // Excel (.xlsx) formatado com logótipo — mesmo formato dos exports do portefólio.
   const exportXLSX = async () => {
-    const mod = await import("exceljs");
-    const ExcelJS = (mod as unknown as { default?: typeof mod }).default ?? mod;
+    setExportError(null);
+    try {
+    const ExcelJS = await loadExcelJS();
     const wb = new ExcelJS.Workbook();
     wb.creator = "ChainFolioAI";
     wb.created = new Date();
@@ -473,6 +477,10 @@ export default function FiscalidadePage() {
     const buf = await wb.xlsx.writeBuffer();
     const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
     await shareOrDownload(blob, `chainfolioai-tax-report-${country}-${new Date().getFullYear()}.xlsx`);
+    } catch (e) {
+      console.error("[export] Excel da fiscalidade:", e);
+      setExportError(`Excel: ${e instanceof Error ? e.message : String(e)}`);
+    }
   };
 
   const loadLogo = (): Promise<string | null> =>
@@ -498,6 +506,8 @@ export default function FiscalidadePage() {
     });
 
   const exportPDF = async () => {
+    setExportError(null);
+    try {
     const eur = (v: number) => `EUR ${Math.abs(v).toLocaleString(uiLocale, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
     const eurN = (v: number) => Math.abs(v).toLocaleString(uiLocale, { maximumFractionDigits: 0 });
     const doc = new jsPDF({ unit: "mm", format: "a4" });
@@ -691,6 +701,10 @@ export default function FiscalidadePage() {
 
     const pdfBlob = doc.output("blob");
     await shareOrDownload(pdfBlob, `chainfolioai-report-${country}-${new Date().getFullYear()}.pdf`);
+    } catch (e) {
+      console.error("[export] PDF da fiscalidade:", e);
+      setExportError(`PDF: ${e instanceof Error ? e.message : String(e)}`);
+    }
   };
 
   if (isLoading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-400 animate-pulse">{t("loading")}</p></div>;
@@ -898,6 +912,11 @@ export default function FiscalidadePage() {
                     )}
                   </div>
                 </div>
+                {exportError ? (
+                  <p className="mb-3 rounded-xl border border-rose-500/40 bg-rose-500/[0.08] px-4 py-2.5 text-xs text-rose-200">
+                    {t("pfu_export_failed")} {exportError}
+                  </p>
+                ) : null}
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead>

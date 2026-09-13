@@ -26,6 +26,7 @@ import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import { traditionalAssets } from "@/lib/traditional/assets";
 import { loadTraditionalHoldings, type TraditionalHoldings } from "@/lib/traditional/storage";
+import { downloadBlob, loadExcelJS } from "@/lib/export/excel";
 import { cryptoHoldingValueEur, loadCryptoHoldings, loadStablecoinEntries, type CryptoHoldings, type StablecoinEntry } from "@/lib/crypto/storage";
 import { loadNickname } from "@/lib/user/nickname";
 
@@ -322,6 +323,9 @@ export default function PortfolioPage() {
   const [isBillingLoading, setIsBillingLoading] = useState(false);
   const [billingError, setBillingError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  // Se uma exportacao rebentar, tem de aparecer no ecra: antes o onClick falhava
+  // em silencio e o botao parecia simplesmente nao fazer nada.
+  const [exportError, setExportError] = useState<string | null>(null);
 
   // IA contextual
   const [aiQuestion, setAiQuestion] = useState("");
@@ -1739,6 +1743,8 @@ export default function PortfolioPage() {
             <button
               id="btn-export-pdf"
               onClick={async () => {
+                setExportError(null);
+                try {
                 const { default: jsPDF } = await import("jspdf");
                 const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
                 const now = new Date().toLocaleDateString(locale, { day: "2-digit", month: "long", year: "numeric" });
@@ -1862,6 +1868,10 @@ export default function PortfolioPage() {
                 } else {
                   doc.save(pdfName);
                 }
+                } catch (e) {
+                  console.error("[export] PDF do portefolio:", e);
+                  setExportError(`PDF: ${e instanceof Error ? e.message : String(e)}`);
+                }
               }}
               className="flex items-center gap-2 rounded-xl border border-orange-500/40 px-4 py-2 text-sm font-semibold text-orange-300 hover:bg-orange-500/10 transition"
             >
@@ -1872,8 +1882,9 @@ export default function PortfolioPage() {
               onClick={async () => {
                 // Excel (.xlsx) formatado: larguras de coluna certas, cabeçalhos
                 // a negrito e números com formato — resolve o CSV cortado/"###".
-                const mod = await import("exceljs");
-                const ExcelJS = (mod as unknown as { default?: typeof mod }).default ?? mod;
+                setExportError(null);
+                try {
+                const ExcelJS = await loadExcelJS();
                 const wb = new ExcelJS.Workbook();
                 wb.creator = "ChainFolioAI";
                 wb.created = new Date();
@@ -1987,25 +1998,10 @@ export default function PortfolioPage() {
 
                 const buf = await wb.xlsx.writeBuffer();
                 const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-                const filename = `chainfolioai-portfolio-${new Date().toISOString().slice(0, 10)}.xlsx`;
-                const nav = navigator as Navigator & {
-                  canShare?: (d: { files: File[] }) => boolean;
-                  share?: (d: { files?: File[]; title?: string }) => Promise<void>;
-                };
-                const file = typeof File !== "undefined" ? new File([blob], filename, { type: blob.type }) : null;
-                if (file && nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
-                  // Telemóvel (iOS/Android): folha de partilha → "Guardar em Ficheiros"
-                  nav.share({ files: [file], title: filename }).catch(() => {});
-                } else {
-                  // Desktop: download clássico (revoke adiado para não cancelar)
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = filename;
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                  setTimeout(() => URL.revokeObjectURL(url), 4000);
+                await downloadBlob(blob, `chainfolioai-portfolio-${new Date().toISOString().slice(0, 10)}.xlsx`);
+                } catch (e) {
+                  console.error("[export] Excel do portefolio:", e);
+                  setExportError(`Excel: ${e instanceof Error ? e.message : String(e)}`);
                 }
               }}
               className="flex items-center gap-2 rounded-xl border border-slate-600/50 px-4 py-2 text-sm font-semibold text-slate-300 hover:bg-slate-700/30 transition"
@@ -2014,6 +2010,11 @@ export default function PortfolioPage() {
             </button>
             </div>
           </div>
+          {exportError ? (
+            <p className="mb-4 rounded-xl border border-rose-500/40 bg-rose-500/[0.08] px-4 py-2.5 text-xs text-rose-200">
+              {t("pfu_export_failed")} {exportError}
+            </p>
+          ) : null}
 
           {!advancedMetrics ? (
             <div className="rounded-xl border border-dashed border-slate-700 p-6 text-center">

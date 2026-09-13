@@ -47,13 +47,14 @@ export const KNOWN_WHALES: KnownWhale[] = [
   { address: "3Cbq7aT1tY8kMxWLbitaG7yT6bPbKChq64", label: "Kraken BTC Cold", chain: "btc", addedAt: 0 },
   { address: "1F1tAaz5x1HUXrCNLbtMDqcw6o5GNn4xqX", label: "🇺🇸 EUA — Silk Road (FBI Seizure)", chain: "btc", addedAt: 0 },
   { address: "bc1qa5wkgaew2dkv56kfvj49j0av5nml45x9ek9hz6", label: "🇺🇸 EUA — DOJ (Bitfinex hack)", chain: "btc", addedAt: 0 },
-  { address: "1CXhMMUMRADNqD7HqFvQSb1p3k5qdqPHVQ", label: "🇺🇸 EUA — IRS/CI Seizure Wallet", chain: "btc", addedAt: 0 },
   { address: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh", label: "🇸🇻 El Salvador — Tesouro Nacional", chain: "btc", addedAt: 0 },
   { address: "357a3So9CbsNfBBgFYACGvxxS6tMaDoa1P", label: "🇺🇦 Ucrânia — Doações Guerra 2022", chain: "btc", addedAt: 0 },
   { address: "bc1qm34lsc65zpw79lxes69zkqmk6ee3ewf0j77s3h", label: "🇧🇹 Butão — DHI Sovereign Fund", chain: "btc", addedAt: 0 },
-  { address: "bc1q9n3ywg3vxydmcj72m9m4stvy6s8jwfn3x05fmj", label: "🇩🇪 Alemanha — BKA Movie2k Seizure", chain: "btc", addedAt: 0 },
-  { address: "1CWHWkTWaq1K5hevimJia3cyinzBPc9ekg", label: "🇨🇳 China — PlusToken Seizure", chain: "btc", addedAt: 0 },
-  { address: "bc1qs4m9sed9j2jzf7cjhzgfhp6qn3k5l9g4s39yjf", label: "🇫🇮 Finlândia — NBI Seizure", chain: "btc", addedAt: 0 },
+  // Removidas daqui 4 carteiras BTC (IRS/CI, BKA Movie2k, PlusToken, NBI Finlândia):
+  // os enderecos falhavam o checksum, ou seja nao existem na blockchain. Quem as
+  // seguisse via so "Falha ao consultar o saldo BTC." — e nao havia saldo nenhum
+  // para consultar. Verificado contra a mempool.space e por checksum offline.
+  // Antes de acrescentar uma carteira nova: node scripts/verificar-baleias.mjs
 ];
 
 // Forma limpa para a API/MCP (sem addedAt).
