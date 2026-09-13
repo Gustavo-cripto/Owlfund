@@ -58,7 +58,6 @@ const securityHeaders = [
         "wss://0.peerjs.com",
         "https://*.peerjs.com",
         "wss://*.peerjs.com",
-        "stun:stun.l.google.com:19302",
         "https://js.stripe.com",
         "https://api.stripe.com",
       ].join(" "),
@@ -67,7 +66,6 @@ const securityHeaders = [
       // Workers
       "worker-src 'self' blob:",
       // WebAssembly (Cardano)
-      "wasm-src 'self'",
       // Bloqueia plugins (<object>/<embed>) — não usados
       "object-src 'none'",
       // Impede injeção de <base> (roubo de URLs relativas)

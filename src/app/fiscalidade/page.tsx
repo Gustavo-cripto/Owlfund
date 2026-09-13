@@ -858,6 +858,7 @@ export default function FiscalidadePage() {
               <button onClick={async () => {
                 if (!newTrade.asset || newTrade.amount <= 0 || newTrade.price <= 0) return;
                 setAddError(null);
+                try {
                 // Converter para euros a taxa do dia da transacao. Se nao houver
                 // taxa, nao gravamos nada a meio: um preco errado no historico
                 // contamina o FIFO e o imposto de todos os anos seguintes.
@@ -873,6 +874,10 @@ export default function FiscalidadePage() {
                 upsertTrade({ id: entry.id, type: entry.type, asset: entry.asset, assetName: entry.asset, quantity: entry.amount, priceEur: entry.price, totalEur: entry.amount * entry.price, date: entry.date, exchange: entry.exchange, notes: "", currency: inputCurrency, priceInput: newTrade.price });
                 pushWalletCloud();
                 setNewTrade(emptyTrade());
+                } catch (e) {
+                  console.error("[fiscalidade] adicionar transacao:", e);
+                  setAddError(e instanceof Error ? e.message : String(e));
+                }
               }} className={`${btnPrimary} px-4 py-2 text-sm`}>
                 + {t("add")}
               </button>

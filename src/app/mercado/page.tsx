@@ -558,6 +558,7 @@ function DerivMiniChart({ values, color, id }: { values: number[]; color: string
 type Liq = { id: number; side: "long" | "short"; usd: number; price: number; t: number };
 function LiquidationsFeed({ symbol }: { symbol: string }) {
   const { t } = useLanguage();
+  const { formatMarketUsd: fmtMkt } = useCurrencyFormat();
   const [liqs, setLiqs] = useState<Liq[]>([]);
   const [status, setStatus] = useState<"connecting" | "live" | "error">("connecting");
 
@@ -610,8 +611,8 @@ function LiquidationsFeed({ symbol }: { symbol: string }) {
               <span className={`font-semibold ${l.side === "long" ? "text-rose-400" : "text-emerald-400"}`}>
                 {l.side === "long" ? t("mc_long") : t("mc_short")}
               </span>
-              <span className="font-mono text-slate-200">${l.usd >= 1000 ? `${(l.usd / 1000).toFixed(1)}k` : l.usd.toFixed(0)}</span>
-              <span className="text-slate-500">@ ${l.price.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
+              <span className="font-mono text-slate-200">{fmtMkt(l.usd, { compact: true })}</span>
+              <span className="text-slate-500">@ {fmtMkt(l.price, { decimals: 2 })}</span>
             </div>
           ))
         )}

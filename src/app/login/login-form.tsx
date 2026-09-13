@@ -280,7 +280,7 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
             <button type="button" onClick={() => { setRecoveryMode((v) => !v); setMessage(null); setIsError(false); }} className="w-full text-center text-xs text-orange-300/80 transition hover:text-orange-200">
               {recoveryMode ? `← ${t("lg_use_app_code")}` : t("lg_use_recovery")}
             </button>
-            <button type="button" onClick={async () => { await supabase.auth.signOut(); setShowMfa(false); setMfaCode(""); setRecoveryCode(""); setRecoveryMode(false); setMessage(null); }} className="w-full text-center text-xs text-slate-500 transition hover:text-slate-200">
+            <button type="button" onClick={async () => { try { await supabase.auth.signOut(); } finally { setShowMfa(false); setMfaCode(""); setRecoveryCode(""); setRecoveryMode(false); setMessage(null); } }} className="w-full text-center text-xs text-slate-500 transition hover:text-slate-200">
               {t("lg_other_account")}
             </button>
           </form>

@@ -736,9 +736,14 @@ export default function SmartMoneyPage() {
                             setCheckingAlerts(true);
                             setLastCheckResult(null);
                             const before = alerts.length;
-                            await Promise.all(ethWatchlist.map(fetchTxData));
-                            setCheckingAlerts(false);
-                            setLastCheckResult(alerts.length > before ? "found" : "none");
+                            try {
+                              await Promise.all(ethWatchlist.map(fetchTxData));
+                              setLastCheckResult(alerts.length > before ? "found" : "none");
+                            } finally {
+                              // Sem isto, um fetch que rebentasse deixava o botao
+                              // desativado em "a verificar" ate recarregar a pagina.
+                              setCheckingAlerts(false);
+                            }
                           }}
                           className="text-xs text-orange-300 hover:text-orange-200 transition px-3 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/30 disabled:opacity-50">
                           {checkingAlerts ? t("sm2_checking") : `↻ ${t("sm_check_now")}`}

@@ -356,7 +356,7 @@ export default function WalletsPage() {
       : id === "outro" ? t("wl_btc_other")
         : btcNetworkOptions.find((o) => o.id === id)?.label ?? "Bitcoin";
   const askConfirm = useConfirm();
-  const { format: fmtCur, symbol: curSym, currency: curCode, rate: curRate, hideBalances, rates: fxRates } = useCurrencyFormat();
+  const { format: fmtCur, symbol: curSym, currency: curCode, rate: curRate, hideBalances, rates: fxRates, numberFormat, formatMarketUsd: fmtMkt } = useCurrencyFormat();
   // Esconde qualquer saldo/quantidade/NFT quando a opção "esconder saldos" está ativa.
   const maskBal = (node: React.ReactNode): React.ReactNode => (hideBalances ? "••••" : node);
   const [isClient, setIsClient] = useState(false);
@@ -1315,7 +1315,7 @@ export default function WalletsPage() {
 
   const formatRuneAmount = (amount: number | string) => {
     const n = typeof amount === "string" ? parseFloat(amount) || 0 : amount;
-    return n >= 1e9 ? String(amount) : n.toLocaleString("pt-PT", { maximumFractionDigits: 4 });
+    return n >= 1e9 ? String(amount) : n.toLocaleString(numberFormat, { maximumFractionDigits: 4 });
   };
 
   const totalAdaBalance = useMemo(() => {
@@ -4822,12 +4822,7 @@ export default function WalletsPage() {
                         {t("wl_current_price")}{" "}
                         <span className="font-semibold text-white">
                           {market
-                            ? market.priceUsd.toLocaleString("en-US", {
-                                style: "currency",
-                                currency: "USD",
-                                minimumFractionDigits: market.priceUsd < 1 ? 6 : 2,
-                                maximumFractionDigits: market.priceUsd < 1 ? 6 : 2,
-                              })
+                            ? fmtMkt(market.priceUsd, { decimals: market.priceUsd < 1 ? 6 : 2 })
                             : "—"}
                         </span>
                       </span>
@@ -4871,7 +4866,7 @@ export default function WalletsPage() {
                     <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
                       {t("wl_current_price")}{" "}
                       <span className="font-semibold text-white">
-                        {market ? market.priceUsd.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 4 }) : "—"}
+                        {market ? fmtMkt(market.priceUsd, { decimals: 4 }) : "—"}
                       </span>
                     </span>
                     <span className="rounded-full border border-slate-700/40 bg-slate-800/40 px-3 py-2 text-[10px] text-slate-500">{t("wl_stablecoin")}</span>
@@ -5013,12 +5008,7 @@ export default function WalletsPage() {
                         {t("wl_current_price")}{" "}
                         <span className="font-semibold text-white">
                           {market
-                            ? market.priceUsd.toLocaleString("en-US", {
-                                style: "currency",
-                                currency: "USD",
-                                minimumFractionDigits: market.priceUsd < 1 ? 6 : 2,
-                                maximumFractionDigits: market.priceUsd < 1 ? 6 : 2,
-                              })
+                            ? fmtMkt(market.priceUsd, { decimals: market.priceUsd < 1 ? 6 : 2 })
                             : "—"}
                         </span>
                       </span>
@@ -5457,7 +5447,7 @@ export default function WalletsPage() {
                                 : "—"}
                             </p>
                             <p className="text-[11px] text-slate-500">
-                              Vol: {quote.volume != null ? quote.volume.toLocaleString("pt-PT") : "—"}
+                              Vol: {quote.volume != null ? quote.volume.toLocaleString(numberFormat) : "—"}
                             </p>
                           </div>
                         ) : (

@@ -56,10 +56,10 @@ const EXCHANGES = [
   { id: "coinex", label: "CoinEx", mica: false },
 ] as const;
 
-function fmt(n: number) {
+function fmt(n: number, locale: string) {
   if (n === 0) return "0";
   if (n < 0.001) return n.toExponential(2);
-  return n.toLocaleString("pt-PT", { maximumFractionDigits: 6 });
+  return n.toLocaleString(locale, { maximumFractionDigits: 6 });
 }
 
 // ── CexSection ─────────────────────────────────────────────────────────────
@@ -102,7 +102,10 @@ export default function CexSection({
   tokensByAddress?: Record<string, Array<{ address: string; symbol: string; name: string; logo?: string; balance: string; usdValue: number; chain: string }>>;
 }) {
   const { t } = useLanguage();
-  const { format: fmtCur, hideBalances } = useCurrencyFormat();
+  const { format: fmtCur, formatUsd, hideBalances, numberFormat } = useCurrencyFormat();
+  // Quantidades e valores seguem o formato numerico e a moeda escolhidos —
+  // estavam fixos em pt-PT e em "$…" com separadores americanos.
+  const fmtQty = (n: number) => fmt(n, numberFormat);
   const [coldAddress, setColdAddress] = useState("");
   const [coldNetwork, setColdNetwork] = useState("eth");
   const [coldError, setColdError] = useState<string | null>(null);
@@ -458,13 +461,13 @@ export default function CexSection({
                       return (
                         <div key={b.asset} className="rounded-lg bg-slate-900 px-3 py-2 text-xs">
                           <p className="font-bold text-white">{b.asset}</p>
-                          <p className="text-slate-400">{hideBalances ? "••••" : fmt(b.total)}</p>
+                          <p className="text-slate-400">{hideBalances ? "••••" : fmtQty(b.total)}</p>
                           {valueEur != null && valueEur > 0.001 && (
                             <p className="text-[11px] text-emerald-400/80 mt-0.5">
                               {fmtCur(valueEur)}
                             </p>
                           )}
-                          {b.locked > 0 && <p className="text-[10px] text-slate-600">Locked: {hideBalances ? "••••" : fmt(b.locked)}</p>}
+                          {b.locked > 0 && <p className="text-[10px] text-slate-600">Locked: {hideBalances ? "••••" : fmtQty(b.locked)}</p>}
                         </div>
                       );
                     })}
@@ -580,7 +583,7 @@ export default function CexSection({
                       return (
                         <div key={b.coin} className="rounded-lg bg-slate-900 px-3 py-2 text-xs">
                           <p className="font-bold text-white">{b.coin}</p>
-                          <p className="text-slate-400">{hideBalances ? "••••" : fmt(b.total)}</p>
+                          <p className="text-slate-400">{hideBalances ? "••••" : fmtQty(b.total)}</p>
                           {valueEur != null && valueEur > 0.001 && (
                             <p className="text-[11px] text-emerald-400/80 mt-0.5">
                               {fmtCur(valueEur)}
@@ -703,7 +706,7 @@ export default function CexSection({
                 const balanceNum = e.balance == null ? null : Number(e.balance);
                 const balanceReady = balanceNum != null && Number.isFinite(balanceNum);
                 const balanceUnavailable = !balanceReady && (e.balance != null || !e.symbol);
-                const fmtUsd = (v: number) => hideBalances ? "••••" : `$${v.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+                const fmtUsd = (v: number) => formatUsd(v, { decimals: 2 });
                 return (
                   <div key={key} className="rounded-xl border border-slate-700/60 bg-slate-950/40 px-3 py-2.5 space-y-2">
                     <div className="flex items-center gap-2">
@@ -735,7 +738,7 @@ export default function CexSection({
                           <span className="font-semibold tracking-widest text-slate-500 select-none">••••</span>
                         ) : balanceReady ? (
                           <span className="font-semibold text-slate-200">
-                            {balanceNum.toLocaleString("en-US", { maximumFractionDigits: 6 })} {e.symbol}
+                            {balanceNum.toLocaleString(numberFormat, { maximumFractionDigits: 6 })} {e.symbol}
                             {e.fiatUsd != null ? <span className="text-slate-500"> ({fmtUsd(e.fiatUsd)})</span> : null}
                           </span>
                         ) : balanceUnavailable ? (
@@ -765,7 +768,7 @@ export default function CexSection({
                           {toks.map((t) => (
                             <div key={`${t.chain}:${t.address}:${t.symbol}`} className="flex items-center justify-between gap-2 text-[11px]">
                               <span className="truncate text-slate-300">
-                                {hideBalances ? "••••" : Number(t.balance).toLocaleString("en-US", { maximumFractionDigits: 4 })} <span className="font-semibold">{t.symbol}</span>
+                                {hideBalances ? "••••" : Number(t.balance).toLocaleString(numberFormat, { maximumFractionDigits: 4 })} <span className="font-semibold">{t.symbol}</span>
                               </span>
                               <span className="shrink-0 text-slate-400">{t.usdValue > 0 ? fmtUsd(t.usdValue) : "—"}</span>
                             </div>

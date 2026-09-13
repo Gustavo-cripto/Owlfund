@@ -38,21 +38,23 @@ const TOOLS: { img: string; w: number; h: number; t: TranslationKey; d: Translat
 ];
 
 // Passos reais do fluxo (durante o beta inclui a inscrição com o mesmo email).
-const FLOW: Array<{ t: TranslationKey; d: TranslationKey; href: string }> = paymentsFrozen
+// `page` e resolvido na lingua da pagina ao renderizar; `href` fixo so para as
+// paginas da app, que so existem em portugues.
+const FLOW: Array<{ t: TranslationKey; d: TranslationKey; href?: string; page?: "login" | "beta" }> = paymentsFrozen
   ? [
-      { t: "lp_s1_t", d: "lp_s1_d", href: "/login" },
-      { t: "lp_s_beta_t", d: "lp_s_beta_d", href: "/beta" },
+      { t: "lp_s1_t", d: "lp_s1_d", page: "login" },
+      { t: "lp_s_beta_t", d: "lp_s_beta_d", page: "beta" },
       { t: "lp_s2_t", d: "lp_s2_d", href: "/wallets" },
       { t: "lp_s3_t", d: "lp_s3_d", href: "/dashboard" },
     ]
   : [
-      { t: "lp_s1_t", d: "lp_s1_d", href: "/login" },
+      { t: "lp_s1_t", d: "lp_s1_d", page: "login" },
       { t: "lp_s2_t", d: "lp_s2_d", href: "/wallets" },
       { t: "lp_s3_t", d: "lp_s3_d", href: "/dashboard" },
     ];
 
 function ToolRow({ tool, index }: { tool: (typeof TOOLS)[number]; index: number }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [imgOk, setImgOk] = useState(Boolean(tool.img));
   const reverse = index % 2 === 1;
   return (
@@ -111,7 +113,7 @@ export default function HowItWorks() {
                 <div className="text-4xl font-black leading-none text-orange-500/20">{String(i + 1).padStart(2, "0")}</div>
                 <h2 className="mt-3 text-sm font-bold text-white">{t(f.t)}</h2>
                 <p className="mt-1 text-xs text-slate-400 leading-relaxed">{t(f.d)}</p>
-                <Link href={f.href} className="mt-3 inline-block text-xs font-semibold text-orange-300 hover:text-orange-200">{t("cf_go")} →</Link>
+                <Link href={f.page === "login" ? `${pageUrl("login", lang)}?mode=signup` : f.page ? pageUrl(f.page, lang) : (f.href ?? "/")} className="mt-3 inline-block text-xs font-semibold text-orange-300 hover:text-orange-200">{t("cf_go")} →</Link>
               </li>
             ))}
           </ol>

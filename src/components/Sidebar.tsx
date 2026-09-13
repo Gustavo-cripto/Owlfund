@@ -234,7 +234,7 @@ export default function Sidebar() {
   );
   const navList: { href: string; labelKey: TranslationKey; icon: ReactNode }[] = isLoggedIn
     ? [
-        ...NAV_ITEMS_KEYS.map((i) => ({ href: i.href, labelKey: i.labelKey, icon: NAV_ITEMS.find((n) => n.href === i.href)?.icon })),
+        ...NAV_ITEMS_KEYS.map((i) => ({ href: i.href === "/pricing" ? pageUrl("pricing", lang) : i.href, labelKey: i.labelKey, icon: NAV_ITEMS.find((n) => n.href === i.href)?.icon })),
         ...(isAdmin ? [{ href: "/admin/beta", labelKey: "nav_beta" as TranslationKey, icon: betaIcon }] : []),
       ]
     : [

@@ -108,7 +108,7 @@ export default function BetaSignup() {
           <div className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
             <p className="text-lg font-bold text-white">{t("beta_closed_title")}</p>
             <p className="mt-2 text-sm leading-relaxed text-slate-300">{t("beta_closed_body")}</p>
-            <Link href={paymentsFrozen ? "/login" : "/pricing"} className={`${btnPrimary} mt-4 inline-flex px-5 py-2.5 text-sm`}>
+            <Link href={paymentsFrozen ? `${pageUrl("login", lang)}?mode=signup` : pageUrl("pricing", lang)} className={`${btnPrimary} mt-4 inline-flex px-5 py-2.5 text-sm`}>
               {paymentsFrozen ? t("beta_ok_cta") : t("nav_pricing")}
             </Link>
           </div>
