@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser } from "@/lib/api/requireUser";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,6 +40,9 @@ function isServeableType(ct: string): boolean {
 }
 
 export async function GET(req: NextRequest) {
+  // Proxy com custo/quota nossa: so com sessao, e com limite por utilizador.
+  const auth = await requireUser(req, { route: "ipfs-image", limit: 120 });
+  if (!auth.ok) return auth.response;
   const cidParam = req.nextUrl.searchParams.get("cid");
   const urlParam = req.nextUrl.searchParams.get("url");
   const ipfsPath = cidParam ?? (urlParam ? extractIpfsPath(urlParam) : null);

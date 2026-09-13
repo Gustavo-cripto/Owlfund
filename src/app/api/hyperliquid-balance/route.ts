@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireUser } from "@/lib/api/requireUser";
 
 export interface HlBalance {
   coin: string;
@@ -8,6 +9,9 @@ export interface HlBalance {
 }
 
 export async function POST(request: Request) {
+  // Proxy com custo/quota nossa: so com sessao, e com limite por utilizador.
+  const auth = await requireUser(request, { route: "hyperliquid-balance", limit: 30 });
+  if (!auth.ok) return auth.response;
   const body = await request.json() as { address: string };
   const { address } = body;
 

@@ -7,3 +7,13 @@ export function apiJson(data: unknown, init?: { status?: number }): NextResponse
   res.headers.set("Cache-Control", "no-store");
   return res;
 }
+
+/**
+ * Erro interno para o cliente SEM o detalhe: o texto do Postgres/Supabase
+ * (nomes de tabelas e colunas, restricoes) fica no log do servidor, onde
+ * interessa, e nao na resposta. Aceita campos extra que a rota queira devolver.
+ */
+export function internalError(err: { message?: string; code?: string } | null | undefined, extra: Record<string, unknown> = {}): NextResponse {
+  console.error("[api] erro interno:", err?.code ?? "", err?.message ?? err);
+  return NextResponse.json({ error: "internal_error", ...extra }, { status: 500 });
+}

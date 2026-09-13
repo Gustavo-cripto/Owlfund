@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalError } from "@/lib/api/response";
 import { apiMsg } from "@/lib/api/apiMessages";
 import { createClient } from "@supabase/supabase-js";
 
@@ -63,6 +64,6 @@ export async function POST(request: Request) {
     updated_at: new Date().toISOString(),
   }, { onConflict: "user_id" });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError(error);
   return NextResponse.json({ ok: true });
 }

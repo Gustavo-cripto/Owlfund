@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireUser } from "@/lib/api/requireUser";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -62,7 +63,10 @@ const BINANCE_SYMBOLS: Record<string, string> = {
   bitcoin: "BTC", ethereum: "ETH", solana: "SOL", cardano: "ADA",
 };
 
-export async function GET() {
+export async function GET(request: Request) {
+  // Proxy com custo/quota nossa: so com sessao, e com limite por utilizador.
+  const auth = await requireUser(request, { route: "historical-prices", limit: 60 });
+  if (!auth.ok) return auth.response;
   const result: HistoricalPrices = { "1d": {}, "7d": {}, "30d": {} };
 
   await Promise.all(

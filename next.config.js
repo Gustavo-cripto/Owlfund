@@ -19,7 +19,9 @@ const securityHeaders = [
     value: [
       "default-src 'self'",
       // Scripts: self + inline (necessário para Next.js hydration) + trusted CDNs
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://s3.tradingview.com",
+      // Sem 'unsafe-eval': nenhum chunk do cliente usa eval/new Function (verificado
+      // no build). 'unsafe-inline' fica: o Next injeta scripts inline na hidratacao.
+      "script-src 'self' 'unsafe-inline' https://js.stripe.com https://s3.tradingview.com",
       // Estilos: self + inline (Tailwind)
       "style-src 'self' 'unsafe-inline'",
       // Imagens: self + data URIs + todas HTTPS (logos de tokens e NFTs são dinâmicos)
@@ -70,6 +72,8 @@ const securityHeaders = [
       "object-src 'none'",
       // Impede injeção de <base> (roubo de URLs relativas)
       "base-uri 'self'",
+      // Formularios so podem submeter para o proprio site (Stripe e OAuth sao redirects, nao POST de formulario).
+      "form-action 'self'",
       // Anti-clickjacking moderno (complementa X-Frame-Options)
       "frame-ancestors 'self'",
     ].join("; "),

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser } from "@/lib/api/requireUser";
 import { createPublicClient, formatEther, http } from "viem";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
@@ -32,6 +33,9 @@ const chainMap = {
 const CACHE_HEADERS = { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" };
 
 export async function GET(request: NextRequest) {
+  // Proxy com custo/quota nossa: so com sessao, e com limite por utilizador.
+  const auth = await requireUser(request, { route: "evm-balance", limit: 60 });
+  if (!auth.ok) return auth.response;
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
   if (!checkRateLimit(ip)) {
     return NextResponse.json({ error: "Demasiados pedidos." }, { status: 429 });

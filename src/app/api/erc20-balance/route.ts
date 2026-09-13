@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser } from "@/lib/api/requireUser";
 import { apiMsg } from "@/lib/api/apiMessages";
 import { createPublicClient, http, parseAbi, formatUnits } from "viem";
 import { mainnet } from "viem/chains";
@@ -30,6 +31,9 @@ const ETH_RPCS = [
 ];
 
 export async function GET(req: NextRequest) {
+  // Proxy com custo/quota nossa: so com sessao, e com limite por utilizador.
+  const auth = await requireUser(req, { route: "erc20-balance", limit: 60 });
+  if (!auth.ok) return auth.response;
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
   if (!checkRateLimit(ip)) {
     return NextResponse.json({ error: "Demasiados pedidos." }, { status: 429 });

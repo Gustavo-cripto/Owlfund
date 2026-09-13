@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser } from "@/lib/api/requireUser";
 import { generateAiText, hasAnyAiProvider } from "@/lib/ai/groq";
 
 export const runtime = "nodejs";
@@ -112,6 +113,9 @@ async function translateItems(items: NewsItem[], lang: string): Promise<NewsItem
 }
 
 export async function GET(req: NextRequest) {
+  // Proxy com custo/quota nossa: so com sessao, e com limite por utilizador.
+  const auth = await requireUser(req, { route: "news", limit: 60 });
+  if (!auth.ok) return auth.response;
   const lang = (req.nextUrl.searchParams.get("lang") ?? "en").toLowerCase().slice(0, 5);
 
   const results = await Promise.allSettled(

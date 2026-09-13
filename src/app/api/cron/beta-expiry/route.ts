@@ -7,6 +7,7 @@
 //  2× e um dia falhado é apanhado no seguinte). Idioma do tester lido de
 //  beta_signups (pt/en; es/fr caem em en).
 import { NextResponse } from "next/server";
+import { internalError } from "@/lib/api/response";
 import { isPremiumPriceId } from "@/lib/payments/priceIds";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { verifyCronAuth } from "@/lib/api/cron-auth";
@@ -136,7 +137,7 @@ export async function GET(request: Request) {
     .eq("status", "active")
     .gt("current_period_end", nowIso)
     .lte("current_period_end", horizon.toISOString());
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError(error);
 
   const adminRows: string[] = [];
   const tgLines: string[] = [];

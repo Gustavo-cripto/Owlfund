@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { rateLimitPublic } from "@/lib/api/requireUser";
 
 // Taxas de câmbio HISTÓRICAS, com base no euro, para um intervalo de datas.
 //
@@ -18,6 +19,9 @@ const MAX_SYMBOLS = 4;
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
 export async function GET(req: Request) {
+  // Rota publica (alimenta paginas sem sessao): limite por IP, sem sessao.
+  const limitado = rateLimitPublic(req, "fx-historical", 60);
+  if (limitado) return limitado;
   const { searchParams } = new URL(req.url);
   const from = searchParams.get("from") ?? "";
   const to = searchParams.get("to") ?? "";

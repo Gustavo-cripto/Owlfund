@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { rateLimitPublic } from "@/lib/api/requireUser";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -175,7 +176,10 @@ async function fromCoinGecko(): Promise<{ prices: Prices; benchmark: Partial<Ben
 
 const isValid = (p: Prices) => p.BTC > 0 && p.ETH > 0;
 
-export async function GET() {
+export async function GET(request: Request) {
+  // Rota publica (alimenta paginas sem sessao): limite por IP, sem sessao.
+  const limitado = rateLimitPublic(request, "prices", 120);
+  if (limitado) return limitado;
   // Try each source in order; first valid one wins
   const sources = [fromBinance, fromKraken, fromCoinGecko];
   let lastErr = "";

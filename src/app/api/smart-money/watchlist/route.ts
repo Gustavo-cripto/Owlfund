@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { internalError } from "@/lib/api/response";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getSessionUser, isUserPremium } from "@/lib/api/session";
 
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
     const { error } = await admin.from("smart_money_watchlist").insert(
       clean.map((e) => ({ user_id: user.id, address: e.address, chain: e.chain, label: e.label })),
     );
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return internalError(error);
     // remover as antigas que não estão na lista nova
     const keep = new Set(clean.map((e) => `${e.chain}:${e.address.toLowerCase()}`));
     const { data: rows } = await admin.from("smart_money_watchlist").select("id, address, chain").eq("user_id", user.id);

@@ -56,3 +56,19 @@ export async function requireUser(
   }
   return { ok: true, userId };
 }
+
+/**
+ * Limite por IP para rotas PUBLICAS (sem sessao): cotacoes, cambios, barra de
+ * blocos. Devolve a resposta 429 a enviar, ou null para deixar passar.
+ *
+ * Best-effort, em memoria por instancia — o mesmo compromisso do limite por
+ * utilizador acima. Chega para travar um script a martelar um proxy que gasta
+ * a nossa quota (25 pedidos seguidos davam 25x 200); nao substitui um WAF.
+ */
+export function rateLimitPublic(req: Request, route: string, limit = 120, windowMs = 60_000): NextResponse | null {
+  const key = `pub:${route}:${clientIp(req)}`;
+  if (rateLimit(key, limit, windowMs)) return null;
+  const res = NextResponse.json({ error: "rate_limited", message: `Demasiados pedidos (${limit}/min).` }, { status: 429 });
+  res.headers.set("Retry-After", String(Math.ceil(windowMs / 1000)));
+  return res;
+}

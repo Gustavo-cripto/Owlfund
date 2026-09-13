@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser } from "@/lib/api/requireUser";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 const CACHE_HEADERS = { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" };
 
 export async function GET(req: NextRequest) {
+  // Proxy com custo/quota nossa: so com sessao, e com limite por utilizador.
+  const auth = await requireUser(req, { route: "btc-balance", limit: 60 });
+  if (!auth.ok) return auth.response;
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
   if (!checkRateLimit(ip)) {
     return NextResponse.json({ error: "Demasiados pedidos." }, { status: 429 });

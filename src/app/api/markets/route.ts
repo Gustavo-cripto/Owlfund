@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { rateLimitPublic } from "@/lib/api/requireUser";
 
 // "Mercado em tempo real": revalida a cada 60s em vez de ficar em cache estática.
 // Sem isto, o Next torna a rota estática e os preços/colunas ficam congelados.
@@ -123,7 +124,10 @@ const EXTRA_STABLE_IDS = [
   "frax",           // FRAX
 ];
 
-export async function GET() {
+export async function GET(request: Request) {
+  // Rota publica (alimenta paginas sem sessao): limite por IP, sem sessao.
+  const limitado = rateLimitPublic(request, "markets", 120);
+  if (limitado) return limitado;
   try {
     const [coinexResponse, coingeckoResponse, coingeckoTopResponse, coingeckoExtraResponse, coingeckoGlobalResponse] = await Promise.all([
       fetch("https://api.coinex.com/v2/spot/ticker"),

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireUser } from "@/lib/api/requireUser";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,6 +14,9 @@ const ORD_CDNS = [
 const PER_CDN_TIMEOUT = 12_000;
 
 export async function GET(req: NextRequest) {
+  // Proxy com custo/quota nossa: so com sessao, e com limite por utilizador.
+  const auth = await requireUser(req, { route: "ord-content", limit: 120 });
+  if (!auth.ok) return auth.response;
   const id = req.nextUrl.searchParams.get("id")?.trim();
   if (!id || !/^[0-9a-fA-F]{64}i\d+$/.test(id)) {
     return NextResponse.json({ error: "Inscription id inválido." }, { status: 400 });

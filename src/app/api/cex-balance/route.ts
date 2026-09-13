@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireUser } from "@/lib/api/requireUser";
 import crypto from "crypto";
 
 export interface CexBalance {
@@ -295,6 +296,9 @@ async function fetchCoinbase(keyName: string, rawPem: string): Promise<CexBalanc
 // ── Route ──────────────────────────────────────────────────────────────────
 
 export async function POST(request: Request) {
+  // Proxy com custo/quota nossa: so com sessao, e com limite por utilizador.
+  const auth = await requireUser(request, { route: "cex-balance", limit: 20 });
+  if (!auth.ok) return auth.response;
   const body = await request.json() as { exchange: string; apiKey: string; apiSecret?: string; apiPassphrase?: string };
   const { exchange, apiKey, apiSecret, apiPassphrase } = body;
 

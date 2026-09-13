@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
+import { requireUser } from "@/lib/api/requireUser";
 
 const BLOCKFROST_URL = "https://cardano-mainnet.blockfrost.io/api/v0";
 
 export async function GET(request: Request) {
+  // Proxy com custo/quota nossa: so com sessao, e com limite por utilizador.
+  const auth = await requireUser(request, { route: "ada-balance", limit: 60 });
+  if (!auth.ok) return auth.response;
   const { searchParams } = new URL(request.url);
   const address = searchParams.get("address");
   const projectId = process.env.BLOCKFROST_PROJECT_ID;

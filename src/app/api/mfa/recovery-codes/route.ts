@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalError } from "@/lib/api/response";
 import { createClient } from "@supabase/supabase-js";
 import { createHash, randomBytes } from "crypto";
 
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
   const codes = Array.from({ length: 10 }, () => genCode());
   const rows = codes.map((c) => ({ user_id: user.id, code_hash: hash(c) }));
   const { error } = await admin.from("mfa_recovery_codes").insert(rows);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError(error);
 
   // Devolve os códigos em texto UMA vez (só aqui são visíveis).
   return NextResponse.json({ codes });

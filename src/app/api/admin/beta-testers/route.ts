@@ -1,6 +1,7 @@
 // Lista de beta testers ativos (atribuições manuais). Só para admins — definidos
 // na env ADMIN_EMAILS (emails separados por vírgula). Sem ADMIN_EMAILS => ninguém.
 import { NextResponse } from "next/server";
+import { internalError } from "@/lib/api/response";
 import { isPremiumPriceId } from "@/lib/payments/priceIds";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
@@ -41,7 +42,7 @@ export async function GET() {
     .order("current_period_end", { ascending: true });
   if (error) {
     console.error("[beta-testers] subscriptions", error.code, error.message);
-    return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
+    return internalError(error, { code: error.code });
   }
 
   // Fundadores confirmados (best-effort; vazio se a tabela ainda não existir).

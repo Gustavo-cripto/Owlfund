@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
+import { requireUser } from "@/lib/api/requireUser";
 
 export const dynamic = "force-dynamic";
 
 // Returns USD prices for a list of symbols via CoinEx public ticker (no auth needed)
 export async function GET(request: Request) {
+  // Proxy com custo/quota nossa: so com sessao, e com limite por utilizador.
+  const auth = await requireUser(request, { route: "token-prices", limit: 60 });
+  if (!auth.ok) return auth.response;
   const { searchParams } = new URL(request.url);
   const symbolsParam = searchParams.get("symbols") ?? "";
   const symbols = symbolsParam

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { internalError } from "@/lib/api/response";
 import { createServerClient } from "@supabase/ssr";
 import { cookies, headers } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
@@ -42,7 +43,7 @@ export async function GET() {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError(error);
   return NextResponse.json(data ?? { data: null });
 }
 
@@ -61,6 +62,6 @@ export async function POST(req: NextRequest) {
     .from("wallet_config")
     .upsert({ user_id: user.id, data: body.data, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError(error);
   return NextResponse.json({ ok: true });
 }

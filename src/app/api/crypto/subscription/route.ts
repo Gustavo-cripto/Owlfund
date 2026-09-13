@@ -16,7 +16,7 @@ export async function GET() {
   if (!CRYPTO_PAYMENTS_ENABLED) return NextResponse.json({ crypto: null });
 
   const { user } = await getSessionUser();
-  if (!user) return NextResponse.json({ crypto: null });
+  if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
 
   try {
     const admin = getSupabaseAdmin();

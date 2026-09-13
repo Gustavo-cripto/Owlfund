@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { internalError } from "@/lib/api/response";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { verifyCronAuth } from "@/lib/api/cron-auth";
 import { FROM_BILLING, markSent, sendEmail, TZ } from "@/lib/email";
@@ -119,7 +120,7 @@ export async function GET(request: Request) {
 
   if (error) {
     console.error("[cron/crypto-expiry]", error.message);
-    return NextResponse.json({ error: error.message, reminded }, { status: 500 });
+    return internalError(error, { reminded });
   }
 
   return NextResponse.json({

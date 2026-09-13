@@ -1,6 +1,7 @@
 // Regista OU remove o webhook do bot cujo token está no ambiente (TELEGRAM_BOT_TOKEN).
 // Só admins. action: "set" (default) = setWebhook; "delete" = deleteWebhook.
 import { NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
@@ -50,7 +51,9 @@ export async function POST(req: Request) {
     const set = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: `${SITE}/api/telegram-webhook`, allowed_updates: ["callback_query"], drop_pending_updates: true }),
+      // secret_token: o Telegram passa a envia-lo em cada pedido e o webhook so
+      // aceita pedidos que o tragam. Derivado do token do bot, igual ao webhook.
+      body: JSON.stringify({ url: `${SITE}/api/telegram-webhook`, allowed_updates: ["callback_query"], drop_pending_updates: true, secret_token: createHash("sha256").update(`tg-webhook:${token}`).digest("hex") }),
     }).then((r) => r.json());
     if (!set.ok) return NextResponse.json({ error: set.description || "Falha no setWebhook." }, { status: 502 });
     return NextResponse.json({ ok: true, action: "set", bot });

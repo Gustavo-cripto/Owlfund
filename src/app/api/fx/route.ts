@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { rateLimitPublic } from "@/lib/api/requireUser";
 
 // Taxas de câmbio com base no euro: quanto vale 1 EUR em cada moeda.
 //
@@ -20,7 +21,10 @@ const FALLBACK: Rates = {
   BRL: 6.30, PLN: 4.25, MXN: 21.5, SGD: 1.50, BTC: 0.0000107,
 };
 
-export async function GET() {
+export async function GET(request: Request) {
+  // Rota publica (alimenta paginas sem sessao): limite por IP, sem sessao.
+  const limitado = rateLimitPublic(request, "fx", 120);
+  if (limitado) return limitado;
   const rates: Rates = { ...FALLBACK };
 
   try {
