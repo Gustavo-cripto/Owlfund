@@ -97,7 +97,10 @@ function idiomaRedirect(request: NextRequest): URL | null {
 }
 
 export async function middleware(request: NextRequest, event: NextFetchEvent) {
-  const paraOutroIdioma = request.method === "GET" ? idiomaRedirect(request) : null;
+  // HEAD tem de responder como GET (verificadores de links e alguns crawlers
+  // usam-no); o resto dos metodos nunca e navegacao.
+  const navegacao = request.method === "GET" || request.method === "HEAD";
+  const paraOutroIdioma = navegacao ? idiomaRedirect(request) : null;
   if (paraOutroIdioma) {
     const redirect = NextResponse.redirect(paraOutroIdioma, 307);
     // Sem isto a cache serve a lingua do primeiro visitante a todos os
