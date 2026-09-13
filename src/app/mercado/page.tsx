@@ -9,7 +9,7 @@ import type { TranslationKey } from "@/lib/i18n/translations";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { loadNickname } from "@/lib/user/nickname";
-import {
+import { categoryLabel,
   traditionalAssets,
   traditionalCategories,
   type TraditionalAsset,
@@ -1565,7 +1565,7 @@ export default function MercadoPage() {
                       : "border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500"
                   }`}
                 >
-                  {category}
+                  {categoryLabel(category, t)}
                 </button>
               ))}
             </div>
@@ -1598,7 +1598,7 @@ export default function MercadoPage() {
                   >
                     <div>
                       <p className="font-semibold text-white">{asset.label}</p>
-                      <p className="text-xs text-slate-500">{asset.category}</p>
+                      <p className="text-xs text-slate-500">{categoryLabel(asset.category, t)}</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <button
@@ -1701,7 +1701,7 @@ export default function MercadoPage() {
                       >
                         <div>
                           <p className="font-semibold text-white">{asset.label}</p>
-                          <p className="text-slate-500">{asset.category}</p>
+                          <p className="text-slate-500">{categoryLabel(asset.category, t)}</p>
                           {(() => {
                             const priceEur = quotePriceEur(quote);
                             if (!hasQuantity(holding) || priceEur == null) return null;

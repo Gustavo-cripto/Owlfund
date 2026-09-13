@@ -60,7 +60,7 @@ import {
 } from "@/lib/wallets/storage";
 import { pushWalletCloud, pullWalletCloud } from "@/lib/portfolios/cloudSync";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
-import { traditionalAssets, traditionalCategories } from "@/lib/traditional/assets";
+import { categoryLabel, traditionalAssets, traditionalCategories } from "@/lib/traditional/assets";
 import {
   hasQuantity,
   loadTraditionalHoldings,
@@ -5152,7 +5152,7 @@ export default function WalletsPage() {
                 <div className="flex flex-wrap gap-2">
                   {customAssets.map((a) => (
                     <span key={a.id} className="flex items-center gap-1 rounded-full border border-orange-500/30 bg-orange-500/10 px-3 py-1 text-xs text-orange-200">
-                      {a.id} <span className="text-slate-500">({a.category})</span>
+                      {a.id} <span className="text-slate-500">({categoryLabel(a.category, t)})</span>
                       <button
                         type="button"
                         onClick={() => {
@@ -5184,7 +5184,7 @@ export default function WalletsPage() {
                       : "border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500"
                   }`}
                 >
-                  {category}
+                  {categoryLabel(category, t)}
                 </button>
               ))}
             </div>
@@ -5206,7 +5206,7 @@ export default function WalletsPage() {
                   >
                     <div className="flex flex-col">
                       <span className="font-semibold">{asset.label}</span>
-                      <span className="text-xs text-slate-500">{asset.category}</span>
+                      <span className="text-xs text-slate-500">{categoryLabel(asset.category, t)}</span>
                     </div>
                     <span
                       className={`grid h-6 w-6 place-items-center rounded-full border text-xs font-semibold ${
@@ -5280,7 +5280,7 @@ export default function WalletsPage() {
                       >
                         <div>
                           <p className="font-semibold text-white">{asset.label}</p>
-                          <p className="text-slate-500">{asset.category}</p>
+                          <p className="text-slate-500">{categoryLabel(asset.category, t)}</p>
                           {(() => {
                             // O valor de hoje so aparece quando ha quantidade E cotacao:
                             // sem quantidade nao existe valor de mercado, e apresentar o
@@ -5438,7 +5438,7 @@ export default function WalletsPage() {
                       >
                         <div>
                           <p className="font-semibold text-white">{asset.label}</p>
-                          <p className="text-slate-500">{asset.category}</p>
+                          <p className="text-slate-500">{categoryLabel(asset.category, t)}</p>
                         </div>
                         {quote ? (
                           <div className="text-right">

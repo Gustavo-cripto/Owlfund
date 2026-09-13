@@ -1,3 +1,5 @@
+import type { TranslationKey } from "@/lib/i18n/translations";
+
 export type TraditionalAsset = {
   id: string;
   label: string;
@@ -7,6 +9,23 @@ export type TraditionalAsset = {
 };
 
 export const traditionalCategories = ["Todos", "Ações", "ETFs", "Futuros", "Dívidas"];
+
+// As categorias sao guardadas em portugues (e o que fica no ficheiro do
+// utilizador e nos filtros); a traducao acontece so na apresentacao. Sem isto
+// apareciam "Acoes" e "Dividas" em relatorios exportados em ingles.
+const CATEGORY_KEY: Record<string, TranslationKey> = {
+  "Todos": "tc_all",
+  "Ações": "tc_stocks",
+  "ETFs": "tc_etfs",
+  "Futuros": "tc_futures",
+  "Dívidas": "tc_bonds",
+};
+
+/** Nome da categoria no idioma atual. Categorias fora do catalogo ficam como estao. */
+export function categoryLabel(category: string, t: (k: TranslationKey) => string): string {
+  const key = CATEGORY_KEY[category];
+  return key ? t(key) : category;
+}
 
 export const traditionalAssets: TraditionalAsset[] = [
   {

@@ -24,7 +24,7 @@ import { getBtcBalanceFromAddress } from "@/lib/wallets/bitcoin";
 import { getAdaBalanceByAddress } from "@/lib/wallets/cardano";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
-import { traditionalAssets } from "@/lib/traditional/assets";
+import { categoryLabel, traditionalAssets } from "@/lib/traditional/assets";
 import { loadTraditionalHoldings, type TraditionalHoldings } from "@/lib/traditional/storage";
 import { downloadBlob, loadExcelJS } from "@/lib/export/excel";
 import { cryptoHoldingValueEur, loadCryptoHoldings, loadStablecoinEntries, type CryptoHoldings, type StablecoinEntry } from "@/lib/crypto/storage";
@@ -1031,10 +1031,14 @@ export default function PortfolioPage() {
       value: item.value,
     }));
     const items = [
+      // `balance` e a QUANTIDADE de moedas, nao euros. Sem multiplicar pelo
+      // preco, uma carteira com 527 ADA aparecia como "527,17 €" e ficava com
+      // 79% do anel, enquanto 0,97 SOL (uns 150 €) aparecia como "0,97 €" e 0%.
+      // A soma das fatias tambem nao batia com o Total do mesmo relatorio.
       ...wallets.map((wallet) => ({
         label: wallet.label,
         symbol: wallet.symbol,
-        value: toNumber(wallet.balance),
+        value: toNumber(wallet.balance) * (tokenPrices[wallet.symbol] ?? 0),
       })),
       ...manualItems.filter((item) => Number.isFinite(item.value) && item.value > 0),
       ...(stablecoinTotal > 0 ? [{ label: t("pf_stablecoins"), symbol: t("pf_usdt_usdc"), value: stablecoinTotal }] : []),
@@ -1047,7 +1051,7 @@ export default function PortfolioPage() {
       ...item,
       percent: getPercent(item.value, total),
     }));
-  }, [wallets, stablecoinTotal, manualCryptoScaled, snapshotCexEur, snapshotDefiEur, snapshotTokensEur, t]);
+  }, [wallets, tokenPrices, stablecoinTotal, manualCryptoScaled, snapshotCexEur, snapshotDefiEur, snapshotTokensEur, t]);
 
   // ── Métricas viradas a cripto ──
   // Peso do BTC dentro da parte cripto do portefólio
@@ -1993,7 +1997,7 @@ export default function PortfolioPage() {
                   posRows.push([t("pf_crypto"), a.label, a.symbol, fx(a.value), portfolioTotal > 0 ? (a.value / portfolioTotal) * 100 : 0]);
                 });
                 traditionalAllocations.assets.filter((a) => a.value > 0).forEach((a) => {
-                  posRows.push([t("pf_traditional"), a.label, a.category ?? "", fx(a.value), portfolioTotal > 0 ? (a.value / portfolioTotal) * 100 : 0]);
+                  posRows.push([t("pf_traditional"), a.label, a.category ? categoryLabel(a.category, t) : "", fx(a.value), portfolioTotal > 0 ? (a.value / portfolioTotal) * 100 : 0]);
                 });
                 if (posRows.length === 0) {
                   const r = ws.addRow([t("pfx_no_positions")]);
