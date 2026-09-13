@@ -93,7 +93,12 @@ export async function POST(request: Request) {
   if (!(await verifyCronAuth(request))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   let email = "";
-  try { email = String(((await request.json()) as { email?: unknown }).email ?? "").trim().toLowerCase(); } catch { /* corpo vazio */ }
+  let force = false;
+  try {
+    const b = (await request.json()) as { email?: unknown; force?: unknown };
+    email = String(b.email ?? "").trim().toLowerCase();
+    force = b.force === true;
+  } catch { /* corpo vazio */ }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return NextResponse.json({ error: "email invalido" }, { status: 400 });
 
   const admin = getSupabaseAdmin();
@@ -104,8 +109,10 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "sem conta com esse email" }, { status: 404 });
 
   // Um so: o registo e feito ANTES do envio, e so se for novo e que se envia.
+  // `force` salta esta guarda — e para a conta do proprio dono ver o email
+  // como o tester o recebe, nunca para insistir com um tester real.
   const novo = await markSent(admin, user.id, KIND, false);
-  if (!novo) return NextResponse.json({ ok: false, reason: "ja_enviado" });
+  if (!novo && !force) return NextResponse.json({ ok: false, reason: "ja_enviado" });
 
   const lang = resolveLang(langFromMetadata(user.user_metadata), (await signupLangByEmail(admin)).get(email));
   const { subject, html } = corpo(email, lang);
