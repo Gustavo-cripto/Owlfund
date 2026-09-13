@@ -1,10 +1,16 @@
 // 404 para enderecos que nao caem em NENHUM layout raiz.
 //
-// Com varios layouts raiz o Next nao sabe em qual renderizar um caminho
-// desconhecido, por isso esta pagina traz o seu proprio <html> e nao pode usar
-// os providers (sem i18n, sem tema). Os 404 "normais" — dentro de /en, /es, /fr
-// ou da raiz portuguesa — usam a pagina traduzida de cada grupo.
+// E a convencao `global-not-found` do Next (experimental.globalNotFound), feita
+// para apps com varios layouts raiz: o Next salta o render normal e devolve
+// isto diretamente, por isso TEM de trazer o seu proprio <html> e <body> e nao
+// pode usar os providers (sem i18n, sem tema). Um `not-found.tsx` na raiz
+// dava um <html> aninhado dentro do invólucro de erro do Next.
+// Os 404 dentro de /en, /es, /fr ou da raiz portuguesa usam a pagina
+// traduzida de cada grupo (o catch-all [...rest] de cada idioma trata disso).
+import type { Metadata } from "next";
 import "@/app/globals.css";
+
+export const metadata: Metadata = { title: "404 · ChainFolioAI" };
 
 export default function GlobalNotFound() {
   return (

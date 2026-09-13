@@ -1,2 +1,4 @@
-// A mesma pagina 404 do grupo portugues; aqui so para existir dentro deste layout raiz (tem i18n).
-export { default } from "@/app/(pt)/not-found";
+"use client";
+// 404 deste layout raiz (tem i18n e tema). O conteudo e partilhado pelos 4 idiomas.
+import NotFoundPage from "@/components/pages/NotFoundPage";
+export default function NotFound() { return <NotFoundPage />; }

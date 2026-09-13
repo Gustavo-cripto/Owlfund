@@ -25,6 +25,18 @@
       ],
       "port": 8081,
       "cwd": "/Volumes/Disco IA Privada/Projects/next-shadcn-app/mobile"
+    },
+    {
+      "name": "next-start",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "next",
+        "start",
+        "--port",
+        "3000"
+      ],
+      "port": 3000,
+      "cwd": "/Volumes/Disco IA Privada/Projects/next-shadcn-app"
     }
   ]
 }

@@ -77,6 +77,8 @@ const securityHeaders = [
 ];
 
 const nextConfig = {
+  // 404 global para apps com varios layouts raiz (src/app/global-not-found.tsx).
+  experimental: { globalNotFound: true },
   outputFileTracingRoot: __dirname,
   staticPageGenerationTimeout: 180,
   // Esconde o header "X-Powered-By: Next.js" (menos info para atacantes)
