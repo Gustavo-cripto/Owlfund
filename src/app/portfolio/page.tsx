@@ -1761,6 +1761,9 @@ export default function PortfolioPage() {
                 // Com a hora: dois relatorios do mesmo dia eram indistinguiveis, e ficamos
                 // sem saber se estavamos a olhar para a exportacao nova ou para a antiga.
                 const now = new Date().toLocaleString(locale, { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
+                // As percentagens seguiam sempre o ponto decimal ingles, ao lado
+                // de valores em euros com virgula. Mesmo formato para os dois.
+                const num = (v: number, d = 2) => v.toLocaleString(numberFormat, { minimumFractionDigits: d, maximumFractionDigits: d });
                 let y = 20;
                 const spacer = (n = 4) => { y += n; };
                 const checkPage = () => {
@@ -1832,14 +1835,11 @@ export default function PortfolioPage() {
                 if (advancedMetrics) {
                   const m = advancedMetrics;
                   head(t("pf_adv_metrics"));
-                  // As percentagens seguiam sempre o ponto decimal inglês, ao
-                  // lado de valores em euros com vírgula. Mesmo formato para os dois.
-                  const num = (v: number, d = 2) => v.toLocaleString(numberFormat, { minimumFractionDigits: d, maximumFractionDigits: d });
                   kv2(`ROI: ${num(m.roi)}%`, m.cagr !== null ? `CAGR: ${num(m.cagr)}%` : undefined);
                   kv2(m.sharpe !== null ? `Sharpe: ${num(m.sharpe)}` : "Sharpe: —", m.sortino !== null ? `Sortino: ${num(m.sortino)}` : undefined);
                   kv2(m.calmar !== null ? `Calmar: ${num(m.calmar)}` : "Calmar: —", m.volatility !== null ? `${t("pf_volatility")}: ${num(m.volatility)}%` : undefined);
                   kv2(`${t("pf_max_drawdown")}: ${num(m.maxDrawdown)}%`, `${t("pfu_current_dd")}: ${num(m.currentDrawdown)}%${m.currentDrawdown < 0 ? ` (${m.daysSincePeak}d)` : ""}`);
-                  kv2(m.winRate !== null ? `Win rate: ${num(m.winRate, 0)}%` : "Win rate: —", m.var95 !== null ? `VaR 95%: ${num(m.var95)}%` : undefined);
+                  kv2(m.winRate !== null ? `Win rate: ${num(m.winRate)}%` : "Win rate: —", m.var95 !== null ? `VaR 95%: ${num(m.var95)}%` : undefined);
                   if (m.bestReturn !== null || m.worstReturn !== null) {
                     kv2(m.bestReturn !== null ? `${t("pfu_best_period")}: ${m.bestReturn >= 0 ? "+" : ""}${num(m.bestReturn)}%` : "", m.worstReturn !== null ? `${t("pfu_worst_period")}: ${num(m.worstReturn)}%` : undefined);
                   }
@@ -1857,12 +1857,24 @@ export default function PortfolioPage() {
                 }
 
                 head(t("pf_distribution"));
-                cryptoAllocations.filter(a => a.value > 0).forEach(a => {
+                // Cripto E tradicional, com a percentagem sobre o total do
+                // portefolio — as mesmas linhas que o Excel. Antes esta seccao
+                // so listava cripto e as percentagens eram sobre a parte cripto:
+                // com 3.000 € em acoes, o relatorio deixava 87% do portefolio de
+                // fora de uma seccao chamada "Distribuicao".
+                const pctTotal = (v: number) => (portfolioTotal > 0 ? (v / portfolioTotal) * 100 : 0);
+                const linhas: Array<{ label: string; symbol: string; value: number }> = [
+                  ...cryptoAllocations.filter((a) => a.value > 0),
+                  ...traditionalAllocations.assets
+                    .filter((a) => a.value > 0)
+                    .map((a) => ({ label: a.label, symbol: categoryLabel(a.category, t), value: a.value })),
+                ];
+                linhas.forEach(a => {
                   checkPage();
                   doc.setFontSize(10);
                   doc.setFont("helvetica", "normal");
                   doc.setTextColor(226, 232, 240);
-                  doc.text(`${a.label} (${a.symbol}): ${curSym} ${formatValue(fx(a.value), numberFormat)} · ${a.percent}%`, 15, y);
+                  doc.text(`${a.label} (${a.symbol}): ${curSym} ${formatValue(fx(a.value), numberFormat)} · ${num(pctTotal(a.value), 1)}%`, 15, y);
                   doc.setTextColor(255, 255, 255);
                   y += 6;
                 });
