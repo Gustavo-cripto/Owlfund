@@ -11,6 +11,8 @@ import {
 } from "@/lib/portfolios/trades";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
+import { loadFxTable } from "@/lib/fx/historical";
+import { CURRENCY_SIGN } from "@/lib/currency/symbols";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, ReferenceLine } from "recharts";
 
@@ -67,7 +69,11 @@ const emptyForm = (): FormState => ({ type: "compra", asset: "BTC", customAsset:
 export default function HistoricoPage() {
   const { isLoading } = useRequireAuth("/login");
   const { t, lang } = useLanguage();
-  const { hideBalances, format: fmtCur, formatSigned } = useCurrencyFormat();
+  const { hideBalances, format: fmtCur, formatSigned, currency: inputCurrency } = useCurrencyFormat();
+  // Escreve-se na moeda que se escolheu ver o site; guarda-se em euros (a
+  // unidade interna) a taxa DA DATA da transacao, nao a de hoje — senao o
+  // historico e o calculo fiscal ficavam com valores que nunca existiram.
+  const inputSymbol = CURRENCY_SIGN[inputCurrency] ?? inputCurrency;
   const askConfirm = useConfirm();
   const locale = LOCALE_BY_LANG[lang] ?? "pt-PT";
 
@@ -170,17 +176,28 @@ export default function HistoricoPage() {
       const dup = txs.find((x) => x.asset === assetInfo.symbol && x.date === form.date && x.type === form.type && x.quantity === qty && x.priceEur === price);
       if (dup && !(await askConfirm({ message: t("hx_dup_confirm"), okLabel: t("hx_reg_buy") }))) return;
     }
+    let priceEur = price;
+    if (inputCurrency !== "EUR") {
+      const tabela = await loadFxTable([form.date], [inputCurrency]);
+      const convertido = tabela.convert(price, inputCurrency, "EUR", form.date);
+      // Sem taxa nao se grava: um preco errado aqui contamina o FIFO e o
+      // imposto de todos os anos seguintes.
+      if (convertido == null) { setFormError(t("fisc_fx_missing")); return; }
+      priceEur = convertido;
+    }
     const tx: Trade = {
       id: editId ?? tradeId(),
       type: form.type,
       asset: assetInfo.symbol,
       assetName: assetInfo.name,
       quantity: qty,
-      priceEur: price,
-      totalEur: qty * price,
+      priceEur,
+      totalEur: qty * priceEur,
       date: form.date,
       exchange: form.exchange,
       notes: form.notes.trim().slice(0, 200),
+      currency: inputCurrency,
+      priceInput: price,
     };
     setTxs(upsertTrade(tx));
     pushWalletCloud();
@@ -203,7 +220,7 @@ export default function HistoricoPage() {
       asset: known ? tx.asset : OTHER_ASSET,
       customAsset: known ? "" : tx.asset,
       quantity: String(tx.quantity),
-      priceEur: String(tx.priceEur),
+      priceEur: String(tx.priceInput ?? tx.priceEur),
       date: tx.date,
       exchange: tx.exchange,
       notes: tx.notes,
@@ -439,7 +456,7 @@ export default function HistoricoPage() {
 
               {/* Price */}
               <div>
-                <label htmlFor="hx-price" className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_unit_price")}</label>
+                <label htmlFor="hx-price" className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_unit_price")} ({inputSymbol})</label>
                 <input
                   id="hx-price"
                   type="number"

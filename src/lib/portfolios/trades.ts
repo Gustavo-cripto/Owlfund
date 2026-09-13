@@ -224,7 +224,10 @@ export function computeFifo(trades: Trade[]): FifoResult {
 
 // ── CSV ────────────────────────────────────────────────────────────────────────
 
-export const CSV_HEADER = ["date", "type", "asset", "quantity", "price_eur", "total_eur", "exchange", "notes"] as const;
+// `price_eur` e a unidade interna e continua a ser a coluna que o importador
+// le. As duas ultimas dizem o que a pessoa escreveu de facto — acrescentadas no
+// fim para nao partir ficheiros ja exportados nem importadores de terceiros.
+export const CSV_HEADER = ["date", "type", "asset", "quantity", "price_eur", "total_eur", "exchange", "notes", "currency", "price_original"] as const;
 
 export function tradesToCsv(trades: Trade[]): string {
   const esc = (v: string | number) => {
@@ -232,7 +235,7 @@ export function tradesToCsv(trades: Trade[]): string {
     return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const rows = [...trades].sort(chronoCompare).map(t =>
-    [t.date, t.type === "compra" ? "buy" : "sell", t.asset, t.quantity, t.priceEur, t.quantity * t.priceEur, t.exchange, t.notes].map(esc).join(","),
+    [t.date, t.type === "compra" ? "buy" : "sell", t.asset, t.quantity, t.priceEur, t.quantity * t.priceEur, t.exchange, t.notes, t.currency ?? "EUR", t.priceInput ?? t.priceEur].map(esc).join(","),
   );
   return [CSV_HEADER.join(","), ...rows].join("\n");
 }
@@ -288,6 +291,10 @@ export function parseTradesCsv(text: string): { trades: Trade[]; skipped: number
   const cPrice = col("priceeur", "price", "preco", "preo", "precio", "prix", "unit");
   const cEx = col("exchange", "origem", "source", "platform");
   const cNotes = col("notes", "notas", "note", "comment");
+  // So se aceita "currency" quando vem com o preco original ao lado: sem ele
+  // nao ha como saber se a coluna do preco esta nessa moeda ou ja em euros.
+  const cCur = col("currency", "moeda", "divisa", "devise");
+  const cOrig = col("priceoriginal", "precooriginal");
   if (cDate < 0 || cAsset < 0 || cQty < 0 || cPrice < 0) return { trades: [], skipped: 0, error: "columns" };
   const trades: Trade[] = []; let skipped = 0;
   for (const line of lines.slice(1)) {
@@ -301,9 +308,13 @@ export function parseTradesCsv(text: string): { trades: Trade[]; skipped: number
     const type: TradeType = SELL_WORDS.some(w => typeRaw.includes(w)) ? "venda" : BUY_WORDS.some(w => typeRaw.includes(w)) ? "compra" : quantity < 0 ? "venda" : "compra";
     const q = Math.abs(quantity);
     if (!date || !asset || !(q > 0) || !(priceEur >= 0)) { skipped++; continue; }
+    const curRaw = cCur >= 0 ? (cells[cCur] ?? "").trim().toUpperCase() : "";
+    const currency = /^[A-Z]{3}$/.test(curRaw) ? curRaw : undefined;
+    const priceInput = cOrig >= 0 ? normNum(cells[cOrig] ?? "") : NaN;
     trades.push({
       id: tradeId(), type, asset, assetName: asset, quantity: q, priceEur, totalEur: q * priceEur, date,
       exchange: cEx >= 0 ? (cells[cEx] ?? "") : "", notes: cNotes >= 0 ? (cells[cNotes] ?? "") : "", updatedAt: Date.now(),
+      ...(currency && Number.isFinite(priceInput) ? { currency, priceInput } : {}),
     });
   }
   return { trades, skipped };
