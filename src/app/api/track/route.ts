@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
   try {
     if (!isInternalCall(req)) return new Response(null, { status: 204 });
 
-    const body = (await req.json().catch(() => ({}))) as { path?: unknown; bot?: unknown };
+    const body = (await req.json().catch(() => ({}))) as { path?: unknown; bot?: unknown; src?: unknown };
     const path = typeof body.path === "string" ? body.path : "";
     // O middleware classifica pelo User-Agent; guardamos so a marca, nunca o UA.
     const isBot = body.bot === true;
@@ -89,6 +89,13 @@ export async function POST(req: NextRequest) {
       if (!error && data === false) return new Response(null, { status: 204 });
     } catch { /* função ainda não migrada → não perder tracking legítimo */ }
 
+    const src = typeof body.src === "string" ? body.src.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 40) : "";
+    if (src) {
+      // A coluna `src` e nova (supabase-page-views-src.sql). Se ainda nao
+      // existir, a visita conta na mesma — so sem origem.
+      const { error } = await admin.from("page_views").insert({ path, is_bot: isBot, src });
+      if (!error) return new Response(null, { status: 204 });
+    }
     await admin.from("page_views").insert({ path, is_bot: isBot });
   } catch {
     /* nunca deixar o tracking quebrar a navegacao */

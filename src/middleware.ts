@@ -37,7 +37,15 @@ function trackPageView(request: NextRequest, event: NextFetchEvent): void {
     fetch(new URL("/api/track", request.url), {
       method: "POST",
       headers,
-      body: JSON.stringify({ path, bot: isBotUserAgent(request.headers.get("user-agent")) }),
+      // Origem do link (?src=reddit, ?utm_source=…): so letras/numeros/tracos,
+    // ate 40 caracteres. E o que permite ao marketing saber que canal traz
+    // visitas e inscricoes — sem isto via um total sem rosto.
+    body: JSON.stringify({
+      path,
+      bot: isBotUserAgent(request.headers.get("user-agent")),
+      src: (request.nextUrl.searchParams.get("src") ?? request.nextUrl.searchParams.get("utm_source") ?? "")
+        .replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 40),
+    }),
     }).catch(() => {}),
   );
 }

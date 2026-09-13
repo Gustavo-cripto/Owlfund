@@ -127,6 +127,11 @@ const OG_LOCALE: Record<Lang, string> = {
   fr: "fr_FR",
 };
 
+/** Título e descrição crus de uma página — para o layout raiz compor o `title.default`. */
+export function pageText(page: PublicPage, lang: Lang): Meta {
+  return META[page][lang];
+}
+
 /** Metadata completa de uma página pública num idioma, com hreflang recíproco. */
 export function pageMetadata(page: PublicPage, lang: Lang): Metadata {
   const m = META[page][lang];
