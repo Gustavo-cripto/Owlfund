@@ -1119,6 +1119,7 @@ export default function AccountPage() {
                     <SettingRow label={t("ac_number_format")} desc={t("ac_number_format_desc")}>
                       <Select<NumberFormat> value={numberFormat} label={t("ac_number_format")} onChange={v => setSetting("numberFormat", v)}
                         options={[
+                          { value: "auto", label: t("ac_number_format_auto") },
                           { value: "pt-PT", label: "1.234,56 (PT)" },
                           { value: "en-US", label: "1,234.56 (EN)" },
                         ]} />

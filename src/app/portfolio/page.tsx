@@ -861,8 +861,15 @@ export default function PortfolioPage() {
     // ROI
     const roi = ((current - base) / base) * 100;
 
-    // CAGR (só faz sentido com >= 30 dias)
-    const cagr = days >= 30 ? (Math.pow(current / base, 365 / days) - 1) * 100 : null;
+    // CAGR — só a partir de um trimestre.
+    //
+    // Anualizar períodos curtos não informa, inventa: um ganho de 16× em 70
+    // dias elevado a 365/70 dava "249.346.051,22%" num relatório, a par de
+    // valores reais. Abaixo de 90 dias o número honesto é o ROI do período,
+    // que já está ali ao lado. Acima disso ainda pode ser grande, mas é uma
+    // extrapolação defensável.
+    const cagrRaw = days >= 90 ? (Math.pow(current / base, 365 / days) - 1) * 100 : null;
+    const cagr = cagrRaw !== null && Number.isFinite(cagrRaw) ? cagrRaw : null;
 
     // Retornos entre snapshots consecutivos
     const rawReturns: number[] = [];
@@ -1819,16 +1826,19 @@ export default function PortfolioPage() {
                 if (advancedMetrics) {
                   const m = advancedMetrics;
                   head(t("pf_adv_metrics"));
-                  kv2(`ROI: ${m.roi.toFixed(2)}%`, m.cagr !== null ? `CAGR: ${m.cagr.toFixed(2)}%` : undefined);
-                  kv2(m.sharpe !== null ? `Sharpe: ${m.sharpe.toFixed(2)}` : "Sharpe: —", m.sortino !== null ? `Sortino: ${m.sortino.toFixed(2)}` : undefined);
-                  kv2(m.calmar !== null ? `Calmar: ${m.calmar.toFixed(2)}` : "Calmar: —", m.volatility !== null ? `${t("pf_volatility")}: ${m.volatility.toFixed(2)}%` : undefined);
-                  kv2(`${t("pf_max_drawdown")}: ${m.maxDrawdown.toFixed(2)}%`, `${t("pfu_current_dd")}: ${m.currentDrawdown.toFixed(2)}%${m.currentDrawdown < 0 ? ` (${m.daysSincePeak}d)` : ""}`);
-                  kv2(m.winRate !== null ? `Win rate: ${m.winRate.toFixed(0)}%` : "Win rate: —", m.var95 !== null ? `VaR 95%: ${m.var95.toFixed(2)}%` : undefined);
+                  // As percentagens seguiam sempre o ponto decimal inglês, ao
+                  // lado de valores em euros com vírgula. Mesmo formato para os dois.
+                  const num = (v: number, d = 2) => v.toLocaleString(numberFormat, { minimumFractionDigits: d, maximumFractionDigits: d });
+                  kv2(`ROI: ${num(m.roi)}%`, m.cagr !== null ? `CAGR: ${num(m.cagr)}%` : undefined);
+                  kv2(m.sharpe !== null ? `Sharpe: ${num(m.sharpe)}` : "Sharpe: —", m.sortino !== null ? `Sortino: ${num(m.sortino)}` : undefined);
+                  kv2(m.calmar !== null ? `Calmar: ${num(m.calmar)}` : "Calmar: —", m.volatility !== null ? `${t("pf_volatility")}: ${num(m.volatility)}%` : undefined);
+                  kv2(`${t("pf_max_drawdown")}: ${num(m.maxDrawdown)}%`, `${t("pfu_current_dd")}: ${num(m.currentDrawdown)}%${m.currentDrawdown < 0 ? ` (${m.daysSincePeak}d)` : ""}`);
+                  kv2(m.winRate !== null ? `Win rate: ${num(m.winRate, 0)}%` : "Win rate: —", m.var95 !== null ? `VaR 95%: ${num(m.var95)}%` : undefined);
                   if (m.bestReturn !== null || m.worstReturn !== null) {
-                    kv2(m.bestReturn !== null ? `${t("pfu_best_period")}: ${m.bestReturn >= 0 ? "+" : ""}${m.bestReturn.toFixed(2)}%` : "", m.worstReturn !== null ? `${t("pfu_worst_period")}: ${m.worstReturn.toFixed(2)}%` : undefined);
+                    kv2(m.bestReturn !== null ? `${t("pfu_best_period")}: ${m.bestReturn >= 0 ? "+" : ""}${num(m.bestReturn)}%` : "", m.worstReturn !== null ? `${t("pfu_worst_period")}: ${num(m.worstReturn)}%` : undefined);
                   }
-                  kv2(`${t("pfx_period")}: ${m.days}d`, beta.btc !== null ? `Beta BTC: ${beta.btc.toFixed(2)}` : undefined);
-                  if (beta.sp500 !== null) kv2(`Beta S&P 500: ${beta.sp500.toFixed(2)}`);
+                  kv2(`${t("pfx_period")}: ${m.days}d`, beta.btc !== null ? `Beta BTC: ${num(beta.btc)}` : undefined);
+                  if (beta.sp500 !== null) kv2(`Beta S&P 500: ${num(beta.sp500)}`);
                   if (!beta.ready) kv2(`Beta vs BTC/S&P: ${t("pfx_accum")} (${beta.count}/${beta.needed})`);
                   spacer(3);
                 }
@@ -2034,7 +2044,9 @@ export default function PortfolioPage() {
                   label: "CAGR",
                   value: `${advancedMetrics.cagr >= 0 ? "+" : ""}${advancedMetrics.cagr.toFixed(2)}%`,
                   color: advancedMetrics.cagr >= 0 ? "text-emerald-400" : "text-rose-400",
-                  hint: advancedMetrics.days < 90 ? `⚠️ ${t("pfu_cagr_warn")} ${advancedMetrics.days}d` : t("pf_annual_return"),
+                  // O CAGR só é calculado a partir de 90 dias; entre os 90 e os 180 ainda é
+                  // uma extrapolação curta, e o aviso mantém-se.
+                  hint: advancedMetrics.days < 180 ? `⚠️ ${t("pfu_cagr_warn")} ${advancedMetrics.days}d` : t("pf_annual_return"),
                 }] : []),
                 ...(advancedMetrics.sharpe !== null ? [{
                   label: "Sharpe",

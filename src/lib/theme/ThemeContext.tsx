@@ -1,10 +1,21 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { useLanguage } from "@/lib/i18n/LanguageContext";
+import type { Lang } from "@/lib/i18n/translations";
 
 export type Theme = "dark" | "light" | "system";
 export type Currency = "EUR" | "USD" | "GBP" | "BTC";
-export type NumberFormat = "pt-PT" | "en-US";
+/** "auto" segue o idioma do site; as outras forçam um formato. */
+export type NumberFormat = "auto" | "pt-PT" | "en-US";
+
+/** Formato numérico de cada idioma, quando a definição está em "auto". */
+const NUMBER_LOCALE: Record<Lang, string> = {
+  pt: "pt-PT",
+  en: "en-GB",
+  es: "es-ES",
+  fr: "fr-FR",
+};
 
 export type AppSettings = {
   theme: Theme;
@@ -20,7 +31,7 @@ const DEFAULTS: AppSettings = {
   theme: "dark",
   currency: "EUR",
   hideBalances: false,
-  numberFormat: "pt-PT",
+  numberFormat: "auto",
   alertsEnabled: true,
   autoSnapshot: true,
   compactMode: false,
@@ -69,7 +80,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     try {
       const raw = localStorage.getItem("owlfund-settings");
       if (raw) {
-        const saved = JSON.parse(raw) as Partial<AppSettings>;
+        const saved = JSON.parse(raw) as Partial<AppSettings> & { v?: number };
+        // Migração (uma vez): até aqui o formato numérico era "pt-PT" por
+        // omissão e ficava gravado mal se mexesse em qualquer definição. Quem
+        // tivesse o site em inglês via na mesma "€377,44". Sem forma de saber
+        // quem o escolheu de propósito, passa a "auto" — quem quiser português
+        // volta a escolhê-lo, e para quem já usa português nada muda.
+        if (saved.v == null && saved.numberFormat === "pt-PT") delete saved.numberFormat;
         setSettings((prev) => ({ ...prev, ...saved }));
       }
     } catch { /* ignore */ }
@@ -116,7 +133,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const setSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     setSettings((prev) => {
       const next = { ...prev, [key]: value };
-      try { localStorage.setItem("owlfund-settings", JSON.stringify(next)); } catch { /* ignore */ }
+      try { localStorage.setItem("owlfund-settings", JSON.stringify({ ...next, v: 1 })); } catch { /* ignore */ }
       return next;
     });
   };
@@ -140,6 +157,10 @@ const CURRENCY_SYMBOL: Record<Currency, string> = { EUR: "€", USD: "$", GBP: "
 
 export function useCurrencyFormat() {
   const { currency, numberFormat, hideBalances, rates } = useTheme();
+  // Em "auto" o formato segue o idioma: quem lê o site em inglês espera
+  // 1,234.56 e não 1.234,56 — no ecrã e nos ficheiros que exporta.
+  const { lang } = useLanguage();
+  const numberLocale = numberFormat === "auto" ? (NUMBER_LOCALE[lang] ?? "pt-PT") : numberFormat;
   const rate = rates[currency] ?? 1;
   const sym = CURRENCY_SYMBOL[currency];
 
@@ -160,7 +181,7 @@ export function useCurrencyFormat() {
     }
 
     const decimals = opts?.decimals ?? (currency === "BTC" ? 6 : 2);
-    const formatted = converted.toLocaleString(numberFormat, {
+    const formatted = converted.toLocaleString(numberLocale, {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,
     });
@@ -193,11 +214,11 @@ export function useCurrencyFormat() {
       if (Math.abs(converted) >= 1_000) return `${sym} ${(converted / 1_000).toFixed(1)}K`;
     }
     const decimals = opts?.decimals ?? (currency === "BTC" ? 6 : 2);
-    return `${sym} ${converted.toLocaleString(numberFormat, {
+    return `${sym} ${converted.toLocaleString(numberLocale, {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,
     })}`;
   };
 
-  return { format, formatSigned, formatUsd, formatMarketUsd, convert, usdToEur, symbol: sym, currency, rate, hideBalances, numberFormat, rates };
+  return { format, formatSigned, formatUsd, formatMarketUsd, convert, usdToEur, symbol: sym, currency, rate, hideBalances, numberFormat: numberLocale, rates };
 }
