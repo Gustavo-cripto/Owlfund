@@ -165,6 +165,8 @@ export async function GET(req: NextRequest) {
     topPaths: Array<{ path: string; count: number }>;
     bottomPaths: Array<{ path: string; count: number }>;
     byDay: Array<{ day: string; count: number }>;
+    /** Visitas dos ultimos 7 dias por origem do link (?src=…), humanas e bots juntas. */
+    bySource: Array<{ src: string; count: number }>;
   } = {
     last24h: await countOf(head(admin, "page_views").gte("created_at", ISO(daysAgo(1)))),
     last7d: await countOf(head(admin, "page_views").gte("created_at", ISO(daysAgo(7)))),
@@ -172,37 +174,54 @@ export async function GET(req: NextRequest) {
     topPaths: [],
     bottomPaths: [],
     byDay: [],
+    bySource: [],
   };
   try {
     // Le TODAS as visitas dos ultimos 14 dias (serve o top de paginas 7d e a serie diaria 14d).
     // NB: o PostgREST devolve no maximo ~1000 linhas por pedido (max-rows) e IGNORA .limit(),
     // por isso paginamos com .range() ate ler tudo — senao os dias recentes ficavam a 0.
-    const data: Array<{ path: string; created_at: string }> = [];
+    type Row = { path: string; created_at: string; src?: string | null };
+    const data: Row[] = [];
     const PAGE = 1000;
+    // `src` e uma coluna nova (supabase-page-views-src.sql). Se ainda nao
+    // existir, o pedido falha e repete-se sem ela — as visitas contam na mesma.
+    let colunas = "path, created_at, src";
     for (let from = 0; from < 100000; from += PAGE) {
-      const { data: page, error } = await admin
+      let { data: page, error } = await admin
         .from("page_views")
-        .select("path, created_at")
+        .select(colunas)
         .gte("created_at", ISO(daysAgo(14)))
         .order("created_at", { ascending: true })
         .range(from, from + PAGE - 1);
+      if (error && colunas !== "path, created_at") {
+        colunas = "path, created_at";
+        ({ data: page, error } = await admin
+          .from("page_views")
+          .select(colunas)
+          .gte("created_at", ISO(daysAgo(14)))
+          .order("created_at", { ascending: true })
+          .range(from, from + PAGE - 1));
+      }
       if (error || !page || page.length === 0) break;
-      data.push(...(page as Array<{ path: string; created_at: string }>));
+      data.push(...(page as unknown as Row[]));
       if (page.length < PAGE) break;
     }
     const sevenAgo = daysAgo(7).getTime();
     const pathCounts: Record<string, number> = {};
     const dayCounts: Record<string, number> = {};
+    const srcCounts: Record<string, number> = {};
     for (const r of data ?? []) {
       const iso = String(r.created_at);
       const t = new Date(iso).getTime();
       if (t >= sevenAgo) pathCounts[r.path] = (pathCounts[r.path] ?? 0) + 1;
+      if (t >= sevenAgo && r.src) srcCounts[r.src] = (srcCounts[r.src] ?? 0) + 1;
       const day = iso.slice(0, 10);
       dayCounts[day] = (dayCounts[day] ?? 0) + 1;
     }
     const ranked = Object.entries(pathCounts)
       .map(([path, count]) => ({ path, count }))
       .sort((a, b) => b.count - a.count);
+    views.bySource = Object.entries(srcCounts).map(([src, count]) => ({ src, count })).sort((a, b) => b.count - a.count);
     views.topPaths = ranked.slice(0, 5);
     // Menos vistas: as com menos visitas (asc), excluindo as que ja estao no top.
     const inTop = new Set(views.topPaths.map((p) => p.path));
@@ -261,6 +280,31 @@ export async function GET(req: NextRequest) {
     }
   } catch { /* lista vazia em caso de erro */ }
 
+  // -- Inscricoes no beta por origem ------------------------------------------
+  // A origem (?src=) vai para o inicio da nota como "[via X]" desde o
+  // lancamento; contar a partir dai nao exige coluna nova. E a outra metade
+  // do que o marketing precisa: nao so que canal traz visitas, mas qual traz
+  // inscricoes.
+  const betaSignups: { last7d: number; last30d: number; bySource30d: Array<{ src: string; count: number }> } = {
+    last7d: 0, last30d: 0, bySource30d: [],
+  };
+  try {
+    const { data: rows } = await admin
+      .from("beta_signups")
+      .select("note, created_at")
+      .gte("created_at", ISO(daysAgo(30)));
+    const sevenAgo = daysAgo(7).getTime();
+    const porOrigem: Record<string, number> = {};
+    for (const r of (rows ?? []) as Array<{ note: string | null; created_at: string }>) {
+      betaSignups.last30d++;
+      if (new Date(r.created_at).getTime() >= sevenAgo) betaSignups.last7d++;
+      const via = /^\[via ([a-zA-Z0-9_-]+)\]/.exec(r.note ?? "");
+      const src = via ? via[1] : "(direto)";
+      porOrigem[src] = (porOrigem[src] ?? 0) + 1;
+    }
+    betaSignups.bySource30d = Object.entries(porOrigem).map(([src, count]) => ({ src, count })).sort((a, b) => b.count - a.count);
+  } catch { /* bloco vazio em caso de erro */ }
+
   return apiJson({
     generatedAt: ISO(now),
     // Prontidão para o lançamento (só sim/não por env var) — scripts/launch-check.sh
@@ -272,5 +316,6 @@ export async function GET(req: NextRequest) {
     usage,
     payments,
     views,
+    betaSignups,
   });
 }
