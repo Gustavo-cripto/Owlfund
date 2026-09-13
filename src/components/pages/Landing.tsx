@@ -10,6 +10,7 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { pageUrl } from "@/lib/i18n/routes";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { btnPrimary, btnSecondary } from "@/lib/ui/buttons";
+import Lightbox from "@/components/Lightbox";
 
 // Durante o beta os pagamentos estão congelados: os CTAs de planos pagos
 // apontam para o convite /beta (Pro/Premium grátis 60 dias).
@@ -129,13 +130,11 @@ function AppScreenshots() {
             key={s.src}
             className={`card-hover overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60 ${loaded[s.src] ? "" : "hidden"}`}
           >
-            <img
+            <Lightbox
               src={s.src}
               alt={t(s.t)}
               width={s.w}
               height={s.h}
-              loading="lazy"
-              decoding="async"
               onLoad={() => setLoaded((p) => ({ ...p, [s.src]: true }))}
               onError={() => setLoaded((p) => ({ ...p, [s.src]: false }))}
               className="w-full border-b border-slate-800 object-cover"

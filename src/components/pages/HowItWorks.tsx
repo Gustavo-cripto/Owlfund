@@ -8,6 +8,7 @@ import PlanBadge from "@/components/PlanBadge";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { pageUrl } from "@/lib/i18n/routes";
 import type { TranslationKey } from "@/lib/i18n/translations";
+import Lightbox from "@/components/Lightbox";
 
 const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
 
@@ -61,13 +62,11 @@ function ToolRow({ tool, index }: { tool: (typeof TOOLS)[number]; index: number 
     <div className="grid items-center gap-8 md:grid-cols-2">
       {imgOk && (
         <figure className={`animate-fade-in-up overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60 shadow-xl shadow-black/30 ${reverse ? "md:order-2" : ""}`}>
-          <img
+          <Lightbox
             src={tool.img}
             alt={t(tool.t)}
             width={tool.w}
             height={tool.h}
-            loading="lazy"
-            decoding="async"
             onError={() => setImgOk(false)}
             className="w-full object-cover"
           />
