@@ -4,6 +4,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { translations, type Lang, type TranslationKey } from "./translations";
 import { pageFromPath, pageUrl } from "./routes";
+import { createClient } from "@/lib/supabase/client";
+import { langFromMetadata } from "@/lib/user/lang";
 
 type LanguageContextValue = {
   lang: Lang;
@@ -54,6 +56,23 @@ export function LanguageProvider({
     const map: Record<Lang, string> = { pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" };
     document.documentElement.lang = map[lang];
     document.cookie = `cfa-lang=${lang}; path=/; max-age=31536000; SameSite=Lax`;
+  }, [lang]);
+
+  // Leva a lingua a conta (user_metadata.lang, sem migracao — como o nickname):
+  // e dai que os emails que saem do servidor (beta, avisos, briefing) sabem em
+  // que lingua falar com cada pessoa. Com atraso, para gravar so o valor final
+  // e nao o "pt" de arranque. Sem sessao nao faz nada; nunca bloqueia o ecra.
+  useEffect(() => {
+    const id = setTimeout(async () => {
+      try {
+        const supabase = createClient();
+        const { data } = await supabase.auth.getSession();
+        const user = data.session?.user;
+        if (!user || langFromMetadata(user.user_metadata) === lang) return;
+        await supabase.auth.updateUser({ data: { lang } });
+      } catch { /* sem env, sem sessao, sem rede: fica para a proxima */ }
+    }, 1500);
+    return () => clearTimeout(id);
   }, [lang]);
 
   const setLang = (l: Lang) => {

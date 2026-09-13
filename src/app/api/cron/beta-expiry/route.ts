@@ -11,6 +11,8 @@ import { internalError } from "@/lib/api/response";
 import { isPremiumPriceId } from "@/lib/payments/priceIds";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { verifyCronAuth } from "@/lib/api/cron-auth";
+import type { Lang } from "@/lib/i18n/translations";
+import { langFromMetadata, resolveLang, signupLangByEmail } from "@/lib/user/lang";
 import { sendTelegram, tgEsc } from "@/lib/notify/telegram";
 import { esc, fmtDate, markSent, sendEmail, shell, TZ } from "@/lib/email";
 
@@ -23,10 +25,9 @@ const DAY = 86_400_000;
 const OFFER_DAY = 10; // dia 50 do trial: oferta de fundador (faltam ≤10 dias)
 const BOT = '<a href="https://t.me/ChainFolioAiBetaBot" style="color:#38bdf8;font-weight:700">@ChainFolioAiBetaBot</a>';
 
-type Lang = "pt" | "en";
-const pick = (lang: string): Lang => (lang === "pt" ? "pt" : "en");
+// Lingua por tester: user_metadata.lang → beta_signups.lang → pt (ver src/lib/user/lang.ts).
 
-const COPY = {
+const COPY: { d3: Record<Lang, (plan: string, end: string) => { subject: string; html: string }>; offer: Record<Lang, (plan: string) => { subject: string; html: string }>; ended: Record<Lang, () => { subject: string; html: string }> } = {
   d3: {
     pt: (plan: string, end: string) => ({
       subject: "O teu acesso beta ChainFolioAI termina em 3 dias",
@@ -41,6 +42,20 @@ const COPY = {
         <p>Your beta tester period ends on <b>${esc(end)}</b>. After that the account goes back to the Free plan — all your data stays saved.</p>
         <p style="background:#1f2937;border-radius:10px;padding:12px 14px">🙏 <b>Before it ends, tell us how it went:</b> what you liked, what was missing, what you'd change. Talk to us on Telegram: ${BOT}</p>
         <p style="color:#94a3b8;font-size:12px">As a beta tester you get special conditions at launch. You're on the list. 💛</p>`),
+    }),
+    es: (plan: string, end: string) => ({
+      subject: "Tu acceso beta a ChainFolioAI termina en 3 días",
+      html: shell(`<p style="color:#fff;font-size:16px;font-weight:700">Quedan 3 días de ${plan} 🚀</p>
+        <p>Tu periodo de beta tester termina el <b>${esc(end)}</b>. Después la cuenta vuelve al plan Free — todos tus datos se conservan.</p>
+        <p style="background:#1f2937;border-radius:10px;padding:12px 14px">🙏 <b>Antes de que acabe, cuéntanos cómo fue:</b> qué te gustó, qué faltó, qué cambiarías. Habla con nosotros en Telegram: ${BOT}</p>
+        <p style="color:#94a3b8;font-size:12px">Como beta tester, tienes condiciones especiales en el lanzamiento. Estás en la lista. 💛</p>`),
+    }),
+    fr: (plan: string, end: string) => ({
+      subject: "Votre accès bêta ChainFolioAI se termine dans 3 jours",
+      html: shell(`<p style="color:#fff;font-size:16px;font-weight:700">Plus que 3 jours de ${plan} 🚀</p>
+        <p>Votre période de bêta-testeur se termine le <b>${esc(end)}</b>. Ensuite le compte repasse au plan Free — toutes vos données sont conservées.</p>
+        <p style="background:#1f2937;border-radius:10px;padding:12px 14px">🙏 <b>Avant la fin, dites-nous comment ça s'est passé :</b> ce que vous avez aimé, ce qui manquait, ce que vous changeriez. Parlez-nous sur Telegram : ${BOT}</p>
+        <p style="color:#94a3b8;font-size:12px">En tant que bêta-testeur, vous avez des conditions spéciales au lancement. Vous êtes sur la liste. 💛</p>`),
     }),
   },
   offer: {
@@ -68,6 +83,30 @@ const COPY = {
         <p style="color:#94a3b8;font-size:13px"><b>Lifetime</b> price as long as you keep the subscription — even when prices go up. Payments only open at launch; until then you pay nothing.</p>
         <p style="background:#0c4a6e33;border:1px solid #0ea5e955;border-radius:10px;padding:12px 14px">👉 <b>To reserve your founder price</b>, reply on Telegram: ${BOT} — and tell us what you liked and what was missing (your feedback is gold 🙏).</p>`),
     }),
+    es: (plan: string) => ({
+      subject: "Tu precio de fundador en ChainFolioAI está reservado",
+      html: shell(`<p style="color:#fff;font-size:17px;font-weight:700">Estás con nosotros desde el principio — eso cuenta. 🏆</p>
+        <p>Quedan unos 10 días para el fin de tu periodo beta (${plan}). Como <b>fundador</b>, te garantizamos para siempre:</p>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;margin:6px 0">
+          <tr><td style="padding:8px 10px;background:#1f2937;border-radius:8px 0 0 8px;color:#fff"><b>Premium Fundador</b></td><td style="padding:8px 10px;background:#1f2937;text-align:right"><b style="color:#fb923c">19 €/mes</b> <span style="color:#64748b;text-decoration:line-through">39 €</span><br><span style="color:#94a3b8;font-size:13px">o <b style="color:#fb923c">190 €/año</b> <span style="text-decoration:line-through">390 €</span></span></td></tr>
+          <tr><td colspan="2" style="height:6px"></td></tr>
+          <tr><td style="padding:8px 10px;background:#1f2937;border-radius:8px 0 0 8px;color:#fff"><b>Pro Fundador</b></td><td style="padding:8px 10px;background:#1f2937;text-align:right"><b style="color:#fb923c">9,99 €/mes</b> <span style="color:#64748b;text-decoration:line-through">14,99 €</span><br><span style="color:#94a3b8;font-size:13px">o <b style="color:#fb923c">99 €/año</b> <span style="text-decoration:line-through">149 €</span></span></td></tr>
+        </table>
+        <p style="color:#94a3b8;font-size:13px">Precio <b>vitalicio</b> mientras mantengas la suscripción — incluso cuando suban los precios. El pago solo se abre en el lanzamiento; hasta entonces no pagas nada.</p>
+        <p style="background:#0c4a6e33;border:1px solid #0ea5e955;border-radius:10px;padding:12px 14px">👉 <b>Para reservar tu precio de fundador</b>, responde en Telegram: ${BOT} — y aprovecha para decirnos qué te gustó y qué faltó (tu balance vale oro 🙏).</p>`),
+    }),
+    fr: (plan: string) => ({
+      subject: "Votre prix fondateur ChainFolioAI est réservé",
+      html: shell(`<p style="color:#fff;font-size:17px;font-weight:700">Vous êtes avec nous depuis le début — ça compte. 🏆</p>
+        <p>Il reste environ 10 jours à votre période bêta (${plan}). En tant que <b>fondateur</b>, nous vous garantissons à vie :</p>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;margin:6px 0">
+          <tr><td style="padding:8px 10px;background:#1f2937;border-radius:8px 0 0 8px;color:#fff"><b>Premium Fondateur</b></td><td style="padding:8px 10px;background:#1f2937;text-align:right"><b style="color:#fb923c">19 €/mois</b> <span style="color:#64748b;text-decoration:line-through">39 €</span><br><span style="color:#94a3b8;font-size:13px">ou <b style="color:#fb923c">190 €/an</b> <span style="text-decoration:line-through">390 €</span></span></td></tr>
+          <tr><td colspan="2" style="height:6px"></td></tr>
+          <tr><td style="padding:8px 10px;background:#1f2937;border-radius:8px 0 0 8px;color:#fff"><b>Pro Fondateur</b></td><td style="padding:8px 10px;background:#1f2937;text-align:right"><b style="color:#fb923c">9,99 €/mois</b> <span style="color:#64748b;text-decoration:line-through">14,99 €</span><br><span style="color:#94a3b8;font-size:13px">ou <b style="color:#fb923c">99 €/an</b> <span style="text-decoration:line-through">149 €</span></span></td></tr>
+        </table>
+        <p style="color:#94a3b8;font-size:13px">Prix <b>à vie</b> tant que vous gardez l'abonnement — même quand les prix augmenteront. Le paiement n'ouvre qu'au lancement ; d'ici là vous ne payez rien.</p>
+        <p style="background:#0c4a6e33;border:1px solid #0ea5e955;border-radius:10px;padding:12px 14px">👉 <b>Pour réserver votre prix fondateur</b>, répondez sur Telegram : ${BOT} — et dites-nous ce que vous avez aimé et ce qui manquait (votre bilan vaut de l'or 🙏).</p>`),
+    }),
   },
   ended: {
     pt: () => ({
@@ -83,6 +122,20 @@ const COPY = {
         <p>Your account is back on the <b>Free</b> plan: your data, wallets and history are all kept and you can keep using the site.</p>
         <p style="background:#1f2937;border-radius:10px;padding:12px 14px">📝 <b>One last ask:</b> a 2-minute final review — what was worth it, what was missing? Reply on Telegram: ${BOT}</p>
         <p style="background:#3b271433;border:1px solid #f9731655;border-radius:10px;padding:12px 14px">🏆 Your <b>founder price</b> is guaranteed: <b>Premium €19/month</b> (instead of €39) or <b>Pro €9.99/month</b> (instead of €14.99) — or, on annual billing, <b>€190</b> and <b>€99</b> (instead of €390 and €149). For life while you subscribe. Reserve it by replying on Telegram: ${BOT}. You'll be the first to know when payments open.</p>`),
+    }),
+    es: () => ({
+      subject: "Gracias por probar ChainFolioAI",
+      html: shell(`<p style="color:#fff;font-size:16px;font-weight:700">Tus 60 días de beta han terminado — ¡gracias! 🙏</p>
+        <p>Tu cuenta ha vuelto al plan <b>Free</b>: tus datos, monederos e historial se conservan y puedes seguir usando el sitio.</p>
+        <p style="background:#1f2937;border-radius:10px;padding:12px 14px">📝 <b>Última petición:</b> un balance final en 2 minutos — ¿qué valió la pena, qué faltó? Responde en Telegram: ${BOT}</p>
+        <p style="background:#3b271433;border:1px solid #f9731655;border-radius:10px;padding:12px 14px">🏆 Tu <b>precio de fundador</b> queda garantizado: <b>Premium 19 €/mes</b> (en vez de 39 €) o <b>Pro 9,99 €/mes</b> (en vez de 14,99 €) — y, si prefieres anual, <b>190 €</b> o <b>99 €</b> (en vez de 390 € y 149 €). Vitalicio mientras seas suscriptor. Resérvalo respondiendo en Telegram: ${BOT}. Te avisaremos los primeros cuando se abra el pago.</p>`),
+    }),
+    fr: () => ({
+      subject: "Merci d'avoir testé ChainFolioAI",
+      html: shell(`<p style="color:#fff;font-size:16px;font-weight:700">Vos 60 jours de bêta sont terminés — merci ! 🙏</p>
+        <p>Votre compte est repassé au plan <b>Free</b> : vos données, portefeuilles et historique sont conservés et vous pouvez continuer à utiliser le site.</p>
+        <p style="background:#1f2937;border-radius:10px;padding:12px 14px">📝 <b>Dernière demande :</b> un bilan final en 2 minutes — qu'est-ce qui en valait la peine, qu'est-ce qui manquait ? Répondez sur Telegram : ${BOT}</p>
+        <p style="background:#3b271433;border:1px solid #f9731655;border-radius:10px;padding:12px 14px">🏆 Votre <b>prix fondateur</b> est garanti : <b>Premium 19 €/mois</b> (au lieu de 39 €) ou <b>Pro 9,99 €/mois</b> (au lieu de 14,99 €) — et, en annuel, <b>190 €</b> ou <b>99 €</b> (au lieu de 390 € et 149 €). À vie tant que vous êtes abonné. Réservez-le en répondant sur Telegram : ${BOT}. Vous serez les premiers prévenus à l'ouverture des paiements.</p>`),
     }),
   },
 };
@@ -110,22 +163,18 @@ export async function GET(request: Request) {
   } catch (e) { console.error("[beta-expiry] expirar", e instanceof Error ? e.message : e); }
 
   // Mapa id → {email, lastSignIn} numa única listagem (antes: 1 pedido por tester, todos os dias).
-  const users = new Map<string, { email: string; lastSignIn: string | null }>();
+  const users = new Map<string, { email: string; lastSignIn: string | null; lang: Lang | null }>();
   try {
     for (let page = 1; page <= 5; page++) {
       const { data } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
-      for (const u of data.users) users.set(u.id, { email: u.email ?? "", lastSignIn: (u.last_sign_in_at as string | undefined) ?? null });
+      for (const u of data.users) users.set(u.id, { email: u.email ?? "", lastSignIn: (u.last_sign_in_at as string | undefined) ?? null, lang: langFromMetadata(u.user_metadata) });
       if (data.users.length < 1000) break;
     }
   } catch (e) { console.error("[beta-expiry] listUsers", e instanceof Error ? e.message : e); }
 
-  // Idioma por email (beta_signups.lang) — best-effort.
-  const langByEmail = new Map<string, string>();
-  try {
-    const { data } = await admin.from("beta_signups").select("email, lang");
-    for (const r of data ?? []) if (r.email) langByEmail.set(String(r.email).toLowerCase(), String(r.lang ?? "pt"));
-  } catch { /* tabela opcional */ }
-  const langOf = (email: string): Lang => pick(langByEmail.get(email.toLowerCase()) ?? "pt");
+  // Lingua de cada tester: a da conta, senao a da inscricao no beta, senao pt.
+  const langByEmail = await signupLangByEmail(admin);
+  const langOf = (uid: string, email: string): Lang => resolveLang(users.get(uid)?.lang, langByEmail.get(email.toLowerCase()));
   const planOf = (priceId: unknown) => (isPremiumPriceId(priceId) ? "Premium" : "Pro");
 
   // ── 1) Ativos a terminar nos próximos 11 dias ─────────────────────────────
@@ -152,7 +201,7 @@ export async function GET(request: Request) {
     const u = users.get(uid);
     const em = u?.email ?? "";
     const plan = planOf(s.price_id);
-    const lang = em ? langOf(em) : "pt";
+    const lang = langOf(uid, em);
     const endStr = fmtDate(end, lang, { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
     // Oferta de fundador (≤10 dias, uma vez).
@@ -207,7 +256,7 @@ export async function GET(request: Request) {
       const em = users.get(uid)?.email ?? "";
       if (!em) continue;
       if (!(await markSent(admin, uid, "beta_ended", true))) continue;
-      const m = COPY.ended[langOf(em)]();
+      const m = COPY.ended[langOf(uid, em)]();
       if (await sendEmail({ to: em, subject: m.subject, html: m.html, tag: "beta_ended" })) { ended++; testerMails++; }
       await sendTelegram(`🏁 <b>Beta terminou</b>: ${tgEsc(em)} — voltou ao Free; email de balanço final enviado.\nSe reservar o preço de fundador, confirma aqui:`, {
         inline_keyboard: [[{ text: "🏆 Confirmar fundador", callback_data: `f:${uid}` }]],

@@ -4,7 +4,9 @@ import { generateAiText } from "@/lib/ai/groq";
 import { createClient } from "@supabase/supabase-js";
 import { NO_ADVICE_RULE } from "@/lib/ai/disclaimer";
 import { verifyCronAuth } from "@/lib/api/cron-auth";
-import { esc, FROM_BRIEFING, sendEmail, TZ } from "@/lib/email";
+import { esc, fmtDate, FROM_BRIEFING, sendEmail } from "@/lib/email";
+import type { Lang } from "@/lib/i18n/translations";
+import { langFromMetadata, resolveLang, signupLangByEmail } from "@/lib/user/lang";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,6 +24,15 @@ async function fetchJson<T>(url: string): Promise<T | null> {
     return await res.json() as T;
   } catch { return null; }
 }
+
+// Tudo o que o email diz por si (fora do texto da IA), nas 4 linguas.
+const L: Record<Lang, { in: string; crypto: string; trad: string; briefing: string; cta: string; foot: string; unsub: string }> = {
+  pt: { in: "em português europeu", crypto: "Cripto", trad: "Mercado Tradicional", briefing: "Briefing", cta: "Ver Mercado →", foot: "Não constitui aconselhamento financeiro. Para cancelar, vai a", unsub: "Conta → Notificações" },
+  en: { in: "in English", crypto: "Crypto", trad: "Traditional Markets", briefing: "Briefing", cta: "View Markets →", foot: "This is not financial advice. To unsubscribe, go to", unsub: "Account → Notifications" },
+  es: { in: "en español", crypto: "Cripto", trad: "Mercado Tradicional", briefing: "Briefing", cta: "Ver Mercado →", foot: "No constituye asesoramiento financiero. Para cancelar, ve a", unsub: "Cuenta → Notificaciones" },
+  fr: { in: "en français", crypto: "Crypto", trad: "Marchés traditionnels", briefing: "Briefing", cta: "Voir le marché →", foot: "Ceci ne constitue pas un conseil financier. Pour vous désabonner, allez dans", unsub: "Compte → Notifications" },
+};
+const BRIEFING_DATE: Intl.DateTimeFormatOptions = { weekday: "long", day: "numeric", month: "long", year: "numeric" };
 
 async function buildContext(mode: "crypto" | "tradicional"): Promise<string> {
   if (mode === "tradicional") return "Análise de mercado tradicional: foca em contexto macro, Fed, inflação e tendências setoriais.";
@@ -54,11 +65,12 @@ async function buildContext(mode: "crypto" | "tradicional"): Promise<string> {
 }
 
 // Devolve null em falha — o caller NUNCA envia email com texto de erro.
-async function generateBriefing(mode: "crypto" | "tradicional", context: string): Promise<string | null> {
+async function generateBriefing(mode: "crypto" | "tradicional", context: string, lang: Lang): Promise<string | null> {
   const today = new Date().toISOString().split("T")[0];
+  // O pedido fica em portugues (a IA segue-o bem); so a lingua DO TEXTO muda.
   const prompt = (mode === "crypto"
-    ? `Briefing diário de mercado cripto em português europeu. Data: ${today}.\n\nDados reais:\n${context}\n\nEscreve um briefing conciso com: Resumo, Destaques (bullets), Análise BTC/ETH/SOL, Fear & Greed e Perspetiva 24h (descritiva: cenários e riscos, sem recomendações). Usa APENAS os preços fornecidos.`
-    : `Briefing diário de mercado tradicional em português europeu. Data: ${today}.\n\nEscreve um briefing com: Resumo Macro, Destaques, Análise setorial (Tech, Ouro, Índices) e Perspetiva (descritiva). Não inventes cotações específicas.`)
+    ? `Briefing diário de mercado cripto, escrito ${L[lang].in}. Data: ${today}.\n\nDados reais:\n${context}\n\nEscreve um briefing conciso com: Resumo, Destaques (bullets), Análise BTC/ETH/SOL, Fear & Greed e Perspetiva 24h (descritiva: cenários e riscos, sem recomendações). Usa APENAS os preços fornecidos. Todo o texto, incluindo títulos, ${L[lang].in}.`
+    : `Briefing diário de mercado tradicional, escrito ${L[lang].in}. Data: ${today}.\n\nEscreve um briefing com: Resumo Macro, Destaques, Análise setorial (Tech, Ouro, Índices) e Perspetiva (descritiva). Não inventes cotações específicas. Todo o texto, incluindo títulos, ${L[lang].in}.`)
     + `\n\n${NO_ADVICE_RULE}`;
   try {
     // Cadeia completa: candidatos Groq (modelos vivos) → OpenAI → xAI.
@@ -70,7 +82,8 @@ async function generateBriefing(mode: "crypto" | "tradicional", context: string)
   }
 }
 
-function buildEmailHtml(briefing: string, mode: string, date: string): string {
+function buildEmailHtml(briefing: string, mode: string, date: string, lang: Lang): string {
+  const l = L[lang];
   // Output da IA é escapado antes de ir para HTML.
   const lines = briefing.split("\n").map((raw) => {
     const line = esc(raw);
@@ -89,17 +102,17 @@ function buildEmailHtml(briefing: string, mode: string, date: string): string {
     <div style="text-align:center;margin-bottom:24px">
       <img src="https://chainfolioai.com/chainfolioai-icon.png" alt="ChainFolioAI" width="48" height="48" style="border-radius:12px;object-fit:cover;margin-bottom:8px" />
       <p style="color:#f97316;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;margin:0">ChainFolioAI</p>
-      <h1 style="color:#fff;font-size:22px;margin:8px 0">Briefing ${mode === "crypto" ? "Cripto" : "Tradicional"}</h1>
+      <h1 style="color:#fff;font-size:22px;margin:8px 0">${l.briefing} ${mode === "crypto" ? l.crypto : l.trad}</h1>
       <p style="color:#64748b;font-size:12px;margin:0">${date}</p>
     </div>
     <div style="background:#1e293b;border-radius:16px;padding:24px;border:1px solid #334155">
       ${lines}
     </div>
     <div style="text-align:center;margin-top:20px">
-      <a href="https://chainfolioai.com/mercado" style="background:#f97316;color:#0f172a;padding:10px 24px;border-radius:999px;text-decoration:none;font-size:13px;font-weight:700">Ver Mercado →</a>
+      <a href="https://chainfolioai.com/mercado" style="background:#f97316;color:#0f172a;padding:10px 24px;border-radius:999px;text-decoration:none;font-size:13px;font-weight:700">${l.cta}</a>
     </div>
     <p style="text-align:center;color:#475569;font-size:11px;margin-top:20px">
-      Não constitui aconselhamento financeiro. Para cancelar, vai a <a href="https://chainfolioai.com/account?section=notifications" style="color:#f97316">Conta → Notificações</a>
+      ${l.foot} <a href="https://chainfolioai.com/account?section=notifications" style="color:#f97316">${l.unsub}</a>
     </p>
   </div>
 </body>
@@ -154,29 +167,42 @@ export async function GET(request: Request) {
   }
   const eligible = users.filter((u) => plans.has(u.user_id));
 
-  const date = new Date().toLocaleDateString("pt-PT", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: TZ });
+  // Lingua de cada subscritor: conta (user_metadata.lang) → inscricao no beta → pt.
+  const langById = new Map<string, Lang | null>();
+  try {
+    const { data } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    for (const u of data.users) langById.set(u.id, langFromMetadata(u.user_metadata));
+  } catch (e) { console.error("[briefing] listUsers", e instanceof Error ? e.message : e); }
+  const signupLang = await signupLangByEmail(supabase);
+  const langOf = (u: { user_id: string; email: string }) => resolveLang(langById.get(u.user_id), signupLang.get((u.email ?? "").toLowerCase()));
+
   let sent = 0;
   const errors: string[] = [];
 
-  // O briefing é igual para todos → gera-se UMA vez por modo (antes: 1 chamada LLM por utilizador).
-  const cache = new Map<"crypto" | "tradicional", string | null>();
-  const briefingFor = async (mode: "crypto" | "tradicional") => {
-    if (!cache.has(mode)) {
-      const context = await buildContext(mode);
-      const b = await generateBriefing(mode, context);
-      if (!b) console.error(`[briefing] ${mode}: IA indisponível — briefing não enviado`);
-      cache.set(mode, b ? buildEmailHtml(b, mode, date) : null);
+  // O briefing é igual para todos na mesma lingua → gera-se UMA vez por
+  // modo × lingua em uso (antes: 1 chamada LLM por utilizador). O contexto de
+  // mercado (precos) vai buscar-se uma vez por modo.
+  const contexts = new Map<"crypto" | "tradicional", string>();
+  const cache = new Map<string, string | null>();
+  const briefingFor = async (mode: "crypto" | "tradicional", lang: Lang) => {
+    const key = `${mode}:${lang}`;
+    if (!cache.has(key)) {
+      if (!contexts.has(mode)) contexts.set(mode, await buildContext(mode));
+      const b = await generateBriefing(mode, contexts.get(mode) ?? "", lang);
+      if (!b) console.error(`[briefing] ${key}: IA indisponível — briefing não enviado`);
+      cache.set(key, b ? buildEmailHtml(b, mode, fmtDate(new Date(), lang, BRIEFING_DATE), lang) : null);
     }
-    return cache.get(mode) ?? null;
+    return cache.get(key) ?? null;
   };
 
   for (const user of eligible) {
     const rawMode = (user.mode ?? "crypto") as "crypto" | "tradicional" | "both";
     const modes: Array<"crypto" | "tradicional"> = rawMode === "both" ? ["crypto", "tradicional"] : [rawMode];
+    const lang = langOf(user);
     for (const mode of modes) {
-      const html = await briefingFor(mode);
+      const html = await briefingFor(mode, lang);
       if (!html) continue;
-      const ok = await sendEmail({ from: FROM_BRIEFING, to: user.email, subject: `Briefing ${mode === "crypto" ? "Cripto" : "Mercado Tradicional"} — ${date}`, html, tag: "briefing" });
+      const ok = await sendEmail({ from: FROM_BRIEFING, to: user.email, subject: `${L[lang].briefing} ${mode === "crypto" ? L[lang].crypto : L[lang].trad} — ${fmtDate(new Date(), lang, BRIEFING_DATE)}`, html, tag: "briefing" });
       if (ok) sent++; else errors.push(`${user.email}/${mode}`);
     }
   }

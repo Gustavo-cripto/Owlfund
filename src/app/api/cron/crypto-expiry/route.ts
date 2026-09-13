@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { internalError } from "@/lib/api/response";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { verifyCronAuth } from "@/lib/api/cron-auth";
-import { FROM_BILLING, markSent, sendEmail, TZ } from "@/lib/email";
+import { FROM_BILLING, fmtDate, markSent, sendEmail } from "@/lib/email";
+import type { Lang } from "@/lib/i18n/translations";
+import { langFromMetadata, resolveLang, signupLangByEmail } from "@/lib/user/lang";
 
 // Vercel Cron Job (diário, 00:30 UTC — ver vercel.json). CRON_SECRET obrigatório.
 //
@@ -29,24 +31,48 @@ function planFromPriceId(priceId: string | null | undefined): "Premium" | "Pro" 
   return premium && priceId === premium ? "Premium" : "Pro";
 }
 
-function reminderHtml(plan: string, endLabel: string, days: number, accountUrl: string): string {
-  const when = days === 1 ? "amanhã" : `em ${days} dias`;
+// Na lingua do cliente (user_metadata.lang → beta_signups.lang → pt).
+const R: Record<Lang, { subject: (plan: string, when: string) => string; when: (d: number) => string; p1: (plan: string, end: string) => string; p2: string; cta: string; foot: string }> = {
+  pt: {
+    subject: (plan, when) => `A tua subscrição ${plan} expira ${when}`,
+    when: (d) => (d <= 1 ? "amanhã" : `em ${d} dias`),
+    p1: (plan, end) => `O acesso pago em cripto termina a <strong>${end}</strong>. Como os pagamentos em cripto não têm débito automático, precisas de renovar manualmente para manteres o ${plan}.`,
+    p2: "O teu histórico de portefólio e todas as métricas ficam <strong>intactos</strong> — renovar apenas reativa o acesso, sem perder nada.",
+    cta: "Renovar agora", foot: "ChainFolioAI · pagamento em EURC/USDC, direto para a tua carteira.",
+  },
+  en: {
+    subject: (plan, when) => `Your ${plan} subscription expires ${when}`,
+    when: (d) => (d <= 1 ? "tomorrow" : `in ${d} days`),
+    p1: (plan, end) => `Your crypto-paid access ends on <strong>${end}</strong>. Crypto payments have no automatic debit, so you need to renew manually to keep ${plan}.`,
+    p2: "Your portfolio history and all metrics stay <strong>intact</strong> — renewing only reactivates access, nothing is lost.",
+    cta: "Renew now", foot: "ChainFolioAI · payment in EURC/USDC, straight to your wallet.",
+  },
+  es: {
+    subject: (plan, when) => `Tu suscripción ${plan} expira ${when}`,
+    when: (d) => (d <= 1 ? "mañana" : `en ${d} días`),
+    p1: (plan, end) => `El acceso pagado en cripto termina el <strong>${end}</strong>. Como los pagos en cripto no tienen cargo automático, necesitas renovar manualmente para mantener ${plan}.`,
+    p2: "Tu historial de cartera y todas las métricas quedan <strong>intactos</strong> — renovar solo reactiva el acceso, sin perder nada.",
+    cta: "Renovar ahora", foot: "ChainFolioAI · pago en EURC/USDC, directo a tu monedero.",
+  },
+  fr: {
+    subject: (plan, when) => `Votre abonnement ${plan} expire ${when}`,
+    when: (d) => (d <= 1 ? "demain" : `dans ${d} jours`),
+    p1: (plan, end) => `Votre accès payé en crypto se termine le <strong>${end}</strong>. Les paiements en crypto n'ont pas de prélèvement automatique : il faut renouveler manuellement pour garder ${plan}.`,
+    p2: "Votre historique de portefeuille et toutes vos métriques restent <strong>intacts</strong> — renouveler ne fait que réactiver l'accès, rien n'est perdu.",
+    cta: "Renouveler maintenant", foot: "ChainFolioAI · paiement en EURC/USDC, directement vers votre portefeuille.",
+  },
+};
+
+function reminderHtml(lang: Lang, plan: string, endLabel: string, days: number, accountUrl: string): string {
+  const r = R[lang];
   return `<div style="font-family:system-ui,-apple-system,sans-serif;max-width:520px;margin:0 auto;color:#0f172a">
-    <h2 style="color:#ea580c;margin:0 0 12px">A tua subscrição ${plan} expira ${when}</h2>
-    <p style="line-height:1.6;margin:0 0 12px">
-      O acesso pago em cripto termina a <strong>${endLabel}</strong>. Como os pagamentos em
-      cripto não têm débito automático, precisas de renovar manualmente para manteres o ${plan}.
-    </p>
-    <p style="line-height:1.6;margin:0 0 20px">
-      O teu histórico de portefólio e todas as métricas ficam <strong>intactos</strong> —
-      renovar apenas reativa o acesso, sem perder nada.
-    </p>
+    <h2 style="color:#ea580c;margin:0 0 12px">${r.subject(plan, r.when(days))}</h2>
+    <p style="line-height:1.6;margin:0 0 12px">${r.p1(plan, endLabel)}</p>
+    <p style="line-height:1.6;margin:0 0 20px">${r.p2}</p>
     <p style="margin:0 0 24px">
-      <a href="${accountUrl}" style="background:#ea580c;color:#fff;text-decoration:none;padding:12px 22px;border-radius:9999px;font-weight:600">
-        Renovar agora
-      </a>
+      <a href="${accountUrl}" style="background:#ea580c;color:#fff;text-decoration:none;padding:12px 22px;border-radius:9999px;font-weight:600">${r.cta}</a>
     </p>
-    <p style="font-size:12px;color:#64748b;margin:0">ChainFolioAI · pagamento em EURC/USDC, direto para a tua carteira.</p>
+    <p style="font-size:12px;color:#64748b;margin:0">${r.foot}</p>
   </div>`;
 }
 
@@ -77,6 +103,7 @@ export async function GET(request: Request) {
         .lt("current_period_end", horizonIso);
 
       if (upcoming && upcoming.length > 0) {
+        const signupLang = await signupLangByEmail(admin);
         for (const sub of upcoming) {
           const end = sub.current_period_end ? new Date(sub.current_period_end) : null;
           if (!end) continue;
@@ -92,12 +119,13 @@ export async function GET(request: Request) {
           if (!email) continue;
 
           const plan = planFromPriceId(sub.price_id);
-          const endLabel = end.toLocaleDateString("pt-PT", { timeZone: TZ });
+          const lang = resolveLang(langFromMetadata(u?.user?.user_metadata), signupLang.get(email.toLowerCase()));
+          const endLabel = fmtDate(end, lang, { day: "2-digit", month: "2-digit", year: "numeric" });
           const ok = await sendEmail({
             from: FROM_BILLING,
             to: email,
-            subject: `A tua subscrição ${plan} expira ${daysLeft <= 1 ? "amanhã" : `em ${daysLeft} dias`}`,
-            html: reminderHtml(plan, endLabel, daysLeft, `${siteUrl}/account`),
+            subject: R[lang].subject(plan, R[lang].when(daysLeft)),
+            html: reminderHtml(lang, plan, endLabel, daysLeft, `${siteUrl}/account`),
             tag: "crypto_reminder",
           });
           if (ok) reminded++; else remindErrors.push(email);
