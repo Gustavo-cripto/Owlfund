@@ -15,7 +15,9 @@
 
 import { readFileSync } from "node:fs";
 
-const T = readFileSync("src/lib/i18n/translations.ts", "utf8").split("\n");
+// Uma lingua por ficheiro (src/lib/i18n/messages/*.ts); junta-se tudo com o
+// marcador "  xx: {" que o resto do script sempre usou para delimitar blocos.
+const T = ["pt", "en", "es", "fr"].flatMap((l) => [`  ${l}: {`, ...readFileSync(`src/lib/i18n/messages/${l}.ts`, "utf8").split("\n")]);
 const C = readFileSync("src/lib/tax/countries.ts", "utf8");
 const LANGS = ["pt", "en", "es", "fr"];
 let falhas = 0;
