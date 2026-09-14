@@ -9,8 +9,11 @@
 //
 // Os TEXTOS vêm das traduções (chaves fc_<code>_*), para não haver duas versões
 // da mesma frase. As TAXAS e isenções estão aqui porque são cálculo, não texto.
-
-import { translations, type Lang } from "@/lib/i18n/translations";
+//
+// Só o TIPO Lang é importado (apagado em runtime): este ficheiro entra em
+// páginas cliente e não pode puxar as quatro línguas. Os textos por país
+// ficam em countryText.ts, só para o servidor.
+import type { Lang } from "@/lib/i18n/translations";
 
 export type Plan = "free" | "pro" | "premium";
 
@@ -142,7 +145,7 @@ export const guideUrl = (lang: GuideLang, country?: Country): string =>
   country ? `${GUIDE_BASE[lang]}/${country.slug[lang]}` : GUIDE_BASE[lang];
 
 /** Prefixo das chaves de tradução de cada país (fc_pt_*, fc_uk_*, …). */
-const TEXT_PREFIX: Record<string, string> = {
+export const TEXT_PREFIX: Record<string, string> = {
   PT: "pt", ES: "es", FR: "fr", DE: "de", GB: "uk", NL: "nl", IT: "it", BR: "br",
   BE: "be", IE: "ie", AT: "at", PL: "pl", LU: "lu", US: "us", CA: "ca", AU: "au",
   CH: "ch", AE: "ae", SG: "sg", MX: "mx", AR: "ar",
@@ -156,27 +159,6 @@ export type CountryText = {
   summary: string;
   keyPoints: string[];
 };
-
-/**
- * Textos de um país no idioma pedido. Server-safe: lê o módulo de traduções
- * diretamente, sem o contexto React que só existe no cliente.
- */
-export function countryText(code: string, lang: Lang = "pt"): CountryText {
-  // Sem prefixo o país mostraria silenciosamente o texto de Portugal — um guia
-  // inteiro com a lei errada. Antes rebentar no build (as páginas são estáticas).
-  const p = TEXT_PREFIX[code];
-  if (!p) throw new Error(`countryText: país sem prefixo de tradução em TEXT_PREFIX: ${code}`);
-  const dict = translations[lang] as Record<string, string>;
-  const get = (suffix: string) => dict[`fc_${p}_${suffix}`] ?? "";
-  return {
-    name: get("name"),
-    taxShort: get("short"),
-    taxLong: get("long"),
-    threshold: get("thr"),
-    summary: get("sum"),
-    keyPoints: get("kp").split("\n").filter(Boolean),
-  };
-}
 
 /** Data da última verificação do conteúdo — mostrada nos guias. */
 export const TAX_DATA_VERIFIED: Record<GuideLang, string> = {

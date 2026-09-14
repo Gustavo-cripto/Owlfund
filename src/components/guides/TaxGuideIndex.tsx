@@ -1,7 +1,8 @@
 import Link from "next/link";
 
 import AppShell from "@/components/AppShell";
-import { COUNTRIES, countryText, guideUrl, TAX_DATA_VERIFIED, type GuideLang } from "@/lib/tax/countries";
+import { COUNTRIES, guideUrl, TAX_DATA_VERIFIED, type GuideLang } from "@/lib/tax/countries";
+import { countryText } from "@/lib/tax/countryText";
 import { GUIDE_COPY } from "@/lib/tax/guideCopy";
 
 // Índice do guia fiscal, partilhado pelas duas línguas (/guias/… e /guides/…).

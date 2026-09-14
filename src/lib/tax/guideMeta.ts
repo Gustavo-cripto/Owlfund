@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
-import { countryBySlug, countryText, guideUrl, type GuideLang } from "./countries";
+import { countryBySlug, guideUrl, type GuideLang } from "./countries";
+import { countryText } from "./countryText";
 import { GUIDE_COPY } from "./guideCopy";
 
 // Metadata dos guias, incluindo hreflang: diz ao Google que /guias/…/portugal e

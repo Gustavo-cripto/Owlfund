@@ -1,7 +1,8 @@
 import Link from "next/link";
 
 import AppShell from "@/components/AppShell";
-import { COUNTRIES, countryText, guideUrl, TAX_DATA_VERIFIED, type Country, type GuideLang } from "@/lib/tax/countries";
+import { COUNTRIES, guideUrl, TAX_DATA_VERIFIED, type Country, type GuideLang } from "@/lib/tax/countries";
+import { countryText } from "@/lib/tax/countryText";
 import { GUIDE_COPY } from "@/lib/tax/guideCopy";
 
 // Página de um país, partilhada pelas duas línguas. Os textos das regras vêm
