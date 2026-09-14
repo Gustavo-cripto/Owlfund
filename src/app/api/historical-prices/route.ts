@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/api/requireUser";
+import { cgFetch } from "@/lib/market/coingecko";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -20,7 +21,7 @@ const SYMBOL_MAP: Record<string, string> = {
 
 // CoinGecko /coins/{id}/market_chart gives hourly data for <=90 days
 async function fetchCoinHistory(coinId: string): Promise<{ d1: number; d7: number; d30: number }> {
-  const res = await fetch(
+  const res = await cgFetch(
     `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=eur&days=31&interval=daily`,
     {
       headers: {

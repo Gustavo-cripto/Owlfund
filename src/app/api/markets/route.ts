@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { rateLimitPublic } from "@/lib/api/requireUser";
+import { lastGood, rememberGood } from "@/lib/market/lastGood";
+import { cgFetch } from "@/lib/market/coingecko";
 
 // "Mercado em tempo real": revalida a cada 60s em vez de ficar em cache estática.
 // Sem isto, o Next torna a rota estática e os preços/colunas ficam congelados.
@@ -129,39 +131,35 @@ export async function GET(request: Request) {
   const limitado = rateLimitPublic(request, "markets", 120);
   if (limitado) return limitado;
   try {
-    const [coinexResponse, coingeckoResponse, coingeckoTopResponse, coingeckoExtraResponse, coingeckoGlobalResponse] = await Promise.all([
+    // Tres chamadas ao CoinGecko, nao quatro: o "top 50" para o sentimento e
+    // um subconjunto das 250 por capitalizacao — vem da mesma resposta.
+    const [coinexResponse, coingeckoResponse, coingeckoExtraResponse, coingeckoGlobalResponse] = await Promise.all([
       fetch("https://api.coinex.com/v2/spot/ticker"),
-      fetch(
+      cgFetch(
         "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&sparkline=true&price_change_percentage=1h,24h,7d,30d"
       ),
-      fetch(
-        // fetch more and then filter (avoid stablecoins / missing markets)
-        "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&sparkline=true"
-      ),
-      fetch(
+      cgFetch(
         `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${EXTRA_STABLE_IDS.join(",")}`
       ),
       // Dados globais: dominância BTC/ETH, capitalização total e variação 24h.
-      fetch("https://api.coingecko.com/api/v3/global"),
+      cgFetch("https://api.coingecko.com/api/v3/global"),
     ]);
 
     const coinexPayload = coinexResponse.ok
       ? await coinexResponse.json().catch(() => null)
       : null;
 
-    if (!coinexPayload) {
-      return NextResponse.json({ error: "Falha ao consultar CoinEx." }, { status: 502 });
-    }
+    if (!coinexPayload) throw new Error("Falha ao consultar CoinEx.");
 
     const tickers = extractCoinExTickers(coinexPayload);
 
-    const coingeckoPayload = coingeckoResponse.ok
-      ? ((await coingeckoResponse.json()) as CoinGeckoRow[])
-      : [];
+    // Sem o CoinGecko nao ha tabela (era 200 com data:[] — e o ISR guardava
+    // esse vazio 60 s). Agora e falha: serve-se o ultimo bom, ver o catch.
+    if (!coingeckoResponse.ok) throw new Error(`CoinGecko ${coingeckoResponse.status}`);
+    const coingeckoPayload = (await coingeckoResponse.json()) as CoinGeckoRow[];
+    if (!Array.isArray(coingeckoPayload) || coingeckoPayload.length < 5) throw new Error("CoinGecko sem dados");
 
-    const coingeckoTopPayload = coingeckoTopResponse.ok
-      ? ((await coingeckoTopResponse.json()) as CoinGeckoRow[])
-      : [];
+    const coingeckoTopPayload = coingeckoPayload.slice(0, 50);
 
     // Falha aqui não deve partir a rota — apenas ficamos sem estas estáveis extra.
     const coingeckoExtraPayload = coingeckoExtraResponse.ok
@@ -265,16 +263,24 @@ export async function GET(request: Request) {
         }
       : null;
 
-    return NextResponse.json({
+    return NextResponse.json(rememberGood("markets", {
       data: rows,
       sentimentTop10,
       selectList: [...bySymbol.values()],
       global,
-    });
+    }));
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Erro inesperado." },
-      { status: 500 }
-    );
+    const msg = error instanceof Error ? error.message : "Erro inesperado.";
+    // Ultimo resultado bom desta instancia, marcado como stale.
+    const stale = lastGood<Record<string, unknown>>("markets");
+    if (stale) {
+      console.warn(`[markets] ${msg}; a servir stale de ha ${stale.ageSec}s`);
+      return NextResponse.json({ ...stale.value, stale: true, staleAgeSec: stale.ageSec });
+    }
+    // Sem nada em memoria, deixa-se o erro sair: com `revalidate`, o Next
+    // continua a servir a ultima resposta boa que tinha em cache em vez de a
+    // substituir por um vazio. So num arranque a frio sem cache e que o
+    // cliente ve o erro — e esse ja cai no ticker de exemplo.
+    throw new Error(msg);
   }
 }

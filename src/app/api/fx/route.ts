@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { rateLimitPublic } from "@/lib/api/requireUser";
+import { cgFetch } from "@/lib/market/coingecko";
 
 // Taxas de câmbio com base no euro: quanto vale 1 EUR em cada moeda.
 //
@@ -30,7 +31,7 @@ export async function GET(request: Request) {
   try {
     const [fiatRes, btcRes] = await Promise.all([
       fetch(`https://api.frankfurter.dev/v1/latest?base=EUR&symbols=${FIAT.join(",")}`, { next: { revalidate: 60 } }),
-      fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=eur", { next: { revalidate: 60 } }),
+      cgFetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=eur", { next: { revalidate: 60 } }),
     ]);
 
     if (fiatRes.ok) {

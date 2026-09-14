@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/api/requireUser";
+import { cgFetch } from "@/lib/market/coingecko";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ export async function GET(req: NextRequest) {
   const id = (req.nextUrl.searchParams.get("id") ?? "").replace(/[^a-z0-9-]/gi, "");
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
   try {
-    const res = await fetch(
+    const res = await cgFetch(
       `https://api.coingecko.com/api/v3/coins/${encodeURIComponent(id)}?localization=false&tickers=false&market_data=false&community_data=false&developer_data=false&sparkline=false`,
       { signal: AbortSignal.timeout(8000) },
     );

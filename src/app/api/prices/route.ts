@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { rateLimitPublic } from "@/lib/api/requireUser";
+import { lastGood, rememberGood } from "@/lib/market/lastGood";
+import { cgFetch } from "@/lib/market/coingecko";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -62,6 +64,25 @@ async function fetchMarketBenchmarks(): Promise<Pick<Benchmark, "sp500" | "gold_
     // A variação é a mesma em USD ou EUR quando se usa a mesma taxa nos dois lados.
     gold_24h: pctChange(goldEur, goldPrevEur),
   };
+}
+
+// ── OKX (pares EUR e USDT) ───────────────────────────────────────────────────
+// Primeira fonte: responde a datacenters (a Binance devolve 451 e a Kraken
+// bloqueia a Vercel), sem chave, e tem pares em EUR.
+async function fromOKX(): Promise<{ prices: Prices; benchmark: Partial<Benchmark> }> {
+  const res = await fetch("https://www.okx.com/api/v5/market/tickers?instType=SPOT", {
+    headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(6000),
+  });
+  if (!res.ok) throw new Error(`OKX ${res.status}`);
+  const j = (await res.json()) as { code?: string; data?: Array<{ instId: string; last: string; open24h: string }> };
+  if (j.code !== "0" || !j.data?.length) throw new Error("OKX sem dados");
+  const map = new Map(j.data.map((r) => [r.instId, r]));
+  const px = (id: string) => parseFloat(map.get(id)?.last ?? "0") || 0;
+  const chg = (id: string) => { const r = map.get(id); const l = parseFloat(r?.last ?? "0"), o = parseFloat(r?.open24h ?? "0"); return l > 0 && o > 0 ? ((l - o) / o) * 100 : 0; };
+  const btcEur = px("BTC-EUR"), btcUsd = px("BTC-USDT");
+  const prices: Prices = { ETH: px("ETH-EUR"), SOL: px("SOL-EUR"), BTC: btcEur, ADA: px("ADA-EUR"), usdToEur: btcEur > 0 && btcUsd > 0 ? btcEur / btcUsd : undefined };
+  const benchmark: Partial<Benchmark> = { btc_eur: btcEur, btc_24h: chg("BTC-EUR"), eth_eur: prices.ETH, eth_24h: chg("ETH-EUR") };
+  return { prices, benchmark };
 }
 
 // ── Binance (EUR pairs via USDT + ECB rate approx) ──────────────────────────
@@ -137,7 +158,7 @@ async function fromKraken(): Promise<{ prices: Prices; benchmark: Partial<Benchm
 
 // ── CoinGecko (with retries) ─────────────────────────────────────────────────
 async function fromCoinGecko(): Promise<{ prices: Prices; benchmark: Partial<Benchmark> }> {
-  const res = await fetch(
+  const res = await cgFetch(
     "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,cardano&vs_currencies=eur,usd&include_24hr_change=true&include_7d_change=true&include_30d_change=true",
     {
       headers: {
@@ -181,7 +202,7 @@ export async function GET(request: Request) {
   const limitado = rateLimitPublic(request, "prices", 120);
   if (limitado) return limitado;
   // Try each source in order; first valid one wins
-  const sources = [fromBinance, fromKraken, fromCoinGecko];
+  const sources = [fromOKX, fromKraken, fromCoinGecko, fromBinance];
   let lastErr = "";
   for (const source of sources) {
     try {
@@ -205,12 +226,24 @@ export async function GET(request: Request) {
         gold_7d: 0,
         gold_30d: 0,
       };
-      return NextResponse.json({ prices, benchmark: fullBenchmark, source: source.name }, {
-        headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120" },
+      const body = rememberGood("prices", { prices, benchmark: fullBenchmark, source: source.name });
+      return NextResponse.json(body, {
+        // 10 min de stale-while-revalidate: se a origem falhar entretanto, o
+        // CDN continua a servir a ultima copia boa em vez de expor o erro.
+        headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=600" },
       });
     } catch (err) {
       lastErr = err instanceof Error ? err.message : String(err);
     }
+  }
+  // Todas as fontes em baixo: o ultimo resultado bom desta instancia, marcado
+  // como stale, vale mais do que um 502 (dashboard sem precos).
+  const stale = lastGood<Record<string, unknown>>("prices");
+  if (stale) {
+    console.warn(`[prices] fontes em baixo (${lastErr}); a servir stale de ha ${stale.ageSec}s`);
+    return NextResponse.json({ ...stale.value, stale: true, staleAgeSec: stale.ageSec }, {
+      headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=600" },
+    });
   }
   return NextResponse.json({ error: `All price sources failed: ${lastErr}` }, { status: 502 });
 }

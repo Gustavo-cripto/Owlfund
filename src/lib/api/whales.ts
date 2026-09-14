@@ -2,6 +2,7 @@
 // (/api/smart-money-rt) e pela API pública (/api/v1/whales) e MCP.
 
 import { alchemyErc20Transfers, hasAlchemy } from "@/lib/providers/alchemy";
+import { cgFetch } from "@/lib/market/coingecko";
 
 export type WatchEntry = { address: string; label: string; chain: "eth" | "sol" | "btc" };
 
@@ -44,7 +45,7 @@ export async function getUsdPrices(): Promise<UsdPrices> {
   if (priceCache && Date.now() - priceCache.at < PRICE_TTL_MS) return priceCache.prices;
   let prices: UsdPrices = { btc: null, eth: null, sol: null };
   try {
-    const res = await fetch(
+    const res = await cgFetch(
       "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd",
       { signal: AbortSignal.timeout(6000) },
     );

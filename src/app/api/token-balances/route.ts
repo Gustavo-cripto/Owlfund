@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/api/requireUser";
 import { getUsdPrices } from "@/lib/api/whales";
 import { alchemyTokensByWallet, hasAlchemy, AlchemyError } from "@/lib/providers/alchemy";
 import { heliusAssetsByOwner, hasHelius, HeliusError } from "@/lib/providers/helius";
+import { cgFetch } from "@/lib/market/coingecko";
 
 const MORALIS_EVM = "https://deep-index.moralis.io/api/v2.2";
 const MORALIS_SOL = "https://solana-gateway.moralis.io/account/mainnet";
@@ -90,7 +91,7 @@ async function fetchCoinGeckoPrices(symbols: string[]): Promise<Record<string, n
   const ids = [...new Set(symbols.map(s => COINGECKO_SYMBOLS[s.toUpperCase()]).filter(Boolean))];
   if (ids.length === 0) return {};
   try {
-    const res = await fetch(
+    const res = await cgFetch(
       `https://api.coingecko.com/api/v3/simple/price?ids=${ids.join(",")}&vs_currencies=usd`,
       { next: { revalidate: 300 } }
     );

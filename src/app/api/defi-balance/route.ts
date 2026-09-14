@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { apiMsg } from "@/lib/api/apiMessages";
 import { requireUser } from "@/lib/api/requireUser";
 import { encodeAbiParameters, keccak256 } from "viem";
+import { cgFetch } from "@/lib/market/coingecko";
 
 const MORALIS_DEFI = "https://deep-index.moralis.io/api/v2.2/wallets";
 const MORALIS_NFT = "https://deep-index.moralis.io/api/v2.2";
@@ -1275,7 +1276,7 @@ type BlockfrostAmount = { unit: string; quantity: string };
 /** ADA→USD spot (CoinGecko), to convert ADA-denominated pool values to USD. */
 async function fetchAdaUsd(): Promise<number> {
   try {
-    const r = await fetch(
+    const r = await cgFetch(
       "https://api.coingecko.com/api/v3/simple/price?ids=cardano&vs_currencies=usd",
       { next: { revalidate: 120 }, signal: AbortSignal.timeout(8000) }
     );

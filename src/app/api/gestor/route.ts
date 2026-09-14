@@ -7,6 +7,7 @@ import { getPlan } from "@/lib/api/entitlement";
 import { GESTOR_DAILY_LIMIT } from "@/lib/plans";
 import { generateAiChat, friendlyAiError, errorStatus, type ChatMessage } from "@/lib/ai/groq";
 import { scanWatchlist, type WatchEntry, type Movement } from "@/lib/api/whales";
+import { cgFetch } from "@/lib/market/coingecko";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -253,7 +254,7 @@ export async function POST(req: NextRequest) {
             .order("created_at", { ascending: false }).limit(1).maybeSingle()
         : Promise.resolve({ data: null }),
       needSnapshot
-        ? fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,cardano&vs_currencies=eur",
+        ? cgFetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,cardano&vs_currencies=eur",
             { signal: AbortSignal.timeout(5000) })
         : Promise.resolve(null),
       scanWatchlist(watchlist),
