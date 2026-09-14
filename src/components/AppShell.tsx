@@ -7,6 +7,7 @@ import AccountSwitcher from "./AccountSwitcher";
 import { ConfirmProvider } from "./ConfirmDialog";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
+import { createClient } from "@/lib/supabase/client";
 
 // `priceUsd` porque e nisso que a fonte cota; a apresentacao converte para a
 // moeda escolhida pelo utilizador.
@@ -60,6 +61,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return () => { cancelled = true; clearInterval(id); };
   }, []);
 
+  // Os blocos BTC sao para quem ja usa o site. Num telemovel, a um visitante
+  // sem sessao (vem das redes, decide no primeiro ecra) ocupavam ~300 px antes
+  // do titulo da landing — ficam so a partir de md ate haver sessao.
+  const [hasSession, setHasSession] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    try {
+      const supabase = createClient();
+      supabase.auth.getSession().then(({ data }: { data: { session: unknown } }) => { if (alive) setHasSession(Boolean(data.session)); }).catch(() => {});
+      const { data: sub } = supabase.auth.onAuthStateChange((_e: string, s: unknown) => { if (alive) setHasSession(Boolean(s)); });
+      return () => { alive = false; sub.subscription.unsubscribe(); };
+    } catch { return () => { alive = false; }; }
+  }, []);
+
   return (
     <ConfirmProvider>
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col xl:flex-row xl:items-start">
@@ -83,7 +98,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* BTC live blocks */}
-        <BtcBlocksBar />
+        <div className={hasSession ? "" : "hidden md:block"}>
+          <BtcBlocksBar />
+        </div>
 
         {/* Account / portfolio switcher (Pro/Premium) */}
         <div className="flex justify-end px-4 pt-2">

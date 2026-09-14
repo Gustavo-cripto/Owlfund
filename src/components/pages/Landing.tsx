@@ -202,8 +202,10 @@ export default function Landing() {
               {/* Hero image — centered and large */}
               <div className="mx-auto w-full overflow-hidden rounded-3xl border border-slate-800 shadow-2xl shadow-orange-500/10">
                 <img
-                  src="/hwvtot_2f4227d5a6869b1ae946ecac3e2712c2a84b9f59.jpeg"
+                  src="/hero-logged.webp"
                   alt=""
+                  width={896}
+                  height={704}
                   className="h-64 w-full object-cover object-center sm:h-80 md:h-96"
                 />
               </div>

@@ -4,7 +4,7 @@
 // forma, no App Router, de o `<html lang>` sair certo no HTML que o servidor
 // manda, sem tornar todas as paginas dinamicas. Os quatro layouts partilham
 // isto para nao divergirem.
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { Lang } from "@/lib/i18n/translations";
 import { pageText } from "@/lib/i18n/pageMeta";
 import { SOCIAL_URLS } from "@/lib/social";
@@ -59,6 +59,7 @@ export function rootMetadata(lang: Lang): Metadata {
     ],
     authors: [{ name: "ChainFolioAI" }],
     icons: { icon: "/chainfolioai-icon.png", apple: "/apple-touch-icon.png" },
+    manifest: "/manifest.webmanifest",
     openGraph: {
       type: "website",
       url: SITE_URL,
@@ -72,3 +73,7 @@ export function rootMetadata(lang: Lang): Metadata {
     robots: { index: true, follow: true },
   };
 }
+
+// Cor da barra do browser no telemovel = fundo do site. Exportado por cada
+// layout raiz (Next 15 quer isto em `viewport`, nao em `metadata`).
+export const rootViewport: Viewport = { themeColor: "#020617", width: "device-width", initialScale: 1 };

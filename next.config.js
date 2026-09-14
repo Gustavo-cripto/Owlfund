@@ -101,6 +101,14 @@ const nextConfig = {
         headers: securityHeaders,
       },
       {
+        // Imagens de public/ (screenshots, icones, hero): sem isto saiam com
+        // max-age=0 e cada visita revalidava tudo. Um dia em cache + uma semana
+        // a servir a versao antiga enquanto revalida; um ficheiro substituido
+        // com o mesmo nome demora no maximo um dia a aparecer.
+        source: "/:file(.*\\.(?:png|webp|jpe?g|svg|ico))",
+        headers: [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }],
+      },
+      {
         // CORS para API routes — só permite origem própria
         source: "/api/:path*",
         headers: [
