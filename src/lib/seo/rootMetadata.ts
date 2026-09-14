@@ -8,8 +8,9 @@ import type { Metadata } from "next";
 import type { Lang } from "@/lib/i18n/translations";
 import { pageText } from "@/lib/i18n/pageMeta";
 import { SOCIAL_URLS } from "@/lib/social";
+import { OG_IMAGES, SITE_URL } from "@/lib/seo/site";
 
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://chainfolioai.com";
+export { SITE_URL, OG_IMAGES };
 
 /** Codigo de lingua do <html lang> e o locale do Open Graph, por idioma. */
 export const HTML_LANG: Record<Lang, string> = { pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" };
@@ -65,8 +66,9 @@ export function rootMetadata(lang: Lang): Metadata {
       title: home.title,
       description: home.description,
       locale: OG_LOCALE[lang],
+      images: OG_IMAGES,
     },
-    twitter: { card: "summary_large_image", title: home.title, description: home.description },
+    twitter: { card: "summary_large_image", title: home.title, description: home.description, images: OG_IMAGES },
     robots: { index: true, follow: true },
   };
 }

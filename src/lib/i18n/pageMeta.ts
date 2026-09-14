@@ -8,6 +8,7 @@
 import type { Metadata } from "next";
 import type { Lang } from "./translations";
 import { pageAlternates, type PublicPage } from "./routes";
+import { OG_IMAGES } from "@/lib/seo/site";
 
 type Meta = { title: string; description: string };
 
@@ -151,6 +152,9 @@ export function pageMetadata(page: PublicPage, lang: Lang): Metadata {
       title: m.title,
       description: m.description,
       locale: OG_LOCALE[lang],
+      images: OG_IMAGES,
     },
+    // Sem isto o cartao do X herdava o titulo da home em todas as paginas.
+    twitter: { card: "summary_large_image", title: m.title, description: m.description, images: OG_IMAGES },
   };
 }
