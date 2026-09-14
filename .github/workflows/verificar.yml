@@ -1,0 +1,32 @@
+# Rede de segurança em cada push: tipos, lint e paridade das 4 línguas.
+# É exatamente o que `npm run verificar` corre localmente. Não faz `next build`
+# (precisa de env vars; a Vercel faz o build e, desde 14 set 2026, também pára
+# com erros de tipos/lint — ver next.config.js).
+name: verificar
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: verificar-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Tipos (tsc)
+        run: npx tsc --noEmit
+      - name: Lint (só erros)
+        run: npx eslint . --quiet
+      - name: Línguas (paridade pt/en/es/fr)
+        run: node scripts/verificar-linguas.mjs

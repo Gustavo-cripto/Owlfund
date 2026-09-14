@@ -21,6 +21,8 @@ export default function GlobalNotFound() {
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">404</p>
           <h1 className="mt-3 text-3xl font-bold text-white md:text-4xl">Página não encontrada</h1>
           <p className="mt-2 text-slate-400">Page not found · Página no encontrada · Page introuvable</p>
+          {/* <a> de proposito: esta pagina corre fora do app router, nao ha <Link>. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a href="/" className="mt-8 rounded-xl bg-orange-500 px-8 py-3 text-sm font-bold text-slate-950 hover:bg-orange-400">chainfolioai.com</a>
         </div>
       </body>

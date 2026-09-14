@@ -87,11 +87,14 @@ const nextConfig = {
   staticPageGenerationTimeout: 180,
   // Esconde o header "X-Powered-By: Next.js" (menos info para atacantes)
   poweredByHeader: false,
+  // Um erro de tipos ou de lint PARA o build (antes era ignorado e fazia
+  // deploy na mesma). O CI (.github/workflows/verificar.yml) corre o mesmo
+  // antes de a Vercel sequer arrancar; `npm run verificar` corre-o localmente.
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   async headers() {
     return [

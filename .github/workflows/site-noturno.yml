@@ -1,0 +1,34 @@
+# Todas as noites, o site A CORRER em produção: páginas públicas nas 4 línguas,
+# todos os links internos, APIs públicas e fontes externas (scripts/verificar-site.mjs).
+# Se falhar: o GitHub envia email ao dono do repositório; se existirem os
+# segredos TELEGRAM_BOT_TOKEN e TELEGRAM_CHAT_ID no repositório, avisa também
+# no Telegram (opcional — sem eles o passo é saltado).
+name: site-noturno
+
+on:
+  schedule:
+    - cron: "30 6 * * *"   # 06:30 UTC, antes do dia começar em Portugal
+  workflow_dispatch:
+
+jobs:
+  site:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Verificar chainfolioai.com
+        run: node scripts/verificar-site.mjs
+      - name: Avisar no Telegram (se configurado)
+        if: failure()
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$TOKEN" ] || [ -z "$CHAT" ]; then echo "Sem segredos do Telegram — só email do GitHub."; exit 0; fi
+          curl -s -X POST "https://api.telegram.org/bot$TOKEN/sendMessage" \
+            --data-urlencode "chat_id=$CHAT" \
+            --data-urlencode "text=🔴 Verificação noturna do site FALHOU. Ver: $RUN_URL" >/dev/null

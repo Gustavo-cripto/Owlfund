@@ -6,7 +6,10 @@
     "dev": "HOST=127.0.0.1 PORT=3000 NODE_OPTIONS=--max-old-space-size=4096 next dev --webpack",
     "build": "NODE_OPTIONS=--max-old-space-size=4096 next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "verificar": "tsc --noEmit && eslint . --quiet && node scripts/verificar-linguas.mjs",
+    "verificar:site": "node scripts/verificar-site.mjs"
   },
   "dependencies": {
     "@emurgo/cardano-serialization-lib-browser": "^15.0.3",

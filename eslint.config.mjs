@@ -12,7 +12,7 @@ const eslintConfig = [
   {
     // desktop/ (Electron) e mobile/ (React Native) são projetos separados, com
     // as suas próprias regras — o require() é idiomático lá. Não os lintar aqui.
-    ignores: [".next/**", "out/**", "build/**", "next-env.d.ts", "desktop/**", "mobile/**"],
+    ignores: [".next/**", "out/**", "build/**", "next-env.d.ts", "desktop/**", "mobile/**", ".claude/**"],
   },
 ];
 
