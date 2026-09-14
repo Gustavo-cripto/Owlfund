@@ -202,9 +202,12 @@ export async function GET(request: Request) {
   const limitado = rateLimitPublic(request, "prices", 120);
   if (limitado) return limitado;
   // Try each source in order; first valid one wins
-  const sources = [fromOKX, fromKraken, fromCoinGecko, fromBinance];
+  // Nome explicito: `source.name` sai minificado em producao ("C").
+  const sources: Array<[string, () => Promise<{ prices: Prices; benchmark: Partial<Benchmark> }>]> = [
+    ["okx", fromOKX], ["kraken", fromKraken], ["coingecko", fromCoinGecko], ["binance", fromBinance],
+  ];
   let lastErr = "";
-  for (const source of sources) {
+  for (const [name, source] of sources) {
     try {
       const { prices, benchmark } = await source();
       if (!isValid(prices)) continue;
@@ -226,7 +229,7 @@ export async function GET(request: Request) {
         gold_7d: 0,
         gold_30d: 0,
       };
-      const body = rememberGood("prices", { prices, benchmark: fullBenchmark, source: source.name });
+      const body = rememberGood("prices", { prices, benchmark: fullBenchmark, source: name });
       return NextResponse.json(body, {
         // 10 min de stale-while-revalidate: se a origem falhar entretanto, o
         // CDN continua a servir a ultima copia boa em vez de expor o erro.
