@@ -84,8 +84,17 @@ export function LanguageProvider({
         const supabase = createClient();
         const { data } = await supabase.auth.getSession();
         const user = data.session?.user;
-        if (!user || langFromMetadata(user.user_metadata) === lang) return;
-        await supabase.auth.updateUser({ data: { lang } });
+        if (!user) return;
+        const patch: Record<string, string> = {};
+        if (langFromMetadata(user.user_metadata) !== lang) patch.lang = lang;
+        // Canal de aquisicao (cookie cfa-src posto pelo middleware no primeiro
+        // toque): fica na conta uma unica vez, para o marketing saber de onde
+        // vem cada conta e nao so cada visita.
+        const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+        const src = /(?:^|;\s*)cfa-src=([A-Za-z0-9_-]{1,40})/.exec(document.cookie)?.[1];
+        if (src && typeof meta.src !== "string") patch.src = src;
+        if (Object.keys(patch).length === 0) return;
+        await supabase.auth.updateUser({ data: patch });
       } catch { /* sem env, sem sessao, sem rede: fica para a proxima */ }
     }, 1500);
     return () => clearTimeout(id);

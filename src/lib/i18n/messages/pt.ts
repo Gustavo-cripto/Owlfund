@@ -90,7 +90,7 @@ export const pt = {
     dash_upgrade_pro: "Upgrade para Pro",
     dash_investor: "Investidor",
     dash_edit_profile: "Editar perfil",
-    dash_beta_cta_short: "Pede Pro grátis (beta)",
+    dash_beta_cta_short: "Premium grátis 60 dias (beta)",
     dash_beta_cta: "Juntar-me ao beta",
     dash_beta_free: "Grátis 60 dias",
     dash_beta_note: "Beta até 5 nov · Premium por feedback honesto",

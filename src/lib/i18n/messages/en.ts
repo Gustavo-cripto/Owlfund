@@ -83,7 +83,7 @@ export const en: Record<TranslationKey, string> = {
     dash_upgrade_pro: "Upgrade to Pro",
     dash_investor: "Investor",
     dash_edit_profile: "Edit profile",
-    dash_beta_cta_short: "Get Pro free (beta)",
+    dash_beta_cta_short: "Premium free for 60 days (beta)",
     dash_beta_cta: "Join the beta",
     dash_beta_free: "Free for 60 days",
     dash_beta_note: "Beta until 5 Nov · Premium for honest feedback",

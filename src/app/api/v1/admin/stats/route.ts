@@ -63,7 +63,8 @@ export async function GET(req: NextRequest) {
   // admin do GoTrue e conta o total + novos por janela. Devolve tudo a null se
   // a listagem falhar (fail-open).
   async function countAccounts() {
-    const w = { total: 0, new24h: 0, new7d: 0, new30d: 0 };
+    const w: { total: number; new24h: number; new7d: number; new30d: number; bySource30d: Array<{ src: string; count: number }> } = { total: 0, new24h: 0, new7d: 0, new30d: 0, bySource30d: [] };
+    const porCanal: Record<string, number> = {};
     const t1 = daysAgo(1).getTime();
     const t7 = daysAgo(7).getTime();
     const t30 = daysAgo(30).getTime();
@@ -77,16 +78,24 @@ export async function GET(req: NextRequest) {
           const c = u.created_at ? new Date(u.created_at).getTime() : 0;
           if (c >= t1) w.new24h++;
           if (c >= t7) w.new7d++;
-          if (c >= t30) w.new30d++;
+          if (c >= t30) {
+            w.new30d++;
+            // user_metadata.src = canal do primeiro toque (cookie cfa-src); sem
+            // ele e "(direto)" — inclui quem chegou antes de isto existir.
+            const meta = (u.user_metadata ?? {}) as Record<string, unknown>;
+            const src = typeof meta.src === "string" && meta.src ? meta.src : "(direto)";
+            porCanal[src] = (porCanal[src] ?? 0) + 1;
+          }
         }
         if (users.length < 1000) break;
       }
+      w.bySource30d = Object.entries(porCanal).map(([src, count]) => ({ src, count })).sort((a, b) => b.count - a.count);
       return w;
     } catch {
       return null;
     }
   }
-  const accounts = (await countAccounts()) ?? { total: null, new24h: null, new7d: null, new30d: null };
+  const accounts = (await countAccounts()) ?? { total: null, new24h: null, new7d: null, new30d: null, bySource30d: [] };
 
   // -- Planos ativos (subscriptions) ------------------------------------------
   const plans: {

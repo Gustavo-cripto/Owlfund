@@ -43,11 +43,16 @@ function trackPageView(request: NextRequest, event: NextFetchEvent): void {
     body: JSON.stringify({
       path,
       bot: isBotUserAgent(request.headers.get("user-agent")),
-      src: (request.nextUrl.searchParams.get("src") ?? request.nextUrl.searchParams.get("utm_source") ?? "")
-        .replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 40),
+      src: srcFromUrl(request),
     }),
     }).catch(() => {}),
   );
+}
+
+// ?src=… ou ?utm_source=…, saneado: so letras/numeros/tracos, ate 40 caracteres.
+function srcFromUrl(request: NextRequest): string {
+  return (request.nextUrl.searchParams.get("src") ?? request.nextUrl.searchParams.get("utm_source") ?? "")
+    .replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 40);
 }
 
 // Idioma pedido pelo browser, entre os que o site tem.
@@ -124,11 +129,24 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
 
   trackPageView(request, event);
 
+  // Origem do PRIMEIRO toque (?src=bluesky, ?utm_source=…) fica num cookie de
+  // 30 dias: e assim que uma conta criada dias depois, ja sem nada no URL,
+  // continua a saber por que canal veio (user_metadata.src, gravado no
+  // LanguageContext quando ha sessao; contado em /api/v1/admin/stats).
+  // Primeiro toque manda: um segundo canal nao substitui o primeiro.
+  const origem = srcFromUrl(request);
+  const comOrigem = <R extends NextResponse>(res: R): R => {
+    if (origem && !request.cookies.get("cfa-src")) {
+      res.cookies.set({ name: "cfa-src", value: origem, path: "/", maxAge: 30 * 86400, sameSite: "lax" });
+    }
+    return res;
+  };
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    return response;
+    return comOrigem(response);
   }
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
@@ -157,10 +175,10 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   if (isProtectedPath(request.nextUrl.pathname) && !user) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("next", request.nextUrl.pathname);
-    return NextResponse.redirect(loginUrl);
+    return comOrigem(NextResponse.redirect(loginUrl));
   }
 
-  return response;
+  return comOrigem(response);
 }
 
 export const config = {
