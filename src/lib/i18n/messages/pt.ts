@@ -1228,6 +1228,7 @@ export const pt = {
     fb_thanks_title: "Obrigado. A sério.",
     fb_thanks_body: "Lemos cada resposta. Se quiseres voltar a experimentar, o teu acesso continua ativo.",
     fb_back: "Voltar ao ChainFolioAI",
+    export_stale: "O site foi atualizado desde que abriste esta página. A recarregar para a versão nova…",
     lb_open: "Ver em grande",
     lb_close: "Fechar",
     fisc_fx_missing: "Não foi possível obter a taxa de câmbio dessa data. Tenta outra data ou muda a moeda para euro.",

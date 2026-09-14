@@ -12,7 +12,7 @@ import { useTheme, useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { createClient } from "@/lib/supabase/client";
 import type { jsPDF } from "jspdf";  // so o tipo: a biblioteca (~300 kB) carrega no clique
-import { loadExcelJS } from "@/lib/export/excel";
+import { downloadBlob, isStaleChunkError, loadExcelJS } from "@/lib/export/excel";
 import { ACCOUNTS_EVENT } from "@/lib/portfolios/accounts";
 import { pushWalletCloud } from "@/lib/portfolios/cloudSync";
 import { deleteTrade, loadTrades, tradeId, upsertTrade } from "@/lib/portfolios/trades";
@@ -417,22 +417,16 @@ export default function FiscalidadePage() {
     return { totalGain, taxable, exempt, losses, tax, allowanceUsed };
   }, [taxEvents, regime]);
 
-  // Partilha (telemóvel) ou download (desktop) — mesmo padrão dos exports do portefólio.
-  const shareOrDownload = async (blob: Blob, filename: string) => {
-    const nav = navigator as Navigator & {
-      canShare?: (d: { files: File[] }) => boolean;
-      share?: (d: { files?: File[]; title?: string }) => Promise<void>;
-    };
-    const file = typeof File !== "undefined" ? new File([blob], filename, { type: blob.type }) : null;
-    if (file && nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
-      try { await nav.share({ files: [file], title: filename }); } catch { /* cancelado */ }
-    } else {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = filename;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 4000);
+  // Falha de export: se for um chunk antigo (pagina aberta antes de um deploy),
+  // diz-se ao utilizador e recarrega-se — e o unico remedio; senao mostra-se o erro.
+  const falhaExport = (rotulo: string, e: unknown) => {
+    console.error(`[export] ${rotulo} da fiscalidade:`, e);
+    if (isStaleChunkError(e)) {
+      setExportError(t("export_stale"));
+      setTimeout(() => window.location.reload(), 2500);
+      return;
     }
+    setExportError(`${rotulo}: ${e instanceof Error ? e.message : String(e)}`);
   };
 
   // Excel (.xlsx) formatado com logótipo — mesmo formato dos exports do portefólio.
@@ -525,10 +519,9 @@ export default function FiscalidadePage() {
 
     const buf = await wb.xlsx.writeBuffer();
     const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-    await shareOrDownload(blob, `chainfolioai-tax-report-${country}-${new Date().getFullYear()}.xlsx`);
+    await downloadBlob(blob, `chainfolioai-tax-report-${country}-${new Date().getFullYear()}.xlsx`);
     } catch (e) {
-      console.error("[export] Excel da fiscalidade:", e);
-      setExportError(`Excel: ${e instanceof Error ? e.message : String(e)}`);
+      falhaExport("Excel", e);
     }
   };
 
@@ -555,11 +548,13 @@ export default function FiscalidadePage() {
     });
 
   const exportPDF = async () => {
-    // Carregar so quando se exporta: em import estatico, o jsPDF entrava no
-    // bundle inicial da pagina para toda a gente, incluindo quem nunca exporta.
-    const { jsPDF: JsPDF } = await import("jspdf");
     setExportError(null);
     try {
+    // Carregar so quando se exporta: em import estatico, o jsPDF entrava no
+    // bundle inicial da pagina para toda a gente, incluindo quem nunca exporta.
+    // Dentro do try: se o chunk ja nao existir (deploy entretanto), o erro
+    // chega ao utilizador em vez de morrer numa promessa sem ninguem a ouvir.
+    const { jsPDF: JsPDF } = await import("jspdf");
     const eur = (v: number) => `${reportCurrency} ${Math.abs(v).toLocaleString(uiLocale, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
     const eurN = (v: number) => Math.abs(v).toLocaleString(uiLocale, { maximumFractionDigits: 0 });
     const doc = new JsPDF({ unit: "mm", format: "a4" });
@@ -752,10 +747,9 @@ export default function FiscalidadePage() {
     doc.text(t("fisc_pdf_footer"), W / 2, fy, { align: "center", maxWidth: W - M * 2 });
 
     const pdfBlob = doc.output("blob");
-    await shareOrDownload(pdfBlob, `chainfolioai-report-${country}-${new Date().getFullYear()}.pdf`);
+    await downloadBlob(pdfBlob, `chainfolioai-report-${country}-${new Date().getFullYear()}.pdf`);
     } catch (e) {
-      console.error("[export] PDF da fiscalidade:", e);
-      setExportError(`PDF: ${e instanceof Error ? e.message : String(e)}`);
+      falhaExport("PDF", e);
     }
   };
 

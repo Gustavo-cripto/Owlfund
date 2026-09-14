@@ -41,7 +41,12 @@ export async function downloadBlob(blob: Blob, filename: string): Promise<void> 
     share?: (d: { files?: File[]; title?: string }) => Promise<void>;
   };
   const file = typeof File !== "undefined" ? new File([blob], filename, { type: blob.type }) : null;
-  if (file && nav.canShare?.({ files: [file] }) && nav.share) {
+  // A folha de partilha so faz sentido no telemovel/tablet. No computador o
+  // Chrome e o Safari tambem dizem "canShare" e, se a permissao falhar (ex.:
+  // gesto do utilizador ja gasto pelos awaits), nao aparecia nada — e o
+  // ficheiro nunca chegava. No computador vai-se direto ao download.
+  const tactil = typeof navigator !== "undefined" && (navigator.maxTouchPoints ?? 0) > 0;
+  if (tactil && file && nav.canShare?.({ files: [file] }) && nav.share) {
     try {
       await nav.share({ files: [file], title: filename });
       return;
@@ -57,4 +62,14 @@ export async function downloadBlob(blob: Blob, filename: string): Promise<void> 
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+/**
+ * A pagina ficou aberta desde antes de um deploy: o `import()` da biblioteca
+ * pede um chunk com um nome (hash) que ja nao existe → 404. Nada do que esta
+ * na pagina explica isto ao utilizador; a unica solucao e recarregar.
+ */
+export function isStaleChunkError(e: unknown): boolean {
+  const msg = e instanceof Error ? `${e.name} ${e.message}` : String(e);
+  return /ChunkLoadError|Loading chunk|Loading CSS chunk|Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i.test(msg);
 }

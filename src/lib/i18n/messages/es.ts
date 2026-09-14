@@ -1219,6 +1219,7 @@ export const es: Record<TranslationKey, string> = {
     fb_thanks_title: "Gracias. De verdad.",
     fb_thanks_body: "Leemos cada respuesta. Si quieres volver a probar, tu acceso sigue activo.",
     fb_back: "Volver a ChainFolioAI",
+    export_stale: "El sitio se actualizó desde que abriste esta página. Recargando a la versión nueva…",
     lb_open: "Ver en grande",
     lb_close: "Cerrar",
     fisc_fx_missing: "No se pudo obtener el tipo de cambio de esa fecha. Prueba otra fecha o cambia la moneda a euro.",
