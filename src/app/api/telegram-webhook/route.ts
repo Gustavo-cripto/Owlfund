@@ -1,9 +1,10 @@
 // Webhook do @ChainFolioAi_Bot — trata os cliques nos botões "Ativar Pro/Premium"
 // das notificações de beta. Só aceita cliques do chat do admin (TELEGRAM_CHAT_ID).
 import { NextRequest, NextResponse } from "next/server";
-import { createHash, timingSafeEqual } from "node:crypto";
+import { timingSafeEqual } from "node:crypto";
 import { grantTester } from "@/lib/beta/grant";
 import { setFounder } from "@/lib/beta/founder";
+import { webhookSecret } from "@/lib/notify/telegramWebhook";
 
 const TOKEN = (process.env.TELEGRAM_BOT_TOKEN ?? "").trim();
 const ADMIN_CHAT = (process.env.TELEGRAM_CHAT_ID ?? "").trim();
@@ -47,7 +48,7 @@ async function markDone(chatId: number, messageId: number, label: string) {
 // pedido no cabecalho X-Telegram-Bot-Api-Secret-Token — e a unica prova de que
 // o pedido vem mesmo do Telegram. Ate aqui bastava conhecer o id numerico do
 // chat do admin para forjar um clique e ativar Premium a quem se quisesse.
-const WEBHOOK_SECRET = TOKEN ? createHash("sha256").update(`tg-webhook:${TOKEN}`).digest("hex") : "";
+const WEBHOOK_SECRET = TOKEN ? webhookSecret(TOKEN) : "";
 
 function secretOk(req: NextRequest): boolean {
   const got = req.headers.get("x-telegram-bot-api-secret-token") ?? "";

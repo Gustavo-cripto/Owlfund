@@ -1,0 +1,23 @@
+# Mantém o bot de admin do Telegram (@ChainFolioAiSocialBot) sempre a funcionar.
+# De hora a hora pergunta ao site se o webhook está bem registado; se não estiver,
+# o site volta a registá-lo sozinho e avisa no Telegram (src/lib/notify/telegramWebhook.ts).
+# Se nem assim ficar bom, o site envia email ao suporte@ e este job falha
+# (o GitHub manda email ao dono do repositório).
+# Não precisa de segredos: o endpoint é idempotente e só devolve o estado.
+name: bot-telegram
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+jobs:
+  saude:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Verificar e reparar o webhook
+        run: |
+          code=$(curl -s -o r.json -w "%{http_code}" --max-time 30 https://chainfolioai.com/api/cron/telegram-health)
+          cat r.json; echo
+          [ "$code" = "200" ]
