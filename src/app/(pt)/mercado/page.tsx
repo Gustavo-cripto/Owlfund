@@ -1853,9 +1853,12 @@ export default function MercadoPage() {
             <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-lg font-semibold text-white">{t("mc_top200")}</h2>
-                <span className="text-xs text-slate-500">
+                {/* Atribuicao exigida pelo plano Demo da API do CoinGecko: a
+                    mencao ja existia; o link para coingecko.com e o que faltava. */}
+                <a href="https://www.coingecko.com/en/api" target="_blank" rel="noopener noreferrer"
+                  className="text-xs text-slate-500 transition hover:text-slate-300">
                   {t("mc_source_note")}
-                </span>
+                </a>
               </div>
 
               {isLoading ? (
