@@ -31,6 +31,15 @@ export type Trade = {
   currency?: string;
   /** Preço unitário tal como foi escrito, na moeda acima. */
   priceInput?: number;
+  /**
+   * Taxa/comissão/gás da operação, em EUR (convertida a taxa da data, como o
+   * preço). Ausente = 0 (registos antigos). Na COMPRA soma ao custo do lote;
+   * na VENDA desce ao produto — e assim que as autoridades fiscais tratam as
+   * despesas de transação na generalidade dos países cobertos.
+   */
+  feeEur?: number;
+  /** Taxa tal como foi escrita, na mesma moeda do preço (`currency`). */
+  feeInput?: number;
   date: string;           // "YYYY-MM-DD"
   exchange: string;
   notes: string;
@@ -67,6 +76,9 @@ export function sanitizeTrade(raw: unknown): Trade | null {
   const priceEur = num(r.priceEur);
   const currency = typeof r.currency === "string" && /^[A-Z]{3}$/.test(r.currency) ? r.currency : undefined;
   const priceInput = Number.isFinite(num(r.priceInput)) ? num(r.priceInput) : undefined;
+  // Taxa: so valores >= 0; ausente ou invalida = sem taxa (nunca parte o registo).
+  const feeEur = num(r.feeEur) > 0 ? num(r.feeEur) : undefined;
+  const feeInput = feeEur !== undefined && num(r.feeInput) >= 0 ? num(r.feeInput) : undefined;
   const date = typeof r.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : "";
   const deleted = r.deleted === true;
   const updatedAt = Number.isFinite(num(r.updatedAt)) ? num(r.updatedAt) : undefined;
@@ -78,6 +90,7 @@ export function sanitizeTrade(raw: unknown): Trade | null {
     quantity, priceEur,
     totalEur: quantity * priceEur,
     currency, priceInput,
+    ...(feeEur !== undefined ? { feeEur, ...(feeInput !== undefined ? { feeInput } : {}) } : {}),
     date,
     exchange: typeof r.exchange === "string" ? r.exchange : "",
     notes: typeof r.notes === "string" ? r.notes : "",
@@ -175,18 +188,24 @@ export function mergeTradeRaw(localRaw: string | null, cloudRaw: string | null):
 
 // ── Cálculo ────────────────────────────────────────────────────────────────────
 
-export type RealizedLot = { asset: string; buyDate: string; sellDate: string; buyPrice: number; sellPrice: number; amount: number; gain: number };
+/** `gain` ja e liquido de taxas; `fees` e a parte das taxas (compra + venda) que cabe a este lote. */
+export type RealizedLot = { asset: string; buyDate: string; sellDate: string; buyPrice: number; sellPrice: number; amount: number; fees: number; gain: number };
 
 export type FifoResult = {
   realizedPnl: number;
-  byAsset: Record<string, { realizedPnl: number; qtyNet: number; costOpen: number; buys: number; sells: number; name: string }>;
+  // buys = custo total das compras (inclui taxas); sells = produto liquido das vendas (ja sem taxas).
+  byAsset: Record<string, { realizedPnl: number; qtyNet: number; costOpen: number; buys: number; sells: number; fees: number; name: string }>;
+  /** Total de taxas registadas (compras + vendas). */
+  fees: number;
   unmatched: Record<string, number>;   // vendas sem compra registada (qty)
   lots: RealizedLot[];
   cumulative: Array<{ date: string; pnl: number }>; // PNL realizado acumulado por venda
 };
 
 export function computeFifo(trades: Trade[]): FifoResult {
-  const pool: Record<string, Array<{ qty: number; price: number; date: string }>> = {};
+  // feePerUnit: a taxa da compra repartida pelas unidades do lote, para que uma
+  // venda parcial leve so a parte que lhe cabe.
+  const pool: Record<string, Array<{ qty: number; price: number; feePerUnit: number; date: string }>> = {};
   const byAsset: FifoResult["byAsset"] = {};
   const unmatched: Record<string, number> = {};
   const lots: RealizedLot[] = [];
@@ -194,20 +213,24 @@ export function computeFifo(trades: Trade[]): FifoResult {
   let running = 0;
   const sorted = [...trades].filter(t => !t.deleted).sort(chronoCompare);
   for (const t of sorted) {
-    if (!byAsset[t.asset]) byAsset[t.asset] = { realizedPnl: 0, qtyNet: 0, costOpen: 0, buys: 0, sells: 0, name: t.assetName || t.asset };
+    if (!byAsset[t.asset]) byAsset[t.asset] = { realizedPnl: 0, qtyNet: 0, costOpen: 0, buys: 0, sells: 0, fees: 0, name: t.assetName || t.asset };
     const ba = byAsset[t.asset];
+    const fee = t.feeEur ?? 0;
+    ba.fees += fee;
     if (t.type === "compra") {
-      (pool[t.asset] ??= []).push({ qty: t.quantity, price: t.priceEur, date: t.date });
-      ba.qtyNet += t.quantity; ba.buys += t.totalEur;
+      (pool[t.asset] ??= []).push({ qty: t.quantity, price: t.priceEur, feePerUnit: t.quantity > 0 ? fee / t.quantity : 0, date: t.date });
+      ba.qtyNet += t.quantity; ba.buys += t.totalEur + fee;
     } else {
-      ba.qtyNet -= t.quantity; ba.sells += t.totalEur;
+      ba.qtyNet -= t.quantity; ba.sells += t.totalEur - fee;
+      const sellFeePerUnit = t.quantity > 0 ? fee / t.quantity : 0;
       let remaining = t.quantity;
       while (remaining > 1e-12 && pool[t.asset]?.length) {
         const lot = pool[t.asset][0];
         const used = Math.min(remaining, lot.qty);
-        const gain = used * (t.priceEur - lot.price);
+        const lotFees = used * (lot.feePerUnit + sellFeePerUnit);
+        const gain = used * (t.priceEur - lot.price) - lotFees;
         ba.realizedPnl += gain; running += gain;
-        lots.push({ asset: t.asset, buyDate: lot.date, sellDate: t.date, buyPrice: lot.price, sellPrice: t.priceEur, amount: used, gain });
+        lots.push({ asset: t.asset, buyDate: lot.date, sellDate: t.date, buyPrice: lot.price, sellPrice: t.priceEur, amount: used, fees: lotFees, gain });
         lot.qty -= used; remaining -= used;
         if (lot.qty <= 1e-12) pool[t.asset].shift();
       }
@@ -216,10 +239,11 @@ export function computeFifo(trades: Trade[]): FifoResult {
     }
   }
   for (const [asset, lotsLeft] of Object.entries(pool)) {
-    byAsset[asset].costOpen = lotsLeft.reduce((s, l) => s + l.qty * l.price, 0);
+    byAsset[asset].costOpen = lotsLeft.reduce((s, l) => s + l.qty * (l.price + l.feePerUnit), 0);
   }
   const realizedPnl = Object.values(byAsset).reduce((s, v) => s + v.realizedPnl, 0);
-  return { realizedPnl, byAsset, unmatched, lots, cumulative };
+  const fees = Object.values(byAsset).reduce((s, v) => s + v.fees, 0);
+  return { realizedPnl, byAsset, unmatched, lots, cumulative, fees };
 }
 
 // ── CSV ────────────────────────────────────────────────────────────────────────
@@ -227,7 +251,9 @@ export function computeFifo(trades: Trade[]): FifoResult {
 // `price_eur` e a unidade interna e continua a ser a coluna que o importador
 // le. As duas ultimas dizem o que a pessoa escreveu de facto — acrescentadas no
 // fim para nao partir ficheiros ja exportados nem importadores de terceiros.
-export const CSV_HEADER = ["date", "type", "asset", "quantity", "price_eur", "total_eur", "exchange", "notes", "currency", "price_original"] as const;
+// fee_eur / fee_original (taxa em EUR e tal como foi escrita) vieram depois, e
+// tambem no fim, pela mesma razao: ficheiros antigos continuam a importar.
+export const CSV_HEADER = ["date", "type", "asset", "quantity", "price_eur", "total_eur", "exchange", "notes", "currency", "price_original", "fee_eur", "fee_original"] as const;
 
 export function tradesToCsv(trades: Trade[]): string {
   const esc = (v: string | number) => {
@@ -235,7 +261,7 @@ export function tradesToCsv(trades: Trade[]): string {
     return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const rows = [...trades].sort(chronoCompare).map(t =>
-    [t.date, t.type === "compra" ? "buy" : "sell", t.asset, t.quantity, t.priceEur, t.quantity * t.priceEur, t.exchange, t.notes, t.currency ?? "EUR", t.priceInput ?? t.priceEur].map(esc).join(","),
+    [t.date, t.type === "compra" ? "buy" : "sell", t.asset, t.quantity, t.priceEur, t.quantity * t.priceEur, t.exchange, t.notes, t.currency ?? "EUR", t.priceInput ?? t.priceEur, t.feeEur ?? 0, t.feeInput ?? t.feeEur ?? 0].map(esc).join(","),
   );
   return [CSV_HEADER.join(","), ...rows].join("\n");
 }
@@ -295,6 +321,11 @@ export function parseTradesCsv(text: string): { trades: Trade[]; skipped: number
   // nao ha como saber se a coluna do preco esta nessa moeda ou ja em euros.
   const cCur = col("currency", "moeda", "divisa", "devise");
   const cOrig = col("priceoriginal", "precooriginal");
+  // Taxa: coluna generica (fee, commission, gas…) lida na mesma unidade da
+  // coluna do preco — como o preco. fee_original so vale com a moeda ao lado.
+  // "gas" so por igual: "gasprice"/"gaslimit" nao sao a taxa paga.
+  const cFee = head.findIndex(h => h !== "feeoriginal" && (["gas", "gasfee", "gasusd", "gaseur"].includes(h) || ["feeeur", "fee", "commission", "comissao", "comisso", "comision", "taxa", "frais"].some(n => h === n || h.startsWith(n))));
+  const cFeeOrig = col("feeoriginal");
   if (cDate < 0 || cAsset < 0 || cQty < 0 || cPrice < 0) return { trades: [], skipped: 0, error: "columns" };
   const trades: Trade[] = []; let skipped = 0;
   for (const line of lines.slice(1)) {
@@ -311,10 +342,14 @@ export function parseTradesCsv(text: string): { trades: Trade[]; skipped: number
     const curRaw = cCur >= 0 ? (cells[cCur] ?? "").trim().toUpperCase() : "";
     const currency = /^[A-Z]{3}$/.test(curRaw) ? curRaw : undefined;
     const priceInput = cOrig >= 0 ? normNum(cells[cOrig] ?? "") : NaN;
+    const feeRaw = cFee >= 0 ? Math.abs(normNum(cells[cFee] ?? "")) : NaN;
+    const feeEur = feeRaw > 0 ? feeRaw : undefined;
+    const feeInput = feeEur !== undefined && currency && cFeeOrig >= 0 ? Math.abs(normNum(cells[cFeeOrig] ?? "")) : NaN;
     trades.push({
       id: tradeId(), type, asset, assetName: asset, quantity: q, priceEur, totalEur: q * priceEur, date,
       exchange: cEx >= 0 ? (cells[cEx] ?? "") : "", notes: cNotes >= 0 ? (cells[cNotes] ?? "") : "", updatedAt: Date.now(),
       ...(currency && Number.isFinite(priceInput) ? { currency, priceInput } : {}),
+      ...(feeEur !== undefined ? { feeEur, ...(Number.isFinite(feeInput) ? { feeInput } : {}) } : {}),
     });
   }
   return { trades, skipped };

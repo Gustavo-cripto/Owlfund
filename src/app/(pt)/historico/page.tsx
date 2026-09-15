@@ -61,8 +61,8 @@ const EXCHANGE_LABEL: Record<string, string> = {
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
-type FormState = { type: TradeType; asset: string; customAsset: string; quantity: string; priceEur: string; date: string; exchange: string; notes: string };
-const emptyForm = (): FormState => ({ type: "compra", asset: "BTC", customAsset: "", quantity: "", priceEur: "", date: todayIso(), exchange: "Kraken", notes: "" });
+type FormState = { type: TradeType; asset: string; customAsset: string; quantity: string; priceEur: string; fee: string; date: string; exchange: string; notes: string };
+const emptyForm = (): FormState => ({ type: "compra", asset: "BTC", customAsset: "", quantity: "", priceEur: "", fee: "", date: todayIso(), exchange: "Kraken", notes: "" });
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -130,7 +130,12 @@ export default function HistoricoPage() {
   }, [reload]);
 
   // ── computed ──
-  const formTotal = useMemo(() => (parseFloat(form.quantity) || 0) * (parseFloat(form.priceEur) || 0), [form.quantity, form.priceEur]);
+  // Total que efetivamente sai (compra: valor + taxa) ou entra (venda: valor − taxa).
+  const formTotal = useMemo(() => {
+    const bruto = (parseFloat(form.quantity) || 0) * (parseFloat(form.priceEur) || 0);
+    const taxa = parseFloat(form.fee) || 0;
+    return form.type === "compra" ? bruto + taxa : bruto - taxa;
+  }, [form.quantity, form.priceEur, form.fee, form.type]);
 
   const filtered = useMemo(() => {
     return txs
@@ -144,8 +149,9 @@ export default function HistoricoPage() {
 
   const fifo = useMemo(() => computeFifo(txs), [txs]);
   const summary = useMemo(() => {
-    const invested = txs.filter((x) => x.type === "compra").reduce((s, x) => s + x.totalEur, 0);
-    const sold = txs.filter((x) => x.type === "venda").reduce((s, x) => s + x.totalEur, 0);
+    // Com taxas: o investido e o que saiu (valor + taxa); o vendido e o que entrou (valor − taxa).
+    const invested = txs.filter((x) => x.type === "compra").reduce((s, x) => s + x.totalEur + (x.feeEur ?? 0), 0);
+    const sold = txs.filter((x) => x.type === "venda").reduce((s, x) => s + x.totalEur - (x.feeEur ?? 0), 0);
     return { invested, sold, realizedPnl: fifo.realizedPnl, txCount: txs.length, assets: Object.keys(fifo.byAsset).length };
   }, [txs, fifo]);
   const unmatchedList = useMemo(() => Object.entries(fifo.unmatched).filter(([, q]) => q > 0), [fifo]);
@@ -168,6 +174,8 @@ export default function HistoricoPage() {
     const price = parseFloat(form.priceEur);
     if (!Number.isFinite(qty) || qty <= 0) { setFormError(t("hx_qty_invalid")); return; }
     if (!Number.isFinite(price) || price < 0) { setFormError(t("hx_price_invalid")); return; }
+    const fee = form.fee.trim() === "" ? 0 : parseFloat(form.fee);
+    if (!Number.isFinite(fee) || fee < 0) { setFormError(t("hx_fee_invalid")); return; }
     if (!form.date) { setFormError(t("hx_date_required")); return; }
     if (form.date > todayIso()) { setFormError(t("hx_date_future")); return; }
     const assetInfo = resolveAsset();
@@ -177,13 +185,20 @@ export default function HistoricoPage() {
       if (dup && !(await askConfirm({ message: t("hx_dup_confirm"), okLabel: t("hx_reg_buy") }))) return;
     }
     let priceEur = price;
+    let feeEur = fee;
     if (inputCurrency !== "EUR") {
       const tabela = await loadFxTable([form.date], [inputCurrency]);
       const convertido = tabela.convert(price, inputCurrency, "EUR", form.date);
-      // Sem taxa nao se grava: um preco errado aqui contamina o FIFO e o
-      // imposto de todos os anos seguintes.
+      // Sem taxa de cambio nao se grava: um preco errado aqui contamina o FIFO
+      // e o imposto de todos os anos seguintes.
       if (convertido == null) { setFormError(t("fisc_fx_missing")); return; }
       priceEur = convertido;
+      // A comissao esta na mesma moeda do preco: converte-se a mesma taxa do dia.
+      if (fee > 0) {
+        const feeConv = tabela.convert(fee, inputCurrency, "EUR", form.date);
+        if (feeConv == null) { setFormError(t("fisc_fx_missing")); return; }
+        feeEur = feeConv;
+      }
     }
     const tx: Trade = {
       id: editId ?? tradeId(),
@@ -198,6 +213,7 @@ export default function HistoricoPage() {
       notes: form.notes.trim().slice(0, 200),
       currency: inputCurrency,
       priceInput: price,
+      ...(fee > 0 ? { feeEur, feeInput: fee } : {}),
     };
     setTxs(upsertTrade(tx));
     pushWalletCloud();
@@ -221,6 +237,7 @@ export default function HistoricoPage() {
       customAsset: known ? "" : tx.asset,
       quantity: String(tx.quantity),
       priceEur: String(tx.priceInput ?? tx.priceEur),
+      fee: tx.feeEur ? String(tx.feeInput ?? tx.feeEur) : "",
       date: tx.date,
       exchange: tx.exchange,
       notes: tx.notes,
@@ -502,6 +519,25 @@ export default function HistoricoPage() {
                 </select>
               </div>
 
+              {/* Fee (opcional) */}
+              <div>
+                <label htmlFor="hx-fee" className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1" title={t("hx_fee_help")}>
+                  {t("hx_fee")} ({inputSymbol}) <span className="normal-case tracking-normal text-slate-600">· {t("hx_optional")}</span>
+                </label>
+                <input
+                  id="hx-fee"
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="any"
+                  placeholder="0.00"
+                  value={form.fee}
+                  title={t("hx_fee_help")}
+                  onChange={(e) => setForm((f) => ({ ...f, fee: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-200 outline-none focus:border-orange-400"
+                />
+              </div>
+
               {/* Total (read-only) */}
               <div>
                 <label className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_total")}</label>
@@ -621,6 +657,7 @@ export default function HistoricoPage() {
                         <td className="py-2.5 pr-3 text-right tabular-nums text-slate-400">{fmtEur(tx.priceEur)}</td>
                         <td className={`py-2.5 pr-3 text-right tabular-nums font-semibold ${tx.type === "compra" ? "text-white" : "text-emerald-300"}`}>
                           {tx.type === "venda" && !hideBalances ? "+" : ""}{fmtEur(tx.totalEur)}
+                          {(tx.feeEur ?? 0) > 0 && <span className="block text-[10px] font-normal text-slate-500">{t("hx_fee_short")} {fmtEur(tx.feeEur ?? 0)}</span>}
                         </td>
                         <td className="py-2.5 pr-3 text-slate-500">{tx.exchange}</td>
                         <td className="py-2.5 pr-3 text-slate-600 max-w-[120px] truncate" title={tx.notes || undefined}>{tx.notes || "—"}</td>
@@ -666,6 +703,7 @@ export default function HistoricoPage() {
                         {tx.type === "venda" && !hideBalances ? "+" : ""}{fmtEur(tx.totalEur)}
                       </span>
                     </div>
+                    {(tx.feeEur ?? 0) > 0 && <p className="mt-1 text-right text-[10px] text-slate-500">{t("hx_fee_short")} {fmtEur(tx.feeEur ?? 0)}</p>}
                     {tx.notes && <p className="mt-1.5 text-[10px] text-slate-600 italic">{tx.notes}</p>}
                   </div>
                 ))}

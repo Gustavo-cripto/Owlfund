@@ -28,6 +28,8 @@ type TradeEntry = {
   type: "compra" | "venda";
   amount: number;
   price: number;
+  /** Taxa em EUR (0 = sem taxa). */
+  fee: number;
   date: string;
   exchange: string;
 };
@@ -39,6 +41,9 @@ type TaxEvent = {
   buyPrice: number;
   sellPrice: number;
   amount: number;
+  /** Parte das taxas (compra + venda) que cabe a este evento, na moeda do relatorio. */
+  fees: number;
+  /** Liquido de taxas. */
   gain: number;
   holding: "curto" | "longo"; // <365 dias = curto; >=365 = longo
   taxRate: number; // PT: 28% curto, 0% longo (>365 dias, desde 2023 lei PT)
@@ -58,6 +63,7 @@ const emptyTrade = (): TradeEntry => ({
   type: "compra",
   amount: 0,
   price: 0,
+  fee: 0,
   date: new Date().toISOString().slice(0, 10),
   exchange: "Binance",
 });
@@ -265,7 +271,7 @@ export default function FiscalidadePage() {
   useEffect(() => {
     const load = () => {
       const hist = loadTrades();
-      setTrades(hist.map(h => ({ id: h.id, asset: h.asset, type: h.type, amount: h.quantity, price: h.priceEur, date: h.date, exchange: h.exchange })));
+      setTrades(hist.map(h => ({ id: h.id, asset: h.asset, type: h.type, amount: h.quantity, price: h.priceEur, fee: h.feeEur ?? 0, date: h.date, exchange: h.exchange })));
       setFromHistory(hist.length);
     };
     load();
@@ -335,19 +341,24 @@ export default function FiscalidadePage() {
   const taxEvents = useMemo<TaxEvent[]>(() => {
     const events: TaxEvent[] = [];
     let faltou = false;
-    const pool: Record<string, Array<{ amount: number; price: number; date: string }>> = {};
+    // feePerUnit: taxa da compra repartida pelas unidades, para uma venda
+    // parcial levar so a parte que lhe cabe (mesma regra que computeFifo).
+    const pool: Record<string, Array<{ amount: number; price: number; feePerUnit: number; date: string }>> = {};
 
     const sorted = [...trades].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     for (const tr of sorted) {
       // Preco convertido a taxa da data desta transacao.
       const preco = toReport(tr.price, tr.date);
-      if (preco == null) { faltou = true; continue; }
+      // Taxa convertida a mesma taxa de cambio do dia; sem taxa nao ha nada a converter.
+      const taxa = tr.fee > 0 ? toReport(tr.fee, tr.date) : 0;
+      if (preco == null || taxa == null) { faltou = true; continue; }
+      const taxaPorUnidade = tr.amount > 0 ? taxa / tr.amount : 0;
       if (tr.type === "compra") {
         if (!pool[tr.asset]) pool[tr.asset] = [];
-        pool[tr.asset].push({ amount: tr.amount, price: preco, date: tr.date });
+        pool[tr.asset].push({ amount: tr.amount, price: preco, feePerUnit: taxaPorUnidade, date: tr.date });
       } else {
-        // venda — FIFO
+        // venda — FIFO. Taxa da compra soma ao custo; a da venda desce ao produto.
         let remaining = tr.amount;
         while (remaining > 0 && pool[tr.asset]?.length) {
           const lot = pool[tr.asset][0];
@@ -356,7 +367,8 @@ export default function FiscalidadePage() {
           const isLong = days >= regime.longDays && regime.longDays > 0;
           const rate = isLong ? regime.long : regime.short;
           // A compra ja esta a taxa do dia da compra; a venda, a do dia da venda.
-          const gain = (preco - lot.price) * used;
+          const fees = used * (lot.feePerUnit + taxaPorUnidade);
+          const gain = (preco - lot.price) * used - fees;
           events.push({
             asset: tr.asset,
             buyDate: lot.date,
@@ -364,6 +376,7 @@ export default function FiscalidadePage() {
             buyPrice: lot.price,
             sellPrice: preco,
             amount: used,
+            fees,
             gain,
             holding: isLong ? "longo" : "curto",
             taxRate: rate,
@@ -414,7 +427,8 @@ export default function FiscalidadePage() {
         tax = tax * (1 - allowanceUsed / taxable);
       }
     }
-    return { totalGain, taxable, exempt, losses, tax, allowanceUsed };
+    const fees = taxEvents.reduce((s, e) => s + e.fees, 0);
+    return { totalGain, taxable, exempt, losses, tax, allowanceUsed, fees };
   }, [taxEvents, regime]);
 
   // Falha de export: se for um chunk antigo (pagina aberta antes de um deploy),
@@ -442,8 +456,8 @@ export default function FiscalidadePage() {
     const logoUrl = await loadLogo();
     const logoImgId = logoUrl ? wb.addImage({ base64: logoUrl.split(",")[1], extension: "png" }) : null;
 
-    const NCOL = 10;
-    [10, 12, 12, 12, 14, 14, 14, 12, 8, 14].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
+    const NCOL = 11;
+    [10, 12, 12, 12, 14, 14, 14, 12, 8, 14, 12].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
     const money = `#,##0.00 "${reportSymbol}"`;  // moeda do pais onde se declara
     const pctFmt = '0"%"';
     const BRAND = "FFF97316";
@@ -486,6 +500,7 @@ export default function FiscalidadePage() {
       if (fmt) r.getCell(2).numFmt = fmt;
     };
     metric(t("fc_total_gains"), summary.totalGain, money);
+    if (summary.fees > 0) metric(t("fisc_fees_deducted"), summary.fees, money);
     metric(t("fisc_x_taxable"), summary.taxable, money);
     metric(t("fc_exempt_long"), summary.exempt, money);
     metric(t("fc_realized_losses"), summary.losses, money);
@@ -495,7 +510,7 @@ export default function FiscalidadePage() {
     ws.addRow([]);
 
     bandRow(t("fisc_pdf_events").toUpperCase(), BRAND);
-    boldRow(ws.addRow([t("fc_col_asset"), t("fc_col_buy"), t("fc_col_sell"), t("fc_col_qtd"), `${t("fc_col_buyp")} (${reportSymbol})`, `${t("fc_col_sellp")} (${reportSymbol})`, `${t("fc_col_gain")} (${reportSymbol})`, t("fc_col_type"), t("fc_col_rate"), `${t("fc_col_tax")} (${reportSymbol})`]));
+    boldRow(ws.addRow([t("fc_col_asset"), t("fc_col_buy"), t("fc_col_sell"), t("fc_col_qtd"), `${t("fc_col_buyp")} (${reportSymbol})`, `${t("fc_col_sellp")} (${reportSymbol})`, `${t("fc_col_gain")} (${reportSymbol})`, t("fc_col_type"), t("fc_col_rate"), `${t("fc_col_tax")} (${reportSymbol})`, `${t("fc_col_fees")} (${reportSymbol})`]));
     if (taxEvents.length === 0) {
       const r = ws.addRow([t("fisc_x_no_events")]);
       r.getCell(1).font = { italic: true, color: { argb: "FF94A3B8" } };
@@ -507,6 +522,7 @@ export default function FiscalidadePage() {
           e.holding === "longo" ? t("fc_long_term") : t("fc_short_term"),
           e.taxRate * 100,
           e.gain > 0 && e.taxRate > 0 ? e.gain * e.taxRate : 0,
+          e.fees,
         ]);
         r.getCell(4).numFmt = "#,##0.00000000";
         r.getCell(5).numFmt = money;
@@ -514,6 +530,7 @@ export default function FiscalidadePage() {
         r.getCell(7).numFmt = money;
         r.getCell(9).numFmt = pctFmt;
         r.getCell(10).numFmt = money;
+        r.getCell(11).numFmt = money;
       });
     }
 
@@ -667,6 +684,8 @@ export default function FiscalidadePage() {
       doc.setFontSize(6);
       doc.setTextColor(148, 163, 184);
       doc.text(`${reportCurrency} ${eurN(e.amount * e.sellPrice)}`, colsX[3], y + 3.2);
+      // Ganho ja liquido de taxas: diz-se quanto foi deduzido, por baixo.
+      if (e.fees > 0) doc.text(`${t("fc_col_fees")} -${eurN(e.fees)}`, colsX[6], y + 3.2);
       y += rowH;
     });
 
@@ -701,6 +720,7 @@ export default function FiscalidadePage() {
       [t("fisc_pdf_invested"), eur(invested)],
       [t("fisc_pdf_proceeds"), eur(proceeds)],
       [t("fisc_pdf_net_gain"), `${summary.totalGain >= 0 ? "+" : "-"}${eur(summary.totalGain)}`],
+      ...(summary.fees > 0 ? [[t("fisc_fees_deducted"), eur(summary.fees)] as [string, string]] : []),
       [t("fisc_pdf_eff_rate"), `${effRate.toFixed(1)}%`],
       [t("fisc_pdf_num_events"), String(taxEvents.length)],
       [t("fisc_pdf_method_label"), `FIFO / ${reportCurrency}`],
@@ -834,7 +854,7 @@ export default function FiscalidadePage() {
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-1">{t("fisc_add_trade")}</p>
             <p className="text-xs text-slate-500 mb-4">{t("fisc_form_hint")}</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
               <select value={newTrade.type} onChange={e => setNewTrade(tr => ({ ...tr, type: e.target.value as "compra" | "venda" }))}
                 className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500">
                 <option value="compra">{t("fisc_type_buy")}</option>
@@ -849,6 +869,9 @@ export default function FiscalidadePage() {
               <input type="number" placeholder={`${t("fisc_price")} (${inputSymbol})`} value={newTrade.price || ""} min="0" max="999999999" step="any"
                 onChange={e => { const v = Number(e.target.value); if (Number.isFinite(v) && v >= 0) setNewTrade(tr => ({ ...tr, price: v })); }}
                 className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+              <input type="number" placeholder={`${t("fisc_fee_ph")} (${inputSymbol})`} title={t("hx_fee_help")} value={newTrade.fee || ""} min="0" max="999999999" step="any"
+                onChange={e => { const v = Number(e.target.value); if (Number.isFinite(v) && v >= 0) setNewTrade(tr => ({ ...tr, fee: v })); }}
+                className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
               <input type="date" value={newTrade.date}
                 onChange={e => setNewTrade(tr => ({ ...tr, date: e.target.value }))}
                 className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500" />
@@ -860,15 +883,21 @@ export default function FiscalidadePage() {
                 // taxa, nao gravamos nada a meio: um preco errado no historico
                 // contamina o FIFO e o imposto de todos os anos seguintes.
                 let precoEur = newTrade.price;
+                let taxaEur = newTrade.fee;
                 if (inputCurrency !== "EUR") {
                   const tabela = await loadFxTable([newTrade.date], [inputCurrency]);
                   const convertido = tabela.convert(newTrade.price, inputCurrency, "EUR", newTrade.date);
                   if (convertido == null) { setAddError(t("fisc_fx_missing")); return; }
                   precoEur = convertido;
+                  if (newTrade.fee > 0) {
+                    const taxaConv = tabela.convert(newTrade.fee, inputCurrency, "EUR", newTrade.date);
+                    if (taxaConv == null) { setAddError(t("fisc_fx_missing")); return; }
+                    taxaEur = taxaConv;
+                  }
                 }
-                const entry = { ...newTrade, id: tradeId(), asset: newTrade.asset.toUpperCase(), price: precoEur };
+                const entry = { ...newTrade, id: tradeId(), asset: newTrade.asset.toUpperCase(), price: precoEur, fee: taxaEur };
                 setTrades(prev => [...prev, entry]);
-                upsertTrade({ id: entry.id, type: entry.type, asset: entry.asset, assetName: entry.asset, quantity: entry.amount, priceEur: entry.price, totalEur: entry.amount * entry.price, date: entry.date, exchange: entry.exchange, notes: "", currency: inputCurrency, priceInput: newTrade.price });
+                upsertTrade({ id: entry.id, type: entry.type, asset: entry.asset, assetName: entry.asset, quantity: entry.amount, priceEur: entry.price, totalEur: entry.amount * entry.price, date: entry.date, exchange: entry.exchange, notes: "", currency: inputCurrency, priceInput: newTrade.price, ...(newTrade.fee > 0 ? { feeEur: taxaEur, feeInput: newTrade.fee } : {}) });
                 pushWalletCloud();
                 setNewTrade(emptyTrade());
                 } catch (e) {
@@ -888,6 +917,11 @@ export default function FiscalidadePage() {
                 <span className="ml-1 font-semibold text-orange-300">
                   {inputSymbol} {(newTrade.amount * newTrade.price).toLocaleString(uiLocale, { maximumFractionDigits: 2 })}
                 </span>
+                {newTrade.fee > 0 && (
+                  <span className="ml-2 text-slate-500">
+                    {newTrade.type === "compra" ? "+" : "−"} {t("hx_fee_short")} {inputSymbol} {newTrade.fee.toLocaleString(uiLocale, { maximumFractionDigits: 2 })}
+                  </span>
+                )}
               </p>
             )}
           </div>
@@ -1016,6 +1050,7 @@ export default function FiscalidadePage() {
                           <td className="py-2 pr-4 text-slate-300">{reportSymbol} {e.sellPrice.toFixed(0)}</td>
                           <td className={`py-2 pr-4 font-semibold ${e.gain >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                             {e.gain >= 0 ? "+" : ""}{reportSymbol} {e.gain.toLocaleString(uiLocale, { maximumFractionDigits: 0 })}
+                            {e.fees > 0 && <span className="block text-[10px] font-normal text-slate-500">{t("hx_fee_short")} −{reportSymbol} {e.fees.toLocaleString(uiLocale, { maximumFractionDigits: 2 })}</span>}
                           </td>
                           <td className="py-2 pr-4">
                             <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${e.holding === "longo" ? "bg-emerald-500/20 text-emerald-400" : "bg-orange-500/20 text-orange-400"}`}>

@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "verificar": "tsc --noEmit && eslint . --quiet && node scripts/verificar-linguas.mjs",
+    "verificar": "tsc --noEmit && eslint . --quiet && node scripts/verificar-linguas.mjs && node scripts/testar-calculos.mjs",
     "verificar:site": "node scripts/verificar-site.mjs"
   },
   "dependencies": {
