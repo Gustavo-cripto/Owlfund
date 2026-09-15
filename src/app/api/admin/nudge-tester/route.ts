@@ -24,53 +24,60 @@ export const dynamic = "force-dynamic";
 
 const KIND = "nudge-inactive";
 
-const COPY: Record<Lang, { subject: string; ola: string; p1: string; p2: string; p3a: string; p3b: string; p4: string; obrigado: string }> = {
+// Registo formal e humano, em todas as linguas (regra do Gustavo, 15 set 2026):
+// trata-se a pessoa com cortesia (PT-PT sem "tu"; usted; vous), sem expressoes
+// coloquiais, e sem marcar genero ("o que fez com que nao continuasse", nao
+// "o que o levou a parar").
+const COPY: Record<Lang, { subject: string; ola: string; p1: string; p2: string; p3a: string; p3b: string; p4: string; obrigado: string; despedida: string }> = {
   pt: {
-    subject: "Ficámos com saudades — e com uma pergunta",
+    subject: "Uma pergunta sobre a sua experiência no ChainFolioAI",
     ola: "Olá,",
-    p1: "Criaste conta no ChainFolioAI há uns dias, deste uma volta e não voltaste. Acontece — e não há problema nenhum. Mas foste das primeiras pessoas de fora a experimentar isto, e isso conta muito para nós.",
-    p2: "Estamos a melhorar o produto todos os dias, em grande parte com o que os primeiros testers nos dizem. Por isso a pergunta, e podes responder com uma frase só: o que te fez parar? Não percebeste o que fazer a seguir, faltava a tua exchange, algo não carregou, ou simplesmente não era o que procuravas — tudo serve, e não há resposta errada.",
-    p3a: "E se quiseres dar uma segunda oportunidade, o teu acesso Premium dos 60 dias continua ativo. Entra em ",
-    p3b: " — e se ficares preso em algum passo, responde a este email e ajudamos-te a ligar tudo.",
-    p4: "Se preferires responder em 30 segundos, sem escrever email: ",
-    obrigado: "Obrigado por teres experimentado,",
+    p1: "Há alguns dias criou uma conta no ChainFolioAI e, desde então, não voltou a entrar. Compreendemos perfeitamente. Ainda assim, esteve entre as primeiras pessoas a experimentar a plataforma e, por isso, a sua opinião tem para nós um valor especial.",
+    p2: "Melhoramos o produto todos os dias, em grande parte com base no que os primeiros utilizadores nos transmitem. Permita-nos, por isso, uma única pergunta: o que fez com que não continuasse? Pode ter sido não saber qual o passo seguinte, a sua corretora não estar disponível, algo não ter carregado ou, simplesmente, não ser o que procurava. Qualquer resposta nos ajuda, e uma frase é suficiente.",
+    p3a: "Caso queira dar-nos uma nova oportunidade, o seu acesso Premium de 60 dias continua ativo em ",
+    p3b: ". Se encontrar alguma dificuldade, basta responder a este email e teremos todo o gosto em ajudar.",
+    p4: "Se preferir, pode responder em cerca de 30 segundos, sem escrever um email: ",
+    obrigado: "Agradecemos desde já a sua atenção.",
+    despedida: "Com os melhores cumprimentos,",
   },
   en: {
-    subject: "We missed you — and we have one question",
-    ola: "Hi,",
-    p1: "You created a ChainFolioAI account a few days ago, had a look around and didn't come back. It happens — no problem at all. But you were one of the first people from outside to try this, and that means a lot to us.",
-    p2: "We're improving the product every day, largely from what the first testers tell us. So here's the question, and one sentence is enough: what made you stop? You didn't know what to do next, your exchange was missing, something didn't load, or it simply wasn't what you were looking for — anything helps, and there's no wrong answer.",
-    p3a: "And if you'd like to give it a second chance, your 60-day Premium access is still active. Go to ",
-    p3b: " — and if you get stuck at any step, reply to this email and we'll help you connect everything.",
-    p4: "If you'd rather answer in 30 seconds, without writing an email: ",
-    obrigado: "Thank you for trying it,",
+    subject: "A question about your experience with ChainFolioAI",
+    ola: "Hello,",
+    p1: "A few days ago you created a ChainFolioAI account and have not signed in since. We completely understand. Even so, you were among the first people to try the platform, which is why your opinion is especially valuable to us.",
+    p2: "We improve the product every day, largely based on what our first users tell us. May we therefore ask a single question: what made you decide not to continue? Perhaps the next step was unclear, your exchange was not available, something did not load, or it simply was not what you were looking for. Any answer helps, and one sentence is enough.",
+    p3a: "Should you wish to give us another chance, your 60-day Premium access is still active at ",
+    p3b: ". If you run into any difficulty, simply reply to this email and we will be glad to help.",
+    p4: "If you prefer, you can answer in about 30 seconds without writing an email: ",
+    obrigado: "Thank you in advance for your time.",
+    despedida: "Kind regards,",
   },
   es: {
-    subject: "Te echamos de menos — y tenemos una pregunta",
-    ola: "Hola,",
-    p1: "Creaste una cuenta en ChainFolioAI hace unos días, diste una vuelta y no volviste. Pasa — y no hay ningún problema. Pero fuiste de las primeras personas de fuera en probarlo, y eso cuenta mucho para nosotros.",
-    p2: "Mejoramos el producto cada día, en gran parte con lo que nos dicen los primeros testers. De ahí la pregunta, y puedes responder con una sola frase: ¿qué te hizo parar? No entendiste qué hacer después, faltaba tu exchange, algo no cargó, o simplemente no era lo que buscabas — todo sirve, y no hay respuesta incorrecta.",
-    p3a: "Y si quieres darle una segunda oportunidad, tu acceso Premium de 60 días sigue activo. Entra en ",
-    p3b: " — y si te quedas atascado en algún paso, responde a este email y te ayudamos a conectarlo todo.",
-    p4: "Si prefieres responder en 30 segundos, sin escribir un email: ",
-    obrigado: "Gracias por haberlo probado,",
+    subject: "Una pregunta sobre su experiencia con ChainFolioAI",
+    ola: "Hola:",
+    p1: "Hace unos días creó una cuenta en ChainFolioAI y, desde entonces, no ha vuelto a entrar. Lo entendemos perfectamente. Aun así, estuvo entre las primeras personas en probar la plataforma y, por eso, su opinión tiene para nosotros un valor especial.",
+    p2: "Mejoramos el producto cada día, en gran parte gracias a lo que nos cuentan los primeros usuarios. Permítanos, por tanto, una única pregunta: ¿qué hizo que no continuara? Quizá no tenía claro el siguiente paso, su exchange no estaba disponible, algo no cargó o, sencillamente, no era lo que buscaba. Cualquier respuesta nos ayuda, y basta con una frase.",
+    p3a: "Si desea darnos una nueva oportunidad, su acceso Premium de 60 días sigue activo en ",
+    p3b: ". Si encuentra cualquier dificultad, basta con responder a este email y le ayudaremos con mucho gusto.",
+    p4: "Si lo prefiere, puede responder en unos 30 segundos, sin escribir un email: ",
+    obrigado: "Le agradecemos de antemano su atención.",
+    despedida: "Un cordial saludo,",
   },
   fr: {
-    subject: "Vous nous avez manqué — et nous avons une question",
+    subject: "Une question sur votre expérience avec ChainFolioAI",
     ola: "Bonjour,",
-    p1: "Vous avez créé un compte ChainFolioAI il y a quelques jours, fait un tour et vous n'êtes pas revenu. Ça arrive — aucun problème. Mais vous avez été parmi les premières personnes extérieures à l'essayer, et ça compte beaucoup pour nous.",
-    p2: "Nous améliorons le produit chaque jour, en grande partie grâce à ce que nous disent les premiers testeurs. D'où la question, et une phrase suffit : qu'est-ce qui vous a fait arrêter ? Vous ne saviez pas quoi faire ensuite, votre plateforme manquait, quelque chose n'a pas chargé, ou ce n'était simplement pas ce que vous cherchiez — tout nous aide, et il n'y a pas de mauvaise réponse.",
-    p3a: "Et si vous voulez lui donner une seconde chance, votre accès Premium de 60 jours est toujours actif. Rendez-vous sur ",
-    p3b: " — et si vous bloquez à une étape, répondez à cet e-mail et nous vous aiderons à tout connecter.",
-    p4: "Si vous préférez répondre en 30 secondes, sans écrire d'e-mail : ",
-    obrigado: "Merci d'avoir essayé,",
+    p1: "Il y a quelques jours, vous avez créé un compte ChainFolioAI et ne vous êtes pas reconnecté depuis. Nous le comprenons tout à fait. Vous avez toutefois été parmi les premières personnes à essayer la plateforme, et votre avis a donc pour nous une valeur particulière.",
+    p2: "Nous améliorons le produit chaque jour, en grande partie grâce aux retours de nos premiers utilisateurs. Permettez-nous donc une seule question : qu'est-ce qui vous a amené à ne pas poursuivre ? Peut-être l'étape suivante n'était-elle pas claire, votre plateforme d'échange n'était pas disponible, quelque chose ne s'est pas chargé, ou ce n'était tout simplement pas ce que vous cherchiez. Toute réponse nous aide, et une phrase suffit.",
+    p3a: "Si vous souhaitez nous accorder une nouvelle chance, votre accès Premium de 60 jours est toujours actif sur ",
+    p3b: ". En cas de difficulté, il vous suffit de répondre à cet e-mail : nous vous aiderons avec plaisir.",
+    p4: "Si vous le préférez, vous pouvez répondre en 30 secondes environ, sans écrire d'e-mail : ",
+    obrigado: "Nous vous remercions par avance de votre attention.",
+    despedida: "Bien cordialement,",
   },
 };
 
 function corpo(email: string, lang: Lang): { subject: string; html: string } {
-  // Texto pedido pelo Gustavo (2026-09-13): humano, simpatico, e sempre a
-  // convidar a voltar — mas com uma pergunta so, e sem prometer nada que o
-  // produto nao faca. "Ha uns dias" de proposito: serve a quem entrou a 2 ou a
+  // Formal e humano (15 set 2026), sempre a convidar a voltar — mas com uma
+  // pergunta so, e sem prometer nada que o produto nao faca. "Ha uns dias" de proposito: serve a quem entrou a 2 ou a
   // 10 de setembro. Dois links, o dominio em claro; o questionario na lingua
   // da pessoa, com o email pre-preenchido (e apagavel) para sabermos quem falou.
   const c = COPY[lang];
@@ -84,7 +91,7 @@ function corpo(email: string, lang: Lang): { subject: string; html: string } {
     p(esc(c.p3a) + link(site, site.replace("https://", "")) + esc(c.p3b)) +
     p(esc(c.p4) + link(`${feedback}?e=${encodeURIComponent(email)}`, feedback.replace("https://", ""))) +
     p(esc(c.obrigado)) +
-    p(`<strong>${esc("ChainFolioAI")}</strong>`) +
+    p(esc(c.despedida) + `<br><strong>${esc("ChainFolioAI")}</strong>`) +
     `</div>`;
   return { subject: c.subject, html };
 }

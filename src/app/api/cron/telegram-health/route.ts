@@ -27,7 +27,7 @@ export async function GET(request: Request) {
   if (r.healed) {
     // Se o webhook estava mal, o envio de mensagens continua a funcionar
     // (nao depende do webhook) — o Telegram e o sitio certo para avisar.
-    await sendTelegram(`🔧 <b>Bot reparado automaticamente</b>\nMotivo: ${tgEsc(r.reason ?? "?")}\nOs botões voltaram a funcionar.`).catch(() => false);
+    await sendTelegram(`🔧 <b>Bot de administração reparado automaticamente</b>\nMotivo: ${tgEsc(r.reason ?? "?")}\nOs botões voltaram a funcionar normalmente.`).catch(() => false);
   } else if (!r.ok && r.error) {
     // Nao conseguiu reparar: o Telegram pode ser exatamente o que esta
     // partido, por isso o aviso vai por email.

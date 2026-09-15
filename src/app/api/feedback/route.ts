@@ -13,12 +13,12 @@ export const dynamic = "force-dynamic";
 
 const REASONS = new Set(["next_step", "exchange", "load", "worth", "other_product", "other"]);
 const LABEL: Record<string, string> = {
-  next_step: "Não percebi o que fazer a seguir",
-  exchange: "Faltava a exchange/carteira que uso",
-  load: "Algo não carregou / deu erro",
-  worth: "Achei que não valia a pena",
+  next_step: "Não percebeu qual era o passo seguinte",
+  exchange: "Faltava a corretora ou carteira que utiliza",
+  load: "Algo não carregou ou apresentou um erro",
+  worth: "Não considerou que valesse a pena",
   other_product: "Não era o que procurava",
-  other: "Outra coisa",
+  other: "Outro motivo",
 };
 
 export async function POST(request: Request) {
@@ -41,9 +41,9 @@ export async function POST(request: Request) {
   const quem = emailOk ? email : "(sem email)";
   const html =
     `<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">` +
-    `<p style="font-size:13px;color:#64748b;margin:0 0 12px">Resposta ao “o que te fez parar?” · ${esc(quem)} · ${esc(lang)}</p>` +
+    `<p style="font-size:13px;color:#64748b;margin:0 0 12px">Resposta ao questionário de utilizador inativo · ${esc(quem)} · ${esc(lang)}</p>` +
     (reason ? `<p style="margin:0 0 10px"><b>Motivo:</b> ${esc(LABEL[reason] ?? reason)}</p>` : "") +
-    (text ? `<p style="margin:0 0 4px"><b>Nas palavras dela/dele:</b></p><blockquote style="margin:0;padding:10px 14px;border-left:3px solid #f97316;background:#fff7ed;white-space:pre-wrap">${esc(text)}</blockquote>` : "") +
+    (text ? `<p style="margin:0 0 4px"><b>Nas palavras do utilizador:</b></p><blockquote style="margin:0;padding:10px 14px;border-left:3px solid #f97316;background:#fff7ed;white-space:pre-wrap">${esc(text)}</blockquote>` : "") +
     `</div>`;
   const ok = await sendEmail({
     to: REPLY_TO, from: FROM,

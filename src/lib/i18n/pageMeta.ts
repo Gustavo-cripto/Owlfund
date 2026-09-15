@@ -120,10 +120,10 @@ const META: Record<PublicPage, Record<Lang, Meta>> = {
     },
   },
   feedback: {
-    pt: { title: "O que te fez parar?", description: "Uma pergunta, uma frase. Ajuda-nos a perceber o que falhou." },
-    en: { title: "What made you stop?", description: "One question, one sentence. Help us understand what went wrong." },
-    es: { title: "¿Qué te hizo parar?", description: "Una pregunta, una frase. Ayúdanos a entender qué falló." },
-    fr: { title: "Qu'est-ce qui vous a fait arrêter ?", description: "Une question, une phrase. Aidez-nous à comprendre ce qui a coincé." },
+    pt: { title: "Ajude-nos a melhorar", description: "Uma pergunta breve sobre a sua experiência com o ChainFolioAI." },
+    en: { title: "Help us improve", description: "A brief question about your experience with ChainFolioAI." },
+    es: { title: "Ayúdenos a mejorar", description: "Una breve pregunta sobre su experiencia con ChainFolioAI." },
+    fr: { title: "Aidez-nous à nous améliorer", description: "Une brève question sur votre expérience avec ChainFolioAI." },
   },
 };
 
