@@ -3,6 +3,7 @@ import { apiMsg } from "@/lib/api/apiMessages";
 import { requireUser } from "@/lib/api/requireUser";
 import { encodeAbiParameters, keccak256 } from "viem";
 import { cgFetch } from "@/lib/market/coingecko";
+import { getLendingPositions, isOnchainLendingProtocol, LENDING_CHAINS, type LendingChain } from "@/lib/defi/lending";
 
 const MORALIS_DEFI = "https://deep-index.moralis.io/api/v2.2/wallets";
 const MORALIS_NFT = "https://deep-index.moralis.io/api/v2.2";
@@ -1408,6 +1409,10 @@ export async function GET(request: Request) {
     const moralisKey = process.env.MORALIS_API_KEY;
     let moralisTotal = 0;
     let moralisPositions: { name: string; usd: number }[] = [];
+    // Emprestimos (Aave/Spark/Compound) vem dos contratos, com divida separada.
+    const lendingP = (LENDING_CHAINS as readonly string[]).includes(evmChain)
+      ? getLendingPositions(address, [evmChain as LendingChain])
+      : Promise.resolve([]);
 
     // Try Moralis first
     if (moralisKey) {
@@ -1418,10 +1423,12 @@ export async function GET(request: Request) {
         });
         if (res.ok) {
           const data = (await res.json()) as MoralisDefiSummary;
-          moralisTotal = Math.max(0, Number(data.total_usd_value ?? 0) || 0);
+          // Linhas de emprestimo da Moralis saem: vem dos contratos (sem contar duas vezes).
           moralisPositions = (data.protocols ?? [])
             .filter((p) => Number(p.total_usd_value ?? 0) > 0)
-            .map((p) => ({ name: resolveProtocolName(p), usd: Number(p.total_usd_value ?? 0) }));
+            .map((p) => ({ name: resolveProtocolName(p), usd: Number(p.total_usd_value ?? 0) }))
+            .filter((p) => !isOnchainLendingProtocol(p.name));
+          moralisTotal = moralisPositions.reduce((s, p) => s + p.usd, 0);
         }
       } catch { /* fallthrough to Uniswap subgraph */ }
     }
@@ -1447,7 +1454,10 @@ export async function GET(request: Request) {
       }
     }
 
-    return NextResponse.json({ total: moralisTotal, positions: moralisPositions });
+    const lending = await lendingP;
+    // Total com o valor LIQUIDO dos emprestimos (depositado − emprestado).
+    const total = moralisTotal + lending.reduce((s, l) => s + l.usd, 0);
+    return NextResponse.json({ total, positions: [...lending, ...moralisPositions] });
   }
 
   if (!["eth", "sol", "btc", "ada"].includes(chain)) {
@@ -1475,10 +1485,12 @@ export async function GET(request: Request) {
   const moralisKey = process.env.MORALIS_API_KEY;
 
   // Moralis: DeFi em chains EVM (reduzido para evitar limite de créditos)
-  if (moralisKey && chain === "eth" && isEvmAddress(address)) {
+  // Com ou sem Moralis: os emprestimos vem dos contratos em qualquer caso.
+  if (chain === "eth" && isEvmAddress(address)) {
+    const lendingP = getLendingPositions(address, LENDING_CHAINS);
     const evmChains = ["eth", "polygon", "arbitrum", "base", "optimism"] as const;
     const results = await Promise.allSettled(
-      evmChains.map((c) =>
+      evmChains.map((c) => !moralisKey ? Promise.resolve(null) :
         fetch(`${MORALIS_DEFI}/${address}/defi/summary?chain=${c}`, {
           headers: { Accept: "application/json", "X-API-Key": moralisKey },
           next: { revalidate: 120 },
@@ -1490,11 +1502,12 @@ export async function GET(request: Request) {
     for (const r of results) {
       if (r.status === "fulfilled" && r.value) {
         const data = r.value as MoralisDefiSummary;
-        const v = Math.max(0, Number(data.total_usd_value ?? 0) || 0);
-        total += v;
+        // Por protocolo, e sem os de emprestimo (esses vem dos contratos).
         (data.protocols ?? [])
           .filter((p) => Number(p.total_usd_value ?? 0) > 0)
-          .forEach((p) => positions.push({ name: resolveProtocolName(p), usd: Number(p.total_usd_value ?? 0) }));
+          .map((p) => ({ name: resolveProtocolName(p), usd: Number(p.total_usd_value ?? 0) }))
+          .filter((p) => !isOnchainLendingProtocol(p.name))
+          .forEach((p) => { positions.push(p); total += p.usd; });
       }
     }
     // Fallback: Uniswap V2+V3+V4 contracts for chains Moralis may miss
@@ -1525,7 +1538,9 @@ export async function GET(request: Request) {
     // Se a Moralis falhar (plano terminado → 401) os contratos Uniswap continuam
     // a responder: devolvemos o que há, marcado como parcial, em vez de um erro.
     const moralisOk = results.some((r) => r.status === "fulfilled" && r.value);
-    return NextResponse.json({ total, positions, provider: moralisOk ? "moralis" : "onchain", partial: !moralisOk });
+    const lending = await lendingP;
+    total += lending.reduce((s, l) => s + l.usd, 0);
+    return NextResponse.json({ total, positions: [...lending, ...positions], provider: moralisOk ? "moralis" : "onchain", partial: !moralisOk });
   }
 
   const shyftKey = process.env.SHYFT_API_KEY;

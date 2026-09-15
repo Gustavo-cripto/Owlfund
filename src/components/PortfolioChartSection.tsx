@@ -80,7 +80,8 @@ function defiUrl(address: string, network?: string, symbol?: string): string {
 
 // ── Types for API responses ──────────────────────────────────────────────────
 type NftItem = { id: string; name: string; image?: string; tokenAddress?: string; tokenId?: string };
-type DefiPosition = { name: string; usd: number };
+// Emprestimos (kind "lending") trazem depositado e emprestado; `usd` e o liquido.
+type DefiPosition = { name: string; usd: number; kind?: "lending"; supplied?: number; borrowed?: number; healthFactor?: number | null };
 
 type WalletNfts = { address: string; chain: string; label: string; nfts: NftItem[]; loading: boolean; error?: string };
 type WalletDefi = { address: string; chain: string; label: string; total: number; positions: DefiPosition[]; loading: boolean; error?: string };
@@ -503,8 +504,8 @@ export default function PortfolioChartSection({
                     <span className="text-xs font-semibold text-slate-300">{wd.label}</span>
                     <span className="text-[10px] text-slate-600 font-mono">{wd.address.slice(0, 6)}…{wd.address.slice(-4)}</span>
                     <span className="text-[10px] border border-slate-700 text-slate-500 rounded px-1">{wd.chain.toUpperCase()}</span>
-                    {wd.total > 0 && (
-                      <span className="ml-auto text-sm font-bold text-emerald-400">{fmtUsd(wd.total)}</span>
+                    {wd.positions.length > 0 && (
+                      <span className={`ml-auto text-sm font-bold ${wd.total >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{fmtUsd(wd.total)}</span>
                     )}
                   </div>
                   {wd.loading ? (
@@ -513,19 +514,33 @@ export default function PortfolioChartSection({
                     </div>
                   ) : wd.error ? (
                     <p className="text-xs text-rose-400">{wd.error}</p>
-                  ) : wd.total === 0 ? (
+                  ) : wd.positions.length === 0 ? (
                     <p className="text-xs text-slate-500">{t("pcs_no_defi")}</p>
                   ) : (
                     <div className="space-y-2">
                       {wd.positions.map((pos, i) => (
-                        <div key={i} className="flex items-center justify-between py-1.5 border-b border-slate-800/50 last:border-0">
-                          <div className="flex items-center gap-2">
-                            <div className="h-6 w-6 rounded-full bg-violet-500/20 flex items-center justify-center text-xs">⚡</div>
-                            <span className="text-sm text-slate-300">{pos.name}</span>
+                        <div key={i} className="py-1.5 border-b border-slate-800/50 last:border-0">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="h-6 w-6 rounded-full bg-violet-500/20 flex items-center justify-center text-xs">{pos.kind === "lending" ? "🏦" : "⚡"}</div>
+                              <span className="text-sm text-slate-300">{pos.name}</span>
+                            </div>
+                            <span className={`text-sm font-semibold ${pos.usd >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{fmtUsd(pos.usd)}</span>
                           </div>
-                          <span className="text-sm font-semibold text-emerald-400">{fmtUsd(pos.usd)}</span>
+                          {pos.kind === "lending" && (
+                            <div className="mt-1 ml-8 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-500">
+                              <span>{t("pcs_defi_supplied")} <span className="text-slate-300">{fmtUsd(pos.supplied ?? 0)}</span></span>
+                              {(pos.borrowed ?? 0) > 0 && <span>{t("pcs_defi_borrowed")} <span className="text-rose-300">−{fmtUsd(pos.borrowed ?? 0)}</span></span>}
+                              {pos.healthFactor != null && (
+                                <span title={t("pcs_defi_hf_help")}>{t("pcs_defi_hf")} <span className={pos.healthFactor < 1.2 ? "text-rose-400" : pos.healthFactor < 1.5 ? "text-amber-300" : "text-slate-300"}>{pos.healthFactor.toFixed(2)}</span></span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ))}
+                      {wd.positions.some((p) => p.kind === "lending") && (
+                        <p className="pt-1 text-[10px] text-slate-600">{t("pcs_defi_net_note")}</p>
+                      )}
                     </div>
                   )}
                 </div>
