@@ -3,7 +3,19 @@ import { apiMsg } from "@/lib/api/apiMessages";
 import { requireUser } from "@/lib/api/requireUser";
 import { encodeAbiParameters, keccak256 } from "viem";
 import { cgFetch } from "@/lib/market/coingecko";
-import { getLendingPositions, isOnchainLendingProtocol, LENDING_CHAINS, type LendingChain } from "@/lib/defi/lending";
+import { getLendingPositions, isOnchainLendingProtocol, LENDING_CHAINS, type LendingChain, type LendingPosition } from "@/lib/defi/lending";
+import { getEigenLayerPositions, getMorphoPositions } from "@/lib/defi/morphoEigen";
+
+// Tudo o que se le sem intermediario: Aave/Spark/Compound (contratos), Morpho
+// (API publica) e EigenLayer (contratos). Nunca lanca.
+async function onchainDefi(address: string, chains: readonly LendingChain[]): Promise<LendingPosition[]> {
+  const r = await Promise.allSettled([
+    getLendingPositions(address, chains),
+    getMorphoPositions(address, chains),
+    chains.includes("eth") ? getEigenLayerPositions(address) : Promise.resolve([] as LendingPosition[]),
+  ]);
+  return r.flatMap((x) => (x.status === "fulfilled" ? x.value : []));
+}
 
 const MORALIS_DEFI = "https://deep-index.moralis.io/api/v2.2/wallets";
 const MORALIS_NFT = "https://deep-index.moralis.io/api/v2.2";
@@ -1411,8 +1423,8 @@ export async function GET(request: Request) {
     let moralisPositions: { name: string; usd: number }[] = [];
     // Emprestimos (Aave/Spark/Compound) vem dos contratos, com divida separada.
     const lendingP = (LENDING_CHAINS as readonly string[]).includes(evmChain)
-      ? getLendingPositions(address, [evmChain as LendingChain])
-      : Promise.resolve([]);
+      ? onchainDefi(address, [evmChain as LendingChain])
+      : Promise.resolve([] as LendingPosition[]);
 
     // Try Moralis first
     if (moralisKey) {
@@ -1487,7 +1499,7 @@ export async function GET(request: Request) {
   // Moralis: DeFi em chains EVM (reduzido para evitar limite de créditos)
   // Com ou sem Moralis: os emprestimos vem dos contratos em qualquer caso.
   if (chain === "eth" && isEvmAddress(address)) {
-    const lendingP = getLendingPositions(address, LENDING_CHAINS);
+    const lendingP = onchainDefi(address, LENDING_CHAINS);
     const evmChains = ["eth", "polygon", "arbitrum", "base", "optimism"] as const;
     const results = await Promise.allSettled(
       evmChains.map((c) => !moralisKey ? Promise.resolve(null) :

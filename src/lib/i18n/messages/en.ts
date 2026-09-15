@@ -1245,7 +1245,7 @@ export const en: Record<TranslationKey, string> = {
     fs_done_t: "You are all set.",
     fs_done_d: "Wallets connected, assets recorded and the first calculation done. From here the portfolio, PNL and reports take care of themselves.",
     fs_close: "Close",
-    pcs_defi_partial: "Verified directly on-chain: Aave, Spark, Compound and Uniswap. Other protocols may not appear.",
+    pcs_defi_partial: "Verified directly on-chain: Aave, Spark, Compound, Morpho, EigenLayer and Uniswap. Other protocols may not appear.",
     hx_fee_one: "Fee",
     hx_reg_fee: "Record fee",
     hx_fees_filter: "Fees",

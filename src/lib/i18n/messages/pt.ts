@@ -1254,7 +1254,7 @@ export const pt = {
     fs_done_t: "Está tudo a postos.",
     fs_done_d: "Carteiras ligadas, ativos registados e o primeiro cálculo feito. A partir daqui o portefólio, o PNL e os relatórios tratam de si próprios.",
     fs_close: "Fechar",
-    pcs_defi_partial: "Verificados diretamente na cadeia: Aave, Spark, Compound e Uniswap. Outros protocolos podem não aparecer.",
+    pcs_defi_partial: "Verificados diretamente na cadeia: Aave, Spark, Compound, Morpho, EigenLayer e Uniswap. Outros protocolos podem não aparecer.",
     hx_fee_one: "Taxa",
     hx_reg_fee: "Registar taxa",
     hx_fees_filter: "Taxas",

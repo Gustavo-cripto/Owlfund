@@ -74,7 +74,17 @@ type PortfolioResponse = {
  * chamada. Lança AlchemyError em falha HTTP (a rota decide o que mostrar).
  */
 export async function alchemyTokensByWallet(address: string, chains: EvmChainKey[]): Promise<AlchemyToken[]> {
-  const networks = chains.slice(0, 5).map((c) => PORTFOLIO_NETWORK[c]);
+  // A Portfolio API aceita ate 5 redes por pedido: acima disso, varios pedidos
+  // em paralelo (uma rede que falhe nao apaga as outras).
+  if (chains.length > 5) {
+    const lotes: EvmChainKey[][] = [];
+    for (let i = 0; i < chains.length; i += 5) lotes.push(chains.slice(i, i + 5));
+    const r = await Promise.allSettled(lotes.map((l) => alchemyTokensByWallet(address, l)));
+    const ok = r.filter((x): x is PromiseFulfilledResult<AlchemyToken[]> => x.status === "fulfilled");
+    if (ok.length === 0) throw (r[0] as PromiseRejectedResult).reason;
+    return ok.flatMap((x) => x.value);
+  }
+  const networks = chains.map((c) => PORTFOLIO_NETWORK[c]);
   const res = await fetch(`https://api.g.alchemy.com/data/v1/${key()}/assets/tokens/by-address`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },

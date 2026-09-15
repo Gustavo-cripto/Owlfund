@@ -1245,7 +1245,7 @@ export const fr: Record<TranslationKey, string> = {
     fs_done_t: "Tout est en place.",
     fs_done_d: "Portefeuilles connectés, actifs enregistrés et premier calcul effectué. À partir de là, le portefeuille, le PNL et les rapports se gèrent tout seuls.",
     fs_close: "Fermer",
-    pcs_defi_partial: "Vérifiés directement sur la chaîne : Aave, Spark, Compound et Uniswap. D'autres protocoles peuvent ne pas apparaître.",
+    pcs_defi_partial: "Vérifiés directement sur la chaîne : Aave, Spark, Compound, Morpho, EigenLayer et Uniswap. D'autres protocoles peuvent ne pas apparaître.",
     hx_fee_one: "Frais",
     hx_reg_fee: "Enregistrer les frais",
     hx_fees_filter: "Frais",

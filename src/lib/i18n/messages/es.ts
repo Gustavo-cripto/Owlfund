@@ -1245,7 +1245,7 @@ export const es: Record<TranslationKey, string> = {
     fs_done_t: "Todo listo.",
     fs_done_d: "Monederos conectados, activos registrados y el primer cálculo hecho. A partir de aquí la cartera, el PNL y los informes se cuidan solos.",
     fs_close: "Cerrar",
-    pcs_defi_partial: "Verificados directamente en la cadena: Aave, Spark, Compound y Uniswap. Otros protocolos pueden no aparecer.",
+    pcs_defi_partial: "Verificados directamente en la cadena: Aave, Spark, Compound, Morpho, EigenLayer y Uniswap. Otros protocolos pueden no aparecer.",
     hx_fee_one: "Comisión",
     hx_reg_fee: "Registrar comisión",
     hx_fees_filter: "Comisiones",

@@ -153,7 +153,8 @@ export async function GET(request: Request) {
   // ── EVM via Alchemy (principal). Nativo + ERC-20 com preços em 4 redes numa chamada.
   if (chain === "eth" && isEvmAddress(address) && hasAlchemy()) {
     try {
-      const list = await alchemyTokensByWallet(address, ["eth", "polygon", "arbitrum", "base"]);
+      // Todas as redes EVM que a app mostra (a Moralis cobria as restantes; agora e a Alchemy).
+      const list = await alchemyTokensByWallet(address, ["eth", "polygon", "arbitrum", "base", "optimism", "bsc", "avalanche", "linea", "zksync"]);
       // Anti-spam: denylist + só tokens com preço conhecido (ou o nativo). Um
       // token sem preço na Alchemy é ilíquido/airdrop e não entra no total.
       const tokens: TokenBalance[] = list

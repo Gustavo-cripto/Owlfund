@@ -89,7 +89,7 @@ function getSolanaRpcCandidates(): string[] {
   return [...new Set(candidates.filter(Boolean))];
 }
 
-const EVM_L2_CHAINS_NFT = ["arbitrum", "base", "optimism", "polygon", "bsc", "avalanche"] as const;
+const EVM_L2_CHAINS_NFT = ["arbitrum", "base", "optimism", "polygon", "bsc", "avalanche", "linea", "zksync"] as const;
 type EvmL2ChainNFT = typeof EVM_L2_CHAINS_NFT[number];
 
 // Gateways for fetching metadata JSON server-side. Pinata reliably serves the
@@ -353,7 +353,8 @@ export async function GET(request: Request) {
   if (chain === "eth" && isEvmAddress(address)) {
     if (hasAlchemy()) {
       try {
-        const results = await Promise.allSettled((["eth", "polygon"] as EvmChainKey[]).map((c) => alchemyNftsForOwner(address, c)));
+        // Todas as redes EVM; uma que a Alchemy nao cubra falha sozinha e nao apaga as outras.
+        const results = await Promise.allSettled((["eth", "polygon", "arbitrum", "base", "optimism", "bsc", "avalanche", "linea", "zksync"] as EvmChainKey[]).map((c) => alchemyNftsForOwner(address, c)));
         const ok = results.filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof alchemyNftsForOwner>>> => r.status === "fulfilled");
         if (ok.length > 0 || !moralisKey) {
           const nfts = ok.flatMap((r) => r.value.nfts.map((n) => ({ ...n, image: toImageUrl(n.image) })));

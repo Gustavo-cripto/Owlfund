@@ -17,7 +17,7 @@
 
 export type LendingPosition = {
   kind: "lending";
-  protocol: "aave-v3" | "spark" | "compound-v3";
+  protocol: "aave-v3" | "spark" | "compound-v3" | "morpho" | "eigenlayer";
   name: string;
   chain: LendingChain;
   /** Colateral + fornecido, em USD. */
@@ -189,5 +189,5 @@ export async function getLendingPositions(user: string, chains: readonly Lending
 
 /** Protocolos que passam a vir dos contratos — as linhas da Moralis com estes nomes saem, para nao contar duas vezes. */
 export function isOnchainLendingProtocol(nameOrId: string): boolean {
-  return /aave|spark|compound/i.test(nameOrId);
+  return /aave|spark|compound|morpho|eigen/i.test(nameOrId);
 }
