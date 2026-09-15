@@ -1220,6 +1220,7 @@ export const fr: Record<TranslationKey, string> = {
     fb_thanks_body: "Nous lisons chaque réponse avec attention. Si vous décidez de réessayer, votre accès est toujours actif.",
     fb_back: "Retour à ChainFolioAI",
     export_stale: "Le site a été mis à jour depuis l'ouverture de cette page. Rechargement vers la nouvelle version…",
+    pcs_defi_partial: "Vérifiés directement sur la chaîne : Aave, Spark, Compound et Uniswap. D'autres protocoles peuvent ne pas apparaître.",
     hx_fee_one: "Frais",
     hx_reg_fee: "Enregistrer les frais",
     hx_fees_filter: "Frais",

@@ -85,7 +85,7 @@ SUPORTE:
 - WalletConnect: precisas de NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID configurado (cloud.walletconnect.com gratuito).
 - Saldo a zeros: verificar se o endereço foi adicionado corretamente; clicar "Atualizar saldo".
 - Para DeFi Solana: precisas de SHYFT_API_KEY (shyft.to gratuito).
-- Para DeFi ETH: precisas de MORALIS_API_KEY (moralis.io gratuito).
+- DeFi em Ethereum e L2: empréstimos (Aave, Spark, Compound) e Uniswap são lidos diretamente dos contratos; outros protocolos podem não aparecer.
 - Plano não atualizado após pagamento: recarregar /account (sincroniza automaticamente ao abrir); se persistir, ir a /pricing e clicar "↻ Sincronizar plano".
 
 NAVEGAÇÃO (ajuda o utilizador a CHEGAR onde quer — indica sempre a página/secção exata):

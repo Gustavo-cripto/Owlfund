@@ -1220,6 +1220,7 @@ export const en: Record<TranslationKey, string> = {
     fb_thanks_body: "We read every reply carefully. Should you decide to try again, your access is still active.",
     fb_back: "Return to ChainFolioAI",
     export_stale: "The site was updated since you opened this page. Reloading to the new version…",
+    pcs_defi_partial: "Verified directly on-chain: Aave, Spark, Compound and Uniswap. Other protocols may not appear.",
     hx_fee_one: "Fee",
     hx_reg_fee: "Record fee",
     hx_fees_filter: "Fees",

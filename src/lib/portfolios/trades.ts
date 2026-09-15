@@ -119,9 +119,12 @@ export function parseTrades(raw: string | null): Trade[] {
 }
 
 /** Ordem cronológica estável: data → compras antes de vendas no mesmo dia → updatedAt. */
+const TYPE_ORDER: Record<TradeType, number> = { compra: 0, taxa: 1, venda: 2 };
 export function chronoCompare(a: Trade, b: Trade): number {
   if (a.date !== b.date) return a.date < b.date ? -1 : 1;
-  if (a.type !== b.type) return a.type === "compra" ? -1 : 1;
+  // Mesmo dia: compras, depois taxas, depois vendas — ordem total, para o sort
+  // ser estavel (um comparador que devolvia 1 nos dois sentidos baralhava).
+  if (a.type !== b.type) return TYPE_ORDER[a.type] - TYPE_ORDER[b.type];
   return (a.updatedAt ?? 0) - (b.updatedAt ?? 0);
 }
 
@@ -360,7 +363,8 @@ export function parseTradesCsv(text: string): { trades: Trade[]; skipped: number
   // Taxa: coluna generica (fee, commission, gas…) lida na mesma unidade da
   // coluna do preco — como o preco. fee_original so vale com a moeda ao lado.
   // "gas" so por igual: "gasprice"/"gaslimit" nao sao a taxa paga.
-  const cFee = head.findIndex(h => h !== "feeoriginal" && (["gas", "gasfee", "gasusd", "gaseur"].includes(h) || ["feeeur", "fee", "commission", "comissao", "comisso", "comision", "taxa", "frais"].some(n => h === n || h.startsWith(n))));
+  const FEE_META = new Set(["feeoriginal", "feeasset", "feecoin", "feetoken", "feecurrency"]);
+  const cFee = head.findIndex(h => !FEE_META.has(h) && (["gas", "gasfee", "gasusd", "gaseur"].includes(h) || ["feeeur", "fee", "commission", "comissao", "comisso", "comision", "taxa", "frais"].some(n => h === n || h.startsWith(n))));
   const cFeeOrig = col("feeoriginal");
   const cFeeAsset = col("feeasset", "feecoin", "feetoken", "feecurrency");
   if (cDate < 0 || cAsset < 0 || cQty < 0 || cPrice < 0) return { trades: [], skipped: 0, error: "columns" };

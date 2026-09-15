@@ -84,7 +84,7 @@ type NftItem = { id: string; name: string; image?: string; tokenAddress?: string
 type DefiPosition = { name: string; usd: number; kind?: "lending"; supplied?: number; borrowed?: number; healthFactor?: number | null };
 
 type WalletNfts = { address: string; chain: string; label: string; nfts: NftItem[]; loading: boolean; error?: string };
-type WalletDefi = { address: string; chain: string; label: string; total: number; positions: DefiPosition[]; loading: boolean; error?: string };
+type WalletDefi = { address: string; chain: string; label: string; total: number; positions: DefiPosition[]; loading: boolean; error?: string; partial?: boolean };
 
 
 // Devolve só pontos REAIS (snapshots + valor atual). Sem snapshots no intervalo
@@ -304,11 +304,11 @@ export default function PortfolioChartSection({
       try {
         const res = await fetch(t.url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as { total?: number; positions?: DefiPosition[]; error?: string };
+        const data = (await res.json()) as { total?: number; positions?: DefiPosition[]; error?: string; partial?: boolean };
         if (cancelled) return;
         setDefiData(prev => {
           const next = [...prev];
-          next[i] = { ...next[i], total: data.total ?? 0, positions: data.positions ?? [], loading: false, error: data.error };
+          next[i] = { ...next[i], total: data.total ?? 0, positions: data.positions ?? [], loading: false, error: data.error, partial: data.partial === true };
           return next;
         });
       } catch (e) {
@@ -515,7 +515,7 @@ export default function PortfolioChartSection({
                   ) : wd.error ? (
                     <p className="text-xs text-rose-400">{wd.error}</p>
                   ) : wd.positions.length === 0 ? (
-                    <p className="text-xs text-slate-500">{t("pcs_no_defi")}</p>
+                    <p className="text-xs text-slate-500">{t("pcs_no_defi")}{wd.partial ? ` ${t("pcs_defi_partial")}` : ""}</p>
                   ) : (
                     <div className="space-y-2">
                       {wd.positions.map((pos, i) => (
@@ -541,6 +541,7 @@ export default function PortfolioChartSection({
                       {wd.positions.some((p) => p.kind === "lending") && (
                         <p className="pt-1 text-[10px] text-slate-600">{t("pcs_defi_net_note")}</p>
                       )}
+                      {wd.partial && <p className="pt-1 text-[10px] text-slate-600">{t("pcs_defi_partial")}</p>}
                     </div>
                   )}
                 </div>

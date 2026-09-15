@@ -18,17 +18,22 @@ import { checkAndHeal } from "@/lib/notify/telegramWebhook";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+// Avisos (Telegram/email) no maximo uma vez por 6 h por instancia: o endpoint
+// e publico e um erro persistente nao pode virar uma enxurrada de emails.
+let ultimoAviso = 0;
+const podeAvisar = () => { const ok = Date.now() - ultimoAviso > 6 * 3_600_000; if (ok) ultimoAviso = Date.now(); return ok; };
+
 export async function GET(request: Request) {
   const limitado = rateLimitPublic(request, "telegram-health", 6);
   if (limitado) return limitado;
 
   const r = await checkAndHeal();
 
-  if (r.healed) {
+  if (r.healed && podeAvisar()) {
     // Se o webhook estava mal, o envio de mensagens continua a funcionar
     // (nao depende do webhook) — o Telegram e o sitio certo para avisar.
     await sendTelegram(`🔧 <b>Bot de administração reparado automaticamente</b>\nMotivo: ${tgEsc(r.reason ?? "?")}\nOs botões voltaram a funcionar normalmente.`).catch(() => false);
-  } else if (!r.ok && r.error) {
+  } else if (!r.ok && r.error && podeAvisar()) {
     // Nao conseguiu reparar: o Telegram pode ser exatamente o que esta
     // partido, por isso o aviso vai por email.
     await sendEmail({

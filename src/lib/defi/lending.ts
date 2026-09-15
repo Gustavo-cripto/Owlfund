@@ -79,7 +79,7 @@ const SEL = {
 const pad = (hex: string) => hex.toLowerCase().replace(/^0x/, "").padStart(64, "0");
 const word = (res: string, i: number): bigint => {
   const h = res.replace(/^0x/, "").slice(i * 64, (i + 1) * 64);
-  return h.length === 64 ? BigInt("0x" + h) : BigInt(0);
+  return /^[0-9a-fA-F]{64}$/.test(h) ? BigInt("0x" + h) : BigInt(0);
 };
 const addr = (res: string, i: number) => "0x" + res.replace(/^0x/, "").slice(i * 64 + 24, (i + 1) * 64);
 // Divisao com precisao para numeros grandes (evita perder casas em Number(bigint)).
@@ -98,7 +98,7 @@ async function batch(chain: LendingChain, calls: Call[]): Promise<string[]> {
       const json = (await res.json()) as Array<{ id: number; result?: string }>;
       if (!Array.isArray(json)) continue;
       const out = new Array<string>(calls.length).fill("0x");
-      for (const r of json) if (typeof r.id === "number" && typeof r.result === "string") out[r.id] = r.result;
+      for (const r of json) if (Number.isInteger(r.id) && r.id >= 0 && r.id < calls.length && typeof r.result === "string") out[r.id] = r.result;
       return out;
     } catch { /* tenta o seguinte */ }
   }
@@ -110,7 +110,9 @@ async function aaveLike(user: string, chains: readonly LendingChain[]): Promise<
   await Promise.all(chains.map(async (chain) => {
     const pools = AAVE_LIKE.filter((p) => p.chain === chain);
     if (!pools.length) return;
-    const res = await batch(chain, pools.map((p) => ({ to: p.pool, data: SEL.getUserAccountData + pad(user) })));
+    // Uma cadeia sem RPC nao apaga as outras.
+    let res: string[];
+    try { res = await batch(chain, pools.map((p) => ({ to: p.pool, data: SEL.getUserAccountData + pad(user) }))); } catch { return; }
     pools.forEach((p, i) => {
       const r = res[i];
       if (!r || r.length < 2 + 64 * 6) return;

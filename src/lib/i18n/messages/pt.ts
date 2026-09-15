@@ -1229,6 +1229,7 @@ export const pt = {
     fb_thanks_body: "Lemos todas as respostas com atenção. Se decidir voltar a experimentar, o seu acesso continua ativo.",
     fb_back: "Voltar ao ChainFolioAI",
     export_stale: "O site foi atualizado desde que abriste esta página. A recarregar para a versão nova…",
+    pcs_defi_partial: "Verificados diretamente na cadeia: Aave, Spark, Compound e Uniswap. Outros protocolos podem não aparecer.",
     hx_fee_one: "Taxa",
     hx_reg_fee: "Registar taxa",
     hx_fees_filter: "Taxas",

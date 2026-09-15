@@ -85,7 +85,19 @@ export type HealthResult = {
 // do que isto e novo (e nao o que ja se reparou na hora anterior).
 const RECENT_S = 70 * 60;
 
+// Endpoint publico e chamado de fora: uma verificacao por meio minuto chega
+// (o resto dos pedidos recebe o resultado anterior), para ninguem transformar
+// isto num martelo contra a API do Telegram.
+let ultima: { at: number; result: HealthResult } | null = null;
+
 export async function checkAndHeal(): Promise<HealthResult> {
+  if (ultima && Date.now() - ultima.at < 30_000) return ultima.result;
+  const r = await checkAndHealNow();
+  ultima = { at: Date.now(), result: r };
+  return r;
+}
+
+async function checkAndHealNow(): Promise<HealthResult> {
   const token = botToken();
   if (!token) return { ok: false, healed: false, error: "TELEGRAM_BOT_TOKEN não está definido na Vercel." };
 

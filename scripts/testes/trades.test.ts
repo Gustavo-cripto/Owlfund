@@ -1,4 +1,4 @@
-import { computeFifo, parseTradesCsv, tradesToCsv, sanitizeTrade, type Trade } from "@/lib/portfolios/trades";
+import { chronoCompare, computeFifo, parseTradesCsv, tradesToCsv, sanitizeTrade, type Trade } from "@/lib/portfolios/trades";
 let fails = 0;
 const eq = (name: string, got: number, want: number) => { const ok = Math.abs(got - want) < 1e-9; if (!ok) fails++; console.log(`${ok ? "✅" : "❌"} ${name}: ${got} ${ok ? "" : `(esperado ${want})`}`); };
 const T = (o: Partial<Trade>): Trade => ({ id: Math.random().toString(36), type: "compra", asset: "BTC", assetName: "Bitcoin", quantity: 1, priceEur: 0, date: "2024-01-01", exchange: "", notes: "", ...o, totalEur: (o.quantity ?? 1) * (o.priceEur ?? 0) });
@@ -40,4 +40,18 @@ const rtUni = rt.find((x) => x.asset === "UNI");
 eq("CSV ida e volta: tipo taxa", rtFee ? 1 : 0, 1);
 eq("CSV ida e volta: feeAsset ETH", rtUni?.feeAsset === "ETH" ? 1 : 0, 1);
 eq("CSV ida e volta: feeInput em unidades do token", rtUni?.feeInput ?? -1, 0.01);
+// ── comparador: ordem total no mesmo dia (compra < taxa < venda), independente da ordem de entrada
+{
+  const day = "2024-04-04";
+  const a = [T({ type: "venda", quantity: 1, priceEur: 10, date: day }), T({ type: "taxa", quantity: 0.1, priceEur: 10, date: day }), T({ quantity: 1, priceEur: 10, date: day })];
+  const o1 = [...a].sort(chronoCompare).map((x) => x.type).join(",");
+  const o2 = [...a].reverse().sort(chronoCompare).map((x) => x.type).join(",");
+  eq("ordem estável compra,taxa,venda", o1 === "compra,taxa,venda" && o2 === o1 ? 1 : 0, 1);
+}
+// ── cabeçalho "Fee Asset" antes de "Fee" não confunde a coluna do valor
+{
+  const csv = "date,type,asset,quantity,price,fee_asset,fee\n2024-01-01,buy,UNI,10,5,ETH,0.5";
+  const r4 = parseTradesCsv(csv).trades[0];
+  eq("fee lida da coluna certa (0.5)", r4?.feeEur ?? -1, 0.5);
+}
 console.log(fails === 0 ? "\nTODOS OK" : `\n${fails} FALHA(S)`); process.exit(fails ? 1 : 0);
