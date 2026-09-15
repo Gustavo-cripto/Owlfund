@@ -25,14 +25,19 @@ const upgradeHref = paymentsFrozen ? "/beta" : "/pricing";
 type TradeEntry = {
   id: string;
   asset: string;
-  type: "compra" | "venda";
+  type: "compra" | "venda" | "taxa";
   amount: number;
   price: number;
   /** Taxa em EUR (0 = sem taxa). */
   fee: number;
+  /** Taxa paga em token: simbolo e quantidade (sai do FIFO desse token). */
+  feeAsset?: string;
+  feeQty?: number;
   date: string;
   exchange: string;
 };
+
+type StandaloneFee = { asset: string; date: string; amount: number; value: number };
 
 type TaxEvent = {
   asset: string;
@@ -271,7 +276,7 @@ export default function FiscalidadePage() {
   useEffect(() => {
     const load = () => {
       const hist = loadTrades();
-      setTrades(hist.map(h => ({ id: h.id, asset: h.asset, type: h.type, amount: h.quantity, price: h.priceEur, fee: h.feeEur ?? 0, date: h.date, exchange: h.exchange })));
+      setTrades(hist.map(h => ({ id: h.id, asset: h.asset, type: h.type, amount: h.quantity, price: h.priceEur, fee: h.feeEur ?? 0, ...(h.feeAsset ? { feeAsset: h.feeAsset, feeQty: h.feeInput ?? 0 } : {}), date: h.date, exchange: h.exchange })));
       setFromHistory(hist.length);
     };
     load();
@@ -338,7 +343,7 @@ export default function FiscalidadePage() {
   const [fxIncomplete, setFxIncomplete] = useState(false);
 
   // FIFO: calcular eventos de mais-valias
-  const taxEvents = useMemo<TaxEvent[]>(() => {
+  const fifoFiscal = useMemo<{ events: TaxEvent[]; soTaxa: StandaloneFee[] }>(() => {
     const events: TaxEvent[] = [];
     let faltou = false;
     // feePerUnit: taxa da compra repartida pelas unidades, para uma venda
@@ -346,8 +351,27 @@ export default function FiscalidadePage() {
     const pool: Record<string, Array<{ amount: number; price: number; feePerUnit: number; date: string }>> = {};
 
     const sorted = [...trades].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const soTaxa: StandaloneFee[] = [];
+    // Tira quantidade pelos lotes mais antigos, sem ganho (mesma regra que computeFifo).
+    const consumir = (asset: string, qty: number) => {
+      let rest = qty;
+      while (rest > 1e-12 && pool[asset]?.length) {
+        const lot = pool[asset][0];
+        const used = Math.min(rest, lot.amount);
+        lot.amount -= used; rest -= used;
+        if (lot.amount <= 1e-12) pool[asset].shift();
+      }
+    };
 
     for (const tr of sorted) {
+      if (tr.type === "taxa") {
+        const valor = toReport(tr.price * tr.amount, tr.date);
+        if (valor == null) { faltou = true; continue; }
+        consumir(tr.asset, tr.amount);
+        soTaxa.push({ asset: tr.asset, date: tr.date, amount: tr.amount, value: valor });
+        continue;
+      }
+      if (tr.feeAsset && (tr.feeQty ?? 0) > 0) consumir(tr.feeAsset, tr.feeQty ?? 0);
       // Preco convertido a taxa da data desta transacao.
       const preco = toReport(tr.price, tr.date);
       // Taxa convertida a mesma taxa de cambio do dia; sem taxa nao ha nada a converter.
@@ -388,9 +412,14 @@ export default function FiscalidadePage() {
       }
     }
     if (faltou !== fxIncomplete) setFxIncomplete(faltou);
-    return events;
+    return { events, soTaxa };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trades, regime, toReport]);
+
+  const taxEvents = fifoFiscal.events;
+  // Registos "so taxa" (swap falhado, gas de outra carteira): nao deduzidos
+  // automaticamente — o tratamento fiscal varia; mostram-se a parte.
+  const standaloneFees = fifoFiscal.soTaxa;
 
   // Vendas sem lote de compra correspondente — excluídas do FIFO, mas o
   // utilizador tem de saber (custo de aquisição em falta).
@@ -399,6 +428,8 @@ export default function FiscalidadePage() {
     const bought: Record<string, number> = {};
     const sorted = [...trades].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     for (const tr of sorted) {
+      if (tr.feeAsset && (tr.feeQty ?? 0) > 0) bought[tr.feeAsset] = Math.max(0, (bought[tr.feeAsset] ?? 0) - (tr.feeQty ?? 0));
+      if (tr.type === "taxa") { bought[tr.asset] = Math.max(0, (bought[tr.asset] ?? 0) - tr.amount); continue; }
       if (tr.type === "compra") bought[tr.asset] = (bought[tr.asset] ?? 0) + tr.amount;
       else {
         const avail = bought[tr.asset] ?? 0;
@@ -428,8 +459,9 @@ export default function FiscalidadePage() {
       }
     }
     const fees = taxEvents.reduce((s, e) => s + e.fees, 0);
-    return { totalGain, taxable, exempt, losses, tax, allowanceUsed, fees };
-  }, [taxEvents, regime]);
+    const standalone = standaloneFees.reduce((s, f) => s + f.value, 0);
+    return { totalGain, taxable, exempt, losses, tax, allowanceUsed, fees, standalone };
+  }, [taxEvents, standaloneFees, regime]);
 
   // Falha de export: se for um chunk antigo (pagina aberta antes de um deploy),
   // diz-se ao utilizador e recarrega-se — e o unico remedio; senao mostra-se o erro.
@@ -532,6 +564,23 @@ export default function FiscalidadePage() {
         r.getCell(10).numFmt = money;
         r.getCell(11).numFmt = money;
       });
+    }
+
+    if (standaloneFees.length > 0) {
+      ws.addRow([]);
+      bandRow(t("fisc_standalone_title").toUpperCase(), DARK);
+      const note = ws.addRow([t("fisc_standalone_note")]);
+      ws.mergeCells(note.number, 1, note.number, NCOL);
+      note.getCell(1).font = { italic: true, color: { argb: "FF64748B" } };
+      boldRow(ws.addRow([t("fc_col_asset"), t("hx_date"), t("fc_col_qtd"), `${t("pfx_value")} (${reportSymbol})`]));
+      standaloneFees.forEach((f) => {
+        const r = ws.addRow([f.asset, f.date, f.amount, f.value]);
+        r.getCell(3).numFmt = "#,##0.00000000";
+        r.getCell(4).numFmt = money;
+      });
+      const tot = ws.addRow([t("fisc_standalone_total"), "", "", summary.standalone]);
+      tot.getCell(1).font = { bold: true };
+      tot.getCell(4).numFmt = money;
     }
 
     const buf = await wb.xlsx.writeBuffer();
@@ -721,6 +770,7 @@ export default function FiscalidadePage() {
       [t("fisc_pdf_proceeds"), eur(proceeds)],
       [t("fisc_pdf_net_gain"), `${summary.totalGain >= 0 ? "+" : "-"}${eur(summary.totalGain)}`],
       ...(summary.fees > 0 ? [[t("fisc_fees_deducted"), eur(summary.fees)] as [string, string]] : []),
+      ...(summary.standalone > 0 ? [[t("fisc_standalone_total"), eur(summary.standalone)] as [string, string]] : []),
       [t("fisc_pdf_eff_rate"), `${effRate.toFixed(1)}%`],
       [t("fisc_pdf_num_events"), String(taxEvents.length)],
       [t("fisc_pdf_method_label"), `FIFO / ${reportCurrency}`],
@@ -855,7 +905,7 @@ export default function FiscalidadePage() {
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-1">{t("fisc_add_trade")}</p>
             <p className="text-xs text-slate-500 mb-4">{t("fisc_form_hint")}</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
-              <select value={newTrade.type} onChange={e => setNewTrade(tr => ({ ...tr, type: e.target.value as "compra" | "venda" }))}
+              <select value={newTrade.type} onChange={e => setNewTrade(tr => ({ ...tr, type: e.target.value as "compra" | "venda" | "taxa" }))}
                 className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500">
                 <option value="compra">{t("fisc_type_buy")}</option>
                 <option value="venda">{t("fisc_type_sell")}</option>
@@ -936,8 +986,8 @@ export default function FiscalidadePage() {
               <div className="space-y-2">
                 {[...trades].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(trade => (
                   <div key={trade.id} className="flex items-center gap-3 rounded-xl border border-slate-800 px-4 py-2.5">
-                    <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${trade.type === "compra" ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"}`}>
-                      {trade.type === "compra" ? t("fisc_type_buy") : t("fisc_type_sell")}
+                    <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${trade.type === "compra" ? "bg-emerald-500/20 text-emerald-400" : trade.type === "taxa" ? "bg-amber-500/20 text-amber-300" : "bg-rose-500/20 text-rose-400"}`}>
+                      {trade.type === "compra" ? t("fisc_type_buy") : trade.type === "taxa" ? t("hx_fee_one") : t("fisc_type_sell")}
                     </span>
                     <span className="text-sm font-semibold text-white w-12">{trade.asset}</span>
                     <span className="text-sm text-slate-300 flex-1">{trade.amount} × € {trade.price.toLocaleString(uiLocale)}</span>
@@ -994,6 +1044,13 @@ export default function FiscalidadePage() {
                 <p className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-4 py-2.5 text-xs text-emerald-300">
                   ✂️ {regime.allowance.label[lang]}: −{fmtEur(summary.allowanceUsed)} {t("fisc_allowance_applied")}
                 </p>
+              )}
+
+              {summary.standalone > 0 && (
+                <div className="rounded-2xl border border-amber-500/30 bg-amber-500/[0.06] p-4 text-xs text-amber-100/90">
+                  <p className="font-semibold text-amber-200">{t("fisc_standalone_title")}: {reportSymbol} {summary.standalone.toLocaleString(uiLocale, { maximumFractionDigits: 2 })} ({standaloneFees.length})</p>
+                  <p className="mt-1 text-amber-100/70">{t("fisc_standalone_note")}</p>
+                </div>
               )}
 
               {/* Tabela de eventos */}

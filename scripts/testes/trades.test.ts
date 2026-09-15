@@ -22,4 +22,22 @@ eq("CSV antigo (sem colunas de taxa) importa", o2.trades.length, 1);
 eq("CSV antigo fica sem taxa", o2.trades[0].feeEur ?? 0, 0);
 const o3 = parseTradesCsv("Date;Side;Symbol;Amount;Price;Gas Price;Fee\n01/03/2024;BUY;SOL;10;100;25;1,5");
 eq("CSV de terceiros: lê 'Fee' e ignora 'Gas Price'", o3.trades[0]?.feeEur ?? -1, 1.5);
+// ── registos "so taxa" e taxa paga em token
+r = computeFifo([
+  T({ asset: "ETH", quantity: 1, priceEur: 2000 }),
+  T({ type: "taxa", asset: "ETH", quantity: 0.01, priceEur: 2100, date: "2024-02-01" }),
+  T({ asset: "UNI", quantity: 100, priceEur: 5, feeEur: 21, feeInput: 0.01, feeAsset: "ETH", date: "2024-03-01" }),
+  T({ type: "venda", asset: "ETH", quantity: 0.98, priceEur: 3000, date: "2024-06-01" }),
+]);
+eq("só-taxa: não gera ganho; venda de 0,98 ETH após 2 consumos de 0,01", r.realizedPnl, 0.98 * 1000);
+eq("só-taxa: valor fica em standaloneFees", r.standaloneFees, 21);
+eq("taxa em token: conta nas taxas deduzidas", r.fees, 21);
+eq("ETH em carteira no fim = 0", Math.round(r.byAsset.ETH.qtyNet * 1e9) / 1e9, 0);
+eq("taxa em token: ganho da UNI não mexe (sem venda)", r.byAsset.UNI.realizedPnl, 0);
+const rt = parseTradesCsv(tradesToCsv([T({ type: "taxa", asset: "ETH", quantity: 0.01, priceEur: 2100 }), T({ asset: "UNI", quantity: 100, priceEur: 5, feeEur: 21, feeInput: 0.01, feeAsset: "ETH" })])).trades;
+const rtFee = rt.find((x) => x.type === "taxa");
+const rtUni = rt.find((x) => x.asset === "UNI");
+eq("CSV ida e volta: tipo taxa", rtFee ? 1 : 0, 1);
+eq("CSV ida e volta: feeAsset ETH", rtUni?.feeAsset === "ETH" ? 1 : 0, 1);
+eq("CSV ida e volta: feeInput em unidades do token", rtUni?.feeInput ?? -1, 0.01);
 console.log(fails === 0 ? "\nTODOS OK" : `\n${fails} FALHA(S)`); process.exit(fails ? 1 : 0);
