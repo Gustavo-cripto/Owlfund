@@ -5,6 +5,7 @@ import { btnPrimary } from "@/lib/ui/buttons";
 import AppShell from "@/components/AppShell";
 import PlanBadge from "@/components/PlanBadge";
 import PnlSummaryCard from "@/components/PnlSummaryCard";
+import FirstSteps from "@/components/FirstSteps";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { loadWalletSnapshot, type WalletSnapshot } from "@/lib/wallets/storage";
 import { loadCryptoHoldings, loadStablecoinEntries } from "@/lib/crypto/storage";
@@ -386,6 +387,9 @@ export default function DashboardPage() {
               )}
             </div>
           </section>
+
+          {/* ── Primeiros passos (conta nova) — desaparece quando os cinco estao feitos ── */}
+          <FirstSteps />
 
           {/* ── Plan status bar ── */}
           <section className={`rounded-2xl border p-4 ${planMeta[plan].border} ${planMeta[plan].bg}`}>
