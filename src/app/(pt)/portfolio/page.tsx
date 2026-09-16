@@ -314,6 +314,10 @@ export default function PortfolioPage() {
   const [cryptoHoldings, setCryptoHoldings] = useState<CryptoHoldings>({});
   const [stablecoinEntries, setStablecoinEntries] = useState<StablecoinEntry[]>([]);
   const [snapshots, setSnapshots] = useState<SnapshotRow[]>([]);
+  // Contagem exata na base (a leitura traz no maximo 1000 linhas — o cartao
+  // mostrava "1000" a quem tinha mais) e sinal de que a leitura ja terminou.
+  const [snapshotCount, setSnapshotCount] = useState<number | null>(null);
+  const [snapshotsLoaded, setSnapshotsLoaded] = useState(false);
   // Intervalo do gráfico PNL histórico (içado para cá — hooks não podem viver no IIFE do gráfico).
   const [chartRange, setChartRange] = useState<string>("all"); // id estável (não o rótulo traduzido)
   const [isSnapshotsLoading, setIsSnapshotsLoading] = useState(false);
@@ -535,6 +539,11 @@ export default function PortfolioPage() {
 
       const rows = (snapshotRows ?? []) as SnapshotRow[];
       setSnapshots(rows);
+      setSnapshotsLoaded(true);
+      try {
+        const { count } = await supabase.from("portfolio_snapshots").select("id", { count: "exact", head: true }).eq("user_id", user.id);
+        if (typeof count === "number") setSnapshotCount(count);
+      } catch { /* fica o tamanho da lista */ }
 
       const latest = rows[0];
       if (latest?.data) {
@@ -763,6 +772,10 @@ export default function PortfolioPage() {
     // Guarda: só depois de haver valor real (preços/saldos carregados) — um
     // snapshot a 0 € tornar-se-ia a base do PNL e falsearia o ROI para sempre.
     if (!(portfolioTotal > 0)) return;
+    // E so depois de a lista vir da base: com a lista ainda vazia, "ultimo
+    // snapshot ha 24 h+" era sempre verdade e guardava-se um por visita —
+    // foi assim que uma conta chegou a mais de mil.
+    if (!snapshotsLoaded) return;
     const latest = snapshots[0];
     const lastSaved = latest ? new Date(latest.created_at).getTime() : 0;
     const hoursSince = (Date.now() - lastSaved) / (1000 * 60 * 60);
@@ -770,7 +783,7 @@ export default function PortfolioPage() {
       handleSaveSnapshot(true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, isLoadingAuth, portfolioTotal]);
+  }, [userId, isLoadingAuth, portfolioTotal, snapshotsLoaded]);
 
   const manualTotals = manualCryptoTotal + traditionalTotal + stablecoinTotal;
 
@@ -1164,40 +1177,41 @@ export default function PortfolioPage() {
   const portfolioScore = useMemo(() => {
     if (portfolioTotal <= 0) return null;
     let score = 0;
-    const reasons: { label: string; points: number; max: number; ok: boolean; pending?: boolean }[] = [];
+    const reasons: { label: string; points: number; max: number; ok: boolean; pending?: boolean; detail: string; rule: string }[] = [];
+    const pctTxt = (v: number) => `${v.toLocaleString(locale, { maximumFractionDigits: 0 })} %`;
 
     const allocValues = cryptoAllocations.filter(a => a.value > 0).map(a => a.value);
     const maxAlloc = allocValues.length > 0 ? Math.max(...allocValues) : portfolioTotal;
     const maxPct = portfolioTotal > 0 ? (maxAlloc / portfolioTotal) * 100 : 100;
     const diversPts = maxPct > 80 ? 5 : maxPct > 60 ? 15 : maxPct > 40 ? 22 : 30;
     score += diversPts;
-    reasons.push({ label: t("pf_diversification"), points: diversPts, max: 30, ok: diversPts >= 22 });
+    reasons.push({ label: t("pf_diversification"), points: diversPts, max: 30, ok: diversPts >= 22, detail: t("pfs_d_divers").replace("{pct}", pctTxt(maxPct)), rule: t("pfs_r_divers") });
 
     const tradPct = portfolioTotal > 0 ? (traditionalTotal / portfolioTotal) * 100 : 0;
     const tradPts = tradPct > 20 ? 20 : tradPct > 10 ? 15 : tradPct > 5 ? 10 : tradPct > 0 ? 5 : 0;
     score += tradPts;
-    reasons.push({ label: t("pf_mix"), points: tradPts, max: 20, ok: tradPts >= 10 });
+    reasons.push({ label: t("pf_mix"), points: tradPts, max: 20, ok: tradPts >= 10, detail: t("pfs_d_mix").replace("{pct}", pctTxt(tradPct)), rule: t("pfs_r_mix") });
 
     const stableValue = stablecoinTotal + manualStableEur;
     const stablePct = portfolioTotal > 0 ? (stableValue / portfolioTotal) * 100 : 0;
     const stablePts = stablePct >= 5 && stablePct <= 30 ? 10 : stablePct > 0 ? 5 : 0;
     score += stablePts;
-    reasons.push({ label: t("pf_stable_reserve"), points: stablePts, max: 10, ok: stablePts >= 5 });
+    reasons.push({ label: t("pf_stable_reserve"), points: stablePts, max: 10, ok: stablePts >= 5, detail: t("pfs_d_stable").replace("{pct}", pctTxt(stablePct)), rule: t("pfs_r_stable") });
 
     const roiPts = advancedMetrics ? (advancedMetrics.roi > 20 ? 20 : advancedMetrics.roi > 10 ? 15 : advancedMetrics.roi > 0 ? 10 : 0) : 0;
     score += roiPts;
-    reasons.push({ label: t("pf_perf_roi"), points: roiPts, max: 20, ok: roiPts >= 10, pending: !advancedMetrics });
+    reasons.push({ label: t("pf_perf_roi"), points: roiPts, max: 20, ok: roiPts >= 10, pending: !advancedMetrics, detail: advancedMetrics ? t("pfs_d_roi").replace("{pct}", `${advancedMetrics.roi >= 0 ? "+" : ""}${advancedMetrics.roi.toLocaleString(locale, { maximumFractionDigits: 1 })} %`) : t("pfs_d_pending"), rule: t("pfs_r_roi") });
 
     const riskPts = advancedMetrics
       ? (advancedMetrics.maxDrawdown > -50 ? 10 : 5) + (advancedMetrics.volatility !== null && advancedMetrics.volatility < 80 ? 10 : advancedMetrics.volatility !== null && advancedMetrics.volatility < 150 ? 5 : 0)
       : 0;
     score += riskPts;
-    reasons.push({ label: t("pf_risk_mgmt"), points: riskPts, max: 20, ok: riskPts >= 12, pending: !advancedMetrics });
+    reasons.push({ label: t("pf_risk_mgmt"), points: riskPts, max: 20, ok: riskPts >= 12, pending: !advancedMetrics, detail: advancedMetrics ? t("pfs_d_risk").replace("{dd}", `${advancedMetrics.maxDrawdown.toLocaleString(locale, { maximumFractionDigits: 1 })} %`).replace("{vol}", advancedMetrics.volatility != null ? `${advancedMetrics.volatility.toLocaleString(locale, { maximumFractionDigits: 0 })} %` : "—") : t("pfs_d_pending"), rule: t("pfs_r_risk") });
 
     const label = score >= 80 ? t("pf_excellent") : score >= 60 ? t("pf_good") : score >= 40 ? t("pf_fair") : t("pf_improving");
     const color = score >= 80 ? "text-emerald-400" : score >= 60 ? "text-orange-300" : score >= 40 ? "text-yellow-400" : "text-rose-400";
     return { score, label, color, reasons };
-  }, [portfolioTotal, cryptoAllocations, traditionalTotal, stablecoinTotal, manualStableEur, advancedMetrics]);
+  }, [portfolioTotal, cryptoAllocations, traditionalTotal, stablecoinTotal, manualStableEur, advancedMetrics, locale, t]);
 
   const portfolioSplit = useMemo(() => {
     const total = cryptoTotal + traditionalTotal;
@@ -1419,7 +1433,7 @@ export default function PortfolioPage() {
                 },
                 {
                   label: t("pf_snapshots_saved"),
-                  value: String(snapshots.length),
+                  value: (snapshotCount ?? snapshots.length).toLocaleString(locale),
                 },
                 {
                   label: t("pf_last_update"),
@@ -1835,9 +1849,15 @@ export default function PortfolioPage() {
                           style={{ width: `${(r.points / r.max) * 100}%` }}
                         />
                       </div>
+                      {/* O que mediu e o que da a pontuacao maxima — descreve a regra, nao aconselha. */}
+                      <p className="mt-1 text-[10px] leading-relaxed text-slate-500">
+                        <span className={r.pending ? "" : r.ok ? "text-slate-400" : "text-slate-300"}>{r.detail}</span>
+                        {!r.ok && !r.pending && <span> · {r.rule}</span>}
+                      </p>
                     </div>
                   ))}
                 </div>
+                <p className="text-[10px] text-slate-600">{t("pfs_disclaimer")}</p>
               </div>
             ) : null}
           </div>
@@ -1863,8 +1883,8 @@ export default function PortfolioPage() {
               {[
                 { label: t("pf_crypto"), value: fmt(cryptoTotal), sub: `${portfolioSplit.crypto}% ${t("pf_of_total")}`, color: "text-orange-300" },
                 { label: t("pf_traditional"), value: fmt(traditionalTotal), sub: `${portfolioSplit.traditional}% ${t("pf_of_total")}`, color: "text-sky-400" },
-                { label: t("pf_pnl_30d"), value: fmtSigned(pnlSummary.days30), sub: portfolioTotal - pnlSummary.days30 > 0 ? `${((pnlSummary.days30 / (portfolioTotal - pnlSummary.days30)) * 100).toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%` : "—", color: pnlSummary.days30 >= 0 ? "text-emerald-400" : "text-rose-400" },
-                { label: t("pf_pnl_pos"), value: fmtSigned(pnlSummary.position), sub: advancedMetrics ? `ROI ${advancedMetrics.roi >= 0 ? "+" : ""}${advancedMetrics.roi.toFixed(1)}%` : "—", color: pnlSummary.position >= 0 ? "text-emerald-400" : "text-rose-400" },
+                { label: t("pf_pnl_30d"), value: fmtSigned(pnlSummary.days30), sub: portfolioTotal - pnlSummary.days30 > 0 ? `${pnlSummary.days30 >= 0 ? "+" : "−"}${Math.abs((pnlSummary.days30 / (portfolioTotal - pnlSummary.days30)) * 100).toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% ${t("pf_vs_30d_ago")}` : t("pf_no_30d_base"), color: pnlSummary.days30 >= 0 ? "text-emerald-400" : "text-rose-400" },
+                { label: t("pf_pnl_pos"), value: fmtSigned(pnlSummary.position), sub: advancedMetrics ? `ROI ${advancedMetrics.roi >= 0 ? "+" : ""}${advancedMetrics.roi.toFixed(1)}% · ${t("pf_since_date").replace("{d}", snapshotTotals.length ? new Date(snapshotTotals[snapshotTotals.length - 1].createdAt).toLocaleDateString(locale, { day: "2-digit", month: "short" }) : "—")}` : t("pf_score_pending"), color: pnlSummary.position >= 0 ? "text-emerald-400" : "text-rose-400" },
               ].map(m => (
                 <div key={m.label} className="rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
                   <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">{m.label}</p>
@@ -1884,7 +1904,7 @@ export default function PortfolioPage() {
               </div>
               <div className="text-right">
                 <p className="text-[10px] uppercase tracking-wider text-slate-500">{t("pf_snapshots")}</p>
-                <p className="text-base font-bold text-white mt-0.5">{snapshots.length}</p>
+                <p className="text-base font-bold text-white mt-0.5">{(snapshotCount ?? snapshots.length).toLocaleString(locale)}</p>
               </div>
               <div className="text-right">
                 <p className="text-[10px] uppercase tracking-wider text-slate-500">{t("pf_last_snapshot")}</p>
