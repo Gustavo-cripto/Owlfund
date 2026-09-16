@@ -5,7 +5,7 @@ FICHEIROS ATUAIS (WebP, 1600px de largura) — atualizados a 2026-09-10
 (portfolio, wallets e smart-money sao de 7-10 set; as outras 6 de 6 set):
 
   dashboard.webp     -> /dashboard     (o que cada plano desbloqueia)
-  portfolio.webp     -> /portfolio     (PNL por periodo, alocacao, evolucao)
+  portfolio.webp     -> /portfolio     (grafico com velas, 1 dia; atualizado 2026-09-16)
   wallets.webp       -> /wallets       (ETH+SOL ligados, WalletConnect QR)
   market.webp        -> /mercado       (grafico TradingView + BTC)
   smart-money.webp   -> /smart-money   (Satoshi + Vitalik com saldos reais)
