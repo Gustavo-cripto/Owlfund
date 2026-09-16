@@ -785,8 +785,26 @@ export default function PortfolioPage() {
     });
   }, [snapshots]);
 
+  // Um snapshot com um valor absurdo (ex.: 161 546 $ num portefolio de 3 400 $ —
+  // saldo de um token lido como euros, preco de spam…) estragava o grafico
+  // "Tudo", o drawdown, o VaR e a posicao. Fica de fora de TUDO o que se
+  // calcula a partir de snapshots, mas continua na lista para ser apagado.
+  const snapshotAnomalies = useMemo(() => {
+    const vals = accountSnapshots.map((row) => {
+      const storedTotal = (row.data as WalletSnapshot & { _totalEur?: number })._totalEur;
+      return { id: row.id, total: (storedTotal != null ? storedTotal : snapshotTotal(row.data, tokenPrices)) + manualTotals };
+    });
+    if (vals.length < 4) return new Set<number>();
+    const sorted = vals.map((v) => v.total).filter((t) => t > 0).sort((a, b) => a - b);
+    if (sorted.length < 4) return new Set<number>();
+    const mediana = sorted[Math.floor(sorted.length / 2)];
+    // 4x acima ou 4x abaixo da mediana: nenhum portefolio real faz isso entre dois snapshots.
+    return new Set(vals.filter((v) => v.total > mediana * 4 || v.total < mediana / 4).map((v) => v.id));
+  }, [accountSnapshots, manualTotals, tokenPrices]);
+
   const snapshotTotals = useMemo(() => {
     return accountSnapshots
+      .filter((row) => !snapshotAnomalies.has(row.id))
       .map((row) => {
         // Use stored EUR total if available (saved after this fix was deployed)
         // Falls back to recalculating with current prices for older snapshots
@@ -801,7 +819,7 @@ export default function PortfolioPage() {
         };
       })
       .sort((a, b) => b.createdAt - a.createdAt);
-  }, [accountSnapshots, manualTotals, tokenPrices]);
+  }, [accountSnapshots, manualTotals, tokenPrices, snapshotAnomalies]);
 
   // PNL usando preços históricos — funciona desde o 1º dia, sem depender de snapshots
   const pnlSummary = useMemo(() => {
@@ -1519,6 +1537,12 @@ export default function PortfolioPage() {
               .map(([name, value]) => ({ name, value }))
               .sort((a, b) => b.value - a.value);
             const total = pieData.reduce((s, d) => s + d.value, 0);
+            // No anel, fatias abaixo de 1,5 % juntam-se em "Outros" (varias fatias de
+            // 1 % nao se distinguem nem se tocam); a legenda mantem todas.
+            const MIN_SLICE = 0.015;
+            const big = pieData.filter((d) => total > 0 && d.value / total >= MIN_SLICE);
+            const small = pieData.filter((d) => !(total > 0 && d.value / total >= MIN_SLICE));
+            const ringData = small.length >= 2 ? [...big, { name: t("pf_others"), value: small.reduce((s, d) => s + d.value, 0) }] : pieData;
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const renderLabel = ({ cx, cy, midAngle, outerRadius, percent }: any) => {
               if ((percent as number) < 0.03) return null;
@@ -1534,31 +1558,37 @@ export default function PortfolioPage() {
               );
             };
             return (
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-                <div className="mb-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{t("pf_distribution")}</p>
-                  <h2 className="text-base font-bold text-white mt-0.5">{t("pf_alloc_asset")}</h2>
-                </div>
+              <ChartModal title={t("pf_alloc_asset")} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+                {(large) => (
+                <div className={large ? "flex h-full flex-col" : ""}>
+                {!large && (
+                  <div className="mb-4">
+                    <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{t("pf_distribution")}</p>
+                    <h2 className="text-base font-bold text-white mt-0.5">{t("pf_alloc_asset")}</h2>
+                  </div>
+                )}
                 {pieData.length === 0 ? (
                   <div className="flex h-[200px] items-center justify-center">
                     <p className="text-sm text-slate-500">{t("pf_no_assets")}</p>
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-4">
-                    <ResponsiveContainer width="100%" height={280}>
+                  <div className={`flex flex-col gap-4 ${large ? "min-h-0 flex-1" : ""}`}>
+                    <div className="relative">
+                    <ResponsiveContainer width="100%" height={large ? 440 : 280}>
                       <PieChart margin={{ top: 20, right: 30, bottom: 20, left: 30 }}>
                         <Pie
-                          data={pieData}
+                          data={ringData}
                           cx="50%"
                           cy="50%"
-                          innerRadius={60}
-                          outerRadius={85}
+                          innerRadius={large ? 120 : 60}
+                          outerRadius={large ? 170 : 85}
                           paddingAngle={2}
                           dataKey="value"
                           label={renderLabel}
                           labelLine={false}
+                          isAnimationActive={false}
                         >
-                          {pieData.map((entry, i) => <Cell key={i} fill={assetColor(entry.name)} />)}
+                          {ringData.map((entry, i) => <Cell key={i} fill={entry.name === t("pf_others") ? "#334155" : assetColor(entry.name)} />)}
                         </Pie>
                         <Tooltip
                           contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
@@ -1571,19 +1601,32 @@ export default function PortfolioPage() {
                         />
                       </PieChart>
                     </ResponsiveContainer>
-                    {/* Legend: name + EUR value */}
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-                      {pieData.map((entry) => (
-                        <div key={entry.name} className="flex items-center gap-2 min-w-0">
-                          <span className="shrink-0 h-2.5 w-2.5 rounded-full" style={{ background: assetColor(entry.name) }} />
-                          <span className="text-xs text-slate-300 font-medium truncate">{entry.name}</span>
-                          <span className="ml-auto text-xs text-slate-400 shrink-0">{fmt(entry.value)}</span>
-                        </div>
-                      ))}
+                    {/* Total ao centro do anel */}
+                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+                      <span className="text-[10px] uppercase tracking-wider text-slate-500">{t("pf_total")}</span>
+                      <span className={`font-bold text-white ${large ? "text-2xl" : "text-base"}`}>{fmt(total)}</span>
+                      <span className="text-[10px] text-slate-500">{pieData.length} {t("pfu_positions")}</span>
+                    </div>
+                    </div>
+                    {/* Legenda: nome, percentagem e valor; ordenada do maior para o menor */}
+                    <div className={`grid grid-cols-1 gap-x-6 gap-y-1.5 ${large ? "sm:grid-cols-2" : "lg:grid-cols-2"}`}>
+                      {pieData.map((entry) => {
+                        const pct = total > 0 ? (entry.value / total) * 100 : 0;
+                        return (
+                          <div key={entry.name} className="flex items-center gap-2 min-w-0">
+                            <span className="shrink-0 h-2.5 w-2.5 rounded-full" style={{ background: assetColor(entry.name) }} />
+                            <span className="min-w-0 flex-1 truncate text-xs font-medium text-slate-300">{entry.name}</span>
+                            <span className="shrink-0 text-xs font-semibold tabular-nums text-slate-200">{hideBalances ? "••" : `${pct.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}</span>
+                            <span className="hidden shrink-0 text-right text-xs tabular-nums text-slate-500 sm:inline">{fmt(entry.value)}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
-              </div>
+                </div>
+                )}
+              </ChartModal>
             );
           })()}
 
@@ -1602,18 +1645,52 @@ export default function PortfolioPage() {
               .filter(s => ms === 0 || now - new Date(s.createdAt).getTime() <= ms)
               .reverse()
               .map(s => ({
+                t: s.createdAt,
                 data: new Date(s.createdAt).toLocaleDateString(locale, { day: "2-digit", month: "2-digit" }),
                 valor: parseFloat(s.total.toFixed(2)),
               }));
+            // Rotulos do eixo: no maximo ~6 e nunca repetidos (havia "17/06 17/06 26/06 26/06").
+            const tickStep = Math.max(1, Math.ceil(chartData.length / 6));
+            const ticks = chartData.filter((_, i) => i % tickStep === 0 || i === chartData.length - 1).map((d) => d.t);
+            const primeiro = chartData[0]?.valor ?? 0;
+            const ultimo = chartData[chartData.length - 1]?.valor ?? 0;
+            const varRange = chartData.length >= 2 ? ultimo - primeiro : 0;
+            const evo = (large: boolean) => (
+              <ResponsiveContainer width="100%" height={large ? 460 : 200}>
+                <AreaChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+                  <defs>
+                    <linearGradient id="colorValor" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                  <XAxis dataKey="t" type="number" domain={["dataMin", "dataMax"]} ticks={ticks} tickFormatter={(v: number) => new Date(v).toLocaleDateString(locale, { day: "2-digit", month: "2-digit" })} tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} minTickGap={24} />
+                  <YAxis domain={["auto", "auto"]} tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={v => hideBalances ? "" : fmt(v, { compact: Math.abs(fx(v)) >= 100_000, decimals: 0 })} width={64} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
+                    labelStyle={{ color: "#94a3b8" }}
+                    labelFormatter={(v) => new Date(Number(v)).toLocaleString(locale, { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    formatter={(v: any) => { const n = typeof v === "number" ? v : 0; const d = n - primeiro; return [`${fmt(n)} (${d >= 0 ? "+" : "−"}${fmt(Math.abs(d))} ${t("pcs_since_start")})`, t("pf_value")]; }}
+                  />
+                  <Area type="monotone" dataKey="valor" stroke="#f97316" strokeWidth={2} fill="url(#colorValor)" dot={chartData.length < 30 ? { fill: "#f97316", r: 3 } : false} activeDot={{ r: 5 }} isAnimationActive={false} />
+                </AreaChart>
+              </ResponsiveContainer>
+            );
             return (
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 md:col-span-2">
-                <div className="flex items-center justify-between mb-3">
+              <ChartModal title={t("pf_evolution")} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 md:col-span-2">
+                {(large) => (
+                <div className={large ? "flex h-full flex-col" : ""}>
+                <div className="flex items-center justify-between mb-3 pr-8">
                   <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{t("pf_history")}</p>
-                    <h2 className="text-base font-bold text-white mt-0.5">{t("pf_evolution")}</h2>
+                    {!large && <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{t("pf_history")}</p>}
+                    {!large && <h2 className="text-base font-bold text-white mt-0.5">{t("pf_evolution")}</h2>}
+                    <p className="text-[10px] text-slate-500">{t("pf_evolution_sub").replace("{n}", String(snapshotTotals.length))}</p>
                   </div>
-                  <span className={`text-sm font-bold ${pnlSummary.position >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                    {fmtSigned(pnlSummary.position)}
+                  {/* Variacao DO INTERVALO escolhido (primeiro → ultimo snapshot), nao a posicao global. */}
+                  <span className={`text-sm font-bold ${varRange >= 0 ? "text-emerald-400" : "text-rose-400"}`} title={t("pcs_since_start")}>
+                    {chartData.length >= 2 ? fmtSigned(varRange) : ""}
                   </span>
                 </div>
                 <div className="flex gap-1 mb-3">
@@ -1627,26 +1704,7 @@ export default function PortfolioPage() {
                   ))}
                 </div>
                 {chartData.length >= 2 ? (
-                  <ResponsiveContainer width="100%" height={130}>
-                    <AreaChart data={chartData}>
-                      <defs>
-                        <linearGradient id="colorValor" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                      <XAxis dataKey="data" tick={{ fill: "#64748b", fontSize: 11 }} />
-                      <YAxis tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={v => hideBalances ? "" : `${curSym}${Math.round(fx(v))}`} width={60} />
-                      <Tooltip
-                        contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
-                        labelStyle={{ color: "#94a3b8" }}
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        formatter={(v: any) => [fmt(typeof v === "number" ? v : 0), t("pf_value")]}
-                      />
-                      <Area type="monotone" dataKey="valor" stroke="#f97316" strokeWidth={2} fill="url(#colorValor)" dot={chartData.length < 30 ? { fill: "#f97316", r: 3 } : false} />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                  <div className={large ? "min-h-0 flex-1" : ""}>{evo(large)}</div>
                 ) : (
                   <div className="flex h-[130px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-700">
                     <p className="text-2xl">📸</p>
@@ -1654,7 +1712,14 @@ export default function PortfolioPage() {
                     <p className="text-xs text-slate-500">{snapshotTotals.length}/2 {t("port_snapshots")}</p>
                   </div>
                 )}
-              </div>
+                {snapshotAnomalies.size > 0 && (
+                  <p className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] px-3 py-2 text-[11px] text-amber-100/80">
+                    ⚠️ {t("pf_anomalies").replace("{n}", String(snapshotAnomalies.size))}
+                  </p>
+                )}
+                </div>
+                )}
+              </ChartModal>
             );
           })()}
 
