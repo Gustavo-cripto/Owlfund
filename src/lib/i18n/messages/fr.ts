@@ -1220,6 +1220,7 @@ export const fr: Record<TranslationKey, string> = {
     fb_thanks_body: "Nous lisons chaque réponse avec attention. Si vous décidez de réessayer, votre accès est toujours actif.",
     fb_back: "Retour à ChainFolioAI",
     export_stale: "Le site a été mis à jour depuis l'ouverture de cette page. Rechargement vers la nouvelle version…",
+    pfu_dist_note: "Pourcentages du portefeuille total. Les portefeuilles de la même monnaie sont regroupés.",
     wl_invested: "Valeur investie",
     fisc_fee_explain: "la commission prélevée par la plateforme sur cette opération, ou le gas du réseau, en argent (pas en jetons). Exemple : vous avez acheté 0,0100 BTC et Kraken a prélevé 1,20 € — saisissez 1,20. À l'achat elle s'ajoute au coût ; à la vente elle réduit le montant reçu. Laissez vide s'il n'y en a pas eu.",
     pcs_ma: "Moyennes",

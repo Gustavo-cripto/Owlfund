@@ -1220,6 +1220,7 @@ export const en: Record<TranslationKey, string> = {
     fb_thanks_body: "We read every reply carefully. Should you decide to try again, your access is still active.",
     fb_back: "Return to ChainFolioAI",
     export_stale: "The site was updated since you opened this page. Reloading to the new version…",
+    pfu_dist_note: "Percentages of the whole portfolio. Wallets holding the same coin are combined.",
     wl_invested: "Invested value",
     fisc_fee_explain: "the commission your exchange charged on this trade, or the network gas, in money (not in coins). Example: you bought 0.0100 BTC and Kraken charged €1.20 — enter 1.20. On a buy it adds to the cost; on a sell it reduces the proceeds. Leave blank if there was none.",
     pcs_ma: "Averages",

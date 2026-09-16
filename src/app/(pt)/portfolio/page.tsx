@@ -1184,6 +1184,23 @@ export default function PortfolioPage() {
     };
   }, [cryptoTotal, traditionalTotal]);
 
+  // Detalhe da "Distribuicao total": cada ativo com a sua parte do PORTEFOLIO
+  // inteiro (nao so do grupo), para se ver de uma vez onde esta o dinheiro.
+  // Carteiras da mesma moeda somam-se numa linha (3 carteiras de ETH = "ETH").
+  const distributionDetail = useMemo(() => {
+    const total = cryptoTotal + traditionalTotal;
+    const pct = (v: number) => (total > 0 ? (v / total) * 100 : 0);
+    const cryptoBySymbol = new Map<string, number>();
+    for (const a of cryptoAllocations) {
+      if (!(a.value > 0)) continue;
+      const key = a.symbol === t("pf_manual") ? a.label : a.symbol === "CEX" || a.symbol === "DeFi" || a.symbol === "Tokens" || a.symbol === t("pf_usdt_usdc") ? a.label : a.symbol;
+      cryptoBySymbol.set(key, (cryptoBySymbol.get(key) ?? 0) + a.value);
+    }
+    const crypto = [...cryptoBySymbol].map(([label, value]) => ({ label, value, pct: pct(value) })).sort((a, b) => b.value - a.value);
+    const traditional = traditionalAllocations.assets.filter((a) => a.value > 0).map((a) => ({ label: a.label, value: a.value, pct: pct(a.value) })).sort((a, b) => b.value - a.value);
+    return { crypto, traditional };
+  }, [cryptoAllocations, traditionalAllocations, cryptoTotal, traditionalTotal, t]);
+
   return (
     <AppShell>
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -1334,18 +1351,35 @@ export default function PortfolioPage() {
                 {t("pfu_dist_sub")}
               </p>
               <div className="mt-6 space-y-3">
-                <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-                  <p className="text-sm font-semibold text-white">{t("port_blockchain")}</p>
-                  <p className="text-xs text-slate-500">
-                    {fmt(cryptoTotal)} · {portfolioSplit.crypto}%
-                  </p>
-                </div>
-                <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-                  <p className="text-sm font-semibold text-white">{t("port_traditional")}</p>
-                  <p className="text-xs text-slate-500">
-                    {fmt(traditionalTotal)} · {portfolioSplit.traditional}%
-                  </p>
-                </div>
+                {([
+                  { title: t("port_blockchain"), total: cryptoTotal, pct: portfolioSplit.crypto, items: distributionDetail.crypto, color: "bg-orange-400" },
+                  { title: t("port_traditional"), total: traditionalTotal, pct: portfolioSplit.traditional, items: distributionDetail.traditional, color: "bg-sky-400" },
+                ] as const).map((g) => (
+                  <div key={g.title} className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="text-sm font-semibold text-white">{g.title}</p>
+                      <p className="text-xs text-slate-400 tabular-nums">{fmt(g.total)} · <span className="font-semibold text-slate-200">{g.pct}%</span></p>
+                    </div>
+                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+                      <div className={`h-full rounded-full ${g.color}`} style={{ width: `${Math.min(100, Number(g.pct))}%` }} />
+                    </div>
+                    {g.items.length > 0 && (
+                      <ul className="mt-3 space-y-1.5">
+                        {g.items.map((it) => (
+                          <li key={it.label} className="flex items-center gap-2 text-xs">
+                            <span className="w-24 shrink-0 truncate text-slate-300" title={it.label}>{it.label}</span>
+                            <span className="h-1 flex-1 overflow-hidden rounded-full bg-slate-800">
+                              <span className={`block h-full rounded-full ${g.color} opacity-70`} style={{ width: `${Math.min(100, it.pct)}%` }} />
+                            </span>
+                            <span className="w-12 shrink-0 text-right tabular-nums font-semibold text-slate-200">{hideBalances ? "••" : `${it.pct.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}</span>
+                            <span className="hidden w-20 shrink-0 text-right tabular-nums text-slate-500 sm:inline">{fmt(it.value)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))}
+                <p className="text-[10px] text-slate-600">{t("pfu_dist_note")}</p>
               </div>
             </div>
 

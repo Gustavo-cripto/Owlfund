@@ -1229,6 +1229,7 @@ export const pt = {
     fb_thanks_body: "Lemos todas as respostas com atenção. Se decidir voltar a experimentar, o seu acesso continua ativo.",
     fb_back: "Voltar ao ChainFolioAI",
     export_stale: "O site foi atualizado desde que abriste esta página. A recarregar para a versão nova…",
+    pfu_dist_note: "Percentagens sobre o total do portefólio. Carteiras da mesma moeda aparecem somadas.",
     wl_invested: "Valor investido",
     fisc_fee_explain: "a comissão que a corretora cobrou nesta operação, ou o gás da rede, em dinheiro (não em moedas). Exemplo: comprou 0,0100 BTC e a Kraken cobrou 1,20 € — escreve 1,20. Na compra soma ao custo; na venda desce ao valor recebido. Se não houve, deixa em branco.",
     pcs_ma: "Médias",
