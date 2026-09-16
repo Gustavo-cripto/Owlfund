@@ -47,3 +47,8 @@ next-env.d.ts
 # Supabase CLI — estado interno/temp (não publicar)
 supabase/.temp/
 supabase/.branches/
+
+# Capturas originais nunca vao para o repositorio (publico): so os .webp
+public/screenshots/*.png
+public/screenshots/*.jpg
+public/screenshots/*.jpeg
