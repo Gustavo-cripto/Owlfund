@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { verifyCronAuth } from "@/lib/api/cron-auth";
+import { dedupeSnapshots } from "@/lib/snapshots/dedupe";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,12 +34,17 @@ export async function GET(request: Request) {
     admin.from("page_views").delete({ count: "exact" }).lt("created_at", viewsCutoff),
   ]);
 
+  // Snapshots repetidos no mesmo dia (dias ja fechados): fica o ultimo de cada dia.
+  let snapshotsDeduped = 0;
+  try { snapshotsDeduped = (await dedupeSnapshots(admin, { apply: true })).deleted; } catch (e) { console.error("[cleanup] snapshots", e instanceof Error ? e.message : e); }
+
   return NextResponse.json({
     ok: true,
     deleted: {
       rateLimits: rate.count ?? 0,
       whaleAlerts: alerts.count ?? 0,
       pageViews: views.count ?? 0,
+      snapshotsDuplicated: snapshotsDeduped,
     },
     timestamp: now,
   });
