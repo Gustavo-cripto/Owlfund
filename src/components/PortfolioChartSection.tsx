@@ -590,7 +590,7 @@ export default function PortfolioChartSection({
                   ) : wd.nfts.length === 0 ? (
                     <p className="text-xs text-slate-500 py-2">{t("pcs_no_nft")}</p>
                   ) : (
-                    <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+                    <div className="animate-reveal grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
                       {wd.nfts.map((nft) => (
                         <NftCard key={nft.id} nft={nft} />
                       ))}
@@ -641,7 +641,7 @@ export default function PortfolioChartSection({
                   ) : wd.positions.length === 0 ? (
                     <p className="text-xs text-slate-500">{t("pcs_no_defi")}{wd.partial ? ` ${t("pcs_defi_partial")}` : ""}</p>
                   ) : (
-                    <div className="space-y-2">
+                    <div className="animate-reveal space-y-2">
                       {wd.positions.map((pos, i) => (
                         <div key={i} className="py-1.5 border-b border-slate-800/50 last:border-0">
                           <div className="flex items-center justify-between">

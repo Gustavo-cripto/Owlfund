@@ -77,6 +77,52 @@
 .animate-ping-dot        { animation: ping-dot 1.2s cubic-bezier(0, 0, 0.2, 1) infinite; }
 .animate-typing          { animation: bounce 1.2s ease-in-out infinite; } /* pontos "a escrever" */
 
+/* Conteúdo que substitui um esqueleto ("a carregar…"): entra a desfocar-se
+   em vez de saltar para o sítio. Só opacidade + filtro, 400 ms. */
+@keyframes reveal {
+  from { opacity: 0; filter: blur(2px); }
+  to   { opacity: 1; filter: blur(0); }
+}
+.animate-reveal { animation: reveal var(--duration-slow) ease-in-out both; }
+
+/* Saída curta (fechar um cartão): 150 ms, só opacidade + escala. */
+@keyframes fade-out {
+  to { opacity: 0; transform: scale(0.98); }
+}
+.animate-fade-out { animation: fade-out var(--duration-quick) var(--ease-out) both; }
+
+/* Cascata: os filhos diretos entram um atrás do outro, 40 ms entre cada,
+   até 8 (total < 300 ms para o último não parecer atrasado). */
+.stagger-in > * { animation: fade-in-up var(--duration-slow) var(--ease-out) both; }
+.stagger-in > :nth-child(2) { animation-delay: 40ms; }
+.stagger-in > :nth-child(3) { animation-delay: 80ms; }
+.stagger-in > :nth-child(4) { animation-delay: 120ms; }
+.stagger-in > :nth-child(5) { animation-delay: 160ms; }
+.stagger-in > :nth-child(6) { animation-delay: 200ms; }
+.stagger-in > :nth-child(7) { animation-delay: 240ms; }
+.stagger-in > :nth-child(n + 8) { animation-delay: 280ms; }
+
+/* Check de sucesso (Primeiros passos concluídos). Acontece uma vez por
+   conta — é o único sítio com direito a "bounce". O traço desenha-se:
+   dasharray = comprimento do caminho (29 unidades, arredondado a 30). */
+.success-check {
+  display: inline-block;
+  transform-origin: center;
+  will-change: transform, opacity, filter;
+  animation:
+    check-fade 500ms var(--ease-out) both,
+    check-pop  500ms cubic-bezier(0.34, 1.35, 0.64, 1) both;
+}
+.success-check svg { display: block; overflow: visible; }
+.success-check svg path {
+  stroke-dasharray: 30;
+  stroke-dashoffset: 30;
+  animation: check-draw 500ms var(--ease-out) 80ms both;
+}
+@keyframes check-fade { from { opacity: 0; filter: blur(6px); } to { opacity: 1; filter: blur(0); } }
+@keyframes check-pop  { from { transform: translateY(16px) rotate(-60deg) scale(0.6); } to { transform: none; } }
+@keyframes check-draw { to { stroke-dashoffset: 0; } }
+
 /* Delay helpers */
 .delay-100 { animation-delay: 0.1s; }
 .delay-150 { animation-delay: 0.15s; }
@@ -107,7 +153,11 @@
   .animate-slide-in-left,
   .animate-scale-in,
   .animate-count-up,
-  .animate-chat-pop   { animation: fade-in 200ms ease both; }
+  .animate-chat-pop,
+  .stagger-in > *     { animation: fade-in 200ms ease both; }
+  .animate-reveal     { animation: fade-in 200ms ease both; }
+  .success-check      { animation: check-fade 200ms ease both; }
+  .success-check svg path { animation: none; stroke-dashoffset: 0; }
   .animate-ticker,
   .animate-glow-pulse,
   .animate-bounce,

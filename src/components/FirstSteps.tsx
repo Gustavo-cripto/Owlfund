@@ -56,6 +56,8 @@ export default function FirstSteps() {
   const { t } = useLanguage();
   const [saved, setSaved] = useState<Saved | null>(null);
   const [auto, setAuto] = useState<Record<"wallet" | "manual" | "trade", boolean> | null>(null);
+  // O cartao de "tudo a postos" fecha com uma saida curta em vez de sumir.
+  const [closing, setClosing] = useState(false);
 
   const refresh = useCallback(() => { setSaved(readSaved()); setAuto(detectAuto()); }, []);
   useEffect(() => {
@@ -82,18 +84,27 @@ export default function FirstSteps() {
     writeSaved(next); setSaved(next);
   };
   const hide = () => { const next = { ...saved, hidden: true }; writeSaved(next); setSaved(next); };
+  const closeSoft = () => { setClosing(true); window.setTimeout(hide, 150); };
 
   if (allDone) {
     // Agradece uma vez; na proxima visita (ja "celebrado") desaparece.
     if (celebrated) return null;
     return (
-      <section className="rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.06] p-5">
+      <section className={`${closing ? "animate-fade-out" : "animate-scale-in"} rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.06] p-5`}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-bold text-white">🎉 {t("fs_done_t")}</p>
-            <p className="mt-1 text-xs text-slate-400">{t("fs_done_d")}</p>
+          <div className="flex items-center gap-4">
+            {/* O check desenha-se — acontece uma vez por conta */}
+            <span className="success-check flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/30" aria-hidden="true">
+              <svg viewBox="0 0 48 48" width="28" height="28" fill="none" stroke="#020617" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 25l7 7 13-14" />
+              </svg>
+            </span>
+            <div>
+              <p className="text-sm font-bold text-white">{t("fs_done_t")}</p>
+              <p className="mt-1 text-xs text-slate-400">{t("fs_done_d")}</p>
+            </div>
           </div>
-          <button type="button" onClick={hide} className="shrink-0 rounded-xl border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:text-white">{t("fs_close")}</button>
+          <button type="button" onClick={closeSoft} className="shrink-0 rounded-xl border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:text-white">{t("fs_close")}</button>
         </div>
       </section>
     );

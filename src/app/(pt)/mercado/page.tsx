@@ -725,7 +725,7 @@ function DerivativesPanel({ data, loading, symbol, updatedAt, error, onRefresh }
           {[0, 1, 2, 3].map((i) => <div key={i} className="h-40 animate-pulse rounded-xl bg-slate-800/40" />)}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="animate-reveal grid grid-cols-1 gap-3 sm:grid-cols-2">
           {/* Open Interest */}
           <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4">
             <div className="flex items-center justify-between">

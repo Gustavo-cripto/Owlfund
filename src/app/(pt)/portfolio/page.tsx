@@ -1246,9 +1246,9 @@ export default function PortfolioPage() {
   return (
     <AppShell>
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-20 pt-2">
+      <main className="stagger-in mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-20 pt-2">
         {/* ── Título ── */}
-        <div className="animate-fade-in-up flex flex-col gap-1">
+        <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold text-white">{t("port_title")}</h1>
           <p className="text-sm text-slate-400">{t("port_subtitle")}</p>
         </div>
@@ -1287,7 +1287,7 @@ export default function PortfolioPage() {
         />
 
         <section className="grid gap-6 md:grid-cols-[1.2fr_0.8fr]">
-          <div className="animate-fade-in-up rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
             <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">
               {t("pfu_overview")}
             </p>

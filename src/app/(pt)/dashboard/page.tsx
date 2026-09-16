@@ -362,7 +362,7 @@ export default function DashboardPage() {
                   <p className="text-sm text-slate-500 animate-pulse">{t("dash_pnl_loading")}</p>
                 </div>
               ) : !hasWallets ? (
-                <div className="rounded-2xl border border-dashed border-orange-500/30 bg-orange-500/5 p-5 flex flex-col items-center gap-3 text-center">
+                <div className="animate-reveal rounded-2xl border border-dashed border-orange-500/30 bg-orange-500/5 p-5 flex flex-col items-center gap-3 text-center">
                   <span className="text-2xl">🔗</span>
                   <div>
                     <p className="text-sm font-semibold text-white">{t("dash_no_wallets")}</p>
