@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiMsg } from "@/lib/api/apiMessages";
+import { isValidBtcAddress } from "@/lib/wallets/btcAddress";
 import { requireUser } from "@/lib/api/requireUser";
 import { getUsdPrices } from "@/lib/api/whales";
 import { alchemyTokensByWallet, hasAlchemy, AlchemyError } from "@/lib/providers/alchemy";
@@ -59,9 +60,9 @@ function isEvmAddress(a: string) {
 function isSolAddress(a: string) {
   return typeof a === "string" && a.length >= 32 && a.length <= 44;
 }
-function isBtcAddress(a: string) {
-  return /^(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,62}$/.test(a);
-}
+// Checksum a serio, nao so formato: um endereco "bem parecido" que nao existe
+// deve dar "invalido", nao "falha ao consultar" (que parece avaria nossa).
+const isBtcAddress = isValidBtcAddress;
 
 // Saldo BTC on-chain (sem Moralis): mempool.space com fallback blockstream.
 async function fetchBtcBalance(address: string): Promise<number | null> {
@@ -125,7 +126,7 @@ export async function GET(request: Request) {
   // ── Bitcoin (não precisa de Moralis) — antes devolvia sempre 0 e as baleias
   // BTC apareciam com "0,00 US$".
   if (chain === "btc") {
-    if (!isBtcAddress(address)) return NextResponse.json({ error: apiMsg(request, "btc_address_invalid"), tokens: [] }, { status: 400 });
+    if (!isBtcAddress(address)) return NextResponse.json({ error: apiMsg(request, "btc_address_not_on_chain"), tokens: [] }, { status: 400 });
     const balance = await fetchBtcBalance(address);
     if (balance == null) return NextResponse.json({ error: apiMsg(request, "btc_balance_failed"), tokens: [] }, { status: 503 });
     const { btc: btcUsd } = await getUsdPrices();

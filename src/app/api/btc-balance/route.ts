@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/api/requireUser";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { apiMsg } from "@/lib/api/apiMessages";
+import { isValidBtcAddress } from "@/lib/wallets/btcAddress";
 
 const CACHE_HEADERS = { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" };
 
@@ -15,6 +17,8 @@ export async function GET(req: NextRequest) {
 
   const address = req.nextUrl.searchParams.get("address");
   if (!address) return NextResponse.json({ error: "Missing address" }, { status: 400 });
+  // Checksum antes de gastar pedidos: um endereco que nao existe nunca vai ter saldo.
+  if (!isValidBtcAddress(address)) return NextResponse.json({ error: apiMsg(req, "btc_address_not_on_chain") }, { status: 400 });
 
   const endpoints = [
     `https://mempool.space/api/address/${address}`,

@@ -34,6 +34,12 @@ export const API_MESSAGES = {
   address_required: M("Endereço obrigatório.", "Address required.", "Dirección obligatoria.", "Adresse obligatoire."),
   address_invalid: M("Endereço inválido.", "Invalid address.", "Dirección no válida.", "Adresse non valide."),
   btc_address_invalid: M("Endereço BTC inválido.", "Invalid BTC address.", "Dirección BTC no válida.", "Adresse BTC non valide."),
+  btc_address_not_on_chain: M(
+    "Endereço BTC inválido: falha a verificação (checksum), não existe na blockchain. Remove esta carteira da lista.",
+    "Invalid BTC address: it fails the checksum and does not exist on the blockchain. Remove this wallet from the list.",
+    "Dirección BTC no válida: falla la verificación (checksum), no existe en la blockchain. Elimina esta cartera de la lista.",
+    "Adresse BTC non valide : la vérification (checksum) échoue, elle n'existe pas sur la blockchain. Retirez ce portefeuille de la liste.",
+  ),
   chain_invalid: M("Rede inválida.", "Invalid chain.", "Red no válida.", "Réseau non valide."),
   chain_invalid_list: M(
     "Rede inválida. Usa eth, sol, btc ou ada.",
