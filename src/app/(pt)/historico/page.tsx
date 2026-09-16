@@ -13,6 +13,7 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import { loadFxTable } from "@/lib/fx/historical";
 import { CURRENCY_SIGN } from "@/lib/currency/symbols";
+import { cleanDecimalInput, parseDecimal } from "@/lib/format/decimal";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, ReferenceLine } from "recharts";
 
@@ -148,9 +149,9 @@ export default function HistoricoPage() {
   // ── computed ──
   // Total que efetivamente sai (compra: valor + taxa) ou entra (venda: valor − taxa).
   const formTotal = useMemo(() => {
-    const bruto = (parseFloat(form.quantity) || 0) * (parseFloat(form.priceEur) || 0);
+    const bruto = (parseDecimal(form.quantity) || 0) * (parseDecimal(form.priceEur) || 0);
     // Taxa em token nao se soma aqui (outra unidade): mostra-se ao lado.
-    const taxa = form.type === "taxa" || form.feeAsset ? 0 : parseFloat(form.fee) || 0;
+    const taxa = form.type === "taxa" || form.feeAsset ? 0 : parseDecimal(form.fee) || 0;
     return form.type === "compra" ? bruto + taxa : form.type === "venda" ? bruto - taxa : bruto;
   }, [form.quantity, form.priceEur, form.fee, form.feeAsset, form.type]);
 
@@ -187,8 +188,8 @@ export default function HistoricoPage() {
     e?.preventDefault();
     setFormError(null);
     if (readOnly) { setFormError(t("hx_readonly_all")); return; }
-    const qty = parseFloat(form.quantity);
-    let price = parseFloat(form.priceEur);
+    const qty = parseDecimal(form.quantity);
+    let price = parseDecimal(form.priceEur);
     if (!Number.isFinite(qty) || qty <= 0) { setFormError(t("hx_qty_invalid")); return; }
     if (!form.date) { setFormError(t("hx_date_required")); return; }
     if (form.date > todayIso()) { setFormError(t("hx_date_future")); return; }
@@ -202,7 +203,7 @@ export default function HistoricoPage() {
       price = p;
     }
     if (!Number.isFinite(price) || price < 0) { setFormError(t("hx_price_invalid")); return; }
-    const fee = form.type === "taxa" || form.fee.trim() === "" ? 0 : parseFloat(form.fee);
+    const fee = form.type === "taxa" || form.fee.trim() === "" ? 0 : parseDecimal(form.fee);
     if (!Number.isFinite(fee) || fee < 0) { setFormError(t("hx_fee_invalid")); return; }
     if (!editId) {
       const dup = txs.find((x) => x.asset === assetInfo.symbol && x.date === form.date && x.type === form.type && x.quantity === qty && x.priceEur === price);
@@ -495,17 +496,16 @@ export default function HistoricoPage() {
 
               {/* Quantity */}
               <div>
-                <label htmlFor="hx-qty" className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_quantity")}</label>
+                <label htmlFor="hx-qty" className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_quantity")} ({form.asset === OTHER_ASSET ? (form.customAsset || "—") : form.asset})</label>
                 <input
                   id="hx-qty"
                   ref={qtyRef}
-                  type="number"
+                  type="text"
                   inputMode="decimal"
-                  min="0"
-                  step="any"
+                  autoComplete="off"
                   placeholder="0.00"
                   value={form.quantity}
-                  onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
+                  onChange={(e) => setForm((f) => ({ ...f, quantity: cleanDecimalInput(e.target.value) }))}
                   className="w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-200 outline-none focus:border-orange-400"
                 />
               </div>
@@ -518,13 +518,12 @@ export default function HistoricoPage() {
                 </label>
                 <input
                   id="hx-price"
-                  type="number"
+                  type="text"
                   inputMode="decimal"
-                  min="0"
-                  step="any"
+                  autoComplete="off"
                   placeholder="0.00"
                   value={form.priceEur}
-                  onChange={(e) => setForm((f) => ({ ...f, priceEur: e.target.value }))}
+                  onChange={(e) => setForm((f) => ({ ...f, priceEur: cleanDecimalInput(e.target.value) }))}
                   className="w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-200 outline-none focus:border-orange-400"
                 />
               </div>
@@ -570,14 +569,13 @@ export default function HistoricoPage() {
                 <div className="flex gap-2">
                   <input
                     id="hx-fee"
-                    type="number"
+                    type="text"
                     inputMode="decimal"
-                    min="0"
-                    step="any"
+                    autoComplete="off"
                     placeholder="0.00"
                     value={form.fee}
                     title={t("hx_fee_help")}
-                    onChange={(e) => setForm((f) => ({ ...f, fee: e.target.value }))}
+                    onChange={(e) => setForm((f) => ({ ...f, fee: cleanDecimalInput(e.target.value) }))}
                     className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-200 outline-none focus:border-orange-400"
                   />
                   <select
@@ -601,7 +599,7 @@ export default function HistoricoPage() {
                   <span className={`font-bold ${form.type === "compra" ? "text-emerald-400" : form.type === "venda" ? "text-rose-400" : "text-amber-300"}`}>
                     {form.type === "venda" ? "+" : "−"} {fmtCur(formTotal)}
                   </span>
-                  {form.type !== "taxa" && form.feeAsset && parseFloat(form.fee) > 0 && (
+                  {form.type !== "taxa" && form.feeAsset && parseDecimal(form.fee) > 0 && (
                     <span className="ml-2 text-xs text-slate-500">+ {form.fee} {form.feeAsset}</span>
                   )}
                 </div>

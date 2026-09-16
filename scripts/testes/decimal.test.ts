@@ -1,0 +1,16 @@
+import { cleanDecimalInput, parseDecimal } from "@/lib/format/decimal";
+let fails = 0;
+const eq = (name: string, got: number | string, want: number | string) => { const ok = typeof got === "number" && typeof want === "number" ? (Number.isNaN(want) ? Number.isNaN(got) : Math.abs(got - want) < 1e-12) : got === want; if (!ok) fails++; console.log(`${ok ? "✅" : "❌"} ${name}: ${got}${ok ? "" : ` (esperado ${want})`}`); };
+eq("0,0100 → 0.01", parseDecimal("0,0100"), 0.01);
+eq("0.0100 → 0.01", parseDecimal("0.0100"), 0.01);
+eq("65 000 → 65000", parseDecimal("65 000"), 65000);
+eq("1.234,56 → 1234.56", parseDecimal("1.234,56"), 1234.56);
+eq("1,234.56 → 1234.56", parseDecimal("1,234.56"), 1234.56);
+eq("1,234,567 → 1234567", parseDecimal("1,234,567"), 1234567);
+eq("€ 1,20 → 1.2", parseDecimal("€ 1,20"), 1.2);
+eq("vazio → NaN", parseDecimal(""), NaN);
+eq("abc → NaN", parseDecimal("abc"), NaN);
+eq("clean: 0,01 mantém", cleanDecimalInput("0,01"), "0,01");
+eq("clean: letras fora", cleanDecimalInput("0,0a1b"), "0,01");
+eq("clean: só um separador", cleanDecimalInput("1,2,3.4"), "1,234");
+console.log(fails === 0 ? "\nTODOS OK" : `\n${fails} FALHA(S)`); process.exit(fails ? 1 : 0);

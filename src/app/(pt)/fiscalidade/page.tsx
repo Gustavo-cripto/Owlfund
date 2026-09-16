@@ -13,6 +13,7 @@ import type { TranslationKey } from "@/lib/i18n/translations";
 import { createClient } from "@/lib/supabase/client";
 import type { jsPDF } from "jspdf";  // so o tipo: a biblioteca (~300 kB) carrega no clique
 import { downloadBlob, isStaleChunkError, loadExcelJS } from "@/lib/export/excel";
+import { cleanDecimalInput, parseDecimal } from "@/lib/format/decimal";
 import { ACCOUNTS_EVENT } from "@/lib/portfolios/accounts";
 import { pushWalletCloud } from "@/lib/portfolios/cloudSync";
 import { deleteTrade, loadTrades, tradeId, upsertTrade } from "@/lib/portfolios/trades";
@@ -284,6 +285,14 @@ export default function FiscalidadePage() {
     return () => window.removeEventListener(ACCOUNTS_EVENT, load);
   }, []);
   const [newTrade, setNewTrade] = useState<TradeEntry>(emptyTrade());
+  // O que a pessoa escreve, tal e qual (aceita virgula): os numeros derivam daqui.
+  const [raw, setRaw] = useState<{ amount: string; price: string; fee: string }>({ amount: "", price: "", fee: "" });
+  const setNum = (k: "amount" | "price" | "fee") => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const text = cleanDecimalInput(e.target.value);
+    setRaw((r) => ({ ...r, [k]: text }));
+    const v = parseDecimal(text);
+    setNewTrade((tr) => ({ ...tr, [k]: Number.isFinite(v) && v >= 0 ? v : 0 }));
+  };
   const [country, setCountry] = useState<string>("PT");
 
   useEffect(() => {
@@ -913,15 +922,19 @@ export default function FiscalidadePage() {
               <input placeholder={t("fisc_asset")} value={newTrade.asset}
                 onChange={e => setNewTrade(t => ({ ...t, asset: e.target.value.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10) }))}
                 className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
-              <input type="number" placeholder={t("fisc_amount")} value={newTrade.amount || ""} min="0" max="999999999" step="any"
-                onChange={e => { const v = Number(e.target.value); if (Number.isFinite(v) && v >= 0) setNewTrade(tr => ({ ...tr, amount: v })); }}
+              {/* Texto + inputMode="decimal": no iPhone o teclado escreve virgula e o
+                  <input type="number> rejeitava "0,01" — nao se conseguia registar 0,0100 BTC. */}
+              <input type="text" inputMode="decimal" autoComplete="off" placeholder={`${t("fisc_amount")} (${newTrade.asset || "BTC"})`} aria-label={`${t("fisc_amount")} ${newTrade.asset}`} value={raw.amount}
+                onChange={setNum("amount")}
                 className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
-              <input type="number" placeholder={`${t("fisc_price")} (${inputSymbol})`} value={newTrade.price || ""} min="0" max="999999999" step="any"
-                onChange={e => { const v = Number(e.target.value); if (Number.isFinite(v) && v >= 0) setNewTrade(tr => ({ ...tr, price: v })); }}
+              <input type="text" inputMode="decimal" autoComplete="off" placeholder={`${t("fisc_price")} (${inputSymbol})`} aria-label={t("fisc_price")} value={raw.price}
+                onChange={setNum("price")}
                 className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
-              <input type="number" placeholder={`${t("fisc_fee_ph")} (${inputSymbol})`} title={t("hx_fee_help")} value={newTrade.fee || ""} min="0" max="999999999" step="any"
-                onChange={e => { const v = Number(e.target.value); if (Number.isFinite(v) && v >= 0) setNewTrade(tr => ({ ...tr, fee: v })); }}
-                className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+              <div className="relative">
+                <input type="text" inputMode="decimal" autoComplete="off" placeholder={`${t("fisc_fee_ph")} (${inputSymbol})`} aria-label={t("hx_fee")} title={t("hx_fee_help")} value={raw.fee}
+                  onChange={setNum("fee")}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+              </div>
               <input type="date" value={newTrade.date}
                 onChange={e => setNewTrade(tr => ({ ...tr, date: e.target.value }))}
                 className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500" />
@@ -950,6 +963,7 @@ export default function FiscalidadePage() {
                 upsertTrade({ id: entry.id, type: entry.type, asset: entry.asset, assetName: entry.asset, quantity: entry.amount, priceEur: entry.price, totalEur: entry.amount * entry.price, date: entry.date, exchange: entry.exchange, notes: "", currency: inputCurrency, priceInput: newTrade.price, ...(newTrade.fee > 0 ? { feeEur: taxaEur, feeInput: newTrade.fee } : {}) });
                 pushWalletCloud();
                 setNewTrade(emptyTrade());
+                setRaw({ amount: "", price: "", fee: "" });
                 } catch (e) {
                   console.error("[fiscalidade] adicionar transacao:", e);
                   setAddError(e instanceof Error ? e.message : String(e));
@@ -958,6 +972,9 @@ export default function FiscalidadePage() {
                 + {t("add")}
               </button>
             </div>
+            <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+              <span className="text-slate-400">{t("fisc_fee_ph")}:</span> {t("fisc_fee_explain")}
+            </p>
             {addError && (
               <p className="mt-2 rounded-xl border border-rose-500/40 bg-rose-500/[0.08] px-4 py-2.5 text-xs text-rose-200">{addError}</p>
             )}
