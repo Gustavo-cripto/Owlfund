@@ -839,13 +839,18 @@ export default function PortfolioPage() {
     const currentTotal = portfolioTotal;
     const snapshot = loadWalletSnapshot();
 
-    // Calcula o valor do portfolio de carteiras com preços históricos
+    // Valor do portefolio a precos historicos. Tem de incluir TUDO o que entra
+    // no total de hoje: o que nao tem preco historico (DeFi, CEX, tokens,
+    // manuais, tradicionais, stablecoins) entra como constante. Sem o DeFi/CEX/
+    // tokens aqui, o valor deles inteiro aparecia como "ganho de hoje" —
+    // +139,71 € num portefolio de 369 € eram os 162,83 $ de DeFi.
+    const semPrecoHistorico = manualTotals + snapshotCexEur + snapshotDefiEur + snapshotTokensEur;
     const portfolioAtPrice = (prices: Record<string, number>) =>
       sumEntries(snapshot.eth) * (prices.ETH ?? 0) +
       sumEntries(snapshot.sol) * (prices.SOL ?? 0) +
       sumEntries(snapshot.btc) * (prices.BTC ?? 0) +
       sumEntries(snapshot.ada) * (prices.ADA ?? 0) +
-      manualTotals;
+      semPrecoHistorico;
 
     const total1d  = portfolioAtPrice(historicalPrices["1d"]);
     const total7d  = portfolioAtPrice(historicalPrices["7d"]);
@@ -868,7 +873,7 @@ export default function PortfolioPage() {
       position, today, days30, daily7d, days7,
       base: { today: total1d, days7: total7d, days30: total30d, position: oldest ? oldest.total : total30d },
     };
-  }, [portfolioTotal, historicalPrices, manualTotals, snapshotTotals]);
+  }, [portfolioTotal, historicalPrices, manualTotals, snapshotTotals, snapshotCexEur, snapshotDefiEur, snapshotTokensEur]);
 
   const pnlTotal = pnlSummary.position;
 
