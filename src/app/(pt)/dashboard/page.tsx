@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { btnPrimary } from "@/lib/ui/buttons";
 import AppShell from "@/components/AppShell";
+import PageSkeleton from "@/components/PageSkeleton";
 import PlanBadge from "@/components/PlanBadge";
 import PnlSummaryCard from "@/components/PnlSummaryCard";
 import FirstSteps from "@/components/FirstSteps";
@@ -196,11 +197,9 @@ export default function DashboardPage() {
   }, [supabase]);
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
-        <p className="text-sm text-slate-400 animate-pulse">{t("loading")}</p>
-      </div>
-    );
+    // Silhueta da pagina dentro do AppShell: a barra lateral e o ticker nao
+    // "aparecem" depois — ja la estao quando os dados chegam.
+    return <AppShell><PageSkeleton variant="dashboard" /></AppShell>;
   }
 
   const greeting = () => {
@@ -322,7 +321,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="relative z-10">
-        <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 pb-24 pt-8">
+        <main className="stagger-in mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 pb-24 pt-8">
 
           {/* ── Hero ── */}
           <section className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">

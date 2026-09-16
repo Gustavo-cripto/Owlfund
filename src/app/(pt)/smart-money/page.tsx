@@ -5,6 +5,7 @@ import { FREE_WHALE_LIMIT } from "@/lib/plans";
 import { KNOWN_WHALES } from "@/lib/api/known-whales";
 import { btnPrimary } from "@/lib/ui/buttons";
 import AppShell from "@/components/AppShell";
+import PageSkeleton from "@/components/PageSkeleton";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 
@@ -404,9 +405,7 @@ export default function SmartMoneyPage() {
   if (isLoading) {
     return (
       <AppShell>
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-          <p className="text-sm text-slate-400 animate-pulse">{t("loading")}</p>
-        </div>
+        <PageSkeleton />
       </AppShell>
     );
   }

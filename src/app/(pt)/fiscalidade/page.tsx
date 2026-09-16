@@ -6,6 +6,7 @@ import { loadFxTable, type FxTable } from "@/lib/fx/historical";
 import { CURRENCY_SIGN } from "@/lib/currency/symbols";
 import { btnPrimary } from "@/lib/ui/buttons";
 import AppShell from "@/components/AppShell";
+import PageSkeleton from "@/components/PageSkeleton";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useTheme, useCurrencyFormat } from "@/lib/theme/ThemeContext";
@@ -832,7 +833,7 @@ export default function FiscalidadePage() {
     }
   };
 
-  if (isLoading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-400 animate-pulse">{t("loading")}</p></div>;
+  if (isLoading) return <AppShell><PageSkeleton /></AppShell>;
 
   const fmtEur = (v: number) => `${reportSymbol} ${Math.abs(v).toLocaleString(uiLocale, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 

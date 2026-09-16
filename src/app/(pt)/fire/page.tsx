@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import AppShell from "@/components/AppShell";
+import PageSkeleton from "@/components/PageSkeleton";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { createClient } from "@/lib/supabase/client";
 import type { jsPDF } from "jspdf";  // so o tipo: a biblioteca (~300 kB) carrega no clique
@@ -295,7 +296,7 @@ export default function FirePage() {
     doc.save(filename);
   };
 
-  if (isLoading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><p className="text-slate-400 animate-pulse">{t("loading")}</p></div>;
+  if (isLoading) return <AppShell><PageSkeleton /></AppShell>;
 
   const trim = (v: number) => Number.isInteger(v) ? v.toFixed(0) : v.toFixed(1);
   const fmt = (v: number) =>

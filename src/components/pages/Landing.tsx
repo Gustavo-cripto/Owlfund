@@ -608,7 +608,7 @@ export default function Landing() {
                   <span>{t(f.q)}</span>
                   <span className="text-orange-400 transition-transform duration-200 group-open:rotate-45">+</span>
                 </summary>
-                <p className="mt-3 text-sm text-slate-400 leading-relaxed">{t(f.a)}</p>
+                <p className="faq-a mt-3 text-sm text-slate-400 leading-relaxed">{t(f.a)}</p>
               </details>
             ))}
           </div>

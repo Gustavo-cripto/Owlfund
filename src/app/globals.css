@@ -144,6 +144,10 @@
 }
 .press:active { transform: scale(0.98); }
 
+/* FAQ (<details>): a resposta entra a subir em vez de aparecer a seco.
+   (Animar a altura de um <details> ainda não é universal; isto chega.) */
+details[open] > .faq-a { animation: fade-in-up var(--duration-fast) var(--ease-out) both; }
+
 /* Delay helpers */
 .delay-100 { animation-delay: 0.1s; }
 .delay-150 { animation-delay: 0.15s; }
@@ -179,7 +183,8 @@
   .animate-toast-in,
   .animate-menu-in    { animation: fade-in 200ms ease both; }
   .animate-toast-out  { animation: fade-out 150ms ease both; }
-  .animate-reveal     { animation: fade-in 200ms ease both; }
+  .animate-reveal,
+  details[open] > .faq-a { animation: fade-in 200ms ease both; }
   .press:active       { transform: none; }
   .success-check      { animation: check-fade 200ms ease both; }
   .success-check svg path { animation: none; stroke-dashoffset: 0; }
