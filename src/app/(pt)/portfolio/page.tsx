@@ -6,8 +6,7 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
-} from "recharts";
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from "recharts";
 
 import AppShell from "@/components/AppShell";
 import { useConfirm } from "@/components/ConfirmDialog";
@@ -29,6 +28,7 @@ import { loadTraditionalHoldings, type TraditionalHoldings } from "@/lib/traditi
 import { downloadBlob, loadExcelJS } from "@/lib/export/excel";
 import { cryptoHoldingValueEur, loadCryptoHoldings, loadStablecoinEntries, type CryptoHoldings, type StablecoinEntry } from "@/lib/crypto/storage";
 import { loadNickname } from "@/lib/user/nickname";
+import ChartModal from "@/components/ChartModal";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ""
@@ -831,7 +831,12 @@ export default function PortfolioPage() {
       ? currentTotal - oldest.total
       : days30;
 
-    return { position, today, days30, daily7d };
+    // Bases (valor do portefolio no inicio de cada periodo) para dizer "+4,1 %"
+    // e nao so "+141 €"; 0 quando nao ha historico para esse periodo.
+    return {
+      position, today, days30, daily7d, days7,
+      base: { today: total1d, days7: total7d, days30: total30d, position: oldest ? oldest.total : total30d },
+    };
   }, [portfolioTotal, historicalPrices, manualTotals, snapshotTotals]);
 
   const pnlTotal = pnlSummary.position;
@@ -1412,34 +1417,78 @@ export default function PortfolioPage() {
         {/* ── GRÁFICOS ── */}
         <section className="grid gap-6 md:grid-cols-2">
           {/* Gráfico PNL por período — top-left */}
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
-            <div className="mb-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{t("pf_performance")}</p>
-              <h2 className="text-base font-bold text-white mt-0.5">{t("pf_pnl_period")}</h2>
-            </div>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={[
-                { periodo: t("pf_position"), pnl: parseFloat(pnlSummary.position.toFixed(2)) },
-                { periodo: t("pf_today"), pnl: parseFloat(pnlSummary.today.toFixed(2)) },
-                { periodo: t("pc_30_days"), pnl: parseFloat((pnlSummary.days30 ?? 0).toFixed(2)) },
-                { periodo: t("pf_7d_avg"), pnl: parseFloat(pnlSummary.daily7d.toFixed(2)) },
-              ]} barSize={48}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                <XAxis dataKey="periodo" tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={v => hideBalances ? "" : `${curSym}${Math.round(fx(v))}`} width={55} axisLine={false} tickLine={false} />
-                <Tooltip
-                  contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  formatter={(v: any) => { const n = typeof v === "number" ? v : 0; return [fmt(Math.abs(n)), n >= 0 ? t("pf_profit") : t("pf_loss")]; }}
-                />
-                <Bar dataKey="pnl" radius={[6, 6, 0, 0]}>
-                  {[pnlSummary.position, pnlSummary.today, pnlSummary.days30 ?? 0, pnlSummary.daily7d].map((v, i) => (
-                    <Cell key={i} fill={v >= 0 ? "#10b981" : "#ef4444"} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {(() => {
+            // Do mais curto ao mais longo; "Posição" = desde o primeiro snapshot.
+            // A media diaria dos 7 dias saiu do grafico (misturava uma media com
+            // acumulados) e passou para a nota por baixo.
+            const rows = [
+              { key: "today", periodo: t("pf_today"), pnl: pnlSummary.today, base: pnlSummary.base.today },
+              { key: "7d", periodo: t("pf_7d"), pnl: pnlSummary.days7, base: pnlSummary.base.days7 },
+              { key: "30d", periodo: t("pc_30_days"), pnl: pnlSummary.days30 ?? 0, base: pnlSummary.base.days30 },
+              { key: "pos", periodo: t("pf_position"), pnl: pnlSummary.position, base: pnlSummary.base.position },
+            ].map((r) => ({ ...r, pnl: Math.round(r.pnl * 100) / 100, pct: r.base > 0 ? (r.pnl / r.base) * 100 : null }));
+            const pctText = (v: number | null) => (v == null ? "" : `${v >= 0 ? "+" : "−"}${Math.abs(v).toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const renderBarLabel = (props: any) => {
+              const { x, y, width, value, index } = props as { x: number; y: number; width: number; value: number; index: number };
+              if (hideBalances) return null;
+              const r = rows[index];
+              const up = value >= 0;
+              const ty = up ? y - 6 : y + 14;
+              return (
+                <g>
+                  <text x={x + width / 2} y={ty} textAnchor="middle" fill={up ? "#34d399" : "#fb7185"} fontSize={11} fontWeight={700}>{fmtSigned(value)}</text>
+                  {r?.pct != null && <text x={x + width / 2} y={up ? ty - 12 : ty + 12} textAnchor="middle" fill="#94a3b8" fontSize={10}>{pctText(r.pct)}</text>}
+                </g>
+              );
+            };
+            const chart = (large: boolean) => (
+              <ResponsiveContainer width="100%" height={large ? "100%" : 240}>
+                <BarChart data={rows} barSize={large ? 72 : 44} margin={{ top: 28, right: 8, bottom: 0, left: 0 }}>
+                  <defs>
+                    <linearGradient id="pnlUp" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#34d399" /><stop offset="100%" stopColor="#059669" /></linearGradient>
+                    <linearGradient id="pnlDown" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#f43f5e" /><stop offset="100%" stopColor="#be123c" /></linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                  <XAxis dataKey="periodo" tick={{ fill: "#94a3b8", fontSize: large ? 13 : 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: "#64748b", fontSize: 11 }} tickFormatter={v => hideBalances ? "" : `${curSym}${Math.round(fx(v))}`} width={56} axisLine={false} tickLine={false} />
+                  <ReferenceLine y={0} stroke="#475569" />
+                  <Tooltip
+                    cursor={{ fill: "#1e293b", opacity: 0.4 }}
+                    contentStyle={{ background: "#0f172a", border: "1px solid #1e293b", borderRadius: 8 }}
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    formatter={(v: any, _n: any, item: any) => {
+                      const n = typeof v === "number" ? v : 0;
+                      const r = rows[item?.payload ? rows.findIndex((x) => x.key === item.payload.key) : -1];
+                      const de = r && r.base > 0 ? ` · ${fmt(r.base)} → ${fmt(r.base + n)}` : "";
+                      return [`${fmtSigned(n)} ${r?.pct != null ? `(${pctText(r.pct)})` : ""}${de}`, n >= 0 ? t("pf_profit") : t("pf_loss")];
+                    }}
+                  />
+                  <Bar dataKey="pnl" radius={[6, 6, 0, 0]} label={renderBarLabel} isAnimationActive={false}>
+                    {rows.map((r) => <Cell key={r.key} fill={r.pnl >= 0 ? "url(#pnlUp)" : "url(#pnlDown)"} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            );
+            return (
+              <ChartModal title={t("pf_pnl_period")} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+                {(large) => (
+                  <div className={large ? "flex h-full flex-col" : ""}>
+                    {!large && (
+                      <div className="mb-4">
+                        <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{t("pf_performance")}</p>
+                        <h2 className="text-base font-bold text-white mt-0.5">{t("pf_pnl_period")}</h2>
+                      </div>
+                    )}
+                    <div className={large ? "min-h-0 flex-1" : ""}>{chart(large)}</div>
+                    <p className="mt-2 text-[10px] text-slate-600">
+                      {t("pf_pnl_note")}{pnlSummary.days7 !== 0 && !hideBalances ? ` ${t("pf_7d_avg")}: ${fmtSigned(pnlSummary.daily7d)}/${t("pf_day_short")}.` : ""}
+                    </p>
+                  </div>
+                )}
+              </ChartModal>
+            );
+          })()}
 
           {/* Gráfico distribuição por ativo */}
           {(() => {
