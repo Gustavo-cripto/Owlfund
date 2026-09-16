@@ -604,7 +604,7 @@ export default function Landing() {
                 key={f.q}
                 className={`group card-hover rounded-2xl border border-slate-800 bg-slate-900/60 p-6 animate-fade-in-up delay-${Math.min(i * 100, 500)}`}
               >
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-base font-bold text-white">
+                <summary className="press flex cursor-pointer list-none items-center justify-between gap-4 text-base font-bold text-white">
                   <span>{t(f.q)}</span>
                   <span className="text-orange-400 transition-transform duration-200 group-open:rotate-45">+</span>
                 </summary>

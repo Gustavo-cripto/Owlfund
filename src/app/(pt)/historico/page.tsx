@@ -113,7 +113,7 @@ export default function HistoricoPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ text: string; undo?: () => void } | null>(null);
+  const [toast, setToast] = useState<{ text: string; undo?: () => void; leaving?: boolean } | null>(null);
   const [filterAsset, setFilterAsset] = useState(ALL_FILTER);
   const [filterType, setFilterType] = useState<"todos" | TradeType>("todos");
   const [sortDesc, setSortDesc] = useState(true);
@@ -128,7 +128,11 @@ export default function HistoricoPage() {
   const showToast = useCallback((text: string, undo?: () => void) => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast({ text, undo });
-    toastTimer.current = setTimeout(() => setToast(null), undo ? 6000 : 3000);
+    // Sai pelo mesmo lado por onde entrou (150 ms) antes de desmontar.
+    toastTimer.current = setTimeout(() => {
+      setToast((cur) => (cur ? { ...cur, leaving: true } : cur));
+      toastTimer.current = setTimeout(() => setToast(null), 150);
+    }, undo ? 6000 : 3000);
   }, []);
 
   const reload = useCallback(() => {
@@ -910,7 +914,7 @@ export default function HistoricoPage() {
 
         {/* ── Toast ── */}
         {toast && (
-          <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-xs text-slate-100 shadow-xl flex items-center gap-3" role="status">
+          <div className={`${toast.leaving ? "animate-toast-out" : "animate-toast-in"} fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-xs text-slate-100 shadow-xl flex items-center gap-3`} role="status">
             <span>{toast.text}</span>
             {toast.undo && (
               <button type="button" onClick={toast.undo} className="font-bold text-orange-300 underline">{t("hx_undo")}</button>

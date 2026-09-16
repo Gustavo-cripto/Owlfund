@@ -275,10 +275,10 @@ export default function Sidebar() {
 
       {/* ── Mobile dropdown ── */}
       {mobileOpen && (
-        <nav id="sb-mobile-nav" className="keep-dark xl:hidden bg-black border-b border-white/[0.06] px-3 py-3 grid grid-cols-2 gap-1">
+        <nav id="sb-mobile-nav" className="animate-menu-in keep-dark xl:hidden bg-black border-b border-white/[0.06] px-3 py-3 grid grid-cols-2 gap-1">
           {navList.map((item) => (
             <a key={item.href} href={item.href} aria-current={isActive(item.href) ? "page" : undefined}
-              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition ${
+              className={`press flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium ${
                 isActive(item.href) ? "bg-white/10 text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"
               }`}
             >
@@ -349,7 +349,7 @@ export default function Sidebar() {
                     href={item.href}
                     title={!expanded ? label : undefined}
                     aria-current={isActive(item.href) ? "page" : undefined}
-                    className={`flex items-center rounded-xl font-medium transition-colors duration-150 ${
+                    className={`press flex items-center rounded-xl font-medium ${
                       expanded ? "gap-3 px-3 py-3" : "justify-center px-0 py-3"
                     } ${
                       isActive(item.href)

@@ -426,7 +426,7 @@ export default function DashboardPage() {
                 const accessible = canAccess(f.minPlan);
                 return (
                   <a key={f.href} href={accessible ? f.href : "/pricing"}
-                    className={`group relative rounded-2xl border p-5 bg-gradient-to-br flex flex-col gap-3 transition duration-200
+                    className={`group relative rounded-2xl border p-5 bg-gradient-to-br flex flex-col gap-3 transition duration-200 active:scale-[0.99]
                       ${accessible
                         ? `${f.color} ${f.border} motion-safe:hover:scale-[1.02] hover:shadow-xl hover:shadow-black/30 cursor-pointer`
                         : "from-slate-900/40 to-slate-900/20 border-slate-800 opacity-70 hover:opacity-90 cursor-pointer"}`}

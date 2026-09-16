@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import dynamic from "next/dynamic";
@@ -212,6 +212,19 @@ export default function PortfolioChartSection({
   const [history, setHistory] = useState<{ tf: TimeFrame; bars: Bar[] } | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [tab, setTab] = useState<Tab>("overview");
+  // Sublinhado dos tabs: mede o botao ativo e desliza ate la. Re-mede quando
+  // o texto muda (lingua, badges de NFTs/DeFi) ou a janela muda de tamanho.
+  const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement | null>>>({});
+  const [tabInd, setTabInd] = useState<{ left: number; width: number } | null>(null);
+  useEffect(() => {
+    const measure = () => {
+      const el = tabRefs.current[tab];
+      if (el) setTabInd({ left: el.offsetLeft, width: el.offsetWidth });
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  });
   // Cripto manual com quantidade (lida do mesmo sitio que a pagina de Carteiras).
   const [manualCrypto, setManualCrypto] = useState<CryptoHoldings>({});
   useEffect(() => {
@@ -496,11 +509,11 @@ export default function PortfolioChartSection({
       </div>
 
       {/* ── Tabs ── */}
-      <div className="flex gap-0 border-b border-slate-800 mt-6">
+      <div className="relative flex gap-0 border-b border-slate-800 mt-6">
         {TABS.map(({ key, labelKey }) => (
-          <button key={key} type="button" onClick={() => setTab(key)}
-            className={`px-4 py-3 text-sm font-medium transition border-b-2 -mb-px flex items-center gap-1.5 ${
-              tab === key ? "border-blue-500 text-white" : "border-transparent text-slate-400 hover:text-white"
+          <button key={key} type="button" onClick={() => setTab(key)} ref={(el) => { tabRefs.current[key] = el; }}
+            className={`press px-4 py-3 text-sm font-medium flex items-center gap-1.5 ${
+              tab === key ? "text-white" : "text-slate-400 hover:text-white"
             }`}>
             {t(labelKey as Parameters<typeof t>[0])}
             {key === "nfts" && totalNfts > 0 && (
@@ -511,6 +524,11 @@ export default function PortfolioChartSection({
             )}
           </button>
         ))}
+        {/* Sublinhado que desliza até ao tab ativo (em vez de saltar). */}
+        {tabInd && (
+          <span aria-hidden="true" className="pointer-events-none absolute -bottom-px left-0 h-0.5 bg-blue-500 transition-[transform,width] duration-[250ms] ease-[var(--ease-in-out)] motion-reduce:transition-none"
+            style={{ transform: `translateX(${tabInd.left}px)`, width: tabInd.width }} />
+        )}
       </div>
 
       {/* ── Tab: Tokens ── */}

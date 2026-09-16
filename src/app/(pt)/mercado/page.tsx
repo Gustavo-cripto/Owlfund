@@ -631,7 +631,8 @@ function Hint({ text, children }: { text: string; children: React.ReactNode }) {
     <span className="group relative inline-flex items-center gap-1">
       {children}
       <button type="button" aria-label={text} className="text-[10px] text-slate-500 hover:text-orange-300 focus:outline-none focus-visible:text-orange-300">ⓘ</button>
-      <span role="tooltip" className="pointer-events-none absolute left-0 top-full z-20 mt-1 hidden w-64 rounded-lg border border-slate-700 bg-slate-900 p-2 text-[11px] font-normal leading-relaxed text-slate-300 shadow-xl group-hover:block group-focus-within:block">{text}</span>
+      {/* 80 ms de intenção ao abrir (evita disparos ao passar), 0 ao fechar; cresce a partir do ⓘ. */}
+      <span role="tooltip" className="pointer-events-none invisible absolute left-0 top-full z-20 mt-1 w-64 origin-top-left scale-[0.98] opacity-0 rounded-lg border border-slate-700 bg-slate-900 p-2 text-[11px] font-normal leading-relaxed text-slate-300 shadow-xl transition-[opacity,transform,visibility] duration-[125ms] ease-[var(--ease-out)] group-hover:visible group-hover:scale-100 group-hover:opacity-100 group-hover:delay-[80ms] group-focus-within:visible group-focus-within:scale-100 group-focus-within:opacity-100 motion-reduce:scale-100">{text}</span>
     </span>
   );
 }
@@ -2092,7 +2093,7 @@ export default function MercadoPage() {
                         }
                       }
                     }}
-                    className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition ${
+                    className={`press rounded-full border px-4 py-1.5 text-xs font-semibold ${
                       newsMode === m
                         ? "border-orange-400 bg-orange-500/20 text-orange-200"
                         : "border-slate-700 text-slate-400 hover:border-slate-500"

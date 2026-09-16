@@ -124,6 +124,26 @@
 @keyframes check-pop  { from { transform: translateY(12px) rotate(-40deg) scale(0.5); } to { transform: none; } }
 @keyframes check-draw { to { stroke-dashoffset: 0; } }
 
+/* Toast: entra e sai pelo mesmo lado (de baixo). O -50% mantém o centrar
+   horizontal que a classe -translate-x-1/2 dava. */
+@keyframes toast-in  { from { opacity: 0; transform: translate(-50%, 100%); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes toast-out { from { opacity: 1; transform: translate(-50%, 0); } to { opacity: 0; transform: translate(-50%, 100%); } }
+.animate-toast-in  { animation: toast-in var(--duration-fast) var(--ease-out) both; }
+.animate-toast-out { animation: toast-out var(--duration-quick) var(--ease-out) both; }
+
+/* Menu móvel: tens de vezes por dia → quase impercetível (150 ms, 4 px). */
+@keyframes menu-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.animate-menu-in { animation: menu-in var(--duration-quick) var(--ease-out) both; }
+
+/* Feedback de toque: qualquer coisa clicável encolhe 2 % enquanto se carrega.
+   Inclui as cores na lista para não anular um transition-colors do Tailwind. */
+.press {
+  transition-property: transform, color, background-color, border-color, opacity;
+  transition-duration: 150ms;
+  transition-timing-function: var(--ease-out);
+}
+.press:active { transform: scale(0.98); }
+
 /* Delay helpers */
 .delay-100 { animation-delay: 0.1s; }
 .delay-150 { animation-delay: 0.15s; }
@@ -155,8 +175,12 @@
   .animate-scale-in,
   .animate-count-up,
   .animate-chat-pop,
-  .stagger-in > *     { animation: fade-in 200ms ease both; }
+  .stagger-in > *,
+  .animate-toast-in,
+  .animate-menu-in    { animation: fade-in 200ms ease both; }
+  .animate-toast-out  { animation: fade-out 150ms ease both; }
   .animate-reveal     { animation: fade-in 200ms ease both; }
+  .press:active       { transform: none; }
   .success-check      { animation: check-fade 200ms ease both; }
   .success-check svg path { animation: none; stroke-dashoffset: 0; }
   .animate-ticker,
@@ -174,6 +198,16 @@
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
 }
+
+/* Números com largura fixa onde mudam ao vivo ou ficam em coluna — os dígitos
+   deixam de "dançar" quando um preço atualiza. */
+td, th, .pnl-card { font-variant-numeric: tabular-nums; }
+
+/* Tipografia dos títulos: texto grande quer tracking negativo; balance evita
+   uma palavra órfã na segunda linha. Classes tracking-* do Tailwind continuam
+   a ganhar (especificidade de classe). */
+h1 { letter-spacing: -0.02em; text-wrap: balance; }
+h2 { letter-spacing: -0.01em; text-wrap: balance; }
 
 :root {
   --background: #0b0f1a;
