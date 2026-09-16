@@ -183,7 +183,10 @@
   .press:active       { transform: none; }
   .success-check      { animation: check-fade 200ms ease both; }
   .success-check svg path { animation: none; stroke-dashoffset: 0; }
-  .animate-ticker,
+  /* Ticker parado, mas não inútil: fica deslizável com o dedo/rato. */
+  .animate-ticker     { animation: none; }
+  .ticker-wrap        { overflow-x: auto; scrollbar-width: none; }
+  .ticker-wrap::-webkit-scrollbar { display: none; }
   .animate-glow-pulse,
   .animate-bounce,
   .animate-ping,

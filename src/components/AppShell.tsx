@@ -81,7 +81,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="flex-1 min-w-0 flex flex-col min-h-screen">
         {/* ── Price ticker (real via /api/markets; fallback estático marcado como exemplo) ── */}
-        <div className="relative border-b border-slate-800/60 bg-slate-900/50 py-2 overflow-hidden select-none shrink-0" title={live ? tr("app_ticker_tip") : tr("app_ticker_demo_tip")}>
+        <div className="ticker-wrap relative border-b border-slate-800/60 bg-slate-900/50 py-2 overflow-hidden select-none shrink-0" title={live ? tr("app_ticker_tip") : tr("app_ticker_demo_tip")}>
           {!live && <span className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded bg-slate-800 px-1.5 text-[9px] uppercase tracking-wider text-slate-500">{tr("app_ticker_demo")}</span>}
           <div className="flex animate-ticker" style={{ width: "max-content" }}>
             {[...ticks, ...ticks, ...ticks].map((tick, i) => (
