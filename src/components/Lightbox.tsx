@@ -72,7 +72,7 @@ export default function Lightbox({ src, alt, width, height, className, loading =
             width={width}
             height={height}
             onClick={(e) => e.stopPropagation()}
-            className="max-h-[92vh] max-w-[96vw] rounded-xl border border-slate-800 object-contain shadow-2xl shadow-black/60"
+            className="animate-scale-in max-h-[92vh] max-w-[96vw] rounded-xl border border-slate-800 object-contain shadow-2xl shadow-black/60"
           />
           <p className="pointer-events-none absolute bottom-4 left-0 right-0 text-center text-xs text-slate-500">{alt}</p>
         </div>,

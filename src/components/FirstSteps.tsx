@@ -113,7 +113,7 @@ export default function FirstSteps() {
           <div className="text-right">
             <p className="text-xs text-slate-400">{t("fs_progress").replace("{done}", String(doneCount)).replace("{total}", String(STEPS.length))}</p>
             <div className="mt-1 h-1.5 w-32 overflow-hidden rounded-full bg-slate-800">
-              <div className="h-full rounded-full bg-orange-400 transition-all" style={{ width: `${(doneCount / STEPS.length) * 100}%` }} />
+              <div className="h-full rounded-full bg-orange-400 transition-[width] duration-300" style={{ width: `${(doneCount / STEPS.length) * 100}%` }} />
             </div>
           </div>
           <button type="button" onClick={hide} className="rounded-lg px-2 py-1 text-xs text-slate-500 hover:text-slate-300" title={t("fs_hide_help")}>{t("fs_hide")}</button>

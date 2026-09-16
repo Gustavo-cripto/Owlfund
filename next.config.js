@@ -21,7 +21,8 @@ const securityHeaders = [
       // Scripts: self + inline (necessário para Next.js hydration) + trusted CDNs
       // Sem 'unsafe-eval': nenhum chunk do cliente usa eval/new Function (verificado
       // no build). 'unsafe-inline' fica: o Next injeta scripts inline na hidratacao.
-      "script-src 'self' 'unsafe-inline' https://js.stripe.com https://s3.tradingview.com",
+      // Em `next dev` o HMR/source-maps usam eval — só aí se permite, nunca em produção.
+      `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""} https://js.stripe.com https://s3.tradingview.com`,
       // Estilos: self + inline (Tailwind)
       "style-src 'self' 'unsafe-inline'",
       // Imagens: self + data URIs + todas HTTPS (logos de tokens e NFTs são dinâmicos)

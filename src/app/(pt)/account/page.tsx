@@ -776,7 +776,7 @@ export default function AccountPage() {
                         type="button"
                         onClick={() => avatarInputRef.current?.click()}
                         disabled={avatarUploading}
-                        className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-slate-700 hover:border-orange-500/60 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500/40"
+                        className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-slate-700 hover:border-orange-500/60 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500/40"
                         title={t("ac_change_photo")}
                       >
                         {avatarUrl ? (

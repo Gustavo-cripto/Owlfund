@@ -314,18 +314,18 @@ export default function Sidebar() {
         onFocusCapture={() => setFocused(true)}
         onBlurCapture={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocused(false); }}
         aria-label={t("sb_nav")}
-        className={`hidden xl:flex flex-col shrink-0 sticky top-0 h-screen overflow-y-auto bg-black border-r border-white/[0.06] transition-all duration-300 ease-in-out z-40 ${
+        className={`hidden xl:flex flex-col shrink-0 sticky top-0 h-screen overflow-y-auto bg-black border-r border-white/[0.06] transition-[width,box-shadow] duration-300 ease-[var(--ease-in-out)] z-40 ${
           expanded ? "w-72 shadow-2xl shadow-black/60" : "w-[72px]"
         }`}
       >
         {/* Brand */}
         <div className={`flex items-center border-b border-white/[0.06] overflow-hidden ${expanded ? "px-5 pt-8 pb-7 gap-4" : "justify-center px-0 py-5"}`}>
           <a href={homeHref} className="shrink-0">
-            <div className={`overflow-hidden border border-white/[0.08] transition-all duration-300 ${expanded ? "w-16 h-16 rounded-2xl" : "w-10 h-10 rounded-xl"}`}>
+            <div className={`overflow-hidden border border-white/[0.08] transition-[width,height,border-radius] duration-300 ${expanded ? "w-16 h-16 rounded-2xl" : "w-10 h-10 rounded-xl"}`}>
               <img src="/chainfolioai-icon.png" alt="ChainFolioAI" className="w-full h-full object-cover " />
             </div>
           </a>
-          <div className={`transition-all duration-200 overflow-hidden ${expanded ? "opacity-100 w-auto" : "opacity-0 w-0"}`}>
+          <div className={`transition-opacity duration-200 overflow-hidden ${expanded ? "opacity-100 w-auto" : "opacity-0 w-0"}`}>
             <a href={homeHref}>
               <p className="text-base font-black tracking-[0.14em] leading-none uppercase whitespace-nowrap bg-gradient-to-r from-orange-400 to-amber-300 bg-clip-text text-transparent">CHAINFOLIOAI</p>
               <p className="text-xs text-slate-500 leading-tight mt-1 whitespace-nowrap">{t("lp_tagline")}</p>
@@ -349,7 +349,7 @@ export default function Sidebar() {
                     href={item.href}
                     title={!expanded ? label : undefined}
                     aria-current={isActive(item.href) ? "page" : undefined}
-                    className={`flex items-center rounded-xl font-medium transition-all duration-150 ${
+                    className={`flex items-center rounded-xl font-medium transition-colors duration-150 ${
                       expanded ? "gap-3 px-3 py-3" : "justify-center px-0 py-3"
                     } ${
                       isActive(item.href)
@@ -360,7 +360,7 @@ export default function Sidebar() {
                     <span className={`shrink-0 ${isActive(item.href) ? "text-orange-400" : "text-slate-500"}`}>
                       {item.icon}
                     </span>
-                    <span className={`transition-all duration-200 overflow-hidden whitespace-nowrap text-[15px] ${expanded ? "opacity-100 w-auto" : "opacity-0 w-0"}`}>
+                    <span className={`transition-opacity duration-200 overflow-hidden whitespace-nowrap text-[15px] ${expanded ? "opacity-100 w-auto" : "opacity-0 w-0"}`}>
                       {label}
                       {PREMIUM_HREFS.has(item.href) && <PlanBadge plan="premium" size="xs" className="ml-2 align-middle" />}
                     </span>
@@ -376,7 +376,7 @@ export default function Sidebar() {
               <button key={l.code} type="button" onClick={() => setLang(l.code)}
                 title={l.label}
                 aria-pressed={lang === l.code}
-                className={`rounded-xl font-medium transition-all duration-150 ${
+                className={`rounded-xl font-medium transition-colors duration-150 ${
                   expanded
                     ? "flex items-center justify-center gap-1.5 py-2 px-1 text-xs"
                     : "w-10 h-10 flex items-center justify-center"
@@ -409,7 +409,7 @@ export default function Sidebar() {
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
               </svg>
-              <span className={`transition-all duration-200 overflow-hidden whitespace-nowrap text-sm ${expanded ? "opacity-100 w-auto" : "opacity-0 w-0"}`}>
+              <span className={`transition-opacity duration-200 overflow-hidden whitespace-nowrap text-sm ${expanded ? "opacity-100 w-auto" : "opacity-0 w-0"}`}>
                 {t("logout")}
               </span>
             </button>
@@ -424,7 +424,7 @@ export default function Sidebar() {
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" /><polyline points="10 17 15 12 10 7" /><line x1="15" y1="12" x2="3" y2="12" />
               </svg>
-              <span className={`transition-all duration-200 overflow-hidden whitespace-nowrap text-sm ${expanded ? "opacity-100 w-auto" : "opacity-0 w-0"}`}>
+              <span className={`transition-opacity duration-200 overflow-hidden whitespace-nowrap text-sm ${expanded ? "opacity-100 w-auto" : "opacity-0 w-0"}`}>
                 {t("lp_login")}
               </span>
             </a>

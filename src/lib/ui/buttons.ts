@@ -7,7 +7,7 @@
 // chips do site, que também são redondos.
 
 const btnBase =
-  "inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-all duration-200 active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none";
+  "inline-flex items-center justify-center gap-2 rounded-full font-semibold transition duration-200 active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none";
 
 // Ação principal — laranja com gradiente subtil e brilho interior no topo.
 export const btnPrimary =

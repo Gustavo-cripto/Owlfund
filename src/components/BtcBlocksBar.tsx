@@ -97,7 +97,7 @@ function ConfirmedCard({ b }: { b: ConfirmedBlock }) {
       href={`https://mempool.space/block/${b.height}`}
       target="_blank"
       rel="noopener noreferrer"
-      className={`shrink-0 w-[168px] rounded-2xl border ${col.border} bg-gradient-to-b ${col.from} ${col.to} p-3 flex flex-col gap-1.5 select-none hover:brightness-110 transition-all duration-150 cursor-pointer`}
+      className={`shrink-0 w-[168px] rounded-2xl border ${col.border} bg-gradient-to-b ${col.from} ${col.to} p-3 flex flex-col gap-1.5 select-none hover:brightness-110 transition duration-150 cursor-pointer`}
     >
       {/* Block height — destaque */}
       <div className="flex items-center justify-between">
@@ -143,7 +143,7 @@ function MempoolCard({ b, i }: { b: MempoolBlock; i: number }) {
     <div className={`shrink-0 w-[168px] rounded-2xl border ${col.border} bg-gradient-to-b from-slate-900 to-slate-950 p-3 flex flex-col gap-1.5 select-none relative overflow-hidden`}>
       {/* Fill indicator bar */}
       <div className="absolute inset-x-0 bottom-0 h-0.5 bg-slate-800">
-        <div className={`h-full ${col.from.replace("from-", "bg-")} opacity-60 transition-all`} style={{ width: `${fill}%` }} />
+        <div className={`h-full ${col.from.replace("from-", "bg-")} opacity-60 transition-[width]`} style={{ width: `${fill}%` }} />
       </div>
 
       {/* ETA */}

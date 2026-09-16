@@ -409,7 +409,7 @@ export default function FirePage() {
                 <p className="text-sm font-black text-orange-300">{progressPct.toFixed(1)}%</p>
               </div>
               <div className="h-3 overflow-hidden rounded-full bg-slate-800">
-                <div className="h-full rounded-full bg-gradient-to-r from-orange-500 to-emerald-400 transition-all" style={{ width: `${progressPct}%` }} />
+                <div className="h-full rounded-full bg-gradient-to-r from-orange-500 to-emerald-400 transition-[width] duration-300" style={{ width: `${progressPct}%` }} />
               </div>
               <div className="mt-1.5 flex justify-between text-[10px] text-slate-500">
                 <span>{hideBalances ? "••••" : fmt(portfolioValue)}</span>
@@ -512,7 +512,7 @@ export default function FirePage() {
                       <span className="text-[10px] text-slate-500">{item.rec}</span>
                     </div>
                     <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-orange-500 to-orange-400 rounded-full transition-all" style={{ width: `${item.pct}%` }} />
+                      <div className="h-full bg-gradient-to-r from-orange-500 to-orange-400 rounded-full transition-[width] duration-300" style={{ width: `${item.pct}%` }} />
                     </div>
                   </div>
                 </div>

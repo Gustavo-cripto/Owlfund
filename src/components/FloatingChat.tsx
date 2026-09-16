@@ -107,8 +107,7 @@ export default function FloatingChat() {
           hidden={!isOpen}
           role="dialog"
           aria-label="Chain"
-          className="keep-dark pointer-events-auto relative w-[92vw] max-w-[460px] overflow-hidden rounded-3xl border border-slate-700/80 bg-slate-950/92 shadow-2xl shadow-black/50 backdrop-blur"
-          style={{ animation: "chat-pop 0.25s ease both" }}
+          className="animate-chat-pop keep-dark pointer-events-auto relative w-[92vw] max-w-[460px] overflow-hidden rounded-3xl border border-slate-700/80 bg-slate-950/92 shadow-2xl shadow-black/50 backdrop-blur"
         >
           {/* Background decorativo */}
           <div
@@ -166,7 +165,7 @@ export default function FloatingChat() {
       <button
         type="button"
         onClick={() => startTransition(() => setIsOpen(prev => !prev))}
-        className="keep-dark pointer-events-auto group relative flex items-center gap-3 rounded-full border border-slate-700 bg-slate-950/90 px-5 py-3 text-sm font-semibold text-slate-100 shadow-2xl shadow-black/40 transition hover:scale-[1.03] hover:border-slate-500 hover:bg-slate-950 active:scale-[0.97]"
+        className="keep-dark pointer-events-auto group relative flex items-center gap-3 rounded-full border border-slate-700 bg-slate-950/90 px-5 py-3 text-sm font-semibold text-slate-100 shadow-2xl shadow-black/40 transition motion-safe:hover:scale-[1.03] hover:border-slate-500 hover:bg-slate-950 active:scale-[0.97]"
         aria-label={isOpen ? t("fch_minimize") : t("fch_open")}
       >
         {/* Glow hover */}
@@ -184,7 +183,7 @@ export default function FloatingChat() {
         {/* Badge "novo" pulsante */}
         {showBadge && !isOpen && (
           <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center">
-            <span className="absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" style={{ animation: "ping-dot 1.2s cubic-bezier(0,0,0.2,1) infinite" }} />
+            <span className="animate-ping-dot absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
             <span className="relative h-2.5 w-2.5 rounded-full bg-orange-500" />
           </span>
         )}

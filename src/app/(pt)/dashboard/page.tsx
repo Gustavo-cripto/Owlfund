@@ -328,7 +328,7 @@ export default function DashboardPage() {
           <section className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             <div className="flex items-center gap-4">
               <a href="/account" title={t("dash_edit_profile")}>
-                <div className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-slate-700 hover:border-orange-500/60 transition-all shrink-0">
+                <div className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-slate-700 hover:border-orange-500/60 transition-colors shrink-0">
                   {avatarUrl ? (
                     <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                   ) : (
@@ -426,9 +426,9 @@ export default function DashboardPage() {
                 const accessible = canAccess(f.minPlan);
                 return (
                   <a key={f.href} href={accessible ? f.href : "/pricing"}
-                    className={`group relative rounded-2xl border p-5 bg-gradient-to-br flex flex-col gap-3 transition-all duration-200
+                    className={`group relative rounded-2xl border p-5 bg-gradient-to-br flex flex-col gap-3 transition duration-200
                       ${accessible
-                        ? `${f.color} ${f.border} hover:scale-[1.02] hover:shadow-xl hover:shadow-black/30 cursor-pointer`
+                        ? `${f.color} ${f.border} motion-safe:hover:scale-[1.02] hover:shadow-xl hover:shadow-black/30 cursor-pointer`
                         : "from-slate-900/40 to-slate-900/20 border-slate-800 opacity-70 hover:opacity-90 cursor-pointer"}`}
                   >
                     {/* Header */}

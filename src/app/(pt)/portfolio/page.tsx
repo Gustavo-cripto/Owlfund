@@ -1850,7 +1850,7 @@ export default function PortfolioPage() {
                       </div>
                       <div className="h-1 w-full rounded-full bg-slate-800 overflow-hidden">
                         <div
-                          className={`h-full rounded-full transition-all duration-700 ${r.ok ? "bg-emerald-500/60" : "bg-rose-500/40"}`}
+                          className={`h-full rounded-full transition-[width] duration-700 ${r.ok ? "bg-emerald-500/60" : "bg-rose-500/40"}`}
                           style={{ width: `${(r.points / r.max) * 100}%` }}
                         />
                       </div>

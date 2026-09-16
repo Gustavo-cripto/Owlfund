@@ -33,7 +33,7 @@ export default function ChartModal({ title, children, className }: Props) {
       {open && typeof document !== "undefined" && createPortal(
         <div role="dialog" aria-modal="true" aria-label={title} onClick={close}
           className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/95 p-3 backdrop-blur-sm animate-fade-in sm:p-6">
-          <div onClick={(e) => e.stopPropagation()} className="flex h-[88vh] w-full max-w-5xl flex-col rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-2xl shadow-black/60 sm:p-6">
+          <div onClick={(e) => e.stopPropagation()} className="animate-scale-in flex h-[88vh] w-full max-w-5xl flex-col rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-2xl shadow-black/60 sm:p-6">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="text-base font-bold text-white">{title}</h2>
               <button type="button" onClick={close} aria-label={t("lb_close")}

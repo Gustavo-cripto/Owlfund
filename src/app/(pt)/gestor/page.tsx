@@ -576,8 +576,8 @@ export default function GestorPage() {
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-sm px-4 py-3">
                     <div className="flex gap-1 items-center h-5">
                       {[0, 0.2, 0.4].map(d => (
-                        <span key={d} className="w-1.5 h-1.5 rounded-full bg-slate-500"
-                          style={{ animation: `bounce 1.2s ${d}s infinite` }} />
+                        <span key={d} className="animate-typing w-1.5 h-1.5 rounded-full bg-slate-500"
+                          style={{ animationDelay: `${d}s` }} />
                       ))}
                     </div>
                   </div>

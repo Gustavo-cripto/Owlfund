@@ -350,7 +350,7 @@ export default function ChatWidget({
             <div className="rounded-2xl rounded-bl-md border border-slate-700/50 bg-slate-800/70 px-4 py-3">
               <div className="flex items-center gap-1">
                 {[0, 1, 2].map(n => (
-                  <span key={n} className="h-1.5 w-1.5 rounded-full bg-orange-400" style={{ animation: `bounce 1.2s ease-in-out ${n * 0.2}s infinite` }} />
+                  <span key={n} className="animate-typing h-1.5 w-1.5 rounded-full bg-orange-400" style={{ animationDelay: `${n * 0.2}s` }} />
                 ))}
               </div>
             </div>
@@ -396,7 +396,7 @@ export default function ChatWidget({
           type="button"
           aria-label={t("cw_send_aria")}
           title={t("cw_send_aria")}
-          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-orange-500 text-slate-950 transition hover:scale-105 hover:bg-orange-400 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
+          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-orange-500 text-slate-950 transition motion-safe:hover:scale-105 hover:bg-orange-400 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
           onClick={() => sendMessage(input)}
           disabled={isLoading || !input.trim() || limitReached}
         >
