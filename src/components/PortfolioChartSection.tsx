@@ -3,8 +3,16 @@
 import { useState, useMemo, useEffect } from "react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import dynamic from "next/dynamic";
 import NftImage from "@/components/NftImage";
+import { combineSeries, TF, type Bar, type SeriesBySymbol, type Timeframe } from "@/lib/portfolio/history";
+import { loadFxTable } from "@/lib/fx/historical";
+import { loadCryptoHoldings, type CryptoHoldings } from "@/lib/crypto/storage";
+import { ACCOUNTS_EVENT } from "@/lib/portfolios/accounts";
+import type { ChartMode } from "@/components/PortfolioHistoryChart";
+
+// A biblioteca do grafico (~45 KB) so entra quando esta seccao aparece.
+const PortfolioHistoryChart = dynamic(() => import("@/components/PortfolioHistoryChart"), { ssr: false });
 import type { TranslationKey } from "@/lib/i18n/translations";
 
 const LOCALE_BY_LANG: Record<string, string> = { pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" };
@@ -96,7 +104,7 @@ function buildChartData(
   snapshotTotals: SnapshotTotal[],
   locale: string,
   nowLabel: string,
-): { time: string; value: number }[] {
+): Bar[] {
   const now = Date.now();
   const sorted = [...snapshotTotals].sort((a, b) => a.createdAt - b.createdAt);
 
@@ -112,27 +120,10 @@ function buildChartData(
   const filtered = sorted.filter(s => now - s.createdAt <= range);
   if (filtered.length === 0) return [];
 
-  const shortRange = range <= 86_400_000;
-  const pts = filtered.map(s => ({
-    time: shortRange
-      ? new Date(s.createdAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })
-      : new Date(s.createdAt).toLocaleDateString(locale, { day: "2-digit", month: "short" }),
-    value: s.total,
-  }));
-  pts.push({ time: nowLabel, value: portfolioTotal });
+  void locale; void nowLabel;
+  const pts: Bar[] = filtered.map(s => ({ t: s.createdAt, o: s.total, h: s.total, l: s.total, c: s.total }));
+  pts.push({ t: now, o: portfolioTotal, h: portfolioTotal, l: portfolioTotal, c: portfolioTotal });
   return pts;
-}
-
-// ── Custom Tooltip ──────────────────────────────────────────────────────────
-function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) {
-  const { format: fmt } = useCurrencyFormat();
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 shadow-xl">
-      <p className="text-xs text-slate-400">{label}</p>
-      <p className="text-sm font-bold text-white">{fmt(payload[0].value)}</p>
-    </div>
-  );
 }
 
 // ── Token row ───────────────────────────────────────────────────────────────
@@ -204,28 +195,106 @@ function NftCard({ nft }: { nft: NftItem }) {
 // ── Main export ─────────────────────────────────────────────────────────────
 export default function PortfolioChartSection({
   portfolioTotal, pnlToday, snapshotTotals, historicalPrices,
-  wallets, tokenPrices, cryptoTotal,
+  wallets, tokenPrices,
 }: Props) {
   const { t, lang } = useLanguage();
   const locale = LOCALE_BY_LANG[lang] ?? "pt-PT";
-  const { format: fmt, formatUsd: fmtUsd, hideBalances } = useCurrencyFormat();
-  const fmtCompact = (v: number) => fmt(v, { compact: true });
+  const { format: fmt, formatUsd: fmtUsd, hideBalances, rates } = useCurrencyFormat();
   const fmtUsdCompact = (v: number) => fmtUsd(v, { compact: true });
   const [tf, setTf] = useState<TimeFrame>("1d");
+  const [mode, setMode] = useState<ChartMode>("area");
+  const [showMa, setShowMa] = useState(false);
+  const [hover, setHover] = useState<{ t: number; value: number } | null>(null);
+  const [history, setHistory] = useState<{ tf: TimeFrame; bars: Bar[] } | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [tab, setTab] = useState<Tab>("overview");
+  // Cripto manual com quantidade (lida do mesmo sitio que a pagina de Carteiras).
+  const [manualCrypto, setManualCrypto] = useState<CryptoHoldings>({});
+  useEffect(() => {
+    const load = () => { try { setManualCrypto(loadCryptoHoldings()); } catch { setManualCrypto({}); } };
+    load();
+    window.addEventListener(ACCOUNTS_EVENT, load);
+    return () => window.removeEventListener(ACCOUNTS_EVENT, load);
+  }, []);
   const [nftData, setNftData] = useState<WalletNfts[]>([]);
   const [defiData, setDefiData] = useState<WalletDefi[]>([]);
 
   const nowLabel = t("pcs_now");
-  const chartData = useMemo(
+  const snapshotBars = useMemo(
     () => buildChartData(tf, portfolioTotal, snapshotTotals, locale, nowLabel),
     [tf, portfolioTotal, snapshotTotals, locale, nowLabel]
   );
   void historicalPrices;
 
-  const isUp = pnlToday >= 0;
-  const chartColor = isUp ? "#10b981" : "#f43f5e";
-  const pnlPct = portfolioTotal > 0 ? (pnlToday / portfolioTotal) * 100 : 0;
+  // Quantidades por ativo com vela (carteiras on-chain + cripto manual com
+  // quantidade). O resto do portefolio (tradicionais, stablecoins, tokens,
+  // DeFi, CEX) e constante ao longo do intervalo.
+  const quantities = useMemo(() => {
+    const q: Record<string, number> = {};
+    for (const w of wallets) { const n = Number(w.balance ?? 0); if (n > 0 && w.symbol) q[w.symbol] = (q[w.symbol] ?? 0) + n; }
+    for (const [sym, h] of Object.entries(manualCrypto)) { if ((h.quantity ?? 0) > 0) q[sym] = (q[sym] ?? 0) + (h.quantity ?? 0); }
+    return q;
+  }, [wallets, manualCrypto]);
+  const symbolsKey = Object.keys(quantities).sort().join(",");
+
+  // Historico reconstruido: velas dos ativos (USD, OKX) → euros a taxa da
+  // data → soma ponderada + parte constante. "tudo" fica com os snapshots.
+  useEffect(() => {
+    if (tf === "tudo" || !symbolsKey) { setHistory(null); return; }
+    let cancelled = false;
+    setHistoryLoading(true);
+    (async () => {
+      try {
+        const res = await fetch(`/api/portfolio-history?tf=${tf}&symbols=${encodeURIComponent(symbolsKey)}`);
+        if (!res.ok) throw new Error(String(res.status));
+        const j = (await res.json()) as { series: SeriesBySymbol };
+        const series = j.series ?? {};
+        const syms = Object.keys(series);
+        if (syms.length === 0) { if (!cancelled) setHistory({ tf, bars: [] }); return; }
+        // USD → EUR: intradiario a taxa de hoje; a partir da semana, a taxa de cada dia.
+        const usdToEur = tokenPrices.usdToEur && tokenPrices.usdToEur > 0 ? tokenPrices.usdToEur : 1 / (rates.USD || 1.08);
+        let convert = (usd: number, _t: number) => usd * usdToEur; // eslint-disable-line @typescript-eslint/no-unused-vars
+        if (TF[tf as Timeframe].ms >= 3_600_000) {
+          const dates = [...new Set(syms.flatMap((s) => series[s].map((b) => new Date(b.t).toISOString().slice(0, 10))))].sort();
+          const tabela = await loadFxTable([dates[0], dates[dates.length - 1]], ["USD"]);
+          convert = (usd, t) => { const v = tabela.convert(usd, "USD", "EUR", new Date(t).toISOString().slice(0, 10)); return v == null ? usd * usdToEur : v; };
+        }
+        const eurSeries: SeriesBySymbol = {};
+        const scale: Record<string, number> = {};
+        for (const s of syms) {
+          eurSeries[s] = series[s].map((b) => ({ t: b.t, o: convert(b.o, b.t), h: convert(b.h, b.t), l: convert(b.l, b.t), c: convert(b.c, b.t) }));
+          // A serie acaba exatamente no preco que a app mostra hoje.
+          const lastEur = eurSeries[s][eurSeries[s].length - 1].c;
+          const appPrice = tokenPrices[s];
+          scale[s] = appPrice && appPrice > 0 && lastEur > 0 ? appPrice / lastEur : 1;
+        }
+        const covered = syms.reduce((sum, s) => sum + (quantities[s] ?? 0) * (tokenPrices[s] ?? eurSeries[s][eurSeries[s].length - 1].c * (scale[s] ?? 1)), 0);
+        const constant = Math.max(0, portfolioTotal - covered);
+        const bars = combineSeries(eurSeries, quantities, scale, constant);
+        if (!cancelled) setHistory({ tf, bars });
+      } catch {
+        if (!cancelled) setHistory({ tf, bars: [] });
+      } finally {
+        if (!cancelled) setHistoryLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+    // portfolioTotal muda a cada refresh de precos; recalcula-se com as barras ja em memoria (abaixo) e nao volta a ir a rede
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tf, symbolsKey]);
+
+  const bars: Bar[] = tf !== "tudo" && history?.tf === tf && history.bars.length >= 2 ? history.bars : snapshotBars;
+  const reconstructed = tf !== "tudo" && history?.tf === tf && history.bars.length >= 2;
+  const intraday = tf === "1h" || tf === "1d";
+  // Variacao DO INTERVALO escolhido (nao so "hoje"): primeiro vs ultimo ponto.
+  const first = bars[0]?.o ?? bars[0]?.c ?? 0;
+  const last = bars[bars.length - 1]?.c ?? portfolioTotal;
+  const rangeDelta = bars.length >= 2 ? last - first : pnlToday;
+  const rangePct = first > 0 && bars.length >= 2 ? (rangeDelta / first) * 100 : (portfolioTotal > 0 ? (pnlToday / portfolioTotal) * 100 : 0);
+  const isUp = rangeDelta >= 0;
+  const averages = useMemo(() => (showMa ? [20, 50] : []), [showMa]);
+  const fmtStable = useMemo(() => (v: number) => fmt(v, { compact: true }), [fmt]);
+  const rangeLabel: Record<TimeFrame, TranslationKey> = { "1h": "pcs_rg_1h", "1d": "pcs_rg_1d", "1s": "pcs_rg_1w", "1m": "pcs_rg_1m", "1a": "pcs_rg_1y", "tudo": "pcs_rg_all" };
 
   const priceMap: Record<string, number> = {
     ETH: tokenPrices.ETH ?? 0,
@@ -332,43 +401,57 @@ export default function PortfolioChartSection({
       {/* ── Chart Card ── */}
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden">
         <div className="px-6 pt-6 pb-2">
-          <p className="text-4xl font-black text-white tracking-tight">{fmt(portfolioTotal)}</p>
-          <div className="flex items-center gap-1.5 mt-1.5">
-            <span className={`text-sm ${isUp ? "text-emerald-400" : "text-rose-400"}`}>
-              {isUp ? "▲" : "▼"} {fmt(Math.abs(pnlToday))} ({hideBalances ? "••" : Math.abs(pnlPct).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%) {t("pcs_today")}
-            </span>
+          {/* Com a cruz sobre o grafico, o cabecalho mostra esse instante; sem ela, o valor atual. */}
+          <p className="text-4xl font-black text-white tracking-tight">{fmt(hover ? hover.value : portfolioTotal)}</p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+            {hover ? (
+              <span className="text-sm text-slate-400">
+                {new Date(hover.t).toLocaleString(locale, intraday ? { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" } : { day: "2-digit", month: "short", year: "numeric" })}
+                {" · "}
+                <span className={hover.value - first >= 0 ? "text-emerald-400" : "text-rose-400"}>
+                  {hover.value - first >= 0 ? "+" : "−"}{fmt(Math.abs(hover.value - first))} {t("pcs_since_start")}
+                </span>
+              </span>
+            ) : (
+              <span className={`text-sm ${isUp ? "text-emerald-400" : "text-rose-400"}`}>
+                {isUp ? "▲" : "▼"} {fmt(Math.abs(rangeDelta))} ({hideBalances ? "••" : Math.abs(rangePct).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%) {t(rangeLabel[tf])}
+              </span>
+            )}
           </div>
         </div>
-        <div className="h-[200px] px-0 mt-2">
-          {chartData.length === 0 ? (
-            <div className="flex h-full items-center justify-center px-6 text-center text-xs text-slate-500">{t("pcs_no_history")}</div>
+        <div className="relative h-[260px] px-2 mt-2">
+          {bars.length < 2 ? (
+            <div className="flex h-full items-center justify-center px-6 text-center text-xs text-slate-500">{historyLoading ? t("loading") : t("pcs_no_history")}</div>
           ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 4, right: 16, bottom: 0, left: 0 }}>
-              <defs>
-                <linearGradient id="portGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={chartColor} stopOpacity={0.25} />
-                  <stop offset="95%" stopColor={chartColor} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-              <XAxis dataKey="time" tick={{ fill: "#64748b", fontSize: 10 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-              <YAxis tick={{ fill: "#64748b", fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={fmtCompact} width={72} />
-              <Tooltip content={<CustomTooltip />} />
-              <Area type="monotone" dataKey="value" stroke={chartColor} strokeWidth={2} fill="url(#portGrad)"
-                dot={false} activeDot={{ r: 4, fill: chartColor, stroke: "#0f172a", strokeWidth: 2 }} />
-            </AreaChart>
-          </ResponsiveContainer>
+            <PortfolioHistoryChart bars={bars} mode={reconstructed ? mode : "area"} averages={reconstructed ? averages : []} intraday={intraday} up={isUp} format={fmtStable} locale={locale} onHover={setHover} />
           )}
+          {historyLoading && bars.length >= 2 && <div className="pointer-events-none absolute right-4 top-2 text-[10px] text-slate-500">{t("loading")}</div>}
         </div>
-        <div className="flex gap-1 px-4 pb-4 pt-2">
+        <div className="flex flex-wrap items-center gap-1 px-4 pb-2 pt-2">
           {TIMEFRAMES.map(({ key, labelKey }) => (
             <button key={key} type="button" onClick={() => setTf(key)} aria-pressed={tf === key}
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
                 tf === key ? "bg-slate-700 text-white" : "text-slate-500 hover:text-white hover:bg-slate-800"
               }`}>{t(labelKey)}</button>
           ))}
+          {reconstructed && (
+            <div className="ml-auto flex items-center gap-1">
+              <div className="flex rounded-full border border-slate-700 p-0.5" role="radiogroup" aria-label={t("pcs_chart_type")}>
+                {(["area", "candles"] as ChartMode[]).map((m) => (
+                  <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => setMode(m)}
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition ${mode === m ? "bg-slate-700 text-white" : "text-slate-500 hover:text-white"}`}>
+                    {m === "area" ? `〜 ${t("pcs_mode_line")}` : `▮ ${t("pcs_mode_candles")}`}
+                  </button>
+                ))}
+              </div>
+              <button type="button" onClick={() => setShowMa((v) => !v)} aria-pressed={showMa} title={t("pcs_ma_help")}
+                className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${showMa ? "border-amber-500/50 bg-amber-500/10 text-amber-300" : "border-slate-700 text-slate-500 hover:text-white"}`}>
+                MA 20/50
+              </button>
+            </div>
+          )}
         </div>
+        <p className="px-6 pb-4 text-[10px] text-slate-600">{reconstructed ? t("pcs_reconstructed_note") : t("pcs_snapshots_note")}</p>
       </div>
 
       {/* ── Tabs ── */}
