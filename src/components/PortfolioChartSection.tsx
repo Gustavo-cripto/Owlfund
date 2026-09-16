@@ -297,7 +297,9 @@ export default function PortfolioChartSection({
   const rangePct = first > 0 && bars.length >= 2 ? (rangeDelta / first) * 100 : (portfolioTotal > 0 ? (pnlToday / portfolioTotal) * 100 : 0);
   const isUp = rangeDelta >= 0;
   const averages = useMemo<MovingAverage[]>(() => MOVING_AVERAGES.filter((m) => maKeys.includes(maKey(m))).map(({ kind, n }) => ({ kind, n })), [maKeys]);
-  const fmtStable = useMemo(() => (v: number) => fmt(v, { compact: true }), [fmt]);
+  // Eixo dos precos: compacto so acima de 100 mil. Abaixo disso "€ 3.4K" repetia-se
+  // em todas as linhas do eixo quando o intervalo era de poucas dezenas de euros.
+  const fmtStable = useMemo(() => (v: number) => (Math.abs(v) >= 100_000 ? fmt(v, { compact: true }) : fmt(v, { decimals: Math.abs(v) < 100 ? 2 : 0 })), [fmt]);
   const rangeLabel: Record<TimeFrame, TranslationKey> = { "1h": "pcs_rg_1h", "1d": "pcs_rg_1d", "1s": "pcs_rg_1w", "1m": "pcs_rg_1m", "1a": "pcs_rg_1y", "tudo": "pcs_rg_all" };
 
   const priceMap: Record<string, number> = {
@@ -431,55 +433,55 @@ export default function PortfolioChartSection({
           )}
           {historyLoading && bars.length >= 2 && <div className="pointer-events-none absolute right-4 top-2 text-[10px] text-slate-500">{t("loading")}</div>}
         </div>
-        <div className="flex flex-wrap items-center gap-1 px-4 pb-2 pt-2">
+        <div className="flex flex-wrap items-center gap-1 px-4 pb-1 pt-2">
           {TIMEFRAMES.map(({ key, labelKey }) => (
             <button key={key} type="button" onClick={() => setTf(key)} aria-pressed={tf === key}
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
                 tf === key ? "bg-slate-700 text-white" : "text-slate-500 hover:text-white hover:bg-slate-800"
               }`}>{t(labelKey)}</button>
           ))}
-          {reconstructed && (
-            <div className="ml-auto flex items-center gap-1">
-              <div className="flex rounded-full border border-slate-700 p-0.5" role="radiogroup" aria-label={t("pcs_chart_type")}>
-                {(["area", "candles"] as ChartMode[]).map((m) => (
-                  <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => setMode(m)}
-                    className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition ${mode === m ? "bg-slate-700 text-white" : "text-slate-500 hover:text-white"}`}>
-                    {m === "area" ? `〜 ${t("pcs_mode_line")}` : `▮ ${t("pcs_mode_candles")}`}
-                  </button>
-                ))}
-              </div>
-              <div className="relative">
-                <button type="button" onClick={() => setMaOpen((v) => !v)} aria-expanded={maOpen} title={t("pcs_ma_help")}
-                  className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${maKeys.length ? "border-amber-500/50 bg-amber-500/10 text-amber-300" : "border-slate-700 text-slate-500 hover:text-white"}`}>
-                  {t("pcs_ma")}{maKeys.length ? ` · ${maKeys.length}` : ""} ▾
-                </button>
-                {maOpen && (
-                  <div className="absolute right-0 z-20 mt-1 w-60 rounded-xl border border-slate-700 bg-slate-900 p-2 shadow-xl" role="group" aria-label={t("pcs_ma")}>
-                    <p className="px-1 pb-1 text-[10px] text-slate-500">{t("pcs_ma_help")}</p>
-                    {MOVING_AVERAGES.map((m) => {
-                      const k = maKey(m);
-                      const on = maKeys.includes(k);
-                      const enough = bars.length >= m.n + 1;
-                      return (
-                        <button key={k} type="button" onClick={() => enough && toggleMa(k)} aria-pressed={on} disabled={!enough}
-                          title={enough ? "" : t("pcs_ma_needs").replace("{n}", String(m.n + 1))}
-                          className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition ${!enough ? "cursor-not-allowed opacity-40" : on ? "bg-slate-800 text-white" : "text-slate-300 hover:bg-slate-800/60"}`}>
-                          <span className="inline-block h-0.5 w-5 rounded" style={{ backgroundColor: m.color, borderTop: m.kind === "ema" ? "2px dashed " + m.color : undefined, height: m.kind === "ema" ? 0 : undefined }} />
-                          <span className="font-semibold">{m.kind.toUpperCase()} {m.n}</span>
-                          <span className="ml-auto text-[10px] text-slate-500">{m.kind === "ema" ? t("pcs_ma_ema_short") : t("pcs_ma_sma_short")}</span>
-                          {on && <span className="text-emerald-400">✓</span>}
-                        </button>
-                      );
-                    })}
-                    {maKeys.length > 0 && (
-                      <button type="button" onClick={() => { setMaKeys([]); try { localStorage.removeItem("cfa-chart-ma"); } catch { /* ignore */ } }} className="mt-1 w-full rounded-lg px-2 py-1 text-[11px] text-slate-500 hover:text-white">{t("pcs_ma_clear")}</button>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </div>
+        {reconstructed && (
+          <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-2">
+            <div className="flex rounded-full border border-slate-700 p-0.5" role="radiogroup" aria-label={t("pcs_chart_type")}>
+              {(["area", "candles"] as ChartMode[]).map((m) => (
+                <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => setMode(m)}
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition ${mode === m ? "bg-slate-700 text-white" : "text-slate-500 hover:text-white"}`}>
+                  {m === "area" ? `〜 ${t("pcs_mode_line")}` : `▮ ${t("pcs_mode_candles")}`}
+                </button>
+              ))}
+            </div>
+            <button type="button" onClick={() => setMaOpen((v) => !v)} aria-expanded={maOpen} aria-controls="pcs-ma-panel"
+              className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${maKeys.length ? "border-amber-500/50 bg-amber-500/10 text-amber-300" : "border-slate-700 text-slate-500 hover:text-white"}`}>
+              {t("pcs_ma")}{maKeys.length ? ` · ${maKeys.length}` : ""} {maOpen ? "▴" : "▾"}
+            </button>
+          </div>
+        )}
+        {reconstructed && maOpen && (
+          // Painel no fluxo da pagina (nao flutuante): o cartao tem overflow-hidden e
+          // um menu absoluto ficava cortado — foi o que aconteceu no telemovel.
+          <div id="pcs-ma-panel" className="mx-4 mb-2 rounded-xl border border-slate-800 bg-slate-950/50 p-3" role="group" aria-label={t("pcs_ma")}>
+            <div className="flex flex-wrap gap-1.5">
+              {MOVING_AVERAGES.map((m) => {
+                const k = maKey(m);
+                const on = maKeys.includes(k);
+                const enough = bars.length >= m.n + 1;
+                return (
+                  <button key={k} type="button" onClick={() => enough && toggleMa(k)} aria-pressed={on} disabled={!enough}
+                    title={enough ? "" : t("pcs_ma_needs").replace("{n}", String(m.n + 1))}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${!enough ? "cursor-not-allowed border-slate-800 text-slate-600" : on ? "border-slate-500 bg-slate-800 text-white" : "border-slate-700 text-slate-400 hover:text-white"}`}>
+                    <span className="inline-block w-4 rounded" style={{ borderTop: `2px ${m.kind === "ema" ? "dashed" : "solid"} ${enough ? m.color : "#334155"}` }} />
+                    {m.kind.toUpperCase()} {m.n}
+                  </button>
+                );
+              })}
+              {maKeys.length > 0 && (
+                <button type="button" onClick={() => { setMaKeys([]); try { localStorage.removeItem("cfa-chart-ma"); } catch { /* ignore */ } }} className="rounded-full px-2.5 py-1 text-[11px] text-slate-500 hover:text-white">{t("pcs_ma_clear")}</button>
+              )}
+            </div>
+            <p className="mt-2 text-[10px] leading-relaxed text-slate-500">{t("pcs_ma_help")}</p>
+          </div>
+        )}
         {reconstructed && averages.length > 0 && (
           <div className="flex flex-wrap gap-x-3 gap-y-1 px-6 pb-1 text-[10px] text-slate-400">
             {MOVING_AVERAGES.filter((m) => maKeys.includes(maKey(m))).map((m) => (
