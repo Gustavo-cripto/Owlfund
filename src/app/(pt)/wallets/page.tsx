@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from "react";
+import { cleanDecimalInput, parseDecimal } from "@/lib/format/decimal";
 import { FREE_WALLET_LIMIT } from "@/lib/plans";
 import { btnPrimary } from "@/lib/ui/buttons";
 
@@ -2565,11 +2566,58 @@ export default function WalletsPage() {
     }
   };
 
+  // Campos de dinheiro nas listas (investido, valor de compra): guardados em EUR,
+  // mas a pessoa escreve e ve na moeda que escolheu (etiqueta com o simbolo).
+  // Texto + inputMode="decimal" para aceitar virgula no iPhone. Sem `value`
+  // controlado: o que se escreve nao e reescrito a meio; `key` re-sincroniza
+  // quando a moeda ou o valor guardado mudam por fora.
+  const moneyField = (opts: { eur: number | undefined; onEur: (v: number | undefined) => void; placeholder: string; width: string; ariaLabel: string }) => {
+    const shown = opts.eur != null && Number.isFinite(opts.eur) ? Math.round(opts.eur * (curRate || 1) * 100) / 100 : undefined;
+    return (
+      <input
+        key={`${curCode}:${shown ?? ""}`}
+        type={hideBalances ? "password" : "text"}
+        inputMode="decimal"
+        autoComplete="off"
+        placeholder={opts.placeholder}
+        aria-label={opts.ariaLabel}
+        defaultValue={shown != null ? shown.toLocaleString(numberFormat, { maximumFractionDigits: 2, useGrouping: false }) : ""}
+        onBlur={(event) => {
+          const text = cleanDecimalInput(event.target.value);
+          if (text === "") { opts.onEur(undefined); return; }
+          const v = parseDecimal(text);
+          if (Number.isFinite(v) && v >= 0) opts.onEur(v / (curRate || 1));
+        }}
+        className={`${opts.width} rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400`}
+      />
+    );
+  };
+  // Quantidades (moedas/acoes): so o numero, aceita virgula.
+  const qtyField = (opts: { value: number | undefined; onValue: (v: number | undefined) => void; placeholder: string; title?: string; width: string; ariaLabel: string }) => (
+    <input
+      key={`q:${opts.value ?? ""}`}
+      type={hideBalances ? "password" : "text"}
+      inputMode="decimal"
+      autoComplete="off"
+      placeholder={opts.placeholder}
+      title={opts.title}
+      aria-label={opts.ariaLabel}
+      defaultValue={opts.value != null ? String(opts.value) : ""}
+      onBlur={(event) => {
+        const text = cleanDecimalInput(event.target.value);
+        if (text === "") { opts.onValue(undefined); return; }
+        const v = parseDecimal(text);
+        if (Number.isFinite(v) && v >= 0) opts.onValue(v);
+      }}
+      className={`${opts.width} rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400`}
+    />
+  );
+
   const handleManualAddCryptoAsset = () => {
     setManualCryptoAssetError(null);
     const symbol = manualCryptoAssetSymbol.trim();
     const amountStr = manualCryptoAssetAmountUsd.trim();
-    const amount = amountStr === "" ? NaN : Number(amountStr);
+    const amount = amountStr === "" ? NaN : parseDecimal(amountStr);
     if (!symbol) {
       setManualCryptoAssetError(t("wl_pick_asset"));
       return;
@@ -2579,7 +2627,7 @@ export default function WalletsPage() {
       return;
     }
     const qtyRaw = manualCryptoAssetQty.trim();
-    const qty = qtyRaw === "" ? undefined : Number(qtyRaw);
+    const qty = qtyRaw === "" ? undefined : parseDecimal(qtyRaw);
     updateCryptoHolding(symbol, {
       buyDate: manualCryptoAssetDate || undefined,
       // Store invested value in EUR (totals are in EUR); convert from the
@@ -4957,41 +5005,12 @@ export default function WalletsPage() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <div className="flex flex-col gap-0.5">
-                        <label className="text-[10px] text-slate-600 px-1">{t("wl_invested_eur")}</label>
-                        <input
-                          type={hideBalances ? "password" : "number"}
-                          inputMode="decimal"
-                          min="0"
-                          step="0.01"
-                          placeholder="200"
-                          value={holding.buyValue ?? ""}
-                          onChange={(event) => {
-                            const value = event.target.value;
-                            updateCryptoHolding(symbol, {
-                              buyValue: value === "" ? undefined : Number(value),
-                            });
-                          }}
-                          className="w-36 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
-                        />
+                        <label className="text-[10px] text-slate-600 px-1">{t("wl_invested")} ({curSym})</label>
+                        {moneyField({ eur: holding.buyValue, onEur: (v) => updateCryptoHolding(symbol, { buyValue: v }), placeholder: "200", width: "w-36", ariaLabel: `${t("wl_invested")} ${symbol}` })}
                       </div>
                       <div className="flex flex-col gap-0.5">
-                        <label className="text-[10px] text-slate-600 px-1" title={t("wl_qty_hint")}>{t("wl_quantity")}</label>
-                        <input
-                          type={hideBalances ? "password" : "number"}
-                          inputMode="decimal"
-                          min="0"
-                          step="any"
-                          placeholder="0.5"
-                          title={t("wl_qty_hint")}
-                          value={holding.quantity ?? ""}
-                          onChange={(event) => {
-                            const value = event.target.value;
-                            updateCryptoHolding(symbol, {
-                              quantity: value === "" ? undefined : Number(value),
-                            });
-                          }}
-                          className="w-28 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
-                        />
+                        <label className="text-[10px] text-slate-600 px-1" title={t("wl_qty_hint")}>{t("wl_quantity")} ({symbol})</label>
+                        {qtyField({ value: holding.quantity, onValue: (v) => updateCryptoHolding(symbol, { quantity: v }), placeholder: "0,5", title: t("wl_qty_hint"), width: "w-28", ariaLabel: `${t("wl_quantity")} ${symbol}` })}
                       </div>
                       <div className="flex flex-col gap-0.5">
                         <label className="text-[10px] text-slate-600 px-1">{t("wl_buy_date")}</label>
@@ -5296,37 +5315,8 @@ export default function WalletsPage() {
                           })()}
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
-                          <input
-                            type="number"
-                            inputMode="decimal"
-                            min="0"
-                            step="any"
-                            placeholder={t("wl_quantity")}
-                            title={t("wl_trad_qty_hint")}
-                            value={buy.quantity ?? ""}
-                            onChange={(event) => {
-                              const value = event.target.value;
-                              updateTraditionalBuy(asset.id, {
-                                quantity: value === "" ? undefined : Number(value),
-                              });
-                            }}
-                            className="w-28 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
-                          />
-                          <input
-                            type="number"
-                            inputMode="decimal"
-                            min="0"
-                            step="0.01"
-                            placeholder={t("wl_buy_value")}
-                            value={buy.buyValue ?? ""}
-                            onChange={(event) => {
-                              const value = event.target.value;
-                              updateTraditionalBuy(asset.id, {
-                                buyValue: value === "" ? undefined : Number(value),
-                              });
-                            }}
-                            className="w-40 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
-                          />
+                          {qtyField({ value: buy.quantity, onValue: (v) => updateTraditionalBuy(asset.id, { quantity: v }), placeholder: t("wl_quantity"), title: t("wl_trad_qty_hint"), width: "w-28", ariaLabel: `${t("wl_quantity")} ${asset.id}` })}
+                          {moneyField({ eur: buy.buyValue, onEur: (v) => updateTraditionalBuy(asset.id, { buyValue: v }), placeholder: `${t("wl_buy_value")} (${curSym})`, width: "w-40", ariaLabel: `${t("wl_buy_value")} ${asset.id}` })}
                           <input
                             type="date"
                             value={buy.buyDate ?? ""}
@@ -5662,26 +5652,25 @@ export default function WalletsPage() {
             <div className="relative">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">{curSym}</span>
               <input
-                type="number"
-                min={0}
-                step={0.01}
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
                 className="w-36 rounded-full border border-slate-800 bg-slate-950/60 pl-7 pr-12 py-2 text-xs text-slate-200 outline-none placeholder:text-slate-500 transition focus:border-orange-400"
                 placeholder={t("wl_value")}
                 value={manualCryptoAssetAmountUsd}
-                onChange={(e) => setManualCryptoAssetAmountUsd(e.target.value)}
+                onChange={(e) => setManualCryptoAssetAmountUsd(cleanDecimalInput(e.target.value))}
               />
               <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-500">{curCode}</span>
             </div>
             <input
-              type="number"
-              min={0}
-              step="any"
+              type="text"
               inputMode="decimal"
+              autoComplete="off"
               title={t("wl_qty_hint")}
               className="w-32 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none placeholder:text-slate-500 transition focus:border-orange-400"
               placeholder={`${t("wl_quantity")} (opc.)`}
               value={manualCryptoAssetQty}
-              onChange={(e) => setManualCryptoAssetQty(e.target.value)}
+              onChange={(e) => setManualCryptoAssetQty(cleanDecimalInput(e.target.value))}
             />
             <button
               type="button"

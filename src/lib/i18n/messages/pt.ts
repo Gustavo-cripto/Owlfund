@@ -1229,6 +1229,7 @@ export const pt = {
     fb_thanks_body: "Lemos todas as respostas com atenção. Se decidir voltar a experimentar, o seu acesso continua ativo.",
     fb_back: "Voltar ao ChainFolioAI",
     export_stale: "O site foi atualizado desde que abriste esta página. A recarregar para a versão nova…",
+    wl_invested: "Valor investido",
     fisc_fee_explain: "a comissão que a corretora cobrou nesta operação, ou o gás da rede, em dinheiro (não em moedas). Exemplo: comprou 0,0100 BTC e a Kraken cobrou 1,20 € — escreve 1,20. Na compra soma ao custo; na venda desce ao valor recebido. Se não houve, deixa em branco.",
     pcs_ma: "Médias",
     pcs_ma_sma_short: "simples",
@@ -1797,7 +1798,7 @@ export const pt = {
     fisc_pdf_num_events: "Nº de eventos",
     fisc_pdf_method_label: "Método / Moeda base",
     fisc_pdf_notes: "Como é calculado",
-    fisc_pdf_notes_text: "Mais-valias calculadas pelo método FIFO, em EUR. Posições detidas mais de 1 ano podem beneficiar de isenção ou taxa reduzida consoante o país. Valores arredondados.",
+    fisc_pdf_notes_text: "Mais-valias calculadas pelo método FIFO, na moeda do relatório. Posições detidas mais de 1 ano podem beneficiar de isenção ou taxa reduzida consoante o país. Valores arredondados.",
     fisc_pdf_footer: "Documento indicativo gerado por ChainFolioAI. Não substitui aconselhamento fiscal profissional.",
     fisc_disclaimer: "Informação de caráter geral. Consulta sempre um especialista fiscal para a tua declaração oficial.",
 

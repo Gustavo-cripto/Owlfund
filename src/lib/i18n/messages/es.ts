@@ -1220,6 +1220,7 @@ export const es: Record<TranslationKey, string> = {
     fb_thanks_body: "Leemos todas las respuestas con atención. Si decide volver a probar, su acceso sigue activo.",
     fb_back: "Volver a ChainFolioAI",
     export_stale: "El sitio se actualizó desde que abriste esta página. Recargando a la versión nueva…",
+    wl_invested: "Valor invertido",
     fisc_fee_explain: "la comisión que el exchange cobró en esta operación, o el gas de la red, en dinero (no en monedas). Ejemplo: compraste 0,0100 BTC y Kraken cobró 1,20 € — escribe 1,20. En la compra suma al coste; en la venta reduce el importe recibido. Si no hubo, déjalo en blanco.",
     pcs_ma: "Medias",
     pcs_ma_sma_short: "simple",
@@ -1786,7 +1787,7 @@ export const es: Record<TranslationKey, string> = {
     fisc_pdf_num_events: "Nº de eventos",
     fisc_pdf_method_label: "Método / Moneda base",
     fisc_pdf_notes: "Cómo se calcula",
-    fisc_pdf_notes_text: "Plusvalías calculadas con el método FIFO, en EUR. Las posiciones mantenidas más de 1 año pueden beneficiarse de exención o tasa reducida según el país. Valores redondeados.",
+    fisc_pdf_notes_text: "Plusvalías calculadas con el método FIFO, en la moneda del informe. Las posiciones mantenidas más de 1 año pueden beneficiarse de exención o tasa reducida según el país. Valores redondeados.",
     fisc_pdf_footer: "Documento indicativo generado por ChainFolioAI. No sustituye el asesoramiento fiscal profesional.",
     fisc_disclaimer: "Información de carácter general. Consulta siempre a un asesor fiscal para tu declaración oficial.",
 
