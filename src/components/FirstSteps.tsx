@@ -99,7 +99,7 @@ export default function FirstSteps() {
     // Agradece uma vez; na proxima visita (ja "celebrado") desaparece.
     if (celebrated && !demoDone) return null;
     return (
-      <section className={`${closing ? "animate-fade-out" : "animate-scale-in"} rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.06] p-5`}>
+      <section role="status" className={`${closing ? "animate-fade-out" : "animate-scale-in"} rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.06] p-5`}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             {/* O check desenha-se — acontece uma vez por conta */}
@@ -108,7 +108,8 @@ export default function FirstSteps() {
                 <path d="M14 25l7 7 13-14" />
               </svg>
             </span>
-            <div>
+            {/* O texto chega um instante depois do check — o olho vai primeiro ao ✓ */}
+            <div className={closing ? "" : "animate-fade-in-up delay-150"}>
               <p className="text-sm font-bold text-white">{t("fs_done_t")}</p>
               <p className="mt-1 text-xs text-slate-400">{t("fs_done_d")}</p>
             </div>
