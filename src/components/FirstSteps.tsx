@@ -58,9 +58,13 @@ export default function FirstSteps() {
   const [auto, setAuto] = useState<Record<"wallet" | "manual" | "trade", boolean> | null>(null);
   // O cartao de "tudo a postos" fecha com uma saida curta em vez de sumir.
   const [closing, setClosing] = useState(false);
+  // Pré-visualização sem mexer nos dados: /dashboard?fs=done mostra o cartao
+  // final (para rever o aspeto); "Fechar" so o tira do ecra.
+  const [demoDone, setDemoDone] = useState(false);
 
   const refresh = useCallback(() => { setSaved(readSaved()); setAuto(detectAuto()); }, []);
   useEffect(() => {
+    try { setDemoDone(new URLSearchParams(window.location.search).get("fs") === "done"); } catch { /* sem window */ }
     refresh();
     window.addEventListener(ACCOUNTS_EVENT, refresh);
     window.addEventListener("focus", refresh);
@@ -77,18 +81,23 @@ export default function FirstSteps() {
     if (allDone && saved && !celebrated) writeSaved({ ...saved, celebrated: true });
   }, [allDone, celebrated, saved]);
 
-  if (!saved || !auto || saved.hidden) return null;
+  if (!demoDone && (!saved || !auto || saved.hidden)) return null;
 
   const markClicked = (id: StepId) => {
+    if (!saved) return;
     const next = { ...saved, clicked: Array.from(new Set([...(saved.clicked ?? []), id])) };
     writeSaved(next); setSaved(next);
   };
-  const hide = () => { const next = { ...saved, hidden: true }; writeSaved(next); setSaved(next); };
+  const hide = () => {
+    if (demoDone) { setDemoDone(false); setClosing(false); return; }
+    if (!saved) return;
+    const next = { ...saved, hidden: true }; writeSaved(next); setSaved(next);
+  };
   const closeSoft = () => { setClosing(true); window.setTimeout(hide, 150); };
 
-  if (allDone) {
+  if (allDone || demoDone) {
     // Agradece uma vez; na proxima visita (ja "celebrado") desaparece.
-    if (celebrated) return null;
+    if (celebrated && !demoDone) return null;
     return (
       <section className={`${closing ? "animate-fade-out" : "animate-scale-in"} rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.06] p-5`}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
