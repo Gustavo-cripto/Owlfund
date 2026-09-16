@@ -5,7 +5,7 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import dynamic from "next/dynamic";
 import NftImage from "@/components/NftImage";
-import { combineSeries, TF, type Bar, type SeriesBySymbol, type Timeframe } from "@/lib/portfolio/history";
+import { combineSeries, MOVING_AVERAGES, maKey, TF, type Bar, type MovingAverage, type SeriesBySymbol, type Timeframe } from "@/lib/portfolio/history";
 import { loadFxTable } from "@/lib/fx/historical";
 import { loadCryptoHoldings, type CryptoHoldings } from "@/lib/crypto/storage";
 import { ACCOUNTS_EVENT } from "@/lib/portfolios/accounts";
@@ -203,7 +203,11 @@ export default function PortfolioChartSection({
   const fmtUsdCompact = (v: number) => fmtUsd(v, { compact: true });
   const [tf, setTf] = useState<TimeFrame>("1d");
   const [mode, setMode] = useState<ChartMode>("area");
-  const [showMa, setShowMa] = useState(false);
+  // Medias escolhidas (chaves como "sma20"), guardadas no browser.
+  const [maKeys, setMaKeys] = useState<string[]>([]);
+  const [maOpen, setMaOpen] = useState(false);
+  useEffect(() => { try { const raw = localStorage.getItem("cfa-chart-ma"); if (raw) setMaKeys(JSON.parse(raw)); } catch { /* ignore */ } }, []);
+  const toggleMa = (k: string) => setMaKeys((prev) => { const next = prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]; try { localStorage.setItem("cfa-chart-ma", JSON.stringify(next)); } catch { /* ignore */ } return next; });
   const [hover, setHover] = useState<{ t: number; value: number } | null>(null);
   const [history, setHistory] = useState<{ tf: TimeFrame; bars: Bar[] } | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -292,7 +296,7 @@ export default function PortfolioChartSection({
   const rangeDelta = bars.length >= 2 ? last - first : pnlToday;
   const rangePct = first > 0 && bars.length >= 2 ? (rangeDelta / first) * 100 : (portfolioTotal > 0 ? (pnlToday / portfolioTotal) * 100 : 0);
   const isUp = rangeDelta >= 0;
-  const averages = useMemo(() => (showMa ? [20, 50] : []), [showMa]);
+  const averages = useMemo<MovingAverage[]>(() => MOVING_AVERAGES.filter((m) => maKeys.includes(maKey(m))).map(({ kind, n }) => ({ kind, n })), [maKeys]);
   const fmtStable = useMemo(() => (v: number) => fmt(v, { compact: true }), [fmt]);
   const rangeLabel: Record<TimeFrame, TranslationKey> = { "1h": "pcs_rg_1h", "1d": "pcs_rg_1d", "1s": "pcs_rg_1w", "1m": "pcs_rg_1m", "1a": "pcs_rg_1y", "tudo": "pcs_rg_all" };
 
@@ -444,13 +448,48 @@ export default function PortfolioChartSection({
                   </button>
                 ))}
               </div>
-              <button type="button" onClick={() => setShowMa((v) => !v)} aria-pressed={showMa} title={t("pcs_ma_help")}
-                className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${showMa ? "border-amber-500/50 bg-amber-500/10 text-amber-300" : "border-slate-700 text-slate-500 hover:text-white"}`}>
-                MA 20/50
-              </button>
+              <div className="relative">
+                <button type="button" onClick={() => setMaOpen((v) => !v)} aria-expanded={maOpen} title={t("pcs_ma_help")}
+                  className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${maKeys.length ? "border-amber-500/50 bg-amber-500/10 text-amber-300" : "border-slate-700 text-slate-500 hover:text-white"}`}>
+                  {t("pcs_ma")}{maKeys.length ? ` · ${maKeys.length}` : ""} ▾
+                </button>
+                {maOpen && (
+                  <div className="absolute right-0 z-20 mt-1 w-60 rounded-xl border border-slate-700 bg-slate-900 p-2 shadow-xl" role="group" aria-label={t("pcs_ma")}>
+                    <p className="px-1 pb-1 text-[10px] text-slate-500">{t("pcs_ma_help")}</p>
+                    {MOVING_AVERAGES.map((m) => {
+                      const k = maKey(m);
+                      const on = maKeys.includes(k);
+                      const enough = bars.length >= m.n + 1;
+                      return (
+                        <button key={k} type="button" onClick={() => enough && toggleMa(k)} aria-pressed={on} disabled={!enough}
+                          title={enough ? "" : t("pcs_ma_needs").replace("{n}", String(m.n + 1))}
+                          className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition ${!enough ? "cursor-not-allowed opacity-40" : on ? "bg-slate-800 text-white" : "text-slate-300 hover:bg-slate-800/60"}`}>
+                          <span className="inline-block h-0.5 w-5 rounded" style={{ backgroundColor: m.color, borderTop: m.kind === "ema" ? "2px dashed " + m.color : undefined, height: m.kind === "ema" ? 0 : undefined }} />
+                          <span className="font-semibold">{m.kind.toUpperCase()} {m.n}</span>
+                          <span className="ml-auto text-[10px] text-slate-500">{m.kind === "ema" ? t("pcs_ma_ema_short") : t("pcs_ma_sma_short")}</span>
+                          {on && <span className="text-emerald-400">✓</span>}
+                        </button>
+                      );
+                    })}
+                    {maKeys.length > 0 && (
+                      <button type="button" onClick={() => { setMaKeys([]); try { localStorage.removeItem("cfa-chart-ma"); } catch { /* ignore */ } }} className="mt-1 w-full rounded-lg px-2 py-1 text-[11px] text-slate-500 hover:text-white">{t("pcs_ma_clear")}</button>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
+        {reconstructed && averages.length > 0 && (
+          <div className="flex flex-wrap gap-x-3 gap-y-1 px-6 pb-1 text-[10px] text-slate-400">
+            {MOVING_AVERAGES.filter((m) => maKeys.includes(maKey(m))).map((m) => (
+              <span key={maKey(m)} className="inline-flex items-center gap-1.5">
+                <span className="inline-block h-0.5 w-4 rounded" style={{ backgroundColor: m.color }} />
+                {m.kind.toUpperCase()} {m.n}{bars.length < m.n + 1 ? ` (${t("pcs_ma_needs").replace("{n}", String(m.n + 1))})` : ""}
+              </span>
+            ))}
+          </div>
+        )}
         <p className="px-6 pb-4 text-[10px] text-slate-600">{reconstructed ? t("pcs_reconstructed_note") : t("pcs_snapshots_note")}</p>
       </div>
 

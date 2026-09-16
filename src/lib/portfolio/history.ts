@@ -78,3 +78,29 @@ export function sma(bars: Bar[], n: number): Array<{ t: number; v: number | null
     return { t: b.t, v: i >= n - 1 ? sum / n : null };
   });
 }
+
+/** Media movel exponencial (k = 2/(n+1)), iniciada com a SMA dos primeiros n. */
+export function ema(bars: Bar[], n: number): Array<{ t: number; v: number | null }> {
+  const k = 2 / (n + 1);
+  let prev: number | null = null;
+  let sum = 0;
+  return bars.map((b, i) => {
+    if (i < n - 1) { sum += b.c; return { t: b.t, v: null }; }
+    if (i === n - 1) { sum += b.c; prev = sum / n; return { t: b.t, v: prev }; }
+    prev = b.c * k + (prev as number) * (1 - k);
+    return { t: b.t, v: prev };
+  });
+}
+
+export type MovingAverage = { kind: "sma" | "ema"; n: number };
+/** As medias que se podem escolher no grafico, por ordem, com a cor de cada uma. */
+export const MOVING_AVERAGES: Array<MovingAverage & { color: string }> = [
+  { kind: "sma", n: 7,   color: "#fbbf24" },
+  { kind: "sma", n: 20,  color: "#f97316" },
+  { kind: "sma", n: 50,  color: "#a78bfa" },
+  { kind: "sma", n: 100, color: "#38bdf8" },
+  { kind: "sma", n: 200, color: "#f472b6" },
+  { kind: "ema", n: 9,   color: "#34d399" },
+  { kind: "ema", n: 21,  color: "#e879f9" },
+];
+export const maKey = (m: MovingAverage) => `${m.kind}${m.n}`;

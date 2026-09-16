@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { Bar } from "@/lib/portfolio/history";
-import { sma } from "@/lib/portfolio/history";
+import type { Bar, MovingAverage } from "@/lib/portfolio/history";
+import { ema, MOVING_AVERAGES, maKey, sma } from "@/lib/portfolio/history";
 
 // Grafico do portefolio com a lightweight-charts (a biblioteca open-source da
 // TradingView): area OU velas, cruz de referencia com data e valor, eixo
@@ -13,8 +13,8 @@ export type ChartMode = "area" | "candles";
 type Props = {
   bars: Bar[];
   mode: ChartMode;
-  /** Medias moveis a desenhar (periodos), ex. [20, 50]. */
-  averages: number[];
+  /** Medias moveis a desenhar (ver MOVING_AVERAGES). */
+  averages: MovingAverage[];
   /** Intervalo curto: eixo com horas; longo: com datas. */
   intraday: boolean;
   up: boolean;
@@ -59,12 +59,14 @@ export default function PortfolioHistoryChart({ bars, mode, averages, intraday, 
       main = chart.addSeries(lc.AreaSeries, { lineColor: color, topColor: `${color}40`, bottomColor: `${color}00`, lineWidth: 2, priceLineVisible: false, lastValueVisible: true, crosshairMarkerRadius: 4 });
       main.setData(bars.map((b) => ({ time: toTime(b.t), value: b.c })));
     }
-    const maColors = ["#f59e0b", "#8b5cf6", "#38bdf8"];
-    averages.forEach((n, i) => {
-      if (bars.length < n + 1) return;
-      const s = chart.addSeries(lc.LineSeries, { color: maColors[i % maColors.length], lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-      s.setData(sma(bars, n).filter((p) => p.v != null).map((p) => ({ time: toTime(p.t), value: p.v as number })));
-    });
+    for (const m of averages) {
+      // Sem pontos suficientes a media nao existe — nao se desenha nada.
+      if (bars.length < m.n + 1) continue;
+      const def = MOVING_AVERAGES.find((x) => maKey(x) === maKey(m));
+      const s = chart.addSeries(lc.LineSeries, { color: def?.color ?? "#94a3b8", lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, lineStyle: m.kind === "ema" ? lc.LineStyle.Dashed : lc.LineStyle.Solid });
+      const pts = (m.kind === "ema" ? ema(bars, m.n) : sma(bars, m.n)).filter((p) => p.v != null).map((p) => ({ time: toTime(p.t), value: p.v as number }));
+      s.setData(pts);
+    }
     chart.timeScale().fitContent();
 
     chart.subscribeCrosshairMove((p) => {
