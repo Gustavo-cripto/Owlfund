@@ -540,7 +540,7 @@ export default function GestorPage() {
                         <button
                           type="button"
                           onClick={() => { try { void navigator.clipboard.writeText(msg.content).then(() => { setCopiedId(msg.id); setTimeout(() => setCopiedId((p) => (p === msg.id ? null : p)), 1500); }).catch(() => {}); } catch { /* ignore */ } }}
-                          className="rounded border border-slate-700 px-1.5 py-0.5 text-[9px] text-slate-400 opacity-0 transition hover:text-white group-hover:opacity-100 focus:opacity-100"
+                          className="rounded border border-slate-700 px-1.5 py-0.5 text-[9px] text-slate-400 [@media(hover:hover)]:opacity-0 transition hover:text-white group-hover:opacity-100 focus:opacity-100"
                           aria-label={t("gz_copy_msg")}
                         >
                           {copiedId === msg.id ? t("dev_copied") : t("gz_copy_msg")}

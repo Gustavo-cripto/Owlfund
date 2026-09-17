@@ -722,8 +722,9 @@ export default function HistoricoPage() {
                         <td className="py-2.5 pr-3 text-slate-500">{tx.exchange}</td>
                         <td className="py-2.5 pr-3 text-slate-600 max-w-[120px] truncate" title={tx.notes || undefined}>{tx.notes || "—"}</td>
                         <td className="py-2.5">
+                          {/* Sem rato (toque) ficam sempre visiveis; com rato, so ao passar por cima. */}
                           {!readOnly && (
-                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition">
+                            <div className="flex gap-1 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition">
                               <button type="button" onClick={() => handleEdit(tx)} aria-label={t("hx_edit_tx")} title={t("hx_edit_tx")}
                                 className="rounded px-2 py-1 text-[10px] text-slate-400 hover:text-white hover:bg-slate-700 transition">✏️</button>
                               <button type="button" onClick={() => handleDelete(tx)} aria-label={t("hx_delete")} title={t("hx_delete")}
