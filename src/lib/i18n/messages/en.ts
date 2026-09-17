@@ -1226,6 +1226,7 @@ export const en: Record<TranslationKey, string> = {
     wl_e_no_account: "{p} did not return any account. Check that it is unlocked and try again.",
     wl_e_not_found: "We could not find any wallet installed in this browser.",
     wl_e_not_configured: "WalletConnect is not configured on this site.",
+    app_skip: "Skip to content",
     pfs_d_divers: "Your largest position is {pct} of the total.",
     pfs_r_divers: "Full marks (30) with the largest position under 40 %; 22 under 60 %; 15 under 80 %.",
     pfs_d_mix: "Traditional assets (stocks, ETFs, gold): {pct} of the total.",

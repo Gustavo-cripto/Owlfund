@@ -1226,6 +1226,7 @@ export const fr: Record<TranslationKey, string> = {
     wl_e_no_account: "{p} n'a renvoyé aucun compte. Vérifiez qu'il est déverrouillé et réessayez.",
     wl_e_not_found: "Aucun portefeuille installé n'a été trouvé dans ce navigateur.",
     wl_e_not_configured: "La connexion WalletConnect n'est pas configurée sur ce site.",
+    app_skip: "Aller au contenu",
     pfs_d_divers: "La plus grande position pèse {pct} du total.",
     pfs_r_divers: "Maximum (30) si la plus grande position est sous 40 % ; 22 sous 60 % ; 15 sous 80 %.",
     pfs_d_mix: "Actifs traditionnels (actions, ETF, or) : {pct} du total.",

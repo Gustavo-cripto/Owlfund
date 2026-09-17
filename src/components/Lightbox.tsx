@@ -1,7 +1,7 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 // Imagem clicavel que abre em grande, por cima de tudo. Para os screenshots
@@ -27,13 +27,21 @@ export default function Lightbox({ src, alt, width, height, className, loading =
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);
 
+  const closeRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
+    // Teclado: Esc fecha; o foco vai para o X (unico controlo) e volta ao botao
+    // da miniatura ao fechar. Tab fica no X — nao ha mais nada para onde ir.
+    const opener = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+      else if (e.key === "Tab") { e.preventDefault(); closeRef.current?.focus(); }
+    };
     document.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
+    return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = prev; opener?.focus?.(); };
   }, [open, close]);
 
   return (
@@ -59,6 +67,7 @@ export default function Lightbox({ src, alt, width, height, className, loading =
           className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/95 p-4 backdrop-blur-sm animate-fade-in"
         >
           <button
+            ref={closeRef}
             type="button"
             onClick={close}
             aria-label={t("lb_close")}

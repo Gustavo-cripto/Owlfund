@@ -31,7 +31,7 @@ export default defineConfig({
     video: "off",
   },
   projects: [
-    { name: "publico", testMatch: /publico\.spec\.ts/, use: { ...devices["Desktop Chrome"] } },
+    { name: "publico", testMatch: /(publico|acessibilidade)\.spec\.ts/, use: { ...devices["Desktop Chrome"] } },
     // Telemovel em Chromium (Pixel 7): um so browser instalado no CI chega.
     { name: "publico-movel", testMatch: /publico\.spec\.ts/, use: { ...devices["Pixel 7"] } },
     // Sessao: so existe se houver credenciais.

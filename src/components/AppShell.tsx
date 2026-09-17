@@ -78,11 +78,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <ConfirmProvider>
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col xl:flex-row xl:items-start">
+      {/* Teclado/leitor de ecrã: saltar a navegação de uma vez (invisível até ter foco). */}
+      <a href="#conteudo" className="skip-link">{tr("app_skip")}</a>
       <Sidebar />
-      <div className="flex-1 min-w-0 flex flex-col min-h-screen">
+      <div id="conteudo" tabIndex={-1} className="flex-1 min-w-0 flex flex-col min-h-screen outline-none">
         {/* ── Price ticker (real via /api/markets; fallback estático marcado como exemplo) ── */}
         <div className="ticker-wrap relative border-b border-slate-800/60 bg-slate-900/50 py-2 overflow-hidden select-none shrink-0" title={live ? tr("app_ticker_tip") : tr("app_ticker_demo_tip")}>
-          {!live && <span className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded bg-slate-800 px-1.5 text-[9px] uppercase tracking-wider text-slate-500">{tr("app_ticker_demo")}</span>}
+          {!live && <span className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded bg-slate-800 px-1.5 text-[9px] uppercase tracking-wider text-slate-300">{tr("app_ticker_demo")}</span>}
           <div className="flex animate-ticker" style={{ width: "max-content" }}>
             {[...ticks, ...ticks, ...ticks].map((tick, i) => (
               <span key={i} className="inline-flex items-center gap-1.5 mx-6 text-xs font-mono whitespace-nowrap">

@@ -1,7 +1,7 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 // Envolve um grafico com um botao "ver em grande": abre o mesmo conteudo num
@@ -14,13 +14,27 @@ export default function ChartModal({ title, children, className }: Props) {
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);
 
+  const dialogRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
+    // Teclado: Esc fecha; Tab fica dentro do dialogo; ao fechar o foco volta
+    // ao botao que o abriu (senao um leitor de ecra "cai" no topo da pagina).
+    const opener = document.activeElement as HTMLElement | null;
+    const focusables = () => Array.from(dialogRef.current?.querySelectorAll<HTMLElement>("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])") ?? []);
+    focusables()[0]?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { close(); return; }
+      if (e.key !== "Tab") return;
+      const els = focusables();
+      if (els.length === 0) return;
+      const first = els[0], last = els[els.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
     document.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
+    return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = prev; opener?.focus?.(); };
   }, [open, close]);
 
   return (
@@ -31,7 +45,7 @@ export default function ChartModal({ title, children, className }: Props) {
       </button>
       {children(false)}
       {open && typeof document !== "undefined" && createPortal(
-        <div role="dialog" aria-modal="true" aria-label={title} onClick={close}
+        <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={title} onClick={close}
           className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/95 p-3 backdrop-blur-sm animate-fade-in sm:p-6">
           <div onClick={(e) => e.stopPropagation()} className="animate-scale-in flex h-[88vh] w-full max-w-5xl flex-col rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-2xl shadow-black/60 sm:p-6">
             <div className="mb-3 flex items-center justify-between gap-3">

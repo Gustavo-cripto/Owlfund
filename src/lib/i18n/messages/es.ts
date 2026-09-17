@@ -1226,6 +1226,7 @@ export const es: Record<TranslationKey, string> = {
     wl_e_no_account: "{p} no devolvió ninguna cuenta. Comprueba que está desbloqueada e inténtalo de nuevo.",
     wl_e_not_found: "No encontramos ninguna cartera instalada en este navegador.",
     wl_e_not_configured: "La conexión por WalletConnect no está configurada en este sitio.",
+    app_skip: "Saltar al contenido",
     pfs_d_divers: "La mayor posición pesa {pct} del total.",
     pfs_r_divers: "Máximo (30) con la mayor posición por debajo del 40 %; 22 por debajo del 60 %; 15 por debajo del 80 %.",
     pfs_d_mix: "Activos tradicionales (acciones, ETF, oro): {pct} del total.",

@@ -217,6 +217,37 @@ details[open] > .faq-a { animation: fade-in-up var(--duration-fast) var(--ease-o
   .card-hover         { transition-property: border-color, box-shadow; }
 }
 
+/* ── Acessibilidade ──
+   Foco visível para quem navega por teclado: anel laranja só com :focus-visible
+   (o clique de rato não o mostra). Vem depois das utilities do Tailwind, por
+   isso ganha ao outline-none dos inputs/botões. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+/* Link "saltar para o conteúdo": invisível até receber foco. */
+.skip-link {
+  position: absolute;
+  left: 12px;
+  top: -100px;
+  z-index: 200;
+  padding: 8px 14px;
+  border-radius: 9999px;
+  background: var(--accent);
+  color: #020617;
+  font-weight: 700;
+  font-size: 13px;
+}
+.skip-link:focus-visible { top: 12px; }
+/* Quem pediu menos transparência: vidro fosco passa a fundo sólido. */
+@media (prefers-reduced-transparency: reduce) {
+  .backdrop-blur, .backdrop-blur-sm, .backdrop-blur-md, .backdrop-blur-lg {
+    backdrop-filter: none !important;
+    background-color: rgb(2 6 23 / 0.98) !important;
+  }
+}
+
 /* Metric card number */
 .metric-value {
   font-variant-numeric: tabular-nums;

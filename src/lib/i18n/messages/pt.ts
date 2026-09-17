@@ -1235,6 +1235,7 @@ export const pt = {
     wl_e_no_account: "{p} não devolveu nenhuma conta. Verifica se está desbloqueada e tenta de novo.",
     wl_e_not_found: "Não encontrámos nenhuma carteira instalada neste browser.",
     wl_e_not_configured: "A ligação por WalletConnect não está configurada neste site.",
+    app_skip: "Saltar para o conteúdo",
     pfs_d_divers: "A maior posição pesa {pct} do total.",
     pfs_r_divers: "Máximo (30) com a maior posição abaixo de 40 %; 22 abaixo de 60 %; 15 abaixo de 80 %.",
     pfs_d_mix: "Ativos tradicionais (ações, ETF, ouro): {pct} do total.",

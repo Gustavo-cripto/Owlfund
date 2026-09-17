@@ -381,7 +381,7 @@ export default function Pricing() {
 
               {/* Premium */}
               <div className={`rounded-2xl border p-6 space-y-5 relative overflow-hidden ${currentPlan === "premium" ? "border-violet-400 bg-violet-500/10" : "border-violet-500/40 bg-violet-500/5"}`}>
-                <div className="absolute top-3 right-3 text-[10px] bg-violet-500 text-white font-bold px-2 py-0.5 rounded-full">{t("pc_badge_pro")}</div>
+                <div className="absolute top-3 right-3 text-[10px] bg-violet-700 text-white font-bold px-2 py-0.5 rounded-full">{t("pc_badge_pro")}</div>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-400">Premium</p>
                   <p className="text-3xl font-bold text-white mt-1">{priceLabel("premium")} <span className="text-sm font-normal text-slate-500">{annual ? t("pc_per_year") : t("pc_per_month")}</span></p>
