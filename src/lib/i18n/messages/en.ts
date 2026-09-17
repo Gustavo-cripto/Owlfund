@@ -1220,6 +1220,7 @@ export const en: Record<TranslationKey, string> = {
     fb_thanks_body: "We read every reply carefully. Should you decide to try again, your access is still active.",
     fb_back: "Return to ChainFolioAI",
     export_stale: "The site was updated since you opened this page. Reloading to the new version…",
+    fisc_no_trades_cta: "Record transactions →",
     pfs_d_divers: "Your largest position is {pct} of the total.",
     pfs_r_divers: "Full marks (30) with the largest position under 40 %; 22 under 60 %; 15 under 80 %.",
     pfs_d_mix: "Traditional assets (stocks, ETFs, gold): {pct} of the total.",

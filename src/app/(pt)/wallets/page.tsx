@@ -6,6 +6,7 @@ import { FREE_WALLET_LIMIT } from "@/lib/plans";
 import { btnPrimary } from "@/lib/ui/buttons";
 
 import AppShell from "@/components/AppShell";
+import EmptyState from "@/components/EmptyState";
 import { useConfirm } from "@/components/ConfirmDialog";
 import NftImage from "@/components/NftImage";
 import CexSection from "@/components/wallets/CexSection";
@@ -4978,10 +4979,7 @@ export default function WalletsPage() {
               <span className="text-[10px] text-slate-600">{t("wl_reg_no_wallet")}</span>
             </div>
             {sortedCryptoSymbols.length === 0 && !(ethWallets.length > 0 || ethAddress || solWallets.length > 0 || solAddress || btcWallets.length > 0 || btcAddress || adaWallets.length > 0 || adaAddress) && stablecoinEntries.length === 0 && otherWallets.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-700 p-4 text-center">
-                <p className="text-sm text-slate-500">{t("wl_no_asset_added")}</p>
-                <p className="text-xs text-slate-600 mt-1">{t("wl_use_selector")}</p>
-              </div>
+              <EmptyState compact icon="🪙" title={t("wl_no_asset_added")} description={t("wl_use_selector")} />
             ) : (
               sortedCryptoSymbols.map((symbol) => {
                 const holding = cryptoHoldings[symbol] ?? {};

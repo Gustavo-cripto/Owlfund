@@ -6,6 +6,7 @@ import { loadFxTable, type FxTable } from "@/lib/fx/historical";
 import { CURRENCY_SIGN } from "@/lib/currency/symbols";
 import { btnPrimary } from "@/lib/ui/buttons";
 import AppShell from "@/components/AppShell";
+import EmptyState from "@/components/EmptyState";
 import PageSkeleton from "@/components/PageSkeleton";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -1153,11 +1154,9 @@ export default function FiscalidadePage() {
           )}
 
           {trades.length === 0 && (
-            <div className="rounded-2xl border border-dashed border-slate-700 p-12 text-center">
-              <p className="text-3xl mb-3">📋</p>
-              <p className="text-sm font-semibold text-white">{t("fisc_no_trades")}</p>
-              <p className="text-xs text-slate-400 mt-1">{t("fisc_no_trades_desc")}</p>
-            </div>
+            <EmptyState icon="🧮" title={t("fisc_no_trades")} description={t("fisc_no_trades_desc")}>
+              <a href="/historico" className="rounded-xl bg-orange-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-orange-400 transition">{t("fisc_no_trades_cta")}</a>
+            </EmptyState>
           )}
 
           {/* Legislação por país */}

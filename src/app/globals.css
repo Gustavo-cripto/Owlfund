@@ -148,6 +148,11 @@
    (Animar a altura de um <details> ainda não é universal; isto chega.) */
 details[open] > .faq-a { animation: fade-in-up var(--duration-fast) var(--ease-out) both; }
 
+/* Estado vazio: o ícone flutua devagar (movimento "idle", decorativo — só
+   aqui, porque se vê uma vez por conta). */
+@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+.empty-icon { animation: float 4s ease-in-out infinite; }
+
 /* Delay helpers */
 .delay-100 { animation-delay: 0.1s; }
 .delay-150 { animation-delay: 0.15s; }
@@ -193,6 +198,7 @@ details[open] > .faq-a { animation: fade-in-up var(--duration-fast) var(--ease-o
   .ticker-wrap        { overflow-x: auto; scrollbar-width: none; }
   .ticker-wrap::-webkit-scrollbar { display: none; }
   .animate-glow-pulse,
+  .empty-icon,
   .animate-bounce,
   .animate-ping,
   .animate-ping-dot,

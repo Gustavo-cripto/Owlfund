@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import AppShell from "@/components/AppShell";
+import EmptyState from "@/components/EmptyState";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { ACCOUNTS_EVENT, ALL_ACCOUNTS_ID, getActiveAccountId } from "@/lib/portfolios/accounts";
 import { pullWalletCloud, pushWalletCloud } from "@/lib/portfolios/cloudSync";
@@ -386,11 +387,7 @@ export default function HistoricoPage() {
 
           {/* ── Empty state (before the form) ── */}
           {isEmpty && !readOnly && (
-            <div className="rounded-2xl border border-dashed border-slate-700 p-8 text-center">
-              <p className="text-3xl mb-2">📋</p>
-              <p className="text-sm font-semibold text-white">{t("hx_no_tx")}</p>
-              <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">{t("hx_no_tx_desc")}</p>
-              <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <EmptyState icon="📋" title={t("hx_no_tx")} description={t("hx_no_tx_desc")}>
                 <button type="button" onClick={() => { setForm((f) => ({ ...f, type: "compra" })); qtyRef.current?.focus(); formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
                   className="rounded-xl bg-orange-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-orange-400 transition">
                   ▲ {t("hx_first_buy")}
@@ -398,8 +395,7 @@ export default function HistoricoPage() {
                 <button type="button" onClick={() => fileRef.current?.click()} className="rounded-xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-300 hover:text-white transition">
                   ↑ {t("hx_import_csv")}
                 </button>
-              </div>
-            </div>
+            </EmptyState>
           )}
 
           {/* ── Summary cards ── */}

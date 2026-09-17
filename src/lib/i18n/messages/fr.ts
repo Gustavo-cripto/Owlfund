@@ -1220,6 +1220,7 @@ export const fr: Record<TranslationKey, string> = {
     fb_thanks_body: "Nous lisons chaque réponse avec attention. Si vous décidez de réessayer, votre accès est toujours actif.",
     fb_back: "Retour à ChainFolioAI",
     export_stale: "Le site a été mis à jour depuis l'ouverture de cette page. Rechargement vers la nouvelle version…",
+    fisc_no_trades_cta: "Enregistrer des transactions →",
     pfs_d_divers: "La plus grande position pèse {pct} du total.",
     pfs_r_divers: "Maximum (30) si la plus grande position est sous 40 % ; 22 sous 60 % ; 15 sous 80 %.",
     pfs_d_mix: "Actifs traditionnels (actions, ETF, or) : {pct} du total.",
