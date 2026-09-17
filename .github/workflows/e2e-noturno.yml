@@ -1,0 +1,53 @@
+# Todas as noites, o site A CORRER em produção, num browser a sério (Playwright):
+# páginas públicas (desktop + telemóvel) e, se existirem os segredos E2E_EMAIL e
+# E2E_PASSWORD (conta de teste normal, sem 2FA), as páginas privadas — login,
+# Dashboard, Portefólio, Carteiras, Histórico e Fiscalidade (incluindo exportar
+# Excel/PDF). Sem esses segredos corre só a parte pública.
+# Se falhar: email do GitHub ao dono e, com TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID,
+# aviso no Telegram. O relatório HTML fica anexado à execução.
+name: e2e-noturno
+
+on:
+  schedule:
+    - cron: "45 6 * * *"   # 06:45 UTC, depois da verificação de páginas/links
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Testes no browser contra chainfolioai.com
+        env:
+          E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+        run: |
+          if [ -z "$E2E_EMAIL" ] || [ -z "$E2E_PASSWORD" ]; then
+            echo "::warning::Sem E2E_EMAIL/E2E_PASSWORD — só páginas públicas. Cria a conta de teste e mete os segredos em Settings → Secrets → Actions."
+          fi
+          npm run e2e
+      - name: Guardar relatório
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 14
+      - name: Avisar no Telegram (se configurado)
+        if: failure()
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$TOKEN" ] || [ -z "$CHAT" ]; then echo "Sem segredos do Telegram — só email do GitHub."; exit 0; fi
+          curl -s -X POST "https://api.telegram.org/bot$TOKEN/sendMessage" \
+            --data-urlencode "chat_id=$CHAT" \
+            --data-urlencode "text=🔴 Testes no browser (e2e) FALHARAM. Ver: $RUN_URL" >/dev/null

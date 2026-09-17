@@ -52,3 +52,8 @@ supabase/.branches/
 public/screenshots/*.png
 public/screenshots/*.jpg
 public/screenshots/*.jpeg
+
+# Playwright (e2e): sessao da conta de teste e relatorios nunca entram no repositorio
+e2e/.auth/
+playwright-report/
+test-results/
