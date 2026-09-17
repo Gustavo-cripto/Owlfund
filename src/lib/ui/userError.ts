@@ -13,11 +13,20 @@ const REJECTED = /user (?:rejected|denied|cancel)|rejected the request|request r
 export type UserErrorOpts = {
   /** Texto para quando a pessoa cancelou na propria carteira (MetaMask 4001, Phantom…). */
   rejected?: string;
+  /** Textos traduzidos por `code` do erro (ver walletError); "{p}" vira o nome do fornecedor. */
+  codes?: Record<string, string>;
 };
 
 export function userError(err: unknown, fallback: string, opts: UserErrorOpts = {}): string {
   const raw = err instanceof Error ? err.message : typeof err === "string" ? err : "";
   const msg = raw.trim();
+  if (opts.codes && err && typeof err === "object" && "code" in err) {
+    const code = (err as { code?: unknown }).code;
+    const provider = (err as { provider?: unknown }).provider;
+    if (typeof code === "string" && opts.codes[code]) {
+      return opts.codes[code].replace("{p}", typeof provider === "string" && provider ? provider : "");
+    }
+  }
   if (!msg) return fallback;
   if (REJECTED.test(msg)) return opts.rejected ?? fallback;
   if (TECHNICAL.test(msg)) return fallback;

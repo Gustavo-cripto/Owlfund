@@ -1,3 +1,4 @@
+import { walletError } from "./errors";
 const hexToBytes = (hex: string) => {
   const clean = hex.startsWith("0x") ? hex.slice(2) : hex;
   const bytes = new Uint8Array(clean.length / 2);
@@ -45,7 +46,7 @@ export const isCardanoWalletAvailable = (id: CardanoWalletId): boolean => {
 
 export const connectEternl = async () => {
   if (!window.cardano?.eternl) {
-    throw new Error("Eternl não está disponível.");
+    throw walletError("provider_missing", "Eternl", "Eternl não está disponível.");
   }
 
   const api = (await window.cardano.eternl.enable()) as EternlApi;
@@ -56,7 +57,7 @@ export const connectEternl = async () => {
     const addrs = await unused;
     addressHex = addrs?.[0] ?? "";
   }
-  if (!addressHex) throw new Error("Nenhum endereço devolvido.");
+  if (!addressHex) throw walletError("no_account", "A carteira", "Nenhum endereço devolvido.");
   if (addressHex.startsWith("addr")) return { api, address: addressHex };
   const CardanoWasm = await getCardanoWasm();
   const address = CardanoWasm.Address.from_bytes(hexToBytes(addressHex)).to_bech32();
@@ -82,7 +83,7 @@ const connectCardanoWalletById = async (
   const changeAddressHex = await api.getChangeAddress?.().catch(() => "");
   const unused = await api.getUnusedAddresses?.().catch(() => []);
   const addressHex = changeAddressHex || (unused?.[0] ?? "");
-  if (!addressHex) throw new Error("Nenhum endereço devolvido pela carteira.");
+  if (!addressHex) throw walletError("no_account", "A carteira", "Nenhum endereço devolvido pela carteira.");
   if (typeof addressHex === "string" && addressHex.startsWith("addr"))
     return { api, address: addressHex };
   const CardanoWasm = await getCardanoWasm();

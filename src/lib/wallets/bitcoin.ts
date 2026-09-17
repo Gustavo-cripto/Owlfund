@@ -1,4 +1,5 @@
 import Wallet, { AddressPurpose, getSupportedWallets } from "sats-connect";
+import { walletError } from "./errors";
 
 export const getBtcWalletProviders = () => {
   if (typeof window === "undefined") return [];
@@ -72,7 +73,7 @@ export const connectXverse = async (): Promise<XverseAddresses> => {
     ?? accounts[0]?.address;
   const ordinals = accounts.find((a) => a.purpose === AddressPurpose.Ordinals)?.address;
   if (!payment) {
-    throw new Error("Nenhum endereço devolvido pela Xverse.");
+    throw walletError("no_account", "Xverse", "Nenhum endereço devolvido pela Xverse.");
   }
 
   return { payment, ordinals };

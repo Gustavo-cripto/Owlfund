@@ -1,4 +1,5 @@
 import { Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+import { walletError } from "./errors";
 
 const _rpc = (process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "").trim();
 const RPC_PRIMARY =
@@ -57,20 +58,20 @@ export const isSolanaWalletAvailable = (id: SolanaWalletId): boolean => {
 export const connectPhantom = async (): Promise<string> => {
   const provider = window.solana;
   if (!provider?.isPhantom) {
-    throw new Error("Phantom não está disponível. Instala a extensão Phantom.");
+    throw walletError("provider_missing", "Phantom", "Phantom não está disponível. Instala a extensão Phantom.");
   }
   // Força o popup de aprovação mesmo que o site já seja "trusted": desliga a
   // sessão atual antes de voltar a ligar (senão o Phantom religa em silêncio).
   try { await provider.disconnect?.(); } catch { /* ignore */ }
   const response = await provider.connect();
   const address = response?.publicKey?.toString();
-  if (!address) throw new Error("Nenhuma conta devolvida pela Phantom.");
+  if (!address) throw walletError("no_account", "Phantom", "Nenhuma conta devolvida pela Phantom.");
   return address;
 };
 
 export const connectSolflare = async (): Promise<string> => {
   if (!window.solflare) {
-    throw new Error("Solflare não está disponível. Instala a extensão Solflare.");
+    throw walletError("provider_missing", "Solflare", "Solflare não está disponível. Instala a extensão Solflare.");
   }
   try {
     await window.solflare.connect();
@@ -82,40 +83,40 @@ export const connectSolflare = async (): Promise<string> => {
   // After connect(), publicKey is set on the window object (may take a tick)
   await new Promise((r) => setTimeout(r, 100));
   const address = window.solflare.publicKey?.toString();
-  if (!address) throw new Error("Nenhuma conta devolvida pela Solflare. Verifica se a extensão está desbloqueada.");
+  if (!address) throw walletError("no_account", "Solflare", "Nenhuma conta devolvida pela Solflare. Verifica se a extensão está desbloqueada.");
   return address;
 };
 
 export const connectBackpack = async (): Promise<string> => {
   if (!window.backpack) {
-    throw new Error("Backpack não está disponível. Instala a extensão Backpack.");
+    throw walletError("provider_missing", "Backpack", "Backpack não está disponível. Instala a extensão Backpack.");
   }
   const response = await window.backpack.connect();
   const address = response?.address ?? response?.publicKey?.toString();
-  if (!address) throw new Error("Nenhuma conta devolvida pela Backpack.");
+  if (!address) throw walletError("no_account", "Backpack", "Nenhuma conta devolvida pela Backpack.");
   return address;
 };
 
 export const connectGlow = async (): Promise<string> => {
   if (!window.glow) {
-    throw new Error("Glow Wallet não está disponível. Instala a extensão Glow.");
+    throw walletError("provider_missing", "Glow Wallet", "Glow Wallet não está disponível. Instala a extensão Glow.");
   }
   const response = await window.glow.connect();
   const address = response?.address ?? response?.publicKey?.toString();
-  if (!address) throw new Error("Nenhuma conta devolvida pela Glow.");
+  if (!address) throw walletError("no_account", "Glow", "Nenhuma conta devolvida pela Glow.");
   return address;
 };
 
 export const connectFlint = async (): Promise<string> => {
   if (!window.flint) {
-    throw new Error("Flint não está disponível. Instala a extensão Flint.");
+    throw walletError("provider_missing", "Flint", "Flint não está disponível. Instala a extensão Flint.");
   }
   const response = await window.flint.connect();
   const address =
     response?.publicKey?.toString() ??
     response?.address ??
     window.flint.publicKey?.toString();
-  if (!address) throw new Error("Nenhuma conta devolvida pela Flint.");
+  if (!address) throw walletError("no_account", "Flint", "Nenhuma conta devolvida pela Flint.");
   return address;
 };
 

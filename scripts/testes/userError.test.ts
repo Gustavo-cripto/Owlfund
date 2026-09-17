@@ -15,4 +15,8 @@ eq("lib de carteira passa", userError(new Error("MetaMask não está disponível
 eq("string passa", userError("Limite do plano Free atingido.", F), "Limite do plano Free atingido.");
 eq("rejeitado na carteira → texto proprio", userError(new Error("MetaMask Tx Signature: User denied transaction signature."), F, { rejected: "Cancelaste na carteira." }), "Cancelaste na carteira.");
 eq("codigo 4001 → texto proprio", userError(new Error("Request rejected (4001)"), F, { rejected: "Cancelaste na carteira." }), "Cancelaste na carteira.");
+const codes = { provider_missing: "{p} não está disponível.", no_account: "{p} não devolveu conta." };
+eq("code mapeado + {p}", userError(Object.assign(new Error("Phantom não está disponível. Instala…"), { code: "provider_missing", provider: "Phantom" }), F, { codes }), "Phantom não está disponível.");
+eq("code desconhecido → mensagem", userError(Object.assign(new Error("Carteira não encontrada."), { code: "not_found", provider: "" }), F, { codes }), "Carteira não encontrada.");
+eq("sem mapa → mensagem", userError(Object.assign(new Error("MetaMask não está disponível."), { code: "provider_missing", provider: "MetaMask" }), F), "MetaMask não está disponível.");
 console.log(fails === 0 ? "\nTODOS OK" : `\n${fails} FALHA(S)`); process.exit(fails ? 1 : 0);

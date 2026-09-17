@@ -1,4 +1,5 @@
 import { createPublicClient, fallback, formatEther, formatUnits, http } from "viem";
+import { walletError } from "./errors";
 import { arbitrum, avalanche, base, bsc, celo, cronos, fantom, gnosis, linea, mainnet, optimism, polygon, zkSync } from "viem/chains";
 
 const erc20Abi = [
@@ -167,7 +168,7 @@ const requestAccountsWithPrompt = async (provider: NonNullable<EvmProvider>): Pr
 export const connectMetaMask = async () => {
   const provider = getMetaMaskProvider();
   if (!provider) {
-    throw new Error("MetaMask não está disponível.");
+    throw walletError("provider_missing", "MetaMask", "MetaMask não está disponível.");
   }
   if (typeof window !== "undefined") {
     try {
@@ -187,7 +188,7 @@ export const connectMetaMask = async () => {
 
   const address = accounts?.[0];
   if (!address) {
-    throw new Error("Nenhuma conta devolvida pela MetaMask.");
+    throw walletError("no_account", "MetaMask", "Nenhuma conta devolvida pela MetaMask.");
   }
 
   return address as `0x${string}`;
@@ -195,7 +196,7 @@ export const connectMetaMask = async () => {
 
 export const connectEvmProvider = async (provider?: EvmProvider) => {
   if (!provider) {
-    throw new Error("Carteira não encontrada.");
+    throw walletError("not_found", "", "Carteira não encontrada.");
   }
   if (typeof window !== "undefined") {
     try {
@@ -213,7 +214,7 @@ export const connectEvmProvider = async (provider?: EvmProvider) => {
   const accounts = await requestAccountsWithPrompt(provider);
   const address = accounts?.[0];
   if (!address) {
-    throw new Error("Nenhuma conta devolvida pela carteira.");
+    throw walletError("no_account", "A carteira", "Nenhuma conta devolvida pela carteira.");
   }
   return address as `0x${string}`;
 };
@@ -274,7 +275,7 @@ export const STABLECOIN_TOKEN_ADDRESSES: Record<string, `0x${string}`> = {
 /** Conecta via WalletConnect v2 (QR code — funciona com qualquer carteira mobile). */
 export const connectWalletConnect = async (): Promise<`0x${string}`> => {
   const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
-  if (!projectId) throw new Error("NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID não configurado.");
+  if (!projectId) throw walletError("not_configured", "", "NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID não configurado.");
   const { EthereumProvider } = await import("@walletconnect/ethereum-provider");
   const provider = await EthereumProvider.init({
     projectId,
@@ -293,7 +294,7 @@ export const connectWalletConnect = async (): Promise<`0x${string}`> => {
   });
   await provider.connect();
   const accounts = provider.accounts;
-  if (!accounts?.[0]) throw new Error("Nenhuma conta devolvida pelo WalletConnect.");
+  if (!accounts?.[0]) throw walletError("no_account", "WalletConnect", "Nenhuma conta devolvida pelo WalletConnect.");
   return accounts[0] as `0x${string}`;
 };
 

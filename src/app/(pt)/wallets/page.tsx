@@ -353,6 +353,8 @@ export default function WalletsPage() {
   const supabase = useMemo(() => createClient(), []);
   useRequireAuth("/login");
   const { t } = useLanguage();
+  // Erros das libs de carteiras (codigo estavel) → texto traduzido; ver src/lib/wallets/errors.ts
+  const walletCodes = useMemo(() => ({ provider_missing: t("wl_e_provider_missing"), no_account: t("wl_e_no_account"), not_found: t("wl_e_not_found"), not_configured: t("wl_e_not_configured") }), [t]);
   // Os rotulos das redes BTC sao tambem o nome com que a carteira fica guardada,
   // por isso a traducao acontece so na apresentacao.
   const btcNetLabel = (id: string) =>
@@ -1696,7 +1698,7 @@ export default function WalletsPage() {
       setEthWallets(nextWallets);
       updateWalletSnapshot({ eth: nextWallets, sol: solWallets, btc: btcWallets, ada: adaWallets });
     } catch (error) {
-      setEthError(userError(error, t("wl_err_connect"), { rejected: t("wl_user_rejected") }));
+      setEthError(userError(error, t("wl_err_connect"), { rejected: t("wl_user_rejected"), codes: walletCodes }));
     } finally {
       setEthLoading(false);
     }
@@ -1728,7 +1730,7 @@ export default function WalletsPage() {
       setEthWallets(nextWallets);
       updateWalletSnapshot({ eth: nextWallets, sol: solWallets, btc: btcWallets, ada: adaWallets });
     } catch (error) {
-      setEthError(userError(error, t("wl_err_connect"), { rejected: t("wl_user_rejected") }));
+      setEthError(userError(error, t("wl_err_connect"), { rejected: t("wl_user_rejected"), codes: walletCodes }));
     } finally {
       setEthLoading(false);
     }
@@ -1878,7 +1880,7 @@ export default function WalletsPage() {
       }
       updateWalletSnapshot({ eth: ethWallets, sol: nextWallets, btc: btcWallets, ada: adaWallets });
     } catch (error) {
-      setSolError(userError(error, t("wl_err_connect"), { rejected: t("wl_user_rejected") }));
+      setSolError(userError(error, t("wl_err_connect"), { rejected: t("wl_user_rejected"), codes: walletCodes }));
     } finally {
       setSolLoading(false);
     }
@@ -2022,7 +2024,7 @@ export default function WalletsPage() {
       }
       updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: nextWallets, ada: adaWallets });
     } catch (error) {
-      setBtcError(userError(error, t("wl_err_connect"), { rejected: t("wl_user_rejected") }));
+      setBtcError(userError(error, t("wl_err_connect"), { rejected: t("wl_user_rejected"), codes: walletCodes }));
     } finally {
       setBtcLoading(false);
     }
@@ -2190,7 +2192,7 @@ export default function WalletsPage() {
       updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: nextWallets });
     } catch (error) {
       clearTimeout(msgTimer);
-      const msg = userError(error, t("wl_err_connect"), { rejected: t("wl_user_rejected") });
+      const msg = userError(error, t("wl_err_connect"), { rejected: t("wl_user_rejected"), codes: walletCodes });
       if (msg === "timeout") {
         setAdaError("O Eternl não respondeu em 60 segundos. Verifica: 1) Clica no ícone do Eternl na barra de extensões do Chrome → deverá aparecer um pedido pendente para aprovar. 2) Se não aparecer nada, abre o Eternl → Settings → dApp Connector → confirma que tens uma conta dApp ativa. 3) Em alternativa, adiciona o endereço manualmente abaixo.");
       } else if (msg.toLowerCase().includes("user canceled") || msg.toLowerCase().includes("cancelled") || msg.toLowerCase().includes("cancel")) {
