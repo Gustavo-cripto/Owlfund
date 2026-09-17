@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import ErrorNote from "@/components/ErrorNote";
 import { btnPrimary } from "@/lib/ui/buttons";
 
 import AppShell from "@/components/AppShell";
@@ -1524,7 +1525,7 @@ export default function MercadoPage() {
                 </p>
               </div>
               {traditionalQuotesError ? (
-                <p className="text-xs text-rose-300">{traditionalQuotesError}</p>
+                <ErrorNote>{traditionalQuotesError}</ErrorNote>
               ) : null}
             </div>
 
@@ -1865,7 +1866,7 @@ export default function MercadoPage() {
               {isLoading ? (
                 <p className="mt-6 text-sm text-slate-400">{t("mc_loading_markets")}</p>
               ) : error ? (
-                <p className="mt-6 text-sm text-rose-300">{error}</p>
+                <ErrorNote className="mt-6">{error}</ErrorNote>
               ) : (
                 <div className="mt-6">
                   <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-3">
@@ -2205,7 +2206,7 @@ export default function MercadoPage() {
                     </div>
                   )}
 
-                  {newsBriefingError && <p className="text-sm text-rose-400">{newsBriefingError}</p>}
+                  {newsBriefingError && <ErrorNote>{newsBriefingError}</ErrorNote>}
 
                   {newsBriefingLoading && (
                     <div className="flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-800/40 px-5 py-4">
@@ -2281,7 +2282,7 @@ export default function MercadoPage() {
               </button>
               )}
 
-              {newsError && <p className="text-sm text-rose-400">{newsError}</p>}
+              {newsError && <ErrorNote>{newsError}</ErrorNote>}
 
               {newsContent && (
                 <>

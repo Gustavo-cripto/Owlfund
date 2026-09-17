@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
+import ErrorNote from "@/components/ErrorNote";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import dynamic from "next/dynamic";
@@ -604,7 +605,7 @@ export default function PortfolioChartSection({
                       ))}
                     </div>
                   ) : wd.error ? (
-                    <p className="text-xs text-rose-400 py-2">{wd.error}</p>
+                    <ErrorNote>{wd.error}</ErrorNote>
                   ) : wd.nfts.length === 0 ? (
                     <p className="text-xs text-slate-500 py-2">{t("pcs_no_nft")}</p>
                   ) : (
@@ -655,7 +656,7 @@ export default function PortfolioChartSection({
                       {[1, 2].map(i => <div key={i} className="h-8 rounded-lg bg-slate-800 animate-pulse" />)}
                     </div>
                   ) : wd.error ? (
-                    <p className="text-xs text-rose-400">{wd.error}</p>
+                    <ErrorNote>{wd.error}</ErrorNote>
                   ) : wd.positions.length === 0 ? (
                     <p className="text-xs text-slate-500">{t("pcs_no_defi")}{wd.partial ? ` ${t("pcs_defi_partial")}` : ""}</p>
                   ) : (

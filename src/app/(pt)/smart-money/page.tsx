@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import ErrorNote from "@/components/ErrorNote";
 import { FREE_WHALE_LIMIT } from "@/lib/plans";
 import { KNOWN_WHALES } from "@/lib/api/known-whales";
 import { btnPrimary } from "@/lib/ui/buttons";
@@ -602,7 +603,7 @@ export default function SmartMoneyPage() {
                           {!data || data.loading ? (
                             <p className="text-xs text-slate-400 animate-pulse py-4 text-center">{t("loading")}</p>
                           ) : data.error ? (
-                            <p className="text-xs text-rose-400 py-2">{data.error}</p>
+                            <ErrorNote>{data.error}</ErrorNote>
                           ) : data.tokens.length === 0 ? (
                             <p className="text-xs text-slate-500 py-2">{t("sm2_no_token")}</p>
                           ) : (
@@ -693,7 +694,7 @@ export default function SmartMoneyPage() {
                           !selectedTx || selectedTx.loading ? (
                             <p className="text-xs text-slate-400 animate-pulse py-6 text-center">{t("loading")}</p>
                           ) : selectedTx.error ? (
-                            <p className="text-xs text-rose-400 py-4">{selectedTx.error}</p>
+                            <ErrorNote>{selectedTx.error}</ErrorNote>
                           ) : selectedTx.txs.length === 0 ? (
                             <p className="text-xs text-slate-500 py-6 text-center">{t("sm_no_txs")}</p>
                           ) : selectedTx.txs.map((tx, i) => (

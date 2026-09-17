@@ -1,6 +1,7 @@
 "use client";
 
 import PlanBadge from "@/components/PlanBadge";
+import ErrorNote from "@/components/ErrorNote";
 
 import { useState, useEffect } from "react";
 import { btnPrimary } from "@/lib/ui/buttons";
@@ -451,7 +452,7 @@ export default function CexSection({
               {acc.loading ? (
                 <p className="text-xs text-slate-500 animate-pulse">{t("cx_loading_bal")}</p>
               ) : acc.error ? (
-                <p className="text-xs text-rose-400">{acc.error}</p>
+                <ErrorNote>{acc.error}</ErrorNote>
               ) : (
                 <>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -566,7 +567,7 @@ export default function CexSection({
               {acc.loading ? (
                 <p className="text-xs text-slate-500 animate-pulse">{t("cx_updating_bal")}</p>
               ) : acc.error ? (
-                <p className="text-xs text-rose-400">{acc.error}</p>
+                <ErrorNote>{acc.error}</ErrorNote>
               ) : (
                 <div className="space-y-2">
                   {acc.perpValue > 0 && (
@@ -686,7 +687,7 @@ export default function CexSection({
             <span>📋</span>
             <span>{t("cx_add_cold")}</span>
           </button>
-          {coldError && <p className="text-xs text-rose-400">{coldError}</p>}
+          {coldError && <ErrorNote>{coldError}</ErrorNote>}
           {coldSuccess && <p className="text-xs text-emerald-400">{coldSuccess}</p>}
         </div>
 

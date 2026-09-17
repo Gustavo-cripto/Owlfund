@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import ErrorNote from "@/components/ErrorNote";
 import { btnPrimary } from "@/lib/ui/buttons";
 import AppShell from "@/components/AppShell";
 import TwoFactorSetup from "@/components/TwoFactorSetup";
@@ -1008,7 +1009,7 @@ export default function AccountPage() {
                     </div>
                   </div>
 
-                  {billingError && <p className="text-xs text-rose-400">{billingError}</p>}
+                  {billingError && <ErrorNote>{billingError}</ErrorNote>}
 
                   <div className="flex flex-wrap gap-3 pt-2">
                     {isCrypto ? (
@@ -1324,7 +1325,7 @@ export default function AccountPage() {
 
                   {/* Danger zone */}
                   <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-4 space-y-3">
-                    <p className="text-sm font-semibold text-rose-400">{t("ac_danger_zone")}</p>
+                    <ErrorNote>{t("ac_danger_zone")}</ErrorNote>
                     <SettingRow label={t("ac_reset_settings")} desc={t("ac_reset_settings_desc")}>
                       {resetConfirm ? (
                         <div className="flex gap-2">
@@ -1369,7 +1370,7 @@ export default function AccountPage() {
                           {deleting ? t("ac_deleting") : t("ac_delete_button")}
                         </button>
                       </div>
-                      {deleteError && <p className="text-xs text-rose-400">{deleteError}</p>}
+                      {deleteError && <ErrorNote>{deleteError}</ErrorNote>}
                     </div>
                   </div>
                 </div>

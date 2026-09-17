@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import ErrorNote from "@/components/ErrorNote";
 import { btnPrimary } from "@/lib/ui/buttons";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { loadStripe } from "@stripe/stripe-js";
@@ -2503,7 +2504,7 @@ export default function PortfolioPage() {
                 <p className={`text-sm ${saveMessage.ok ? "text-emerald-400" : "text-rose-300"}`}>{saveMessage.text}</p>
               ) : null}
               {billingError ? (
-                <p className="text-sm text-rose-300">{billingError}</p>
+                <ErrorNote>{billingError}</ErrorNote>
               ) : null}
               <div className="flex flex-col gap-3 sm:flex-row">
                 <button
@@ -2656,7 +2657,7 @@ export default function PortfolioPage() {
             <p className="mt-3 text-xs text-slate-500 dark:text-slate-400 animate-pulse">{t("pf_analyzing")}</p>
           )}
           {aiError && (
-            <p className="mt-3 text-xs text-rose-500 dark:text-rose-400">{aiError}</p>
+            <ErrorNote className="mt-3">{aiError}</ErrorNote>
           )}
           {aiReply && (
             <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/80">

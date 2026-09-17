@@ -153,6 +153,15 @@ details[open] > .faq-a { animation: fade-in-up var(--duration-fast) var(--ease-o
 @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 .empty-icon { animation: float 4s ease-in-out infinite; }
 
+/* Erro: aparece com um abanão curto (6/8 px, 400 ms) — "rejeitado", sem ler. */
+@keyframes shake {
+  10%, 90% { transform: translateX(-6px); }
+  20%, 80% { transform: translateX(8px); }
+  30%, 50%, 70% { transform: translateX(-8px); }
+  40%, 60% { transform: translateX(8px); }
+}
+.error-note { animation: fade-in var(--duration-quick) var(--ease-out) both, shake 400ms var(--ease-in-out) both; }
+
 /* Delay helpers */
 .delay-100 { animation-delay: 0.1s; }
 .delay-150 { animation-delay: 0.15s; }
@@ -189,6 +198,7 @@ details[open] > .faq-a { animation: fade-in-up var(--duration-fast) var(--ease-o
   .animate-menu-in    { animation: fade-in 200ms ease both; }
   .animate-toast-out  { animation: fade-out 150ms ease both; }
   .animate-reveal,
+  .error-note,
   details[open] > .faq-a { animation: fade-in 200ms ease both; }
   .press:active       { transform: none; }
   .success-check      { animation: check-fade 200ms ease both; }

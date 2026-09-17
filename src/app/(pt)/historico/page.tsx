@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import ErrorNote from "@/components/ErrorNote";
 import AppShell from "@/components/AppShell";
 import EmptyState from "@/components/EmptyState";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
@@ -867,7 +868,7 @@ export default function HistoricoPage() {
             <div className="w-full max-w-2xl rounded-2xl border border-slate-700 bg-slate-900 p-6 max-h-[85vh] overflow-y-auto">
               <h3 className="text-sm font-bold text-white">{t("hx_import_title")}</h3>
               {importPreview.error ? (
-                <p className="mt-3 text-xs text-rose-300">{importPreview.error === "columns" ? t("hx_import_err_cols") : t("hx_import_err_empty")}</p>
+                <ErrorNote className="mt-3">{importPreview.error === "columns" ? t("hx_import_err_cols") : t("hx_import_err_empty")}</ErrorNote>
               ) : (
                 <>
                   <p className="mt-1 text-xs text-slate-400">

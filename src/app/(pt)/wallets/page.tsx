@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from "react";
+import ErrorNote from "@/components/ErrorNote";
 import { cleanDecimalInput, parseDecimal } from "@/lib/format/decimal";
 import { FREE_WALLET_LIMIT } from "@/lib/plans";
 import { btnPrimary } from "@/lib/ui/buttons";
@@ -3012,7 +3013,7 @@ export default function WalletsPage() {
             </div>
           )}
           {cloudSyncError ? (
-            <p className="text-xs text-rose-300">{cloudSyncError}</p>
+            <ErrorNote>{cloudSyncError}</ErrorNote>
           ) : null}
           <div className="flex flex-wrap gap-2">
             <button
@@ -3052,7 +3053,7 @@ export default function WalletsPage() {
                 {confirmRef.current?.description ?? t("wl_confirm_op")}
               </p>
               {confirmError ? (
-                <p className="mt-3 text-xs text-rose-300">{confirmError}</p>
+                <ErrorNote className="mt-3">{confirmError}</ErrorNote>
               ) : null}
               <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
                 <button
@@ -3347,7 +3348,7 @@ export default function WalletsPage() {
                   onChange={(e) => setEthNewCustomLabel(e.target.value)}
                 />
               ) : null}
-              {ethNewError ? <p className="text-xs text-rose-300">{ethNewError}</p> : null}
+              {ethNewError ? <ErrorNote>{ethNewError}</ErrorNote> : null}
               {ethWallets.length > 1 && (
                 <div className="flex justify-end">
                   <button
@@ -3767,7 +3768,7 @@ export default function WalletsPage() {
                   onChange={(e) => setSolNewCustomLabel(e.target.value)}
                 />
               ) : null}
-              {solNewError ? <p className="text-xs text-rose-300">{solNewError}</p> : null}
+              {solNewError ? <ErrorNote>{solNewError}</ErrorNote> : null}
               <div className="space-y-2">
                 {solWallets.map((item) => {
                   const isConnected = item.address === solAddress
@@ -4109,7 +4110,7 @@ export default function WalletsPage() {
                   onChange={(e) => setBtcNewCustomLabel(e.target.value)}
                 />
               ) : null}
-              {btcNewError ? <p className="text-xs text-rose-300">{btcNewError}</p> : null}
+              {btcNewError ? <ErrorNote>{btcNewError}</ErrorNote> : null}
               <div className="space-y-2">
                 {btcWallets.map((item) => {
                   const isConnected = item.address === btcAddress ||
@@ -4535,7 +4536,7 @@ export default function WalletsPage() {
                   onChange={(e) => setAdaNewCustomLabel(e.target.value)}
                 />
               ) : null}
-              {adaNewError ? <p className="text-xs text-rose-300">{adaNewError}</p> : null}
+              {adaNewError ? <ErrorNote>{adaNewError}</ErrorNote> : null}
               <p className="text-xs text-slate-500">
                 {t("wl_connect_or_add")}
               </p>
@@ -4756,7 +4757,7 @@ export default function WalletsPage() {
           </div>
 
           {cryptoPricesError ? (
-            <p className="mt-3 text-xs text-rose-300">{cryptoPricesError}</p>
+            <ErrorNote className="mt-3">{cryptoPricesError}</ErrorNote>
           ) : null}
 
 
@@ -5399,7 +5400,7 @@ export default function WalletsPage() {
                 ) : null}
               </div>
               {traditionalQuotesError ? (
-                <p className="mt-2 text-xs text-rose-300">{traditionalQuotesError}</p>
+                <ErrorNote className="mt-2">{traditionalQuotesError}</ErrorNote>
               ) : null}
               <div className="mt-3 space-y-2">
                 {selectedTraditionalAssets.length === 0 ? (
@@ -5567,7 +5568,7 @@ export default function WalletsPage() {
             <p className="mt-2 text-xs text-emerald-300">{manualAddOk}</p>
           ) : null}
           {manualAddError ? (
-            <p className="mt-2 text-xs text-rose-300">{manualAddError}</p>
+            <ErrorNote className="mt-2">{manualAddError}</ErrorNote>
           ) : null}
         </section>
         <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
@@ -5679,7 +5680,7 @@ export default function WalletsPage() {
             </button>
           </div>
           {manualCryptoAssetError ? (
-            <p className="mt-2 text-xs text-rose-300">{manualCryptoAssetError}</p>
+            <ErrorNote className="mt-2">{manualCryptoAssetError}</ErrorNote>
           ) : null}
         </section>
         <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
@@ -5713,7 +5714,7 @@ export default function WalletsPage() {
             </button>
           </div>
           {stablecoinAddError ? (
-            <p className="mt-2 text-xs text-rose-300">{stablecoinAddError}</p>
+            <ErrorNote className="mt-2">{stablecoinAddError}</ErrorNote>
           ) : null}
           {stablecoinEntries.length > 0 ? (
             <div className="mt-4 overflow-x-auto">

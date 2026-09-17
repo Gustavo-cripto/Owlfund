@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import ErrorNote from "@/components/ErrorNote";
 import { btnPrimary } from "@/lib/ui/buttons";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
@@ -252,9 +253,9 @@ export default function WalletCard({
             {hideBalances ? "••••" : extraBalance.content}
           </div>
         ) : null}
-        {error ? <p className="text-xs text-rose-300">{error}</p> : null}
-        {defiError ? <p className="text-xs text-rose-300">{defiError}</p> : null}
-        {nftError ? <p className="text-xs text-rose-300">{nftError}</p> : null}
+        {error ? <ErrorNote>{error}</ErrorNote> : null}
+        {defiError ? <ErrorNote>{defiError}</ErrorNote> : null}
+        {nftError ? <ErrorNote>{nftError}</ErrorNote> : null}
       </div>
 
       <div className="mt-5 flex flex-wrap gap-3">
