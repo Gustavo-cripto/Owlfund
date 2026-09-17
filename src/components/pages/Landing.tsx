@@ -271,18 +271,18 @@ export default function Landing() {
         {/* HERO */}
         <section className="mx-auto flex w-full max-w-6xl flex-col items-center gap-12 px-6 pb-16 pt-16 md:flex-row md:pt-24">
           <div className="flex-1 space-y-7">
-            <div className="animate-fade-in-up inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-4 py-1.5 text-xs font-bold text-orange-300 uppercase tracking-widest">
+            <div className="animate-rise inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-4 py-1.5 text-xs font-bold text-orange-300 uppercase tracking-widest">
               <img src="/chainfolioai-icon.png" alt="" className="h-4 w-4 rounded-full object-cover" /> {t("lp_hero_badge")}
             </div>
-            <h1 className="animate-fade-in-up delay-100 text-4xl font-bold leading-tight text-white md:text-5xl lg:text-6xl">
+            <h1 className="animate-rise delay-100 text-4xl font-bold leading-tight text-white md:text-5xl lg:text-6xl">
               {t("lp_hero_title_1")}<br />
               <span className="text-orange-400">{t("lp_crypto_trad")}</span><br />
               {t("lp_hero_title_2")}
             </h1>
-            <p className="animate-fade-in-up delay-200 max-w-lg text-lg text-slate-300">
+            <p className="animate-rise delay-200 max-w-lg text-lg text-slate-300">
               {t("lp_hero_sub")}
             </p>
-            <p className="animate-fade-in-up delay-200 text-sm font-semibold text-orange-300/90">{t("lp_audience")}</p>
+            <p className="animate-rise delay-200 text-sm font-semibold text-orange-300/90">{t("lp_audience")}</p>
             <div className="animate-fade-in-up delay-300 flex flex-wrap gap-4">
               <a href={`${pageUrl("login", lang)}?mode=signup`} className={`${btnPrimary} px-8 py-3.5 text-base`}>
                 {t("lp_plan_cta")} →

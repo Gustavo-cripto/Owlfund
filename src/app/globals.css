@@ -74,6 +74,11 @@
 .animate-glow-pulse      { animation: glow-pulse 4s ease-in-out infinite; }
 .animate-count-up        { animation: count-up 350ms var(--ease-out) both; }
 .animate-chat-pop        { animation: chat-pop var(--duration-fast) var(--ease-out) both; }
+/* Só deslocação, sem opacidade: para o título/hero da landing — um elemento
+   que começa invisível não conta como "maior pintura" (LCP) e o Lighthouse
+   media 4,3 s por causa disso; assim pinta logo e ainda entra a subir. */
+.animate-rise            { animation: rise var(--duration-slow) var(--ease-out) both; }
+@keyframes rise { from { transform: translateY(12px); } to { transform: translateY(0); } }
 .animate-ping-dot        { animation: ping-dot 1.2s cubic-bezier(0, 0, 0.2, 1) infinite; }
 .animate-typing          { animation: bounce 1.2s ease-in-out infinite; } /* pontos "a escrever" */
 
@@ -189,6 +194,7 @@ details[open] > .faq-a { animation: fade-in-up var(--duration-fast) var(--ease-o
    mudou), saem deslocações, escalas e loops decorativos. */
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in-up,
+  .animate-rise,
   .animate-slide-in-left,
   .animate-scale-in,
   .animate-count-up,

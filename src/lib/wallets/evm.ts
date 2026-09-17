@@ -1,6 +1,14 @@
-import { createPublicClient, fallback, formatEther, formatUnits, http } from "viem";
 import { walletError } from "./errors";
-import { arbitrum, avalanche, base, bsc, celo, cronos, fantom, gnosis, linea, mainnet, optimism, polygon, zkSync } from "viem/chains";
+
+// O viem (~600 KB antes de comprimir) so entra quando se le um saldo ou se
+// muda de rede — nunca no carregamento da pagina. Tudo o que precisa dele e
+// async; o que e sincrono (detetar MetaMask, etiquetas) nao o toca.
+type ViemModule = typeof import("viem");
+type ViemChains = typeof import("viem/chains");
+let viemPromise: Promise<ViemModule> | null = null;
+let chainsPromise: Promise<ViemChains> | null = null;
+const loadViem = () => (viemPromise ??= import("viem"));
+const loadChains = () => (chainsPromise ??= import("viem/chains"));
 
 const erc20Abi = [
   { inputs: [{ name: "account", type: "address" }], name: "balanceOf", outputs: [{ type: "uint256" }], stateMutability: "view", type: "function" },
@@ -34,39 +42,35 @@ const chainRpcs: Record<string, string[]> = {
   Blast:          ["https://rpc.blast.io", "https://blast.drpc.org"],
 };
 
-const makeTransport = (urls: string[]) =>
-  fallback(urls.map((url) => http(url, { timeout: 8_000 })));
-
-const publicClient = createPublicClient({
-  chain: mainnet,
-  transport: makeTransport(ETH_RPCS),
-});
+const EVM_NETWORKS = ["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon", "BSC", "Avalanche", "Fantom", "zkSync", "Linea", "Gnosis", "Celo", "Cronos", "Scroll", "Mantle", "Blast"] as const;
+export type EvmNetwork = (typeof EVM_NETWORKS)[number];
 
 // Scroll, Mantle, Blast não estão em viem/chains — definimos manualmente
 const scroll = { id: 534352, name: "Scroll", nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 }, rpcUrls: { default: { http: ["https://rpc.scroll.io"] } } } as const;
 const mantle = { id: 5000, name: "Mantle", nativeCurrency: { name: "Mantle", symbol: "MNT", decimals: 18 }, rpcUrls: { default: { http: ["https://rpc.mantle.xyz"] } } } as const;
 const blast = { id: 81457, name: "Blast", nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 }, rpcUrls: { default: { http: ["https://rpc.blast.io"] } } } as const;
 
-const chainMap = {
-  Ethereum: mainnet,
-  Arbitrum: arbitrum,
-  Optimism: optimism,
-  Base:     base,
-  Polygon:  polygon,
-  BSC:      bsc,
-  Avalanche: avalanche,
-  Fantom:   fantom,
-  zkSync:   zkSync,
-  Linea:    linea,
-  Gnosis:   gnosis,
-  Celo:     celo,
-  Cronos:   cronos,
-  Scroll:   scroll,
-  Mantle:   mantle,
-  Blast:    blast,
+type ChainLike = { id: number; name: string; nativeCurrency: { name: string; symbol: string; decimals: number }; rpcUrls: { default: { http: readonly string[] } }; blockExplorers?: Record<string, { url: string }> };
+
+const chainFor = async (network: EvmNetwork): Promise<ChainLike> => {
+  const c = await loadChains();
+  const map: Record<EvmNetwork, ChainLike> = {
+    Ethereum: c.mainnet, Arbitrum: c.arbitrum, Optimism: c.optimism, Base: c.base, Polygon: c.polygon, BSC: c.bsc,
+    Avalanche: c.avalanche, Fantom: c.fantom, zkSync: c.zkSync, Linea: c.linea, Gnosis: c.gnosis, Celo: c.celo, Cronos: c.cronos,
+    Scroll: scroll, Mantle: mantle, Blast: blast,
+  };
+  return map[network];
 };
 
-export type EvmNetwork = keyof typeof chainMap;
+const makeTransport = (v: ViemModule, urls: string[]) =>
+  v.fallback(urls.map((url) => v.http(url, { timeout: 8_000 })));
+
+const clientFor = async (network: EvmNetwork) => {
+  const [v, chain] = await Promise.all([loadViem(), chainFor(network)]);
+  const rpcs = chainRpcs[network] ?? [chain.rpcUrls.default.http[0]];
+  // O viem aceita as chains dele e objetos com a mesma forma (Scroll/Mantle/Blast).
+  return { v, chain, client: v.createPublicClient({ chain: chain as Parameters<ViemModule["createPublicClient"]>[0]["chain"], transport: makeTransport(v, rpcs) }) };
+};
 
 export type EvmProviderId = "metamask" | "coinbase" | "trust" | "binance" | "rainbow" | "okx" | "bybit" | "rabby" | "unknown";
 
@@ -221,7 +225,7 @@ export const connectEvmProvider = async (provider?: EvmProvider) => {
 
 export const switchEvmNetwork = async (provider: EvmProvider, network: EvmNetwork) => {
   if (!provider || network === "Ethereum") return;
-  const chain = chainMap[network];
+  const chain = await chainFor(network);
   const chainIdHex = `0x${chain.id.toString(16)}`;
   try {
     await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: chainIdHex }] });
@@ -247,20 +251,12 @@ export const switchEvmNetwork = async (provider: EvmProvider, network: EvmNetwor
   }
 };
 
-export const getEthBalance = async (address: `0x${string}`) => {
-  const balance = await publicClient.getBalance({ address });
-  return formatEther(balance);
-};
+export const getEthBalance = async (address: `0x${string}`) => getEvmBalance(address, "Ethereum");
 
 export const getEvmBalance = async (address: `0x${string}`, network: EvmNetwork) => {
-  const chain = chainMap[network];
-  const rpcs = chainRpcs[network] ?? [chain.rpcUrls.default.http[0]];
-  const client = createPublicClient({
-    chain,
-    transport: makeTransport(rpcs),
-  });
+  const { v, client } = await clientFor(network);
   const balance = await client.getBalance({ address });
-  return formatEther(balance);
+  return v.formatEther(balance);
 };
 
 /** Endereços dos contratos ERC20 (Ethereum mainnet) para stablecoins. */
@@ -306,17 +302,13 @@ export const getEvmTokenBalance = async (
 ): Promise<string> => {
   const tokenAddress = STABLECOIN_TOKEN_ADDRESSES[tokenSymbol.toUpperCase()];
   if (!tokenAddress || network !== "Ethereum") return "0";
-  const chain = chainMap[network];
-  const client = createPublicClient({
-    chain,
-    transport: makeTransport(chainRpcs[network] ?? [chain.rpcUrls.default.http[0]]),
-  });
+  const { v, client } = await clientFor(network);
   try {
     const [balance, decimals] = await Promise.all([
       client.readContract({ address: tokenAddress, abi: erc20Abi, functionName: "balanceOf", args: [ownerAddress] }),
       client.readContract({ address: tokenAddress, abi: erc20Abi, functionName: "decimals" }),
     ]);
-    return formatUnits(balance, decimals);
+    return v.formatUnits(balance, decimals);
   } catch {
     return "0";
   }
