@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { userError } from "@/lib/ui/userError";
 import ErrorNote from "@/components/ErrorNote";
 import { btnPrimary } from "@/lib/ui/buttons";
 
@@ -948,7 +949,7 @@ export default function MercadoPage() {
         setMarketGlobal(data.global ?? null);
         setPage(0);
       } catch (err) {
-        setError(err instanceof Error ? err.message : t("mc_err_markets2"));
+        setError(userError(err, t("mc_err_markets2")));
       } finally {
         setIsLoading(false);
       }
@@ -1022,7 +1023,7 @@ export default function MercadoPage() {
         setTraditionalQuotesError(null);
       }
     } catch (err) {
-      setTraditionalQuotesError(err instanceof Error ? err.message : t("mc_err_data"));
+      setTraditionalQuotesError(userError(err, t("mc_err_data")));
     } finally {
       setTraditionalQuoteLoading((prev) => ({ ...prev, [symbol]: false }));
     }
@@ -1046,7 +1047,7 @@ export default function MercadoPage() {
       setTraditionalQuotes((prev) => ({ ...prev, ...next }));
       setTraditionalQuotesError(null);
     } catch (err) {
-      setTraditionalQuotesError(err instanceof Error ? err.message : t("mc_err_data"));
+      setTraditionalQuotesError(userError(err, t("mc_err_data")));
     }
   };
 
@@ -2194,7 +2195,7 @@ export default function MercadoPage() {
                             setNewsBriefing(d.content ?? "");
                             setNewsBriefingDate(d.date ?? null);
                           } catch (e) {
-                            setNewsBriefingError(e instanceof Error ? e.message : t("mc_err_data"));
+                            setNewsBriefingError(userError(e, t("mc_err_data")));
                           } finally {
                             setNewsBriefingLoading(false);
                           }
@@ -2271,7 +2272,7 @@ export default function MercadoPage() {
                     setNewsContent(data.content ?? "");
                     setNewsDate(data.date ?? null);
                   } catch (err) {
-                    setNewsError(err instanceof Error ? err.message : t("mc_err_data"));
+                    setNewsError(userError(err, t("mc_err_data")));
                   } finally {
                     setNewsLoading(false);
                   }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { userError } from "@/lib/ui/userError";
 import { btnPrimary } from "@/lib/ui/buttons";
 import { usePathname } from "next/navigation";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -220,7 +221,7 @@ export default function ChatWidget({
       setMessages(prev => [...prev, { role: "assistant", content: reply, ts: Date.now() }]);
       if (data.usage) { setUsage(data.usage); setServerLimit(data.usage.count >= data.usage.limit); }
     } catch (err) {
-      const code = err instanceof DOMException && err.name === "AbortError" ? "timeout" : err instanceof Error ? err.message : "internal";
+      const code = err instanceof DOMException && err.name === "AbortError" ? "timeout" : userError(err, "internal");
       setError(t(ERR_KEY[code] ?? "cw_err_generic"));
     } finally {
       setIsLoading(false);

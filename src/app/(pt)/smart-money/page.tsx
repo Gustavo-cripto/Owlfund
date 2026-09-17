@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { userError } from "@/lib/ui/userError";
 import ErrorNote from "@/components/ErrorNote";
 import { FREE_WHALE_LIMIT } from "@/lib/plans";
 import { KNOWN_WHALES } from "@/lib/api/known-whales";
@@ -262,7 +263,7 @@ export default function SmartMoneyPage() {
       }
       setWalletData((prev) => ({ ...prev, [key]: { tokens: data.tokens ?? [], totalUsd: data.totalUsd ?? 0, loading: false, error: null, fetchedAt: Date.now() } }));
     } catch (e) {
-      setWalletData((prev) => ({ ...prev, [key]: { tokens: [], totalUsd: 0, loading: false, error: e instanceof Error ? e.message : t("error") } }));
+      setWalletData((prev) => ({ ...prev, [key]: { tokens: [], totalUsd: 0, loading: false, error: userError(e, t("error")) } }));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -298,7 +299,7 @@ export default function SmartMoneyPage() {
         });
       }
     } catch (e) {
-      setTxData((prev) => ({ ...prev, [key]: { txs: [], loading: false, error: e instanceof Error ? e.message : t("error") } }));
+      setTxData((prev) => ({ ...prev, [key]: { txs: [], loading: false, error: userError(e, t("error")) } }));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

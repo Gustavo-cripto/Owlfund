@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from "react";
+import { userError } from "@/lib/ui/userError";
 import ErrorNote from "@/components/ErrorNote";
 import { cleanDecimalInput, parseDecimal } from "@/lib/format/decimal";
 import { FREE_WALLET_LIMIT } from "@/lib/plans";
@@ -899,7 +900,7 @@ export default function WalletsPage() {
       setDefiTotals((prev) => ({ ...prev, [key]: total }));
       setDefiErrors((prev) => ({ ...prev, [key]: null }));
     } catch (error) {
-      setDefiErrors((prev) => ({ ...prev, [key]: error instanceof Error ? error.message : t("wl_err_defi") }));
+      setDefiErrors((prev) => ({ ...prev, [key]: userError(error, t("wl_err_defi")) }));
       setDefiTotals((prev) => ({ ...prev, [key]: null }));
     } finally {
       setDefiLoading((prev) => ({ ...prev, [key]: false }));
@@ -923,7 +924,7 @@ export default function WalletsPage() {
       setNftsByKey((prev) => ({ ...prev, [key]: data.nfts ?? [] }));
       setNftErrors((prev) => ({ ...prev, [key]: null }));
     } catch (error) {
-      setNftErrors((prev) => ({ ...prev, [key]: error instanceof Error ? error.message : t("wl_err_nft") }));
+      setNftErrors((prev) => ({ ...prev, [key]: userError(error, t("wl_err_nft")) }));
     } finally {
       setNftLoading((prev) => ({ ...prev, [key]: false }));
     }
@@ -951,7 +952,7 @@ export default function WalletsPage() {
     } catch (error) {
       setDefiErrors((prev) => ({
         ...prev,
-        [key]: error instanceof Error ? error.message : t("wl_err_defi"),
+        [key]: userError(error, t("wl_err_defi")),
       }));
       setDefiTotals((prev) => ({ ...prev, [key]: null }));
     } finally {
@@ -1028,7 +1029,7 @@ export default function WalletsPage() {
       setNftErrors((prev) => ({ ...prev, [key]: null }));
       setNftsByKey((prev) => ({ ...prev, [key]: nfts }));
     } catch (error) {
-      setNftErrors((prev) => ({ ...prev, [key]: error instanceof Error ? error.message : t("wl_err_nft") }));
+      setNftErrors((prev) => ({ ...prev, [key]: userError(error, t("wl_err_nft")) }));
       setNftCounts((prev) => ({ ...prev, [key]: 0 }));
       setNftsByKey((prev) => ({ ...prev, [key]: [] }));
     } finally {
@@ -1119,7 +1120,7 @@ export default function WalletsPage() {
         setCryptoPrices(map);
       }
     } catch (error) {
-      setCryptoPricesError(error instanceof Error ? error.message : t("wl_err_prices"));
+      setCryptoPricesError(userError(error, t("wl_err_prices")));
     } finally {
       setCryptoPricesLoading(false);
     }
@@ -1157,7 +1158,7 @@ export default function WalletsPage() {
       setConfirmOpen(false);
       confirmRef.current = null;
     } catch (error) {
-      setConfirmError(error instanceof Error ? error.message : t("wl_err_confirm"));
+      setConfirmError(userError(error, t("wl_err_confirm")));
     } finally {
       setConfirmBusy(false);
     }
@@ -1695,7 +1696,7 @@ export default function WalletsPage() {
       setEthWallets(nextWallets);
       updateWalletSnapshot({ eth: nextWallets, sol: solWallets, btc: btcWallets, ada: adaWallets });
     } catch (error) {
-      setEthError(error instanceof Error ? error.message : t("wl_err_connect"));
+      setEthError(userError(error, t("wl_err_connect"), { rejected: t("wl_user_rejected") }));
     } finally {
       setEthLoading(false);
     }
@@ -1727,7 +1728,7 @@ export default function WalletsPage() {
       setEthWallets(nextWallets);
       updateWalletSnapshot({ eth: nextWallets, sol: solWallets, btc: btcWallets, ada: adaWallets });
     } catch (error) {
-      setEthError(error instanceof Error ? error.message : t("wl_err_connect"));
+      setEthError(userError(error, t("wl_err_connect"), { rejected: t("wl_user_rejected") }));
     } finally {
       setEthLoading(false);
     }
@@ -1778,7 +1779,7 @@ export default function WalletsPage() {
         }
       });
     } catch (error) {
-      setEthError(error instanceof Error ? error.message : t("wl_err_balance"));
+      setEthError(userError(error, t("wl_err_balance")));
     } finally {
       setEthLoading(false);
     }
@@ -1836,7 +1837,7 @@ export default function WalletsPage() {
       setEthNewCustomLabel("");
     } catch (error) {
       setEthNewError(
-        error instanceof Error ? error.message : t("wl_invalid_or_net")
+        userError(error, t("wl_invalid_or_net"))
       );
     } finally {
       setEthNewLoading(false);
@@ -1877,7 +1878,7 @@ export default function WalletsPage() {
       }
       updateWalletSnapshot({ eth: ethWallets, sol: nextWallets, btc: btcWallets, ada: adaWallets });
     } catch (error) {
-      setSolError(error instanceof Error ? error.message : t("wl_err_connect"));
+      setSolError(userError(error, t("wl_err_connect"), { rejected: t("wl_user_rejected") }));
     } finally {
       setSolLoading(false);
     }
@@ -1916,7 +1917,7 @@ export default function WalletsPage() {
         void fetchNftBalance(solMainAddress, "sol");
       }
     } catch (error) {
-      setSolError(error instanceof Error ? error.message : t("wl_err_balance"));
+      setSolError(userError(error, t("wl_err_balance")));
     } finally {
       setSolLoading(false);
     }
@@ -1970,7 +1971,7 @@ export default function WalletsPage() {
       setSolNewCustomLabel("");
       void fetchSolBalanceForAddress(trimmed);
     } catch (error) {
-      setSolNewError(error instanceof Error ? error.message : t("wl_invalid_addr"));
+      setSolNewError(userError(error, t("wl_invalid_addr")));
     } finally {
       setSolNewLoading(false);
     }
@@ -2021,7 +2022,7 @@ export default function WalletsPage() {
       }
       updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: nextWallets, ada: adaWallets });
     } catch (error) {
-      setBtcError(error instanceof Error ? error.message : t("wl_err_connect"));
+      setBtcError(userError(error, t("wl_err_connect"), { rejected: t("wl_user_rejected") }));
     } finally {
       setBtcLoading(false);
     }
@@ -2071,7 +2072,7 @@ export default function WalletsPage() {
         void fetchNftBalance(btcMainAddress, "btc");
       }
     } catch (error) {
-      setBtcError(error instanceof Error ? error.message : t("wl_err_balance"));
+      setBtcError(userError(error, t("wl_err_balance")));
     } finally {
       setBtcLoading(false);
     }
@@ -2134,7 +2135,7 @@ export default function WalletsPage() {
         void fetchRunesForAddress(trimmed);
       }
     } catch (error) {
-      setBtcNewError(error instanceof Error ? error.message : t("wl_invalid_addr"));
+      setBtcNewError(userError(error, t("wl_invalid_addr")));
     } finally {
       setBtcNewLoading(false);
     }
@@ -2189,7 +2190,7 @@ export default function WalletsPage() {
       updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: nextWallets });
     } catch (error) {
       clearTimeout(msgTimer);
-      const msg = error instanceof Error ? error.message : t("wl_err_connect");
+      const msg = userError(error, t("wl_err_connect"), { rejected: t("wl_user_rejected") });
       if (msg === "timeout") {
         setAdaError("O Eternl não respondeu em 60 segundos. Verifica: 1) Clica no ícone do Eternl na barra de extensões do Chrome → deverá aparecer um pedido pendente para aprovar. 2) Se não aparecer nada, abre o Eternl → Settings → dApp Connector → confirma que tens uma conta dApp ativa. 3) Em alternativa, adiciona o endereço manualmente abaixo.");
       } else if (msg.toLowerCase().includes("user canceled") || msg.toLowerCase().includes("cancelled") || msg.toLowerCase().includes("cancel")) {
@@ -2275,7 +2276,7 @@ export default function WalletsPage() {
             setAdaPeerAddress(null);
             setAdaPeerConnecting(false);
           } catch (e) {
-            setAdaError(e instanceof Error ? e.message : t("wl_ada_peer_err"));
+            setAdaError(userError(e, t("wl_ada_peer_err")));
           }
         },
         onApiEject: (_name: string, _address: string) => {},
@@ -2290,7 +2291,7 @@ export default function WalletsPage() {
         }
       }, 300);
     } catch (e) {
-      setAdaError(e instanceof Error ? e.message : t("wl_ada_peer_start_err"));
+      setAdaError(userError(e, t("wl_ada_peer_start_err")));
       setAdaPeerConnecting(false);
     }
   };
@@ -2319,7 +2320,7 @@ export default function WalletsPage() {
         void fetchNftBalance(adaMainAddress, "ada");
       }
     } catch (error) {
-      setAdaError(error instanceof Error ? error.message : t("wl_err_balance"));
+      setAdaError(userError(error, t("wl_err_balance")));
     } finally {
       setAdaLoading(false);
     }
@@ -2740,7 +2741,7 @@ export default function WalletsPage() {
         setAdaBalanceErrors((prev) => ({ ...prev, [address]: null }));
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("wl_err_balance");
+      const message = userError(err, t("wl_err_balance"));
       startTransition(() => {
         setAdaBalanceErrors((prev) => ({ ...prev, [address]: message }));
         setAdaBalancesByAddress((prev) => ({ ...prev, [address]: "—" }));
@@ -2793,7 +2794,7 @@ export default function WalletsPage() {
           setEthBalanceErrors((prev) => ({ ...prev, [key]: null }));
         });
       } catch (err) {
-        const msg = err instanceof Error ? err.message : t("wl_err_balance");
+        const msg = userError(err, t("wl_err_balance"));
         startTransition(() => {
           setEthBalanceErrors((prev) => ({ ...prev, [key]: msg }));
           setEthBalancesByKey((prev) => ({ ...prev, [key]: "—" }));
@@ -2828,7 +2829,7 @@ export default function WalletsPage() {
         setSolBalanceErrors((prev) => ({ ...prev, [address]: null }));
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t("wl_err_balance");
+      const msg = userError(err, t("wl_err_balance"));
       startTransition(() => {
         setSolBalanceErrors((prev) => ({ ...prev, [address]: msg }));
         setSolBalancesByAddress((prev) => ({ ...prev, [address]: "—" }));
@@ -2861,7 +2862,7 @@ export default function WalletsPage() {
         setBtcBalanceErrors((prev) => ({ ...prev, [address]: null }));
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t("wl_err_balance");
+      const msg = userError(err, t("wl_err_balance"));
       startTransition(() => {
         setBtcBalanceErrors((prev) => ({ ...prev, [address]: msg }));
         setBtcBalancesByAddress((prev) => ({ ...prev, [address]: "—" }));

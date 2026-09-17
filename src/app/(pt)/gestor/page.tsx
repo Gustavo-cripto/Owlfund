@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { userError } from "@/lib/ui/userError";
 import AppShell from "@/components/AppShell";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
@@ -263,7 +264,7 @@ export default function GestorPage() {
       }]);
     } catch (err) {
       // Erro fora do histórico (não persistido, não vai para o PDF) com "tentar de novo"
-      setSendError({ text: err instanceof Error ? err.message : t("error"), lastUser: trimmed });
+      setSendError({ text: userError(err, t("error")), lastUser: trimmed });
       setMessages(prev => prev.filter(m => m.id !== userMsg.id));
     } finally {
       setLoading(false);

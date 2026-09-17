@@ -1221,6 +1221,7 @@ export const es: Record<TranslationKey, string> = {
     fb_back: "Volver a ChainFolioAI",
     export_stale: "El sitio se actualizó desde que abriste esta página. Recargando a la versión nueva…",
     fisc_no_trades_cta: "Registrar transacciones →",
+    wl_user_rejected: "Solicitud cancelada en la cartera. Inténtalo de nuevo cuando quieras.",
     pfs_d_divers: "La mayor posición pesa {pct} del total.",
     pfs_r_divers: "Máximo (30) con la mayor posición por debajo del 40 %; 22 por debajo del 60 %; 15 por debajo del 80 %.",
     pfs_d_mix: "Activos tradicionales (acciones, ETF, oro): {pct} del total.",

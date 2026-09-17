@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
+import { userError } from "@/lib/ui/userError";
 import ErrorNote from "@/components/ErrorNote";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
@@ -359,7 +360,7 @@ export default function PortfolioChartSection({
         if (cancelled) return;
         setNftData(prev => {
           const next = [...prev];
-          next[i] = { ...next[i], loading: false, error: e instanceof Error ? e.message : "—" };
+          next[i] = { ...next[i], loading: false, error: userError(e, "—") };
           return next;
         });
       }
@@ -404,7 +405,7 @@ export default function PortfolioChartSection({
         if (cancelled) return;
         setDefiData(prev => {
           const next = [...prev];
-          next[i] = { ...next[i], loading: false, error: e instanceof Error ? e.message : "—" };
+          next[i] = { ...next[i], loading: false, error: userError(e, "—") };
           return next;
         });
       }

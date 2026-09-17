@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { userError } from "@/lib/ui/userError";
 import ErrorNote from "@/components/ErrorNote";
 import { btnPrimary } from "@/lib/ui/buttons";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -587,7 +588,7 @@ export default function PortfolioPage() {
         window.location.href = data.url;
       }
     } catch (error) {
-      setBillingError(error instanceof Error ? error.message : t("pf_pay_error"));
+      setBillingError(userError(error, t("pf_pay_error")));
     } finally {
       setIsBillingLoading(false);
     }
@@ -679,7 +680,7 @@ export default function PortfolioPage() {
       }
       setAiReply(data.reply ?? "");
     } catch (err) {
-      setAiError(err instanceof Error ? err.message : t("pf_error"));
+      setAiError(userError(err, t("pf_error")));
     } finally {
       setAiLoading(false);
     }

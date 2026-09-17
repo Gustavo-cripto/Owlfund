@@ -1230,6 +1230,7 @@ export const pt = {
     fb_back: "Voltar ao ChainFolioAI",
     export_stale: "O site foi atualizado desde que abriste esta página. A recarregar para a versão nova…",
     fisc_no_trades_cta: "Registar transações →",
+    wl_user_rejected: "Pedido cancelado na carteira. Quando quiseres, tenta de novo.",
     pfs_d_divers: "A maior posição pesa {pct} do total.",
     pfs_r_divers: "Máximo (30) com a maior posição abaixo de 40 %; 22 abaixo de 60 %; 15 abaixo de 80 %.",
     pfs_d_mix: "Ativos tradicionais (ações, ETF, ouro): {pct} do total.",
