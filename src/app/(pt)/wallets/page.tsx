@@ -9,6 +9,7 @@ import { btnPrimary } from "@/lib/ui/buttons";
 
 import AppShell from "@/components/AppShell";
 import EmptyState from "@/components/EmptyState";
+import { nativeSymbolOf, networkKey } from "@/lib/wallets/networkKey";
 import { useConfirm } from "@/components/ConfirmDialog";
 import NftImage from "@/components/NftImage";
 import CexSection from "@/components/wallets/CexSection";
@@ -497,7 +498,7 @@ export default function WalletsPage() {
   const [nftErrors, setNftErrors] = useState<Record<string, string | null>>({});
   const [nftsByKey, setNftsByKey] = useState<Record<string, Array<{ id: string; name: string; image?: string; tokenUri?: string; tokenAddress?: string; tokenId?: string }>>>({});
   // Tokens (ERC-20 / SPL) por endereço cold — para mostrar wETH etc. e somar ao portefólio.
-  type ColdToken = { address: string; symbol: string; name: string; logo?: string; balance: string; usdValue: number; usdPrice: number; chain: string };
+  type ColdToken = { address: string; symbol: string; name: string; logo?: string; balance: string; usdValue: number; usdPrice: number; chain: string; network?: string };
   const [coldTokensByAddr, setColdTokensByAddr] = useState<Record<string, ColdToken[]>>({});
   const [coldTokensLoading, setColdTokensLoading] = useState<Record<string, boolean>>({});
   const [evmProviders, setEvmProviders] = useState<Array<{ id: EvmProviderId; label: string }>>(
@@ -1495,13 +1496,37 @@ export default function WalletsPage() {
     [traditionalHoldings],
   );
 
+  // Saldo nativo das carteiras EVM em dolares, moeda a moeda: numa carteira na
+  // Polygon o nativo e POL, na BSC e BNB, na Avalanche e AVAX — antes somava-se
+  // tudo como se fosse ETH e valorizava-se ao preco do ETH (portefolio inflado).
+  // Nas L2 de Ethereum (Arbitrum, Base, Optimism, zkSync, Linea…) o nativo e ETH.
+  const evmNativeUsd = useMemo(() => {
+    const seen = new Set<string>();
+    let sum = 0;
+    const add = (addr: string, net: string, fallback: string | null | undefined) => {
+      const k = ethBalanceKey(addr, net);
+      if (seen.has(k)) return;
+      seen.add(k);
+      const b = ethBalancesByKey[k] ?? fallback;
+      const amount = typeof b === "string" && b !== "—" ? parseFloat(b) || 0 : 0;
+      if (!amount) return;
+      const sym = nativeSymbolOf(net);
+      // xDAI e uma stablecoin (1 $); o resto vem do /api/markets (ETH, POL, BNB, AVAX, CRO, MNT).
+      sum += sym === "XDAI" ? amount : (getFiatValue(sym, amount) ?? 0);
+    };
+    if (ethAddress) add(ethAddress, ethConnectedNetwork ?? "Ethereum", ethBalance);
+    ethWallets.forEach((w) => { if (w.address) add(w.address, w.network ?? "Ethereum", w.balance); });
+    return sum;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ethWallets, ethBalancesByKey, ethAddress, ethConnectedNetwork, ethBalance, web3Prices]);
+
   const walletsTotalUsd = useMemo(() => {
-    const eth = getFiatValue("ETH", totalEthBalance) ?? 0;
     const sol = getFiatValue("SOL", totalSolBalance) ?? 0;
     const btc = getFiatValue("BTC", totalBtcBalance) ?? 0;
     const ada = getFiatValue("ADA", totalAdaBalance) ?? 0;
-    return eth + sol + btc + ada;
-  }, [totalEthBalance, totalSolBalance, totalBtcBalance, totalAdaBalance, web3Prices]);
+    return evmNativeUsd + sol + btc + ada;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [evmNativeUsd, totalSolBalance, totalBtcBalance, totalAdaBalance, web3Prices]);
 
   // "Ethereum" and "eth" refer to the same chain — normalize so the same address
   // fetched under different key formats isn't double-counted.
@@ -2528,17 +2553,25 @@ export default function WalletsPage() {
     coldSolAddresses.forEach((a) => void fetchColdTokens(a, "sol"));
   }, [coldSolAddresses.join(","), fetchColdTokens]);
 
-  // Total USD dos tokens cold EXCLUINDO o nativo (já contado em walletsTotalUsd) — evita dupla contagem.
+  // Total USD dos tokens cold. O nativo da rede em que a carteira foi registada
+  // ja esta em walletsTotalUsd (nao contar duas vezes); o nativo das OUTRAS
+  // redes (ETH na Arbitrum/Base, POL na Polygon…) so chega por aqui e conta.
   const coldTokensExtraUsd = useMemo(() => {
+    const registered: Record<string, Set<string>> = {};
+    ethWallets.forEach((w) => {
+      if (!w.address) return;
+      (registered[w.address] ??= new Set()).add(networkKey(w.network ?? "Ethereum"));
+    });
     let sum = 0;
-    for (const tokens of Object.values(coldTokensByAddr)) {
+    for (const [key, tokens] of Object.entries(coldTokensByAddr)) {
+      const addr = key.slice(key.indexOf(":") + 1);
       for (const t of tokens) {
-        if (t.address === "native") continue;
+        if (t.address === "native" && (!t.network || registered[addr]?.has(t.network))) continue;
         if (Number.isFinite(t.usdValue)) sum += t.usdValue;
       }
     }
     return sum;
-  }, [coldTokensByAddr]);
+  }, [coldTokensByAddr, ethWallets]);
 
   useEffect(() => {
     // Estes tokens entram no total desta página; sem os gravar no snapshot o
@@ -4686,11 +4719,9 @@ export default function WalletsPage() {
               {t("wl_balances_nfts")}
             </p>
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-300">
-              <span>
-                <span className="text-slate-500">ETH:</span>{" "}
-                {getFiatValue("ETH", totalEthBalance) != null
-                  ? fmtCur((getFiatValue("ETH", totalEthBalance) ?? 0) * usdToEurRate)
-                  : "—"}
+              <span title="ETH + POL, BNB, AVAX… (nativo de cada rede EVM)">
+                <span className="text-slate-500">ETH/EVM:</span>{" "}
+                {web3Prices.ETH ? fmtCur(evmNativeUsd * usdToEurRate) : "—"}
               </span>
               <span>
                 <span className="text-slate-500">SOL:</span>{" "}

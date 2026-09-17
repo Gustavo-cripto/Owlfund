@@ -2,6 +2,7 @@
 
 import PlanBadge from "@/components/PlanBadge";
 import ErrorNote from "@/components/ErrorNote";
+import { NETWORK_SHORT, networkKey } from "@/lib/wallets/networkKey";
 
 import { useState, useEffect } from "react";
 import { btnPrimary } from "@/lib/ui/buttons";
@@ -100,7 +101,7 @@ export default function CexSection({
     nftCount?: number | null; defiUsd?: number | null;
   }>;
   onRemoveAddress?: (address: string, kind: "eth" | "sol" | "btc" | "ada" | "other", networkLabel: string) => void;
-  tokensByAddress?: Record<string, Array<{ address: string; symbol: string; name: string; logo?: string; balance: string; usdValue: number; chain: string }>>;
+  tokensByAddress?: Record<string, Array<{ address: string; symbol: string; name: string; logo?: string; balance: string; usdValue: number; chain: string; network?: string }>>;
 }) {
   const { t } = useLanguage();
   const { format: fmtCur, formatUsd, hideBalances, numberFormat } = useCurrencyFormat();
@@ -757,19 +758,24 @@ export default function CexSection({
                         <span className="font-semibold text-emerald-300">{e.defiUsd != null ? fmtUsd(e.defiUsd) : "—"}</span>
                       </span>
                     </div>
-                    {/* Tokens (wETH, USDC, etc.) — exclui o nativo já mostrado no Saldo */}
+                    {/* Tokens (wETH, USDC, etc.) — exclui o nativo da rede desta carteira (ja no Saldo);
+                        o nativo de OUTRAS redes (ETH na Arbitrum, POL na Polygon…) mostra-se com a rede. */}
                     {(() => {
+                      const ownNet = networkKey(e.networkLabel);
                       const toks = (tokensByAddress[`${e.kind}:${e.address}`] ?? [])
-                        .filter((t) => t.address !== "native" && Number(t.balance) > 0)
+                        .filter((t) => !(t.address === "native" && (!t.network || t.network === ownNet)) && Number(t.balance) > 0)
                         .sort((a, b) => b.usdValue - a.usdValue);
                       if (toks.length === 0) return null;
                       return (
                         <div className="mt-1 space-y-1 rounded-lg border border-slate-800 bg-slate-900/40 px-2.5 py-2">
                           <p className="text-[10px] uppercase tracking-wider text-slate-500">{t("cx_tokens")} ({toks.length})</p>
                           {toks.map((t) => (
-                            <div key={`${t.chain}:${t.address}:${t.symbol}`} className="flex items-center justify-between gap-2 text-[11px]">
+                            <div key={`${t.network ?? t.chain}:${t.address}:${t.symbol}`} className="flex items-center justify-between gap-2 text-[11px]">
                               <span className="truncate text-slate-300">
                                 {hideBalances ? "••••" : Number(t.balance).toLocaleString(numberFormat, { maximumFractionDigits: 4 })} <span className="font-semibold">{t.symbol}</span>
+                                {t.network && t.network !== ownNet && (
+                                  <span className="ml-1.5 rounded border border-slate-700 px-1 py-px text-[9px] uppercase tracking-wide text-slate-400">{NETWORK_SHORT[t.network] ?? t.network}</span>
+                                )}
                               </span>
                               <span className="shrink-0 text-slate-400">{t.usdValue > 0 ? fmtUsd(t.usdValue) : "—"}</span>
                             </div>

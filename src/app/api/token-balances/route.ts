@@ -25,6 +25,7 @@ type EvmToken = {
   usd_price?: number;
   possible_spam?: boolean;
   verified_contract?: boolean;
+  _chain?: string;  // rede de onde veio (marcado por nos ao juntar as redes)
   native_token?: boolean;
   security_score?: number | null;
 };
@@ -52,6 +53,9 @@ export type TokenBalance = {
   usdValue: number;
   usdPrice: number;
   chain: ChainId;
+  /** Rede EVM concreta (eth, arbitrum, base, polygon…). Sem isto, "USDC na Arbitrum"
+   *  e "USDC na Ethereum" eram indistinguiveis e o ETH nativo das L2 perdia-se. */
+  network?: string;
 };
 
 function isEvmAddress(a: string) {
@@ -170,6 +174,7 @@ export async function GET(request: Request) {
           usdValue: t.usdValue,
           usdPrice: t.usdPrice,
           chain: "eth" as const,
+          network: t.chain,
         }))
         .sort((a, b) => b.usdValue - a.usdValue);
       const totalUsd = tokens.reduce((sum, t) => sum + t.usdValue, 0);
@@ -232,7 +237,7 @@ export async function GET(request: Request) {
         }
         const data = await res.json() as EvmToken[] | { result?: EvmToken[] };
         const list = Array.isArray(data) ? data : (data as { result?: EvmToken[] }).result ?? [];
-        rawTokens.push(...list.filter(t => !t.possible_spam));
+        rawTokens.push(...list.filter(t => !t.possible_spam).map((t) => ({ ...t, _chain: c })));
       } catch (e) {
         failed.push(`${c}:erro`);
         console.error("[token-balances] Moralis", c, e instanceof Error ? e.message : e);
@@ -288,6 +293,7 @@ export async function GET(request: Request) {
         usdValue,
         usdPrice,
         chain: "eth",
+        network: token._chain,
       });
     }
 
