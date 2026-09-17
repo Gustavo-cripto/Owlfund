@@ -9,6 +9,16 @@
 
 type Variant = "dashboard" | "page";
 
+/** Linhas cinzentas para o interior de um cartao que ainda esta a carregar. */
+export function SkeletonLines({ n = 3, className = "" }: { n?: number; className?: string }) {
+  const widths = ["w-3/4", "w-1/2", "w-2/3", "w-5/6", "w-2/5"];
+  return (
+    <div className={`animate-pulse flex flex-col gap-2.5 ${className}`} aria-busy="true">
+      {Array.from({ length: n }).map((_, i) => <div key={i} className={`h-3 ${widths[i % widths.length]} rounded-md bg-slate-800/70`} />)}
+    </div>
+  );
+}
+
 const bar = (w: string, h = "h-3") => <div className={`${h} ${w} rounded-md bg-slate-800/70`} />;
 const card = (h: string, extra = "") => <div className={`${h} rounded-2xl border border-slate-800/80 bg-slate-900/50 ${extra}`} />;
 

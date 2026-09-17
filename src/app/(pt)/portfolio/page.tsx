@@ -29,6 +29,7 @@ import { downloadBlob, loadExcelJS } from "@/lib/export/excel";
 import { cryptoHoldingValueEur, loadCryptoHoldings, loadStablecoinEntries, type CryptoHoldings, type StablecoinEntry } from "@/lib/crypto/storage";
 import { loadNickname } from "@/lib/user/nickname";
 import ChartModal from "@/components/ChartModal";
+import { SkeletonLines } from "@/components/PageSkeleton";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ""
@@ -2488,7 +2489,7 @@ export default function PortfolioPage() {
         <section className="rounded-2xl border border-orange-500/20 bg-slate-900/60 p-6">
           <h2 className="text-lg font-semibold text-white">{t("pf_snapshots_plan")}</h2>
           {isLoadingAuth ? (
-            <p className="mt-2 text-sm text-slate-400">{t("loading")}</p>
+            <SkeletonLines n={3} className="mt-4" />
           ) : userId ? (
             <div className="mt-4 space-y-3">
               <p className="text-sm text-slate-300">
@@ -2572,7 +2573,7 @@ export default function PortfolioPage() {
           </div>
 
           {isLoadingAuth || isSnapshotsLoading ? (
-            <p className="mt-4 text-sm text-slate-400">{t("loading")}</p>
+            <SkeletonLines n={4} className="mt-4" />
           ) : accountSnapshots.length === 0 ? (
             <p className="mt-4 text-sm text-slate-400">
               {t("pfu_no_snapshots")}
