@@ -253,8 +253,8 @@ export default function WalletCard({
             {hideBalances ? "••••" : extraBalance.content}
           </div>
         ) : null}
-        {error ? <ErrorNote>{error}</ErrorNote> : null}
-        {defiError ? <ErrorNote>{defiError}</ErrorNote> : null}
+        {error ? <ErrorNote onRetry={onRefresh}>{error}</ErrorNote> : null}
+        {defiError ? <ErrorNote onRetry={onRefreshDefi}>{defiError}</ErrorNote> : null}
         {nftError ? <ErrorNote>{nftError}</ErrorNote> : null}
       </div>
 
