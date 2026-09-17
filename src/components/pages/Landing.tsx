@@ -658,6 +658,7 @@ export default function Landing() {
               <a href="#faq" className="transition hover:text-slate-300">{t("lp_faq_tag")}</a>
               <a href="/privacidade" className="transition hover:text-slate-300">{t("legal_privacy_short")}</a>
               <a href="/termos" className="transition hover:text-slate-300">{t("legal_terms_short")}</a>
+              <a href={pageUrl("status", lang)} className="transition hover:text-slate-300">{t("footer_status")}</a>
               <a href={pageUrl("login", lang)} className="transition hover:text-slate-300">{t("lp_login")}</a>
             </div>
             <div className="flex flex-col gap-2 md:items-end">

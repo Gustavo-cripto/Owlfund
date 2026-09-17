@@ -125,6 +125,12 @@ const META: Record<PublicPage, Record<Lang, Meta>> = {
     es: { title: "Ayúdenos a mejorar", description: "Una breve pregunta sobre su experiencia con ChainFolioAI." },
     fr: { title: "Aidez-nous à nous améliorer", description: "Une brève question sur votre expérience avec ChainFolioAI." },
   },
+  status: {
+    pt: { title: "Estado do serviço", description: "Estado, em tempo real, das fontes de dados de que o ChainFolioAI depende: cotações, blockchain, câmbios, ações e alertas." },
+    en: { title: "Service status", description: "Live status of the data sources ChainFolioAI depends on: prices, blockchain, FX rates, stocks and alerts." },
+    es: { title: "Estado del servicio", description: "Estado en tiempo real de las fuentes de datos de las que depende ChainFolioAI: cotizaciones, blockchain, cambios, acciones y alertas." },
+    fr: { title: "État du service", description: "État en temps réel des sources de données dont dépend ChainFolioAI : cours, blockchain, taux de change, actions et alertes." },
+  },
 };
 
 const OG_LOCALE: Record<Lang, string> = {

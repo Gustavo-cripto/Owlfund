@@ -44,6 +44,7 @@ const SEMENTES = [
   "/como-funciona", "/en/how-it-works", "/es/como-funciona", "/fr/comment-ca-marche",
   "/beta", "/en/beta", "/es/beta", "/fr/beta",
   "/login", "/en/login", "/es/login", "/fr/login",
+  "/estado", "/en/status", "/es/estado", "/fr/etat",
   "/termos", "/privacidade", "/developers",
   "/guias/impostos-cripto", "/guides/crypto-tax",
   "/guias/impostos-cripto/portugal", "/guides/crypto-tax/united-states",

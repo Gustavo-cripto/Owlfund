@@ -41,7 +41,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   // Uma entrada por pagina publica x idioma (4 x 4 = 16).
   // O login tem endereco e metadata por idioma, mas fica fora do sitemap: nao e
   // destino de pesquisa e nao vale a pena pedir ao Google que indexe quatro.
-  const prioridade: Record<PublicPage, number> = { home: 1.0, beta: 0.9, pricing: 0.9, howItWorks: 0.8, login: 0, feedback: 0 };
+  const prioridade: Record<PublicPage, number> = { home: 1.0, beta: 0.9, pricing: 0.9, howItWorks: 0.8, login: 0, feedback: 0, status: 0.3 };
   const traduzidas = (Object.keys(PAGE_SLUG) as PublicPage[]).filter((p) => prioridade[p] > 0).flatMap((page) =>
     LANGS.map((lang) => ({
       url: `${SITE_URL}${pageUrl(page, lang)}`,

@@ -11,7 +11,7 @@
 
 import type { Lang } from "./translations";
 
-export type PublicPage = "home" | "pricing" | "howItWorks" | "beta" | "login" | "feedback";
+export type PublicPage = "home" | "pricing" | "howItWorks" | "beta" | "login" | "feedback" | "status";
 
 /** Slug de cada página em cada idioma. "" = raiz do idioma. */
 export const PAGE_SLUG: Record<PublicPage, Record<Lang, string>> = {
@@ -25,6 +25,8 @@ export const PAGE_SLUG: Record<PublicPage, Record<Lang, string>> = {
   login: { pt: "login", en: "login", es: "login", fr: "login" },
   // Questionario "o que te fez parar?" — chega-se pelo link do email; fora do sitemap.
   feedback: { pt: "feedback", en: "feedback", es: "feedback", fr: "feedback" },
+  // Estado das fontes externas ("e comigo ou e o site?").
+  status: { pt: "estado", en: "status", es: "estado", fr: "etat" },
 };
 
 /** Prefixo do idioma. O português não tem — é o idioma de origem do site. */
