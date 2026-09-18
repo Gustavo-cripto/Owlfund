@@ -153,6 +153,19 @@
    (Animar a altura de um <details> ainda não é universal; isto chega.) */
 details[open] > .faq-a { animation: fade-in-up var(--duration-fast) var(--ease-out) both; }
 
+/* Ticker de preços: arrastável com o dedo SEMPRE, não só quando o movimento
+   está desligado. O iPhone pára animações infinitas por conta própria — com
+   "Reduzir movimento" e também em poupança de energia — e nesses casos a fita
+   ficava presa a mostrar três cotações. Assim, pare ela porque parar, as
+   cotações continuam ao alcance de um deslize. */
+.ticker-wrap {
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+.ticker-wrap::-webkit-scrollbar { display: none; }
+
 /* Estado vazio: o ícone flutua devagar (movimento "idle", decorativo — só
    aqui, porque se vê uma vez por conta). */
 @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
@@ -209,10 +222,8 @@ details[open] > .faq-a { animation: fade-in-up var(--duration-fast) var(--ease-o
   .press:active       { transform: none; }
   .success-check      { animation: check-fade 200ms ease both; }
   .success-check svg path { animation: none; stroke-dashoffset: 0; }
-  /* Ticker parado, mas não inútil: fica deslizável com o dedo/rato. */
+  /* Ticker parado (o deslizar com o dedo está sempre disponível, ver .ticker-wrap). */
   .animate-ticker     { animation: none; }
-  .ticker-wrap        { overflow-x: auto; scrollbar-width: none; }
-  .ticker-wrap::-webkit-scrollbar { display: none; }
   .animate-glow-pulse,
   .empty-icon,
   .animate-bounce,

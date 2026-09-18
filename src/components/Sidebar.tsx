@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { btnPrimary } from "@/lib/ui/buttons";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -278,7 +279,8 @@ export default function Sidebar() {
       {mobileOpen && (
         <nav id="sb-mobile-nav" className="animate-menu-in keep-dark xl:hidden bg-black border-b border-white/[0.06] px-3 py-3 grid grid-cols-2 gap-1">
           {navList.map((item) => (
-            <a key={item.href} href={item.href} aria-current={isActive(item.href) ? "page" : undefined}
+            <Link key={item.href} href={item.href} prefetch onClick={() => setMobileOpen(false)}
+              aria-current={isActive(item.href) ? "page" : undefined}
               className={`press flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium ${
                 isActive(item.href) ? "bg-white/10 text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"
               }`}
@@ -286,23 +288,31 @@ export default function Sidebar() {
               <span className={isActive(item.href) ? "text-orange-400" : "text-slate-500"}>{item.icon}</span>
               {t(item.labelKey)}
               {PREMIUM_HREFS.has(item.href) && <PlanBadge plan="premium" size="xs" className="ml-auto" />}
-            </a>
+            </Link>
           ))}
-          <div className="col-span-2 mt-1 pt-2 border-t border-white/[0.06] flex items-center justify-between px-2">
-            <div className="flex gap-1.5">
-              {LANGS.map((l) => (
-                <button key={l.code} type="button" onClick={() => setLang(l.code)}
-                  className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition ${lang === l.code ? "bg-orange-500/20 text-orange-300 ring-1 ring-orange-500/40" : "text-slate-400 hover:bg-white/8 hover:text-white"}`}
-                >
-                  <span className="text-base">{l.flag}</span>
-                  <span>{l.label}</span>
-                </button>
-              ))}
-            </div>
+          {/* Línguas e a ação em linhas SEPARADAS: no telemóvel, quatro bandeiras
+              mais um botão na mesma linha ficavam esmagados contra a margem. */}
+          <div className="col-span-2 mt-1 grid grid-cols-4 gap-1 border-t border-white/[0.06] pt-3">
+            {LANGS.map((l) => (
+              <button key={l.code} type="button" onClick={() => setLang(l.code)} aria-pressed={lang === l.code}
+                className={`press flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium ${lang === l.code ? "bg-orange-500/20 text-orange-300 ring-1 ring-orange-500/40" : "text-slate-400 hover:bg-white/8 hover:text-white"}`}
+              >
+                <span className="text-base">{l.flag}</span>
+                <span>{l.label}</span>
+              </button>
+            ))}
+          </div>
+          <div className="col-span-2 mt-2">
             {isLoggedIn ? (
-              <button type="button" onClick={handleLogout} className="text-xs text-slate-500 hover:text-white transition">{t("logout")}</button>
+              <button type="button" onClick={handleLogout}
+                className="press w-full rounded-xl border border-slate-700 py-2.5 text-sm font-semibold text-slate-300 hover:text-white">
+                {t("logout")}
+              </button>
             ) : (
-              <a href={pageUrl("login", lang)} className={`${btnPrimary} px-3 py-1.5 text-xs`}>{t("lp_login")}</a>
+              <Link href={pageUrl("login", lang)} prefetch onClick={() => setMobileOpen(false)}
+                className={`${btnPrimary} w-full py-2.5 text-sm`}>
+                {t("lp_login")}
+              </Link>
             )}
           </div>
         </nav>
@@ -346,8 +356,9 @@ export default function Sidebar() {
               const label = t(item.labelKey);
               return (
                 <li key={item.href}>
-                  <a
+                  <Link
                     href={item.href}
+                    prefetch
                     title={!expanded ? label : undefined}
                     aria-current={isActive(item.href) ? "page" : undefined}
                     className={`press flex items-center rounded-xl font-medium ${
@@ -365,7 +376,7 @@ export default function Sidebar() {
                       {label}
                       {PREMIUM_HREFS.has(item.href) && <PlanBadge plan="premium" size="xs" className="ml-2 align-middle" />}
                     </span>
-                  </a>
+                  </Link>
                 </li>
               );
             })}
