@@ -80,7 +80,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div id="conteudo" tabIndex={-1} className="flex-1 min-w-0 flex flex-col min-h-screen outline-none">
         {/* ── Price ticker (real via /api/markets; fallback estático marcado como exemplo) ── */}
-        <div className="ticker-wrap relative border-b border-slate-800/60 bg-slate-900/50 py-2 overflow-hidden select-none shrink-0" title={live ? tr("app_ticker_tip") : tr("app_ticker_demo_tip")}>
+        {/* Deslizável com o dedo (ver .ticker-wrap) — e, por isso, tem de ser
+            percorrível com o teclado: tabIndex torna-a focável e as setas
+            passam a mover as cotações. Sem isto, quem não usa rato nem toque
+            ficava sem ver os preços que passam da margem. */}
+        <div
+          className="ticker-wrap relative border-b border-slate-800/60 bg-slate-900/50 py-2 overflow-hidden select-none shrink-0"
+          title={live ? tr("app_ticker_tip") : tr("app_ticker_demo_tip")}
+          role="region"
+          aria-label={tr("app_ticker_label")}
+          tabIndex={0}
+        >
           {!live && <span className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded bg-slate-800 px-1.5 text-[9px] uppercase tracking-wider text-slate-300">{tr("app_ticker_demo")}</span>}
           <div className="flex animate-ticker" style={{ width: "max-content" }}>
             {[...ticks, ...ticks, ...ticks].map((tick, i) => (

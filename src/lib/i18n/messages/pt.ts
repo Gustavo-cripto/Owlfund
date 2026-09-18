@@ -1400,6 +1400,7 @@ export const pt = {
     pf_activate_pro: "Ativar plano Pro",
     fire_ph_example: "Ex: 50000",
     app_ticker_tip: "CoinEx / CoinGecko · 24h",
+    app_ticker_label: "Cotações em direto",
     app_ticker_demo_tip: "Valores de exemplo",
     app_ticker_demo: "exemplo",
     wl_soon: "em breve",

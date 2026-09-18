@@ -1391,6 +1391,7 @@ export const en: Record<TranslationKey, string> = {
     pf_activate_pro: "Activate Pro plan",
     fire_ph_example: "e.g. 50000",
     app_ticker_tip: "CoinEx / CoinGecko · 24h",
+    app_ticker_label: "Live prices",
     app_ticker_demo_tip: "Example values",
     app_ticker_demo: "example",
     wl_soon: "coming soon",
