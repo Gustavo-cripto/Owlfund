@@ -3,6 +3,7 @@ import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { z } from "zod";
 import { checkApiKey } from "@/lib/api/auth";
 import { getPortfolio, getWallets } from "@/lib/api/data";
+import { getPnl, getRealizedGains } from "@/lib/api/insights";
 import { scanWatchlist, type WatchEntry } from "@/lib/api/whales";
 import { getMarket } from "@/lib/api/market";
 import { getKnownWhales } from "@/lib/api/known-whales";
@@ -57,6 +58,30 @@ const handler = createMcpHandler(
         const userId = (extra?.authInfo?.extra?.userId as string | undefined) ?? "";
         if (!userId) return { content: [{ type: "text", text: "Não autenticado." }], isError: true };
         const data = await getWallets(userId);
+        return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+      },
+    );
+
+    server.tool(
+      "get_pnl",
+      "Evolução do portefólio do utilizador em euros: total atual e variação a 24 h, 7 dias, 30 dias e desde o início, a partir dos snapshots gravados.",
+      {},
+      async (_args, extra) => {
+        const userId = (extra?.authInfo?.extra?.userId as string | undefined) ?? "";
+        if (!userId) return { content: [{ type: "text", text: "Não autenticado." }], isError: true };
+        const data = await getPnl(userId);
+        return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+      },
+    );
+
+    server.tool(
+      "get_realized_gains",
+      "Mais-valias realizadas do utilizador pelo método FIFO, em euros, com taxas e gás deduzidos: total, por ativo e por ano. Não é uma declaração fiscal.",
+      { year: z.number().int().min(2009).max(2100).optional().describe("Ano civil das vendas (opcional; sem ele devolve tudo).") },
+      async (args, extra) => {
+        const userId = (extra?.authInfo?.extra?.userId as string | undefined) ?? "";
+        if (!userId) return { content: [{ type: "text", text: "Não autenticado." }], isError: true };
+        const data = await getRealizedGains(userId, args.year);
         return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
       },
     );

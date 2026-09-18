@@ -42,6 +42,31 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     "btc": [{ "address": "wallet_86ef685f59", "balance": "0.2" }]
   }
 }` },
+  { id: "pnl", method: "GET", path: "/api/v1/pnl", desc: "Evolução do portefólio em euros: total atual e variação a 24 h, 7 d, 30 d e desde o início.", descKey: "dev_ep_pnl", auth: true,
+    response: `{
+  "currency": "EUR",
+  "totalEur": 12450.32,
+  "updatedAt": "2026-09-18T06:00:00Z",
+  "changes": [
+    { "period": "24h", "eur": 120.5, "pct": 0.98, "fromAt": "2026-09-17T06:00:00Z" },
+    { "period": "7d", "eur": -310.2, "pct": -2.43, "fromAt": "2026-09-11T06:00:00Z" },
+    { "period": "30d", "eur": 890.1, "pct": 7.7, "fromAt": "2026-08-19T06:00:00Z" },
+    { "period": "all", "eur": 2450.32, "pct": 24.5, "fromAt": "2026-03-02T06:00:00Z" }
+  ],
+  "snapshotsUsed": 128
+}` },
+  { id: "realized-gains", method: "GET", path: "/api/v1/realized-gains", desc: "Mais-valias realizadas (FIFO) em euros, com taxas e gás deduzidos: total, por ativo e por ano.", descKey: "dev_ep_realized_gains", auth: true,
+    query: { year: "2026" },
+    response: `{
+  "currency": "EUR",
+  "method": "FIFO",
+  "year": 2026,
+  "realizedPnlEur": 1840.55,
+  "feesEur": 62.3,
+  "byAsset": [{ "asset": "BTC", "realizedPnlEur": 1500.2, "feesEur": 40.1, "quantityOpen": 0.35 }],
+  "byYear": [{ "year": 2026, "realizedPnlEur": 1840.55, "sales": 12 }],
+  "unmatched": {}
+}` },
   { id: "whales", method: "GET", path: "/api/v1/whales", desc: "Movimentos on-chain recentes dos endereços dados (?watchlist=<JSON>). ETH, BTC e SOL; máx. 10.", descKey: "dev_ep_whales", auth: true,
     query: { watchlist: '[{"address":"0x…","chain":"eth","label":"Baleia"}]' },
     response: `{
@@ -89,6 +114,8 @@ export type McpTool = { name: string; key: TranslationKey; arg?: string };
 export const MCP_TOOLS: McpTool[] = [
   { name: "get_portfolio", key: "dev_tool_portfolio" },
   { name: "get_wallets", key: "dev_tool_wallets" },
+  { name: "get_pnl", key: "dev_tool_pnl" },
+  { name: "get_realized_gains", key: "dev_tool_realized_gains", arg: "year" },
   { name: "get_whale_activity", key: "dev_tool_whales", arg: "watchlist" },
   { name: "get_market", key: "dev_tool_market", arg: "limit" },
   { name: "list_known_whales", key: "dev_tool_known_whales" },
