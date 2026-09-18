@@ -313,6 +313,10 @@ export default function PortfolioPage() {
   const [historicalPrices, setHistoricalPrices] = useState<HistoricalPrices>({ "1d": {}, "7d": {}, "30d": {} });
   // Ref keeps prices always fresh for async callbacks (avoids stale closure)
   const tokenPricesRef = useRef<TokenPrices>({});
+  // Pontuacao do momento, para ir dentro do snapshot: assim a API/MCP devolvem
+  // EXATAMENTE o numero que esteve no ecra, em vez de o recalcularem a parte
+  // (duas contas separadas acabam sempre por divergir).
+  const scoreRef = useRef<{ value: number; parts: Array<{ id: string; points: number; max: number }> } | null>(null);
   const [traditionalHoldings, setTraditionalHoldings] = useState<TraditionalHoldings>({});
   const [cryptoHoldings, setCryptoHoldings] = useState<CryptoHoldings>({});
   const [stablecoinEntries, setStablecoinEntries] = useState<StablecoinEntry[]>([]);
@@ -606,6 +610,7 @@ export default function PortfolioPage() {
       ...snapshot,
       _totalEur: portfolioTotal,
       _account: getActiveAccountId(),
+      ...(scoreRef.current ? { _score: scoreRef.current } : {}),
       ...(bench ? { _bench: bench } : {}),
     };
     const { error } = await supabase
@@ -1185,7 +1190,7 @@ export default function PortfolioPage() {
   const portfolioScore = useMemo(() => {
     if (portfolioTotal <= 0) return null;
     let score = 0;
-    const reasons: { label: string; points: number; max: number; ok: boolean; pending?: boolean; detail: string; rule: string }[] = [];
+    const reasons: { id: string; label: string; points: number; max: number; ok: boolean; pending?: boolean; detail: string; rule: string }[] = [];
     const pctTxt = (v: number) => `${v.toLocaleString(locale, { maximumFractionDigits: 0 })} %`;
 
     const allocValues = cryptoAllocations.filter(a => a.value > 0).map(a => a.value);
@@ -1193,33 +1198,40 @@ export default function PortfolioPage() {
     const maxPct = portfolioTotal > 0 ? (maxAlloc / portfolioTotal) * 100 : 100;
     const diversPts = maxPct > 80 ? 5 : maxPct > 60 ? 15 : maxPct > 40 ? 22 : 30;
     score += diversPts;
-    reasons.push({ label: t("pf_diversification"), points: diversPts, max: 30, ok: diversPts >= 22, detail: t("pfs_d_divers").replace("{pct}", pctTxt(maxPct)), rule: t("pfs_r_divers") });
+    reasons.push({ id: "diversification", label: t("pf_diversification"), points: diversPts, max: 30, ok: diversPts >= 22, detail: t("pfs_d_divers").replace("{pct}", pctTxt(maxPct)), rule: t("pfs_r_divers") });
 
     const tradPct = portfolioTotal > 0 ? (traditionalTotal / portfolioTotal) * 100 : 0;
     const tradPts = tradPct > 20 ? 20 : tradPct > 10 ? 15 : tradPct > 5 ? 10 : tradPct > 0 ? 5 : 0;
     score += tradPts;
-    reasons.push({ label: t("pf_mix"), points: tradPts, max: 20, ok: tradPts >= 10, detail: t("pfs_d_mix").replace("{pct}", pctTxt(tradPct)), rule: t("pfs_r_mix") });
+    reasons.push({ id: "mix", label: t("pf_mix"), points: tradPts, max: 20, ok: tradPts >= 10, detail: t("pfs_d_mix").replace("{pct}", pctTxt(tradPct)), rule: t("pfs_r_mix") });
 
     const stableValue = stablecoinTotal + manualStableEur;
     const stablePct = portfolioTotal > 0 ? (stableValue / portfolioTotal) * 100 : 0;
     const stablePts = stablePct >= 5 && stablePct <= 30 ? 10 : stablePct > 0 ? 5 : 0;
     score += stablePts;
-    reasons.push({ label: t("pf_stable_reserve"), points: stablePts, max: 10, ok: stablePts >= 5, detail: t("pfs_d_stable").replace("{pct}", pctTxt(stablePct)), rule: t("pfs_r_stable") });
+    reasons.push({ id: "stableReserve", label: t("pf_stable_reserve"), points: stablePts, max: 10, ok: stablePts >= 5, detail: t("pfs_d_stable").replace("{pct}", pctTxt(stablePct)), rule: t("pfs_r_stable") });
 
     const roiPts = advancedMetrics ? (advancedMetrics.roi > 20 ? 20 : advancedMetrics.roi > 10 ? 15 : advancedMetrics.roi > 0 ? 10 : 0) : 0;
     score += roiPts;
-    reasons.push({ label: t("pf_perf_roi"), points: roiPts, max: 20, ok: roiPts >= 10, pending: !advancedMetrics, detail: advancedMetrics ? t("pfs_d_roi").replace("{pct}", `${advancedMetrics.roi >= 0 ? "+" : ""}${advancedMetrics.roi.toLocaleString(locale, { maximumFractionDigits: 1 })} %`) : t("pfs_d_pending"), rule: t("pfs_r_roi") });
+    reasons.push({ id: "roi", label: t("pf_perf_roi"), points: roiPts, max: 20, ok: roiPts >= 10, pending: !advancedMetrics, detail: advancedMetrics ? t("pfs_d_roi").replace("{pct}", `${advancedMetrics.roi >= 0 ? "+" : ""}${advancedMetrics.roi.toLocaleString(locale, { maximumFractionDigits: 1 })} %`) : t("pfs_d_pending"), rule: t("pfs_r_roi") });
 
     const riskPts = advancedMetrics
       ? (advancedMetrics.maxDrawdown > -50 ? 10 : 5) + (advancedMetrics.volatility !== null && advancedMetrics.volatility < 80 ? 10 : advancedMetrics.volatility !== null && advancedMetrics.volatility < 150 ? 5 : 0)
       : 0;
     score += riskPts;
-    reasons.push({ label: t("pf_risk_mgmt"), points: riskPts, max: 20, ok: riskPts >= 12, pending: !advancedMetrics, detail: advancedMetrics ? t("pfs_d_risk").replace("{dd}", `${advancedMetrics.maxDrawdown.toLocaleString(locale, { maximumFractionDigits: 1 })} %`).replace("{vol}", advancedMetrics.volatility != null ? `${advancedMetrics.volatility.toLocaleString(locale, { maximumFractionDigits: 0 })} %` : "—") : t("pfs_d_pending"), rule: t("pfs_r_risk") });
+    reasons.push({ id: "risk", label: t("pf_risk_mgmt"), points: riskPts, max: 20, ok: riskPts >= 12, pending: !advancedMetrics, detail: advancedMetrics ? t("pfs_d_risk").replace("{dd}", `${advancedMetrics.maxDrawdown.toLocaleString(locale, { maximumFractionDigits: 1 })} %`).replace("{vol}", advancedMetrics.volatility != null ? `${advancedMetrics.volatility.toLocaleString(locale, { maximumFractionDigits: 0 })} %` : "—") : t("pfs_d_pending"), rule: t("pfs_r_risk") });
 
     const label = score >= 80 ? t("pf_excellent") : score >= 60 ? t("pf_good") : score >= 40 ? t("pf_fair") : t("pf_improving");
     const color = score >= 80 ? "text-emerald-400" : score >= 60 ? "text-orange-300" : score >= 40 ? "text-yellow-400" : "text-rose-400";
     return { score, label, color, reasons };
   }, [portfolioTotal, cryptoAllocations, traditionalTotal, stablecoinTotal, manualStableEur, advancedMetrics, locale, t]);
+
+  // A pontuacao que esta no ecra segue no proximo snapshot (ver scoreRef).
+  useEffect(() => {
+    scoreRef.current = portfolioScore
+      ? { value: portfolioScore.score, parts: portfolioScore.reasons.map((r) => ({ id: r.id, points: r.points, max: r.max })) }
+      : null;
+  }, [portfolioScore]);
 
   const portfolioSplit = useMemo(() => {
     const total = cryptoTotal + traditionalTotal;

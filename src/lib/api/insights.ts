@@ -250,3 +250,56 @@ export function listTaxCountries() {
     note: "Regras gerais publicadas nos guias do ChainFolioAI, verificadas para 2026. Taxas em fração (0.28 = 28 %). Não é aconselhamento fiscal.",
   };
 }
+
+// ── Pontuação do portefólio ──────────────────────────────────────────────────
+
+const PARTE_LABEL: Record<string, string> = {
+  diversification: "Diversificação",
+  mix: "Mistura cripto / tradicional",
+  stableReserve: "Reserva em stablecoins",
+  roi: "Desempenho (ROI)",
+  risk: "Gestão de risco",
+};
+
+/**
+ * Devolve a pontuação TAL COMO foi mostrada no ecrã: é gravada dentro do
+ * snapshot pela página do Portefólio (`_score`), não recalculada aqui. Duas
+ * contas separadas para o mesmo número acabam sempre por divergir — e um
+ * cliente a ver 72 na app e 68 no assistente não sabe em qual acreditar.
+ */
+export async function getScore(userId: string) {
+  const admin = getSupabaseAdmin();
+  const { data } = await admin
+    .from("portfolio_snapshots")
+    .select("created_at, data")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(30);
+
+  type Guardado = { value: number; parts: Array<{ id: string; points: number; max: number }> };
+  const linha = ((data ?? []) as Array<{ created_at: string; data: unknown }>)
+    .find((r) => (r.data as { _score?: Guardado } | null)?._score != null);
+  const guardado = (linha?.data as { _score?: Guardado } | undefined)?._score;
+
+  if (!guardado) {
+    return {
+      score: null,
+      asOf: null,
+      parts: [],
+      note: "Ainda não há pontuação gravada nesta conta. Abre o Portefólio no site uma vez: a pontuação é calculada no ecrã e fica guardada no snapshot seguinte.",
+    };
+  }
+
+  return {
+    score: guardado.value,
+    max: 100,
+    asOf: linha?.created_at ?? null,
+    parts: guardado.parts.map((p) => ({
+      id: p.id,
+      label: PARTE_LABEL[p.id] ?? p.id,
+      points: p.points,
+      max: p.max,
+    })),
+    note: "Pontuação 0–100 tal como aparece na app (diversificação 30, mistura 20, reserva estável 10, desempenho 20, risco 20). É um apoio à leitura do portefólio, não uma recomendação de compra ou venda.",
+  };
+}

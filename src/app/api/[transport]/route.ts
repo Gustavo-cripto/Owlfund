@@ -3,7 +3,7 @@ import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { z } from "zod";
 import { checkApiKey } from "@/lib/api/auth";
 import { getPortfolio, getWallets } from "@/lib/api/data";
-import { getMetrics, getPnl, getRealizedGains, getTaxEstimate, getTrades, listTaxCountries } from "@/lib/api/insights";
+import { getMetrics, getPnl, getRealizedGains, getScore, getTaxEstimate, getTrades, listTaxCountries } from "@/lib/api/insights";
 import { scanWatchlist, type WatchEntry } from "@/lib/api/whales";
 import { getGlobalMarket, getMarket, getPriceOn } from "@/lib/api/market";
 import { getDerivatives } from "@/lib/api/derivatives";
@@ -181,6 +181,17 @@ const handler = createMcpHandler(
         const userId = (extra?.authInfo?.extra?.userId as string | undefined) ?? "";
         if (!userId) return { content: [{ type: "text", text: "Não autenticado." }], isError: true };
         return { content: [{ type: "text", text: JSON.stringify(await getNfts(userId, args.chain), null, 2) }] };
+      },
+    );
+
+    server.tool(
+      "get_portfolio_score",
+      "Pontuação 0–100 do portefólio do utilizador, tal como aparece na app: diversificação, mistura cripto/tradicional, reserva em stablecoins, desempenho e gestão de risco. Apoio à leitura, não é recomendação de compra ou venda.",
+      {},
+      async (_args, extra) => {
+        const userId = (extra?.authInfo?.extra?.userId as string | undefined) ?? "";
+        if (!userId) return { content: [{ type: "text", text: "Não autenticado." }], isError: true };
+        return { content: [{ type: "text", text: JSON.stringify(await getScore(userId), null, 2) }] };
       },
     );
 

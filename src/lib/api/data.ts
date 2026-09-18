@@ -51,6 +51,8 @@ function whitelistWalletData(data: unknown): Record<string, unknown> | null {
 export type PortfolioResult = {
   updatedAt: string | null;
   snapshotCount: number;
+  accountId: string | null;
+  note: string;
   portfolio: unknown | null;
 };
 
@@ -71,9 +73,16 @@ export async function getPortfolio(userId: string): Promise<PortfolioResult> {
   ]);
 
   const latest = snaps?.[0] ?? null;
+  // Uma conta pode ter varios portefolios (Free 1 · Pro 3 · Premium 10). O
+  // snapshot guarda qual estava ativo quando foi tirado; dizer qual e melhor do
+  // que devolver um numero sem dono.
+  const conta = (latest?.data as { _account?: unknown } | null)?._account;
+
   return {
     updatedAt: latest?.created_at ?? null,
     snapshotCount: count ?? 0,
+    accountId: typeof conta === "string" ? conta : null,
+    note: "Último snapshot gravado, do portefólio que estava ativo nesse momento (accountId). Uma conta pode ter vários portefólios; esta leitura não os soma.",
     portfolio: latest?.data != null ? whitelistWalletData(latest.data) : null,
   };
 }

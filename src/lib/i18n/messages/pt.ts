@@ -748,6 +748,8 @@ export const pt = {
     dev_ep_price_on: "Preço de fecho de um ativo numa data (UTC).",
     dev_ep_defi: "Posições de lending lidas dos contratos: depositado, emprestado e líquido.",
     dev_ep_nfts: "NFTs das carteiras EVM numa rede. Não entram no total do portefólio.",
+    dev_ep_score: "Pontuação 0–100 do portefólio, tal como aparece na app.",
+    dev_tool_score: "a pontuação do teu portefólio",
     dev_tool_defi: "as tuas posições DeFi (depositado, emprestado, líquido)",
     dev_tool_nfts: "os teus NFTs",
     dev_tool_global: "o estado global do mercado",

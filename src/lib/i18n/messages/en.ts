@@ -739,6 +739,8 @@ export const en: Record<TranslationKey, string> = {
     dev_ep_price_on: "Closing price of an asset on a date (UTC).",
     dev_ep_defi: "Lending positions read from the contracts: supplied, borrowed and net.",
     dev_ep_nfts: "NFTs in your EVM wallets on a chain. They do not count towards the portfolio total.",
+    dev_ep_score: "Portfolio score 0–100, exactly as shown in the app.",
+    dev_tool_score: "your portfolio score",
     dev_tool_defi: "your DeFi positions (supplied, borrowed, net)",
     dev_tool_nfts: "your NFTs",
     dev_tool_global: "the global market state",

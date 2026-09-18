@@ -114,6 +114,9 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
 }` },
   { id: "nfts", method: "GET", path: "/api/v1/nfts", desc: "NFTs das carteiras EVM numa rede (?chain=eth). Não entram no total do portefólio.", descKey: "dev_ep_nfts", auth: true, query: { chain: "eth" },
     response: `{ "chain": "eth", "totalNfts": 12, "wallets": [{ "label": "Principal", "total": 12, "returned": 12, "nfts": [{ "name": "…", "collection": "0x…", "tokenId": "1" }] }] }` },
+  { id: "score", method: "GET", path: "/api/v1/score", desc: "Pontuação 0–100 do portefólio, tal como aparece na app (diversificação, mistura, reserva estável, desempenho, risco).", descKey: "dev_ep_score", auth: true,
+    response: `{ "score": 72, "max": 100, "asOf": "2026-09-18T06:00:00Z",
+  "parts": [{ "id": "diversification", "label": "Diversificação", "points": 22, "max": 30 }] }` },
   { id: "whales", method: "GET", path: "/api/v1/whales", desc: "Movimentos on-chain recentes dos endereços dados (?watchlist=<JSON>). ETH, BTC e SOL; máx. 10.", descKey: "dev_ep_whales", auth: true,
     query: { watchlist: '[{"address":"0x…","chain":"eth","label":"Baleia"}]' },
     response: `{
@@ -172,6 +175,7 @@ export const MCP_TOOLS: McpTool[] = [
   { name: "get_price_on", key: "dev_tool_price_on", arg: "date" },
   { name: "get_defi_positions", key: "dev_tool_defi" },
   { name: "get_nfts", key: "dev_tool_nfts", arg: "chain" },
+  { name: "get_portfolio_score", key: "dev_tool_score" },
   { name: "get_whale_activity", key: "dev_tool_whales", arg: "watchlist" },
   { name: "get_market", key: "dev_tool_market", arg: "limit" },
   { name: "list_known_whales", key: "dev_tool_known_whales" },
