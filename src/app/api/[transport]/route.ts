@@ -5,7 +5,8 @@ import { checkApiKey } from "@/lib/api/auth";
 import { getPortfolio, getWallets } from "@/lib/api/data";
 import { getMetrics, getPnl, getRealizedGains, getTaxEstimate, getTrades, listTaxCountries } from "@/lib/api/insights";
 import { scanWatchlist, type WatchEntry } from "@/lib/api/whales";
-import { getMarket } from "@/lib/api/market";
+import { getGlobalMarket, getMarket, getPriceOn } from "@/lib/api/market";
+import { getDerivatives } from "@/lib/api/derivatives";
 import { getKnownWhales } from "@/lib/api/known-whales";
 import { getFearGreed, getAsset, computeFire, getNews, getBtcBlocks } from "@/lib/api/investing";
 import { askAI } from "@/lib/api/ai";
@@ -131,6 +132,33 @@ const handler = createMcpHandler(
       "Regimes fiscais de criptomoedas publicados pelo ChainFolioAI: taxa de curto e longo prazo, prazo de detenção, isenção anual e referência legal, por país.",
       {},
       async () => ({ content: [{ type: "text", text: JSON.stringify(listTaxCountries(), null, 2) }] }),
+    );
+
+    server.tool(
+      "get_global_market",
+      "Estado global do mercado cripto: capitalização total, variação em 24 h e dominância de Bitcoin e Ethereum.",
+      {},
+      async () => ({ content: [{ type: "text", text: JSON.stringify(await getGlobalMarket(), null, 2) }] }),
+    );
+
+    server.tool(
+      "get_derivatives",
+      "Derivados de um símbolo na OKX: open interest, rácio long/short, funding, CVD, volume taker, velas de 1 h, put/call e um score de sentimento composto (0–100).",
+      { symbol: z.string().max(10).optional().describe("Símbolo, ex.: BTC (por omissão) ou ETH.") },
+      async (args) => {
+        const symbol = (args.symbol ?? "BTC").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10);
+        return { content: [{ type: "text", text: JSON.stringify(await getDerivatives(symbol), null, 2) }] };
+      },
+    );
+
+    server.tool(
+      "get_price_on",
+      "Preço de fecho em dólares de um criptoativo numa data (UTC), a partir das velas diárias da OKX. Serve para avaliar uma compra ou venda passada.",
+      {
+        symbol: z.string().max(10).describe("Símbolo, ex.: BTC."),
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("Data em AAAA-MM-DD (UTC)."),
+      },
+      async (args) => ({ content: [{ type: "text", text: JSON.stringify(await getPriceOn(args.symbol, args.date), null, 2) }] }),
     );
 
     server.tool(
