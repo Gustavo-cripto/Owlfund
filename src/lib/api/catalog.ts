@@ -102,6 +102,18 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     response: `{ "symbol": "BTC", "score": 54, "rsi": 48.2, "components": { "longShort": 51, "taker": 49, "rsi": 48, "cvd": 65, "funding": 55, "putCall": 57 } }` },
   { id: "price-on", method: "GET", path: "/api/v1/price-on", desc: "Preço de fecho em dólares de um ativo numa data (UTC). Útil para avaliar uma operação passada.", descKey: "dev_ep_price_on", auth: true, query: { symbol: "BTC", date: "2026-01-15" },
     response: `{ "symbol": "BTC", "date": "2026-01-15", "usd": 61234.5 }` },
+  { id: "defi", method: "GET", path: "/api/v1/defi", desc: "Posições de lending lidas dos contratos (Aave V3, Spark, Compound V3, Morpho, EigenLayer): depositado, emprestado e líquido.", descKey: "dev_ep_defi", auth: true,
+    response: `{
+  "currency": "USD",
+  "totalNetUsd": 4120.5,
+  "totalSuppliedUsd": 9800.0,
+  "totalBorrowedUsd": 5679.5,
+  "wallets": [{ "label": "Ledger", "netUsd": 4120.5,
+    "positions": [{ "protocol": "aave-v3", "chain": "eth", "suppliedUsd": 9800, "borrowedUsd": 5679.5, "netUsd": 4120.5, "healthFactor": 1.72 }] }],
+  "walletsRead": 2, "walletsSkipped": 0
+}` },
+  { id: "nfts", method: "GET", path: "/api/v1/nfts", desc: "NFTs das carteiras EVM numa rede (?chain=eth). Não entram no total do portefólio.", descKey: "dev_ep_nfts", auth: true, query: { chain: "eth" },
+    response: `{ "chain": "eth", "totalNfts": 12, "wallets": [{ "label": "Principal", "total": 12, "returned": 12, "nfts": [{ "name": "…", "collection": "0x…", "tokenId": "1" }] }] }` },
   { id: "whales", method: "GET", path: "/api/v1/whales", desc: "Movimentos on-chain recentes dos endereços dados (?watchlist=<JSON>). ETH, BTC e SOL; máx. 10.", descKey: "dev_ep_whales", auth: true,
     query: { watchlist: '[{"address":"0x…","chain":"eth","label":"Baleia"}]' },
     response: `{
@@ -158,6 +170,8 @@ export const MCP_TOOLS: McpTool[] = [
   { name: "get_global_market", key: "dev_tool_global" },
   { name: "get_derivatives", key: "dev_tool_derivatives", arg: "symbol" },
   { name: "get_price_on", key: "dev_tool_price_on", arg: "date" },
+  { name: "get_defi_positions", key: "dev_tool_defi" },
+  { name: "get_nfts", key: "dev_tool_nfts", arg: "chain" },
   { name: "get_whale_activity", key: "dev_tool_whales", arg: "watchlist" },
   { name: "get_market", key: "dev_tool_market", arg: "limit" },
   { name: "list_known_whales", key: "dev_tool_known_whales" },

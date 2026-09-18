@@ -7,6 +7,7 @@ import { getMetrics, getPnl, getRealizedGains, getTaxEstimate, getTrades, listTa
 import { scanWatchlist, type WatchEntry } from "@/lib/api/whales";
 import { getGlobalMarket, getMarket, getPriceOn } from "@/lib/api/market";
 import { getDerivatives } from "@/lib/api/derivatives";
+import { getDefiPositions, getNfts } from "@/lib/api/onchain";
 import { getKnownWhales } from "@/lib/api/known-whales";
 import { getFearGreed, getAsset, computeFire, getNews, getBtcBlocks } from "@/lib/api/investing";
 import { askAI } from "@/lib/api/ai";
@@ -159,6 +160,28 @@ const handler = createMcpHandler(
         date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("Data em AAAA-MM-DD (UTC)."),
       },
       async (args) => ({ content: [{ type: "text", text: JSON.stringify(await getPriceOn(args.symbol, args.date), null, 2) }] }),
+    );
+
+    server.tool(
+      "get_defi_positions",
+      "Posições de lending do utilizador lidas dos contratos (Aave V3, Spark, Compound V3, Morpho, EigenLayer) em Ethereum, Arbitrum, Base, Optimism e Polygon: depositado, emprestado e líquido, com fator de saúde. Fala com a blockchain, por isso demora alguns segundos.",
+      {},
+      async (_args, extra) => {
+        const userId = (extra?.authInfo?.extra?.userId as string | undefined) ?? "";
+        if (!userId) return { content: [{ type: "text", text: "Não autenticado." }], isError: true };
+        return { content: [{ type: "text", text: JSON.stringify(await getDefiPositions(userId), null, 2) }] };
+      },
+    );
+
+    server.tool(
+      "get_nfts",
+      "NFTs das carteiras EVM do utilizador numa rede. Não entram no total do portefólio (sem preço fiável).",
+      { chain: z.enum(["eth", "polygon", "arbitrum", "base", "optimism"]).optional().describe("Rede (por omissão eth).") },
+      async (args, extra) => {
+        const userId = (extra?.authInfo?.extra?.userId as string | undefined) ?? "";
+        if (!userId) return { content: [{ type: "text", text: "Não autenticado." }], isError: true };
+        return { content: [{ type: "text", text: JSON.stringify(await getNfts(userId, args.chain), null, 2) }] };
+      },
     );
 
     server.tool(
