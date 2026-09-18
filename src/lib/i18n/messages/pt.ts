@@ -542,6 +542,8 @@ export const pt = {
     nav_developers: "API & MCP",
     sb_menu: "Menu",
     sb_nav: "Navegação",
+    sb_have_account: "Já tens conta?",
+    sb_free_note: "Grátis para começar — sem cartão.",
     bb_title: "Blocos BTC",
     bb_live: "ao vivo",
     bb_txs: "transações",

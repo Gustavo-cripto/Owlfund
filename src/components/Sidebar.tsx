@@ -309,10 +309,26 @@ export default function Sidebar() {
                 {t("logout")}
               </button>
             ) : (
-              <Link href={pageUrl("login", lang)} prefetch onClick={() => setMobileOpen(false)}
-                className={`${btnPrimary} w-full py-2.5 text-sm`}>
-                {t("lp_login")}
-              </Link>
+              // Quem abre o menu sem conta e' visitante, nao utilizador perdido:
+              // a accao principal passa a ser criar conta (gratis), e o "Entrar"
+              // fica por baixo, discreto, para quem ja ca esteve.
+              <div className="flex flex-col items-center gap-2">
+                <Link href={`${pageUrl("login", lang)}?mode=signup`} prefetch onClick={() => setMobileOpen(false)}
+                  className={`${btnPrimary} w-full py-3.5 text-[15px] shadow-xl shadow-orange-500/30`}>
+                  {t("lp_final_cta1")}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M5 12h14M13 6l6 6-6 6" />
+                  </svg>
+                </Link>
+                <p className="text-[11px] text-slate-500">{t("sb_free_note")}</p>
+                <p className="text-xs text-slate-400">
+                  {t("sb_have_account")}{" "}
+                  <Link href={pageUrl("login", lang)} prefetch onClick={() => setMobileOpen(false)}
+                    className="font-semibold text-orange-300 underline decoration-orange-400/40 underline-offset-2 hover:text-orange-200">
+                    {t("lp_login")}
+                  </Link>
+                </p>
+              </div>
             )}
           </div>
         </nav>

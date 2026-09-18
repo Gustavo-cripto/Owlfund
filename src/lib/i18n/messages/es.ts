@@ -533,6 +533,8 @@ export const es: Record<TranslationKey, string> = {
     nav_developers: "API & MCP",
     sb_menu: "Menú",
     sb_nav: "Navegación",
+    sb_have_account: "¿Ya tienes cuenta?",
+    sb_free_note: "Gratis para empezar — sin tarjeta.",
     bb_title: "Bloques BTC",
     bb_live: "en vivo",
     bb_txs: "transacciones",
