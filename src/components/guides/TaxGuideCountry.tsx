@@ -25,6 +25,24 @@ export default function TaxGuideCountry({ lang, country }: { lang: GuideLang; co
     { label: c.factLaw, value: country.law },
   ];
 
+  // As perguntas sao escritas UMA vez e servem os dois: o bloco visivel na
+  // pagina e o FAQPage para o Google. Declarar perguntas que a pagina nao
+  // mostra e motivo para o Google ignorar o resultado rico — era o que
+  // acontecia aqui.
+  const faqs = [
+    {
+      q: c.faqHowMuch(text.name),
+      a: `${text.taxShort} · ${text.taxLong}. ${text.summary}`,
+    },
+    {
+      q: c.faqAllowance(text.name),
+      a: country.regime.allowance
+        ? c.faqAllowanceYes(country.regime.allowance.label[lang])
+        : c.faqAllowanceNo(text.name),
+    },
+    { q: c.faqMethod, a: c.faqMethodAnswer },
+  ];
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
@@ -48,29 +66,13 @@ export default function TaxGuideCountry({ lang, country }: { lang: GuideLang; co
       },
       {
         // Perguntas que as pessoas fazem mesmo — e que os modelos de IA citam.
+        // Mesma fonte do bloco visivel abaixo (faqs).
         "@type": "FAQPage",
-        mainEntity: [
-          {
-            "@type": "Question",
-            name: c.faqHowMuch(text.name),
-            acceptedAnswer: { "@type": "Answer", text: `${text.taxShort} · ${text.taxLong}. ${text.summary}` },
-          },
-          {
-            "@type": "Question",
-            name: c.faqAllowance(text.name),
-            acceptedAnswer: {
-              "@type": "Answer",
-              text: country.regime.allowance
-                ? c.faqAllowanceYes(country.regime.allowance.label[lang])
-                : c.faqAllowanceNo(text.name),
-            },
-          },
-          {
-            "@type": "Question",
-            name: c.faqMethod,
-            acceptedAnswer: { "@type": "Answer", text: c.faqMethodAnswer },
-          },
-        ],
+        mainEntity: faqs.map((f) => ({
+          "@type": "Question",
+          name: f.q,
+          acceptedAnswer: { "@type": "Answer", text: f.a },
+        })),
       },
     ],
   };
@@ -114,6 +116,18 @@ export default function TaxGuideCountry({ lang, country }: { lang: GuideLang; co
               </ul>
             </section>
           )}
+
+          <section className="mt-10">
+            <h2 className="text-xl font-semibold text-white">{c.faqTitle}</h2>
+            <div className="mt-4 space-y-5">
+              {faqs.map((f) => (
+                <div key={f.q}>
+                  <h3 className="font-semibold text-white">{f.q}</h3>
+                  <p className="mt-1.5 leading-relaxed text-slate-300">{f.a}</p>
+                </div>
+              ))}
+            </div>
+          </section>
 
           <section className="mt-10 rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
             <h2 className="text-lg font-semibold text-white">{c.calcTitle}</h2>

@@ -35,6 +35,7 @@ type Copy = {
   factLaw: string;
   notApplicable: string;
   summaryTitle: string;
+  faqTitle: string;
   keyPointsTitle: string;
   calcTitle: string;
   calcBody: string;
@@ -82,6 +83,7 @@ export const GUIDE_COPY: Record<GuideLang, Copy> = {
     factLaw: "Legislação",
     notApplicable: "Não aplicável",
     summaryTitle: "Em resumo",
+    faqTitle: "Perguntas frequentes",
     keyPointsTitle: "Pontos a reter",
     calcTitle: "Calcular sobre o teu histórico",
     calcBody:
@@ -131,6 +133,7 @@ export const GUIDE_COPY: Record<GuideLang, Copy> = {
     factLaw: "Legislation",
     notApplicable: "Not applicable",
     summaryTitle: "In short",
+    faqTitle: "Frequently asked questions",
     keyPointsTitle: "Key points",
     calcTitle: "Calculate on your own history",
     calcBody:
