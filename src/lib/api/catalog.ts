@@ -67,6 +67,35 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
   "byYear": [{ "year": 2026, "realizedPnlEur": 1840.55, "sales": 12 }],
   "unmatched": {}
 }` },
+  { id: "metrics", method: "GET", path: "/api/v1/metrics", desc: "Métricas do portefólio a partir do histórico: ROI, CAGR, Sharpe, Sortino, Calmar, volatilidade, quedas e VaR 95%.", descKey: "dev_ep_metrics", auth: true,
+    response: `{
+  "currency": "EUR",
+  "metrics": { "days": 210, "roi": 34.2, "cagr": 61.4, "sharpe": 1.12, "maxDrawdown": -22.6, "volatility": 48.1, "var95": -4.8 }
+}` },
+  { id: "trades", method: "GET", path: "/api/v1/trades", desc: "Transações registadas (compras, vendas e taxas), da mais recente para a mais antiga.", descKey: "dev_ep_trades", auth: true,
+    query: { asset: "BTC", year: "2026", limit: "100" },
+    response: `{
+  "total": 84,
+  "returned": 100,
+  "trades": [{ "date": "2026-06-10", "type": "venda", "asset": "BTC", "quantity": 0.25, "priceEur": 58000, "totalEur": 14500, "feeEur": 12.4 }]
+}` },
+  { id: "tax-estimate", method: "GET", path: "/api/v1/tax-estimate", desc: "ESTIMATIVA de imposto sobre mais-valias num país, na moeda desse país (FIFO, câmbio do BCE à data de cada operação). Não é uma declaração.", descKey: "dev_ep_tax_estimate", auth: true,
+    query: { country: "PT", year: "2026" },
+    response: `{
+  "country": "PT",
+  "currency": "EUR",
+  "rates": { "short": 0.28, "long": 0, "longTermAfterDays": 365 },
+  "sales": 12,
+  "totalGain": 4200.5,
+  "taxableGain": 3100.0,
+  "exemptGain": 1100.5,
+  "estimatedTax": 868.0
+}` },
+  { id: "tax-countries", method: "GET", path: "/api/v1/tax-countries", desc: "Regimes fiscais publicados (taxas, prazo de longo prazo, isenção anual e lei) por país. Público, sem chave.", descKey: "dev_ep_tax_countries", auth: false,
+    response: `{
+  "total": 21,
+  "countries": [{ "code": "PT", "currency": "EUR", "shortTermRate": 0.28, "longTermRate": 0, "longTermAfterDays": 365, "law": "Lei n.º 24-D/2022, art. 5.º" }]
+}` },
   { id: "whales", method: "GET", path: "/api/v1/whales", desc: "Movimentos on-chain recentes dos endereços dados (?watchlist=<JSON>). ETH, BTC e SOL; máx. 10.", descKey: "dev_ep_whales", auth: true,
     query: { watchlist: '[{"address":"0x…","chain":"eth","label":"Baleia"}]' },
     response: `{
@@ -116,6 +145,10 @@ export const MCP_TOOLS: McpTool[] = [
   { name: "get_wallets", key: "dev_tool_wallets" },
   { name: "get_pnl", key: "dev_tool_pnl" },
   { name: "get_realized_gains", key: "dev_tool_realized_gains", arg: "year" },
+  { name: "get_metrics", key: "dev_tool_metrics" },
+  { name: "get_trades", key: "dev_tool_trades", arg: "asset" },
+  { name: "get_tax_estimate", key: "dev_tool_tax_estimate", arg: "country" },
+  { name: "list_tax_countries", key: "dev_tool_tax_countries" },
   { name: "get_whale_activity", key: "dev_tool_whales", arg: "watchlist" },
   { name: "get_market", key: "dev_tool_market", arg: "limit" },
   { name: "list_known_whales", key: "dev_tool_known_whales" },

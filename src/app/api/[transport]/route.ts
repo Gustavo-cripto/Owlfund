@@ -3,7 +3,7 @@ import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { z } from "zod";
 import { checkApiKey } from "@/lib/api/auth";
 import { getPortfolio, getWallets } from "@/lib/api/data";
-import { getPnl, getRealizedGains } from "@/lib/api/insights";
+import { getMetrics, getPnl, getRealizedGains, getTaxEstimate, getTrades, listTaxCountries } from "@/lib/api/insights";
 import { scanWatchlist, type WatchEntry } from "@/lib/api/whales";
 import { getMarket } from "@/lib/api/market";
 import { getKnownWhales } from "@/lib/api/known-whales";
@@ -84,6 +84,53 @@ const handler = createMcpHandler(
         const data = await getRealizedGains(userId, args.year);
         return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
       },
+    );
+
+    server.tool(
+      "get_metrics",
+      "Métricas avançadas do portefólio a partir do histórico gravado: ROI, CAGR, Sharpe, Sortino, Calmar, volatilidade, queda máxima e atual, taxa de acerto e VaR 95%.",
+      {},
+      async (_args, extra) => {
+        const userId = (extra?.authInfo?.extra?.userId as string | undefined) ?? "";
+        if (!userId) return { content: [{ type: "text", text: "Não autenticado." }], isError: true };
+        return { content: [{ type: "text", text: JSON.stringify(await getMetrics(userId), null, 2) }] };
+      },
+    );
+
+    server.tool(
+      "get_trades",
+      "Transações registadas pelo utilizador (compras, vendas e taxas), em euros, da mais recente para a mais antiga. Filtros opcionais por ativo e ano.",
+      {
+        asset: z.string().max(20).optional().describe("Símbolo do ativo (ex.: BTC)."),
+        year: z.number().int().min(2009).max(2100).optional().describe("Ano civil da transação."),
+        limit: z.number().int().min(1).max(500).optional().describe("Máximo de transações a devolver (por omissão 100)."),
+      },
+      async (args, extra) => {
+        const userId = (extra?.authInfo?.extra?.userId as string | undefined) ?? "";
+        if (!userId) return { content: [{ type: "text", text: "Não autenticado." }], isError: true };
+        return { content: [{ type: "text", text: JSON.stringify(await getTrades(userId, args), null, 2) }] };
+      },
+    );
+
+    server.tool(
+      "get_tax_estimate",
+      "ESTIMATIVA de imposto sobre mais-valias num país, na moeda desse país: FIFO, cada perna convertida à taxa do BCE da sua data, taxa de longo prazo conforme os dias de detenção e isenção anual aplicada. Não é uma declaração fiscal.",
+      {
+        country: z.string().length(2).describe("Código do país em duas letras (ex.: PT, ES, US). Ver list_tax_countries."),
+        year: z.number().int().min(2009).max(2100).optional().describe("Ano civil das vendas (opcional)."),
+      },
+      async (args, extra) => {
+        const userId = (extra?.authInfo?.extra?.userId as string | undefined) ?? "";
+        if (!userId) return { content: [{ type: "text", text: "Não autenticado." }], isError: true };
+        return { content: [{ type: "text", text: JSON.stringify(await getTaxEstimate(userId, args.country, args.year), null, 2) }] };
+      },
+    );
+
+    server.tool(
+      "list_tax_countries",
+      "Regimes fiscais de criptomoedas publicados pelo ChainFolioAI: taxa de curto e longo prazo, prazo de detenção, isenção anual e referência legal, por país.",
+      {},
+      async () => ({ content: [{ type: "text", text: JSON.stringify(listTaxCountries(), null, 2) }] }),
     );
 
     server.tool(
