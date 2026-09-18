@@ -67,6 +67,8 @@ export type GlobalMarket = {
   ethDominance: number | null;
   activeCryptocurrencies: number | null;
   timestamp: number;
+  /** Só presente quando a fonte recusou o pedido (para não falhar em silêncio). */
+  upstreamStatus?: number;
 };
 
 /** Capitalização total e dominância BTC/ETH (CoinGecko). */
@@ -76,11 +78,11 @@ export async function getGlobalMarket(): Promise<GlobalMarket> {
     ethDominance: null, activeCryptocurrencies: null, timestamp: Date.now(),
   };
   try {
-    const res = await cgFetch("https://api.coingecko.com/api/v3/global", {
-      signal: AbortSignal.timeout(8000),
-      next: { revalidate: 300 },
-    });
-    if (!res.ok) return vazio;
+    // Sem `signal` nem `next` aqui: é exatamente a chamada que a rota /api/markets
+    // faz há meses e que responde. Com as opções extra a resposta vinha vazia.
+    const res = await cgFetch("https://api.coingecko.com/api/v3/global");
+    // Falhar em silêncio escondia a causa; o estado da fonte fica na resposta.
+    if (!res.ok) return { ...vazio, upstreamStatus: res.status };
     const j = (await res.json()) as {
       data?: {
         total_market_cap?: { usd?: number };
