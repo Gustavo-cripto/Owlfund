@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "verificar": "tsc --noEmit && eslint . --quiet && node scripts/verificar-linguas.mjs && node scripts/testar-calculos.mjs",
     "verificar:site": "node scripts/verificar-site.mjs",
+    "verificar:api": "node scripts/verificar-api.mjs",
     "e2e": "playwright test"
   },
   "dependencies": {
