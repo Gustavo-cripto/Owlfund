@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import type { TranslationKey } from "@/lib/i18n/translations";
@@ -160,7 +161,7 @@ export default function FirstSteps() {
           return (
             <li key={s.id}>
               {s.href ? (
-                <a href={s.href} onClick={() => { if (!s.auto) markClicked(s.id); }} className={cls} aria-current={isNext ? "step" : undefined}>{inner}</a>
+                <Link href={s.href} prefetch onClick={() => { if (!s.auto) markClicked(s.id); }} className={cls} aria-current={isNext ? "step" : undefined}>{inner}</Link>
               ) : (
                 <button type="button" onClick={() => { markClicked(s.id); window.dispatchEvent(new CustomEvent("chainfolio:open-chat")); }} className={`${cls} w-full`} aria-current={isNext ? "step" : undefined}>{inner}</button>
               )}

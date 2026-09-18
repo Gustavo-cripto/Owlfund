@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { userError } from "@/lib/ui/userError";
 import ErrorNote from "@/components/ErrorNote";
@@ -1283,9 +1284,9 @@ export default function PortfolioPage() {
               <li className="flex items-start gap-2"><span className="font-black text-orange-400">2.</span> {t("pfe_s2")}</li>
               <li className="flex items-start gap-2"><span className="font-black text-orange-400">3.</span> {t("pfe_s3")}</li>
             </ol>
-            <a href="/wallets" className={`${btnPrimary} mt-4 inline-flex px-5 py-2.5 text-sm`}>
+            <Link href="/wallets" className={`${btnPrimary} mt-4 inline-flex px-5 py-2.5 text-sm`}>
               🔗 {t("dash_connect_wallets")} →
-            </a>
+            </Link>
           </div>
         )}
 
@@ -2530,12 +2531,11 @@ export default function PortfolioPage() {
                 </button>
                 {!isPro ? (
                   paymentsFrozen ? (
-                    <a
-                      className="rounded-full border border-orange-400/40 px-6 py-3 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
+                    <Link                       className="rounded-full border border-orange-400/40 px-6 py-3 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
                       href="/beta"
                     >
                       🧪 {t("dash_beta_cta_short")} →
-                    </a>
+                    </Link>
                   ) : (
                   <button
                     className="rounded-full border border-orange-400/40 px-6 py-3 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
@@ -2547,12 +2547,11 @@ export default function PortfolioPage() {
                   </button>
                   )
                 ) : null}
-                <a
-                  className="rounded-full border border-slate-700 px-6 py-3 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                <Link                   className="rounded-full border border-slate-700 px-6 py-3 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
                   href="/account"
                 >
                   {t("pfu_manage_account")}
-                </a>
+                </Link>
               </div>
             </div>
           ) : (
@@ -2560,12 +2559,11 @@ export default function PortfolioPage() {
               <p className="text-sm text-slate-300">
                 {t("pfu_login_hint")}
               </p>
-              <a
-                className="inline-flex rounded-full border border-orange-400/40 px-6 py-3 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
+              <Link                 className="inline-flex rounded-full border border-orange-400/40 px-6 py-3 text-sm font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
                 href="/login"
               >
                 {t("pfu_login")}
-              </a>
+              </Link>
             </div>
           )}
         </section>
@@ -2578,12 +2576,11 @@ export default function PortfolioPage() {
                 {isPremium ? t("pf_unlimited_history") : isPro ? t("pfu_pro_365") : <>{t("pf_30days_free")} <a href={paymentsFrozen ? "/beta" : "/pricing"} className="text-orange-400 underline hover:text-orange-300">{t("pf_pro_1year")}</a></>}
               </p>
             </div>
-            <a
-              className="rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+            <Link               className="rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
               href="/dashboard"
             >
               {t("pfu_back_dash")}
-            </a>
+            </Link>
           </div>
 
           {isLoadingAuth || isSnapshotsLoading ? (

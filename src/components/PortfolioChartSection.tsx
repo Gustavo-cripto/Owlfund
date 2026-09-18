@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { userError } from "@/lib/ui/userError";
 import ErrorNote from "@/components/ErrorNote";
@@ -549,7 +550,7 @@ export default function PortfolioChartSection({
           </div>
           <div className="px-4">
             {wallets.filter(w => (parseFloat(w.balance ?? "0") || 0) * (priceMap[w.symbol] ?? 0) >= 0.01).length === 0 ? (
-              <p className="text-sm text-slate-500 py-8 text-center">{t("pcs_no_token")}<br /><a href="/wallets" className="text-orange-400 underline text-xs">{t("pcs_connect_wallet")}</a></p>
+              <p className="text-sm text-slate-500 py-8 text-center">{t("pcs_no_token")}<br /><Link href="/wallets" className="text-orange-400 underline text-xs">{t("pcs_connect_wallet")}</Link></p>
             ) : [...wallets]
                 .sort((a, b) => {
                   const va = (parseFloat(a.balance ?? "0") || 0) * (priceMap[a.symbol] ?? 0);
@@ -587,7 +588,7 @@ export default function PortfolioChartSection({
             <div className="text-center py-8">
               <p className="text-3xl mb-2">🖼️</p>
               <p className="text-sm font-semibold text-white">{t("pcs_no_wallets")}</p>
-              <p className="text-xs text-slate-400 mt-1"><a href="/wallets" className="text-orange-400 underline">{t("pcs_connect_wallet")}</a></p>
+              <p className="text-xs text-slate-400 mt-1"><Link href="/wallets" className="text-orange-400 underline">{t("pcs_connect_wallet")}</Link></p>
             </div>
           ) : (
             <div className="space-y-6">
@@ -630,7 +631,7 @@ export default function PortfolioChartSection({
             <div className="text-center py-8">
               <p className="text-3xl mb-2">⚡</p>
               <p className="text-sm font-semibold text-white">{t("pcs_no_ethsol")}</p>
-              <p className="text-xs text-slate-400 mt-1"><a href="/wallets" className="text-orange-400 underline">{t("pcs_connect_wallet")}</a></p>
+              <p className="text-xs text-slate-400 mt-1"><Link href="/wallets" className="text-orange-400 underline">{t("pcs_connect_wallet")}</Link></p>
             </div>
           ) : (
             <div className="space-y-4">

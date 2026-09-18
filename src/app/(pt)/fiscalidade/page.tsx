@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { COUNTRIES, TAX_REGIMES } from "@/lib/tax/countries";
 import { loadFxTable, type FxTable } from "@/lib/fx/historical";
@@ -1000,7 +1001,7 @@ export default function FiscalidadePage() {
             <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-1">{t("fisc_transactions")} ({trades.length})</p>
               <p className="text-[11px] text-slate-500 mb-4">
-                🔗 {t("fc_from_history").replace("{n}", String(fromHistory))} <a href="/historico" className="text-orange-300 underline decoration-dotted">{t("nav_historico")} →</a>
+                🔗 {t("fc_from_history").replace("{n}", String(fromHistory))} <Link href="/historico" className="text-orange-300 underline decoration-dotted">{t("nav_historico")} →</Link>
               </p>
               <div className="space-y-2">
                 {[...trades].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(trade => (
@@ -1155,7 +1156,7 @@ export default function FiscalidadePage() {
 
           {trades.length === 0 && (
             <EmptyState icon="🧮" title={t("fisc_no_trades")} description={t("fisc_no_trades_desc")}>
-              <a href="/historico" className="rounded-xl bg-orange-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-orange-400 transition">{t("fisc_no_trades_cta")}</a>
+              <Link href="/historico" className="rounded-xl bg-orange-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-orange-400 transition">{t("fisc_no_trades_cta")}</Link>
             </EmptyState>
           )}
 

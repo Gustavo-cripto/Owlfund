@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { SOCIAL_LINKS } from "@/lib/social";
 import AppShell from "@/components/AppShell";
@@ -232,7 +233,7 @@ export default function Landing() {
                     <p>{t("lp_continue_desc")}</p>
                     <p className="text-xs text-slate-500">{t("lp_help_desc")}</p>
                   </div>
-                  <a href="/dashboard" className={`${btnPrimary} shrink-0 px-6 py-3 text-sm`}>{t("lp_open_dashboard")}</a>
+                  <Link href="/dashboard" className={`${btnPrimary} shrink-0 px-6 py-3 text-sm`}>{t("lp_open_dashboard")}</Link>
                 </div>
               </section>
 
@@ -287,9 +288,9 @@ export default function Landing() {
                 {t("lp_plan_cta")} →
               </a>
               {paymentsFrozen ? (
-                <a href={pageUrl("beta", lang)} className={`${btnSecondary} px-8 py-3.5 text-base`}>
+                <Link href={pageUrl("beta", lang)} className={`${btnSecondary} px-8 py-3.5 text-base`}>
                   🧪 {t("lp_hero_beta_cta")}
-                </a>
+                </Link>
               ) : (
                 <a href="#como-funciona" className={`${btnSecondary} px-8 py-3.5 text-base`}>
                   {t("lp_how_works")}
@@ -508,9 +509,9 @@ export default function Landing() {
             ))}
           </div>
           <div className="mt-8 text-center">
-            <a href={pageUrl("pricing", lang)} className="text-sm font-semibold text-orange-300/90 transition hover:text-orange-200">
+            <Link href={pageUrl("pricing", lang)} className="text-sm font-semibold text-orange-300/90 transition hover:text-orange-200">
               {t("lp_plan_see_all")} →
-            </a>
+            </Link>
             {paymentsFrozen && <p className="mt-2 text-xs text-slate-500">{t("lp_plans_beta_note")}</p>}
           </div>
         </section>
@@ -532,9 +533,9 @@ export default function Landing() {
               ))}
             </div>
             <div className="mt-10 text-center">
-              <a href={pageUrl("howItWorks", lang)} className="text-sm font-semibold text-orange-300/90 transition hover:text-orange-200">
+              <Link href={pageUrl("howItWorks", lang)} className="text-sm font-semibold text-orange-300/90 transition hover:text-orange-200">
                 {t("lp_how_see_detail")}
-              </a>
+              </Link>
             </div>
           </div>
         </section>
@@ -650,15 +651,15 @@ export default function Landing() {
               <a href="#planos" className="transition hover:text-slate-300">{t("lp_plans_tag")}</a>
               <a href="#instituicoes" className="transition hover:text-slate-300">{t("lp_inst_tag")}</a>
               <a href="#comparacao" className="transition hover:text-slate-300">{t("lp_cmp_tag")}</a>
-              <a href={pageUrl("howItWorks", lang)} className="transition hover:text-slate-300">{t("dash_how_title")}</a>
-              <a href="/developers" className="transition hover:text-slate-300">API</a>
+              <Link href={pageUrl("howItWorks", lang)} className="transition hover:text-slate-300">{t("dash_how_title")}</Link>
+              <Link href="/developers" className="transition hover:text-slate-300">API</Link>
               <a href={lang === "pt" ? "/guias/impostos-cripto" : "/guides/crypto-tax"} className="transition hover:text-slate-300">{t("lp_guides_tag")}</a>
-              {paymentsFrozen && <a href={pageUrl("beta", lang)} className="transition hover:text-slate-300">{t("nav_beta")}</a>}
+              {paymentsFrozen && <Link href={pageUrl("beta", lang)} className="transition hover:text-slate-300">{t("nav_beta")}</Link>}
               <a href="#faq" className="transition hover:text-slate-300">{t("lp_faq_tag")}</a>
-              <a href="/privacidade" className="transition hover:text-slate-300">{t("legal_privacy_short")}</a>
-              <a href="/termos" className="transition hover:text-slate-300">{t("legal_terms_short")}</a>
-              <a href={pageUrl("status", lang)} className="transition hover:text-slate-300">{t("footer_status")}</a>
-              <a href={pageUrl("login", lang)} className="transition hover:text-slate-300">{t("lp_login")}</a>
+              <Link href="/privacidade" className="transition hover:text-slate-300">{t("legal_privacy_short")}</Link>
+              <Link href="/termos" className="transition hover:text-slate-300">{t("legal_terms_short")}</Link>
+              <Link href={pageUrl("status", lang)} className="transition hover:text-slate-300">{t("footer_status")}</Link>
+              <Link href={pageUrl("login", lang)} className="transition hover:text-slate-300">{t("lp_login")}</Link>
             </div>
             <div className="flex flex-col gap-2 md:items-end">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
