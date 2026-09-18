@@ -7,7 +7,7 @@ import AccountSwitcher from "./AccountSwitcher";
 import { ConfirmProvider } from "./ConfirmDialog";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
-import { createClient } from "@/lib/supabase/client";
+import { comSupabase } from "@/lib/supabase/lazy";
 
 // `priceUsd` porque e nisso que a fonte cota; a apresentacao converte para a
 // moeda escolhida pelo utilizador.
@@ -65,15 +65,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   // sem sessao (vem das redes, decide no primeiro ecra) ocupavam ~300 px antes
   // do titulo da landing — ficam so a partir de md ate haver sessao.
   const [hasSession, setHasSession] = useState(false);
-  useEffect(() => {
+  useEffect(() => comSupabase((supabase) => {
     let alive = true;
-    try {
-      const supabase = createClient();
-      supabase.auth.getSession().then(({ data }: { data: { session: unknown } }) => { if (alive) setHasSession(Boolean(data.session)); }).catch(() => {});
-      const { data: sub } = supabase.auth.onAuthStateChange((_e: string, s: unknown) => { if (alive) setHasSession(Boolean(s)); });
-      return () => { alive = false; sub.subscription.unsubscribe(); };
-    } catch { return () => { alive = false; }; }
-  }, []);
+    supabase.auth.getSession().then(({ data }: { data: { session: unknown } }) => { if (alive) setHasSession(Boolean(data.session)); }).catch(() => {});
+    const { data: sub } = supabase.auth.onAuthStateChange((_e: string, s: unknown) => { if (alive) setHasSession(Boolean(s)); });
+    return () => { alive = false; sub.subscription.unsubscribe(); };
+  }), []);
 
   return (
     <ConfirmProvider>

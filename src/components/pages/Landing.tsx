@@ -5,7 +5,7 @@ import { SOCIAL_LINKS } from "@/lib/social";
 import AppShell from "@/components/AppShell";
 import PnlSummaryCard from "@/components/PnlSummaryCard";
 import PlanBadge from "@/components/PlanBadge";
-import { createClient } from "@/lib/supabase/client";
+import { comSupabase } from "@/lib/supabase/lazy";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { pageUrl } from "@/lib/i18n/routes";
 import type { TranslationKey } from "@/lib/i18n/translations";
@@ -152,11 +152,10 @@ function AppScreenshots() {
 
 export default function Landing() {
   const { t, lang } = useLanguage();
-  const supabase = createClient();
   const [isReady, setIsReady] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  useEffect(() => {
+  useEffect(() => comSupabase((supabase) => {
     let isMounted = true;
     supabase.auth.getSession().then(({ data }: { data: { session: unknown } }) => {
       if (!isMounted) return;
@@ -168,7 +167,7 @@ export default function Landing() {
       setIsReady(true);
     });
     return () => { isMounted = false; subscription.subscription.unsubscribe(); };
-  }, [supabase]);
+  }), []);
 
   const showAppView = isReady && isLoggedIn;
 

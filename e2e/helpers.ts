@@ -11,6 +11,10 @@ const IGNORAR = [
   /third-party cookie/i,
   /hydration/i,                          // avisos, nao erros funcionais
   /Download the React DevTools/i,
+  // Em `next dev` os scripts de analise da Vercel vem na versao ".debug.js", que
+  // o nosso CSP nao permite (o de producao vem de outro caminho e passa). Isto e
+  // ruido do modo de desenvolvimento, nao um defeito do site.
+  /va\.vercel-scripts\.com/i,
 ];
 
 export function vigiarErros(page: Page): { erros: string[]; verificar: () => void } {

@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { btnPrimary } from "@/lib/ui/buttons";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { comSupabase, getSupabase } from "@/lib/supabase/lazy";
 import PlanBadge from "@/components/PlanBadge";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { pageUrl } from "@/lib/i18n/routes";
@@ -153,7 +153,6 @@ const NAV_ITEMS = [
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const supabase = createClient();
   const { lang, setLang, t } = useLanguage();
   const [email, setEmail] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -164,7 +163,7 @@ export default function Sidebar() {
   const [hovered, setHovered] = useState(false);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
+  useEffect(() => comSupabase((supabase) => {
     let mounted = true;
     supabase.auth.getSession().then(({ data }: { data: { session: { user: { email?: string } } | null } }) => {
       if (!mounted) return;
@@ -177,7 +176,7 @@ export default function Sidebar() {
       setEmail(session?.user?.email ?? null);
     });
     return () => { mounted = false; sub.subscription.unsubscribe(); };
-  }, [supabase]);
+  }), []);
 
   // Verifica se o utilizador é admin (para mostrar o item "Beta" no menu).
   useEffect(() => {
@@ -201,6 +200,8 @@ export default function Sidebar() {
   };
 
   const handleLogout = async () => {
+    // Quem chega aqui tem sessao, logo a biblioteca ja foi carregada pelo efeito.
+    const supabase = await getSupabase();
     await supabase.auth.signOut();
     window.location.href = "/";
   };

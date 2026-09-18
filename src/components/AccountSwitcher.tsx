@@ -26,7 +26,7 @@ import {
   type Account,
 } from "@/lib/portfolios/accounts";
 import { pushWalletCloud } from "@/lib/portfolios/cloudSync";
-import { createClient } from "@/lib/supabase/client";
+import { comSupabase } from "@/lib/supabase/lazy";
 
 type Plan = "free" | "pro" | "premium";
 const MAX_BY_PLAN: Record<Plan, number> = ACCOUNT_LIMITS;
@@ -46,8 +46,7 @@ export default function AccountSwitcher() {
 
   // O seletor só existe para utilizadores autenticados: as contas são dados
   // privados do dispositivo e não devem aparecer nas páginas públicas.
-  useEffect(() => {
-    const supabase = createClient();
+  useEffect(() => comSupabase((supabase) => {
     let mounted = true;
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -74,7 +73,7 @@ export default function AccountSwitcher() {
     init();
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => { init(); });
     return () => { mounted = false; subscription.unsubscribe(); };
-  }, []);
+  }), []);
 
   useEffect(() => {
     if (!open) return;

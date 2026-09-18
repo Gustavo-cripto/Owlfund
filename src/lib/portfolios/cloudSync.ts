@@ -17,7 +17,7 @@ import {
   writeNamespaced,
   type Account,
 } from "@/lib/portfolios/accounts";
-import { createClient } from "@/lib/supabase/client";
+import { getSupabase } from "@/lib/supabase/lazy";
 import { TRADE_HISTORY_KEY, mergeTradeRaw } from "@/lib/portfolios/trades";
 
 const WALLET_BASE = "portfolio-wallets";
@@ -49,8 +49,7 @@ function buildBlob(): CloudBlobV3 {
  *  construído DEPOIS da limpeza, se ela ocorrer). */
 export function pushWalletCloud() {
   try {
-    const supabase = createClient();
-    supabase.auth
+    void getSupabase().then((supabase) => supabase.auth
       .getUser()
       .then(({ data: { user } }: { data: { user: { id: string } | null } }) => {
         if (!user) return;
@@ -61,7 +60,7 @@ export function pushWalletCloud() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ data: blob }),
         });
-      })
+      }))
       .catch(() => {});
   } catch {
     // ignore
@@ -71,7 +70,7 @@ export function pushWalletCloud() {
 /** Restaura da nuvem (contas + carteiras + ativos manuais). true se restaurou. */
 export async function pullWalletCloud(): Promise<boolean> {
   try {
-    const supabase = createClient();
+    const supabase = await getSupabase();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
     // Se o dispositivo tiver dados de outro utilizador, limpa antes de fundir.

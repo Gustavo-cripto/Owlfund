@@ -6,7 +6,7 @@ import { btnPrimary } from "@/lib/ui/buttons";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { pageUrl } from "@/lib/i18n/routes";
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { getSupabase } from "@/lib/supabase/lazy";
 import { CRYPTO_PAYMENTS_ENABLED } from "@/lib/payments/config";
 import { cryptoPrice, CRYPTO_DISCOUNT_PCT , FIAT_PRICES } from "@/lib/payments/pricing";
 
@@ -22,7 +22,6 @@ function Cell({ value }: { value: boolean | string }) {
 
 export default function Pricing() {
   const { t, lang } = useLanguage();
-  const supabase = createClient();
 
   const COMPARISON = [
     { category: t("pc_cat_wallets"), rows: [
@@ -87,7 +86,7 @@ export default function Pricing() {
   useEffect(() => {
     const load = async () => {
       try {
-      const { data } = await supabase.auth.getUser();
+      const { data } = await (await getSupabase()).auth.getUser();
       const user = data.user;
       if (!user) return;
       setUserId(user.id);
@@ -110,7 +109,7 @@ export default function Pricing() {
       finally { setLoading(false); }
     };
     load();
-  }, [supabase]);
+  }, []);
 
   const handleSyncPlan = async () => {
     setSyncing(true);
@@ -130,7 +129,7 @@ export default function Pricing() {
     try {
       // getSession() pode rebentar se a sessão local estiver corrompida — nesse
       // caso mostramos mensagem em vez de falhar em silêncio (botão "não faz nada").
-      const { data: sessionData } = await supabase.auth.getSession();
+      const { data: sessionData } = await (await getSupabase()).auth.getSession();
       const accessToken = sessionData.session?.access_token ?? "";
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",

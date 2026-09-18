@@ -5,7 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import type { Lang, TranslationKey } from "./translations";
 import { loadMessages, type Messages } from "./messages";
 import { pageFromPath, pageUrl } from "./routes";
-import { createClient } from "@/lib/supabase/client";
+import { getSupabase } from "@/lib/supabase/lazy";
 import { langFromMetadata } from "@/lib/user/lang";
 
 type LanguageContextValue = {
@@ -81,7 +81,7 @@ export function LanguageProvider({
   useEffect(() => {
     const id = setTimeout(async () => {
       try {
-        const supabase = createClient();
+        const supabase = await getSupabase();
         const { data } = await supabase.auth.getSession();
         const user = data.session?.user;
         if (!user) return;

@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
 import ChatWidget from "@/components/ChatWidget";
-import { createClient } from "@/lib/supabase/client";
+import { comSupabase } from "@/lib/supabase/lazy";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 
 const STORAGE_KEY_OPEN = "owlfund.floatingChat.open.v1";
@@ -12,7 +12,6 @@ const STORAGE_KEY_SEEN = "owlfund.floatingChat.seen.v1";
 export default function FloatingChat() {
   const { t } = useLanguage();
   const pathname = usePathname();
-  const supabase = createClient();
   const [isOpen, setIsOpen] = useState(false);
   const [isContentReady, setIsContentReady] = useState(false);
   const [showBadge, setShowBadge] = useState(false);
@@ -22,7 +21,7 @@ export default function FloatingChat() {
   const [, startTransition] = useTransition();
 
   // Verificar sessão + plano (o chat só existe para utilizadores autenticados)
-  useEffect(() => {
+  useEffect(() => comSupabase((supabase) => {
     const check = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { setIsLoggedIn(false); setIsPro(true); return; }
@@ -37,7 +36,7 @@ export default function FloatingChat() {
     check();
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => { check(); });
     return () => subscription.unsubscribe();
-  }, [supabase]);
+  }), []);
 
   useEffect(() => {
     try {
