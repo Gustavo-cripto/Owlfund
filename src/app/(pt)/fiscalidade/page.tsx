@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { COUNTRIES, TAX_REGIMES } from "@/lib/tax/countries";
+import { COUNTRIES, TAX_REGIMES, guideUrl } from "@/lib/tax/countries";
 import { loadFxTable, type FxTable } from "@/lib/fx/historical";
 import { CURRENCY_SIGN } from "@/lib/currency/symbols";
 import { btnPrimary } from "@/lib/ui/buttons";
@@ -1061,9 +1061,33 @@ export default function FiscalidadePage() {
                 ))}
               </div>
               {summary.allowanceUsed > 0 && regime.allowance && (
-                <p className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-4 py-2.5 text-xs text-emerald-300">
-                  ✂️ {regime.allowance.label[lang]}: −{fmtEur(summary.allowanceUsed)} {t("fisc_allowance_applied")}
-                </p>
+                // A faixa dizia quanto foi abatido, mas nao o que e uma isencao
+                // anual — e as duas especies comportam-se ao contrario uma da
+                // outra: a "deduct" tira uma fatia, a "threshold" e tudo-ou-nada.
+                // Quem le "-455 abatidos" sem isto nao sabe o que assinar.
+                <details className="group rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-4 py-2.5 text-xs text-emerald-300">
+                  <summary className="flex cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
+                    <span className="flex-1">
+                      ✂️ {regime.allowance.label[lang]}: −{fmtEur(summary.allowanceUsed)} {t("fisc_allowance_applied")}
+                    </span>
+                    <span className="shrink-0 rounded-full border border-emerald-500/30 px-2 py-0.5 text-[10px] font-semibold text-emerald-200/80 group-open:hidden">
+                      {t("fisc_alw_what")}
+                    </span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                      className="shrink-0 transition-transform duration-200 group-open:rotate-180" aria-hidden="true">
+                      <path d="M6 9l6 6 6-6" />
+                    </svg>
+                  </summary>
+                  <div className="faq-a mt-3 space-y-2 border-t border-emerald-500/15 pt-3 leading-relaxed text-emerald-100/80">
+                    <p>{t(regime.allowance.kind === "threshold" ? "fisc_alw_threshold" : "fisc_alw_deduct")}</p>
+                    <p>{t("fisc_alw_applied_long").replace("{v}", fmtEur(summary.allowanceUsed))}</p>
+                    <p className="text-emerald-100/60">{t("fisc_alw_shared")}</p>
+                    <Link href={guideUrl(lang === "pt" ? "pt" : "en", COUNTRIES.find((c) => c.code === country))}
+                      className="inline-block font-semibold text-emerald-300 underline underline-offset-2 hover:text-emerald-200">
+                      {t("fisc_alw_guide")} →
+                    </Link>
+                  </div>
+                </details>
               )}
 
               {summary.standalone > 0 && (
