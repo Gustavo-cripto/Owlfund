@@ -28,7 +28,10 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
-  const plan = body.plan === "premium" ? "premium" : "pro";
+  // A promessa publica (landing, /beta, Conta, emails) e PREMIUM 60 dias, e o
+  // botao do Telegram tambem. O "pro" por omissao daqui dava o plano errado a
+  // quem se inscrevia a contar com Premium.
+  const plan = body.plan === "pro" ? "pro" : "premium";
   const res = await grantTester(body.email ?? "", plan);
   if (!res.ok) return NextResponse.json({ error: res.error }, { status: res.error?.includes("conta") ? 404 : 400 });
   return NextResponse.json({ ok: true, plan, until: res.until });
