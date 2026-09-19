@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cabecalhosDeConteudoExterno } from "@/lib/api/proxySafeType";
 import { requireUser } from "@/lib/api/requireUser";
 
 export const runtime = "nodejs";
@@ -28,6 +29,11 @@ function extractIpfsPath(input: string): string | null {
   return null;
 }
 
+// CIDv0 (Qm…), CIDv1 em base32 (b…), base58btc (z…) ou base16 (f…), com um
+// caminho opcional por baixo. Aceita as quatro bases porque CIDv1 nem sempre
+// comeca por "ba".
+const CID_PATH = /^(Qm[1-9A-HJ-NP-Za-km-z]{44}|b[a-z2-7]{20,}|z[1-9A-HJ-NP-Za-km-z]{20,}|f[0-9a-f]{20,})(\/[\w.\-~%]+)*$/;
+
 function isServeableType(ct: string): boolean {
   if (!ct) return true; // some gateways omit it for octet streams
   return (
@@ -47,7 +53,10 @@ export async function GET(req: NextRequest) {
   const urlParam = req.nextUrl.searchParams.get("url");
   const ipfsPath = cidParam ?? (urlParam ? extractIpfsPath(urlParam) : null);
 
-  if (!ipfsPath || ipfsPath.length > 256 || ipfsPath.includes("..")) {
+  // O `cid` ia direto para a concatenacao do URL do gateway: qualquer caminho
+  // dentro de gateway.pinata.cloud/ipfs/ era alcancavel. Agora os dois caminhos
+  // (cid e url) passam pelo mesmo formato estrito.
+  if (!ipfsPath || ipfsPath.length > 256 || ipfsPath.includes("..") || !CID_PATH.test(ipfsPath)) {
     return NextResponse.json({ error: "CID inválido." }, { status: 400 });
   }
 
@@ -78,12 +87,14 @@ export async function GET(req: NextRequest) {
     controllers.forEach((c) => { try { c.abort(); } catch { /* ignore */ } });
     return new NextResponse(winner.buf, {
       status: 200,
-      headers: {
-        "Content-Type": winner.ct || "application/octet-stream",
+      // Bytes de terceiros no nosso dominio: um SVG pinado no IPFS e um
+      // documento activo, por isso so tipos de imagem passivos saem como imagem.
+      headers: cabecalhosDeConteudoExterno(
+        winner.ct,
         // Cache the resolved bytes at the Vercel edge for a year — each unique
         // IPFS object is fetched from a gateway only once.
-        "Cache-Control": "public, max-age=86400, s-maxage=31536000, immutable",
-      },
+        "public, max-age=86400, s-maxage=31536000, immutable",
+      ),
     });
   } catch {
     controllers.forEach((c) => { try { c.abort(); } catch { /* ignore */ } });

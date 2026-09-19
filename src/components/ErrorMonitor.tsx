@@ -39,7 +39,10 @@ function report(kind: string, message: string, stack?: string) {
       kind,
       message: String(message).slice(0, 500),
       stack: stack ? String(stack).slice(0, 2000) : undefined,
-      url: typeof location !== "undefined" ? location.href : undefined,
+      // So o caminho. O href levava a query string E o fragmento — e o link de
+      // recuperacao de palavra-passe traz #access_token=<JWT> no fragmento, que
+      // ia parar aos registos do servidor.
+      url: typeof location !== "undefined" ? location.pathname : undefined,
     });
     if (typeof navigator !== "undefined" && navigator.sendBeacon) {
       navigator.sendBeacon("/api/client-error", new Blob([body], { type: "application/json" }));

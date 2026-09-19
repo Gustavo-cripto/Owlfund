@@ -9,7 +9,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 // HMAC com segredo do servidor: um sha256 puro era confirmável por dicionário
 // (endereços são públicos). Continua estável para a mesma carteira.
 const PSEUDONYM_KEY = process.env.API_PSEUDONYM_SECRET ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? "chainfolioai";
-function maskAddress(value: string): string {
+export function maskAddress(value: string): string {
   return `wallet_${createHmac("sha256", PSEUDONYM_KEY).update(value.toLowerCase()).digest("hex").slice(0, 10)}`;
 }
 

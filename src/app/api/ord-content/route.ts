@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cabecalhosDeConteudoExterno } from "@/lib/api/proxySafeType";
 import { requireUser } from "@/lib/api/requireUser";
 
 export const runtime = "nodejs";
@@ -53,11 +54,13 @@ export async function GET(req: NextRequest) {
     controllers.forEach((c) => { try { c.abort(); } catch { /* ignore */ } });
     return new NextResponse(winner.buf, {
       status: 200,
-      headers: {
-        "Content-Type": winner.ct || "application/octet-stream",
+      // Bytes de terceiros servidos do nosso dominio: so tipos de imagem
+      // passivos saem como imagem; um SVG com <script> sai como ficheiro.
+      headers: cabecalhosDeConteudoExterno(
+        winner.ct,
         // Inscriptions are immutable — cache the bytes at the edge for a year.
-        "Cache-Control": "public, max-age=86400, s-maxage=31536000, immutable",
-      },
+        "public, max-age=86400, s-maxage=31536000, immutable",
+      ),
     });
   } catch {
     controllers.forEach((c) => { try { c.abort(); } catch { /* ignore */ } });

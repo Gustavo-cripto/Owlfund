@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { maskAddress } from "@/lib/api/data";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
@@ -97,7 +98,10 @@ function buildPortfolioContext(snapshot: SnapshotData | null, subscription: { pr
     const price = priceKey ? (prices[priceKey] ?? 0) : 0;
     const eur = total * price;
     lines.push(`${name}: ${total.toFixed(8)} (≈€${eur.toFixed(2)}, ${entries.length} carteira(s))`);
-    entries.slice(0, 3).forEach(e => { if (e.address) lines.push(`    Endereço: ${e.address}`); });
+    // NUNCA o endereco: este texto vai para a Groq/OpenAI/xAI. A regra da casa
+    // e que a plataforma nao expoe enderecos — so o pseudonimo estavel, que
+    // chega para o modelo distinguir carteiras uma da outra.
+    entries.slice(0, 3).forEach((e, i) => { if (e.address) lines.push(`    Carteira ${i + 1}: ${maskAddress(e.address)}`); });
   };
 
   addChain("Bitcoin (BTC)", snapshot!.btc, "bitcoin");
