@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { COUNTRIES, TAX_REGIMES, guideUrl } from "@/lib/tax/countries";
+import { COUNTRIES, TAX_REGIMES, guideUrl, moedaDoRelatorio } from "@/lib/tax/countries";
 import { loadFxTable, type FxTable } from "@/lib/fx/historical";
 import { CURRENCY_SIGN } from "@/lib/currency/symbols";
 import { btnPrimary } from "@/lib/ui/buttons";
@@ -19,7 +19,8 @@ import { downloadBlob, isStaleChunkError, loadExcelJS } from "@/lib/export/excel
 import { cleanDecimalInput, parseDecimal } from "@/lib/format/decimal";
 import { ACCOUNTS_EVENT } from "@/lib/portfolios/accounts";
 import { pushWalletCloud } from "@/lib/portfolios/cloudSync";
-import { deleteTrade, loadTrades, tradeId, upsertTrade } from "@/lib/portfolios/trades";
+import { chronoCompare, deleteTrade, loadTrades, tradeId, upsertTrade } from "@/lib/portfolios/trades";
+import { anoDoEvento, resumirImposto } from "@/lib/api/taxMath";
 
 const LOCALE_BY_LANG: Record<string, string> = { pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" };
 // Durante o beta os CTAs de upgrade apontam para o convite /beta.
@@ -279,7 +280,10 @@ export default function FiscalidadePage() {
   const [fromHistory, setFromHistory] = useState(0);
   useEffect(() => {
     const load = () => {
-      const hist = loadTrades();
+      // Ordem canonica a montante: o comparador oficial desempata o mesmo dia
+      // por tipo (compra -> taxa -> venda). Sem isto, uma compra e uma venda no
+      // MESMO dia chegavam ao FIFO pela ordem do localStorage, que e a inversa.
+      const hist = loadTrades().sort(chronoCompare);
       setTrades(hist.map(h => ({ id: h.id, asset: h.asset, type: h.type, amount: h.quantity, price: h.priceEur, fee: h.feeEur ?? 0, ...(h.feeAsset ? { feeAsset: h.feeAsset, feeQty: h.feeInput ?? 0 } : {}), date: h.date, exchange: h.exchange })));
       setFromHistory(hist.length);
     };
@@ -325,7 +329,11 @@ export default function FiscalidadePage() {
   // operacao e convertida a taxa DA SUA data — a compra a taxa do dia da
   // compra, a venda a taxa do dia da venda. E assim que as autoridades
   // fiscais calculam, e por isso e que a taxa de hoje nao serve.
-  const reportCurrency = COUNTRIES.find((c) => c.code === country)?.currency ?? "EUR";
+  // Ha paises cuja moeda o BCE nao publica (AED, ARS): nesses o relatorio sai
+  // em euros COM AVISO, em vez de descartar tudo e mostrar zero.
+  const paisDoRelatorio = COUNTRIES.find((c) => c.code === country);
+  const { currency: reportCurrency, fallback: moedaEmFalta } =
+    paisDoRelatorio ? moedaDoRelatorio(paisDoRelatorio) : { currency: "EUR", fallback: false };
   const reportSymbol = CURRENCY_SIGN[reportCurrency] ?? reportCurrency;
   const [fx, setFx] = useState<FxTable | null>(null);
   const [fxLoading, setFxLoading] = useState(false);
@@ -362,7 +370,7 @@ export default function FiscalidadePage() {
     // parcial levar so a parte que lhe cabe (mesma regra que computeFifo).
     const pool: Record<string, Array<{ amount: number; price: number; feePerUnit: number; date: string }>> = {};
 
-    const sorted = [...trades].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const sorted = trades;   // ja vem em ordem canonica de loadTrades().sort(chronoCompare)
     const soTaxa: StandaloneFee[] = [];
     // Tira quantidade pelos lotes mais antigos, sem ganho (mesma regra que computeFifo).
     const consumir = (asset: string, qty: number) => {
@@ -438,7 +446,7 @@ export default function FiscalidadePage() {
   const unmatched = useMemo<Record<string, number>>(() => {
     const um: Record<string, number> = {};
     const bought: Record<string, number> = {};
-    const sorted = [...trades].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const sorted = trades;   // ja vem em ordem canonica de loadTrades().sort(chronoCompare)
     for (const tr of sorted) {
       if (tr.feeAsset && (tr.feeQty ?? 0) > 0) bought[tr.feeAsset] = Math.max(0, (bought[tr.feeAsset] ?? 0) - (tr.feeQty ?? 0));
       if (tr.type === "taxa") { bought[tr.asset] = Math.max(0, (bought[tr.asset] ?? 0) - tr.amount); continue; }
@@ -453,27 +461,42 @@ export default function FiscalidadePage() {
     return um;
   }, [trades]);
 
+  // ── Ano fiscal ────────────────────────────────────────────────────────────
+  // Nao se declara "a vida toda": declara-se um ano. E a isencao anual e, como
+  // o nome diz, por ano. Sem isto, uma perda de 2024 apagava imposto de 2026 —
+  // erro a favor do contribuinte, que e o lado perigoso de errar.
+  //
+  // O filtro e sobre os EVENTOS (pela data da venda), nunca sobre os trades: se
+  // se filtrassem as transacoes, perdiam-se os lotes de compra de anos
+  // anteriores e o custo de aquisicao desaparecia.
+  const anosDisponiveis = useMemo(() => {
+    const anos = [...new Set(taxEvents.map(anoDoEvento))].sort((a, b) => b - a);
+    return anos;
+  }, [taxEvents]);
+  const [anoFiscal, setAnoFiscal] = useState<number | null>(null);
+  const anoAtivo = anoFiscal ?? anosDisponiveis[0] ?? new Date().getFullYear();
+  useEffect(() => {
+    // Se o ano escolhido deixar de ter eventos (mudanca de conta), volta ao mais recente.
+    if (anoFiscal != null && anosDisponiveis.length > 0 && !anosDisponiveis.includes(anoFiscal)) setAnoFiscal(null);
+  }, [anoFiscal, anosDisponiveis]);
+
+  const eventosDoAno = useMemo(
+    () => taxEvents.filter((e) => anoDoEvento(e) === anoAtivo),
+    [taxEvents, anoAtivo],
+  );
+  const taxasDoAno = useMemo(
+    () => standaloneFees.filter((f) => new Date(f.date).getUTCFullYear() === anoAtivo),
+    [standaloneFees, anoAtivo],
+  );
+
   const summary = useMemo(() => {
-    const totalGain = taxEvents.reduce((s, e) => s + e.gain, 0);
-    const taxable = taxEvents.filter(e => e.gain > 0 && e.taxRate > 0).reduce((s, e) => s + e.gain, 0);
-    const exempt = taxEvents.filter(e => e.taxRate === 0 && e.gain > 0).reduce((s, e) => s + e.gain, 0);
-    const losses = taxEvents.filter(e => e.gain < 0).reduce((s, e) => s + e.gain, 0);
-    let tax = taxEvents.filter(e => e.gain > 0).reduce((s, e) => s + e.gain * e.taxRate, 0);
-    // Isenção anual do país (aproximação sobre o total tributável)
-    let allowanceUsed = 0;
-    const alw = regime.allowance;
-    if (alw && taxable > 0 && tax > 0) {
-      if (alw.kind === "threshold") {
-        if (taxable <= alw.amount) { allowanceUsed = taxable; tax = 0; }
-      } else {
-        allowanceUsed = Math.min(alw.amount, taxable);
-        tax = tax * (1 - allowanceUsed / taxable);
-      }
-    }
-    const fees = taxEvents.reduce((s, e) => s + e.fees, 0);
-    const standalone = standaloneFees.reduce((s, f) => s + f.value, 0);
-    return { totalGain, taxable, exempt, losses, tax, allowanceUsed, fees, standalone };
-  }, [taxEvents, standaloneFees, regime]);
+    // A MESMA funcao que a API e o MCP usam. Havia aqui uma copia da conta, e
+    // as duas copias erravam igual: as menos-valias nunca abatiam aos ganhos.
+    const r = resumirImposto(eventosDoAno, regime);
+    const fees = eventosDoAno.reduce((s, e) => s + e.fees, 0);
+    const standalone = taxasDoAno.reduce((s, f) => s + f.value, 0);
+    return { ...r, fees, standalone };
+  }, [eventosDoAno, taxasDoAno, regime]);
 
   // Falha de export: se for um chunk antigo (pagina aberta antes de um deploy),
   // diz-se ao utilizador e recarrega-se — e o unico remedio; senao mostra-se o erro.
@@ -519,7 +542,7 @@ export default function FiscalidadePage() {
     };
     const boldRow = (r: import("exceljs").Row) => { r.eachCell((c) => { c.font = { bold: true }; }); return r; };
 
-    const titleRow = bandRow(`ChainFolioAI — ${t("fisc_pdf_title")} ${new Date().getFullYear()}`, DARK, 14);
+    const titleRow = bandRow(`ChainFolioAI — ${t("fisc_pdf_title")} ${anoAtivo}`, DARK, 14);
     if (logoImgId != null) {
       titleRow.height = 46;
       titleRow.getCell(1).alignment = { vertical: "middle", indent: 8 };
@@ -550,16 +573,16 @@ export default function FiscalidadePage() {
     metric(t("fc_realized_losses"), summary.losses, money);
     if (summary.allowanceUsed > 0 && regime.allowance) metric(`${t("fisc_x_allowance")} (${regime.allowance.label[lang]})`, -summary.allowanceUsed, money);
     metric(t("fc_estimated_tax"), summary.tax, money);
-    metric(t("fisc_pdf_num_events"), taxEvents.length, "0");
+    metric(t("fisc_pdf_num_events"), eventosDoAno.length, "0");
     ws.addRow([]);
 
     bandRow(t("fisc_pdf_events").toUpperCase(), BRAND);
     boldRow(ws.addRow([t("fc_col_asset"), t("fc_col_buy"), t("fc_col_sell"), t("fc_col_qtd"), `${t("fc_col_buyp")} (${reportSymbol})`, `${t("fc_col_sellp")} (${reportSymbol})`, `${t("fc_col_gain")} (${reportSymbol})`, t("fc_col_type"), t("fc_col_rate"), `${t("fc_col_tax")} (${reportSymbol})`, `${t("fc_col_fees")} (${reportSymbol})`]));
-    if (taxEvents.length === 0) {
+    if (eventosDoAno.length === 0) {
       const r = ws.addRow([t("fisc_x_no_events")]);
       r.getCell(1).font = { italic: true, color: { argb: "FF94A3B8" } };
     } else {
-      taxEvents.forEach((e) => {
+      eventosDoAno.forEach((e) => {
         const r = ws.addRow([
           e.asset, e.buyDate, e.sellDate, e.amount,
           e.buyPrice, e.sellPrice, e.gain,
@@ -597,7 +620,7 @@ export default function FiscalidadePage() {
 
     const buf = await wb.xlsx.writeBuffer();
     const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-    await downloadBlob(blob, `chainfolioai-tax-report-${country}-${new Date().getFullYear()}.xlsx`);
+    await downloadBlob(blob, `chainfolioai-tax-report-${country}-${anoAtivo}.xlsx`);
     } catch (e) {
       falhaExport("Excel", e);
     }
@@ -647,7 +670,7 @@ export default function FiscalidadePage() {
     const logoSize = 20;
     // Keep logo/name at the top; distribute leftover space between sections to fill the page.
     const pageH = doc.internal.pageSize.getHeight();
-    const estHeight = 151 + taxEvents.length * 9; // header + summary + table + breakdown + notes
+    const estHeight = 151 + eventosDoAno.length * 9; // header + summary + table + breakdown + notes
     const usableBottom = pageH - 18;
     const leftover = usableBottom - (12 + estHeight);
     const gap = leftover > 0 ? Math.min(38, leftover / 3) : 0; // spread across 3 boundaries
@@ -702,7 +725,7 @@ export default function FiscalidadePage() {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.setTextColor(17, 24, 39);
-    doc.text(`${t("fisc_pdf_events")} (${taxEvents.length})`, cx, y, { align: "center" });
+    doc.text(`${t("fisc_pdf_events")} (${eventosDoAno.length})`, cx, y, { align: "center" });
     y += 5;
 
     const headers = [t("fc_col_asset"), t("fc_col_buy"), t("fc_col_sell"), t("fc_col_qtd"), t("fc_col_buyp"), t("fc_col_sellp"), t("fc_col_gain"), t("fc_col_type"), t("fc_col_rate"), t("fc_col_tax")];
@@ -719,7 +742,7 @@ export default function FiscalidadePage() {
     };
     drawHead();
 
-    taxEvents.forEach((e, idx) => {
+    eventosDoAno.forEach((e, idx) => {
       if (y > 268) { doc.addPage(); y = 16; drawHead(); }
       if (idx % 2 === 1) {
         doc.setFillColor(249, 250, 251);
@@ -766,9 +789,9 @@ export default function FiscalidadePage() {
     if (y > 250) { doc.addPage(); y = 18; }
 
     // Breakdown — fill remaining space with extra detail
-    const invested = taxEvents.reduce((s, e) => s + e.amount * e.buyPrice, 0);
-    const proceeds = taxEvents.reduce((s, e) => s + e.amount * e.sellPrice, 0);
-    const positiveGains = taxEvents.filter(e => e.gain > 0).reduce((s, e) => s + e.gain, 0);
+    const invested = eventosDoAno.reduce((s, e) => s + e.amount * e.buyPrice, 0);
+    const proceeds = eventosDoAno.reduce((s, e) => s + e.amount * e.sellPrice, 0);
+    const positiveGains = eventosDoAno.filter(e => e.gain > 0).reduce((s, e) => s + e.gain, 0);
     const effRate = positiveGains > 0 ? (summary.tax / positiveGains) * 100 : 0;
 
     doc.setFont("helvetica", "bold");
@@ -784,7 +807,7 @@ export default function FiscalidadePage() {
       ...(summary.fees > 0 ? [[t("fisc_fees_deducted"), eur(summary.fees)] as [string, string]] : []),
       ...(summary.standalone > 0 ? [[t("fisc_standalone_total"), eur(summary.standalone)] as [string, string]] : []),
       [t("fisc_pdf_eff_rate"), `${effRate.toFixed(1)}%`],
-      [t("fisc_pdf_num_events"), String(taxEvents.length)],
+      [t("fisc_pdf_num_events"), String(eventosDoAno.length)],
       [t("fisc_pdf_method_label"), `FIFO / ${reportCurrency}`],
     ];
     const bx = M, bw = W - M * 2;
@@ -829,7 +852,7 @@ export default function FiscalidadePage() {
     doc.text(t("fisc_pdf_footer"), W / 2, fy, { align: "center", maxWidth: W - M * 2 });
 
     const pdfBlob = doc.output("blob");
-    await downloadBlob(pdfBlob, `chainfolioai-report-${country}-${new Date().getFullYear()}.pdf`);
+    await downloadBlob(pdfBlob, `chainfolioai-report-${country}-${anoAtivo}.pdf`);
     } catch (e) {
       falhaExport("PDF", e);
     }
@@ -962,7 +985,7 @@ export default function FiscalidadePage() {
                   }
                 }
                 const entry = { ...newTrade, id: tradeId(), asset: newTrade.asset.toUpperCase(), price: precoEur, fee: taxaEur };
-                setTrades(prev => [...prev, entry]);
+                setTrades(prev => [...prev, entry].sort((x, y) => new Date(x.date).getTime() - new Date(y.date).getTime()));   // mantem a ordem; o desempate fino vem de loadTrades()
                 upsertTrade({ id: entry.id, type: entry.type, asset: entry.asset, assetName: entry.asset, quantity: entry.amount, priceEur: entry.price, totalEur: entry.amount * entry.price, date: entry.date, exchange: entry.exchange, notes: "", currency: inputCurrency, priceInput: newTrade.price, ...(newTrade.fee > 0 ? { feeEur: taxaEur, feeInput: newTrade.fee } : {}) });
                 pushWalletCloud();
                 setNewTrade(emptyTrade());
@@ -1029,6 +1052,11 @@ export default function FiscalidadePage() {
               💱 {t("fisc_fx_note")}{fxLoading ? ` · ${t("loading")}` : ""}
             </p>
           )}
+          {moedaEmFalta && (
+            <p className="rounded-xl border border-amber-500/40 bg-amber-500/[0.08] px-4 py-2.5 text-xs leading-relaxed text-amber-200">
+              ⚠️ {t("fisc_fx_no_currency").replace("{m}", paisDoRelatorio?.currency ?? "")}
+            </p>
+          )}
           {fxIncomplete && (
             <p className="rounded-xl border border-amber-500/40 bg-amber-500/[0.08] px-4 py-2.5 text-xs leading-relaxed text-amber-200">
               ⚠️ {t("fisc_fx_incomplete")}
@@ -1043,7 +1071,25 @@ export default function FiscalidadePage() {
               {t("fisc_unmatched_hint")}
             </p>
           )}
-          {taxEvents.length > 0 && (
+          {/* Ano fiscal — declara-se um ano, nao a vida toda. So aparece quando
+              ha mais do que um ano com vendas. */}
+          {anosDisponiveis.length > 1 && (
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3">
+              <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t("fisc_year")}</span>
+              <div className="flex flex-wrap gap-1.5">
+                {anosDisponiveis.map((a) => (
+                  <button key={a} type="button" onClick={() => setAnoFiscal(a)} aria-pressed={a === anoAtivo}
+                    className={`press rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+                      a === anoAtivo ? "bg-orange-500 text-slate-950" : "border border-slate-700 text-slate-300 hover:border-orange-400/50 hover:text-white"
+                    }`}>
+                    {a}
+                  </button>
+                ))}
+              </div>
+              <span className="ml-auto text-[11px] text-slate-500">{t("fisc_year_hint")}</span>
+            </div>
+          )}
+          {eventosDoAno.length > 0 && (
             <>
               {/* Summary cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -1060,6 +1106,13 @@ export default function FiscalidadePage() {
                   </div>
                 ))}
               </div>
+              {/* Mostrar a compensacao: e a diferenca entre o que se paga e o
+                  que se pagaria sobre os ganhos brutos. Antes nao acontecia. */}
+              {summary.lossesApplied > 0 && (
+                <p className="rounded-xl border border-sky-500/20 bg-sky-500/[0.06] px-4 py-2.5 text-xs text-sky-200">
+                  ➖ −{fmtEur(summary.lossesApplied)} {t("fisc_losses_applied")}
+                </p>
+              )}
               {summary.allowanceUsed > 0 && regime.allowance && (
                 // A faixa dizia quanto foi abatido, mas nao o que e uma isencao
                 // anual — e as duas especies comportam-se ao contrario uma da
@@ -1100,7 +1153,7 @@ export default function FiscalidadePage() {
               {/* Tabela de eventos */}
               <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t("fisc_tax_events")} ({taxEvents.length})</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t("fisc_tax_events")} ({eventosDoAno.length})</p>
                   <div className="flex items-center gap-2">
                     {isPro ? (
                       <button onClick={exportXLSX}
@@ -1141,7 +1194,7 @@ export default function FiscalidadePage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {taxEvents.map((e, i) => (
+                      {eventosDoAno.map((e, i) => (
                         <tr key={i} className="border-b border-slate-800/40 hover:bg-slate-800/20">
                           <td className="py-2 pr-4 font-semibold text-white">{e.asset}</td>
                           <td className="py-2 pr-4 text-slate-400">{e.buyDate}</td>

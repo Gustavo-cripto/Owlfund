@@ -7,8 +7,8 @@ const eq = (name: string, got: number | boolean, want: number | boolean) => {
   console.log(`${ok ? "✅" : "❌"} ${name}: ${got}${ok ? "" : ` (esperado ${want})`}`);
 };
 
-const lote = (buyDate: string, sellDate: string, buyPrice: number, sellPrice: number, amount = 1, fees = 0): RealizedLot =>
-  ({ asset: "BTC", buyDate, sellDate, buyPrice, sellPrice, amount, fees, gain: (sellPrice - buyPrice) * amount - fees });
+const lote = (buyDate: string, sellDate: string, buyPrice: number, sellPrice: number, amount = 1, fees = 0, buyFees = 0): RealizedLot =>
+  ({ asset: "BTC", buyDate, sellDate, buyPrice, sellPrice, amount, fees: fees + buyFees, buyFees, sellFees: fees, gain: (sellPrice - buyPrice) * amount - fees - buyFees });
 const emEuros = (eur: number) => eur; // país da zona euro: sem conversão
 
 // Portugal: 28 % abaixo de 365 dias, isento a partir daí.
@@ -61,6 +61,73 @@ eq("imposto na moeda do país", us.tax, (200 * 1.2 - 100 * 1.1) * 0.2);
 const semTaxa = estimarImposto([lote("2026-01-10", "2026-06-10", 100, 200)], PT, (_e, d) => (d === "2026-06-10" ? null : 1));
 eq("lote sem câmbio é ignorado", semTaxa.events.length, 0);
 eq("…e não inventa imposto", semTaxa.tax, 0);
+
+// ── Compensacao de menos-valias (art. 43.o do CIRS e equivalentes) ──────────
+// O que se tributa e o SALDO do ano, nao a soma das pernas positivas.
+const saldo = estimarImposto([
+  lote("2026-01-10", "2026-06-10", 100, 1100),   // +1000
+  lote("2026-02-10", "2026-07-10", 900, 100),    // -800
+], PT, emEuros);
+eq("saldo: ganho total", saldo.totalGain, 200);
+eq("saldo: tributavel ja compensado", saldo.taxable, 200);
+eq("saldo: imposto sobre o saldo", saldo.tax, 56);
+eq("saldo: perdas continuam a mostrar-se", saldo.losses, -800);
+eq("saldo: perdas usadas a abater", saldo.lossesApplied, 800);
+
+// Perda maior que o ganho: imposto zero, nunca negativo.
+const soPerda = estimarImposto([
+  lote("2026-01-10", "2026-06-10", 100, 200),    // +100
+  lote("2026-02-10", "2026-07-10", 900, 100),    // -800
+], PT, emEuros);
+eq("perda maior que o ganho: imposto zero", soPerda.tax, 0);
+eq("…e tributavel zero, nao negativo", soPerda.taxable, 0);
+
+// Uma perda num ativo ISENTO nao e dedutivel: se o ganho nao pagava, a perda
+// tambem nao abate.
+const perdaIsenta = estimarImposto([
+  lote("2026-01-10", "2026-06-10", 100, 1100),   // +1000 curto, tributado
+  lote("2023-01-10", "2026-07-10", 900, 100),    // -800 longo prazo, isento em PT
+], PT, emEuros);
+eq("perda de ativo isento nao abate", perdaIsenta.tax, 280);
+eq("…mas continua a aparecer nas perdas", perdaIsenta.losses, -800);
+eq("…e nao conta como dedutivel", perdaIsenta.deductibleLosses, 0);
+
+// Perdas de um ano NAO abatem ao imposto de outro ano.
+const doisAnos = estimarImposto([
+  lote("2025-01-10", "2025-06-10", 900, 100),    // -800 em 2025
+  lote("2026-01-10", "2026-06-10", 100, 1100),   // +1000 em 2026
+], PT, emEuros);
+eq("perdas nao saltam de ano", doisAnos.tax, 280);
+const so2026 = estimarImposto([
+  lote("2025-01-10", "2025-06-10", 900, 100),
+  lote("2026-01-10", "2026-06-10", 100, 1100),
+], PT, emEuros, 2026);
+eq("filtro de ano: so os eventos desse ano", so2026.events.length, 1);
+eq("filtro de ano: imposto do ano", so2026.tax, 280);
+
+// Escaloes: o abatimento comeca pela taxa mais alta (favorece o contribuinte).
+const DOIS = { short: 0.40, long: 0.10, longDays: 365 };
+const escaloes = estimarImposto([
+  lote("2026-01-10", "2026-06-10", 0, 1000),     // +1000 a 40 %
+  lote("2024-01-10", "2026-06-10", 0, 1000),     // +1000 a 10 %
+  lote("2026-02-10", "2026-07-10", 1000, 0),     // -1000 a 40 % (dedutivel)
+], DOIS, emEuros);
+eq("abate primeiro no escalao mais alto", escaloes.tax, 100);
+
+// A isencao anual entra DEPOIS da compensacao, nao antes.
+const gbSaldo = estimarImposto([
+  lote("2026-01-10", "2026-06-10", 1000, 6000),  // +5000
+  lote("2026-02-10", "2026-07-10", 1000, 0),     // -1000
+], GB, emEuros);
+eq("isencao sobre o saldo, nao sobre o bruto", gbSaldo.taxable, 4000);
+eq("isencao de 3000 sobre 4000 ja compensados", gbSaldo.tax, 1000 * 0.24);
+
+// A taxa da compra converte-se ao cambio do dia da COMPRA.
+const taxaCompra = estimarImposto([lote("2026-01-10", "2026-06-10", 100, 200, 1, 0, 10)], { short: 0.2, long: 0.2, longDays: 0 }, emDolares);
+eq("taxa da compra ao cambio da compra", taxaCompra.totalGain, 200 * 1.2 - 100 * 1.1 - 10 * 1.1);
+
+// Lotes deixados de fora por falta de cambio sao CONTADOS, nao esquecidos.
+eq("lotes sem cambio sao contados", semTaxa.droppedLots, 1);
 
 eq("dias entre datas", diasEntre("2026-01-01", "2026-01-31"), 30);
 eq("datas invertidas não dão negativo", diasEntre("2026-01-31", "2026-01-01"), 0);

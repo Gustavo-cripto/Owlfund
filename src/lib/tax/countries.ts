@@ -13,6 +13,7 @@
 // Só o TIPO Lang é importado (apagado em runtime): este ficheiro entra em
 // páginas cliente e não pode puxar as quatro línguas. Os textos por país
 // ficam em countryText.ts, só para o servidor.
+import { fxSuportada } from "@/lib/fx/supported";
 import type { Lang } from "@/lib/i18n/translations";
 
 export type Plan = "free" | "pro" | "premium";
@@ -128,6 +129,21 @@ export const COUNTRIES: readonly Country[] = [
 export const TAX_REGIMES: Record<string, TaxRegime> = Object.fromEntries(
   COUNTRIES.map((c) => [c.code, c.regime]),
 );
+
+/**
+ * Moeda em que o relatorio deste pais pode MESMO sair.
+ *
+ * Ha paises cuja moeda o feed do BCE nao publica (Emirados em AED, Argentina em
+ * ARS). Ate aqui, o relatorio desses paises descartava todos os lotes por falta
+ * de cambio e apresentava imposto zero, com ar de resposta. Passa a sair em
+ * euros, com aviso: um numero certo noutra moeda vale mais do que um zero
+ * errado na moeda certa.
+ */
+export function moedaDoRelatorio(pais: Pick<Country, "currency">): { currency: string; fallback: boolean } {
+  return fxSuportada(pais.currency)
+    ? { currency: pais.currency, fallback: false }
+    : { currency: "EUR", fallback: true };
+}
 
 export type GuideLang = "pt" | "en";
 

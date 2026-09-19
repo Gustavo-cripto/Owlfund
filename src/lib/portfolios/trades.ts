@@ -203,7 +203,16 @@ export function mergeTradeRaw(localRaw: string | null, cloudRaw: string | null):
 // ── Cálculo ────────────────────────────────────────────────────────────────────
 
 /** `gain` ja e liquido de taxas; `fees` e a parte das taxas (compra + venda) que cabe a este lote. */
-export type RealizedLot = { asset: string; buyDate: string; sellDate: string; buyPrice: number; sellPrice: number; amount: number; fees: number; gain: number };
+export type RealizedLot = {
+  asset: string; buyDate: string; sellDate: string;
+  buyPrice: number; sellPrice: number; amount: number;
+  /** Taxas do lote (compra + venda), em euros. */
+  fees: number;
+  // Separadas porque sao de DATAS diferentes: um relatorio noutra moeda tem de
+  // converter cada uma ao cambio do seu proprio dia. Somadas, ja nao da.
+  buyFees: number; sellFees: number;
+  gain: number;
+};
 
 export type FifoResult = {
   realizedPnl: number;
@@ -264,10 +273,12 @@ export function computeFifo(trades: Trade[]): FifoResult {
       while (remaining > 1e-12 && pool[t.asset]?.length) {
         const lot = pool[t.asset][0];
         const used = Math.min(remaining, lot.qty);
-        const lotFees = used * (lot.feePerUnit + sellFeePerUnit);
+        const buyFees = used * lot.feePerUnit;
+        const sellFees = used * sellFeePerUnit;
+        const lotFees = buyFees + sellFees;
         const gain = used * (t.priceEur - lot.price) - lotFees;
         ba.realizedPnl += gain; running += gain;
-        lots.push({ asset: t.asset, buyDate: lot.date, sellDate: t.date, buyPrice: lot.price, sellPrice: t.priceEur, amount: used, fees: lotFees, gain });
+        lots.push({ asset: t.asset, buyDate: lot.date, sellDate: t.date, buyPrice: lot.price, sellPrice: t.priceEur, amount: used, fees: lotFees, buyFees, sellFees, gain });
         lot.qty -= used; remaining -= used;
         if (lot.qty <= 1e-12) pool[t.asset].shift();
       }

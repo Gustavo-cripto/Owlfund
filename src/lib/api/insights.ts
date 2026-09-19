@@ -3,7 +3,7 @@ import { computeFifo, parseTrades, type Trade } from "@/lib/portfolios/trades";
 import { metricas, seriePontos, variacoes, type PnlChange, type SnapRow } from "@/lib/api/pnlMath";
 import { estimarImposto } from "@/lib/api/taxMath";
 import { loadFxServer } from "@/lib/api/fxServer";
-import { COUNTRIES } from "@/lib/tax/countries";
+import { moedaDoRelatorio, COUNTRIES } from "@/lib/tax/countries";
 
 // Dois numeros que a app mostra e a API nao dava: a evolucao do portefolio
 // (PNL) e as mais-valias realizadas pelo metodo FIFO.
@@ -208,12 +208,21 @@ export async function getTaxEstimate(userId: string, countryCode: string, year?:
 
   // Uma só chamada de câmbios para todas as datas envolvidas.
   const datas = [...new Set(lots.flatMap((l) => [l.buyDate, l.sellDate]))];
-  const fx = await loadFxServer(datas, pais.currency);
-  const est = estimarImposto(lots, pais.regime, (eur, data) => fx.fromEur(eur, data));
+  // Moeda em que o relatório pode mesmo sair: há países cuja moeda o BCE não
+  // publica, e nesses o relatório cai para euros COM AVISO, em vez de devolver
+  // zero por ter descartado tudo.
+  const { currency: moeda, fallback: moedaEmFalta } = moedaDoRelatorio(pais);
+  const fx = await loadFxServer(datas, moeda);
+  const est = estimarImposto(lots, pais.regime, (eur, data) => fx.fromEur(eur, data), year);
+
+  // Um total calculado sobre um subconjunto é pior do que um erro: se algum
+  // lote ficou de fora por falta de câmbio, o imposto vai a null.
+  const parcial = est.droppedLots > 0;
 
   return {
     country: pais.code,
-    currency: pais.currency,
+    currency: moeda,
+    ...(moedaEmFalta ? { currencyNote: `Não há taxa de câmbio oficial publicada para ${pais.currency}; os valores saem em EUR.` } : {}),
     year: year ?? null,
     law: pais.law,
     rates: { short: pais.regime.short, long: pais.regime.long, longTermAfterDays: pais.regime.longDays },
@@ -225,10 +234,14 @@ export async function getTaxEstimate(userId: string, countryCode: string, year?:
     taxableGain: est.taxable,
     exemptGain: est.exempt,
     losses: est.losses,
+    deductibleLosses: est.deductibleLosses,
+    lossesOffset: est.lossesApplied,
     feesDeducted: est.fees,
-    estimatedTax: est.tax,
+    estimatedTax: parcial ? null : est.tax,
     incompleteFx: fx.incomplete,
-    note: "ESTIMATIVA, não uma declaração. Método FIFO; cada compra e cada venda convertida à taxa do BCE da sua data; taxa de longo prazo aplicada conforme os dias de detenção; isenção anual do país aplicada ao tributável. Não cobre situações pessoais (residência parcial, englobamento, deduções próprias). Confirme com um contabilista.",
+    droppedLots: est.droppedLots,
+    ...(parcial ? { warning: `${est.droppedLots} de ${lots.length} operações ficaram sem taxa de câmbio; o imposto não é calculado sobre parte dos dados.` } : {}),
+    note: "ESTIMATIVA, não uma declaração. Método FIFO; cada compra e cada venda convertida à taxa do BCE da sua data; taxa de longo prazo aplicada conforme os dias de detenção; menos-valias abatidas às mais-valias do MESMO ano e do mesmo escalão de taxa (uma perda num ativo isento não é dedutível); isenção anual do país aplicada por fim, ao saldo já compensado. Não cobre situações pessoais (residência parcial, englobamento, deduções próprias). Confirme com um contabilista.",
   };
 }
 
