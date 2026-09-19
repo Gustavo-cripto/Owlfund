@@ -25,7 +25,7 @@ export async function GET() {
     return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
   }
 
-  const [profile, subscriptions, walletConfig, snapshots, briefing, apiKeys, chatUsage, webhook, cryptoPayments] = await Promise.all([
+  const [profile, subscriptions, walletConfig, snapshots, briefing, apiKeys, chatUsage, webhook, cryptoPayments, watchlist] = await Promise.all([
     admin.from("profiles").select("email, avatar_url, auto_snapshot").eq("id", userId).maybeSingle(),
     admin.from("subscriptions").select("status, price_id, current_period_end, cancel_at_period_end").eq("user_id", userId),
     admin.from("wallet_config").select("data, updated_at").eq("user_id", userId).maybeSingle(),
@@ -37,6 +37,9 @@ export async function GET() {
     // Webhook: só o URL (nunca o segredo). Pagamentos cripto: histórico sem dados sensíveis.
     admin.from("webhook_config").select("url, enabled, updated_at").eq("user_id", userId).maybeSingle(),
     admin.from("crypto_payments").select("created_at, plan, period, chain, currency, amount, status, tx_hash").eq("user_id", userId),
+    // Faltava: sao enderecos que a pessoa escolheu vigiar, com as etiquetas que
+    // lhes pos. Sao dados dela e tem de aparecer na exportacao.
+    admin.from("smart_money_watchlist").select("address, chain, label, created_at").eq("user_id", userId),
   ]);
 
   const payload = {
@@ -56,6 +59,7 @@ export async function GET() {
     newsBriefingSchedule: briefing.data ?? null,
     apiKeys: apiKeys.data ?? [],
     chatUsage: chatUsage.data ?? [],
+    smartMoneyWatchlist: watchlist.data ?? [],
   };
 
   const date = new Date().toISOString().slice(0, 10);

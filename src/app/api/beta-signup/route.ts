@@ -37,7 +37,10 @@ function allowed(ip: string): boolean {
 }
 
 const str = (v: unknown, n: number) => (typeof v === "string" ? v.slice(0, n).trim() : "");
-const isEmail = (e: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e);
+// O "_" e valido num email de verdade e fica permitido; o "%" e a barra ao
+// contrario nao aparecem em enderecos reais e sao curingas em consultas, por
+// isso ficam de fora — a defesa que conta e a comparacao exata, mais abaixo.
+const isEmail = (e: string) => /^[^@\s%\\]+@[^@\s%\\]+\.[^@\s%\\]+$/.test(e);
 const esc = (x: string) => x.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 // Molde de email com a marca (fundo escuro, acento laranja).
@@ -145,7 +148,11 @@ export async function POST(req: NextRequest) {
   // Deduplicação: o mesmo email inscrito de novo não gera outra notificação nem
   // outro email de boas-vindas (também evita usar o site para spammar terceiros).
   try {
-    const { data: existing } = await getSupabaseAdmin().from("beta_signups").select("id").ilike("email", email).limit(1).maybeSingle();
+    // Comparacao EXATA. Com ilike, o "%" e o "_" sao curingas e o validador
+    // deixava-os passar: "%@gmail.com" correspondia a qualquer inscrito do
+    // gmail, e a resposta distingue "ja inscrito" de "novo" — dava para
+    // descobrir quem esta na lista. O email ja vem em minusculas.
+    const { data: existing } = await getSupabaseAdmin().from("beta_signups").select("id").eq("email", email).limit(1).maybeSingle();
     if (existing) return NextResponse.json({ ok: true, already: true });
   } catch { /* tabela opcional */ }
 

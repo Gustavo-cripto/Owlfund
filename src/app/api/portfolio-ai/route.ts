@@ -4,6 +4,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { rateLimit, clientIp } from "@/lib/utils/rateLimit";
 import { quotaErrorResponse, releaseAiUsage, reserveAiUsage } from "@/lib/api/entitlement";
+import { NO_ADVICE_RULE } from "@/lib/ai/disclaimer";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -81,7 +82,7 @@ INSTRUÇÕES:
 - Responde de forma clara e objetiva.
 - Usa os dados reais acima para fundamentar as tuas respostas.
 - Quando perguntarem "porque caiu/subiu", analisa os ativos com maior peso.
-- Não dês recomendações diretas de compra/venda — apresenta cenários e riscos.
+${NO_ADVICE_RULE}
 - Se faltarem dados, diz o que precisas.
 - Máximo 3 parágrafos curtos por resposta.`;
 }

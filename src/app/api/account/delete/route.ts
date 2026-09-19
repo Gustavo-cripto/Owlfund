@@ -7,15 +7,28 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
 // Tabelas do utilizador a limpar. profiles usa `id`; as restantes usam `user_id`.
+//
+// A lista tinha 8 tabelas e o codigo usa 18. Ficavam para tras, com o user_id
+// la dentro: os enderecos que a pessoa vigiava (e as etiquetas que lhes pos),
+// os pagamentos em cripto (com o tx_hash, que liga a uma carteira real), e os
+// registos de notificacoes. O botao promete "apagar a conta e todos os dados" e
+// a politica de privacidade diz que sao removidos de imediato.
+//
+// Quando se acrescentar uma tabela nova com user_id, acrescentar aqui tambem.
 const USER_TABLES = [
   "api_keys",
   "chat_usage",
+  "crypto_payments",
+  "founders",
   "mfa_recovery_codes",
   "news_briefing_schedule",
+  "notification_log",
   "portfolio_snapshots",
+  "smart_money_watchlist",
   "subscriptions",
   "wallet_config",
   "webhook_config",
+  "whale_alert_log",
 ] as const;
 
 export async function POST() {
@@ -48,13 +61,31 @@ export async function POST() {
     }
   } catch { /* best-effort */ }
 
-  // 2. Apagar linhas do utilizador em cada tabela (best-effort por tabela).
+  // 2. Apagar linhas do utilizador em cada tabela.
+  //
+  // Os erros deixam de ser engolidos: cada `catch` silencioso fazia um
+  // apagamento PARCIAL passar por completo, e o utilizador saia convencido de
+  // que nao ficou nada.
+  const falhas: string[] = [];
+  const apagar = async (nome: string, fn: () => PromiseLike<{ error: { message: string } | null }>) => {
+    try {
+      const { error } = await fn();
+      if (error) { falhas.push(nome); console.error(`[account/delete] ${nome}:`, error.message); }
+    } catch (e) {
+      falhas.push(nome);
+      console.error(`[account/delete] ${nome}:`, e instanceof Error ? e.message : e);
+    }
+  };
+
   for (const table of USER_TABLES) {
-    try { await admin.from(table).delete().eq("user_id", userId); } catch { /* ignore */ }
+    await apagar(table, () => admin.from(table).delete().eq("user_id", userId));
   }
-  try { await admin.from("profiles").delete().eq("id", userId); } catch { /* ignore */ }
+  await apagar("profiles", () => admin.from("profiles").delete().eq("id", userId));
   // Inscrição no beta é por email (sem user_id).
-  try { if (user.email) await admin.from("beta_signups").delete().eq("email", user.email.toLowerCase()); } catch { /* ignore */ }
+  if (user.email) {
+    const email = user.email.toLowerCase();
+    await apagar("beta_signups", () => admin.from("beta_signups").delete().eq("email", email));
+  }
 
   // 3. Apagar ficheiros de avatar do storage (best-effort).
   try {
@@ -70,5 +101,11 @@ export async function POST() {
     return NextResponse.json({ error: "Não foi possível apagar a conta." }, { status: 500 });
   }
 
+  // Diz-se a verdade sobre o que ficou. Uma tabela que falhou nao pode passar
+  // por "apagado tudo" — o utilizador tem direito a saber e a voltar a pedir.
+  if (falhas.length > 0) {
+    console.error("[account/delete] apagamento PARCIAL:", userId, falhas.join(", "));
+    return NextResponse.json({ deleted: true, partial: true, tables: falhas.length });
+  }
   return NextResponse.json({ deleted: true });
 }

@@ -318,12 +318,19 @@ const handler = createMcpHandler(
         if (!question) return { content: [{ type: "text", text: "Pergunta vazia." }], isError: true };
 
         const admin = getSupabaseAdmin();
+        // Falha FECHADO, como todas as outras rotas (ver src/lib/api/auth.ts).
+        // Antes o limite so valia quando a consulta corria bem: em erro ou
+        // excecao deixava passar, e era a unica porta de IA paga sem travao.
         try {
           const { data, error } = await admin.rpc("api_rate_check", {
             p_key_hash: `${userId}:chat`, p_limit: API_CHAT_PER_DAY, p_window_seconds: 86400,
           });
-          if (!error && data === false) return { content: [{ type: "text", text: `Limite diário de ${API_CHAT_PER_DAY} mensagens atingido.` }], isError: true };
-        } catch { /* função ainda não migrada → deixa passar */ }
+          if (error) throw new Error(error.message);
+          if (data === false) return { content: [{ type: "text", text: `Limite diário de ${API_CHAT_PER_DAY} mensagens atingido.` }], isError: true };
+        } catch (e) {
+          console.error("[mcp] limite diario indisponivel (fail-closed):", e instanceof Error ? e.message : e);
+          return { content: [{ type: "text", text: "Assistente de IA temporariamente indisponível." }], isError: true };
+        }
 
         const portfolio = await getPortfolio(userId);
         const system = [
