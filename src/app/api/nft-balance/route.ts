@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { fetchExterno } from "@/lib/utils/safeFetch";
 import { apiMsg } from "@/lib/api/apiMessages";
 import { requireUser } from "@/lib/api/requireUser";
 import { alchemyNftsForOwner, hasAlchemy, type EvmChainKey } from "@/lib/providers/alchemy";
@@ -152,10 +153,13 @@ async function resolveEvmNftImage(item: EvmNftItem): Promise<string | undefined>
     const meta = await fetchMetadataFromGateways(cid);
     if (meta) return toImageUrl(meta.image ?? meta.image_url);
   } else {
-    // Non-IPFS token_uri (e.g. https metadata)
+    // Non-IPFS token_uri (e.g. https metadata).
+    // O token_uri e escrito por quem cunhou o NFT — nao por nos nem pelo
+    // utilizador. Sem guarda, bastava cunhar um token barato a apontar para o
+    // servico de metadados da nuvem para por o nosso servidor a pedir la dentro.
     try {
-      const res = await fetch(item.token_uri, { signal: AbortSignal.timeout(8000) });
-      if (res.ok) {
+      const res = await fetchExterno(item.token_uri, { signal: AbortSignal.timeout(8000) });
+      if (res) {
         const meta = (await res.json()) as { image?: string; image_url?: string };
         return toImageUrl(meta.image ?? meta.image_url);
       }
@@ -474,8 +478,9 @@ export async function GET(request: Request) {
                   try {
                     const metaCid = extractIpfsCid(item.metadata_uri);
                     const metaUrl = metaCid ? `${META_GATEWAYS[0]}${metaCid}` : item.metadata_uri;
-                    const metaRes = await fetch(metaUrl, { signal: AbortSignal.timeout(5000) });
-                    if (metaRes.ok) {
+                    // Mesmo caso do lado Solana: metadata_uri vem do token.
+                    const metaRes = await fetchExterno(metaUrl, { signal: AbortSignal.timeout(5000) });
+                    if (metaRes) {
                       const meta = (await metaRes.json()) as { image?: string; image_url?: string };
                       image = toImageUrl(meta.image ?? meta.image_url);
                     }
