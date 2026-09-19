@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
     // Short cache on failure so a later request can retry once gateways recover.
     return NextResponse.json(
       { error: "Não foi possível obter o conteúdo IPFS." },
-      { status: 502, headers: { "Cache-Control": "public, max-age=30" } }
+      { status: 502, headers: { "Cache-Control": "private, max-age=30" } }
     );
   }
 }

@@ -1,16 +1,26 @@
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { createClient } from "@supabase/supabase-js";
+
+
+/** Comparacao em tempo constante: `!==` desiste na primeira diferenca e o tempo
+ *  da resposta deixa adivinhar o segredo caractere a caractere. */
+function igual(a: string, b: string): boolean {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && timingSafeEqual(x, y);
+}
 
 export async function GET(request: Request) {
   // Segredo obrigatório via env var (fail-closed): sem SETUP_DB_SECRET a rota fica bloqueada.
   const expected = (process.env.SETUP_DB_SECRET ?? "").trim();
   // Preferir o cabeçalho Authorization (não fica em logs de URL); manter a query
   // string por compatibilidade.
+  // So o cabecalho Authorization. A query string aparecia nos registos de
+  // acesso da Vercel, no historico do browser e no cabecalho Referer.
   const authHeader = request.headers.get("authorization") ?? "";
-  const headerSecret = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
-  const querySecret = new URL(request.url).searchParams.get("secret") ?? "";
-  const provided = headerSecret || querySecret;
-  if (!expected || provided !== expected) {
+  const provided = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+  if (!expected || !igual(provided, expected)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

@@ -97,6 +97,6 @@ export async function GET(request: Request) {
   );
 
   return NextResponse.json(result, {
-    headers: { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=7200" },
+    headers: { "Cache-Control": "private, s-maxage=3600, stale-while-revalidate=7200" },
   });
 }

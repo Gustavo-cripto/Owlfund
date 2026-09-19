@@ -8,7 +8,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const CACHE_HEADERS = { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" };
+const CACHE_HEADERS = { "Cache-Control": "private, s-maxage=30, stale-while-revalidate=60" };
 
 const ERC20_ABI = parseAbi([
   "function balanceOf(address owner) view returns (uint256)",

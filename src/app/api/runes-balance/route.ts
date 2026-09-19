@@ -4,7 +4,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
-const CACHE_HEADERS = { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120" };
+const CACHE_HEADERS = { "Cache-Control": "private, s-maxage=60, stale-while-revalidate=120" };
 
 type UnisatRune = {
   rune?: string;

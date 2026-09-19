@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
     controllers.forEach((c) => { try { c.abort(); } catch { /* ignore */ } });
     return NextResponse.json(
       { error: "Conteúdo indisponível." },
-      { status: 502, headers: { "Cache-Control": "public, max-age=30" } }
+      { status: 502, headers: { "Cache-Control": "private, max-age=30" } }
     );
   }
 }

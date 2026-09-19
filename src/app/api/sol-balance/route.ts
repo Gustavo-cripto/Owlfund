@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/api/requireUser";
 import { checkRateLimit } from "@/lib/rate-limit";
 
-const CACHE_HEADERS = { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" };
+const CACHE_HEADERS = { "Cache-Control": "private, s-maxage=30, stale-while-revalidate=60" };
 
 const RPCS = [
   "https://api.mainnet-beta.solana.com",

@@ -116,7 +116,9 @@ const nextConfig = {
         // CORS para API routes — só permite origem própria
         source: "/api/:path*",
         headers: [
-          { key: "Access-Control-Allow-Origin", value: process.env.NEXT_PUBLIC_SITE_URL ?? "*" },
+          // Sem a env var, o "*" abria a API inteira a qualquer origem. O
+          // valor de reserva passa a ser o dominio de producao.
+          { key: "Access-Control-Allow-Origin", value: process.env.NEXT_PUBLIC_SITE_URL || "https://chainfolioai.com" },
           { key: "Access-Control-Allow-Methods", value: "GET, POST, OPTIONS" },
           { key: "Access-Control-Allow-Headers", value: "Content-Type, Authorization" },
         ],

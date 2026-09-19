@@ -4,7 +4,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { apiMsg } from "@/lib/api/apiMessages";
 import { isValidBtcAddress } from "@/lib/wallets/btcAddress";
 
-const CACHE_HEADERS = { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" };
+const CACHE_HEADERS = { "Cache-Control": "private, s-maxage=30, stale-while-revalidate=60" };
 
 export async function GET(req: NextRequest) {
   // Proxy com custo/quota nossa: so com sessao, e com limite por utilizador.

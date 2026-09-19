@@ -30,7 +30,7 @@ const chainMap = {
   Blast:     { chain: blast,     rpcs: ["https://rpc.blast.io"] },
 } as const;
 
-const CACHE_HEADERS = { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" };
+const CACHE_HEADERS = { "Cache-Control": "private, s-maxage=30, stale-while-revalidate=60" };
 
 export async function GET(request: NextRequest) {
   // Proxy com custo/quota nossa: so com sessao, e com limite por utilizador.
