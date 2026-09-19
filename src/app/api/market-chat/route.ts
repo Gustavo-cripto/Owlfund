@@ -20,6 +20,10 @@ async function getAuthUser() {
 
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
+// Chamada a fornecedor de IA: pode demorar. Sem isto a funcao usa o tempo por
+// omissao da plataforma e corta a meio uma resposta que ia chegar.
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   // Rate limit por IP (trava abuso/custo de IA)
   if (!rateLimit(`market-chat:${clientIp(request)}`, 20, 60_000)) {
@@ -40,7 +44,17 @@ export async function POST(request: Request) {
 
   if (!hasAnyAiProvider()) return NextResponse.json({ error: "Serviço de IA não configurado." }, { status: 503 });
 
-  const body = await request.json() as {
+  // Tecto de tamanho: o briefing e as mensagens vinham do browser sem limite
+  // nenhum e iam inteiros para o fornecedor de IA, que cobra por token.
+  const MAX_CORPO = 64 * 1024;
+  const declarado = Number(request.headers.get("content-length") ?? 0);
+  if (Number.isFinite(declarado) && declarado > MAX_CORPO) {
+    return NextResponse.json({ error: "Pedido demasiado grande." }, { status: 413 });
+  }
+  const bruto = await request.text();
+  if (bruto.length > MAX_CORPO) return NextResponse.json({ error: "Pedido demasiado grande." }, { status: 413 });
+
+  const body = JSON.parse(bruto) as {
     briefing: string;
     mode: "crypto" | "tradicional";
     messages: ChatMsg[];

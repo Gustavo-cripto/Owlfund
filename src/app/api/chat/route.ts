@@ -463,6 +463,10 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
+// Chamada a fornecedor de IA: pode demorar. Sem isto a funcao usa o tempo por
+// omissao da plataforma e corta a meio uma resposta que ia chegar.
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   // Rate limiting por IP
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";

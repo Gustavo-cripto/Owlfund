@@ -57,6 +57,15 @@ export function fmtDate(d: Date, lang = "pt", opts: Intl.DateTimeFormatOptions =
 type SendOpts = { to: string; subject: string; html: string; from?: string; replyTo?: string; unsubscribe?: boolean; tag?: string };
 
 /** Envia com multipart + (opcional) opt-out; regista falhas em vez de as engolir. */
+
+/** Nos registos basta saber QUEM falhou o suficiente para investigar, nao o
+ *  email inteiro: "ana@exemplo.com" fica "an***@exemplo.com". */
+function oculto(email: string): string {
+  const [nome, dominio] = String(email).split("@");
+  if (!dominio) return "***";
+  return `${nome.slice(0, 2)}***@${dominio}`;
+}
+
 export async function sendEmail(o: SendOpts): Promise<boolean> {
   const key = process.env.RESEND_API_KEY ?? "";
   if (!key) { console.error(`[email${o.tag ? ":" + o.tag : ""}] RESEND_API_KEY em falta`); return false; }
@@ -71,10 +80,10 @@ export async function sendEmail(o: SendOpts): Promise<boolean> {
       text: toText(o.html),
       headers: o.unsubscribe === false ? undefined : UNSUB_HEADERS,
     });
-    if (error) { console.error(`[email${o.tag ? ":" + o.tag : ""}] ${o.to}: ${error.message}`); return false; }
+    if (error) { console.error(`[email${o.tag ? ":" + o.tag : ""}] ${oculto(o.to)}: ${error.message}`); return false; }
     return true;
   } catch (e) {
-    console.error(`[email${o.tag ? ":" + o.tag : ""}] ${o.to}:`, e instanceof Error ? e.message : e);
+    console.error(`[email${o.tag ? ":" + o.tag : ""}] ${oculto(o.to)}:`, e instanceof Error ? e.message : e);
     return false;
   }
 }

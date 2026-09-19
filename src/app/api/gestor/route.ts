@@ -157,6 +157,10 @@ REGRAS:
 
 // ── Route handler ─────────────────────────────────────────────────────────────
 
+// Chamada a fornecedor de IA: pode demorar. Sem isto a funcao usa o tempo por
+// omissao da plataforma e corta a meio uma resposta que ia chegar.
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   let lang = "pt";
   try {

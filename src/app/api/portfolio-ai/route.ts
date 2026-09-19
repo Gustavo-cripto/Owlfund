@@ -144,6 +144,10 @@ async function callAI(system: string, question: string): Promise<string> {
   throw new Error("Nenhum provider de IA disponível. Configura GROQ_API_KEY, OPENAI_API_KEY ou XAI_API_KEY.");
 }
 
+// Chamada a fornecedor de IA: pode demorar. Sem isto a funcao usa o tempo por
+// omissao da plataforma e corta a meio uma resposta que ia chegar.
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   // Rate limit por IP (trava abuso/custo de IA)
   if (!rateLimit(`portfolio-ai:${clientIp(request)}`, 20, 60_000)) {

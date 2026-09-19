@@ -56,7 +56,16 @@ const upsertSubscription = async (subscription: any) => {
     ? new Date(currentPeriodEndUnix * 1000).toISOString()
     : null;
 
-  await supabaseAdmin.from("subscriptions").upsert({
+  // O resultado nao era lido: se a escrita falhasse, o webhook respondia 200, a
+  // Stripe dava o evento por entregue e nunca mais o repetia — e o cliente que
+  // pagou ficava sem plano, em silencio. Agora falha alto, para a Stripe voltar
+  // a tentar.
+  //
+  // (Nao se poe onConflict aqui: uma conta pode ter mais do que uma linha de
+  // subscricao — Stripe, cripto e beta — e colapsa-las por user_id perdia
+  // informacao. A chave certa depende do esquema da tabela, que nao esta no
+  // repositorio: ver o achado sobre RLS em falta.)
+  const { error: erroSub } = await supabaseAdmin.from("subscriptions").upsert({
     user_id: userId,
     status: subscription.status,
     price_id: priceId,
@@ -64,6 +73,10 @@ const upsertSubscription = async (subscription: any) => {
     cancel_at_period_end: subscription.cancel_at_period_end ?? false,
     source: "stripe",
   });
+  if (erroSub) {
+    console.error("[stripe-webhook] subscricao NAO gravada:", userId, erroSub.message);
+    throw new Error(`subscriptions upsert: ${erroSub.message}`);
+  }
 };
 
 export async function POST(request: Request) {

@@ -186,6 +186,10 @@ Escreve um briefing do mercado tradicional em português europeu.
   { revalidate: 2700 },
 );
 
+// Chamada a fornecedor de IA: pode demorar. Sem isto a funcao usa o tempo por
+// omissao da plataforma e corta a meio uma resposta que ia chegar.
+export const maxDuration = 60;
+
 export async function POST(request: Request) {
   // Gera IA paga: só com sessão e plano Pro/Premium (antes qualquer pessoa na
   // internet podia invocar esta rota).
