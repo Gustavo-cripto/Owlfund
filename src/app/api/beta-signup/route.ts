@@ -2,6 +2,7 @@
 //  1) notificação para o ChainFolioAI (suporte@) para libertar Pro/Premium;
 //  2) email de boas-vindas (marketing) para o próprio tester, no idioma dele.
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "crypto";
 import { Resend } from "resend";
 import { sendTelegram, tgEsc } from "@/lib/notify/telegram";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -21,10 +22,21 @@ function betaClosed(): boolean {
   return !Number.isNaN(d.getTime()) && Date.now() > d.getTime();
 }
 
+// Travao por endereco IP, com contador PARTILHADO na base de dados.
+//
+// Era um Map em memoria: na Vercel cada instancia tem o seu, por isso o limite
+// real era muito mais alto do que os 5 por minuto que o codigo dizia. E esta
+// rota faz o nosso dominio enviar um email de boas-vindas para o endereco que
+// vier no pedido — com um Map, davam-se mil enderecos diferentes sem esforco.
+//
+// O tecto e DIARIO e por IP: uma casa inteira a inscrever-se cabe la dentro,
+// uma maquina a despejar enderecos nao.
+const LIMITE_DIARIO_POR_IP = 20;
+// Ate a funcao estar migrada, o Map antigo fica como rede de seguranca.
 const hits = new Map<string, { count: number; resetAt: number }>();
 const LIMIT = 5;
 const WINDOW = 60_000;
-function allowed(ip: string): boolean {
+function allowedEmMemoria(ip: string): boolean {
   const now = Date.now();
   const e = hits.get(ip);
   if (!e || now > e.resetAt) {
@@ -34,6 +46,25 @@ function allowed(ip: string): boolean {
   if (e.count >= LIMIT) return false;
   e.count++;
   return true;
+}
+
+async function allowed(ip: string): Promise<boolean> {
+  if (!allowedEmMemoria(ip)) return false;
+  try {
+    const chave = createHash("sha256").update(`beta-signup:${ip}`).digest("hex").slice(0, 32);
+    const { data, error } = await getSupabaseAdmin().rpc("api_rate_check", {
+      p_key_hash: chave,
+      p_limit: LIMITE_DIARIO_POR_IP,
+      p_window_seconds: 86400,
+    });
+    if (error) throw new Error(error.message);
+    return data !== false;
+  } catch (e) {
+    // Funcao por migrar ou base de dados em baixo: fica o travao em memoria,
+    // que ja passou acima. Nao se recusa uma inscricao legitima por isto.
+    console.error("[beta-signup] tecto diario indisponivel:", e instanceof Error ? e.message : e);
+    return true;
+  }
 }
 
 const str = (v: unknown, n: number) => (typeof v === "string" ? v.slice(0, n).trim() : "");
@@ -121,7 +152,7 @@ const toText = (h: string) =>
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  if (!allowed(ip)) return NextResponse.json({ error: "rate_limited" }, { status: 429 });
+  if (!(await allowed(ip))) return NextResponse.json({ error: "rate_limited" }, { status: 429 });
   if (betaClosed()) return NextResponse.json({ error: "beta_closed" }, { status: 403 });
 
   const key = process.env.RESEND_API_KEY ?? "";
