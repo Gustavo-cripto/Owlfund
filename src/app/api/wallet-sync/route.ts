@@ -54,8 +54,29 @@ export async function POST(req: NextRequest) {
 
   if (!serviceKey) return NextResponse.json({ error: "Service key not configured" }, { status: 503 });
 
-  const body = await req.json() as { data: unknown };
-  if (!body.data) return NextResponse.json({ error: "No data" }, { status: 400 });
+  // Tecto de tamanho ANTES de desserializar: o corpo era aceite e gravado tal e
+  // qual, sem limite nenhum, com a chave de servico. Um blob real de conta
+  // Premium com dez portefolios anda na casa das dezenas de kB; 512 kB deixa
+  // folga larga e fecha a porta a encher a tabela.
+  const MAX_BYTES = 512 * 1024;
+  const declarado = Number(req.headers.get("content-length") ?? 0);
+  if (Number.isFinite(declarado) && declarado > MAX_BYTES) {
+    return NextResponse.json({ error: "Payload too large" }, { status: 413 });
+  }
+  const bruto = await req.text();
+  if (bruto.length > MAX_BYTES) return NextResponse.json({ error: "Payload too large" }, { status: 413 });
+
+  let body: { data?: unknown };
+  try {
+    body = JSON.parse(bruto) as { data?: unknown };
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  // Tem de ser um objeto: era aceite qualquer coisa que nao fosse falsy, por
+  // isso uma string ou um numero ficavam gravados no lugar da configuracao.
+  if (!body.data || typeof body.data !== "object" || Array.isArray(body.data)) {
+    return NextResponse.json({ error: "No data" }, { status: 400 });
+  }
 
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
   const { error } = await admin

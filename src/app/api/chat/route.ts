@@ -6,7 +6,7 @@ import { createHash } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { NO_ADVICE_RULE } from "@/lib/ai/disclaimer";
 import { FREE_AI_LIMIT, ANON_DAILY_CHAT_LIMIT } from "@/lib/plans";
-import { checkAiQuota, incrementAiUsage, quotaErrorResponse } from "@/lib/api/entitlement";
+import { quotaErrorResponse, releaseAiUsage, reserveAiUsage } from "@/lib/api/entitlement";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
@@ -479,7 +479,9 @@ export async function POST(request: Request) {
     });
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      const quota = await checkAiQuota(user.id);
+      // Reserva JA, nao depois da resposta: entre verificar e descontar havia
+      // a chamada inteira ao fornecedor, e pedidos em paralelo passavam todos.
+      const quota = await reserveAiUsage(user.id);
       if (!quota.ok) return quotaErrorResponse(quota);
       if (quota.free) usageToIncrement = { userId: user.id, count: quota.count };
     } else {
@@ -627,12 +629,13 @@ export async function POST(request: Request) {
           ? "Serviço de IA temporariamente indisponível."
           : result.error;
       const code = result.status === 429 ? "ai_rate_limited" : result.status >= 500 ? "unavailable" : "provider_error";
+      // Nao houve resposta: devolve-se a analise reservada.
+      if (usageToIncrement) await releaseAiUsage(usageToIncrement.userId);
       return NextResponse.json({ error: publicError, code }, { status: result.status });
     }
 
-    // Só agora conta a análise (resposta obtida com sucesso).
-    if (usageToIncrement) await incrementAiUsage(usageToIncrement.userId, usageToIncrement.count);
-    return NextResponse.json({ reply: result.reply, usage: usageToIncrement ? { count: usageToIncrement.count + 1, limit: FREE_AI_LIMIT } : undefined });
+    // Ja foi contada na reserva, antes de chamar a IA.
+    return NextResponse.json({ reply: result.reply, usage: usageToIncrement ? { count: usageToIncrement.count, limit: FREE_AI_LIMIT } : undefined });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
       return NextResponse.json({ error: "Timeout ao contactar o serviço de IA.", code: "timeout" }, { status: 504 });

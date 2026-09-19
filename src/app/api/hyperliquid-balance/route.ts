@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getPlanOrNull, planUnavailableResponse, requiresPlanResponse } from "@/lib/api/entitlement";
 import { requireUser } from "@/lib/api/requireUser";
 
 export interface HlBalance {
@@ -12,6 +13,11 @@ export async function POST(request: Request) {
   // Proxy com custo/quota nossa: so com sessao, e com limite por utilizador.
   const auth = await requireUser(request, { route: "hyperliquid-balance", limit: 30 });
   if (!auth.ok) return auth.response;
+  // Vendido como exclusivo do plano Pro na tabela de precos. O bloqueio so
+  // existia no ecra: um pedido direto a rota devolvia os dados a qualquer conta.
+  const plan = await getPlanOrNull(auth.userId);
+  if (!plan) return planUnavailableResponse();   // fail-closed se a BD cair
+  if (plan === "free") return requiresPlanResponse("pro");
   const body = await request.json() as { address: string };
   const { address } = body;
 

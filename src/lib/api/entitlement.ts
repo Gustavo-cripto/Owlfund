@@ -81,17 +81,59 @@ export async function checkAiQuota(userId: string): Promise<AiQuota> {
   }
 }
 
-/** Gasta 1 análise do Free — chamar só DEPOIS de a IA responder com sucesso. */
-export async function incrementAiUsage(userId: string, currentCount: number): Promise<void> {
+/**
+ * RESERVA 1 análise do Free — chamar ANTES de falar com o fornecedor de IA.
+ *
+ * Antes havia um `checkAiQuota` que lia o contador e, 15 a 25 segundos depois
+ * (o tempo da chamada à IA), um incremento que escrevia `lido + 1`. Trinta
+ * pedidos ao mesmo tempo liam todos zero, passavam todos, e escreviam todos
+ * "1": o limite de 3 por mês não existia, e as chamadas pagas eram todas
+ * faturadas ao dono.
+ *
+ * Agora o incremento acontece dentro do Postgres numa só instrução e o valor
+ * que decide é o que o Postgres devolve. Ver supabase-chat-usage-atomic.sql.
+ */
+export async function reserveAiUsage(userId: string): Promise<AiQuota> {
+  try {
+    const admin = getSupabaseAdmin();
+    const plan = await getPlan(admin, userId);
+    if (plan !== "free") return { ok: true, plan, free: false, count: 0, limit: 0 };
+
+    const month = new Date().toISOString().slice(0, 7);
+    const { data, error } = await admin.rpc("chat_usage_reserve", { p_user_id: userId, p_month: month });
+    if (error) throw new Error(error.message);
+    const count = Number(data);
+    if (!Number.isFinite(count)) throw new Error("resposta inesperada de chat_usage_reserve");
+
+    if (count > FREE_AI_LIMIT) {
+      // Passou do limite: devolve-se já, para o contador não subir sem parar.
+      await releaseAiUsage(userId);
+      return { ok: false, reason: "limit_reached", count: FREE_AI_LIMIT, limit: FREE_AI_LIMIT };
+    }
+    return { ok: true, plan, free: true, count, limit: FREE_AI_LIMIT };
+  } catch (e) {
+    console.error("[entitlement] reserva de quota indisponível (fail-closed):", e instanceof Error ? e.message : e);
+    return { ok: false, reason: "unavailable" };
+  }
+}
+
+/** Devolve a análise reservada quando o fornecedor de IA não chegou a responder. */
+export async function releaseAiUsage(userId: string): Promise<void> {
   try {
     const month = new Date().toISOString().slice(0, 7);
-    await getSupabaseAdmin().from("chat_usage").upsert(
-      { user_id: userId, month, count: currentCount + 1, updated_at: new Date().toISOString() },
-      { onConflict: "user_id,month" },
-    );
+    const { error } = await getSupabaseAdmin().rpc("chat_usage_release", { p_user_id: userId, p_month: month });
+    if (error) throw new Error(error.message);
   } catch (e) {
-    console.error("[entitlement] incremento falhou:", e instanceof Error ? e.message : e);
+    console.error("[entitlement] devolução de quota falhou:", e instanceof Error ? e.message : e);
   }
+}
+
+/**
+ * @deprecated Usar `reserveAiUsage` antes da chamada à IA. Mantido só para não
+ * partir quem ainda chame; não protege contra pedidos em paralelo.
+ */
+export async function incrementAiUsage(userId: string, _currentCount: number): Promise<void> {
+  await reserveAiUsage(userId);
 }
 
 export function quotaErrorResponse(q: Extract<AiQuota, { ok: false }>): NextResponse {

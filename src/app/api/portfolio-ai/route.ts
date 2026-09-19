@@ -3,7 +3,7 @@ import { resolveGroqModel } from "@/lib/ai/groq";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { rateLimit, clientIp } from "@/lib/utils/rateLimit";
-import { checkAiQuota, incrementAiUsage, quotaErrorResponse } from "@/lib/api/entitlement";
+import { quotaErrorResponse, releaseAiUsage, reserveAiUsage } from "@/lib/api/entitlement";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -158,7 +158,9 @@ export async function POST(request: Request) {
   }
 
   // Quota mensal do Free (partilhada com o chat "Chain"); Pro/Premium sem limite.
-  const quota = await checkAiQuota(user.id);
+  // RESERVA antes de chamar a IA: verificar agora e so descontar depois deixava
+  // uma janela de 15-25 s em que pedidos em paralelo passavam todos.
+  const quota = await reserveAiUsage(user.id);
   if (!quota.ok) return quotaErrorResponse(quota);
 
   let body: Body | null = null;
@@ -179,12 +181,13 @@ export async function POST(request: Request) {
   try {
     const system = buildSystemPrompt(context, typeof nickname === "string" ? nickname.trim().slice(0, 40) : "");
     const reply = await callAI(system, question.trim());
-    if (quota.free) await incrementAiUsage(user.id, quota.count);
     return NextResponse.json({
       reply,
-      usage: quota.free ? { count: quota.count + 1, limit: quota.limit } : undefined,
+      usage: quota.free ? { count: quota.count, limit: quota.limit } : undefined,
     });
   } catch (err) {
+    // A IA nao respondeu: devolve-se a analise reservada.
+    if (quota.free) await releaseAiUsage(user.id);
     // Log interno; nunca expor detalhes do erro ao cliente.
     console.error("[portfolio-ai]", err instanceof Error ? err.message : err);
     return NextResponse.json(

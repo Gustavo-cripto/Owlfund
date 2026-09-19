@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { activeSubscribers } from "@/lib/api/entitlement";
 import { createHmac, createHash } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { scanWatchlist, type WatchEntry } from "@/lib/api/whales";
@@ -27,10 +28,31 @@ export async function GET(request: Request) {
     .eq("enabled", true)
     .limit(200);
 
+  // Os webhooks sao exclusivos do Premium, mas nada apagava a configuracao
+  // quando a subscricao acabava: o cron continuava a varrer e a entregar de
+  // graca. Salta-se em memoria (nao se desativa) para quem renovar voltar a
+  // receber sem ter de regravar o URL.
+  //
+  // Fail-closed com cuidado: se a consulta de planos rebentar, nao se entrega a
+  // ninguem nesta passagem, mas o cron nao estoira.
+  let premium = new Set<string>();
+  const ids = [...new Set((configs ?? []).map((c) => c.user_id as string))];
+  if (ids.length > 0) {
+    try {
+      const planos = await activeSubscribers(admin, ids);
+      premium = new Set([...planos.entries()].filter(([, p]) => p === "premium").map(([id]) => id));
+    } catch (e) {
+      console.error("[whale-alerts] planos indisponiveis, nada entregue nesta passagem:", e instanceof Error ? e.message : e);
+      return NextResponse.json({ ok: true, usersScanned: 0, sent: 0, skipped: "plans_unavailable" });
+    }
+  }
+
   let usersScanned = 0;
   let sent = 0;
+  let semPlano = 0;
 
   for (const cfg of configs ?? []) {
+    if (!premium.has(cfg.user_id as string)) { semPlano++; continue; }
     usersScanned++;
 
     const { data: rows } = await admin
@@ -87,6 +109,10 @@ export async function GET(request: Request) {
             "User-Agent": "ChainFolioAI-Webhook/1",
           },
           body: payload,
+          // Sem isto, o fetch seguia redirecionamentos e anulava o filtro
+          // anti-SSRF do registo: bastava o host do utilizador responder 302
+          // para um endereco interno. Em manual, um 3xx ja chega como falha.
+          redirect: "manual",
           signal: AbortSignal.timeout(5000),
         });
         delivered = res.ok;
@@ -104,5 +130,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, usersScanned, sent, timestamp: Date.now() });
+  return NextResponse.json({ ok: true, usersScanned, sent, semPlano, timestamp: Date.now() });
 }
