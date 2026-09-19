@@ -179,14 +179,28 @@ export default function BetaSignup() {
               {temConta ? t("beta_ok_body_account") : t("beta_ok_body")}
             </p>
             {!temConta && (
-              <Link href={`/login?mode=signup&next=%2Fbeta&email=${encodeURIComponent(email.trim())}`} className={`${btnPrimary} mt-4 inline-flex px-5 py-2.5 text-sm`}>
-                {t("beta_ok_cta")}
-              </Link>
+              // Nao ha reencaminhamento automatico de proposito: levar a pessoa
+              // para fora sem ela mandar parece avaria e tira-lhe a confirmacao
+              // de que a inscricao resultou. Em vez disso o remate e este botao,
+              // a ocupar a largura toda e sem nada a competir com ele — a nota
+              // da ativacao e o Telegram ficam por baixo, mais discretos.
+              <>
+                <Link href={`/login?mode=signup&next=%2Fbeta&email=${encodeURIComponent(email.trim())}`}
+                  className={`${btnPrimary} mt-4 w-full py-3.5 text-[15px] shadow-xl shadow-orange-500/30`}>
+                  {t("beta_ok_cta")}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M5 12h14M13 6l6 6-6 6" />
+                  </svg>
+                </Link>
+                <p className="mt-2 text-center text-[11px] text-slate-500">{t("beta_ok_cta_hint")}</p>
+              </>
             )}
             {/* A ativacao e feita a mao (botao no Telegram). Dizer isso evita o
                 tester entrar, ver o plano gratuito e concluir que falhou. */}
-            <p className="mt-3 text-xs leading-relaxed text-slate-400">⏳ {t("beta_activation_note")}</p>
-            <TelegramCard t={t} />
+            <p className="mt-4 text-xs leading-relaxed text-slate-400">⏳ {t("beta_activation_note")}</p>
+            <div className="mt-3 border-t border-white/[0.06] pt-1 opacity-80">
+              <TelegramCard t={t} />
+            </div>
           </div>
         ) : (
           <form onSubmit={submit} className="relative mt-8 space-y-4">

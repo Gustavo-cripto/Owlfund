@@ -1937,6 +1937,7 @@ export const es: Record<TranslationKey, string> = {
     beta_ok_title: "¡Recibido! 🎉",
     beta_ok_body: "Falta el último paso: crea la cuenta gratuita con este email. Esa cuenta es la que recibe el Premium — sin ella no hay nada que activar.",
     beta_ok_cta: "Crear cuenta / entrar",
+    beta_ok_cta_hint: "Puedes entrar con Google en un solo paso, sin email de confirmación.",
     beta_bot_title: "¿Encontraste un problema? Háblanos por Telegram",
     beta_account_warn: "Esto son dos pasos. Ahora dejas el email; después creas la cuenta gratuita con el MISMO email, y esa cuenta es la que recibe el Premium.",
     beta_account_cta: "Crear cuenta ahora",

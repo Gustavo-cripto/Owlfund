@@ -1949,6 +1949,7 @@ export const pt = {
     beta_ok_title: "Recebido! 🎉",
     beta_ok_body: "Falta o último passo: cria a conta gratuita com este email. É essa conta que recebe o Premium — sem ela não há nada para ativar.",
     beta_ok_cta: "Criar conta / entrar",
+    beta_ok_cta_hint: "Dá para entrar com o Google numa só etapa, sem email de confirmação.",
     beta_bot_title: "Encontraste um problema? Fala connosco no Telegram",
     beta_account_warn: "Isto são dois passos. Agora deixas o email; a seguir crias a conta gratuita com o MESMO email, e é essa conta que recebe o Premium.",
     beta_account_cta: "Criar conta agora",
