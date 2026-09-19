@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getPlanOrNull, planUnavailableResponse } from "@/lib/api/entitlement";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getUsdPrices } from "@/lib/api/whales";
 import { requireUser } from "@/lib/api/requireUser";
 
@@ -198,6 +200,37 @@ export async function GET(req: NextRequest) {
   // Proxy pago (Etherscan/mempool): só com sessão e com limite por utilizador.
   const guard = await requireUser(req, { route: "whale-txs", limit: 60 });
   if (!guard.ok) return guard.response;
+
+  // Teto DIARIO por conta, a somar ao limite por minuto.
+  //
+  // O limite de 3 baleias do plano gratuito so existia no ecra, e o limite por
+  // minuto do requireUser tem o IP na chave, num contador em memoria por
+  // instancia: quem roda IP anula-o. Isto e um contador atomico na base de
+  // dados, por conta, e e o mesmo mecanismo que o Gestor ja usa.
+  //
+  // Os tetos sao largos de proposito: travam abuso continuado sem incomodar
+  // quem usa a serio (3 baleias a atualizar de 20 em 20 minutos, todo o dia,
+  // fica bem abaixo de 300).
+  const plano = await getPlanOrNull(guard.userId);
+  if (!plano) return planUnavailableResponse();
+  const TETO_DIARIO = plano === "free" ? 300 : plano === "pro" ? 3000 : 10000;
+  try {
+    const { data: dentro, error: rlErr } = await getSupabaseAdmin().rpc("api_rate_check", {
+      p_key_hash: `whale-txs:${guard.userId}`,
+      p_limit: TETO_DIARIO,
+      p_window_seconds: 86400,
+    });
+    if (rlErr) throw new Error(rlErr.message);
+    if (dentro === false) {
+      return NextResponse.json(
+        { error: "Limite diario de consultas atingido. Tenta amanha.", code: "daily_limit" },
+        { status: 429 },
+      );
+    }
+  } catch (e) {
+    console.error("[whale-txs] teto diario indisponivel (fail-closed):", e instanceof Error ? e.message : e);
+    return planUnavailableResponse();
+  }
   const address = req.nextUrl.searchParams.get("address");
   const chain = req.nextUrl.searchParams.get("chain") ?? "eth";
 

@@ -666,6 +666,7 @@ export const en: Record<TranslationKey, string> = {
     ac_2fa_disable_enter: "To disable, enter the current code from your authenticator app.",
     ac_2fa_aal2_required: "To regenerate codes you must have signed in with 2FA in this session — sign out and back in.",
     ac_2fa_codes_error: "Couldn't generate recovery codes.",
+    ac_2fa_on_no_codes: "Two-step is on, but we couldn't fetch your recovery codes. Tap “Generate new codes” before leaving this page.",
     lp_s_beta_t: "Join the beta",
     lp_s_beta_d: "With the SAME account email, request access at /beta — we activate Premium free for 60 days.",
     lp_hero_beta_cta: "Join the beta · Premium free 60 days",

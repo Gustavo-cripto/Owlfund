@@ -675,6 +675,7 @@ export const pt = {
     ac_2fa_disable_enter: "Para desativar, introduz o código atual da app de autenticação.",
     ac_2fa_aal2_required: "Para regenerar códigos tens de ter entrado com 2FA nesta sessão — sai e volta a entrar.",
     ac_2fa_codes_error: "Não foi possível gerar os códigos de recuperação.",
+    ac_2fa_on_no_codes: "Dois passos ficaram ligados, mas não foi possível obter os códigos de recuperação. Carrega em «Gerar novos códigos» antes de sair desta página.",
     lp_s_beta_t: "Inscreve-te no beta",
     lp_s_beta_d: "Com o MESMO email da conta, pede acesso em /beta — ativamos Premium grátis durante 60 dias.",
     lp_hero_beta_cta: "Entrar no beta · Premium grátis 60 dias",

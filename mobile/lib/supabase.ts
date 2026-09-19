@@ -9,9 +9,14 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-const SUPABASE_URL = 'https://maqirdzclnsfytghgufa.supabase.co';
-const SUPABASE_ANON_KEY =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1hcWlyZHpjbG5zZnl0Z2hndWZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMjQyMTIsImV4cCI6MjA5NTkwMDIxMn0.89ZOwfR9mSMwcwoZfWUpnEgSB6b9kp8BFQ3abEjKduc';
+// De variaveis de ambiente, como no site. A chave continua a ir para dentro do
+// pacote publicado — e publicavel por natureza, e a seguranca vem do RLS — mas
+// deixa de haver um literal com ar de segredo no repositorio, e trocar de
+// projeto (ou rodar a chave) passa a ser mudar o .env em vez de editar codigo.
+// O Metro substitui EXPO_PUBLIC_* no pacote, por isso nao e preciso mais nada.
+// Ver mobile/.env.example.
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
 export const SITE_URL = 'https://chainfolioai.com';
 
@@ -19,6 +24,13 @@ let client: SupabaseClient | null = null;
 
 export function getSupabase(): SupabaseClient {
   if (!client) {
+    // Aqui dentro, nao no topo do modulo: o render estatico do expo-router
+    // importa este ficheiro sem nunca chamar esta funcao.
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      throw new Error(
+        'Faltam EXPO_PUBLIC_SUPABASE_URL e EXPO_PUBLIC_SUPABASE_ANON_KEY. Copia mobile/.env.example para mobile/.env.',
+      );
+    }
     client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
         // No web (expo web) o storage por defeito (localStorage) serve; no

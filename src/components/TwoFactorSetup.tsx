@@ -29,29 +29,49 @@ export default function TwoFactorSetup() {
   const [msg, setMsg] = useState<Msg>(null);
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
 
-  const fetchRecoveryCodes = async () => {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData.session?.access_token ?? "";
-    const res = await fetch("/api/mfa/recovery-codes", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      const j = (await res.json()) as { codes?: string[] };
-      setRecoveryCodes(j.codes ?? null);
-    } else {
+  // Nada aqui podia rebentar para fora: este pedido corre DEPOIS de a
+  // verificacao de dois passos ja estar ligada no Supabase. Se a rede falhasse
+  // (ou a Vercel devolvesse HTML de erro, que o res.json() rejeita), a excecao
+  // subia, o setBusy(false) de quem chamou nunca corria, e a pessoa ficava com
+  // dois passos ligados, sem codigos de recuperacao e com os botoes bloqueados.
+  // Devolve se correu bem, para quem chama poder avisar.
+  const fetchRecoveryCodes = async (): Promise<boolean> => {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token ?? "";
+      const res = await fetch("/api/mfa/recovery-codes", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const j = (await res.json().catch(() => ({}))) as { codes?: string[] };
+        if (!j.codes?.length) { setMsg({ text: t("ac_2fa_codes_error"), error: true }); return false; }
+        setRecoveryCodes(j.codes);
+        return true;
+      }
       const j = (await res.json().catch(() => ({}))) as { code?: string };
       setMsg({ text: j.code === "AAL2_REQUIRED" ? t("ac_2fa_aal2_required") : t("ac_2fa_codes_error"), error: true });
+      return false;
+    } catch (e) {
+      console.error("[2fa] codigos de recuperacao:", e instanceof Error ? e.message : e);
+      setMsg({ text: t("ac_2fa_codes_error"), error: true });
+      return false;
     }
   };
 
   const loadFactors = async () => {
     setLoading(true);
-    const { data } = await supabase.auth.mfa.listFactors();
-    const verified = data?.totp?.find((f: { id: string; status: string }) => f.status === "verified");
-    setEnrolled(!!verified);
-    setFactorId(verified?.id ?? null);
-    setLoading(false);
+    try {
+      const { data } = await supabase.auth.mfa.listFactors();
+      const verified = data?.totp?.find((f: { id: string; status: string }) => f.status === "verified");
+      setEnrolled(!!verified);
+      setFactorId(verified?.id ?? null);
+    } catch (e) {
+      console.error("[2fa] listar fatores:", e instanceof Error ? e.message : e);
+      setMsg({ text: t("ac_2fa_codes_error"), error: true });
+    } finally {
+      setLoading(false);   // sem isto a seccao ficava em "a carregar" para sempre
+    }
   };
 
   useEffect(() => {
@@ -112,16 +132,29 @@ export default function TwoFactorSetup() {
     }
     resetEnroll();
     setMsg({ text: t("ac_2fa_ok_on"), error: false });
-    await loadFactors();
-    await fetchRecoveryCodes();
-    setBusy(false);
+    // A partir daqui os dois passos JA estao ligados na conta. O que vem a
+    // seguir nao pode impedir o setBusy(false), senao a pessoa fica trancada
+    // no ecra sem conseguir pedir os codigos outra vez.
+    try {
+      await loadFactors();
+      const temCodigos = await fetchRecoveryCodes();
+      if (!temCodigos) setMsg({ text: t("ac_2fa_on_no_codes"), error: true });
+    } catch (e) {
+      console.error("[2fa] depois de ativar:", e instanceof Error ? e.message : e);
+      setMsg({ text: t("ac_2fa_on_no_codes"), error: true });
+    } finally {
+      setBusy(false);
+    }
   };
 
   const regenerateCodes = async () => {
     setBusy(true);
     setMsg(null);
-    await fetchRecoveryCodes();
-    setBusy(false);
+    try {
+      await fetchRecoveryCodes();
+    } finally {
+      setBusy(false);   // sem isto, uma falha deixava os botoes bloqueados
+    }
   };
 
   // Desativar exige o código TOTP atual (challenge + verify) — um clique não chega.

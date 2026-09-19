@@ -666,6 +666,7 @@ export const fr: Record<TranslationKey, string> = {
     ac_2fa_disable_enter: "Pour désactiver, saisis le code actuel de ton app d'authentification.",
     ac_2fa_aal2_required: "Pour régénérer les codes tu dois t'être connecté avec 2FA dans cette session — déconnecte-toi et reconnecte-toi.",
     ac_2fa_codes_error: "Impossible de générer les codes de récupération.",
+    ac_2fa_on_no_codes: "La double authentification est activée, mais les codes de récupération n'ont pas pu être récupérés. Appuyez sur « Générer de nouveaux codes » avant de quitter cette page.",
     lp_s_beta_t: "Rejoins la bêta",
     lp_s_beta_d: "Avec le MÊME email que ton compte, demande l'accès sur /beta — on active Premium gratuit 60 jours.",
     lp_hero_beta_cta: "Rejoindre la bêta · Premium gratuit 60 jours",
