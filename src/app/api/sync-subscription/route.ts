@@ -26,14 +26,48 @@ export async function POST(request: Request) {
     const stripe = getStripe();
     const supabaseAdmin = getSupabaseAdmin();
 
-    // Find Stripe customer by email
-    const customers = await stripe.customers.list({ email: user.email, limit: 5 });
-    if (!customers.data.length) {
-      return NextResponse.json({ error: "No Stripe customer found for this email" }, { status: 404 });
+    // Exigir email CONFIRMADO antes de ligar seja o que for.
+    //
+    // Esta rota liga a conta a um cliente da Stripe so por o email bater certo.
+    // Sem confirmacao de email, bastava registar uma conta nova com o email de
+    // outra pessoa para herdar a subscricao dela — e o portal de faturacao a
+    // seguir. O registo envia sempre confirmacao, mas isso e o cliente; a regra
+    // tem de estar aqui.
+    const confirmado = (user as { email_confirmed_at?: string | null }).email_confirmed_at;
+    if (!confirmado) {
+      return NextResponse.json(
+        { error: "Confirma o teu email antes de sincronizar o plano.", code: "email_not_confirmed" },
+        { status: 403 },
+      );
     }
 
-    // Use the most recent customer
-    const customer = customers.data[0];
+    // Preferir a ligacao forte: o checkout grava metadata.user_id no cliente.
+    // So quando essa nao existe (cliente criado pelo proprio Checkout) e que se
+    // cai para a correspondencia por email.
+    let customer: { id: string } | null = null;
+    try {
+      const porMetadata = await stripe.customers.search({
+        query: `metadata['user_id']:'${user.id}'`,
+        limit: 1,
+      });
+      if (porMetadata.data.length) customer = porMetadata.data[0];
+    } catch (e) {
+      console.error("[sync-subscription] pesquisa por metadata falhou:", e instanceof Error ? e.message : e);
+    }
+
+    if (!customer) {
+      const customers = await stripe.customers.list({ email: user.email, limit: 5 });
+      if (!customers.data.length) {
+        return NextResponse.json({ error: "No Stripe customer found for this email" }, { status: 404 });
+      }
+      // Nunca aceitar um cliente que declare pertencer a OUTRA conta.
+      const alheio = customers.data.find((c) => c.metadata?.user_id && c.metadata.user_id !== user.id);
+      if (alheio) {
+        console.error("[sync-subscription] cliente declara outro dono:", user.id, alheio.id);
+        return NextResponse.json({ error: "No Stripe customer found for this email" }, { status: 404 });
+      }
+      customer = customers.data[0];
+    }
 
     // Update stripe_customer_id in profiles if missing
     await supabaseAdmin
