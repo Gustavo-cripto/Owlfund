@@ -432,7 +432,7 @@ export const en: Record<TranslationKey, string> = {
     lg_login_sub: "Sign in to your ChainFolioAI account.",
     lg_signup_title: "Create your account",
     lg_signup_sub: "Free to start — no card.",
-    lg_signup_sub_beta: "Step 1 of 2: create the account with the email you'll use for the beta.",
+    lg_signup_sub_beta: "Step 2 of 2: create the account with the same email you signed up with.",
     lg_mfa_title: "Two-step verification",
     lg_mfa_sub: "Enter the 6-digit code from your authenticator app.",
     lg_tab_login: "Sign in",

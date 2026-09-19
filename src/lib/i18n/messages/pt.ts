@@ -441,7 +441,7 @@ export const pt = {
     lg_login_sub: "Entra na tua conta ChainFolioAI.",
     lg_signup_title: "Cria a tua conta",
     lg_signup_sub: "Grátis para começar — sem cartão.",
-    lg_signup_sub_beta: "Passo 1 de 2: cria a conta com o email que vais usar no beta.",
+    lg_signup_sub_beta: "Passo 2 de 2: cria a conta com o mesmo email com que te inscreveste no beta.",
     lg_mfa_title: "Verificação em duas etapas",
     lg_mfa_sub: "Introduz o código de 6 dígitos da tua app autenticadora.",
     lg_tab_login: "Entrar",
