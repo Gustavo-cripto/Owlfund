@@ -101,6 +101,15 @@ export async function reserveAiUsage(userId: string): Promise<AiQuota> {
 
     const month = new Date().toISOString().slice(0, 7);
     const { data, error } = await admin.rpc("chat_usage_reserve", { p_user_id: userId, p_month: month });
+
+    // A funcao so passa a existir depois de correr supabase-chat-usage-atomic.sql
+    // no Supabase. Ate la nao se pode deixar o plano gratuito sem IA nenhuma:
+    // cai-se para o metodo antigo, que conta mal em concorrencia mas conta.
+    // O aviso e alto de proposito, para isto nao ficar assim esquecido.
+    if (error && funcaoEmFalta(error)) {
+      console.warn("[entitlement] chat_usage_reserve nao existe — a usar a contagem antiga. CORRER supabase-chat-usage-atomic.sql.");
+      return await reservaAntiga(admin, userId, plan, month);
+    }
     if (error) throw new Error(error.message);
     const count = Number(data);
     if (!Number.isFinite(count)) throw new Error("resposta inesperada de chat_usage_reserve");
@@ -117,11 +126,59 @@ export async function reserveAiUsage(userId: string): Promise<AiQuota> {
   }
 }
 
+
+/** A funcao ainda nao foi criada na base de dados? (PostgREST: PGRST202; Postgres: 42883) */
+function funcaoEmFalta(error: { code?: string; message?: string }): boolean {
+  const c = error.code ?? "";
+  const m = (error.message ?? "").toLowerCase();
+  return c === "PGRST202" || c === "42883" || m.includes("could not find the function") || m.includes("does not exist");
+}
+
+/**
+ * Contagem antiga: ler e escrever em duas viagens. Nao protege contra pedidos
+ * em paralelo — e exactamente esse o defeito que a funcao SQL vem resolver —
+ * mas e melhor do que deixar o plano gratuito sem IA enquanto o SQL nao correr.
+ */
+async function reservaAntiga(
+  admin: ReturnType<typeof getSupabaseAdmin>,
+  userId: string,
+  plan: Plan,
+  month: string,
+): Promise<AiQuota> {
+  const { data, error } = await admin
+    .from("chat_usage")
+    .select("count")
+    .eq("user_id", userId)
+    .eq("month", month)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  const atual = (data?.count as number | undefined) ?? 0;
+  if (atual >= FREE_AI_LIMIT) return { ok: false, reason: "limit_reached", count: atual, limit: FREE_AI_LIMIT };
+  await admin.from("chat_usage").upsert(
+    { user_id: userId, month, count: atual + 1, updated_at: new Date().toISOString() },
+    { onConflict: "user_id,month" },
+  );
+  return { ok: true, plan, free: true, count: atual + 1, limit: FREE_AI_LIMIT };
+}
+
 /** Devolve a análise reservada quando o fornecedor de IA não chegou a responder. */
 export async function releaseAiUsage(userId: string): Promise<void> {
   try {
     const month = new Date().toISOString().slice(0, 7);
-    const { error } = await getSupabaseAdmin().rpc("chat_usage_release", { p_user_id: userId, p_month: month });
+    const admin = getSupabaseAdmin();
+    const { error } = await admin.rpc("chat_usage_release", { p_user_id: userId, p_month: month });
+    if (error && funcaoEmFalta(error)) {
+      // Sem a funcao SQL ainda: devolve-se pelo metodo antigo.
+      const { data } = await admin.from("chat_usage").select("count").eq("user_id", userId).eq("month", month).maybeSingle();
+      const atual = (data?.count as number | undefined) ?? 0;
+      if (atual > 0) {
+        await admin.from("chat_usage").upsert(
+          { user_id: userId, month, count: atual - 1, updated_at: new Date().toISOString() },
+          { onConflict: "user_id,month" },
+        );
+      }
+      return;
+    }
     if (error) throw new Error(error.message);
   } catch (e) {
     console.error("[entitlement] devolução de quota falhou:", e instanceof Error ? e.message : e);
