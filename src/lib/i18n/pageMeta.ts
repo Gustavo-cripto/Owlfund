@@ -15,22 +15,22 @@ type Meta = { title: string; description: string };
 const META: Record<PublicPage, Record<Lang, Meta>> = {
   home: {
     pt: {
-      title: "ChainFolioAI — O teu portefólio cripto e tradicional num só lugar",
+      title: "ChainFolioAI — Portefólio cripto e tradicional num só lugar",
       description:
         "Carteiras, exchanges e ativos tradicionais num só painel. PNL em tempo real, fiscalidade em 21 países e assistente de IA. Só-leitura e grátis para começar.",
     },
     en: {
-      title: "ChainFolioAI — Your crypto and traditional portfolio in one place",
+      title: "ChainFolioAI — Crypto and traditional portfolio in one place",
       description:
         "Wallets, exchanges and traditional assets on one dashboard. Real-time PNL, tax tools for 21 countries and an AI assistant. Read-only and free to start.",
     },
     es: {
-      title: "ChainFolioAI — Tu cartera cripto y tradicional en un solo lugar",
+      title: "ChainFolioAI — Cartera cripto y tradicional en un solo lugar",
       description:
         "Monederos, exchanges y activos tradicionales en un solo panel. PNL en tiempo real, fiscalidad de 21 países y asistente de IA. Solo lectura y gratis.",
     },
     fr: {
-      title: "ChainFolioAI — Votre portefeuille crypto et traditionnel au même endroit",
+      title: "ChainFolioAI — Portefeuille crypto et traditionnel réunis",
       description:
         "Wallets, plateformes et actifs traditionnels sur un seul tableau de bord. PNL en temps réel, fiscalité de 21 pays et assistant IA. Lecture seule et gratuit.",
     },
