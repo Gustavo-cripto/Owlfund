@@ -38,6 +38,11 @@
 -- por nada disto. A LEITURA também não é tocada: continua limitada pelas
 -- políticas, que já restringem cada pessoa à sua própria linha.
 --
+-- ✅ APLICADO em produção a 20 de setembro de 2026, e verificado com uma sessão
+--    simulada: gravar fotografias do portefólio e a preferência continuam a
+--    funcionar; dar-se Premium e escrever o cliente de faturação ficaram
+--    bloqueados. Ver supabase-estado-verificado.sql.
+--
 -- Correr uma vez no editor de SQL do Supabase.
 
 -- ── 1. Tirar a escrita a quem não precisa dela ─────────────────────────────

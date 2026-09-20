@@ -11,6 +11,9 @@
 -- já usava: o incremento acontece DENTRO do Postgres, numa só instrução, e o
 -- valor que interessa é o que o Postgres devolve — nunca um recalculado fora.
 --
+-- ✅ APLICADO em produção a 20 de setembro de 2026. As duas funções existem,
+--    são `security definer` e só o papel `service_role` as pode executar.
+--
 -- Correr uma vez no editor de SQL do Supabase.
 
 -- Reserva uma análise e devolve o total do mês DEPOIS de a reservar.

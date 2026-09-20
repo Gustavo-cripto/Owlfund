@@ -1,3 +1,7 @@
+-- ⚠️ SUBSTITUÍDO por supabase-fechar-escritas.sql, que faz isto e muito mais
+--    (este ficheiro só tratava da tabela de perfis; o problema era em todas).
+--    Mantido só como registo. NÃO correr.
+--
 -- Que colunas da tabela `profiles` o browser pode mesmo escrever.
 --
 -- PORQUÊ: a página de Conta escreve em `profiles` a partir do browser, com a
