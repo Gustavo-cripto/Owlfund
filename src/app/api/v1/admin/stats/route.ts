@@ -174,8 +174,16 @@ export async function GET(req: NextRequest) {
     topPaths: Array<{ path: string; count: number }>;
     bottomPaths: Array<{ path: string; count: number }>;
     byDay: Array<{ day: string; count: number }>;
-    /** Visitas dos ultimos 7 dias por origem do link (?src=…), humanas e bots juntas. */
-    bySource: Array<{ src: string; count: number }>;
+    /**
+     * Visitas dos ultimos 7 dias por origem do link (?src=…), com as PESSOAS
+     * separadas dos robos.
+     *
+     * Juntas, o numero engana e muito: a 20 set 2026, "threads-gust" tinha 60
+     * visitas marcadas e ZERO humanas, e "threads" tinha 51 visitas com 2
+     * humanas. Quem olhasse so para o total concluia que o Threads estava a
+     * funcionar. E por `humans` que se decide onde vale a pena divulgar.
+     */
+    bySource: Array<{ src: string; humans: number; bots: number; count: number }>;
   } = {
     last24h: await countOf(head(admin, "page_views").gte("created_at", ISO(daysAgo(1)))),
     last7d: await countOf(head(admin, "page_views").gte("created_at", ISO(daysAgo(7)))),
@@ -189,12 +197,12 @@ export async function GET(req: NextRequest) {
     // Le TODAS as visitas dos ultimos 14 dias (serve o top de paginas 7d e a serie diaria 14d).
     // NB: o PostgREST devolve no maximo ~1000 linhas por pedido (max-rows) e IGNORA .limit(),
     // por isso paginamos com .range() ate ler tudo — senao os dias recentes ficavam a 0.
-    type Row = { path: string; created_at: string; src?: string | null };
+    type Row = { path: string; created_at: string; src?: string | null; is_bot?: boolean | null };
     const data: Row[] = [];
     const PAGE = 1000;
     // `src` e uma coluna nova (supabase-page-views-src.sql). Se ainda nao
     // existir, o pedido falha e repete-se sem ela — as visitas contam na mesma.
-    let colunas = "path, created_at, src";
+    let colunas = "path, created_at, src, is_bot";
     for (let from = 0; from < 100000; from += PAGE) {
       let { data: page, error } = await admin
         .from("page_views")
@@ -218,19 +226,25 @@ export async function GET(req: NextRequest) {
     const sevenAgo = daysAgo(7).getTime();
     const pathCounts: Record<string, number> = {};
     const dayCounts: Record<string, number> = {};
-    const srcCounts: Record<string, number> = {};
+    const srcCounts: Record<string, { humans: number; bots: number }> = {};
     for (const r of data ?? []) {
       const iso = String(r.created_at);
       const t = new Date(iso).getTime();
       if (t >= sevenAgo) pathCounts[r.path] = (pathCounts[r.path] ?? 0) + 1;
-      if (t >= sevenAgo && r.src) srcCounts[r.src] = (srcCounts[r.src] ?? 0) + 1;
+      if (t >= sevenAgo && r.src) {
+        const c = (srcCounts[r.src] ??= { humans: 0, bots: 0 });
+        if (r.is_bot) c.bots++; else c.humans++;
+      }
       const day = iso.slice(0, 10);
       dayCounts[day] = (dayCounts[day] ?? 0) + 1;
     }
     const ranked = Object.entries(pathCounts)
       .map(([path, count]) => ({ path, count }))
       .sort((a, b) => b.count - a.count);
-    views.bySource = Object.entries(srcCounts).map(([src, count]) => ({ src, count })).sort((a, b) => b.count - a.count);
+    // Ordenado por PESSOAS, nao pelo total: e o numero que decide.
+    views.bySource = Object.entries(srcCounts)
+      .map(([src, c]) => ({ src, humans: c.humans, bots: c.bots, count: c.humans + c.bots }))
+      .sort((a, b) => b.humans - a.humans || b.count - a.count);
     views.topPaths = ranked.slice(0, 5);
     // Menos vistas: as com menos visitas (asc), excluindo as que ja estao no top.
     const inTop = new Set(views.topPaths.map((p) => p.path));
