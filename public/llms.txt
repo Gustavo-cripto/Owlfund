@@ -1,30 +1,45 @@
 # ChainFolioAI
 
-> ChainFolioAI is a read-only crypto + traditional portfolio tracker with real-time PNL, advanced metrics, multi-country tax tools, and an AI assistant that knows your real portfolio. It has a public REST API and an MCP integration, so AI agents can connect to it. 100% read-only, non-custodial — it never accesses private keys or moves funds. Web app, multilingual (PT/EN/ES/FR), free to start.
+> ChainFolioAI is a read-only crypto + traditional portfolio tracker with real-time PNL, advanced metrics, multi-country FIFO tax tools, and an AI assistant that knows your real portfolio. It has a public REST API and an MCP server, so AI agents can read a user's portfolio directly. 100% read-only and non-custodial: it never receives private keys, never moves funds. Web app, multilingual (PT/EN/ES/FR), free to start.
 
 ## What it does
-- Consolidates crypto (on-chain wallets, exchanges, DeFi, NFTs, stablecoins, manual assets) and traditional assets in one dashboard.
+- Consolidates crypto (on-chain wallets, exchanges, DeFi, NFTs, stablecoins, manual assets) and traditional assets (stocks, ETFs, gold) in one dashboard.
 - Real-time profit/loss (PNL), portfolio Score (0-100), and benchmarks vs BTC, ETH, S&P 500 and Gold.
-- Advanced metrics: ROI, CAGR, Sharpe ratio, Max Drawdown, volatility.
-- Crypto tax (FIFO capital gains) for 21 countries with annual allowances applied, plus Excel/PDF export.
+- Portfolio chart with candles and selectable moving averages (SMA 7/20/50/100/200, EMA 9/21), over history rebuilt point by point.
+- Advanced metrics: ROI, CAGR, Sharpe ratio, Sortino, Calmar, Max Drawdown, volatility, VaR 95%.
+- Crypto tax, FIFO capital gains, with Excel and PDF export. Country coverage depends on plan: 4 countries on Free, 13 on Pro, 21 on Premium.
+- Losses offset gains within the same tax year and the same tax bracket; a loss on an asset whose gain would be exempt is not deductible. The annual allowance is applied last, to the already-offset balance.
+- Trading fees and gas are part of the cost basis: a buy fee adds to the lot, a sell fee is deducted from the proceeds, and a partial sale takes its proportional share. Fees can be entered in the price currency or in the gas token, valued at that day's price.
+- Fee-only entries for gas with no buy or sell (failed swaps, approvals, gas paid from another wallet). They reduce the token balance and are listed separately in the tax report; they are NOT deducted automatically, because deductibility varies by country.
+- Lending positions read straight from the contracts, showing supplied, borrowed, net value and health factor. The portfolio total uses the net value, so a leveraged position does not inflate it. Other protocols may not appear yet.
 - FIRE (financial independence) calculator.
-- Live market: prices, BTC/ETH dominance, Fear & Greed, derivatives (open interest, funding, long/short, CVD), TradingView charts, AI-summarized news, daily AI briefing.
-- Smart Money: track 50+ whale wallets and their on-chain moves (ETH/BTC/SOL).
-- AI assistants: "Chain" (in-app chat that knows your real portfolio and the platform) and "Block" (a Premium dedicated AI portfolio manager).
-- Multi-portfolio: several isolated accounts (Pro: 3, Premium: 10).
+- Live market: prices, BTC/ETH dominance, Fear & Greed, derivatives (open interest, funding, long/short, CVD), TradingView charts, AI-summarised news, daily AI briefing.
+- Smart Money: track whale wallets and their on-chain moves (ETH/BTC/SOL).
+- AI assistants: "Chain" (in-app chat that knows your real portfolio) and "Block" (Premium dedicated AI portfolio manager).
+- Multi-portfolio: several isolated accounts (Free: 1, Pro: 3, Premium: 10).
+- Trade history is manual entry or CSV import. There is no automatic sync of exchange transactions into the history.
 
 ## For AI agents and developers
-- REST API and MCP (Model Context Protocol) integration are available on the Premium plan, so an AI agent can read a user's portfolio programmatically.
+- REST API and MCP (Model Context Protocol) server. Premium plan for account data.
+- MCP server: https://chainfolioai.com/api/mcp (Streamable HTTP), authenticated with an API key in the Authorization header. Works with Claude and Cursor.
+- With a key, an agent can read holdings, PNL, risk metrics (ROI, CAGR, Sharpe, Sortino, Calmar, volatility, drawdown, VaR 95%), recorded trades, FIFO realised gains with fees and gas deducted, and a capital-gains tax estimate in the country's own currency (ECB rate of each operation's date, long-term rate by holding period, annual allowance applied).
+- PUBLIC, no key required: `GET https://chainfolioai.com/api/v1` (discovery index), `GET https://chainfolioai.com/api/v1/tax-countries` and `GET https://chainfolioai.com/api/v1/global`. The tax endpoint, and the `list_tax_countries` MCP tool, return the 21 tax regimes we publish, with short and long-term rates, holding period, annual allowance and the reference law. Free to cite.
+- The exact list of endpoints and MCP tools, with current counts and rate limits, is always at https://chainfolioai.com/api/v1 — read it there rather than relying on a number written anywhere else.
+- Honest limits: PNL and metrics use snapshots stored at the time, never recomputed with today's prices; a period without enough history returns empty instead of a wrong number; a sale with no FX rate for its date is left out of the estimate rather than guessed, and the estimate is returned as null instead of a partial total. The tax estimate is not a tax return and is not tax advice.
 - Developer docs: https://chainfolioai.com/developers
 
 ## Key pages
 - [Home](https://chainfolioai.com/): product overview.
 - [How it works](https://chainfolioai.com/como-funciona): tool-by-tool walkthrough.
-- [Pricing](https://chainfolioai.com/pricing): Free (€0), Pro (€14.99/mo), Premium (€39/mo). Payable by card (Stripe) or crypto stablecoins (Helio).
+- [Crypto tax guides](https://chainfolioai.com/guias/impostos-cripto): 21 countries, rates, holding periods and reference law.
+- [Pricing](https://chainfolioai.com/pricing): Free (€0), Pro (€14.99/mo), Premium (€39/mo). Card (Stripe) or crypto stablecoins (Helio).
 - [Developers (API + MCP)](https://chainfolioai.com/developers): programmatic access for apps and AI agents.
+- [Status](https://chainfolioai.com/estado): live status of the data sources we depend on.
 - [Terms](https://chainfolioai.com/termos)
 - [Privacy](https://chainfolioai.com/privacidade)
 
 ## Notes
 - Non-custodial and read-only: users connect wallets by public address or read-only API keys. The app never asks for private keys or seed phrases.
 - Not financial advice: the AI describes and explains, it never tells users what to buy or sell.
+- Tax figures are informational and depend on the user's own records. They are not tax advice.
+- Wallet addresses are never sent to the AI model providers; a stable pseudonym is sent instead.
