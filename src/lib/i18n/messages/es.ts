@@ -677,6 +677,7 @@ export const es: Record<TranslationKey, string> = {
     lp_rights: "Todos los derechos reservados",
     lp_follow: "Síguenos",
     lp_guides_tag: "Guías fiscales",
+    lp_compare_tag: "Comparativas",
     fc_public_guides: "Ver las guías públicas de los 21 países",
     lp_disclaimer: "ChainFolioAI es una herramienta de seguimiento y análisis. Nada aquí constituye asesoramiento financiero, fiscal o de inversión; la IA describe y explica, nunca recomienda comprar o vender.",
     lp_st5: "Exchanges con licencia MiCA",

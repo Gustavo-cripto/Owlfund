@@ -686,6 +686,7 @@ export const pt = {
     lp_rights: "Todos os direitos reservados",
     lp_follow: "Segue-nos",
     lp_guides_tag: "Guias fiscais",
+    lp_compare_tag: "Comparações",
     fc_public_guides: "Ver os guias públicos dos 21 países",
     lp_disclaimer: "O ChainFolioAI é uma ferramenta de acompanhamento e análise. Nada aqui constitui aconselhamento financeiro, fiscal ou de investimento; a IA descreve e explica, nunca recomenda comprar ou vender.",
     lp_st5: "Exchanges com licença MiCA",

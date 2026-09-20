@@ -1,4 +1,5 @@
 import { LANGS, PAGE_SLUG, pageUrl, type PublicPage } from "@/lib/i18n/routes";
+import { COMPETITORS, compareUrl } from "@/lib/compare/competitors";
 import { COUNTRIES, guideUrl } from "@/lib/tax/countries";
 import type { MetadataRoute } from "next";
 
@@ -50,5 +51,16 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: prioridade[page],
     })),
   );
-  return [...traduzidas, ...fixed, ...guias];
+  // Comparacoes: indice + uma por concorrente, nas quatro linguas.
+  // Geradas da mesma lista que as paginas, para nao ficarem por atualizar.
+  const comparacoes = LANGS.flatMap((lang) => [
+    { url: `${SITE_URL}${compareUrl(lang)}`, lastModified, changeFrequency: "monthly" as const, priority: 0.6 },
+    ...COMPETITORS.map((c) => ({
+      url: `${SITE_URL}${compareUrl(lang, c)}`,
+      lastModified,
+      changeFrequency: "monthly" as const,
+      priority: 0.7,
+    })),
+  ]);
+  return [...traduzidas, ...fixed, ...guias, ...comparacoes];
 }

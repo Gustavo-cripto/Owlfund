@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { compareUrl } from "@/lib/compare/competitors";
 import { useEffect, useState } from "react";
 import { SOCIAL_LINKS } from "@/lib/social";
 import AppShell from "@/components/AppShell";
@@ -654,6 +655,7 @@ export default function Landing() {
               <Link href={pageUrl("howItWorks", lang)} className="transition hover:text-slate-300">{t("dash_how_title")}</Link>
               <Link href="/developers" className="transition hover:text-slate-300">API</Link>
               <a href={lang === "pt" ? "/guias/impostos-cripto" : "/guides/crypto-tax"} className="transition hover:text-slate-300">{t("lp_guides_tag")}</a>
+              <Link href={compareUrl(lang)} className="transition hover:text-slate-300">{t("lp_compare_tag")}</Link>
               {paymentsFrozen && <Link href={pageUrl("beta", lang)} className="transition hover:text-slate-300">{t("nav_beta")}</Link>}
               <a href="#faq" className="transition hover:text-slate-300">{t("lp_faq_tag")}</a>
               <Link href="/privacidade" className="transition hover:text-slate-300">{t("legal_privacy_short")}</Link>
