@@ -44,6 +44,8 @@ type Copy = {
   disclaimerCountry: string;
   countryTitle: (name: string) => string;
   countryMetaTitle: (name: string, short: string, long: string) => string;
+  /** Versao sem taxas, para quando o titulo completo ficaria cortado no Google. */
+  countryMetaTitleShort: (name: string) => string;
   faqHowMuch: (name: string) => string;
   faqAllowance: (name: string) => string;
   faqAllowanceYes: (label: string) => string;
@@ -58,7 +60,7 @@ export const GUIDE_COPY: Record<GuideLang, Copy> = {
     breadcrumbHome: "Início",
     breadcrumbGuides: "Guias",
     indexTitle: "Impostos sobre cripto em 21 países",
-    indexMetaTitle: "Impostos sobre cripto em 21 países (2026) — taxas, prazos e leis",
+    indexMetaTitle: "Impostos sobre cripto em 21 países (2026)",
     indexMetaDescription:
       "Quanto se paga de imposto sobre mais-valias de criptomoedas em Portugal, Espanha, Alemanha, Brasil e mais 17 países: taxas, prazos de detenção, isenções anuais e a lei aplicável. Atualizado a 2026.",
     indexIntro: (v) =>
@@ -94,7 +96,12 @@ export const GUIDE_COPY: Record<GuideLang, Copy> = {
     disclaimerCountry:
       "⚠️ Informação geral, não aconselhamento fiscal. As regras mudam e a tua situação pode ter particularidades (residência, atividade profissional, staking, mineração). Confirma com um contabilista ou com a autoridade fiscal antes de declarar.",
     countryTitle: (n) => `Impostos sobre cripto em ${n}`,
-    countryMetaTitle: (n, s, l) => `Impostos sobre cripto em ${n} (2026): ${s} e ${l.toLowerCase()}`,
+    // Paises sem distincao de prazo tem a MESMA taxa nos dois campos, e o
+    // titulo saia a gaguejar: "18-24% e 18-24%", "0% (investidor privado) e 0%
+    // (investidor privado)". E o que aparecia no Google.
+    countryMetaTitle: (n, s, l) =>
+      `Impostos sobre cripto em ${n} (2026): ${s.trim().toLowerCase() === l.trim().toLowerCase() ? s : `${s}, ${l.toLowerCase()}`}`,
+    countryMetaTitleShort: (n) => `Impostos sobre cripto em ${n} (2026)`,
     faqHowMuch: (n) => `Quanto se paga de imposto sobre cripto em ${n}?`,
     faqAllowance: (n) => `Há isenção anual sobre mais-valias de cripto em ${n}?`,
     faqAllowanceYes: (l) => `Sim: ${l}.`,
@@ -108,7 +115,7 @@ export const GUIDE_COPY: Record<GuideLang, Copy> = {
     breadcrumbHome: "Home",
     breadcrumbGuides: "Guides",
     indexTitle: "Crypto tax in 21 countries",
-    indexMetaTitle: "Crypto tax in 21 countries (2026) — rates, holding periods and laws",
+    indexMetaTitle: "Crypto tax in 21 countries (2026)",
     indexMetaDescription:
       "How much tax you pay on crypto capital gains in Portugal, Spain, Germany, the UK, the US and 16 other countries: rates, holding periods, annual allowances and the law that applies. Updated for 2026.",
     indexIntro: (v) =>
@@ -144,7 +151,9 @@ export const GUIDE_COPY: Record<GuideLang, Copy> = {
     disclaimerCountry:
       "⚠️ General information, not tax advice. Rules change and your situation may have specifics (residency, professional activity, staking, mining). Confirm with an accountant or your tax authority before filing.",
     countryTitle: (n) => `Crypto tax in ${n}`,
-    countryMetaTitle: (n, s, l) => `Crypto tax in ${n} (2026): ${s} and ${l.toLowerCase()}`,
+    countryMetaTitle: (n, s, l) =>
+      `Crypto tax in ${n} (2026): ${s.trim().toLowerCase() === l.trim().toLowerCase() ? s : `${s}, ${l.toLowerCase()}`}`,
+    countryMetaTitleShort: (n) => `Crypto tax in ${n} (2026)`,
     faqHowMuch: (n) => `How much tax do you pay on crypto in ${n}?`,
     faqAllowance: (n) => `Is there an annual allowance on crypto gains in ${n}?`,
     faqAllowanceYes: (l) => `Yes: ${l}.`,
