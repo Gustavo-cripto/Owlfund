@@ -89,7 +89,10 @@ export async function grantCryptoEntitlement(input: GrantInput): Promise<GrantRe
     current_period_end: end.toISOString(),
     cancel_at_period_end: false,
     source: "crypto",
-  });
+    // Uma linha por conta (indice unico `subscriptions_user_id_key`). Sem isto,
+    // o upsert tentava inserir e falhava para quem ja tinha subscricao — e quem
+    // pagou em cripto nao recebia o plano.
+  }, { onConflict: "user_id" });
   if (subErr) return { granted: false, reason: "error", message: subErr.message };
 
   return { granted: true };

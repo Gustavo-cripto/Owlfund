@@ -61,10 +61,12 @@ const upsertSubscription = async (subscription: any) => {
   // pagou ficava sem plano, em silencio. Agora falha alto, para a Stripe voltar
   // a tentar.
   //
-  // (Nao se poe onConflict aqui: uma conta pode ter mais do que uma linha de
-  // subscricao — Stripe, cripto e beta — e colapsa-las por user_id perdia
-  // informacao. A chave certa depende do esquema da tabela, que nao esta no
-  // repositorio: ver o achado sobre RLS em falta.)
+  // A chave de conflito e `user_id`: a tabela tem um indice unico
+  // `subscriptions_user_id_key`, ou seja UMA linha por conta (confirmado na base
+  // de dados a 20 set 2026). Sem o onConflict, o upsert usava a chave primaria
+  // (`id`), que nao vai no corpo — logo tentava INSERIR e violava o indice unico
+  // para quem JA tinha subscricao. Ou seja: a atualizacao de plano de um cliente
+  // existente falhava sempre, e o erro era engolido.
   const { error: erroSub } = await supabaseAdmin.from("subscriptions").upsert({
     user_id: userId,
     status: subscription.status,
@@ -72,7 +74,7 @@ const upsertSubscription = async (subscription: any) => {
     current_period_end: currentPeriodEnd,
     cancel_at_period_end: subscription.cancel_at_period_end ?? false,
     source: "stripe",
-  });
+  }, { onConflict: "user_id" });
   if (erroSub) {
     console.error("[stripe-webhook] subscricao NAO gravada:", userId, erroSub.message);
     throw new Error(`subscriptions upsert: ${erroSub.message}`);
