@@ -4,6 +4,7 @@ import { apiMsg } from "@/lib/api/apiMessages";
 import { requireUser } from "@/lib/api/requireUser";
 import { alchemyNftsForOwner, hasAlchemy, type EvmChainKey } from "@/lib/providers/alchemy";
 import { heliusAssetsByOwner, hasHelius } from "@/lib/providers/helius";
+import { eNaoEncontrado, lerCarteiraCardano } from "@/lib/cardano/blockfrost";
 
 const MORALIS_EVM = "https://deep-index.moralis.io/api/v2.2";
 const MORALIS_SOLANA = "https://solana-gateway.moralis.io/account/mainnet";
@@ -237,22 +238,16 @@ export async function GET(request: Request) {
       );
     }
     try {
-      const res = await fetch(
-        `https://cardano-mainnet.blockfrost.io/api/v0/addresses/${encodeURIComponent(address.trim())}/extended`,
-        { headers: { project_id: projectId }, next: { revalidate: 120 } }
-      );
-      if (!res.ok) {
-        if (res.status === 404) return NextResponse.json({ count: 0, nfts: [] });
-        const err = (await res.json().catch(() => ({}))) as { message?: string };
-        return NextResponse.json(
-          { error: err?.message ?? "Falha ao consultar NFTs Cardano.", count: 0, nfts: [] },
-          { status: res.status >= 500 ? 503 : res.status }
-        );
+      // A carteira inteira (todos os endereços da conta), não só o endereço
+      // recebido — é aqui que os NFTs "desapareciam". Ver src/lib/cardano/blockfrost.ts.
+      let carteira;
+      try {
+        carteira = await lerCarteiraCardano(address, projectId);
+      } catch (e) {
+        if (eNaoEncontrado(e)) return NextResponse.json({ count: 0, nfts: [] });
+        throw e;
       }
-      const data = (await res.json()) as { amount?: Array<{ unit: string; quantity: string }> };
-      const nftUnits = (data.amount ?? []).filter(
-        (a) => a.unit !== "lovelace" && a.quantity === "1"
-      );
+      const nftUnits = carteira.ativos.filter((a) => a.quantity === "1");
       const nfts: Array<{ id: string; name: string; image?: string; tokenAddress?: string; tokenId?: string }> = [];
       for (let i = 0; i < Math.min(nftUnits.length, 30); i++) {
         try {
@@ -363,11 +358,13 @@ export async function GET(request: Request) {
         if (ok.length > 0 || !moralisKey) {
           const nfts = ok.flatMap((r) => r.value.nfts.map((n) => ({ ...n, image: toImageUrl(n.image) })));
           const count = ok.reduce((sum, r) => sum + r.value.total, 0);
+          // Uma rede que falhou nao apaga as outras — mas o total fica parcial, e diz-se.
+          const partial = ok.length < results.length;
           if (ok.length === 0) {
             console.error("[nft-balance] Alchemy falhou em todas as redes", results.map((r) => (r.status === "rejected" ? String(r.reason) : "")).join("; "));
             return NextResponse.json({ error: apiMsg(request, "nft_provider_down"), count: 0, nfts: [] }, { status: 503 });
           }
-          return NextResponse.json({ count, nfts, provider: "alchemy" });
+          return NextResponse.json({ count, nfts, provider: "alchemy", partial });
         }
       } catch (e) {
         console.error("[nft-balance] Alchemy", e instanceof Error ? e.message : e);

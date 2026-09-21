@@ -1238,6 +1238,7 @@ export const pt = {
     wl_err_sync: "Não foi possível guardar as carteiras na nuvem. Ficam neste browser e tentamos outra vez daqui a pouco.",
     wl_err_defi: "Erro ao carregar DeFi.",
     wl_defi_partial: "parcial",
+    wl_nft_partial_tip: "Contagem parcial: uma das redes não respondeu. Os NFTs dessa rede podem faltar.",
     wl_err_nft: "Erro ao carregar NFTs.",
     wl_err_prices: "Erro ao obter preços.",
     wl_unauth_domain: "Domínio não autorizado",

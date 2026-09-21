@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/api/requireUser";
+import { eNaoEncontrado, lerCarteiraCardano, statusDoErro } from "@/lib/cardano/blockfrost";
 
-const BLOCKFROST_URL = "https://cardano-mainnet.blockfrost.io/api/v0";
 
 export async function GET(request: Request) {
   // Proxy com custo/quota nossa: so com sessao, e com limite por utilizador.
@@ -26,36 +26,18 @@ export async function GET(request: Request) {
   }
 
   try {
-    const res = await fetch(
-      `${BLOCKFROST_URL}/addresses/${encodeURIComponent(address)}/extended`,
-      {
-        headers: { project_id: projectId },
-        next: { revalidate: 60 },
-      }
-    );
-
-    if (!res.ok) {
-      if (res.status === 404) {
-        return NextResponse.json({ balance: "0", lovelace: "0" });
-      }
-      const err = await res.json().catch(() => ({}));
-      return NextResponse.json(
-        { error: (err as { message?: string }).message ?? "Erro ao obter saldo." },
-        { status: res.status >= 500 ? 503 : res.status }
-      );
-    }
-
-    const data = (await res.json()) as {
-      amount?: Array<{ unit: string; quantity: string }>;
-    };
-    const lovelace = data.amount?.find((a) => a.unit === "lovelace")?.quantity ?? "0";
-    const ada = (Number(lovelace) / 1_000_000).toFixed(6);
-    return NextResponse.json({ balance: ada, lovelace });
+    // Pela conta (stake), não pelo endereço: o endereço que a carteira nos dá é
+    // um entre muitos. Ver src/lib/cardano/blockfrost.ts.
+    const carteira = await lerCarteiraCardano(address, projectId);
+    const ada = (Number(carteira.lovelace) / 1_000_000).toFixed(6);
+    return NextResponse.json({ balance: ada, lovelace: carteira.lovelace, stake: carteira.stake });
   } catch (e) {
-    console.error("[ada-balance]", e);
+    if (eNaoEncontrado(e)) return NextResponse.json({ balance: "0", lovelace: "0" });
+    console.error("[ada-balance]", e instanceof Error ? e.message : e);
+    const st = statusDoErro(e);
     return NextResponse.json(
-      { error: "Erro ao consultar saldo." },
-      { status: 503 }
+      { error: e instanceof Error && st && st < 500 ? e.message : "Erro ao consultar saldo." },
+      { status: st && st < 500 ? st : 503 }
     );
   }
 }

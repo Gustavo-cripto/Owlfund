@@ -493,6 +493,7 @@ export default function WalletsPage() {
   // Marca os totais que só cobrem os protocolos lidos na cadeia (a Moralis está
   // parada): um €0 com esta marca quer dizer "não vimos nada no que conseguimos ler".
   const [defiPartial, setDefiPartial] = useState<Record<string, boolean>>({});
+  const [nftPartial, setNftPartial] = useState<Record<string, boolean>>({});
   const [cexHlTotalUsd, setCexHlTotalUsd] = useState(0);
   const [usdToEurRate, setUsdToEurRate] = useState(0.92);
   const [defiLoading, setDefiLoading] = useState<Record<string, boolean>>({});
@@ -942,6 +943,7 @@ export default function WalletsPage() {
         return;
       }
       setNftCounts((prev) => ({ ...prev, [key]: data.count ?? 0 }));
+      setNftPartial((prev) => ({ ...prev, [key]: !!(data as { partial?: boolean }).partial }));
       setNftsByKey((prev) => ({ ...prev, [key]: data.nfts ?? [] }));
       setNftErrors((prev) => ({ ...prev, [key]: null }));
     } catch (error) {
@@ -1048,6 +1050,7 @@ export default function WalletsPage() {
       const count = typeof data?.count === "number" ? data.count : 0;
       const nfts = Array.isArray(data?.nfts) ? data.nfts : [];
       setNftCounts((prev) => ({ ...prev, [key]: count }));
+      setNftPartial((prev) => ({ ...prev, [key]: !!(data as { partial?: boolean }).partial }));
       setNftErrors((prev) => ({ ...prev, [key]: null }));
       setNftsByKey((prev) => ({ ...prev, [key]: nfts }));
     } catch (error) {
@@ -3527,6 +3530,9 @@ export default function WalletsPage() {
                             : itemNftCount != null
                               ? `${itemNftCount} ${itemNftCount === 1 ? t("wc_item") : t("wc_items")}`
                               : "—"}
+                          {dk && nftPartial[dk] && !itemNftLoading && (
+                            <span title={t("wl_nft_partial_tip")} className="ml-1.5 cursor-help rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 text-[10px] text-amber-300">{t("wl_defi_partial")}</span>
+                          )}
                         </p>
                         {!hideBalances && itemNfts.length > 0 && (
                           <div className="mt-1 grid grid-cols-4 gap-1 max-w-[160px]">
@@ -4665,6 +4671,27 @@ export default function WalletsPage() {
                             {adaShown[addr] ? "🙈" : "👁️"}
                           </button>
                         </div>
+                        {/* A entrada Cardano não mostrava DeFi nem NFTs — só o saldo. */}
+                        {(() => {
+                          const k = defiKey(addr, "ada");
+                          const d = defiTotals[k] ?? null; const dl = !!defiLoading[k];
+                          const nc = nftCounts[k] ?? null; const nl = !!nftLoading[k]; const ne = nftErrors[k];
+                          return (
+                            <>
+                              <p className="text-slate-500">
+                                DeFi:{" "}
+                                {dl ? <span className="animate-pulse">{t("wl_loading")}</span>
+                                  : d != null ? <span className={d >= 0.01 ? "text-emerald-400 font-semibold" : "text-slate-400"}>{fmtCur(d * usdToEurRate)}</span>
+                                  : <span className="text-slate-600 text-[11px]">—</span>}
+                              </p>
+                              <p className="text-slate-500">
+                                NFT:{" "}
+                                {hideBalances ? "••••" : nl ? t("wl_loading") : ne ? <span className="text-rose-300" title={ne}>{t("wl_err_nft")}</span>
+                                  : nc != null ? `${nc} ${nc === 1 ? t("wc_item") : t("wc_items")}` : "—"}
+                              </p>
+                            </>
+                          );
+                        })()}
                       </div>
                       <div className="text-right">
                         {balanceDisplay != null && (

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { lerCarteiraCardano } from "@/lib/cardano/blockfrost";
 import { apiMsg } from "@/lib/api/apiMessages";
 import { requireUser } from "@/lib/api/requireUser";
 import { encodeAbiParameters, keccak256 } from "viem";
@@ -1372,15 +1373,15 @@ async function fetchCardanoDeFi(
   const projectId = process.env.BLOCKFROST_PROJECT_ID;
   if (!projectId) return { total: 0, positions: [] };
 
-  const acct = await blockfrostGet<{ amount?: BlockfrostAmount[] }>(
-    `/addresses/${encodeURIComponent(address)}/extended`,
-    projectId
-  );
-  if (!acct) return { total: 0, positions: [] };
+  // Conta inteira, nao so o endereco recebido (ver src/lib/cardano/blockfrost.ts).
+  let ativos: BlockfrostAmount[];
+  try {
+    ativos = (await lerCarteiraCardano(address, projectId)).ativos;
+  } catch {
+    return { total: 0, positions: [] };
+  }
 
-  const lpTokens = (acct.amount ?? []).filter(
-    (a) => a.unit !== "lovelace" && a.unit.slice(0, 56) in CARDANO_LP_POLICIES
-  );
+  const lpTokens = ativos.filter((a) => a.unit.slice(0, 56) in CARDANO_LP_POLICIES);
   if (lpTokens.length === 0) return { total: 0, positions: [] };
 
   const adaUsd = await fetchAdaUsd();

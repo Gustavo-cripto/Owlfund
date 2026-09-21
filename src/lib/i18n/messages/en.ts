@@ -1229,6 +1229,7 @@ export const en: Record<TranslationKey, string> = {
     wl_err_sync: "Could not save the wallets to the cloud. They stay in this browser and we will try again shortly.",
     wl_err_defi: "Error loading DeFi.",
     wl_defi_partial: "partial",
+    wl_nft_partial_tip: "Partial count: one of the networks did not answer. NFTs on that network may be missing.",
     wl_err_nft: "Error loading NFTs.",
     wl_err_prices: "Error getting prices.",
     wl_unauth_domain: "Unauthorized domain",
