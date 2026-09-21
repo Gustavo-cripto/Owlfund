@@ -26,6 +26,8 @@ type WalletCardProps = {
   defiBalanceUsd?: number | null;
   defiLoading?: boolean;
   defiError?: string | null;
+  /** O total só cobre os protocolos lidos na cadeia; outros podem faltar. */
+  defiPartial?: boolean;
   /** Esconde a linha "DeFi:" (ex.: BTC, que não tem DeFi de lending na L1). */
   hideDefi?: boolean;
   usdToEur?: number;
@@ -72,6 +74,7 @@ export default function WalletCard({
   defiBalanceUsd,
   defiLoading,
   defiError,
+  defiPartial,
   hideDefi,
   usdToEur = 0.92,
   onRefreshDefi,
@@ -167,10 +170,13 @@ export default function WalletCard({
                   {formatUsd(defiBalanceUsd)}
                 </span>
               : <span className="text-slate-600 text-[11px]">—</span>}
+          {defiPartial && !defiLoading && (
+            <span title={t("pcs_defi_partial")} className="cursor-help rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 text-[10px] text-amber-300">{t("wl_defi_partial")}</span>
+          )}
           {address && balanceUnit !== "BTC" && balanceUnit !== "ADA" && (
             <span className="inline-flex items-center gap-1.5">
               {balanceUnit === "SOL"
-                ? <a href={`https://app.meteora.ag/dlmm?wallet=${address}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-violet-400 hover:text-violet-300 underline underline-offset-2">Meteora ↗</a>
+                ? <a href="https://app.meteora.ag/portfolio" target="_blank" rel="noopener noreferrer" className="text-[10px] text-violet-400 hover:text-violet-300 underline underline-offset-2">Meteora ↗</a>
                 : <>
                     <a href={`https://app.uniswap.org/positions`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-pink-400 hover:text-pink-300 underline underline-offset-2">Uniswap ↗</a>
                     <a href={`https://defillama.com/portfolio#${address}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-violet-400 hover:text-violet-300 underline underline-offset-2">DeFiLlama ↗</a>

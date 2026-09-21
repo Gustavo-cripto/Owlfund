@@ -1228,6 +1228,7 @@ export const fr: Record<TranslationKey, string> = {
     wl_cex_hw_desc: "Connectez des exchanges (Kraken, Coinbase, OKX, Bybit, Crypto.com, Bitpanda…) et hardware wallets (Ledger, Trezor) avec le Forfait Pro.",
     wl_err_sync: "Impossible d'enregistrer les portefeuilles dans le cloud. Ils restent dans ce navigateur et nous réessaierons bientôt.",
     wl_err_defi: "Erreur lors du chargement DeFi.",
+    wl_defi_partial: "partiel",
     wl_err_nft: "Erreur lors du chargement des NFTs.",
     wl_err_prices: "Erreur lors de la récupération des prix.",
     wl_unauth_domain: "Domaine non autorisé",

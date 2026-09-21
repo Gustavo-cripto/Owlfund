@@ -72,6 +72,20 @@ export const CARDANO_LABELS: Record<CardanoWalletId, string> = {
   lace: "Lace",
 };
 
+// As carteiras Cardano (CIP-30) recusam com um OBJETO `{ code, info }`, não com
+// um Error. O tradutor de erros da página só lê `.message`, por isso recebia
+// vazio e mostrava o genérico "Erro ao ligar." — fosse a pessoa a recusar,
+// fosse o Eternl sem conta dApp. Converte-se aqui, à saída, para um Error com
+// a razão dentro: -3 é "a pessoa recusou" (texto que o tradutor já reconhece
+// como cancelamento); o resto leva o `info` da carteira tal como vem.
+export function cip30ParaErro(e: unknown, provider: string): Error {
+  if (e instanceof Error) return e;
+  const o = e && typeof e === "object" ? (e as { code?: unknown; info?: unknown }) : {};
+  const info = typeof o.info === "string" ? o.info.trim() : "";
+  if (o.code === -3) return Object.assign(new Error("User rejected the request"), { code: "user_rejected", provider });
+  return Object.assign(new Error(info || `${provider}: a extensão recusou o pedido.`), { code: "cip30", provider });
+}
+
 const connectCardanoWalletById = async (
   id: CardanoWalletId
 ): Promise<{ api: EternlApi; address: string }> => {
@@ -84,7 +98,12 @@ const connectCardanoWalletById = async (
   if (!wallet) {
     throw walletError("provider_missing", CARDANO_LABELS[id], `${CARDANO_LABELS[id]} não está disponível. Instala a extensão.`);
   }
-  const api = (await wallet.enable()) as EternlApi;
+  let api: EternlApi;
+  try {
+    api = (await wallet.enable()) as EternlApi;
+  } catch (e) {
+    throw cip30ParaErro(e, CARDANO_LABELS[id]);
+  }
   const changeAddressHex = await api.getChangeAddress?.().catch(() => "");
   const unused = await api.getUnusedAddresses?.().catch(() => []);
   const addressHex = changeAddressHex || (unused?.[0] ?? "");

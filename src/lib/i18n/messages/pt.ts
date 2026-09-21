@@ -1237,6 +1237,7 @@ export const pt = {
     wl_cex_hw_desc: "Liga exchanges (Kraken, Coinbase, OKX, Bybit, Crypto.com, Bitpanda…) e hardware wallets (Ledger, Trezor) com o Plano Pro.",
     wl_err_sync: "Não foi possível guardar as carteiras na nuvem. Ficam neste browser e tentamos outra vez daqui a pouco.",
     wl_err_defi: "Erro ao carregar DeFi.",
+    wl_defi_partial: "parcial",
     wl_err_nft: "Erro ao carregar NFTs.",
     wl_err_prices: "Erro ao obter preços.",
     wl_unauth_domain: "Domínio não autorizado",

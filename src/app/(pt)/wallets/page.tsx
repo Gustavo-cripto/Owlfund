@@ -490,6 +490,9 @@ export default function WalletsPage() {
   const [adaBalanceErrors, setAdaBalanceErrors] = useState<Record<string, string | null>>({});
   const [otherWallets, setOtherWallets] = useState<StoredWalletEntry[]>([]);
   const [defiTotals, setDefiTotals] = useState<Record<string, number | null>>({});
+  // Marca os totais que só cobrem os protocolos lidos na cadeia (a Moralis está
+  // parada): um €0 com esta marca quer dizer "não vimos nada no que conseguimos ler".
+  const [defiPartial, setDefiPartial] = useState<Record<string, boolean>>({});
   const [cexHlTotalUsd, setCexHlTotalUsd] = useState(0);
   const [usdToEurRate, setUsdToEurRate] = useState(0.92);
   const [defiLoading, setDefiLoading] = useState<Record<string, boolean>>({});
@@ -899,9 +902,16 @@ export default function WalletsPage() {
         ? `${base}/api/defi-balance?address=${encodeURIComponent(address)}&chain=eth`
         : `${base}/api/defi-balance?address=${encodeURIComponent(address)}&chain=eth&evmChain=${moralisChain}`;
       const response = await fetch(url);
-      const data = (await response.json()) as { total?: number; error?: string };
+      const data = (await response.json()) as { total?: number; error?: string; partial?: boolean };
+      // Um 503 com erro em JSON aparecia como "€ 0,00": lia-se o total e mais nada.
+      if (!response.ok || (data?.error && typeof data.total !== "number")) {
+        setDefiTotals((prev) => ({ ...prev, [key]: null }));
+        setDefiErrors((prev) => ({ ...prev, [key]: data?.error ?? t("wl_err_defi") }));
+        return;
+      }
       const total = typeof data?.total === "number" && Number.isFinite(data.total) ? data.total : 0;
       setDefiTotals((prev) => ({ ...prev, [key]: total }));
+      setDefiPartial((prev) => ({ ...prev, [key]: !!data?.partial }));
       setDefiErrors((prev) => ({ ...prev, [key]: null }));
     } catch (error) {
       setDefiErrors((prev) => ({ ...prev, [key]: userError(error, t("wl_err_defi")) }));
@@ -924,6 +934,13 @@ export default function WalletsPage() {
         : `${base}/api/nft-balance?address=${encodeURIComponent(address)}&chain=eth&evmChain=${moralisChain}`;
       const response = await fetch(url);
       const data = (await response.json()) as { count?: number; nfts?: Array<{ id: string; name: string; image?: string; tokenUri?: string; tokenAddress?: string; tokenId?: string }>; error?: string };
+      // Sem fornecedor ou fornecedor em baixo vem 503 com erro: aparecia "0 itens".
+      if (!response.ok || (data?.error && typeof data.count !== "number")) {
+        setNftCounts((prev) => ({ ...prev, [key]: 0 }));
+        setNftsByKey((prev) => ({ ...prev, [key]: [] }));
+        setNftErrors((prev) => ({ ...prev, [key]: data?.error ?? t("wl_err_nft") }));
+        return;
+      }
       setNftCounts((prev) => ({ ...prev, [key]: data.count ?? 0 }));
       setNftsByKey((prev) => ({ ...prev, [key]: data.nfts ?? [] }));
       setNftErrors((prev) => ({ ...prev, [key]: null }));
@@ -943,7 +960,7 @@ export default function WalletsPage() {
       const response = await fetch(
         `${base}/api/defi-balance?address=${encodeURIComponent(address)}&chain=${chain}`
       );
-      const data = (await response.json()) as { total?: number; error?: string };
+      const data = (await response.json()) as { total?: number; error?: string; partial?: boolean };
       if (!response.ok) {
         const msg = data?.error ?? t("wl_err_defi");
         setDefiTotals((prev) => ({ ...prev, [key]: null }));
@@ -952,6 +969,7 @@ export default function WalletsPage() {
       }
       const total = typeof data?.total === "number" && Number.isFinite(data.total) ? data.total : 0;
       setDefiTotals((prev) => ({ ...prev, [key]: total }));
+      setDefiPartial((prev) => ({ ...prev, [key]: !!data?.partial }));
       setDefiErrors((prev) => ({ ...prev, [key]: null }));
     } catch (error) {
       setDefiErrors((prev) => ({
@@ -3192,6 +3210,7 @@ export default function WalletsPage() {
             balanceUnit="ETH"
             fiatValueUsd={getFiatValue("ETH", ethActiveBalance)}
             defiBalanceUsd={ethMainAddress ? defiTotals[defiKey(ethMainAddress, "eth")] ?? null : null}
+            defiPartial={ethMainAddress ? !!defiPartial[defiKey(ethMainAddress, "eth")] : false}
             defiLoading={ethMainAddress ? !!defiLoading[defiKey(ethMainAddress, "eth")] : false}
             defiError={ethMainAddress ? defiErrors[defiKey(ethMainAddress, "eth")] ?? null : null}
             nftCount={ethMainAddress ? nftCounts[defiKey(ethMainAddress, "eth")] ?? null : null}
@@ -3428,6 +3447,7 @@ export default function WalletsPage() {
                   const dk = item.address ? defiKey(item.address, item.network ?? "Ethereum") : null;
                   const itemDefi = dk ? (defiTotals[dk] ?? null) : null;
                   const itemDefiLoading = dk ? !!defiLoading[dk] : false;
+                  const itemDefiPartial = dk ? !!defiPartial[dk] : false;
                   const itemNftCount = dk ? (nftCounts[dk] ?? null) : null;
                   const itemNftLoading = dk ? !!nftLoading[dk] : false;
                   const itemNfts = dk ? (nftsByKey[dk] ?? []) : [];
@@ -3482,6 +3502,9 @@ export default function WalletsPage() {
                                   {fmtCur(itemDefi * usdToEurRate)}
                                 </span>
                               : <span className="text-slate-600 text-[11px]">—</span>}
+                              {itemDefiPartial && !itemDefiLoading && (
+                                <span title={t("pcs_defi_partial")} className="cursor-help rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 text-[10px] text-amber-300">{t("wl_defi_partial")}</span>
+                              )}
                           {item.address && (
                             <span className="inline-flex items-center gap-1.5">
                               <a href={`https://app.uniswap.org/positions`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-pink-400 hover:text-pink-300 underline underline-offset-2">Uniswap ↗</a>
@@ -3603,6 +3626,7 @@ export default function WalletsPage() {
             balanceUnit="SOL"
             fiatValueUsd={getFiatValue("SOL", solWallets.length > 0 ? totalSolBalance : solBalance)}
             defiBalanceUsd={solMainAddress ? defiTotals[defiKey(solMainAddress, "sol")] ?? null : null}
+            defiPartial={solMainAddress ? !!defiPartial[defiKey(solMainAddress, "sol")] : false}
             defiLoading={solMainAddress ? !!defiLoading[defiKey(solMainAddress, "sol")] : false}
             defiError={solMainAddress ? defiErrors[defiKey(solMainAddress, "sol")] ?? null : null}
             nftCount={solMainAddress ? nftCounts[defiKey(solMainAddress, "sol")] ?? null : null}
@@ -3829,6 +3853,7 @@ export default function WalletsPage() {
                   const dk = addr ? defiKey(addr, "sol") : null;
                   const itemDefi = dk ? (defiTotals[dk] ?? null) : null;
                   const itemDefiLoading = dk ? !!defiLoading[dk] : false;
+                  const itemDefiPartial = dk ? !!defiPartial[dk] : false;
                   const itemNftCount = dk ? (nftCounts[dk] ?? null) : null;
                   const itemNftLoading = dk ? !!nftLoading[dk] : false;
                   const itemNfts = dk ? (nftsByKey[dk] ?? []) : [];
@@ -3875,9 +3900,12 @@ export default function WalletsPage() {
                                     {fmtCur(itemDefi * usdToEurRate)}
                                   </span>
                                 : <span className="text-slate-600 text-[11px]">—</span>}
+                                {itemDefiPartial && !itemDefiLoading && (
+                                  <span title={t("pcs_defi_partial")} className="cursor-help rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 text-[10px] text-amber-300">{t("wl_defi_partial")}</span>
+                                )}
                             {addr && (
                               <span className="inline-flex items-center gap-1.5">
-                                <a href={`https://app.meteora.ag/dlmm?wallet=${addr}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-violet-400 hover:text-violet-300 underline underline-offset-2">Meteora ↗</a>
+                                <a href="https://app.meteora.ag/portfolio" target="_blank" rel="noopener noreferrer" className="text-[10px] text-violet-400 hover:text-violet-300 underline underline-offset-2">Meteora ↗</a>
                                 <a href={`https://defillama.com/portfolio#${addr}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-violet-400 hover:text-violet-300 underline underline-offset-2">DeFiLlama ↗</a>
                                 <button
                                   type="button"
@@ -3978,6 +4006,7 @@ export default function WalletsPage() {
             fiatValueUsd={getFiatValue("BTC", btcWallets.length > 0 ? totalBtcBalance : (btcBalance ?? undefined))}
             hideDefi
             defiBalanceUsd={btcMainAddress ? defiTotals[defiKey(btcMainAddress, "btc")] ?? null : null}
+            defiPartial={btcMainAddress ? !!defiPartial[defiKey(btcMainAddress, "btc")] : false}
             defiLoading={btcMainAddress ? !!defiLoading[defiKey(btcMainAddress, "btc")] : false}
             defiError={btcMainAddress ? defiErrors[defiKey(btcMainAddress, "btc")] ?? null : null}
             nftCount={btcMainAddress ? nftCounts[defiKey(btcMainAddress, "btc")] ?? null : null}
@@ -4353,6 +4382,7 @@ export default function WalletsPage() {
             balanceUnit="ADA"
             fiatValueUsd={getFiatValue("ADA", adaWallets.length > 0 ? totalAdaBalance : adaBalance)}
             defiBalanceUsd={adaMainAddress ? defiTotals[defiKey(adaMainAddress, "ada")] ?? null : null}
+            defiPartial={adaMainAddress ? !!defiPartial[defiKey(adaMainAddress, "ada")] : false}
             defiLoading={adaMainAddress ? !!defiLoading[defiKey(adaMainAddress, "ada")] : false}
             defiError={adaMainAddress ? defiErrors[defiKey(adaMainAddress, "ada")] ?? null : null}
             nftCount={adaMainAddress ? nftCounts[defiKey(adaMainAddress, "ada")] ?? null : null}

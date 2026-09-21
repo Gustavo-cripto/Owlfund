@@ -1228,6 +1228,7 @@ export const es: Record<TranslationKey, string> = {
     wl_cex_hw_desc: "Conecta exchanges (Kraken, Coinbase, OKX, Bybit, Crypto.com, Bitpanda…) y hardware wallets (Ledger, Trezor) con el Plan Pro.",
     wl_err_sync: "No se pudieron guardar las carteras en la nube. Se quedan en este navegador y volveremos a intentarlo en breve.",
     wl_err_defi: "Error al cargar DeFi.",
+    wl_defi_partial: "parcial",
     wl_err_nft: "Error al cargar NFTs.",
     wl_err_prices: "Error al obtener precios.",
     wl_unauth_domain: "Dominio no autorizado",
