@@ -49,6 +49,7 @@ import {
   type RunesBalanceEntry,
 } from "@/lib/wallets/bitcoin";
 import {
+  CARDANO_LABELS,
   connectCardanoWallet,
   getAdaBalance,
   getAdaBalanceByAddress,
@@ -2194,9 +2195,13 @@ export default function WalletsPage() {
       msgTimer = setTimeout(() => {
         setAdaLoadingMsg(t("wl_ada_click_ext"));
       }, 3000);
-      // Timeout: if the wallet never responds (e.g. popup dismissed silently)
+      // Tempo esgotado: a carteira nunca responde (o pedido fica pendente atrás
+      // do ícone da extensão, que é o que acontece quase sempre com o Eternl).
+      // O erro leva um CÓDIGO: antes levava só a palavra "timeout", e o
+      // tradutor de erros tratava-a como ruído técnico — a mensagem com os
+      // passos a seguir, que está aqui em baixo, nunca chegava a aparecer.
       const timeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("timeout")), 60_000)
+        setTimeout(() => reject(Object.assign(new Error("timeout"), { code: "ada_timeout" })), 60_000)
       );
       const { api, address } = await Promise.race([
         connectCardanoWallet(selectedAdaProvider),
@@ -2217,10 +2222,12 @@ export default function WalletsPage() {
       updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: nextWallets });
     } catch (error) {
       clearTimeout(msgTimer);
+      if (error && typeof error === "object" && (error as { code?: unknown }).code === "ada_timeout") {
+        setAdaError(t("wl_ada_timeout").replace("{p}", CARDANO_LABELS[selectedAdaProvider]));
+        return;
+      }
       const msg = userError(error, t("wl_err_connect"), { rejected: t("wl_user_rejected"), codes: walletCodes });
-      if (msg === "timeout") {
-        setAdaError("O Eternl não respondeu em 60 segundos. Verifica: 1) Clica no ícone do Eternl na barra de extensões do Chrome → deverá aparecer um pedido pendente para aprovar. 2) Se não aparecer nada, abre o Eternl → Settings → dApp Connector → confirma que tens uma conta dApp ativa. 3) Em alternativa, adiciona o endereço manualmente abaixo.");
-      } else if (msg.toLowerCase().includes("user canceled") || msg.toLowerCase().includes("cancelled") || msg.toLowerCase().includes("cancel")) {
+      if (msg.toLowerCase().includes("user canceled") || msg.toLowerCase().includes("cancelled") || msg.toLowerCase().includes("cancel")) {
         setAdaError(t("wl_cancelled"));
       } else if (
         msg.toLowerCase().includes("no account set") ||

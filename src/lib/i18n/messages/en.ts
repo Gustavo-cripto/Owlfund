@@ -1417,6 +1417,7 @@ export const en: Record<TranslationKey, string> = {
     wl_ada_waiting: "Waiting for approval…",
     wl_ada_click_ext: "👉 Click the Eternl icon in the Chrome extensions bar (top right) → a connection request should appear for you to approve",
     wl_ada_no_dapp: "No dApp account set up in Eternl. Open Eternl → Settings → dApp Connector → create/enable an account. Or add the address manually below.",
+    wl_ada_timeout: "{p} did not answer within 60 seconds. It is almost always the approval request waiting behind the extension icon. Try this: 1) click the {p} icon in your browser toolbar and approve the pending request; 2) if nothing is there, open {p} → Settings → dApp Connector and check that a dApp account is active; 3) otherwise, type the address by hand in the field below — the balance is read the same way.",
     wl_ada_no_api: "Wallet connected but the API was not found.",
     wl_ada_no_address: "Could not get the wallet address.",
     wl_ada_peer_err: "Error connecting via peer connect.",

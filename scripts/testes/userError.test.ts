@@ -18,5 +18,13 @@ eq("codigo 4001 → texto proprio", userError(new Error("Request rejected (4001)
 const codes = { provider_missing: "{p} não está disponível.", no_account: "{p} não devolveu conta." };
 eq("code mapeado + {p}", userError(Object.assign(new Error("Phantom não está disponível. Instala…"), { code: "provider_missing", provider: "Phantom" }), F, { codes }), "Phantom não está disponível.");
 eq("code desconhecido → mensagem", userError(Object.assign(new Error("Carteira não encontrada."), { code: "not_found", provider: "" }), F, { codes }), "Carteira não encontrada.");
+// Regressao, 21 set 2026: a pagina das carteiras rejeitava com new Error("timeout")
+// e depois comparava o RESULTADO do userError com "timeout". Nunca batia, porque
+// "timeout" cai na lista de ruido tecnico — e a mensagem com os passos para
+// aprovar o pedido do Eternl nunca aparecia. Um erro com codigo nao se procura
+// pelo texto: procura-se pelo codigo, antes de o humanizar.
+eq("timeout e ruido tecnico (por isso o codigo e obrigatorio)", userError(new Error("timeout"), F), F);
+eq("timed out tambem", userError(new Error("Request timed out"), F), F);
+
 eq("sem mapa → mensagem", userError(Object.assign(new Error("MetaMask não está disponível."), { code: "provider_missing", provider: "MetaMask" }), F), "MetaMask não está disponível.");
 console.log(fails === 0 ? "\nTODOS OK" : `\n${fails} FALHA(S)`); process.exit(fails ? 1 : 0);

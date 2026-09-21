@@ -1426,6 +1426,7 @@ export const pt = {
     wl_ada_waiting: "A aguardar aprovação…",
     wl_ada_click_ext: "👉 Clica no ícone do Eternl na barra de extensões do Chrome (canto superior direito) → deverá aparecer um pedido de ligação para aprovar",
     wl_ada_no_dapp: "Sem conta dApp configurada no Eternl. Abre o Eternl → Settings → dApp Connector → cria/ativa uma conta. Ou adiciona o endereço manualmente abaixo.",
+    wl_ada_timeout: "A {p} não respondeu em 60 segundos. Quase sempre é o pedido à espera de aprovação, escondido atrás do ícone da extensão. Tenta assim: 1) clica no ícone da {p} na barra de extensões do browser e aprova o pedido pendente; 2) se não aparecer nada, abre a {p} → Settings → dApp Connector e confirma que tens uma conta dApp ativa; 3) em alternativa, escreve o endereço à mão no campo abaixo — o saldo é lido da mesma maneira.",
     wl_ada_no_api: "Carteira ligada mas a API não foi encontrada.",
     wl_ada_no_address: "Não foi possível obter o endereço da carteira.",
     wl_ada_peer_err: "Erro ao ligar via peer connect.",

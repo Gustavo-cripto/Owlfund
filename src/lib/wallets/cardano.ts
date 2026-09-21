@@ -64,20 +64,25 @@ export const connectEternl = async () => {
   return { api, address };
 };
 
+export const CARDANO_LABELS: Record<CardanoWalletId, string> = {
+  eternl: "Eternl",
+  daedalus: "Daedalus",
+  yoroi: "Yoroi",
+  adalite: "Ada Lite",
+  lace: "Lace",
+};
+
 const connectCardanoWalletById = async (
   id: CardanoWalletId
 ): Promise<{ api: EternlApi; address: string }> => {
   const key = getCardanoWalletKey(id);
-  const wallet = (window.cardano as Record<string, { enable: () => Promise<EternlApi> }>)[key];
+  // Sem extensão de Cardano nenhuma, `window.cardano` não existe — e ler uma
+  // chave dele rebentava com um TypeError em inglês, que a página descartava
+  // como ruído técnico e substituía por "Erro ao ligar.". Erro com código, para
+  // a página poder dizer o que se passa na língua de quem está a ler.
+  const wallet = (window.cardano as Record<string, { enable: () => Promise<EternlApi> }> | undefined)?.[key];
   if (!wallet) {
-    const labels: Record<CardanoWalletId, string> = {
-      eternl: "Eternl",
-      daedalus: "Daedalus",
-      yoroi: "Yoroi",
-      adalite: "Ada Lite",
-      lace: "Lace",
-    };
-    throw new Error(`${labels[id]} não está disponível. Instala a extensão.`);
+    throw walletError("provider_missing", CARDANO_LABELS[id], `${CARDANO_LABELS[id]} não está disponível. Instala a extensão.`);
   }
   const api = (await wallet.enable()) as EternlApi;
   const changeAddressHex = await api.getChangeAddress?.().catch(() => "");

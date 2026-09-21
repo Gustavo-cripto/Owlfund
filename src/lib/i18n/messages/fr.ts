@@ -1417,6 +1417,7 @@ export const fr: Record<TranslationKey, string> = {
     wl_ada_waiting: "En attente d'approbation…",
     wl_ada_click_ext: "👉 Cliquez sur l'icône Eternl dans la barre d'extensions de Chrome (en haut à droite) → une demande de connexion devrait apparaître",
     wl_ada_no_dapp: "Aucun compte dApp configuré dans Eternl. Ouvrez Eternl → Settings → dApp Connector → créez/activez un compte. Ou ajoutez l'adresse manuellement ci-dessous.",
+    wl_ada_timeout: "{p} n’a pas répondu en 60 secondes. C’est presque toujours la demande d’approbation qui attend derrière l’icône de l’extension. Essaie ceci : 1) clique sur l’icône {p} dans la barre du navigateur et approuve la demande en attente ; 2) si rien n’apparaît, ouvre {p} → Settings → dApp Connector et vérifie qu’un compte dApp est actif ; 3) sinon, saisis l’adresse à la main dans le champ ci-dessous — le solde est lu de la même façon.",
     wl_ada_no_api: "Portefeuille connecté mais l'API est introuvable.",
     wl_ada_no_address: "Impossible d'obtenir l'adresse du portefeuille.",
     wl_ada_peer_err: "Erreur lors de la connexion via peer connect.",
