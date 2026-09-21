@@ -1460,7 +1460,7 @@ export const en: Record<TranslationKey, string> = {
     cx_note_coinbase: "Coinbase: create a key in Developer Platform → API keys (View permission only). Paste the “name” into the key field and the “privateKey” (PEM) into the large field — the downloaded JSON file has both.",
     cx_warn_binance: "⚠️ Binance did not obtain a MiCA licence and is winding down services in the EU — consider a 🇪🇺 licensed exchange.",
     cx_note_coinex: "CoinEx: the “Access ID” field is what appears as the key on the API Keys page. The “Secret Key” is the signing key.",
-    cx_note_cryptocom: "Crypto.com: a new key comes with “Can Read” only by default — keep it that way. Do not set an IP whitelist: our servers have no fixed IP, and the key would stop working.",
+    cx_note_cryptocom: "Crypto.com: under “API key usage” choose “API transaction” — “External connection” is only for registered partners, and ChainFolioAI is not on that list. Permissions: “Can Read” only (the default). IP whitelist: leave it empty — our servers have no fixed IP, and the key would stop working.",
     cx_warn_readonly: "⚠️ Use read-only keys only. Never share keys with trade/withdrawal permission.",
     cx_connect: "Connect",
     cx_cancel: "Cancel",
