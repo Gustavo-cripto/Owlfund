@@ -59,12 +59,43 @@ function report(kind: string, message: string, stack?: string) {
   }
 }
 
+// Erro de quem ficou com um separador aberto por cima de um deploy: o build que
+// o browser tem já não existe no servidor, e os pedaços de código que faltam
+// deixam de ser servidos. Recarregar resolve, porque traz o build novo — e é
+// preciso fazê-lo por conta própria, senão a pessoa fica a clicar sem resposta.
+// Uma vez por separador, marcado na sessão, para nunca entrar em ciclo.
+const DEPLOY_VELHO = [
+  /Loading chunk [\w-]+ failed/i,
+  /ChunkLoadError/i,
+  /Failed to fetch dynamically imported module/i,
+  /error loading dynamically imported module/i,
+  /Importing a module script failed/i,
+];
+
+const MARCA = "cfa-recarregado-por-deploy";
+
+function recarregarSePreciso(message: string): void {
+  if (!DEPLOY_VELHO.some((r) => r.test(message))) return;
+  try {
+    if (sessionStorage.getItem(MARCA)) return;            // já tentámos neste separador
+    sessionStorage.setItem(MARCA, "1");
+  } catch {
+    return;                                               // sem sessionStorage não arriscamos o ciclo
+  }
+  window.location.reload();
+}
+
 export default function ErrorMonitor() {
   useEffect(() => {
-    const onError = (e: ErrorEvent) => report("error", e.message, e.error?.stack);
+    const onError = (e: ErrorEvent) => {
+      report("error", e.message, e.error?.stack);
+      recarregarSePreciso(e.message ?? "");
+    };
     const onRejection = (e: PromiseRejectionEvent) => {
       const r = e.reason as { message?: string; stack?: string } | undefined;
-      report("unhandledrejection", r?.message ?? String(e.reason), r?.stack);
+      const msg = r?.message ?? String(e.reason);
+      report("unhandledrejection", msg, r?.stack);
+      recarregarSePreciso(msg);
     };
     window.addEventListener("error", onError);
     window.addEventListener("unhandledrejection", onRejection);

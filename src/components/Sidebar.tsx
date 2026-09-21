@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+
+import { garantirNavegacao } from "@/lib/nav/recuperar";
 import { btnPrimary } from "@/lib/ui/buttons";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { comSupabase, getSupabase } from "@/lib/supabase/lazy";
@@ -279,7 +281,7 @@ export default function Sidebar() {
       {mobileOpen && (
         <nav id="sb-mobile-nav" className="animate-menu-in keep-dark xl:hidden bg-black border-b border-white/[0.06] px-3 py-3 grid grid-cols-2 gap-1">
           {navList.map((item) => (
-            <Link key={item.href} href={item.href} prefetch onClick={() => setMobileOpen(false)}
+            <Link key={item.href} href={item.href} prefetch onClick={() => { setMobileOpen(false); garantirNavegacao(item.href); }}
               aria-current={isActive(item.href) ? "page" : undefined}
               className={`press flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium ${
                 isActive(item.href) ? "bg-white/10 text-white" : "text-slate-400 hover:bg-white/5 hover:text-white"
@@ -379,6 +381,7 @@ export default function Sidebar() {
                   <Link
                     href={item.href}
                     prefetch
+                    onClick={() => garantirNavegacao(item.href)}
                     title={!expanded ? label : undefined}
                     aria-current={isActive(item.href) ? "page" : undefined}
                     className={`press flex items-center rounded-xl font-medium ${
