@@ -178,7 +178,7 @@ export default function VenueSection({ onTotalChange, usdToEur = 0.92 }: { onTot
                     <input type="text" value={l.asset} placeholder={t("vn_asset_ph")}
                       onChange={(e) => setLinhas((prev) => prev.map((x, j) => (j === i ? { ...x, asset: e.target.value.toUpperCase() } : x)))}
                       className="w-32 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs uppercase text-slate-200 placeholder-slate-600 focus:outline-none focus:border-orange-400/60" />
-                    <input type="text" inputMode="decimal" value={l.qty} placeholder={t("vn_qty_ph")}
+                    <input type="text" inputMode="decimal" value={l.qty} placeholder={l.asset.trim() ? t("vn_qty_ph_asset").replace("{a}", l.asset.trim().toUpperCase()) : t("vn_qty_ph")}
                       onChange={(e) => setLinhas((prev) => prev.map((x, j) => (j === i ? { ...x, qty: e.target.value } : x)))}
                       className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-orange-400/60" />
                     {linhas.length > 1 && (
