@@ -31,6 +31,11 @@ export const VENUES: ReadonlyArray<{ id: string; label: string; api: boolean; cs
   { id: "etoro", label: "eToro", api: false },
   // A app Nexo nao tem API; a Nexo Pro tem — como na Crypto.com, app e exchange sao carteiras separadas.
   { id: "nexo", label: "Nexo (app)", api: false },
+  { id: "bitvavo", label: "Bitvavo", api: true },
+  { id: "bitstamp", label: "Bitstamp", api: true },
+  { id: "bit2me", label: "Bit2Me", api: true },
+  { id: "revolutx", label: "Revolut X", api: true },
+  { id: "nexopro", label: "Nexo Pro", api: true },
   { id: "kraken", label: "Kraken", api: true },
   { id: "coinbase", label: "Coinbase", api: true },
   { id: "okx", label: "OKX", api: true },

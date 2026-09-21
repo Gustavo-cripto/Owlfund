@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { assinarBit2Me, assinarBitstamp, assinarBitvavo, assinarNexoPro, assinarRevolutX, stringBitstamp } from "@/lib/cex/assinaturas";
 import { getPlanOrNull, planUnavailableResponse, requiresPlanResponse } from "@/lib/api/entitlement";
 import { requireUser } from "@/lib/api/requireUser";
 import crypto from "crypto";
@@ -226,6 +227,102 @@ async function fetchCryptoCom(apiKey: string, apiSecret: string): Promise<CexBal
   return [...porAtivo.entries()].map(([asset, total]) => ({ asset, free: total, locked: 0, total }));
 }
 
+// ── Bitvavo (MiCA · Países Baixos) ─────────────────────────────────────────
+async function fetchBitvavo(apiKey: string, apiSecret: string): Promise<CexBalance[]> {
+  const ts = Date.now();
+  const res = await fetch("https://api.bitvavo.com/v2/balance", {
+    headers: {
+      "Bitvavo-Access-Key": apiKey.trim(),
+      "Bitvavo-Access-Timestamp": String(ts),
+      "Bitvavo-Access-Signature": assinarBitvavo(apiSecret.trim(), ts, "GET", "/v2/balance"),
+      "Bitvavo-Access-Window": "10000",
+      Accept: "application/json",
+    },
+    cache: "no-store",
+  });
+  const data = (await res.json().catch(() => null)) as Array<{ symbol: string; available: string; inOrder: string }> | { errorCode?: number; error?: string } | null;
+  if (!res.ok || !Array.isArray(data)) throw new Error(`Bitvavo: ${(data as { error?: string })?.error ?? res.status}`);
+  return data
+    .map((b) => { const free = parseFloat(b.available || "0"); const locked = parseFloat(b.inOrder || "0"); return { asset: b.symbol, free, locked, total: free + locked }; })
+    .filter((b) => b.total > 0);
+}
+
+// ── Bitstamp (MiCA · Luxemburgo) ───────────────────────────────────────────
+async function fetchBitstamp(apiKey: string, apiSecret: string): Promise<CexBalance[]> {
+  const caminho = "/api/v2/account_balances/";
+  const nonce = crypto.randomUUID();
+  const ts = Date.now();
+  const sig = assinarBitstamp(apiSecret.trim(), stringBitstamp(apiKey.trim(), "POST", caminho, nonce, ts));
+  const res = await fetch(`https://www.bitstamp.net${caminho}`, {
+    method: "POST",
+    headers: { "X-Auth": `BITSTAMP ${apiKey.trim()}`, "X-Auth-Signature": sig, "X-Auth-Nonce": nonce, "X-Auth-Timestamp": String(ts), "X-Auth-Version": "v2" },
+    cache: "no-store",
+  });
+  const data = (await res.json().catch(() => null)) as Array<{ currency: string; total: string; available: string; reserved: string }> | { reason?: unknown; code?: string } | null;
+  if (!res.ok || !Array.isArray(data)) throw new Error(`Bitstamp: ${JSON.stringify((data as { reason?: unknown })?.reason ?? res.status).slice(0, 120)}`);
+  return data
+    .map((b) => ({ asset: b.currency.toUpperCase(), free: parseFloat(b.available || "0"), locked: parseFloat(b.reserved || "0"), total: parseFloat(b.total || "0") }))
+    .filter((b) => b.total > 0);
+}
+
+// ── Bit2Me (MiCA · Espanha) ────────────────────────────────────────────────
+async function fetchBit2Me(apiKey: string, apiSecret: string): Promise<CexBalance[]> {
+  const caminho = "/v1/trading/wallet/balance";
+  const nonce = Date.now();
+  const res = await fetch(`https://gateway.bit2me.com${caminho}`, {
+    headers: { "x-api-key": apiKey.trim(), "api-signature": assinarBit2Me(apiSecret.trim(), nonce, caminho), "x-nonce": String(nonce), "Content-type": "application/json" },
+    cache: "no-store",
+  });
+  const data = (await res.json().catch(() => null)) as unknown;
+  if (!res.ok) throw new Error(`Bit2Me: ${(data as { message?: string })?.message ?? res.status}`);
+  // A forma exata das linhas não está nos exemplos públicos: aceitam-se os nomes habituais.
+  const linhas = Array.isArray(data) ? data : Array.isArray((data as { data?: unknown })?.data) ? (data as { data: unknown[] }).data : [];
+  return (linhas as Array<Record<string, unknown>>)
+    .map((b) => {
+      const asset = String(b.symbol ?? b.currency ?? b.asset ?? "").toUpperCase();
+      const free = parseFloat(String(b.available ?? b.balance ?? b.free ?? "0"));
+      const locked = parseFloat(String(b.blockedBalance ?? b.blocked ?? b.locked ?? b.inOrder ?? "0"));
+      const totalDireto = b.total != null ? parseFloat(String(b.total)) : NaN;
+      return { asset, free, locked, total: Number.isFinite(totalDireto) ? totalDireto : free + locked };
+    })
+    .filter((b) => b.asset && b.total > 0);
+}
+
+// ── Revolut X (a exchange da Revolut) ──────────────────────────────────────
+// O "secret" é a chave privada Ed25519 gerada ao criar a chave de API.
+async function fetchRevolutX(apiKey: string, chavePrivada: string): Promise<CexBalance[]> {
+  const caminho = "/api/1.0/balances";
+  const ts = Date.now();
+  const res = await fetch(`https://revx.revolut.com${caminho}`, {
+    headers: { "X-Revx-API-Key": apiKey.trim(), "X-Revx-Timestamp": String(ts), "X-Revx-Signature": assinarRevolutX(chavePrivada, ts, "GET", caminho), Accept: "application/json" },
+    cache: "no-store",
+  });
+  const data = (await res.json().catch(() => null)) as unknown;
+  if (!res.ok) throw new Error(`Revolut X: ${(data as { message?: string })?.message ?? res.status}`);
+  const linhas = Array.isArray(data) ? data : data && typeof data === "object" ? Object.entries(data as Record<string, Record<string, unknown>>).map(([k, v]) => ({ currency: k, ...v })) : [];
+  return (linhas as Array<Record<string, unknown>>)
+    .map((b) => {
+      const asset = String(b.currency ?? b.symbol ?? b.asset ?? "").toUpperCase();
+      const free = parseFloat(String(b.available ?? "0")); const reserved = parseFloat(String(b.reserved ?? "0")); const staked = parseFloat(String(b.staked ?? "0"));
+      return { asset, free, locked: reserved + staked, total: free + reserved + staked };
+    })
+    .filter((b) => b.asset && b.total > 0);
+}
+
+// ── Nexo Pro (a exchange da Nexo) ──────────────────────────────────────────
+async function fetchNexoPro(apiKey: string, apiSecret: string): Promise<CexBalance[]> {
+  const nonce = Date.now();
+  const res = await fetch("https://pro-api.nexo.io/api/v1/accountSummary", {
+    headers: { "X-API-KEY": apiKey.trim(), "X-NONCE": String(nonce), "X-SIGNATURE": assinarNexoPro(apiSecret.trim(), nonce), Accept: "application/json" },
+    cache: "no-store",
+  });
+  const data = (await res.json().catch(() => null)) as { balances?: Array<{ assetName: string; totalBalance: number; availableBalance: number; lockedBalance: number }>; errorMessage?: string } | null;
+  if (!res.ok || !data?.balances) throw new Error(`Nexo Pro: ${data?.errorMessage ?? res.status}`);
+  return data.balances
+    .map((b) => ({ asset: String(b.assetName).toUpperCase(), free: Number(b.availableBalance ?? 0), locked: Number(b.lockedBalance ?? 0), total: Number(b.totalBalance ?? 0) }))
+    .filter((b) => b.total > 0);
+}
+
 // ── Bitpanda (MiCA · Áustria) — só precisa da API key ──────────────────────
 
 async function fetchBitpanda(apiKey: string): Promise<CexBalance[]> {
@@ -332,6 +429,11 @@ export async function POST(request: Request) {
     else if (exchange === "cryptocom") balances = await fetchCryptoCom(apiKey, apiSecret!);
     else if (exchange === "bitpanda") balances = await fetchBitpanda(apiKey);
     else if (exchange === "coinbase") balances = await fetchCoinbase(apiKey, apiSecret!);
+    else if (exchange === "bitvavo") balances = await fetchBitvavo(apiKey, apiSecret!);
+    else if (exchange === "bitstamp") balances = await fetchBitstamp(apiKey, apiSecret!);
+    else if (exchange === "bit2me") balances = await fetchBit2Me(apiKey, apiSecret!);
+    else if (exchange === "revolutx") balances = await fetchRevolutX(apiKey, apiSecret!);
+    else if (exchange === "nexopro") balances = await fetchNexoPro(apiKey, apiSecret!);
     else return NextResponse.json({ error: "Unknown exchange" }, { status: 400 });
 
     return NextResponse.json({ exchange, balances } satisfies CexBalanceResponse);

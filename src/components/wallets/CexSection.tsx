@@ -19,9 +19,11 @@ interface CexBalance {
   total: number;
 }
 
+type CexId = "binance" | "kraken" | "coinex" | "okx" | "bybit" | "cryptocom" | "bitpanda" | "coinbase" | "bitvavo" | "bitstamp" | "bit2me" | "revolutx" | "nexopro";
+
 interface CexAccount {
   id: string;
-  exchange: "binance" | "kraken" | "coinex" | "okx" | "bybit" | "cryptocom" | "bitpanda" | "coinbase";
+  exchange: CexId;
   label: string;
   apiKey: string;
   apiSecret: string;
@@ -55,9 +57,17 @@ const EXCHANGES = [
   { id: "bybit", label: "Bybit", mica: true },
   { id: "cryptocom", label: "Crypto.com", mica: true },
   { id: "bitpanda", label: "Bitpanda", mica: true },
+  { id: "bitvavo", label: "Bitvavo", mica: true },
+  { id: "bitstamp", label: "Bitstamp", mica: true },
+  { id: "bit2me", label: "Bit2Me", mica: true },
+  { id: "revolutx", label: "Revolut X", mica: true },
+  { id: "nexopro", label: "Nexo Pro", mica: false },
   { id: "binance", label: "Binance", mica: false },
   { id: "coinex", label: "CoinEx", mica: false },
 ] as const;
+
+// Ligadas conforme a documentacao oficial, ainda sem uma conta real a confirmar.
+const POR_CONFIRMAR = new Set<string>(["bitvavo", "bitstamp", "bit2me", "revolutx", "nexopro"]);
 
 function fmt(n: number, locale: string) {
   if (n === 0) return "0";
@@ -70,7 +80,7 @@ function fmt(n: number, locale: string) {
 const CEX_STORAGE_KEY = "cex-accounts-v1";
 const HL_STORAGE_KEY = "hl-accounts-v1";
 
-type StoredCex = { id: string; exchange: "binance" | "kraken" | "coinex" | "okx" | "bybit" | "cryptocom" | "bitpanda" | "coinbase"; label: string; apiKey: string; apiSecret: string; apiPassphrase?: string };
+type StoredCex = { id: string; exchange: CexId; label: string; apiKey: string; apiSecret: string; apiPassphrase?: string };
 type StoredHl = { address: string };
 
 function loadStored<T>(key: string): T[] {
@@ -120,7 +130,7 @@ export default function CexSection({
 
   // CEX add form
   const [showAddCex, setShowAddCex] = useState(false);
-  const [newExchange, setNewExchange] = useState<"binance" | "kraken" | "coinex" | "okx" | "bybit" | "cryptocom" | "bitpanda" | "coinbase">("kraken");
+  const [newExchange, setNewExchange] = useState<CexId>("kraken");
   const [newPassphrase, setNewPassphrase] = useState("");
   const [newLabel, setNewLabel] = useState("");
   const [newKey, setNewKey] = useState("");
@@ -306,7 +316,7 @@ export default function CexSection({
         <div className="flex items-center justify-between">
           <div>
             <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{t("cx_cex")} <PlanBadge plan="pro" size="xs" /></p>
-            <p className="text-sm text-slate-300 mt-0.5">Kraken · Coinbase · OKX · Bybit · Crypto.com · Bitpanda · Binance · CoinEx — {t("cx_subtitle_cex")}</p>
+            <p className="text-sm text-slate-300 mt-0.5">Kraken · Coinbase · OKX · Bybit · Crypto.com · Bitpanda · Bitvavo · Bitstamp · Bit2Me · Revolut X · Nexo Pro · Binance · CoinEx — {t("cx_subtitle_cex")}</p>
           </div>
           <button
             type="button"
@@ -349,10 +359,10 @@ export default function CexSection({
               onChange={(e) => setNewKey(e.target.value)}
               className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-orange-500 font-mono"
             />
-            {newExchange === "coinbase" ? (
+            {newExchange === "coinbase" || newExchange === "revolutx" ? (
               <textarea
                 rows={4}
-                placeholder={"-----BEGIN EC PRIVATE KEY-----\n…\n-----END EC PRIVATE KEY-----"}
+                placeholder={newExchange === "revolutx" ? t("cx_ph_ed25519") : "-----BEGIN EC PRIVATE KEY-----\n…\n-----END EC PRIVATE KEY-----"}
                 value={newSecret}
                 onChange={(e) => setNewSecret(e.target.value)}
                 spellCheck={false}
@@ -361,7 +371,7 @@ export default function CexSection({
             ) : newExchange !== "bitpanda" && (
               <input
                 type="password"
-                placeholder={newExchange === "coinex" ? t("cx_ph_secretkey") : t("cx_ph_apisecret")}
+                placeholder={newExchange === "coinex" ? t("cx_ph_secretkey") : newExchange === "revolutx" ? t("cx_ph_ed25519") : t("cx_ph_apisecret")}
                 value={newSecret}
                 onChange={(e) => setNewSecret(e.target.value)}
                 className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-orange-500 font-mono"
@@ -391,13 +401,19 @@ export default function CexSection({
             {newExchange === "cryptocom" && (
               <p className="text-[10px] text-sky-300">{t("cx_note_cryptocom")}</p>
             )}
+            {newExchange === "revolutx" && (
+              <p className="text-[10px] text-sky-300">{t("cx_note_revolutx")}</p>
+            )}
+            {POR_CONFIRMAR.has(newExchange) && (
+              <p className="text-[10px] text-amber-300">{t("cx_unverified")}</p>
+            )}
             <details className="rounded-lg border border-sky-500/20 bg-sky-500/[0.05] px-3 py-2">
               <summary className="cursor-pointer text-[11px] font-semibold text-sky-300">🔑 {t("cx_guide_title")}</summary>
               <ol className="mt-2 space-y-1 text-[11px] leading-relaxed text-slate-300">
                 <li>1. {t("cx_guide_s1")}{" "}
                   <a target="_blank" rel="noopener noreferrer" className="text-sky-300 underline"
-                    href={({ binance: "https://www.binance.com/en/my/settings/api-management", kraken: "https://pro.kraken.com/app/settings/api", coinex: "https://www.coinex.com/apikey", okx: "https://www.okx.com/account/my-api", bybit: "https://www.bybit.com/app/user/api-management", cryptocom: "https://crypto.com/exchange", bitpanda: "https://web.bitpanda.com/apikey", coinbase: "https://portal.cdp.coinbase.com/projects/api-keys" } as Record<string, string>)[newExchange]}>
-                    {({ binance: "Binance → API Management", kraken: "Kraken → Settings → API", coinex: "CoinEx → API Keys", okx: "OKX → API keys", bybit: "Bybit → API Management", cryptocom: "Crypto.com Exchange → User Center → API", bitpanda: "Bitpanda → API Key", coinbase: "Coinbase Developer Platform → API keys" } as Record<string, string>)[newExchange]}
+                    href={({ binance: "https://www.binance.com/en/my/settings/api-management", kraken: "https://pro.kraken.com/app/settings/api", coinex: "https://www.coinex.com/apikey", okx: "https://www.okx.com/account/my-api", bybit: "https://www.bybit.com/app/user/api-management", cryptocom: "https://crypto.com/exchange", bitpanda: "https://web.bitpanda.com/apikey", coinbase: "https://portal.cdp.coinbase.com/projects/api-keys", bitvavo: "https://account.bitvavo.com/user/api", bitstamp: "https://www.bitstamp.net/account/security/api/", bit2me: "https://account.bit2me.com/api-keys", revolutx: "https://revx.revolut.com/", nexopro: "https://pro.nexo.io/api-management" } as Record<string, string>)[newExchange]}>
+                    {({ binance: "Binance → API Management", kraken: "Kraken → Settings → API", coinex: "CoinEx → API Keys", okx: "OKX → API keys", bybit: "Bybit → API Management", cryptocom: "Crypto.com Exchange → User Center → API", bitpanda: "Bitpanda → API Key", coinbase: "Coinbase Developer Platform → API keys", bitvavo: "Bitvavo → API", bitstamp: "Bitstamp → Settings → API access", bit2me: "Bit2Me → API keys", revolutx: "Revolut X → Settings → API", nexopro: "Nexo Pro → API Management" } as Record<string, string>)[newExchange]}
                   </a>
                 </li>
                 <li>2. {t("cx_guide_s2")}</li>
