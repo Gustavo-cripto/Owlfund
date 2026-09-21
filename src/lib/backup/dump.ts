@@ -9,6 +9,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // backups". Não há cópias diárias nem recuperação para um momento anterior.
 //
 // O que se perde sem isto, por ordem de gravidade:
+//   0. `auth.users` — as contas em si: o email e o identificador. Sem elas,
+//      tudo o resto fica órfão, porque cada linha aponta para um `user_id` que
+//      já não existiria. Não é uma tabela pública, por isso vai por outro
+//      caminho (ver `lerContas`), e a palavra-passe não vem — não dá.
 //   1. `wallet_config` — é onde vive o HISTÓRICO DE TRANSAÇÕES de cada pessoa,
 //      que é o que alimenta o relatório fiscal. É a única coisa no produto que
 //      o utilizador não consegue voltar a obter de lado nenhum.
@@ -27,7 +31,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const BUCKET = "backups";
 
-/** Tabelas copiadas, por ordem de importância. */
+/** Tabelas públicas copiadas, por ordem de importância. As contas vão à parte. */
 export const TABELAS = [
   "wallet_config",
   "portfolio_snapshots",
@@ -63,6 +67,46 @@ async function lerTudo(admin: SupabaseClient, tabela: string): Promise<unknown[]
     if (data.length < PAGINA) break;
   }
   return linhas;
+}
+
+/**
+ * As contas em si vivem em `auth.users`, que NÃO é uma tabela do esquema
+ * público: o PostgREST não a serve, por isso o ciclo das TABELAS nunca lhe
+ * chega. Sem isto, a cópia guardava o histórico de transações de pessoas que
+ * já não existiriam — linhas com um `user_id` que não aponta para ninguém.
+ *
+ * O que dá para guardar, e o que não dá:
+ *   ✅ o email e o identificador. É o par que interessa: com ele as contas
+ *      recriam-se e cada `user_id` volta a apontar para a pessoa certa.
+ *   ❌ a palavra-passe. A API de administração nunca devolve o resumo
+ *      criptográfico, e é bom que não devolva. Numa recuperação, as pessoas
+ *      passam pelo "esqueci-me da palavra-passe" uma vez.
+ */
+async function lerContas(admin: SupabaseClient): Promise<unknown[]> {
+  const PAGINA = 200;
+  const contas: unknown[] = [];
+  for (let pagina = 1; pagina <= 500; pagina += 1) {
+    const { data, error } = await admin.auth.admin.listUsers({ page: pagina, perPage: PAGINA });
+    if (error) throw new Error(`auth.users: ${error.message}`);
+    const lote = data?.users ?? [];
+    if (lote.length === 0) break;
+    for (const u of lote) {
+      contas.push({
+        id: u.id,
+        email: u.email ?? null,
+        phone: u.phone ?? null,
+        created_at: u.created_at,
+        last_sign_in_at: u.last_sign_in_at ?? null,
+        email_confirmed_at: u.email_confirmed_at ?? null,
+        // Por onde entrou (email, github, google...). Sem isto não se sabe se
+        // a conta se recria com palavra-passe ou com um fornecedor externo.
+        providers: u.app_metadata?.providers ?? (u.app_metadata?.provider ? [u.app_metadata.provider] : []),
+        user_metadata: u.user_metadata ?? {},
+      });
+    }
+    if (lote.length < PAGINA) break;
+  }
+  return contas;
 }
 
 export type Resultado = {
@@ -105,6 +149,16 @@ export async function correrCopia(admin: SupabaseClient, hoje: string): Promise<
       falhas.push(t);
       console.error("[backup]", e instanceof Error ? e.message : e);
     }
+  }
+
+  // As contas não são uma tabela pública: vão por outro caminho.
+  try {
+    const contas = await lerContas(admin);
+    conteudo["auth.users"] = contas;
+    contagens["auth.users"] = contas.length;
+  } catch (e) {
+    falhas.push("auth.users");
+    console.error("[backup]", e instanceof Error ? e.message : e);
   }
 
   // Comparar com a cópia anterior ANTES de gravar a nova.

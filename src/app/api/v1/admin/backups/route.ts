@@ -1,18 +1,21 @@
 import { NextResponse } from "next/server";
 
 import { verifyAdminAuth } from "@/lib/api/admin-auth";
-import { BUCKET } from "@/lib/backup/dump";
+import { BUCKET, correrCopia, enviarPorEmail, espelhar } from "@/lib/backup/dump";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// O POST corre a cópia inteira; o valor por omissão cortava a meio.
+export const maxDuration = 60;
 
 // Lista as cópias de segurança e devolve um endereço temporário para
 // descarregar uma. Existe porque uma cópia que não se consegue tirar de lá não
 // é uma cópia — é uma esperança.
 //
-//   listar:      GET /api/v1/admin/backups
-//   descarregar: GET /api/v1/admin/backups?file=2026-09-21.json.gz
+//   listar:      GET  /api/v1/admin/backups
+//   descarregar: GET  /api/v1/admin/backups?file=2026-09-21.json.gz
+//   correr agora: POST /api/v1/admin/backups
 //
 // Protegido pelo ADMIN_STATS_TOKEN (falha fechado sem ele). O endereço de
 // descarga dura uma hora e é assinado: o balde continua privado.
@@ -61,4 +64,52 @@ export async function GET(request: Request) {
     hint: "Para descarregar: ?file=<nome>. O endereço devolvido dura 1 hora.",
     aviso: "As cópias vivem no mesmo projeto Supabase. Protegem contra erros e apagamentos, não contra perder o projeto.",
   });
+}
+
+// Correr a cópia agora, sem esperar pelas 2 da manhã. Serve para duas coisas
+// concretas: tirar uma cópia ANTES de mexer no esquema da base de dados, e
+// confirmar que os destinos de fora respondem depois de se mudar uma
+// configuração — um "sem-configuracao" devolvido aqui é uma resposta, não uma
+// avaria.
+//
+// Escreve no mesmo sítio e com o mesmo nome do dia, por isso correr duas vezes
+// no mesmo dia substitui a cópia desse dia em vez de acumular.
+export async function POST(request: Request) {
+  if (!verifyAdminAuth(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  let admin: ReturnType<typeof getSupabaseAdmin>;
+  try {
+    admin = getSupabaseAdmin();
+  } catch {
+    return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
+  }
+
+  try { await admin.storage.createBucket(BUCKET, { public: false }); } catch { /* já existe */ }
+
+  const hoje = new Date().toISOString().slice(0, 10);
+  try {
+    const r = await correrCopia(admin, hoje);
+    const [espelho, email] = await Promise.all([
+      espelhar(r.ficheiro, r.gz),
+      enviarPorEmail(r.ficheiro, r.gz, {
+        linhas: Object.values(r.contagens).reduce((s, n) => s + n, 0),
+        contagens: r.contagens,
+        ausentes: r.ausentes,
+      }),
+    ]);
+    return NextResponse.json({
+      ok: true,
+      file: r.ficheiro,
+      kb: Math.round(r.bytes / 1024),
+      linhas: Object.values(r.contagens).reduce((s, n) => s + n, 0),
+      contagens: r.contagens,
+      ausentes: r.ausentes,
+      falhas: r.falhas,
+      encolheram: r.encolheram,
+      destinos: { balde: "feito", espelho, email },
+    });
+  } catch (e) {
+    console.error("[backups:post]", e instanceof Error ? e.message : e);
+    return NextResponse.json({ ok: false, error: "backup_failed" }, { status: 500 });
+  }
 }

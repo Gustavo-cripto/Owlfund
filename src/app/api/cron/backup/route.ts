@@ -7,7 +7,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// Ler doze tabelas e comprimir leva tempo; o valor por omissão cortava a meio.
+// Ler doze tabelas mais as contas e comprimir leva tempo; o valor por omissão cortava a meio.
 export const maxDuration = 60;
 
 // Cópia de segurança diária. Existe porque o plano gratuito do Supabase não
