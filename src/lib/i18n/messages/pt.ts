@@ -1470,6 +1470,7 @@ export const pt = {
     cx_warn_binance: "⚠️ A Binance não obteve licença MiCA e está a encerrar serviços na UE — considera uma exchange licenciada 🇪🇺.",
     cx_note_coinex: "CoinEx: o campo “Access ID” é o que aparece como chave na página de API Keys. O “Secret Key” é a chave de assinatura.",
     cx_note_cryptocom: "Crypto.com: em «API key usage» escolhe «API transaction» — a opção «External connection» é só para parceiros registados, e o ChainFolioAI não está nessa lista. Permissões: só «Can Read» (é o que vem por omissão). Lista de IPs: deixa vazia — os nossos servidores não têm IP fixo, e com a lista a chave deixava de funcionar.",
+    cx_empty_cryptocom: "A chave respondeu, mas a conta da Exchange está vazia. Atenção: a app Crypto.com (a do telemóvel) e a Crypto.com Exchange são carteiras separadas — a API só vê a Exchange. Se os teus fundos estão na app, transfere-os para a Exchange (na app: Contas → Transferir → para a Exchange, sem custo) ou o saldo ficará a zero aqui.",
     cx_warn_readonly: "⚠️ Usa apenas chaves read-only. Nunca partilhes chaves com permissão de trade/withdrawal.",
     cx_connect: "Ligar",
     cx_cancel: "Cancelar",

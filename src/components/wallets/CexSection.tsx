@@ -459,6 +459,15 @@ export default function CexSection({
                 <ErrorNote>{acc.error}</ErrorNote>
               ) : (
                 <>
+                  {acc.balances.length === 0 && (
+                    <div className="space-y-1">
+                      {/* Antes uma lista vazia nao mostrava nada: nem saldo, nem aviso. */}
+                      <p className="text-xs text-slate-500">{t("cx_no_balances")}</p>
+                      {acc.exchange === "cryptocom" && (
+                        <p className="text-[11px] text-sky-300/90">{t("cx_empty_cryptocom")}</p>
+                      )}
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {acc.balances.map((b) => {
                       const priceUsd = tokenPricesUsd[b.asset];

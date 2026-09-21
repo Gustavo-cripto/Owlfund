@@ -214,10 +214,16 @@ async function fetchCryptoCom(apiKey: string, apiSecret: string): Promise<CexBal
   if (!res.ok) throw new Error(`Crypto.com: ${res.status}`);
   const data = await res.json() as { code: number; message?: string; result?: { data?: { position_balances?: { instrument_name: string; quantity: string }[] }[] } };
   if (data.code !== 0) throw new Error(`Crypto.com: ${data.message ?? data.code}`);
-  const positions = data.result?.data?.[0]?.position_balances ?? [];
-  return positions
-    .map((b) => ({ asset: b.instrument_name, free: parseFloat(b.quantity || "0"), locked: 0, total: parseFloat(b.quantity || "0") }))
-    .filter((b) => b.total > 0);
+  // `data` traz uma entrada por conta (principal e subcontas). Somar todas: so a
+  // primeira deixava de fora o que estivesse numa subconta.
+  const porAtivo = new Map<string, number>();
+  for (const conta of data.result?.data ?? []) {
+    for (const b of conta.position_balances ?? []) {
+      const q = parseFloat(b.quantity || "0");
+      if (q > 0) porAtivo.set(b.instrument_name, (porAtivo.get(b.instrument_name) ?? 0) + q);
+    }
+  }
+  return [...porAtivo.entries()].map(([asset, total]) => ({ asset, free: total, locked: 0, total }));
 }
 
 // ── Bitpanda (MiCA · Áustria) — só precisa da API key ──────────────────────
