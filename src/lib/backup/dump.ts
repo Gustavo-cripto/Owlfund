@@ -67,6 +67,8 @@ async function lerTudo(admin: SupabaseClient, tabela: string): Promise<unknown[]
 
 export type Resultado = {
   ficheiro: string;
+  /** O ficheiro comprimido, para quem chama o enviar por email ou espelhar. */
+  gz: Buffer;
   bytes: number;
   contagens: Record<string, number>;
   /** Leituras que falharam a sério. Motivo para avisar. */
@@ -126,7 +128,7 @@ export async function correrCopia(admin: SupabaseClient, hoje: string): Promise<
     { contentType: "application/json", upsert: true },
   );
 
-  return { ficheiro, bytes: gz.byteLength, contagens, falhas, ausentes, encolheram };
+  return { ficheiro, gz, bytes: gz.byteLength, contagens, falhas, ausentes, encolheram };
 }
 
 /** Uma tabela que encolhe de repente é o primeiro sinal de perda de dados. */
@@ -172,4 +174,93 @@ export async function podar(admin: SupabaseClient, dias: number): Promise<number
     }
   }
   return apagados;
+}
+
+/**
+ * Espelha a cópia num SEGUNDO projeto Supabase.
+ *
+ * O buraco do que está acima é simples: a cópia vive no mesmo projeto que os
+ * dados, por isso se o projeto se perder ela vai com ele. Um segundo projeto
+ * gratuito é outra base de dados, e sobrevive a perder a primeira.
+ *
+ * Só corre se as duas variáveis existirem. Sem elas não faz nada e não se
+ * queixa — é uma melhoria opcional, não um requisito.
+ *
+ * Nota honesta sobre o alcance: sobrevive a perder o PROJETO, não a perder a
+ * CONTA do Supabase. Para isso vale a cópia que vai por email.
+ */
+export async function espelhar(ficheiro: string, gz: Buffer): Promise<"feito" | "sem-configuracao" | "falhou"> {
+  const url = process.env.BACKUP_MIRROR_URL;
+  const key = process.env.BACKUP_MIRROR_SERVICE_KEY;
+  if (!url || !key) return "sem-configuracao";
+  try {
+    const { createClient } = await import("@supabase/supabase-js");
+    const espelho = createClient(url, key, { auth: { persistSession: false } });
+    try { await espelho.storage.createBucket(BUCKET, { public: false }); } catch { /* já existe */ }
+    const { error } = await espelho.storage.from(BUCKET).upload(ficheiro, gz, {
+      contentType: "application/gzip", upsert: true,
+    });
+    if (error) throw new Error(error.message);
+    return "feito";
+  } catch (e) {
+    console.error("[backup] espelho falhou:", e instanceof Error ? e.message : e);
+    return "falhou";
+  }
+}
+
+/**
+ * Manda a cópia por email, como anexo.
+ *
+ * É a única das três vias que sobrevive a perder a CONTA do Supabase: fica na
+ * caixa de correio, fora de casa. Vai para o suporte@, que reencaminha.
+ *
+ * Tecto de tamanho: acima disto o anexo não passa nos servidores de email, e é
+ * melhor dizê-lo do que falhar em silêncio. Hoje a cópia tem dez kilobytes, por
+ * isso há muita folga.
+ */
+const MAX_ANEXO_MB = 10;
+
+export async function enviarPorEmail(
+  ficheiro: string,
+  gz: Buffer,
+  resumo: { linhas: number; contagens: Record<string, number>; ausentes: string[] },
+): Promise<"enviado" | "grande-demais" | "desligado" | "falhou"> {
+  const para = process.env.BACKUP_EMAIL_TO ?? process.env.BETA_SIGNUP_TO ?? "suporte@chainfolioai.com";
+  if (process.env.BACKUP_EMAIL_ENABLED === "false") return "desligado";
+
+  const mb = gz.byteLength / (1024 * 1024);
+  const tabelas = Object.entries(resumo.contagens)
+    .sort((a, b) => b[1] - a[1])
+    .map(([t, n]) => `<tr><td style="padding:3px 12px 3px 0;color:#94a3b8">${t}</td><td style="padding:3px 0;color:#e2e8f0;text-align:right">${n}</td></tr>`)
+    .join("");
+
+  const corpo = `
+    <p style="color:#fff;font-size:16px;font-weight:700;margin:0 0 10px">Cópia de segurança de ${ficheiro.slice(0, 10)}</p>
+    <p style="margin:0 0 14px">${resumo.linhas} linhas, ${Math.max(1, Math.round(gz.byteLength / 1024))} kB comprimidos.
+    ${mb > MAX_ANEXO_MB ? "<b>O ficheiro é grande demais para ir em anexo</b> — descarrega-o em /api/v1/admin/backups." : "Vai em anexo."}</p>
+    <table style="border-collapse:collapse;font-size:13px">${tabelas}</table>
+    ${resumo.ausentes.length ? `<p style="margin:14px 0 0;color:#94a3b8;font-size:12px">Tabelas que ainda não existem (normal, o SQL só corre quando a funcionalidade entrar): ${resumo.ausentes.join(", ")}.</p>` : ""}
+    <p style="margin:14px 0 0;color:#64748b;font-size:12px">Guarda este email. É a única cópia que fica FORA do Supabase, e por isso a única que sobrevive a perder a conta.</p>`;
+
+  try {
+    const { Resend } = await import("resend");
+    const key = process.env.RESEND_API_KEY ?? "";
+    if (!key) return "falhou";
+    const { FROM, REPLY_TO, shell } = await import("@/lib/email");
+    const { error } = await new Resend(key).emails.send({
+      from: FROM,
+      to: para,
+      replyTo: REPLY_TO,
+      subject: `[backup] ChainFolioAI ${ficheiro.slice(0, 10)} — ${resumo.linhas} linhas`,
+      html: shell(corpo),
+      ...(mb <= MAX_ANEXO_MB
+        ? { attachments: [{ filename: ficheiro, content: gz, contentType: "application/gzip" }] }
+        : {}),
+    });
+    if (error) throw new Error(error.message);
+    return mb > MAX_ANEXO_MB ? "grande-demais" : "enviado";
+  } catch (e) {
+    console.error("[backup] email falhou:", e instanceof Error ? e.message : e);
+    return "falhou";
+  }
 }

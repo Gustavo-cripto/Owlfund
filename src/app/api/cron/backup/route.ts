@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { verifyCronAuth } from "@/lib/api/cron-auth";
-import { BUCKET, correrCopia, podar } from "@/lib/backup/dump";
+import { BUCKET, correrCopia, enviarPorEmail, espelhar, podar } from "@/lib/backup/dump";
 import { sendTelegram, tgEsc } from "@/lib/notify/telegram";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
@@ -38,6 +38,18 @@ export async function GET(request: Request) {
 
   try {
     const r = await correrCopia(admin, hoje);
+
+    // Três destinos, e cada um cobre um desastre diferente:
+    //   1. o balde deste projeto  → erro de migração, apagamento, corrupção;
+    //   2. um segundo projeto     → perder ESTE projeto;
+    //   3. o email                → perder a CONTA do Supabase.
+    // Os dois últimos são melhorias: se não estiverem configurados, seguem-se
+    // em frente sem se queixar.
+    const [espelho, email] = await Promise.all([
+      espelhar(r.ficheiro, r.gz),
+      enviarPorEmail(r.ficheiro, r.gz, { linhas: Object.values(r.contagens).reduce((s, n) => s + n, 0), contagens: r.contagens, ausentes: r.ausentes }),
+    ]);
+
     const apagados = await podar(admin, DIAS_A_GUARDAR);
     const kb = Math.round(r.bytes / 1024);
     const linhas = Object.values(r.contagens).reduce((s, n) => s + n, 0);
@@ -48,6 +60,15 @@ export async function GET(request: Request) {
         `⚠️ <b>Cópia de segurança: uma tabela encolheu</b>\n` +
         r.encolheram.map((e) => `• ${tgEsc(e.tabela)}: ${e.antes} → ${e.agora} linhas`).join("\n") +
         `\n\nA cópia de hoje (${hoje}) foi guardada de qualquer maneira. Se não apagaste nada, vale a pena verificar.`,
+      ).catch(() => false);
+    }
+    // Se as duas vias de fora falharem, só resta a cópia que vive no mesmo
+    // projeto — e isso é um risco que merece ser dito.
+    if (espelho === "falhou" && (email === "falhou" || email === "desligado")) {
+      await sendTelegram(
+        "⚠️ <b>A cópia de hoje ficou só dentro do projeto</b>\n" +
+        "O espelho e o email falharam, por isso não há cópia fora do Supabase. " +
+        "A cópia local está feita, mas não protege contra perder o projeto.",
       ).catch(() => false);
     }
     if (r.falhas.length > 0) {
@@ -68,9 +89,13 @@ export async function GET(request: Request) {
       encolheram: r.encolheram,
       copiasApagadas: apagados,
       guardaDias: DIAS_A_GUARDAR,
+      espelho,
+      email,
       // Dito na própria resposta para não se esquecer: isto não protege contra
       // perder o projeto inteiro.
-      aviso: "A cópia vive no mesmo projeto Supabase. Protege contra erros e apagamentos, não contra perder o projeto.",
+      aviso: espelho === "feito" || email === "enviado"
+        ? "Há cópia fora deste projeto."
+        : "A cópia vive só no mesmo projeto Supabase: protege contra erros e apagamentos, não contra perder o projeto.",
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
