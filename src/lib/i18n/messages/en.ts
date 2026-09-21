@@ -1513,7 +1513,7 @@ export const en: Record<TranslationKey, string> = {
     vn_csv_or_manual: "No file? Type the balances by hand below.",
     vn_api_hint: "This exchange can also be linked with an API key (section above), which updates by itself. Manual entry is for when you would rather not create keys.",
     vn_manual_title: "Balances by hand",
-    vn_asset_ph: "BTC",
+    vn_asset_ph: "Coin (e.g. BTC)",
     vn_qty_ph: "Amount in coin units (e.g. 0.25)",
     vn_qty_ph_asset: "Amount in {a} (units, not euros)",
     vn_add_row: "+ another coin",

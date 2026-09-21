@@ -1522,7 +1522,7 @@ export const pt = {
     vn_csv_or_manual: "Sem ficheiro? Escreve os saldos à mão em baixo.",
     vn_api_hint: "Esta corretora também dá para ligar por chave de API (secção acima), que se atualiza sozinha. O registo manual serve se preferires não criar chaves.",
     vn_manual_title: "Saldos à mão",
-    vn_asset_ph: "BTC",
+    vn_asset_ph: "Moeda (ex.: BTC)",
     vn_qty_ph: "Quantidade em unidades da moeda (ex.: 0,25)",
     vn_qty_ph_asset: "Quantidade em {a} (unidades, não euros)",
     vn_add_row: "+ outra moeda",

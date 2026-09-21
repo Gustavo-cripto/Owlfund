@@ -1513,7 +1513,7 @@ export const es: Record<TranslationKey, string> = {
     vn_csv_or_manual: "¿Sin archivo? Escribe los saldos a mano abajo.",
     vn_api_hint: "Esta exchange también se puede conectar con clave API (sección de arriba), que se actualiza sola. El registro manual es por si prefieres no crear claves.",
     vn_manual_title: "Saldos a mano",
-    vn_asset_ph: "BTC",
+    vn_asset_ph: "Moneda (ej.: BTC)",
     vn_qty_ph: "Cantidad en unidades de la moneda (ej.: 0,25)",
     vn_qty_ph_asset: "Cantidad en {a} (unidades, no euros)",
     vn_add_row: "+ otra moneda",
