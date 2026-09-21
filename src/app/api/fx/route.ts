@@ -53,5 +53,9 @@ export async function GET(request: Request) {
     /* fica o recurso */
   }
 
-  return NextResponse.json({ rates, updatedAt: Date.now() });
+  // Taxas públicas, iguais para todos: guardadas na rede de distribuição, como
+  // em /api/markets e /api/btc-blocks. As do BCE mudam uma vez por dia; sem
+  // isto, cada separador aberto pedia-as de minuto a minuto ao nosso servidor.
+  return NextResponse.json({ rates, updatedAt: Date.now() },
+    { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=600" } });
 }

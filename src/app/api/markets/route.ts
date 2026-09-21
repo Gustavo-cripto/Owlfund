@@ -7,6 +7,19 @@ import { cgFetch } from "@/lib/market/coingecko";
 // Sem isto, o Next torna a rota estática e os preços/colunas ficam congelados.
 export const revalidate = 60;
 
+// O `revalidate` acima não chega, e media-se: a rota respondia em 1,1 a 1,5
+// segundos SEMPRE, com `x-vercel-cache: MISS` a cada pedido. A razão é que o
+// limite por IP lê o pedido, o que torna a rota dinâmica e faz o Next ignorar
+// o `revalidate`. Sem cache, cada visita custava quatro chamadas a serviços de
+// fora (CoinEx e três ao CoinGecko) — e cada separador aberto repete isto de
+// minuto a minuto.
+//
+// Isto são preços públicos, iguais para todos: dá para a rede de distribuição
+// guardar a resposta e servi-la a todos os outros. É o mesmo que /api/btc-blocks
+// já faz. `stale-while-revalidate` serve a última boa enquanto se busca a nova,
+// para ninguém esperar pela atualização.
+const CACHE = { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" };
+
 type CoinExTicker = {
   last: string;
   open: string;
@@ -268,14 +281,16 @@ export async function GET(request: Request) {
       sentimentTop10,
       selectList: [...bySymbol.values()],
       global,
-    }));
+    }), { headers: CACHE });
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Erro inesperado.";
     // Ultimo resultado bom desta instancia, marcado como stale.
     const stale = lastGood<Record<string, unknown>>("markets");
     if (stale) {
       console.warn(`[markets] ${msg}; a servir stale de ha ${stale.ageSec}s`);
-      return NextResponse.json({ ...stale.value, stale: true, staleAgeSec: stale.ageSec });
+      // Janela curta: a seguir a uma falha queremos voltar a tentar depressa.
+      return NextResponse.json({ ...stale.value, stale: true, staleAgeSec: stale.ageSec },
+        { headers: { "Cache-Control": "public, s-maxage=15, stale-while-revalidate=60" } });
     }
     // Sem nada em memoria, deixa-se o erro sair: com `revalidate`, o Next
     // continua a servir a ultima resposta boa que tinha em cache em vez de a
