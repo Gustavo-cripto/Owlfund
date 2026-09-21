@@ -53,6 +53,12 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
   const [signedUp, setSignedUp] = useState(false);
   const [canResend, setCanResend] = useState(false);
   const [resent, setResent] = useState(false);
+  // Quem chega ao /login JÁ com sessão não é reencaminhado em silêncio: vê de
+  // que conta é a sessão e escolhe. Antes seguia direto para o `next`, e quem
+  // clicava "já tenho conta — entrar" no email do beta aterrava no /beta sem
+  // nunca ver um ecrã de entrada — parecia que o botão estava trocado.
+  const [jaEntrou, setJaEntrou] = useState<string | null>(null);
+  const [aSair, setASair] = useState(false);
 
   // Após autenticar, se a conta tiver 2FA ativo mas a sessão ainda for aal1,
   // mostra o desafio do código; caso contrário redireciona.
@@ -74,15 +80,35 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
   useEffect(() => {
     let isMounted = true;
     supabase.auth.getSession()
-      .then(({ data }: { data: { session: unknown } }) => {
+      .then(async ({ data }: { data: { session: { user?: { email?: string } } | null } }) => {
         if (!isMounted) return;
-        if (data.session) { void finishOrChallenge(); return; }
+        if (!data.session) { setIsCheckingSession(false); return; }
+        // Sessão a meio do 2FA continua a pedir o código: é uma entrada por
+        // terminar, não uma sessão pronta a usar.
+        try {
+          const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+          if (!isMounted) return;
+          if (aal && aal.nextLevel === "aal2" && aal.currentLevel === "aal1") {
+            setShowMfa(true);
+            setIsCheckingSession(false);
+            return;
+          }
+        } catch { /* sem 2FA ou a biblioteca falhou: segue para a escolha */ }
+        if (!isMounted) return;
+        setJaEntrou(data.session.user?.email ?? "");
         setIsCheckingSession(false);
       })
       .catch(() => { if (isMounted) setIsCheckingSession(false); });
     return () => { isMounted = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase, nextParam]);
+
+  /** Sair desta conta para entrar noutra, sem deixar o /login. */
+  const trocarDeConta = async () => {
+    setASair(true);
+    try { await supabase.auth.signOut(); } catch { /* segue: o formulário aparece de qualquer forma */ }
+    setJaEntrou(null);
+    setASair(false);
+  };
 
   // Vindo do callback com erro (link expirado / aberto noutro browser).
   useEffect(() => {
@@ -237,10 +263,10 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
           <img src="/chainfolioai-icon.png" alt="ChainFolioAI" className="h-16 w-16 rounded-2xl border border-white/10 object-cover shadow-lg shadow-black/40" />
           <div>
             <h1 className="text-2xl font-bold text-white">
-              {showMfa ? t("lg_mfa_title") : mode === "signup" ? t("lg_signup_title") : t("lg_login_title")}
+              {showMfa ? t("lg_mfa_title") : jaEntrou !== null ? t("lg_already_title") : mode === "signup" ? t("lg_signup_title") : t("lg_login_title")}
             </h1>
             <p className="mt-1 text-sm text-slate-400">
-              {showMfa ? t("lg_mfa_sub") : mode === "signup" ? (toBeta ? t("lg_signup_sub_beta") : t("lg_signup_sub")) : t("lg_login_sub")}
+              {showMfa ? t("lg_mfa_sub") : jaEntrou !== null ? t("lg_already_sub") : mode === "signup" ? (toBeta ? t("lg_signup_sub_beta") : t("lg_signup_sub")) : t("lg_login_sub")}
             </p>
           </div>
         </div>
@@ -286,7 +312,32 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
           </form>
         )}
 
-        {!showMfa && (
+        {!showMfa && jaEntrou !== null && (
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl shadow-black/30 backdrop-blur space-y-4">
+            <p className="text-sm text-slate-300">
+              {jaEntrou
+                ? t("lg_already_as").replace("{email}", jaEntrou)
+                : t("lg_already_sub")}
+            </p>
+            <button
+              type="button"
+              onClick={() => { window.location.href = nextPath; }}
+              className="w-full rounded-xl bg-orange-500 px-4 py-3 text-sm font-bold text-slate-950 transition hover:bg-orange-400"
+            >
+              {toBeta ? t("lg_already_go_beta") : t("lg_already_go_app")}
+            </button>
+            <button
+              type="button"
+              onClick={trocarDeConta}
+              disabled={aSair}
+              className="w-full rounded-xl border border-slate-700 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:border-slate-500 hover:text-white disabled:opacity-50"
+            >
+              {t("lg_already_switch")}
+            </button>
+          </div>
+        )}
+
+        {!showMfa && jaEntrou === null && (
         <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl shadow-black/30 backdrop-blur">
           {toBeta && (
             <div className="mb-4 rounded-xl border border-amber-500/40 bg-amber-500/[0.08] px-4 py-3 text-xs leading-relaxed text-amber-200">🧪 {t("lg_beta_hint")}</div>

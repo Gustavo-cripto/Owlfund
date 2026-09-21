@@ -341,7 +341,7 @@ export default function Sidebar() {
         onFocusCapture={() => setFocused(true)}
         onBlurCapture={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocused(false); }}
         aria-label={t("sb_nav")}
-        className={`hidden xl:flex flex-col shrink-0 sticky top-0 h-screen overflow-y-auto bg-black border-r border-white/[0.06] transition-[width,box-shadow] duration-300 ease-[var(--ease-in-out)] z-40 ${
+        className={`hidden xl:flex flex-col shrink-0 sticky top-0 h-screen overflow-hidden bg-black border-r border-white/[0.06] transition-[width,box-shadow] duration-300 ease-[var(--ease-in-out)] z-40 ${
           expanded ? "w-72 shadow-2xl shadow-black/60" : "w-[72px]"
         }`}
       >
@@ -361,7 +361,11 @@ export default function Sidebar() {
         </div>
 
         {/* Nav */}
-        <nav className={`flex-1 py-4 ${expanded ? "px-3" : "px-2"}`}>
+        {/* A lista é o que rola, não a barra toda: assim o bloco da conta (e o
+            "sair") fica sempre à vista em ecrãs baixos. Com sessão são doze
+            itens mais as línguas, que não cabem em muitos portáteis — antes o
+            que sobrava ficava cortado sem forma de chegar lá. */}
+        <nav className={`flex-1 min-h-0 overflow-y-auto overscroll-contain py-4 ${expanded ? "px-3" : "px-2"}`}>
           {expanded && (
             <p className="px-3 mb-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-600 whitespace-nowrap">
               {t("sb_nav")}
