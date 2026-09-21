@@ -44,11 +44,19 @@ export const TABELAS = [
 ] as const;
 
 /** Lê tudo de uma tabela, paginado (o PostgREST devolve no máximo ~1000 linhas). */
+/** A tabela ainda nao existe? (ha SQL do repositorio que nem sempre foi corrido) */
+class TabelaAusente extends Error {}
+
+const naoExiste = (e: { code?: string; message?: string }) =>
+  e.code === "42P01" || e.code === "PGRST205" ||
+  /does not exist|could not find the table/i.test(e.message ?? "");
+
 async function lerTudo(admin: SupabaseClient, tabela: string): Promise<unknown[]> {
   const PAGINA = 1000;
   const linhas: unknown[] = [];
   for (let de = 0; de < 500_000; de += PAGINA) {
     const { data, error } = await admin.from(tabela).select("*").range(de, de + PAGINA - 1);
+    if (error && naoExiste(error)) throw new TabelaAusente(tabela);
     if (error) throw new Error(`${tabela}: ${error.message}`);
     if (!data || data.length === 0) break;
     linhas.push(...data);
@@ -61,7 +69,15 @@ export type Resultado = {
   ficheiro: string;
   bytes: number;
   contagens: Record<string, number>;
+  /** Leituras que falharam a sério. Motivo para avisar. */
   falhas: string[];
+  /**
+   * Tabelas que ainda não existem na base de dados. NÃO é falha: há SQL no
+   * repositório que só é corrido quando a funcionalidade entra (os pagamentos
+   * em cripto, por exemplo, estão prontos mas desligados). Ficam registadas
+   * para se ver que não foram esquecidas, sem gerar aviso todos os dias.
+   */
+  ausentes: string[];
   /** Tabelas que encolheram mais de 20% desde a cópia anterior. */
   encolheram: Array<{ tabela: string; antes: number; agora: number }>;
 };
@@ -75,6 +91,7 @@ export async function correrCopia(admin: SupabaseClient, hoje: string): Promise<
   const conteudo: Record<string, unknown[]> = {};
   const contagens: Record<string, number> = {};
   const falhas: string[] = [];
+  const ausentes: string[] = [];
 
   for (const t of TABELAS) {
     try {
@@ -82,6 +99,7 @@ export async function correrCopia(admin: SupabaseClient, hoje: string): Promise<
       conteudo[t] = linhas;
       contagens[t] = linhas.length;
     } catch (e) {
+      if (e instanceof TabelaAusente) { ausentes.push(t); continue; }
       falhas.push(t);
       console.error("[backup]", e instanceof Error ? e.message : e);
     }
@@ -90,7 +108,7 @@ export async function correrCopia(admin: SupabaseClient, hoje: string): Promise<
   // Comparar com a cópia anterior ANTES de gravar a nova.
   const encolheram = await compararComAnterior(admin, contagens);
 
-  const payload = JSON.stringify({ geradoEm: new Date().toISOString(), contagens, falhas, dados: conteudo });
+  const payload = JSON.stringify({ geradoEm: new Date().toISOString(), contagens, falhas, ausentes, dados: conteudo });
   const gz = gzipSync(Buffer.from(payload, "utf8"), { level: 9 });
   const ficheiro = `${hoje}.json.gz`;
 
@@ -108,7 +126,7 @@ export async function correrCopia(admin: SupabaseClient, hoje: string): Promise<
     { contentType: "application/json", upsert: true },
   );
 
-  return { ficheiro, bytes: gz.byteLength, contagens, falhas, encolheram };
+  return { ficheiro, bytes: gz.byteLength, contagens, falhas, ausentes, encolheram };
 }
 
 /** Uma tabela que encolhe de repente é o primeiro sinal de perda de dados. */

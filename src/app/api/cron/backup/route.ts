@@ -64,6 +64,7 @@ export async function GET(request: Request) {
       linhas,
       contagens: r.contagens,
       falhas: r.falhas,
+      ausentes: r.ausentes,
       encolheram: r.encolheram,
       copiasApagadas: apagados,
       guardaDias: DIAS_A_GUARDAR,
