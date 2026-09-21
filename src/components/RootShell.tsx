@@ -3,6 +3,8 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import "@/app/globals.css";
 import FloatingChat from "@/components/FloatingChat";
 import ErrorMonitor from "@/components/ErrorMonitor";
+import NavProgress from "@/components/NavProgress";
+import { Suspense } from "react";
 import { ThemeProvider } from "@/lib/theme/ThemeContext";
 import type { Lang } from "@/lib/i18n/translations";
 import { HTML_LANG, JSON_LD } from "@/lib/seo/rootMetadata";
@@ -27,6 +29,8 @@ export default function RootShell({ lang, Provider, children }: { lang: Lang; Pr
             {children}
             <FloatingChat />
             <ErrorMonitor />
+            {/* useSearchParams obriga a Suspense para nao tornar a pagina toda dinamica. */}
+            <Suspense fallback={null}><NavProgress /></Suspense>
           </Provider>
         </ThemeProvider>
         <Analytics />

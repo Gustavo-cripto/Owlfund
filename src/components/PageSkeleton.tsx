@@ -7,7 +7,9 @@
 // dissolve-se por cima (.animate-reveal nos filhos), em vez de cair de repente.
 // So blocos cinzentos — nada de texto, para nao mentir sobre o conteudo.
 
-type Variant = "dashboard" | "page";
+// "wallets": cartoes altos empilhados (um por rede); "table": barra de filtros +
+// linhas (mercado); "account": secções com linhas (conta/fiscalidade).
+type Variant = "dashboard" | "page" | "wallets" | "table" | "account";
 
 /** Linhas cinzentas para o interior de um cartao que ainda esta a carregar. */
 export function SkeletonLines({ n = 3, className = "" }: { n?: number; className?: string }) {
@@ -43,6 +45,32 @@ export default function PageSkeleton({ variant = "page" }: { variant?: Variant }
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => <div key={i}>{card("h-36")}</div>)}
           </div>
+        </>
+      ) : variant === "wallets" ? (
+        <>
+          {card("h-14")}
+          {Array.from({ length: 4 }).map((_, i) => <div key={i}>{card("h-64")}</div>)}
+        </>
+      ) : variant === "table" ? (
+        <>
+          <div className="flex flex-wrap gap-3">{bar("w-40", "h-9")}{bar("w-28", "h-9")}{bar("w-28", "h-9")}{bar("w-36", "h-9")}</div>
+          <div className="rounded-2xl border border-slate-800/80 bg-slate-900/50 p-4 flex flex-col gap-3">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4">
+                <div className="h-7 w-7 rounded-full bg-slate-800/70" />
+                {bar("w-32")}{bar("w-20")}{bar("w-16")}{bar("w-24")}
+              </div>
+            ))}
+          </div>
+        </>
+      ) : variant === "account" ? (
+        <>
+          <div className="flex flex-wrap gap-2">{bar("w-24", "h-8")}{bar("w-24", "h-8")}{bar("w-24", "h-8")}{bar("w-24", "h-8")}</div>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="rounded-2xl border border-slate-800/80 bg-slate-900/50 p-5 flex flex-col gap-3">
+              {bar("w-40", "h-4")}{bar("w-full")}{bar("w-5/6")}{bar("w-2/3")}
+            </div>
+          ))}
         </>
       ) : (
         <>

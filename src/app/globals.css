@@ -149,6 +149,18 @@
 }
 .press:active { transform: scale(0.98); }
 
+/* Barra de progresso de navegação (NavProgress): arranca depressa, abranda perto
+   do fim e só fecha quando a página chega. Fixa, por cima de tudo, 2 px. */
+.nav-progress { position: fixed; inset: 0 0 auto 0; height: 2px; z-index: 9999; pointer-events: none; }
+.nav-progress__barra {
+  height: 100%; width: 0;
+  background: linear-gradient(90deg, #f97316, #fbbf24);
+  box-shadow: 0 0 8px rgba(249, 115, 22, 0.7);
+  animation: nav-progress-avanca 8s var(--ease-out) forwards;
+}
+.nav-progress--fim .nav-progress__barra { animation: none; width: 100%; opacity: 0; transition: width 150ms var(--ease-out), opacity 250ms 100ms; }
+@keyframes nav-progress-avanca { 0% { width: 0; } 15% { width: 55%; } 45% { width: 80%; } 100% { width: 92%; } }
+
 /* FAQ (<details>): a resposta entra a subir em vez de aparecer a seco.
    (Animar a altura de um <details> ainda não é universal; isto chega.) */
 details[open] > .faq-a { animation: fade-in-up var(--duration-fast) var(--ease-out) both; }
@@ -220,6 +232,7 @@ details[open] > .faq-a { animation: fade-in-up var(--duration-fast) var(--ease-o
   .error-note,
   details[open] > .faq-a { animation: fade-in 200ms ease both; }
   .press:active       { transform: none; }
+  .nav-progress__barra { animation: none; width: 92%; }
   .success-check      { animation: check-fade 200ms ease both; }
   .success-check svg path { animation: none; stroke-dashoffset: 0; }
   /* Ticker parado (o deslizar com o dedo está sempre disponível, ver .ticker-wrap). */
