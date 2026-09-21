@@ -23,11 +23,14 @@ export type VenueHolding = {
 /** Corretoras oferecidas na grelha. `api` = também dá para ligar por chave. */
 export const VENUES: ReadonlyArray<{ id: string; label: string; api: boolean; csv?: "cryptocom-app" }> = [
   { id: "cryptocom-app", label: "Crypto.com App", api: false, csv: "cryptocom-app" },
-  { id: "revolut", label: "Revolut", api: false },
+  // A app Revolut nao tem API; a Revolut X (a exchange deles) tem — sao produtos distintos.
+  { id: "revolut", label: "Revolut (app)", api: false },
   { id: "trade-republic", label: "Trade Republic", api: false },
   { id: "bison", label: "BISON", api: false },
+  // A API publica da eToro (2026) esta em acesso antecipado e nao da dados da conta.
   { id: "etoro", label: "eToro", api: false },
-  { id: "nexo", label: "Nexo", api: false },
+  // A app Nexo nao tem API; a Nexo Pro tem — como na Crypto.com, app e exchange sao carteiras separadas.
+  { id: "nexo", label: "Nexo (app)", api: false },
   { id: "kraken", label: "Kraken", api: true },
   { id: "coinbase", label: "Coinbase", api: true },
   { id: "okx", label: "OKX", api: true },
