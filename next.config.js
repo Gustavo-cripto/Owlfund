@@ -22,7 +22,15 @@ const securityHeaders = [
       // Sem 'unsafe-eval': nenhum chunk do cliente usa eval/new Function (verificado
       // no build). 'unsafe-inline' fica: o Next injeta scripts inline na hidratacao.
       // Em `next dev` o HMR/source-maps usam eval — só aí se permite, nunca em produção.
-      `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""} https://js.stripe.com https://s3.tradingview.com`,
+      //
+      // 'wasm-unsafe-eval' é OUTRA coisa, e é obrigatório: só autoriza compilar
+      // WebAssembly, não abre o eval de JavaScript. Sem ele, o Chrome recusa a
+      // biblioteca de Cardano (cardano-serialization-lib, em WASM) que converte
+      // o endereço que o Eternl devolve — e ligar uma carteira Cardano falhava
+      // SEMPRE em produção com "Erro ao ligar", mal a extensão aprovava.
+      // Descoberto a 21 de setembro de 2026; em `next dev` nunca se via, porque
+      // aí o 'unsafe-eval' já cobria o WASM.
+      `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""} https://js.stripe.com https://s3.tradingview.com`,
       // Estilos: self + inline (Tailwind)
       "style-src 'self' 'unsafe-inline'",
       // Imagens: self + data URIs + todas HTTPS (logos de tokens e NFTs são dinâmicos)

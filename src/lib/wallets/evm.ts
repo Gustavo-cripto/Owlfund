@@ -106,19 +106,81 @@ export const getEvmProviderLabel = (id: EvmProviderId) => {
   }
 };
 
+// ── Descoberta de carteiras pela EIP-6963 ──────────────────────────────────
+//
+// Só olhar para `window.ethereum` já não chega. Com mais de uma extensão EVM
+// instalada, uma delas fica dona de `window.ethereum` — a Phantom, por
+// exemplo, ocupa-o e ainda se anuncia com `isMetaMask: true` — e o MetaMask
+// a sério deixa de ser encontrado: a página dizia "Indisponível" com a
+// extensão instalada e a funcionar no Uniswap (que usa exactamente isto).
+//
+// A EIP-6963 resolve: cada carteira anuncia-se num evento com um `rdns`
+// próprio (io.metamask, com.coinbase.wallet…). Guardamos o que se anuncia e
+// procuramos primeiro aí; `window.ethereum` fica como recurso.
+type Anunciada = { info: { rdns?: string; name?: string }; provider: EvmProvider };
+const anunciadas = new Map<string, Anunciada>();
+let descobertaIniciada = false;
+
+const RDNS_PARA_ID: Record<string, EvmProviderId> = {
+  "io.metamask": "metamask",
+  "io.metamask.flask": "metamask",
+  "com.coinbase.wallet": "coinbase",
+  "com.trustwallet.app": "trust",
+  "com.binance.wallet": "binance",
+  "me.rainbow": "rainbow",
+  "com.okex.wallet": "okx",
+  "com.bybit.wallet": "bybit",
+  "io.rabby": "rabby",
+};
+
+const iniciarDescoberta = () => {
+  if (descobertaIniciada || typeof window === "undefined") return;
+  descobertaIniciada = true;
+  window.addEventListener("eip6963:announceProvider", (ev: Event) => {
+    const d = (ev as CustomEvent<Anunciada>).detail;
+    if (!d?.provider) return;
+    anunciadas.set(d.info?.rdns ?? d.info?.name ?? String(anunciadas.size), d);
+  });
+  try { window.dispatchEvent(new Event("eip6963:requestProvider")); } catch { /* ignore */ }
+};
+
+const idPorRdns = (rdns?: string): EvmProviderId | null => (rdns ? RDNS_PARA_ID[rdns] ?? null : null);
+
 const getAllProviders = (): EvmProvider[] => {
   if (typeof window === "undefined") return [];
+  iniciarDescoberta();
+  const lista: EvmProvider[] = [];
+  const vistos = new Set<EvmProvider>();
+  const juntar = (p?: EvmProvider) => { if (p && !vistos.has(p)) { vistos.add(p); lista.push(p); } };
+  // Primeiro as anunciadas (identidade fiável), depois o legado.
+  anunciadas.forEach((a) => { if (!("isPhantom" in (a.provider as object))) juntar(a.provider); });
   const ethereum = window.ethereum as (EvmProvider & { providers?: EvmProvider[] }) | undefined;
-  if (!ethereum) return [];
-  if (Array.isArray(ethereum.providers) && ethereum.providers.length) {
-    return ethereum.providers.filter((provider) => provider && !("isPhantom" in provider));
+  if (ethereum) {
+    if (Array.isArray(ethereum.providers) && ethereum.providers.length) {
+      ethereum.providers.forEach((p) => { if (p && !("isPhantom" in p)) juntar(p); });
+    } else {
+      juntar(ethereum);
+    }
   }
-  return [ethereum];
+  return lista;
+};
+
+/** Id pela EIP-6963 quando a carteira se anunciou; senão pelas flags antigas. */
+const idDoProvider = (provider?: EvmProvider): EvmProviderId => {
+  if (provider) {
+    for (const a of anunciadas.values()) {
+      if (a.provider === provider) {
+        const id = idPorRdns(a.info?.rdns);
+        if (id) return id;
+      }
+    }
+  }
+  return getProviderId(provider);
 };
 
 const getMetaMaskProvider = () => {
   const providers = getAllProviders();
-  return providers.find((provider) => isMetaMaskProvider(provider)) ?? null;
+  return providers.find((provider) => idDoProvider(provider) === "metamask" || isMetaMaskProvider(provider)) ?? null;
 };
 
 export const getEvmProviderOptions = () => {
@@ -126,7 +188,7 @@ export const getEvmProviderOptions = () => {
   const seen = new Set<EvmProviderId>();
   const options: Array<{ id: EvmProviderId; label: string }> = [];
   providers.forEach((provider) => {
-    const id = getProviderId(provider);
+    const id = idDoProvider(provider);
     if (seen.has(id)) return;
     seen.add(id);
     options.push({ id, label: getEvmProviderLabel(id) });
@@ -136,7 +198,7 @@ export const getEvmProviderOptions = () => {
 
 export const getEvmProviderById = (id: EvmProviderId) => {
   const providers = getAllProviders();
-  return providers.find((provider) => getProviderId(provider) === id) ?? null;
+  return providers.find((provider) => idDoProvider(provider) === id) ?? null;
 };
 
 /** Verifica se uma carteira ETH (por id) está instalada no browser. */
