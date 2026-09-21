@@ -1459,6 +1459,7 @@ export const es: Record<TranslationKey, string> = {
     cx_note_coinbase: "Coinbase: crea una clave en Developer Platform → API keys (permiso solo View). Pega el «name» en el campo de la clave y la «privateKey» (PEM) en el campo grande — el archivo JSON descargado tiene ambos.",
     cx_warn_binance: "⚠️ Binance no obtuvo licencia MiCA y está cerrando servicios en la UE — considera un exchange con licencia 🇪🇺.",
     cx_note_coinex: "CoinEx: el campo “Access ID” es lo que aparece como clave en la página de API Keys. La “Secret Key” es la clave de firma.",
+    cx_note_cryptocom: "Crypto.com: la clave nueva viene por defecto solo con «Can Read» — déjala así. No definas lista de IPs: nuestros servidores no tienen IP fija y la clave dejaría de funcionar.",
     cx_warn_readonly: "⚠️ Usa solo claves de solo lectura. Nunca compartas claves con permiso de trading/retirada.",
     cx_connect: "Conectar",
     cx_cancel: "Cancelar",

@@ -381,13 +381,16 @@ export default function CexSection({
             {newExchange === "coinex" && (
               <p className="text-[10px] text-orange-400">{t("cx_note_coinex")}</p>
             )}
+            {newExchange === "cryptocom" && (
+              <p className="text-[10px] text-sky-300">{t("cx_note_cryptocom")}</p>
+            )}
             <details className="rounded-lg border border-sky-500/20 bg-sky-500/[0.05] px-3 py-2">
               <summary className="cursor-pointer text-[11px] font-semibold text-sky-300">🔑 {t("cx_guide_title")}</summary>
               <ol className="mt-2 space-y-1 text-[11px] leading-relaxed text-slate-300">
                 <li>1. {t("cx_guide_s1")}{" "}
                   <a target="_blank" rel="noopener noreferrer" className="text-sky-300 underline"
                     href={({ binance: "https://www.binance.com/en/my/settings/api-management", kraken: "https://pro.kraken.com/app/settings/api", coinex: "https://www.coinex.com/apikey", okx: "https://www.okx.com/account/my-api", bybit: "https://www.bybit.com/app/user/api-management", cryptocom: "https://crypto.com/exchange", bitpanda: "https://web.bitpanda.com/apikey", coinbase: "https://portal.cdp.coinbase.com/projects/api-keys" } as Record<string, string>)[newExchange]}>
-                    {({ binance: "Binance → API Management", kraken: "Kraken → Settings → API", coinex: "CoinEx → API Keys", okx: "OKX → API keys", bybit: "Bybit → API Management", cryptocom: "Crypto.com Exchange → API Keys", bitpanda: "Bitpanda → API Key", coinbase: "Coinbase Developer Platform → API keys" } as Record<string, string>)[newExchange]}
+                    {({ binance: "Binance → API Management", kraken: "Kraken → Settings → API", coinex: "CoinEx → API Keys", okx: "OKX → API keys", bybit: "Bybit → API Management", cryptocom: "Crypto.com Exchange → User Center → API", bitpanda: "Bitpanda → API Key", coinbase: "Coinbase Developer Platform → API keys" } as Record<string, string>)[newExchange]}
                   </a>
                 </li>
                 <li>2. {t("cx_guide_s2")}</li>

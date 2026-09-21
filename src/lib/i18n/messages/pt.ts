@@ -1468,6 +1468,7 @@ export const pt = {
     cx_note_coinbase: "Coinbase: cria uma chave em Developer Platform → API keys (permissão só View). Cola o «name» no campo da chave e a «privateKey» (PEM) no campo grande — o ficheiro JSON descarregado tem os dois.",
     cx_warn_binance: "⚠️ A Binance não obteve licença MiCA e está a encerrar serviços na UE — considera uma exchange licenciada 🇪🇺.",
     cx_note_coinex: "CoinEx: o campo “Access ID” é o que aparece como chave na página de API Keys. O “Secret Key” é a chave de assinatura.",
+    cx_note_cryptocom: "Crypto.com: a chave nova vem por omissão só com «Can Read» — deixa assim. Não definas lista de IPs: os nossos servidores não têm IP fixo, e com a lista a chave deixava de funcionar.",
     cx_warn_readonly: "⚠️ Usa apenas chaves read-only. Nunca partilhes chaves com permissão de trade/withdrawal.",
     cx_connect: "Ligar",
     cx_cancel: "Cancelar",
