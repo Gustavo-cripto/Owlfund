@@ -371,7 +371,7 @@ export default function CexSection({
             ) : newExchange !== "bitpanda" && (
               <input
                 type="password"
-                placeholder={newExchange === "coinex" ? t("cx_ph_secretkey") : newExchange === "revolutx" ? t("cx_ph_ed25519") : t("cx_ph_apisecret")}
+                placeholder={newExchange === "coinex" ? t("cx_ph_secretkey") : t("cx_ph_apisecret")}
                 value={newSecret}
                 onChange={(e) => setNewSecret(e.target.value)}
                 className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-orange-500 font-mono"
