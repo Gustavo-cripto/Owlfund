@@ -20,6 +20,40 @@ export const revalidate = 60;
 // para ninguém esperar pela atualização.
 const CACHE = { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" };
 
+// A resposta inteira são 590 KB, e a maior parte são as linhas de sete dias de
+// cada uma das 161 moedas — que servem os gráficos da página /mercado. A fita de
+// cotações do topo do site usa três campos de quinze moedas. Pedia os 590 KB em
+// TODAS as páginas, a cada minuto, em cada separador aberto.
+//
+// `?ticker=1` devolve só o que a fita usa. A rede de distribuição guarda as duas
+// versões em separado, porque o endereço é diferente.
+const TICKER_LINHAS = 15;
+
+// `?nospark=1` é o meio-termo: todas as moedas, todos os campos, menos as linhas
+// de sete dias. A página /carteiras precisa de todas as moedas que a pessoa tem,
+// mas nunca desenha sparklines — e era o que carregava 500 KB por nada, duas
+// vezes ao abrir e outra vez a cada minuto.
+function semLinhas(completo: Record<string, unknown>) {
+  const linhas = Array.isArray(completo.data) ? completo.data : [];
+  return {
+    ...completo,
+    data: (linhas as Array<Record<string, unknown>>).map((linha) => {
+      const copia = { ...linha };
+      delete copia.sparkline;
+      return copia;
+    }),
+  };
+}
+
+function paraFita(completo: { data?: unknown }) {
+  const linhas = Array.isArray(completo.data) ? completo.data : [];
+  const usaveis = (linhas as Array<{ symbol?: string; priceUsd?: number | null; change24h?: number | null }>)
+    .filter((r) => typeof r.priceUsd === "number" && r.priceUsd > 0)
+    .slice(0, TICKER_LINHAS)
+    .map((r) => ({ symbol: r.symbol, priceUsd: r.priceUsd, change24h: r.change24h ?? 0 }));
+  return { data: usaveis };
+}
+
 type CoinExTicker = {
   last: string;
   open: string;
@@ -143,6 +177,9 @@ export async function GET(request: Request) {
   // Rota publica (alimenta paginas sem sessao): limite por IP, sem sessao.
   const limitado = rateLimitPublic(request, "markets", 120);
   if (limitado) return limitado;
+  const parametros = new URL(request.url).searchParams;
+  const soAFita = parametros.get("ticker") === "1";
+  const semSparkline = parametros.get("nospark") === "1";
   try {
     // Tres chamadas ao CoinGecko, nao quatro: o "top 50" para o sentimento e
     // um subconjunto das 250 por capitalizacao — vem da mesma resposta.
@@ -276,12 +313,16 @@ export async function GET(request: Request) {
         }
       : null;
 
-    return NextResponse.json(rememberGood("markets", {
+    // Guarda-se sempre o completo: é dele que sai o stale quando o CoinGecko
+    // falha, e a fita tira-se do completo sem custo nenhum.
+    const completo = rememberGood("markets", {
       data: rows,
       sentimentTop10,
       selectList: [...bySymbol.values()],
       global,
-    }), { headers: CACHE });
+    });
+    const corpo = soAFita ? paraFita(completo) : semSparkline ? semLinhas(completo) : completo;
+    return NextResponse.json(corpo, { headers: CACHE });
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Erro inesperado.";
     // Ultimo resultado bom desta instancia, marcado como stale.
@@ -289,7 +330,9 @@ export async function GET(request: Request) {
     if (stale) {
       console.warn(`[markets] ${msg}; a servir stale de ha ${stale.ageSec}s`);
       // Janela curta: a seguir a uma falha queremos voltar a tentar depressa.
-      return NextResponse.json({ ...stale.value, stale: true, staleAgeSec: stale.ageSec },
+      const base = soAFita ? paraFita(stale.value) : semSparkline ? semLinhas(stale.value) : stale.value;
+      const corpo = { ...base, stale: true, staleAgeSec: stale.ageSec };
+      return NextResponse.json(corpo,
         { headers: { "Cache-Control": "public, s-maxage=15, stale-while-revalidate=60" } });
     }
     // Sem nada em memoria, deixa-se o erro sair: com `revalidate`, o Next

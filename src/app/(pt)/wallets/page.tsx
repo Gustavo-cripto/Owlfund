@@ -1058,7 +1058,7 @@ export default function WalletsPage() {
     setCryptoPricesLoading(true);
     setCryptoPricesError(null);
     try {
-      const response = await fetch("/api/markets");
+      const response = await fetch("/api/markets?nospark=1");
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as { error?: string } | null;
         throw new Error(payload?.error ?? t("wl_err_prices"));
@@ -1186,7 +1186,7 @@ export default function WalletsPage() {
   const refreshWeb3Prices = async () => {
     setWeb3PricesLoading(true);
     try {
-      const response = await fetch("/api/markets");
+      const response = await fetch("/api/markets?nospark=1");
       if (!response.ok) {
         throw new Error(t("wl_err_prices"));
       }

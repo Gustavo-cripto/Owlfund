@@ -44,7 +44,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     const load = async () => {
       try {
-        const res = await fetch("/api/markets");
+        // Só os três campos de quinze moedas (~1 KB), não os 590 KB da tabela toda.
+        const res = await fetch("/api/markets?ticker=1");
         if (!res.ok) return;
         const json = await res.json() as { data?: Array<{ symbol: string; priceUsd?: number | null; change24h?: number | null }> };
         const rows = (json.data ?? []).filter(r => typeof r.priceUsd === "number" && r.priceUsd > 0).slice(0, 15);
