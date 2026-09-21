@@ -21,6 +21,7 @@ export const NAMESPACED_BASE_KEYS = [
   "owlfund.traditional.holdings.v1",
   "owlfund.stablecoin.addresses.v1",
   "trade-history-v1",
+  "owlfund.venue.holdings.v1",
 ] as const;
 
 const REGISTRY_KEY = "cf.accounts.v1";

@@ -2,6 +2,7 @@
 
 import PlanBadge from "@/components/PlanBadge";
 import ErrorNote from "@/components/ErrorNote";
+import VenueSection from "@/components/wallets/VenueSection";
 import { NETWORK_SHORT, networkKey } from "@/lib/wallets/networkKey";
 
 import { useState, useEffect } from "react";
@@ -123,6 +124,8 @@ export default function CexSection({
   const [newPassphrase, setNewPassphrase] = useState("");
   const [newLabel, setNewLabel] = useState("");
   const [newKey, setNewKey] = useState("");
+  // Saldos manuais / importados (corretoras sem API). Entram no mesmo total.
+  const [venueUsd, setVenueUsd] = useState(0);
   const [newSecret, setNewSecret] = useState("");
 
   // HL add form
@@ -237,9 +240,9 @@ export default function CexSection({
       const spot = a.spotBalances.reduce((s, b) => s + (b.total ?? 0), 0);
       return sum + spot + (a.perpValue ?? 0);
     }, 0);
-    onTotalChange(cexUsd + hlUsd);
+    onTotalChange(cexUsd + hlUsd + venueUsd);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cexAccounts, hlAccounts, onTotalChange, tokenPricesUsd]);
+  }, [cexAccounts, hlAccounts, onTotalChange, tokenPricesUsd, venueUsd]);
 
   async function addCex() {
     if (!newKey || !newSecret) return;
@@ -502,6 +505,9 @@ export default function CexSection({
           ))}
         </div>
       </div>
+
+      {/* ── Corretoras sem API + registo manual ── */}
+      <VenueSection onTotalChange={setVenueUsd} usdToEur={usdToEur} />
 
       {/* ── Hyperliquid ── */}
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 space-y-4">
