@@ -1,4 +1,4 @@
-import { accKey, allAccountIds, isAllAccountsActive, readNamespaced } from "@/lib/portfolios/accounts";
+import { accKey, marcarAlterado, allAccountIds, isAllAccountsActive, readNamespaced } from "@/lib/portfolios/accounts";
 
 export type StoredWalletEntry = {
   address?: string;
@@ -83,6 +83,7 @@ export const saveWalletSnapshot = (next: WalletSnapshot) => {
   if (isAllAccountsActive()) return; // vista combinada é só leitura
   try {
     window.localStorage.setItem(walletsKey(), JSON.stringify(normalizeSnapshot(next)));
+    marcarAlterado("portfolio-wallets");
   } catch {
     // ignore storage errors
   }

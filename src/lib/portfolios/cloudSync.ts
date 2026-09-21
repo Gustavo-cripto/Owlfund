@@ -8,7 +8,7 @@
 //   v2  → { v:2, registry, wallets: { [id]: WalletSnapshot } }   (só carteiras)
 //   antigo → WalletSnapshot "plano"                              (→ 1ª conta, carteiras)
 
-import {
+import { SYNC_TS_BASE, adotarNuvem, lerCarimbos,
   NAMESPACED_BASE_KEYS,
   claimLocalData,
   getRegistry,
@@ -89,19 +89,32 @@ export async function pullWalletCloud(): Promise<boolean> {
       mergeRegistry(data.registry as { accounts: Account[]; activeId: string });
       const byAcc = data.data as Record<string, Record<string, string>>;
       for (const [id, perAcc] of Object.entries(byAcc)) {
+        // Carimbos: o da nuvem diz quando cada chave foi gravada no outro
+        // dispositivo; o local diz quando foi gravada aqui. Funde-se pelo máximo.
+        const tsLocal = lerCarimbos(id);
+        let tsNuvem: Record<string, number> = {};
+        try { tsNuvem = perAcc[SYNC_TS_BASE] ? (JSON.parse(perAcc[SYNC_TS_BASE]) as Record<string, number>) : {}; } catch { tsNuvem = {}; }
+        const tsFinal: Record<string, number> = { ...tsLocal };
         for (const [base, raw] of Object.entries(perAcc)) {
-          if (typeof raw !== "string") continue;
+          if (typeof raw !== "string" || base === SYNC_TS_BASE) continue;
           const local = readNamespaced(id, base);
-          if (local == null) {
-            // Só preenche o que falta localmente — nunca sobrescreve edições locais.
-            writeNamespaced(id, base, raw);
-          } else if (base === TRADE_HISTORY_KEY) {
+          if (base === TRADE_HISTORY_KEY) {
             // Histórico de trades: merge por id (updatedAt + lápides), para não
             // perder trades feitos noutro dispositivo nem ressuscitar apagados.
-            const merged = mergeTradeRaw(local, raw);
-            if (merged !== local) writeNamespaced(id, base, merged);
+            if (local == null) writeNamespaced(id, base, raw);
+            else { const merged = mergeTradeRaw(local, raw); if (merged !== local) writeNamespaced(id, base, merged); }
+            continue;
+          }
+          // Antes: só preenchia o que faltava, nunca sobrescrevia — e um telemóvel
+          // que já tinha visitado o site ficava para sempre com as carteiras de
+          // então. Agora a gravação mais recente manda (ver adotarNuvem).
+          if (adotarNuvem(local != null, tsLocal[base], tsNuvem[base])) {
+            writeNamespaced(id, base, raw);
+            if (tsNuvem[base]) tsFinal[base] = Math.max(tsFinal[base] ?? 0, tsNuvem[base]);
           }
         }
+        for (const [base, t] of Object.entries(tsNuvem)) tsFinal[base] = Math.max(tsFinal[base] ?? 0, t);
+        writeNamespaced(id, SYNC_TS_BASE, JSON.stringify(tsFinal));
       }
       return true;
     }

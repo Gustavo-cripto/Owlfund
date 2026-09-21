@@ -1,4 +1,4 @@
-import { accKey, allAccountIds, isAllAccountsActive, readNamespaced } from "@/lib/portfolios/accounts";
+import { marcarAlterado, accKey, allAccountIds, isAllAccountsActive, readNamespaced } from "@/lib/portfolios/accounts";
 
 export type CryptoHolding = {
   /** Valor investido (custo) em EUR. */
@@ -62,6 +62,7 @@ export const saveCryptoHoldings = (holdings: CryptoHoldings) => {
   if (isAllAccountsActive()) return; // vista combinada é só leitura
   try {
     localStorage.setItem(cryptoHoldingsKey(), JSON.stringify(holdings));
+    marcarAlterado("owlfund.crypto.holdings.v1");
   } catch {
     // ignore
   }
@@ -105,6 +106,7 @@ export const saveStablecoinEntries = (entries: StablecoinEntry[]) => {
   if (isAllAccountsActive()) return; // vista combinada é só leitura
   try {
     localStorage.setItem(stablecoinKey(), JSON.stringify(entries));
+    marcarAlterado("owlfund.stablecoin.addresses.v1");
   } catch {
     // ignore
   }

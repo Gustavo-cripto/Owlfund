@@ -22,7 +22,12 @@ export const NAMESPACED_BASE_KEYS = [
   "owlfund.stablecoin.addresses.v1",
   "trade-history-v1",
   "owlfund.venue.holdings.v1",
+  // Carimbos de "quando foi gravado" por chave, para o merge entre dispositivos
+  // (ver marcarAlterado e cloudSync.pullWalletCloud). Viaja no blob como as outras.
+  "owlfund.sync.ts.v1",
 ] as const;
+
+export const SYNC_TS_BASE = "owlfund.sync.ts.v1";
 
 const REGISTRY_KEY = "cf.accounts.v1";
 const OWNER_KEY = "cf.owner.v1";
@@ -279,4 +284,38 @@ export function deleteAccount(id: string) {
 
   writeRegistry({ accounts, activeId });
   emitChange();
+}
+
+/**
+ * Regista que uma chave desta conta foi gravada AGORA neste dispositivo.
+ *
+ * PORQUÊ: a sincronização com a nuvem só preenchia o que faltava localmente e
+ * nunca sobrescrevia — o que quer dizer que um telemóvel que já tinha visitado
+ * o site ficava para sempre com as carteiras de então. Ligar uma carteira no
+ * computador não chegava ao telemóvel. Com o carimbo, quem tem a gravação mais
+ * recente manda; o outro dispositivo adota-a no próximo carregamento.
+ */
+export function marcarAlterado(base: string, accountId?: string): void {
+  if (!hasWindow()) return;
+  const id = accountId ?? getActiveAccountId();
+  if (id === ALL_ACCOUNTS_ID) return;
+  const mapa = lerCarimbos(id);
+  mapa[base] = Date.now();
+  try { window.localStorage.setItem(nsKey(id, SYNC_TS_BASE), JSON.stringify(mapa)); } catch { /* ignore */ }
+}
+
+export function lerCarimbos(accountId: string): Record<string, number> {
+  const raw = readNamespaced(accountId, SYNC_TS_BASE);
+  if (!raw) return {};
+  try {
+    const o = JSON.parse(raw) as Record<string, unknown>;
+    return Object.fromEntries(Object.entries(o).filter(([, v]) => typeof v === "number" && Number.isFinite(v))) as Record<string, number>;
+  } catch { return {}; }
+}
+
+/** Decisão do merge para uma chave: adotar a versão da nuvem? (função pura, com teste) */
+export function adotarNuvem(localExiste: boolean, tsLocal: number | undefined, tsNuvem: number | undefined): boolean {
+  if (!localExiste) return true;                                  // só preenche o que falta
+  if (!tsNuvem) return false;                                     // a nuvem não sabe quando foi gravada
+  return tsNuvem > (tsLocal ?? 0);                                // a gravação mais recente manda
 }

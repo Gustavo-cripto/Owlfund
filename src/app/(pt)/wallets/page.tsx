@@ -1590,8 +1590,11 @@ export default function WalletsPage() {
   }, [defiTotals]);
 
   useEffect(() => {
-    // Store as USD; portfolio page converts to EUR via usdToEur from /api/prices
-    updateWalletSnapshot({ cexUsd: cexHlTotalUsd, defiUsd: totalDefiUsd });
+    // Store as USD; portfolio page converts to EUR via usdToEur from /api/prices.
+    // O cexUsd só se grava quando este dispositivo tem exchanges ligadas: as
+    // chaves de API ficam no dispositivo, e um telemóvel sem elas escrevia 0 por
+    // cima do valor que o computador tinha calculado.
+    updateWalletSnapshot(cexHlTotalUsd > 0 ? { cexUsd: cexHlTotalUsd, defiUsd: totalDefiUsd } : { defiUsd: totalDefiUsd });
   }, [cexHlTotalUsd, totalDefiUsd]);
 
   useEffect(() => {

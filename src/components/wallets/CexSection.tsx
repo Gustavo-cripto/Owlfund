@@ -235,6 +235,10 @@ export default function CexSection({
 
   useEffect(() => {
     if (!onTotalChange) return;
+    // Enquanto as contas deste dispositivo estão a carregar, não se diz nada:
+    // dizer "0" aqui apagava, no snapshot partilhado, o valor que outro
+    // dispositivo (o que tem as chaves) tinha calculado.
+    if (cexAccounts.some((a) => a.loading)) return;
     const cexUsd = cexAccounts.reduce((sum, a) => sum + accountUsd(a.balances), 0);
     const hlUsd = hlAccounts.reduce((sum, a) => {
       const spot = a.spotBalances.reduce((s, b) => s + (b.total ?? 0), 0);

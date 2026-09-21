@@ -1,0 +1,10 @@
+import { adotarNuvem } from "@/lib/portfolios/accounts";
+let fails = 0;
+const ok = (n: string, c: boolean) => { if (!c) fails++; console.log(`${c ? "✅" : "❌"} ${n}`); };
+ok("sem dados locais → adota", adotarNuvem(false, undefined, undefined) === true);
+ok("local existe, nuvem sem carimbo → mantém local (comportamento antigo)", adotarNuvem(true, undefined, undefined) === false);
+ok("local sem carimbo, nuvem com → adota (telemóvel antigo apanha o computador)", adotarNuvem(true, undefined, 100) === true);
+ok("nuvem mais recente → adota", adotarNuvem(true, 100, 200) === true);
+ok("local mais recente → mantém", adotarNuvem(true, 200, 100) === false);
+ok("empate → mantém", adotarNuvem(true, 100, 100) === false);
+console.log(fails === 0 ? "\nTODOS OK" : `\n${fails} FALHA(S)`); process.exit(fails ? 1 : 0);

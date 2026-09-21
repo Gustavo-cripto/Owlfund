@@ -1,4 +1,4 @@
-import { accKey, allAccountIds, isAllAccountsActive, readNamespaced } from "@/lib/portfolios/accounts";
+import { marcarAlterado, accKey, allAccountIds, isAllAccountsActive, readNamespaced } from "@/lib/portfolios/accounts";
 
 export type TraditionalHolding = {
   /** Valor investido (custo) em EUR. */
@@ -69,6 +69,7 @@ export const saveTraditionalHoldings = (holdings: TraditionalHoldings) => {
   if (isAllAccountsActive()) return; // vista combinada é só leitura
   try {
     localStorage.setItem(traditionalHoldingsKey(), JSON.stringify(holdings));
+    marcarAlterado("owlfund.traditional.holdings.v1");
   } catch {
     // ignore
   }

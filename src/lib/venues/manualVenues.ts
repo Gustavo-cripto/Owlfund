@@ -5,7 +5,7 @@
 // com uma lista de moeda + quantidade. Fica por conta (namespace), sincroniza
 // com a nuvem como os outros registos, e entra no total do portefólio pelo
 // preço de mercado.
-import { accKey, allAccountIds, isAllAccountsActive, readNamespaced } from "@/lib/portfolios/accounts";
+import { accKey, allAccountIds, isAllAccountsActive, marcarAlterado, readNamespaced } from "@/lib/portfolios/accounts";
 
 export const VENUE_HOLDINGS_BASE = "owlfund.venue.holdings.v1";
 
@@ -68,7 +68,7 @@ export function loadVenueHoldings(): VenueHolding[] {
 
 export function saveVenueHoldings(list: VenueHolding[]): void {
   if (isAllAccountsActive()) return;                        // vista combinada é só leitura
-  try { localStorage.setItem(accKey(VENUE_HOLDINGS_BASE), JSON.stringify(list)); } catch { /* ignore */ }
+  try { localStorage.setItem(accKey(VENUE_HOLDINGS_BASE), JSON.stringify(list)); marcarAlterado(VENUE_HOLDINGS_BASE); } catch { /* ignore */ }
 }
 
 export const venueId = () => `v_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
