@@ -31,6 +31,10 @@
     {
       "path": "/api/cron/telegram-health",
       "schedule": "45 7 * * *"
+    },
+    {
+      "path": "/api/cron/backup",
+      "schedule": "0 2 * * *"
     }
   ]
 }
