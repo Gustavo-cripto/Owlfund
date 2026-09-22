@@ -304,14 +304,45 @@ export function computeFifo(trades: Trade[]): FifoResult {
 // fee_asset: token em que a taxa foi paga (vazio = na moeda do preco).
 export const CSV_HEADER = ["date", "type", "asset", "quantity", "price_eur", "total_eur", "exchange", "notes", "currency", "price_original", "fee_eur", "fee_original", "fee_asset"] as const;
 
+/**
+ * Números no CSV: dinheiro com 2 casas, quantidades com as casas que tiverem
+ * (até 8), sem zeros a arrastar. Antes saía o float cru — 59797.20946355837 —
+ * que ninguém consegue ler e que nem é mais exacto: as conversões à taxa do
+ * dia já não têm essa precisão. Ponto decimal sempre: é o que o importador e
+ * as folhas de cálculo em qualquer língua leem sem confusão.
+ */
+export const csvMoney = (n: number): string => (Number.isFinite(n) ? (Math.round(n * 100) / 100).toFixed(2) : "0.00");
+export const csvQty = (n: number): string => {
+  if (!Number.isFinite(n)) return "0";
+  const s = n.toFixed(8).replace(/\.?0+$/, "");
+  return s === "" || s === "-0" ? "0" : s;
+};
+
 export function tradesToCsv(trades: Trade[]): string {
   const esc = (v: string | number) => {
     const s = String(v ?? "");
     return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
-  const rows = [...trades].sort(chronoCompare).map(t =>
-    [t.date, t.type === "compra" ? "buy" : t.type === "venda" ? "sell" : "fee", t.asset, t.quantity, t.priceEur, t.quantity * t.priceEur, t.exchange, t.notes, t.currency ?? "EUR", t.priceInput ?? t.priceEur, t.feeEur ?? 0, t.feeInput ?? t.feeEur ?? 0, t.feeAsset ?? ""].map(esc).join(","),
-  );
+  const rows = [...trades].sort(chronoCompare).map(t => {
+    // A taxa "original" é dinheiro quando está na moeda do preço, e é uma
+    // quantidade de token quando tem fee_asset (ex.: 0.0012 ETH de gas).
+    const feeOriginal = t.feeInput ?? t.feeEur ?? 0;
+    return [
+      t.date,
+      t.type === "compra" ? "buy" : t.type === "venda" ? "sell" : "fee",
+      t.asset,
+      csvQty(t.quantity),
+      csvMoney(t.priceEur),
+      csvMoney(t.quantity * t.priceEur),
+      t.exchange,
+      t.notes,
+      t.currency ?? "EUR",
+      csvMoney(t.priceInput ?? t.priceEur),
+      csvMoney(t.feeEur ?? 0),
+      t.feeAsset ? csvQty(feeOriginal) : csvMoney(feeOriginal),
+      t.feeAsset ?? "",
+    ].map(esc).join(",");
+  });
   return [CSV_HEADER.join(","), ...rows].join("\n");
 }
 
