@@ -106,7 +106,8 @@ export async function POST(request: Request) {
       ausentes: r.ausentes,
       falhas: r.falhas,
       encolheram: r.encolheram,
-      destinos: { balde: "feito", espelho, email },
+      destinos: { balde: "feito", espelho: espelho.estado, email },
+      ...(espelho.motivo ? { espelhoMotivo: espelho.motivo } : {}),
     });
   } catch (e) {
     console.error("[backups:post]", e instanceof Error ? e.message : e);

@@ -243,22 +243,51 @@ export async function podar(admin: SupabaseClient, dias: number): Promise<number
  * Nota honesta sobre o alcance: sobrevive a perder o PROJETO, não a perder a
  * CONTA do Supabase. Para isso vale a cópia que vai por email.
  */
-export async function espelhar(ficheiro: string, gz: Buffer): Promise<"feito" | "sem-configuracao" | "falhou"> {
+export type EstadoEspelho = { estado: "feito" | "sem-configuracao" | "falhou"; motivo?: string };
+
+/**
+ * Diz o que está mal na configuração SEM mostrar os valores. Serve para quem
+ * cola as variáveis à mão perceber qual das duas falhou — o erro do Supabase
+ * ("Invalid API key", "fetch failed") não diz.
+ */
+export function diagnosticarEspelho(url: string, key: string): string | null {
+  if (!/^https:\/\/[a-z]{20}\.supabase\.co\/?$/.test(url.trim())) {
+    return `BACKUP_MIRROR_URL com formato inesperado (esperava https://<20 letras>.supabase.co; tem ${url.trim().length} caracteres, começa por "${url.trim().slice(0, 8)}")`;
+  }
+  const k = key.trim();
+  if (!(k.startsWith("eyJ") && k.length > 100) && !k.startsWith("sb_secret_")) {
+    return `BACKUP_MIRROR_SERVICE_KEY com formato inesperado (esperava a service_role "eyJ…" ou uma "sb_secret_…"; tem ${k.length} caracteres, começa por "${k.slice(0, 4)}")`;
+  }
+  if (k.startsWith("eyJ")) {
+    try {
+      const corpo = JSON.parse(Buffer.from(k.split(".")[1], "base64").toString("utf8")) as { role?: string; ref?: string };
+      if (corpo.role && corpo.role !== "service_role") return `a chave é "${corpo.role}", não service_role — foi copiada a linha errada`;
+      const ref = url.trim().match(/^https:\/\/([a-z]{20})\./)?.[1];
+      if (corpo.ref && ref && corpo.ref !== ref) return "a chave é de OUTRO projeto (o ref dentro da chave não bate com o URL)";
+    } catch { /* sem diagnóstico extra */ }
+  }
+  return null;
+}
+
+export async function espelhar(ficheiro: string, gz: Buffer): Promise<EstadoEspelho> {
   const url = process.env.BACKUP_MIRROR_URL;
   const key = process.env.BACKUP_MIRROR_SERVICE_KEY;
-  if (!url || !key) return "sem-configuracao";
+  if (!url || !key) return { estado: "sem-configuracao" };
+  const diag = diagnosticarEspelho(url, key);
+  if (diag) { console.error("[backup] espelho:", diag); return { estado: "falhou", motivo: diag }; }
   try {
     const { createClient } = await import("@supabase/supabase-js");
-    const espelho = createClient(url, key, { auth: { persistSession: false } });
+    const espelho = createClient(url.trim(), key.trim(), { auth: { persistSession: false } });
     try { await espelho.storage.createBucket(BUCKET, { public: false }); } catch { /* já existe */ }
     const { error } = await espelho.storage.from(BUCKET).upload(ficheiro, gz, {
       contentType: "application/gzip", upsert: true,
     });
     if (error) throw new Error(error.message);
-    return "feito";
+    return { estado: "feito" };
   } catch (e) {
-    console.error("[backup] espelho falhou:", e instanceof Error ? e.message : e);
-    return "falhou";
+    const motivo = e instanceof Error ? e.message.slice(0, 200) : "erro";
+    console.error("[backup] espelho falhou:", motivo);
+    return { estado: "falhou", motivo };
   }
 }
 

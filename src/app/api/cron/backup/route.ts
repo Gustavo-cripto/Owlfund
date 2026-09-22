@@ -64,7 +64,7 @@ export async function GET(request: Request) {
     }
     // Se as duas vias de fora falharem, só resta a cópia que vive no mesmo
     // projeto — e isso é um risco que merece ser dito.
-    if (espelho === "falhou" && (email === "falhou" || email === "desligado")) {
+    if (espelho.estado === "falhou" && (email === "falhou" || email === "desligado")) {
       await sendTelegram(
         "⚠️ <b>A cópia de hoje ficou só dentro do projeto</b>\n" +
         "O espelho e o email falharam, por isso não há cópia fora do Supabase. " +
@@ -89,11 +89,12 @@ export async function GET(request: Request) {
       encolheram: r.encolheram,
       copiasApagadas: apagados,
       guardaDias: DIAS_A_GUARDAR,
-      espelho,
+      espelho: espelho.estado,
+      ...(espelho.motivo ? { espelhoMotivo: espelho.motivo } : {}),
       email,
       // Dito na própria resposta para não se esquecer: isto não protege contra
       // perder o projeto inteiro.
-      aviso: espelho === "feito" || email === "enviado"
+      aviso: espelho.estado === "feito" || email === "enviado"
         ? "Há cópia fora deste projeto."
         : "A cópia vive só no mesmo projeto Supabase: protege contra erros e apagamentos, não contra perder o projeto.",
     });
