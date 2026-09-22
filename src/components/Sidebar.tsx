@@ -251,8 +251,12 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* ── Mobile top bar ── */}
-      <header className="keep-dark xl:hidden flex items-center justify-between px-4 py-3 bg-black border-b border-white/[0.06]">
+      {/* ── Mobile top bar ──
+          Fixa no topo e translúcida: o conteúdo passa por baixo em vez de bater
+          numa faixa preta. O menu aberto vai dentro da mesma camada, para não
+          ficar para trás ao rolar. */}
+      <div className="keep-dark xl:hidden sticky top-0 z-40 chrome-glass scroll-edge">
+      <header className="flex items-center justify-between px-4 py-3">
         <a href={homeHref} className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0">
             <img src="/chainfolioai-icon.png" alt="ChainFolioAI" className="w-10 h-10 object-cover " />
@@ -279,7 +283,7 @@ export default function Sidebar() {
 
       {/* ── Mobile dropdown ── */}
       {mobileOpen && (
-        <nav id="sb-mobile-nav" className="animate-menu-in keep-dark xl:hidden bg-black border-b border-white/[0.06] px-3 py-3 grid grid-cols-2 gap-1">
+        <nav id="sb-mobile-nav" className="animate-menu-in px-3 py-3 grid grid-cols-2 gap-1 border-t border-white/[0.06]">
           {navList.map((item) => (
             <Link key={item.href} href={item.href} prefetch onClick={() => { setMobileOpen(false); garantirNavegacao(item.href); }}
               aria-current={isActive(item.href) ? "page" : undefined}
@@ -335,15 +339,20 @@ export default function Sidebar() {
           </div>
         </nav>
       )}
+      </div>
 
-      {/* ── Desktop sidebar (hover to expand) ── */}
-      <aside
+      {/* ── Desktop sidebar (hover to expand) ──
+          A barra ocupa sempre 72 px na página; o painel que cresce com o rato é
+          absoluto e passa POR CIMA do conteúdo. Antes crescia dentro do fluxo e
+          empurrava a página inteira 216 px de lado a cada passagem do rato — um
+          salto que não existe em lado nenhum fora de um browser. */}
+      <aside aria-label={t("sb_nav")} className="hidden xl:block shrink-0 sticky top-0 h-screen w-[72px] z-40">
+      <div
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onFocusCapture={() => setFocused(true)}
         onBlurCapture={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocused(false); }}
-        aria-label={t("sb_nav")}
-        className={`hidden xl:flex flex-col shrink-0 sticky top-0 h-screen overflow-hidden bg-black border-r border-white/[0.06] transition-[width,box-shadow] duration-300 ease-[var(--ease-in-out)] z-40 ${
+        className={`absolute inset-y-0 left-0 flex flex-col h-screen overflow-hidden chrome-glass border-r border-white/[0.06] transition-[width,box-shadow] duration-300 ease-[var(--ease-in-out)] ${
           expanded ? "w-72 shadow-2xl shadow-black/60" : "w-[72px]"
         }`}
       >
@@ -465,6 +474,7 @@ export default function Sidebar() {
             </a>
           )}
         </div>
+      </div>
       </aside>
     </>
   );

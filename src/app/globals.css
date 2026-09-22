@@ -270,12 +270,57 @@ details[open] > .faq-a { animation: fade-in-up var(--duration-fast) var(--ease-o
   font-size: 13px;
 }
 .skip-link:focus-visible { top: 12px; }
+/* ── Molduras translúcidas ────────────────────────────────────────────────
+   A barra lateral e o cabeçalho eram pretos opacos com um traço de 1px por
+   baixo. Uma barra opaca come uma faixa do ecrã e lê-se como uma caixa; uma
+   camada translúcida, com o conteúdo a passar por baixo, lê-se como uma
+   camada — que é o que é. (Apple, "Designing Fluid Interfaces" + materiais.)
+
+   O preto fica explícito e não segue o tema: em tema claro a moldura continua
+   escura, tal como o `bg-black` de antes fazia com .keep-dark. */
+.chrome-glass {
+  background-color: rgb(0 0 0 / 0.72);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* Onde a moldura flutuante encontra o conteúdo: um desvanecimento curto em vez
+   de um traço. O traço diz "acaba aqui"; o desvanecimento diz "continua por
+   baixo". Só serve para baixo — quem o usa é chrome fixo no topo. */
+.scroll-edge { position: relative; }
+.scroll-edge::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: 100%;
+  height: 14px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgb(0 0 0 / 0.38), rgb(0 0 0 / 0));
+}
+
 /* Quem pediu menos transparência: vidro fosco passa a fundo sólido. */
 @media (prefers-reduced-transparency: reduce) {
   .backdrop-blur, .backdrop-blur-sm, .backdrop-blur-md, .backdrop-blur-lg {
     backdrop-filter: none !important;
     background-color: rgb(2 6 23 / 0.98) !important;
   }
+  .chrome-glass {
+    backdrop-filter: none !important;
+    background-color: rgb(0 0 0) !important;
+  }
+}
+
+/* Quem pediu mais contraste: fundos quase sólidos e uma borda definida, em vez
+   de vidro e traços de 6% de branco que desaparecem. É o terceiro sinal do
+   sistema (a par de menos movimento e menos transparência) e faltava. */
+@media (prefers-contrast: more) {
+  .chrome-glass {
+    backdrop-filter: none !important;
+    background-color: rgb(0 0 0) !important;
+    border-color: rgb(255 255 255 / 0.45) !important;
+  }
+  .scroll-edge::after { display: none; }
+  .border-white\/\[0\.06\] { border-color: rgb(255 255 255 / 0.4) !important; }
+  .text-slate-500, .text-slate-600 { color: rgb(203 213 225) !important; }
 }
 
 /* Metric card number */
@@ -293,6 +338,15 @@ td, th, .pnl-card { font-variant-numeric: tabular-nums; }
    a ganhar (especificidade de classe). */
 h1 { letter-spacing: -0.02em; text-wrap: balance; }
 h2 { letter-spacing: -0.01em; text-wrap: balance; }
+
+/* O tracking é específico do tamanho: a -0.02em serve um título de 2rem, não um
+   de 4 — quanto maior a letra, mais afastadas as letras PARECEM, e mais é
+   preciso apertar. `:where()` deixa a regra com especificidade zero de propósito:
+   qualquer `tracking-*` escrito à mão no JSX continua a ganhar (há quatro
+   títulos em maiúsculas que querem tracking largo, e esses ficam como estão). */
+h1:where(.text-4xl), h2:where(.text-4xl) { letter-spacing: -0.025em; }
+h1:where(.text-5xl), h2:where(.text-5xl) { letter-spacing: -0.03em; }
+h1:where(.text-6xl, .text-7xl) { letter-spacing: -0.035em; }
 
 :root {
   --background: #0b0f1a;
