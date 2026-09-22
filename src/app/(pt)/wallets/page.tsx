@@ -1589,12 +1589,21 @@ export default function WalletsPage() {
     return sum;
   }, [defiTotals]);
 
+  // Este aparelho já teve exchanges com valor nesta sessão? Se sim, um 0 a
+  // seguir é real (a pessoa removeu-as) e tem de ser gravado; se não, um 0 é
+  // só "este aparelho não tem as chaves" e não pode apagar o que o outro
+  // aparelho calculou.
+  const cexJaTeveValor = useRef(false);
   useEffect(() => {
     // Store as USD; portfolio page converts to EUR via usdToEur from /api/prices.
-    // O cexUsd só se grava quando este dispositivo tem exchanges ligadas: as
-    // chaves de API ficam no dispositivo, e um telemóvel sem elas escrevia 0 por
-    // cima do valor que o computador tinha calculado.
-    updateWalletSnapshot(cexHlTotalUsd > 0 ? { cexUsd: cexHlTotalUsd, defiUsd: totalDefiUsd } : { defiUsd: totalDefiUsd });
+    if (cexHlTotalUsd > 0) {
+      cexJaTeveValor.current = true;
+      updateWalletSnapshot({ cexUsd: cexHlTotalUsd, defiUsd: totalDefiUsd });
+    } else if (cexJaTeveValor.current) {
+      updateWalletSnapshot({ cexUsd: 0, defiUsd: totalDefiUsd });
+    } else {
+      updateWalletSnapshot({ defiUsd: totalDefiUsd });
+    }
   }, [cexHlTotalUsd, totalDefiUsd]);
 
   useEffect(() => {

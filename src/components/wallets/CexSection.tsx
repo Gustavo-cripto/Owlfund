@@ -320,7 +320,9 @@ export default function CexSection({
   };
 
   async function addCex() {
-    if (!newKey || !newSecret) return;
+    // A Bitpanda so tem chave (sem secret): o botao ja o sabia, esta guarda nao,
+    // e o clique morria em silencio. Ninguem conseguia ligar a Bitpanda.
+    if (!newKey || (!newSecret && newExchange !== "bitpanda")) return;
     if (guardarNoServidor && serverEnabled) { await addCexNoServidor(); return; }
     const id = crypto.randomUUID();
     const account: CexAccount = {
