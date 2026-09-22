@@ -5,7 +5,7 @@ import ErrorNote from "@/components/ErrorNote";
 import VenueSection from "@/components/wallets/VenueSection";
 import { NETWORK_SHORT, networkKey } from "@/lib/wallets/networkKey";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { btnPrimary } from "@/lib/ui/buttons";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
@@ -32,6 +32,9 @@ interface CexAccount {
   error?: string;
   loading: boolean;
 }
+
+// Conta guardada no servidor (chaves cifradas la; aqui so o que se pode mostrar).
+interface ServerCex { id: string; exchange: string; label: string | null; balances: CexBalance[] | null; balances_at: string | null; last_error: string | null; loading?: boolean }
 
 interface HlBalance {
   coin: string;
@@ -136,6 +139,11 @@ export default function CexSection({
   const [newKey, setNewKey] = useState("");
   // Saldos manuais / importados (corretoras sem API). Entram no mesmo total.
   const [venueUsd, setVenueUsd] = useState(0);
+  // Contas com as chaves no servidor (opcao da pessoa): lidas de /api/cex-keys.
+  const [serverCex, setServerCex] = useState<ServerCex[]>([]);
+  const [serverEnabled, setServerEnabled] = useState(false);
+  const [guardarNoServidor, setGuardarNoServidor] = useState(false);
+  const [erroServidor, setErroServidor] = useState<string | null>(null);
   const [newSecret, setNewSecret] = useState("");
 
   // HL add form
@@ -192,6 +200,33 @@ export default function CexSection({
     }
   }, []);
 
+  // Contas guardadas no servidor: lista + saldos em cache (o cron actualiza-os).
+  const carregarServidor = () => {
+    fetch("/api/cex-keys")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { enabled?: boolean; accounts?: ServerCex[] } | null) => {
+        if (!d) return;
+        setServerEnabled(!!d.enabled);
+        setServerCex(d.accounts ?? []);
+      })
+      .catch(() => {});
+  };
+  useEffect(() => { carregarServidor(); }, []);
+
+  // "Saldo actualizado enquanto a app esta aberta": de 5 em 5 minutos e sempre
+  // que a pessoa volta ao separador. As contas do servidor releem a cache (que
+  // o cron actualiza de meia em meia hora); as locais vao a exchange.
+  const cexRef = useRef<CexAccount[]>([]);
+  cexRef.current = cexAccounts;
+  useEffect(() => {
+    const tudo = () => { cexRef.current.forEach((a) => { if (!a.loading) refreshAccount(a); }); carregarServidor(); };
+    const id = window.setInterval(tudo, 5 * 60_000);
+    const aoVoltar = () => { if (document.visibilityState === "visible") tudo(); };
+    document.addEventListener("visibilitychange", aoVoltar);
+    return () => { window.clearInterval(id); document.removeEventListener("visibilitychange", aoVoltar); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Save config to localStorage whenever accounts change (without transient state)
   useEffect(() => {
     saveStored<StoredCex>(CEX_STORAGE_KEY, cexAccounts.map(({ id, exchange, label, apiKey, apiSecret, apiPassphrase }) => ({ id, exchange, label, apiKey, apiSecret, apiPassphrase })));
@@ -204,7 +239,7 @@ export default function CexSection({
   // Fetch prices for all tokens via server-side proxy (avoids CORS)
   useEffect(() => {
     const allSymbols = Array.from(
-      new Set(cexAccounts.flatMap((a) => a.balances.map((b) => b.asset)))
+      new Set([...cexAccounts.flatMap((a) => a.balances.map((b) => b.asset)), ...serverCex.flatMap((a) => (a.balances ?? []).map((b) => b.asset))])
     );
     if (allSymbols.length === 0) return;
 
@@ -214,7 +249,7 @@ export default function CexSection({
         if (d.prices) setTokenPricesUsd(d.prices);
       })
       .catch(() => {});
-  }, [cexAccounts]);
+  }, [cexAccounts, serverCex]);
 
   const refreshAccount = (acc: CexAccount) => {
     setCexAccounts((prev) => prev.map((a) => a.id === acc.id ? { ...a, loading: true, error: undefined } : a));
@@ -249,17 +284,44 @@ export default function CexSection({
     // dizer "0" aqui apagava, no snapshot partilhado, o valor que outro
     // dispositivo (o que tem as chaves) tinha calculado.
     if (cexAccounts.some((a) => a.loading)) return;
-    const cexUsd = cexAccounts.reduce((sum, a) => sum + accountUsd(a.balances), 0);
+    const cexUsd = cexAccounts.reduce((sum, a) => sum + accountUsd(a.balances), 0)
+      + serverCex.reduce((sum, a) => sum + accountUsd(a.balances ?? []), 0);
     const hlUsd = hlAccounts.reduce((sum, a) => {
       const spot = a.spotBalances.reduce((s, b) => s + (b.total ?? 0), 0);
       return sum + spot + (a.perpValue ?? 0);
     }, 0);
     onTotalChange(cexUsd + hlUsd + venueUsd);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cexAccounts, hlAccounts, onTotalChange, tokenPricesUsd, venueUsd]);
+  }, [cexAccounts, hlAccounts, serverCex, onTotalChange, tokenPricesUsd, venueUsd]);
+
+  async function addCexNoServidor() {
+    setErroServidor(null);
+    const res = await fetch("/api/cex-keys", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ exchange: newExchange, label: newLabel || undefined, apiKey: newKey, apiSecret: newSecret || undefined, apiPassphrase: newPassphrase || undefined }),
+    });
+    const d = (await res.json().catch(() => ({}))) as { account?: ServerCex; error?: string };
+    if (!res.ok || !d.account) { setErroServidor(d.error ?? t("cx_load_fail")); return; }
+    setServerCex((prev) => [...prev, d.account!]);
+    setShowAddCex(false);
+    setNewKey(""); setNewSecret(""); setNewLabel(""); setNewPassphrase("");
+  }
+
+  const refreshServidor = async (id: string) => {
+    setServerCex((prev) => prev.map((a) => (a.id === id ? { ...a, loading: true } : a)));
+    const res = await fetch(`/api/cex-keys?refresh=${encodeURIComponent(id)}`, { method: "POST" });
+    const d = (await res.json().catch(() => ({}))) as { balances?: CexBalance[]; balances_at?: string; error?: string };
+    setServerCex((prev) => prev.map((a) => (a.id === id ? { ...a, loading: false, balances: d.balances ?? a.balances, balances_at: d.balances_at ?? a.balances_at, last_error: d.error ?? null } : a)));
+  };
+
+  const removerServidor = async (id: string) => {
+    await fetch(`/api/cex-keys?id=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => {});
+    setServerCex((prev) => prev.filter((a) => a.id !== id));
+  };
 
   async function addCex() {
     if (!newKey || !newSecret) return;
+    if (guardarNoServidor && serverEnabled) { await addCexNoServidor(); return; }
     const id = crypto.randomUUID();
     const account: CexAccount = {
       id,
@@ -424,6 +486,13 @@ export default function CexSection({
               </ol>
             </details>
             <p className="text-[10px] text-slate-600">{t("cx_warn_readonly")}</p>
+            {serverEnabled && (
+              <label className="flex items-start gap-2 rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-2 text-[11px] text-slate-300">
+                <input type="checkbox" checked={guardarNoServidor} onChange={(e) => setGuardarNoServidor(e.target.checked)} className="mt-0.5" />
+                <span><b className="text-slate-100">{t("cx_server_opt")}</b> — {t("cx_server_opt_desc")}</span>
+              </label>
+            )}
+            {erroServidor && <ErrorNote>{erroServidor}</ErrorNote>}
             <div className="flex gap-2">
               <button
                 type="button"
@@ -444,9 +513,44 @@ export default function CexSection({
           </div>
         )}
 
-        {cexAccounts.length === 0 && !showAddCex && (
+        {cexAccounts.length === 0 && serverCex.length === 0 && !showAddCex && (
           <p className="text-xs text-slate-600">{t("cx_no_exchange")}</p>
         )}
+
+        {serverCex.map((acc) => (
+          <div key={acc.id} className="rounded-xl border border-sky-500/20 bg-slate-950/40 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-sm font-semibold text-white">{acc.label ?? EXCHANGES.find((e) => e.id === acc.exchange)?.label ?? acc.exchange}</p>
+                <p className="text-[10px] text-slate-500 uppercase tracking-wide">{acc.exchange} · <span className="text-sky-300 normal-case">{t("cx_server_badge")}</span>{acc.balances_at ? ` · ${new Date(acc.balances_at).toLocaleString()}` : ""}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button type="button" onClick={() => void refreshServidor(acc.id)} disabled={!!acc.loading}
+                  className="flex items-center gap-1 rounded-lg border border-slate-700 px-2.5 py-1 text-[11px] font-semibold text-slate-300 hover:border-orange-400/60 transition disabled:opacity-50">
+                  <span className={acc.loading ? "animate-spin" : ""}>↻</span>{acc.loading ? t("cx_updating") : t("cx_refresh")}
+                </button>
+                <button type="button" onClick={() => void removerServidor(acc.id)} className="text-xs text-slate-600 hover:text-rose-400 transition">{t("cx_remove")}</button>
+              </div>
+            </div>
+            {acc.last_error ? <ErrorNote>{acc.last_error}</ErrorNote> : (acc.balances ?? []).length === 0 ? (
+              <p className="text-xs text-slate-500">{t("cx_no_balances")}</p>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {(acc.balances ?? []).map((b) => {
+                  const priceUsd = tokenPricesUsd[b.asset];
+                  const valueEur = priceUsd != null ? b.total * priceUsd * usdToEur : null;
+                  return (
+                    <div key={b.asset} className="rounded-lg bg-slate-900 px-3 py-2 text-xs">
+                      <p className="font-bold text-white">{b.asset}</p>
+                      <p className="text-slate-400">{hideBalances ? "••••" : fmtQty(b.total)}</p>
+                      {valueEur != null && valueEur > 0.001 && <p className="text-[11px] text-emerald-400/80 mt-0.5">{fmtCur(valueEur)}</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ))}
 
         <div className="space-y-3">
           {cexAccounts.map((acc) => (

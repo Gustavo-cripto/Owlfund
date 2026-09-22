@@ -2790,9 +2790,14 @@ export default function WalletsPage() {
 
     const startId = window.setTimeout(refreshAll, 100);
     const id = window.setInterval(refreshAll, 60000);
+    // E ao voltar ao separador: no telemovel o intervalo para quando a app vai
+    // para segundo plano, e a pessoa voltava a ver o saldo de ha uma hora.
+    const aoVoltar = () => { if (document.visibilityState === "visible") void refreshAll(); };
+    document.addEventListener("visibilitychange", aoVoltar);
     return () => {
       window.clearTimeout(startId);
       window.clearInterval(id);
+      document.removeEventListener("visibilitychange", aoVoltar);
     };
   }, [walletMode, ethAddress, solAddress, btcAddress, adaApi]);
 

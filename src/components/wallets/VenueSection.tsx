@@ -32,6 +32,17 @@ export default function VenueSection({ onTotalChange, usdToEur = 0.92 }: { onTot
   const [precos, setPrecos] = useState<Record<string, number>>({});
   const [importacao, setImportacao] = useState<ImportacaoCryptocom | null>(null);
   const [erroFicheiro, setErroFicheiro] = useState<string | null>(null);
+  // Entrada que esta a ser actualizada (substitui-se ao guardar, em vez de acrescentar).
+  const [aAtualizar, setAAtualizar] = useState<string | null>(null);
+  const DIAS_ANTIGO = 30;
+  const diasDesde = (ts: number) => Math.floor((Date.now() - ts) / 86_400_000);
+
+  // "Este saldo tem N dias, queres actualizar?" — abre o formulario ja preenchido.
+  const abrirAtualizar = (v: VenueHolding) => {
+    setAAdicionar(true); setVenue(v.venue); setRotulo(v.label ?? ""); setAAtualizar(v.id);
+    setLinhas(v.assets.length ? v.assets.map((a) => ({ asset: a.asset, qty: String(a.qty) })) : [{ asset: "", qty: "" }]);
+    setImportacao(null); setErroFicheiro(null);
+  };
   const ficheiroRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setLista(loadVenueHoldings()); setPronto(true); }, []);
@@ -53,7 +64,7 @@ export default function VenueSection({ onTotalChange, usdToEur = 0.92 }: { onTot
   const venueInfo = (id: string) => VENUES.find((v) => v.id === id);
   const escolhida = venue ? venueInfo(venue) : null;
 
-  const fechar = () => { setAAdicionar(false); setVenue(null); setRotulo(""); setLinhas([{ asset: "", qty: "" }]); setImportacao(null); setErroFicheiro(null); };
+  const fechar = () => { setAAdicionar(false); setVenue(null); setRotulo(""); setLinhas([{ asset: "", qty: "" }]); setImportacao(null); setErroFicheiro(null); setAAtualizar(null); };
 
   const guardarManual = () => {
     if (!venue) return;
@@ -61,7 +72,8 @@ export default function VenueSection({ onTotalChange, usdToEur = 0.92 }: { onTot
       .map((l) => ({ asset: l.asset.trim().toUpperCase(), qty: Number(String(l.qty).replace(",", ".")) }))
       .filter((a) => a.asset && Number.isFinite(a.qty) && a.qty > 0);
     if (assets.length === 0) return;
-    setLista((prev) => [...prev, { id: venueId(), venue, label: rotulo.trim() || undefined, assets, source: "manual", updatedAt: Date.now() }]);
+    const nova: VenueHolding = { id: aAtualizar ?? venueId(), venue, label: rotulo.trim() || undefined, assets, source: "manual", updatedAt: Date.now() };
+    setLista((prev) => (aAtualizar ? prev.map((v) => (v.id === aAtualizar ? nova : v)) : [...prev, nova]));
     fechar();
     pushWalletCloud();
   };
@@ -217,8 +229,17 @@ export default function VenueSection({ onTotalChange, usdToEur = 0.92 }: { onTot
                     {v.source === "csv" ? t("vn_src_csv") : t("vn_src_manual")} · {new Date(v.updatedAt).toLocaleDateString()}
                   </p>
                 </div>
-                <button type="button" onClick={() => remover(v.id)} className="text-xs text-slate-600 hover:text-rose-400 transition">{t("vn_remove")}</button>
+                <div className="flex items-center gap-3">
+                  <button type="button" onClick={() => abrirAtualizar(v)} className="rounded-lg border border-slate-700 px-2.5 py-1 text-[11px] font-semibold text-slate-300 hover:border-orange-400/60 transition">{t("vn_update")}</button>
+                  <button type="button" onClick={() => remover(v.id)} className="text-xs text-slate-600 hover:text-rose-400 transition">{t("vn_remove")}</button>
+                </div>
               </div>
+              {diasDesde(v.updatedAt) >= DIAS_ANTIGO && (
+                <p className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
+                  {t("vn_stale").replace("{n}", String(diasDesde(v.updatedAt)))}{" "}
+                  <button type="button" onClick={() => abrirAtualizar(v)} className="font-semibold underline">{t("vn_stale_cta")}</button>
+                </p>
+              )}
               {v.assets.length === 0 ? (
                 <p className="text-xs text-slate-500">{t("vn_no_assets")}</p>
               ) : (

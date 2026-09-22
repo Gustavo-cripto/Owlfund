@@ -1,0 +1,428 @@
+// Leitura de saldos nas exchanges, por chave de API — só leitura.
+//
+// Vive fora da rota para ser usada por dois caminhos: o pedido da página (as
+// chaves vêm do browser da pessoa) e o cron que actualiza as contas guardadas
+// no servidor (as chaves vêm do cofre, ver cofre.ts). Cada leitor segue a
+// documentação oficial da exchange; a fonte está em cada função.
+import crypto from "crypto";
+
+import { assinarBit2Me, assinarBitstamp, assinarBitvavo, assinarNexoPro, assinarRevolutX, stringBitstamp } from "@/lib/cex/assinaturas";
+
+export interface CexBalance {
+  asset: string;
+  free: number;
+  locked: number;
+  total: number;
+  usdValue?: number;
+}
+
+export interface CexBalanceResponse {
+  exchange: string;
+  balances: CexBalance[];
+  error?: string;
+}
+
+// ── Binance ────────────────────────────────────────────────────────────────
+
+export async function fetchBinance(apiKey: string, apiSecret: string): Promise<CexBalance[]> {
+  const ts = Date.now();
+  const query = `timestamp=${ts}&recvWindow=10000`;
+  const sig = crypto.createHmac("sha256", apiSecret).update(query).digest("hex");
+  const url = `https://api.binance.com/api/v3/account?${query}&signature=${sig}`;
+  const res = await fetch(url, { headers: { "X-MBX-APIKEY": apiKey } });
+  if (res.status === 451) throw new Error("Binance bloqueou o acesso a partir dos servidores da app (restrição geográfica). Usa a Binance diretamente ou experimenta a Kraken/CoinEx.");
+  if (!res.ok) throw new Error(`Binance: ${res.status}`);
+  const data = await res.json() as { balances: { asset: string; free: string; locked: string }[] };
+  return data.balances
+    .map((b) => ({ asset: b.asset, free: parseFloat(b.free), locked: parseFloat(b.locked), total: parseFloat(b.free) + parseFloat(b.locked) }))
+    .filter((b) => b.total > 0);
+}
+
+// ── Kraken ─────────────────────────────────────────────────────────────────
+
+export async function fetchKraken(apiKey: string, apiSecret: string): Promise<CexBalance[]> {
+  const nonce = Date.now().toString();
+  const path = "/0/private/Balance";
+  const body = `nonce=${nonce}`;
+  const msg = nonce + body;
+  const secretBuf = Buffer.from(apiSecret, "base64");
+  const hash = crypto.createHash("sha256").update(msg).digest();
+  const hmacInput = Buffer.concat([Buffer.from(path), hash]);
+  const sig = crypto.createHmac("sha512", secretBuf).update(hmacInput).digest("base64");
+  const res = await fetch(`https://api.kraken.com${path}`, {
+    method: "POST",
+    headers: { "API-Key": apiKey, "API-Sign": sig, "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  if (!res.ok) throw new Error(`Kraken: ${res.status}`);
+  const data = await res.json() as { error: string[]; result: Record<string, string> };
+  if (data.error?.length) throw new Error(`Kraken: ${data.error[0]}`);
+  return Object.entries(data.result)
+    .map(([asset, amount]) => ({ asset, free: parseFloat(amount), locked: 0, total: parseFloat(amount) }))
+    .filter((b) => b.total > 0);
+}
+
+// ── CoinEx ─────────────────────────────────────────────────────────────────
+
+export async function fetchCoinEx(apiKey: string, apiSecret: string): Promise<CexBalance[]> {
+  const key    = apiKey.replace(/[\s\r\n\t]/g, "");
+  const secret = apiSecret.replace(/[\s\r\n\t]/g, "");
+
+  const signAndFetch = async (signPath: string) => {
+    const ts     = Date.now().toString();
+    // CoinEx v2: METHOD + signedPath + body + timestamp (no separators)
+    const toSign = "GET" + signPath + ts;
+    const sig = crypto.createHmac("sha256", Buffer.from(secret, "utf-8"))
+      .update(Buffer.from(toSign, "utf-8"))
+      .digest("hex");
+    return fetch("https://api.coinex.com/v2/assets/spot/balance", {
+      headers: {
+        "X-COINEX-KEY":       key,
+        "X-COINEX-SIGN":      sig,
+        "X-COINEX-TIMESTAMP": ts,
+      },
+      cache: "no-store",
+    });
+  };
+
+  // Try short path first, then full path if signature fails
+  let res = await signAndFetch("/assets/spot/balance");
+  if (res.ok || res.status !== 200) {
+    const d = await res.json() as { code: number; message?: string; data: { ccy: string; available: string; frozen: string }[] };
+    if (d.code === 25) {
+      // Retry with full path including /v2 prefix
+      res = await signAndFetch("/v2/assets/spot/balance");
+    } else if (d.code !== 0) {
+      throw new Error(`CoinEx code ${d.code}: ${d.message ?? ""}`);
+    } else {
+      return (d.data ?? [])
+        .map((b) => ({ asset: b.ccy, free: parseFloat(b.available), locked: parseFloat(b.frozen), total: parseFloat(b.available) + parseFloat(b.frozen) }))
+        .filter((b) => b.total > 0);
+    }
+  }
+
+  if (!res.ok) throw new Error(`CoinEx: ${res.status}`);
+  const data = await res.json() as { code: number; message?: string; data: { ccy: string; available: string; frozen: string }[] };
+  if (data.code !== 0) throw new Error(`CoinEx code ${data.code}: ${data.message ?? ""}`);
+  return (data.data ?? [])
+    .map((b) => ({ asset: b.ccy, free: parseFloat(b.available), locked: parseFloat(b.frozen), total: parseFloat(b.available) + parseFloat(b.frozen) }))
+    .filter((b) => b.total > 0);
+}
+
+// ── OKX (MiCA · Malta) — precisa de passphrase ─────────────────────────────
+
+export async function fetchOkx(apiKey: string, apiSecret: string, passphrase: string): Promise<CexBalance[]> {
+  const call = async (path: string) => {
+    const ts = new Date().toISOString();
+    const sig = crypto.createHmac("sha256", apiSecret).update(ts + "GET" + path).digest("base64");
+    const res = await fetch(`https://www.okx.com${path}`, {
+      headers: {
+        "OK-ACCESS-KEY": apiKey,
+        "OK-ACCESS-SIGN": sig,
+        "OK-ACCESS-TIMESTAMP": ts,
+        "OK-ACCESS-PASSPHRASE": passphrase,
+      },
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error(`OKX: ${res.status}`);
+    return res.json() as Promise<{ code: string; msg?: string; data?: unknown[] }>;
+  };
+
+  const out = new Map<string, CexBalance>();
+  const add = (asset: string, free: number, locked: number) => {
+    const prev = out.get(asset) ?? { asset, free: 0, locked: 0, total: 0 };
+    prev.free += free; prev.locked += locked; prev.total = prev.free + prev.locked;
+    out.set(asset, prev);
+  };
+
+  // Conta de trading
+  const trade = await call("/api/v5/account/balance");
+  if (trade.code !== "0") throw new Error(`OKX: ${trade.msg ?? trade.code}`);
+  const details = (trade.data?.[0] as { details?: { ccy: string; availBal: string; frozenBal: string }[] } | undefined)?.details ?? [];
+  for (const d of details) add(d.ccy, parseFloat(d.availBal || "0"), parseFloat(d.frozenBal || "0"));
+
+  // Conta de funding (best-effort)
+  try {
+    const fund = await call("/api/v5/asset/balances");
+    if (fund.code === "0") {
+      for (const d of (fund.data ?? []) as { ccy: string; availBal: string; frozenBal: string }[]) {
+        add(d.ccy, parseFloat(d.availBal || "0"), parseFloat(d.frozenBal || "0"));
+      }
+    }
+  } catch { /* funding opcional */ }
+
+  return [...out.values()].filter((b) => b.total > 0);
+}
+
+// ── Bybit (MiCA · Áustria) ─────────────────────────────────────────────────
+
+export async function fetchBybit(apiKey: string, apiSecret: string): Promise<CexBalance[]> {
+  const call = async (path: string, query: string) => {
+    const ts = Date.now().toString();
+    const recv = "10000";
+    const sig = crypto.createHmac("sha256", apiSecret).update(ts + apiKey + recv + query).digest("hex");
+    const res = await fetch(`https://api.bybit.com${path}?${query}`, {
+      headers: {
+        "X-BAPI-API-KEY": apiKey,
+        "X-BAPI-TIMESTAMP": ts,
+        "X-BAPI-RECV-WINDOW": recv,
+        "X-BAPI-SIGN": sig,
+      },
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error(`Bybit: ${res.status}`);
+    return res.json() as Promise<{ retCode: number; retMsg?: string; result?: unknown }>;
+  };
+
+  const out = new Map<string, CexBalance>();
+  const add = (asset: string, free: number, locked: number) => {
+    const prev = out.get(asset) ?? { asset, free: 0, locked: 0, total: 0 };
+    prev.free += free; prev.locked += locked; prev.total = prev.free + prev.locked;
+    out.set(asset, prev);
+  };
+
+  const uni = await call("/v5/account/wallet-balance", "accountType=UNIFIED");
+  if (uni.retCode !== 0) throw new Error(`Bybit: ${uni.retMsg ?? uni.retCode}`);
+  const coins = ((uni.result as { list?: { coin?: { coin: string; walletBalance: string; locked: string }[] }[] })?.list?.[0]?.coin) ?? [];
+  for (const c of coins) {
+    const total = parseFloat(c.walletBalance || "0");
+    const locked = parseFloat(c.locked || "0");
+    add(c.coin, Math.max(0, total - locked), locked);
+  }
+
+  // Conta de funding (best-effort)
+  try {
+    const fund = await call("/v5/asset/transfer/query-account-coins-balance", "accountType=FUND");
+    if (fund.retCode === 0) {
+      const fc = ((fund.result as { balance?: { coin: string; walletBalance: string }[] })?.balance) ?? [];
+      for (const c of fc) add(c.coin, parseFloat(c.walletBalance || "0"), 0);
+    }
+  } catch { /* opcional */ }
+
+  return [...out.values()].filter((b) => b.total > 0);
+}
+
+// ── Crypto.com (MiCA · Malta) ──────────────────────────────────────────────
+
+export async function fetchCryptoCom(apiKey: string, apiSecret: string): Promise<CexBalance[]> {
+  const id = Date.now();
+  const nonce = Date.now();
+  const method = "private/user-balance";
+  const sigPayload = `${method}${id}${apiKey}${""}${nonce}`;
+  const sig = crypto.createHmac("sha256", apiSecret).update(sigPayload).digest("hex");
+  const res = await fetch("https://api.crypto.com/exchange/v1/private/user-balance", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, method, api_key: apiKey, params: {}, nonce, sig }),
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`Crypto.com: ${res.status}`);
+  const data = await res.json() as { code: number; message?: string; result?: { data?: { position_balances?: { instrument_name: string; quantity: string }[] }[] } };
+  if (data.code !== 0) throw new Error(`Crypto.com: ${data.message ?? data.code}`);
+  // `data` traz uma entrada por conta (principal e subcontas). Somar todas: so a
+  // primeira deixava de fora o que estivesse numa subconta.
+  const porAtivo = new Map<string, number>();
+  for (const conta of data.result?.data ?? []) {
+    for (const b of conta.position_balances ?? []) {
+      const q = parseFloat(b.quantity || "0");
+      if (q > 0) porAtivo.set(b.instrument_name, (porAtivo.get(b.instrument_name) ?? 0) + q);
+    }
+  }
+  return [...porAtivo.entries()].map(([asset, total]) => ({ asset, free: total, locked: 0, total }));
+}
+
+// ── Bitvavo (MiCA · Países Baixos) ─────────────────────────────────────────
+export async function fetchBitvavo(apiKey: string, apiSecret: string): Promise<CexBalance[]> {
+  const ts = Date.now();
+  const res = await fetch("https://api.bitvavo.com/v2/balance", {
+    headers: {
+      "Bitvavo-Access-Key": apiKey.trim(),
+      "Bitvavo-Access-Timestamp": String(ts),
+      "Bitvavo-Access-Signature": assinarBitvavo(apiSecret.trim(), ts, "GET", "/v2/balance"),
+      "Bitvavo-Access-Window": "10000",
+      Accept: "application/json",
+    },
+    cache: "no-store",
+  });
+  const data = (await res.json().catch(() => null)) as Array<{ symbol: string; available: string; inOrder: string }> | { errorCode?: number; error?: string } | null;
+  if (!res.ok || !Array.isArray(data)) throw new Error(`Bitvavo: ${(data as { error?: string })?.error ?? res.status}`);
+  return data
+    .map((b) => { const free = parseFloat(b.available || "0"); const locked = parseFloat(b.inOrder || "0"); return { asset: b.symbol, free, locked, total: free + locked }; })
+    .filter((b) => b.total > 0);
+}
+
+// ── Bitstamp (MiCA · Luxemburgo) ───────────────────────────────────────────
+export async function fetchBitstamp(apiKey: string, apiSecret: string): Promise<CexBalance[]> {
+  const caminho = "/api/v2/account_balances/";
+  const nonce = crypto.randomUUID();
+  const ts = Date.now();
+  const sig = assinarBitstamp(apiSecret.trim(), stringBitstamp(apiKey.trim(), "POST", caminho, nonce, ts));
+  const res = await fetch(`https://www.bitstamp.net${caminho}`, {
+    method: "POST",
+    headers: { "X-Auth": `BITSTAMP ${apiKey.trim()}`, "X-Auth-Signature": sig, "X-Auth-Nonce": nonce, "X-Auth-Timestamp": String(ts), "X-Auth-Version": "v2" },
+    cache: "no-store",
+  });
+  const data = (await res.json().catch(() => null)) as Array<{ currency: string; total: string; available: string; reserved: string }> | { reason?: unknown; code?: string } | null;
+  if (!res.ok || !Array.isArray(data)) throw new Error(`Bitstamp: ${JSON.stringify((data as { reason?: unknown })?.reason ?? res.status).slice(0, 120)}`);
+  return data
+    .map((b) => ({ asset: b.currency.toUpperCase(), free: parseFloat(b.available || "0"), locked: parseFloat(b.reserved || "0"), total: parseFloat(b.total || "0") }))
+    .filter((b) => b.total > 0);
+}
+
+// ── Bit2Me (MiCA · Espanha) ────────────────────────────────────────────────
+export async function fetchBit2Me(apiKey: string, apiSecret: string): Promise<CexBalance[]> {
+  const caminho = "/v1/trading/wallet/balance";
+  const nonce = Date.now();
+  const res = await fetch(`https://gateway.bit2me.com${caminho}`, {
+    headers: { "x-api-key": apiKey.trim(), "api-signature": assinarBit2Me(apiSecret.trim(), nonce, caminho), "x-nonce": String(nonce), "Content-type": "application/json" },
+    cache: "no-store",
+  });
+  const data = (await res.json().catch(() => null)) as unknown;
+  if (!res.ok) throw new Error(`Bit2Me: ${(data as { message?: string })?.message ?? res.status}`);
+  // A forma exata das linhas não está nos exemplos públicos: aceitam-se os nomes habituais.
+  const linhas = Array.isArray(data) ? data : Array.isArray((data as { data?: unknown })?.data) ? (data as { data: unknown[] }).data : [];
+  return (linhas as Array<Record<string, unknown>>)
+    .map((b) => {
+      const asset = String(b.symbol ?? b.currency ?? b.asset ?? "").toUpperCase();
+      const free = parseFloat(String(b.available ?? b.balance ?? b.free ?? "0"));
+      const locked = parseFloat(String(b.blockedBalance ?? b.blocked ?? b.locked ?? b.inOrder ?? "0"));
+      const totalDireto = b.total != null ? parseFloat(String(b.total)) : NaN;
+      return { asset, free, locked, total: Number.isFinite(totalDireto) ? totalDireto : free + locked };
+    })
+    .filter((b) => b.asset && b.total > 0);
+}
+
+// ── Revolut X (a exchange da Revolut) ──────────────────────────────────────
+// O "secret" é a chave privada Ed25519 gerada ao criar a chave de API.
+export async function fetchRevolutX(apiKey: string, chavePrivada: string): Promise<CexBalance[]> {
+  const caminho = "/api/1.0/balances";
+  const ts = Date.now();
+  const res = await fetch(`https://revx.revolut.com${caminho}`, {
+    headers: { "X-Revx-API-Key": apiKey.trim(), "X-Revx-Timestamp": String(ts), "X-Revx-Signature": assinarRevolutX(chavePrivada, ts, "GET", caminho), Accept: "application/json" },
+    cache: "no-store",
+  });
+  const data = (await res.json().catch(() => null)) as unknown;
+  if (!res.ok) throw new Error(`Revolut X: ${(data as { message?: string })?.message ?? res.status}`);
+  const linhas = Array.isArray(data) ? data : data && typeof data === "object" ? Object.entries(data as Record<string, Record<string, unknown>>).map(([k, v]) => ({ currency: k, ...v })) : [];
+  return (linhas as Array<Record<string, unknown>>)
+    .map((b) => {
+      const asset = String(b.currency ?? b.symbol ?? b.asset ?? "").toUpperCase();
+      const free = parseFloat(String(b.available ?? "0")); const reserved = parseFloat(String(b.reserved ?? "0")); const staked = parseFloat(String(b.staked ?? "0"));
+      return { asset, free, locked: reserved + staked, total: free + reserved + staked };
+    })
+    .filter((b) => b.asset && b.total > 0);
+}
+
+// ── Nexo Pro (a exchange da Nexo) ──────────────────────────────────────────
+export async function fetchNexoPro(apiKey: string, apiSecret: string): Promise<CexBalance[]> {
+  const nonce = Date.now();
+  const res = await fetch("https://pro-api.nexo.io/api/v1/accountSummary", {
+    headers: { "X-API-KEY": apiKey.trim(), "X-NONCE": String(nonce), "X-SIGNATURE": assinarNexoPro(apiSecret.trim(), nonce), Accept: "application/json" },
+    cache: "no-store",
+  });
+  const data = (await res.json().catch(() => null)) as { balances?: Array<{ assetName: string; totalBalance: number; availableBalance: number; lockedBalance: number }>; errorMessage?: string } | null;
+  if (!res.ok || !data?.balances) throw new Error(`Nexo Pro: ${data?.errorMessage ?? res.status}`);
+  return data.balances
+    .map((b) => ({ asset: String(b.assetName).toUpperCase(), free: Number(b.availableBalance ?? 0), locked: Number(b.lockedBalance ?? 0), total: Number(b.totalBalance ?? 0) }))
+    .filter((b) => b.total > 0);
+}
+
+// ── Bitpanda (MiCA · Áustria) — só precisa da API key ──────────────────────
+
+export async function fetchBitpanda(apiKey: string): Promise<CexBalance[]> {
+  const headers = { "X-Api-Key": apiKey.trim() };
+  const out: CexBalance[] = [];
+
+  const res = await fetch("https://api.bitpanda.com/v1/wallets", { headers, cache: "no-store" });
+  if (res.status === 401) throw new Error("Bitpanda: chave inválida.");
+  if (!res.ok) throw new Error(`Bitpanda: ${res.status}`);
+  const data = await res.json() as { data?: { attributes?: { cryptocoin_symbol?: string; balance?: string } }[] };
+  for (const w of data.data ?? []) {
+    const sym = w.attributes?.cryptocoin_symbol;
+    const bal = parseFloat(w.attributes?.balance ?? "0");
+    if (sym && bal > 0) out.push({ asset: sym, free: bal, locked: 0, total: bal });
+  }
+
+  // Carteiras fiat (EUR etc.) — best-effort
+  try {
+    const fr = await fetch("https://api.bitpanda.com/v1/fiatwallets", { headers, cache: "no-store" });
+    if (fr.ok) {
+      const fd = await fr.json() as { data?: { attributes?: { fiat_symbol?: string; balance?: string } }[] };
+      for (const w of fd.data ?? []) {
+        const sym = w.attributes?.fiat_symbol;
+        const bal = parseFloat(w.attributes?.balance ?? "0");
+        if (sym && bal > 0) out.push({ asset: sym, free: bal, locked: 0, total: bal });
+      }
+    }
+  } catch { /* opcional */ }
+
+  return out;
+}
+
+// ── Coinbase (Advanced Trade, chaves CDP com JWT ES256) ────────────────────
+// apiKey = nome da chave ("organizations/…/apiKeys/…"), apiSecret = chave privada EC em PEM.
+
+export function coinbaseJwt(keyName: string, pem: string, method: string, path: string): string {
+  const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64url");
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: "ES256", kid: keyName, nonce: crypto.randomBytes(16).toString("hex"), typ: "JWT" };
+  const payload = { iss: "cdp", sub: keyName, nbf: now, exp: now + 120, uri: `${method} api.coinbase.com${path}` };
+  const signingInput = `${b64(header)}.${b64(payload)}`;
+  const sig = crypto.sign("sha256", Buffer.from(signingInput), { key: pem, dsaEncoding: "ieee-p1363" });
+  return `${signingInput}.${sig.toString("base64url")}`;
+}
+
+export async function fetchCoinbase(keyName: string, rawPem: string): Promise<CexBalance[]> {
+  // O JSON descarregado da Coinbase traz "\n" literais dentro da string PEM.
+  const pem = rawPem.trim().replace(/\\n/g, "\n");
+  if (!/-----BEGIN (EC )?PRIVATE KEY-----/.test(pem)) throw new Error("Coinbase: o secret tem de ser a chave privada em PEM (começa por -----BEGIN EC PRIVATE KEY-----).");
+  if (!/^organizations\/[^/]+\/apiKeys\/[^/]+$/.test(keyName.trim())) throw new Error("Coinbase: a API key tem o formato organizations/…/apiKeys/…");
+  const out: CexBalance[] = [];
+  let cursor = "";
+  for (let page = 0; page < 10; page++) {
+    const path = "/api/v3/brokerage/accounts";
+    const qs = `?limit=250${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`;
+    let jwt: string;
+    try { jwt = coinbaseJwt(keyName.trim(), pem, "GET", path); }
+    catch { throw new Error("Coinbase: chave privada inválida (PEM EC P-256)."); }
+    const res = await fetch(`https://api.coinbase.com${path}${qs}`, { headers: { Authorization: `Bearer ${jwt}`, Accept: "application/json" }, cache: "no-store" });
+    if (res.status === 401) throw new Error("Coinbase: chave inválida ou sem permissão 'View'.");
+    if (!res.ok) throw new Error(`Coinbase: ${res.status}`);
+    const data = await res.json() as { accounts?: { currency?: string; available_balance?: { value?: string }; hold?: { value?: string } }[]; has_next?: boolean; cursor?: string };
+    for (const a of data.accounts ?? []) {
+      const free = parseFloat(a.available_balance?.value ?? "0");
+      const locked = parseFloat(a.hold?.value ?? "0");
+      const total = free + locked;
+      if (a.currency && total > 0) out.push({ asset: a.currency, free, locked, total });
+    }
+    if (!data.has_next || !data.cursor) break;
+    cursor = data.cursor;
+  }
+  return out;
+}
+
+
+export const EXCHANGES_COM_API = ["binance", "kraken", "coinex", "okx", "bybit", "cryptocom", "bitpanda", "coinbase", "bitvavo", "bitstamp", "bit2me", "revolutx", "nexopro"] as const;
+export type ExchangeId = (typeof EXCHANGES_COM_API)[number];
+export const eExchange = (x: string): x is ExchangeId => (EXCHANGES_COM_API as readonly string[]).includes(x);
+
+/** Um só ponto de entrada: escolhe o leitor pela exchange. Lança Error com a razão. */
+export async function lerSaldos(exchange: ExchangeId, apiKey: string, apiSecret?: string, apiPassphrase?: string): Promise<CexBalance[]> {
+  if (!apiKey || (!apiSecret && exchange !== "bitpanda")) throw new Error("Faltam a chave ou o secret.");
+  if (exchange === "okx" && !apiPassphrase) throw new Error("OKX precisa da passphrase da chave.");
+  switch (exchange) {
+    case "binance": return fetchBinance(apiKey, apiSecret!);
+    case "kraken": return fetchKraken(apiKey, apiSecret!);
+    case "coinex": return fetchCoinEx(apiKey, apiSecret!);
+    case "okx": return fetchOkx(apiKey, apiSecret!, apiPassphrase!);
+    case "bybit": return fetchBybit(apiKey, apiSecret!);
+    case "cryptocom": return fetchCryptoCom(apiKey, apiSecret!);
+    case "bitpanda": return fetchBitpanda(apiKey);
+    case "coinbase": return fetchCoinbase(apiKey, apiSecret!);
+    case "bitvavo": return fetchBitvavo(apiKey, apiSecret!);
+    case "bitstamp": return fetchBitstamp(apiKey, apiSecret!);
+    case "bit2me": return fetchBit2Me(apiKey, apiSecret!);
+    case "revolutx": return fetchRevolutX(apiKey, apiSecret!);
+    case "nexopro": return fetchNexoPro(apiKey, apiSecret!);
+  }
+}
