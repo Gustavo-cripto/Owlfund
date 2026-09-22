@@ -1462,7 +1462,7 @@ export const fr: Record<TranslationKey, string> = {
     cx_note_coinex: "CoinEx : le champ « Access ID » est ce qui apparaît comme clé sur la page API Keys. La « Secret Key » est la clé de signature.",
     cx_note_cryptocom: "Crypto.com : dans « API key usage », choisis « API transaction » — « External connection » est réservé aux partenaires enregistrés, et ChainFolioAI n’y figure pas. Permissions : « Can Read » seulement (par défaut). Liste d’IP : laisse-la vide — nos serveurs n’ont pas d’IP fixe et la clé cesserait de fonctionner.",
     cx_server_opt: "Enregistrer sur le serveur, chiffrée",
-    cx_server_opt_desc: "les soldes se mettent à jour toutes les demi-heures, même app fermée. La clé est chiffrée sur notre serveur ; sinon elle reste dans ce navigateur.",
+    cx_server_opt_desc: "les soldes se mettent à jour toutes les demi-heures app ouverte et une fois par jour app fermée. La clé est chiffrée sur notre serveur ; sinon elle reste dans ce navigateur.",
     cx_server_badge: "sur le serveur",
     vn_update: "Mettre à jour",
     vn_stale: "Ce solde date de {n} jours.",

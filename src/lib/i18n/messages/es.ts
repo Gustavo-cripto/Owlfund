@@ -1462,7 +1462,7 @@ export const es: Record<TranslationKey, string> = {
     cx_note_coinex: "CoinEx: el campo “Access ID” es lo que aparece como clave en la página de API Keys. La “Secret Key” es la clave de firma.",
     cx_note_cryptocom: "Crypto.com: en «API key usage» elige «API transaction» — «External connection» es solo para socios registrados, y ChainFolioAI no está en esa lista. Permisos: solo «Can Read» (viene por defecto). Lista de IPs: déjala vacía — nuestros servidores no tienen IP fija y la clave dejaría de funcionar.",
     cx_server_opt: "Guardar en el servidor, cifrada",
-    cx_server_opt_desc: "los saldos se actualizan cada media hora, incluso con la app cerrada. La clave queda cifrada en nuestro servidor; sin esto se queda solo en este navegador.",
+    cx_server_opt_desc: "los saldos se actualizan cada media hora con la app abierta y una vez al día con ella cerrada. La clave queda cifrada en nuestro servidor; sin esto se queda solo en este navegador.",
     cx_server_badge: "en el servidor",
     vn_update: "Actualizar",
     vn_stale: "Este saldo tiene {n} días.",

@@ -8,6 +8,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 // Contas de exchange guardadas no servidor (opção da pessoa). As chaves entram
 // uma vez, são validadas contra a exchange, e ficam cifradas (ver cofre.ts).
@@ -43,7 +44,31 @@ export async function GET(request: Request) {
     if (semTabela(error)) return NextResponse.json({ enabled: false, accounts: [], reason: "table_missing" });
     return NextResponse.json({ error: "list_failed" }, { status: 503 });
   }
-  return NextResponse.json({ enabled: true, accounts: (data ?? []) as Linha[] });
+  // Com a app aberta, o GET faz o trabalho do cron: o que tiver mais de 30
+  // minutos é relido agora (até 5 contas por pedido, para caber no tempo).
+  // O cron diário cobre a app fechada — o plano Hobby da Vercel não dá mais.
+  const contas = (data ?? []) as Array<Linha & { enc?: string }>;
+  const limite = Date.now() - 30 * 60_000;
+  const antigas = contas.filter((c) => !c.balances_at || new Date(c.balances_at).getTime() < limite).slice(0, 5);
+  if (antigas.length > 0) {
+    const { data: comEnc } = await admin.from("cex_keys").select("id, exchange, enc").in("id", antigas.map((c) => c.id));
+    await Promise.all((comEnc ?? []).map(async (l) => {
+      const agora = new Date().toISOString();
+      const alvo = contas.find((c) => c.id === l.id);
+      if (!alvo || !eExchange(l.exchange)) return;
+      try {
+        const chaves = decifrar(l.enc as string);
+        const balances = await lerSaldos(l.exchange, chaves.apiKey, chaves.apiSecret, chaves.apiPassphrase);
+        await admin.from("cex_keys").update({ balances, balances_at: agora, last_error: null, updated_at: agora }).eq("id", l.id);
+        alvo.balances = balances; alvo.balances_at = agora; alvo.last_error = null;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message.slice(0, 300) : "erro";
+        await admin.from("cex_keys").update({ last_error: msg, updated_at: agora }).eq("id", l.id);
+        alvo.last_error = msg;
+      }
+    }));
+  }
+  return NextResponse.json({ enabled: true, accounts: contas.map(({ enc: _e, ...c }) => c) });
 }
 
 export async function POST(request: Request) {

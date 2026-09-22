@@ -38,7 +38,7 @@
     },
     {
       "path": "/api/cron/cex-refresh",
-      "schedule": "*/30 * * * *"
+      "schedule": "20 5 * * *"
     }
   ]
 }

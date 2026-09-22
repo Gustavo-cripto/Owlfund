@@ -1462,7 +1462,7 @@ export const en: Record<TranslationKey, string> = {
     cx_note_coinex: "CoinEx: the “Access ID” field is what appears as the key on the API Keys page. The “Secret Key” is the signing key.",
     cx_note_cryptocom: "Crypto.com: under “API key usage” choose “API transaction” — “External connection” is only for registered partners, and ChainFolioAI is not on that list. Permissions: “Can Read” only (the default). IP whitelist: leave it empty — our servers have no fixed IP, and the key would stop working.",
     cx_server_opt: "Store on the server, encrypted",
-    cx_server_opt_desc: "balances refresh every half hour, even with the app closed. The key is stored encrypted on our server; without this it stays only in this browser.",
+    cx_server_opt_desc: "balances refresh every half hour while the app is open and once a day when it is closed. The key is stored encrypted on our server; without this it stays only in this browser.",
     cx_server_badge: "on server",
     vn_update: "Update",
     vn_stale: "This balance is {n} days old.",

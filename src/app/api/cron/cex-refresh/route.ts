@@ -9,11 +9,13 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-// De meia em meia hora (ver vercel.json): lê os saldos de todas as contas de
-// exchange guardadas no servidor e actualiza a cache. É o que dá "saldo
-// actualizado com a app fechada". Cinco de cada vez, para não bater nas
-// exchanges todas ao mesmo tempo; um erro numa conta fica registado nela e
-// não trava as outras.
+// Uma vez por dia (ver vercel.json — o plano Hobby da Vercel só permite crons
+// diários; de meia em meia hora exige o plano Pro). Lê os saldos de todas as
+// contas de exchange guardadas no servidor e actualiza a cache: é o que dá
+// "saldo actualizado com a app fechada". Com a app aberta, é o próprio GET de
+// /api/cex-keys que actualiza o que tiver mais de 30 minutos. Cinco de cada
+// vez, para não bater nas exchanges todas ao mesmo tempo; um erro numa conta
+// fica registado nela e não trava as outras.
 const LOTE = 5;
 
 export async function GET(request: Request) {
