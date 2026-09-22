@@ -9,7 +9,7 @@
 -- resto do fecho de escritas (supabase-fechar-escritas.sql). A API do site é
 -- quem lê e escreve, sempre em nome do utilizador com sessão.
 --
--- ⬜ POR APLICAR. Correr uma vez no editor de SQL do Supabase.
+-- ✅ APLICADO em produção a 22 de setembro de 2026 (projeto owlfund), pelo editor de SQL.
 
 create table if not exists public.cex_keys (
   id uuid primary key default gen_random_uuid(),
