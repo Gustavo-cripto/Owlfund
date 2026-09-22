@@ -492,6 +492,17 @@ export default function CexSection({
                 <span><b className="text-slate-100">{t("cx_server_opt")}</b> — {t("cx_server_opt_desc")}</span>
               </label>
             )}
+            {/* Onde fica a chave, dito por inteiro: e a pergunta que toda a gente faz e que
+                um "cifrada" sozinho nao responde. */}
+            <details className="rounded-lg border border-slate-700/70 bg-slate-950/40 px-3 py-2">
+              <summary className="cursor-pointer text-[11px] font-semibold text-slate-300">{t("cx_where_title")}</summary>
+              <ul className="mt-2 space-y-1.5 text-[11px] leading-relaxed text-slate-400">
+                <li><b className="text-slate-200">{t("cx_where_off_t")}</b> {t("cx_where_off")}</li>
+                <li><b className="text-slate-200">{t("cx_where_on_t")}</b> {t("cx_where_on")}</li>
+                <li><b className="text-slate-200">{t("cx_where_risk_t")}</b> {t("cx_where_risk")}</li>
+                <li><b className="text-slate-200">{t("cx_where_del_t")}</b> {t("cx_where_del")}</li>
+              </ul>
+            </details>
             {erroServidor && <ErrorNote>{erroServidor}</ErrorNote>}
             <div className="flex gap-2">
               <button
