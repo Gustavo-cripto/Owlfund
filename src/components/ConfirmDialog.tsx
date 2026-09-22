@@ -40,48 +40,53 @@ export function useConfirm(): ConfirmFn {
 
 export function ConfirmProvider({ children }: { children: React.ReactNode }) {
   const { t } = useLanguage();
-  const [state, setState] = useState<{ opts: ConfirmOptions; resolve: (v: boolean) => void } | null>(null);
-  // A decisão resolve-se logo; a folha ainda leva uns quadros a sair, e só
-  // quando sai é que se larga o pedido (senão não haveria saída nenhuma).
-  const [aberto, setAberto] = useState(false);
+  // Um só estado, com o "aberto" lá dentro: assim cada fecho produz um objeto
+  // NOVO e o React volta sempre a desenhar. Antes eram dois estados e o updater
+  // devolvia o mesmo objeto — o React saltava a actualização e a folha ficava
+  // pendurada. E o resolver vive numa referência: chamar-lhe de dentro de um
+  // updater é um efeito secundário onde não pode haver nenhum (o React pode
+  // correr o updater mais do que uma vez).
+  const [pedido, setPedido] = useState<{ opts: ConfirmOptions; aberto: boolean } | null>(null);
+  const resolver = useRef<((v: boolean) => void) | null>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
 
   const confirm = useCallback<ConfirmFn>((opts) => {
     const o = typeof opts === "string" ? { message: opts } : opts;
     return new Promise<boolean>((resolve) => {
-      setState((prev) => {
-        prev?.resolve(false); // um pedido novo cancela o anterior
-        return { opts: o, resolve };
-      });
-      setAberto(true);
+      resolver.current?.(false);          // um pedido novo cancela o anterior
+      resolver.current = resolve;
+      setPedido({ opts: o, aberto: true });
     });
   }, []);
 
   const close = useCallback((v: boolean) => {
-    setState((prev) => { prev?.resolve(v); return prev; });
-    setAberto(false);
+    resolver.current?.(v);
+    resolver.current = null;
+    setPedido((p) => (p ? { ...p, aberto: false } : null));
   }, []);
 
-  useEffect(() => { if (aberto) cancelRef.current?.focus(); }, [aberto]);
+  const sair = useCallback(() => setPedido(null), []);
+
+  useEffect(() => { if (pedido?.aberto) cancelRef.current?.focus(); }, [pedido?.aberto]);
 
   return (
     <ConfirmContext.Provider value={confirm}>
       {children}
-      {state && (
-        <Sheet aberto={aberto} aoFechar={() => close(false)} aoSair={() => setState(null)} rotuladoPor="cf-confirm-title">
+      {pedido && (
+        <Sheet aberto={pedido.aberto} aoFechar={() => close(false)} aoSair={sair} rotuladoPor="cf-confirm-title">
           <div className="p-6 pt-4 sm:pt-6">
-            <h3 id="cf-confirm-title" className={`text-sm font-bold ${state.opts.danger ? "text-rose-300" : "text-white"}`}>
-              {state.opts.title ?? (state.opts.danger ? `⚠️ ${t("ac_confirm")}` : t("ac_confirm"))}
+            <h3 id="cf-confirm-title" className={`text-sm font-bold ${pedido.opts.danger ? "text-rose-300" : "text-white"}`}>
+              {pedido.opts.title ?? (pedido.opts.danger ? `⚠️ ${t("ac_confirm")}` : t("ac_confirm"))}
             </h3>
-            <p className="mt-2 text-sm leading-relaxed text-slate-300 whitespace-pre-line">{state.opts.message}</p>
+            <p className="mt-2 text-sm leading-relaxed text-slate-300 whitespace-pre-line">{pedido.opts.message}</p>
             <div className="mt-5 flex justify-end gap-2">
               <button ref={cancelRef} type="button" onClick={() => close(false)}
                 className="press rounded-xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-300 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/60">
-                {state.opts.cancelLabel ?? t("cancel")}
+                {pedido.opts.cancelLabel ?? t("cancel")}
               </button>
               <button type="button" onClick={() => close(true)}
-                className={`press rounded-xl px-4 py-2 text-xs font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/60 ${state.opts.danger ? "bg-rose-500/90 text-white hover:bg-rose-500" : "bg-orange-500 text-slate-950 hover:bg-orange-400"}`}>
-                {state.opts.okLabel ?? t("ac_confirm")}
+                className={`press rounded-xl px-4 py-2 text-xs font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/60 ${pedido.opts.danger ? "bg-rose-500/90 text-white hover:bg-rose-500" : "bg-orange-500 text-slate-950 hover:bg-orange-400"}`}>
+                {pedido.opts.okLabel ?? t("ac_confirm")}
               </button>
             </div>
           </div>

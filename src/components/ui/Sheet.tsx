@@ -14,7 +14,7 @@
 //
 // Quem pediu menos movimento não arrasta nada e não vê mola: aparece e sai.
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { animarComMola, elastico, movimentoReduzido, projetar, velocidadeDoGesto, type Mola } from "@/lib/motion/spring";
 
@@ -46,7 +46,10 @@ export default function Sheet({
   const amostras = useRef<Array<{ t: number; y: number }>>([]);
   const arrasto = useRef<{ inicio: number; base: number } | null>(null);
   const posicao = useRef(0);
-  const jaSaiu = useRef(false);
+  // ESTADO, não referência: mexer numa referência não volta a desenhar, e a
+  // folha ficava no DOM (invisível, fora do ecrã) à espera que o pai a tirasse.
+  // Assim a folha sai sozinha, sem depender de quem a usa.
+  const [saiu, setSaiu] = useState(false);
 
   const ecraGrande = () => typeof window !== "undefined" && window.matchMedia(ECRA_GRANDE).matches;
   const podeArrastar = () => !ecraGrande() && !movimentoReduzido();
@@ -65,18 +68,18 @@ export default function Sheet({
     if (!painel.current) return;
     mola.current?.parar();
     if (aberto) {
-      jaSaiu.current = false;
+      setSaiu(false);
       if (!podeArrastar()) { desenhar(0); return; }
       desenhar(altura());
       mola.current = animarComMola({ de: altura(), para: 0, damping: 1, response: 0.35, aoMudar: desenhar });
       return;
     }
-    if (jaSaiu.current) return;
-    if (!podeArrastar()) { jaSaiu.current = true; aoSair?.(); return; }
+    if (saiu) return;
+    if (!podeArrastar()) { setSaiu(true); aoSair?.(); return; }
     mola.current = animarComMola({
       de: posicao.current, para: altura(), velocidade: 0, damping: 1, response: 0.3,
       aoMudar: desenhar,
-      aoTerminar: () => { jaSaiu.current = true; aoSair?.(); },
+      aoTerminar: () => { setSaiu(true); aoSair?.(); },
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aberto]);
@@ -128,7 +131,7 @@ export default function Sheet({
     });
   };
 
-  if (!aberto && jaSaiu.current) return null;
+  if (!aberto && saiu) return null;
 
   return (
     <div
