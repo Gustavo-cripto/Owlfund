@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Sidebar from "./Sidebar";
 import BtcBlocksBar from "./BtcBlocksBar";
 import AccountSwitcher from "./AccountSwitcher";
-import { ConfirmProvider } from "./ConfirmDialog";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import { comSupabase } from "@/lib/supabase/lazy";
@@ -74,7 +73,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }), []);
 
   return (
-    <ConfirmProvider>
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col xl:flex-row xl:items-start">
       {/* Teclado/leitor de ecrã: saltar a navegação de uma vez (invisível até ter foco). */}
       <a href="#conteudo" className="skip-link">{tr("app_skip")}</a>
@@ -123,6 +121,5 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
     </div>
-    </ConfirmProvider>
   );
 }

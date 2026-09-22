@@ -1,6 +1,7 @@
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "@/app/globals.css";
+import { ConfirmProvider } from "@/components/ConfirmDialog";
 import FloatingChat from "@/components/FloatingChat";
 import ErrorMonitor from "@/components/ErrorMonitor";
 import NavProgress from "@/components/NavProgress";
@@ -26,11 +27,19 @@ export default function RootShell({ lang, Provider, children }: { lang: Lang; Pr
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
         <ThemeProvider>
           <Provider>
+            {/* O ConfirmProvider vive AQUI, e não dentro do AppShell: as páginas
+                chamam useConfirm() no mesmo componente que desenha o AppShell,
+                logo acima dele. Com o provider lá dentro, o contexto vinha
+                sempre nulo e todas as confirmações caíam no window.confirm
+                nativo — sem tradução, sem o visual do site, e a bloquear o
+                browser. Ver o aviso em ConfirmDialog.useConfirm. */}
+            <ConfirmProvider>
             {children}
             <FloatingChat />
             <ErrorMonitor />
             {/* useSearchParams obriga a Suspense para nao tornar a pagina toda dinamica. */}
             <Suspense fallback={null}><NavProgress /></Suspense>
+            </ConfirmProvider>
           </Provider>
         </ThemeProvider>
         <Analytics />
