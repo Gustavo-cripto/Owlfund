@@ -68,7 +68,7 @@ export async function GET(request: Request) {
       }
     }));
   }
-  return NextResponse.json({ enabled: true, accounts: contas.map(({ enc: _e, ...c }) => c) });
+  return NextResponse.json({ enabled: true, accounts: contas.map((c) => { const copia = { ...c }; delete copia.enc; return copia; }) });
 }
 
 export async function POST(request: Request) {
