@@ -287,7 +287,10 @@ details[open] > .faq-a { animation: fade-in-up var(--duration-fast) var(--ease-o
 /* Onde a moldura flutuante encontra o conteúdo: um desvanecimento curto em vez
    de um traço. O traço diz "acaba aqui"; o desvanecimento diz "continua por
    baixo". Só serve para baixo — quem o usa é chrome fixo no topo. */
-.scroll-edge { position: relative; }
+/* NÃO declarar `position` aqui. Esta folha vem DEPOIS do Tailwind e tem a mesma
+   especificidade, por isso um `position: relative` nesta classe desligava, sem
+   dar sinal, o `sticky` escrito ao lado dela — foi o que aconteceu à primeira.
+   Quem usa .scroll-edge já é um elemento posicionado (sticky/fixed/relative). */
 .scroll-edge::after {
   content: "";
   position: absolute;
