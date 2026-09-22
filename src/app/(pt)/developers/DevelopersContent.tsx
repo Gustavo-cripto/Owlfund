@@ -45,7 +45,7 @@ function CopyButton({ text, label, done }: { text: string; label: string; done: 
     <button
       type="button"
       onClick={async () => { try { await navigator.clipboard.writeText(text); setOk(true); setTimeout(() => setOk(false), 1500); } catch { /* ignore */ } }}
-      className="shrink-0 rounded-md border border-slate-700 bg-slate-900/80 px-2 py-0.5 text-[10px] text-slate-400 transition hover:text-white"
+      className="shrink-0 rounded-md border border-slate-700 bg-slate-900/80 px-2 py-0.5 text-[11px] text-slate-400 transition hover:text-white"
       aria-label={label}
     >
       {ok ? done : label}
@@ -109,9 +109,9 @@ export default function DevelopersContent() {
           {/* TOC */}
           <nav className="hidden lg:block" aria-label={t("dev_toc")}>
             <div className="sticky top-24 space-y-1 text-sm">
-              <p className="mb-2 text-[10px] uppercase tracking-wider text-slate-500">{t("dev_toc")}</p>
+              <p className="mb-2 text-[11px] uppercase tracking-wider text-slate-500">{t("dev_toc")}</p>
               {TOC.map(s => <a key={s.id} href={`#${s.id}`} className="block rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-900 hover:text-white">{t(s.key)}</a>)}
-              <p className="mt-4 mb-1 text-[10px] uppercase tracking-wider text-slate-500">Endpoints</p>
+              <p className="mt-4 mb-1 text-[11px] uppercase tracking-wider text-slate-500">Endpoints</p>
               {ENDPOINTS.map(e => <a key={e.id} href={`#ep-${e.id}`} className="block truncate rounded-lg px-2 py-0.5 font-mono text-[11px] text-slate-500 hover:text-white">{e.path.replace("/api/v1", "") || "/"}</a>)}
             </div>
           </nav>
@@ -172,7 +172,7 @@ export default function DevelopersContent() {
                     <div className="flex flex-wrap items-center gap-2">
                       <Method>{e.method}</Method>
                       <code className="text-sm font-semibold text-white">{e.path}</code>
-                      {!e.auth && <span className="rounded-full border border-slate-700 px-2 py-0.5 text-[10px] text-slate-400">{t("dev_no_key")}</span>}
+                      {!e.auth && <span className="rounded-full border border-slate-700 px-2 py-0.5 text-[11px] text-slate-400">{t("dev_no_key")}</span>}
                     </div>
                     <p className="mt-2 text-sm leading-relaxed text-slate-400">{t(e.descKey)}</p>
                     {e.query && (
@@ -223,7 +223,7 @@ export default function DevelopersContent() {
               <p className="mt-2 text-sm text-slate-400">{t("dev_errors_format")} <code className="text-slate-300">{`{ "error": "code", "message": "…" }`}</code></p>
               <div className="mt-3 overflow-x-auto rounded-xl border border-slate-800">
                 <table className="w-full text-xs">
-                  <thead className="bg-slate-900/60 text-[10px] uppercase tracking-wider text-slate-500">
+                  <thead className="bg-slate-900/60 text-[11px] uppercase tracking-wider text-slate-500">
                     <tr><th className="px-3 py-2 text-left">HTTP</th><th className="px-3 py-2 text-left">error</th><th className="px-3 py-2 text-left">{t("dev_when")}</th></tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60 text-slate-300">

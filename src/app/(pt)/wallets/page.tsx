@@ -341,7 +341,7 @@ function EditableName({
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); setDraft(current); setEditing(true); }}
-        className="text-[10px] text-slate-500 transition hover:text-orange-400"
+        className="text-[11px] text-slate-500 transition hover:text-orange-400"
         title={placeholder}
         aria-label={placeholder}
       >
@@ -3177,7 +3177,7 @@ export default function WalletsPage() {
                         onSave={(v) => renameWallet("other", item.address, v)}
                         placeholder={t("wc_name_ph")}
                       />
-                      <span className="ml-2 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">{item.network}</span>
+                      <span className="ml-2 rounded-full bg-slate-600/30 px-2 py-0.5 text-[11px] text-slate-400">{item.network}</span>
                     </p>
                     <div className="flex items-center gap-2">
                       <p className="text-slate-500 font-mono text-[11px] break-all">
@@ -3188,7 +3188,7 @@ export default function WalletsPage() {
                       <button
                         type="button"
                         onClick={() => setOtherShown((prev) => ({ ...prev, [item.address ?? ""]: !prev[item.address ?? ""] }))}
-                        className="shrink-0 rounded-full border border-slate-700 px-2 py-0.5 text-[10px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                        className="shrink-0 rounded-full border border-slate-700 px-2 py-0.5 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
                         title={otherShown[item.address ?? ""] ? t("wc_hide_addr") : t("wc_show_addr")}
                         aria-label={otherShown[item.address ?? ""] ? t("wc_hide_addr") : t("wc_show_addr")}
                       >
@@ -3263,7 +3263,7 @@ export default function WalletsPage() {
                     <span className="truncate">
                       {ethWalletOptions.find((o) => o.id === selectedEvmProvider)?.label ?? selectedEvmProvider}
                     </span>
-                    <span className="text-slate-500 text-[10px]">{ethWalletSelectOpen ? "▲" : "▼"}</span>
+                    <span className="text-slate-500 text-[11px]">{ethWalletSelectOpen ? "▲" : "▼"}</span>
                   </button>
                   {ethWalletSelectOpen ? (
                     <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[200px] rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
@@ -3296,11 +3296,11 @@ export default function WalletsPage() {
                             >
                               <span>{option.label}</span>
                               {isClient && isEvmWalletAvailable(option.id) ? (
-                                <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
+                                <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-300">
                                   {t("wl_available")}
                                 </span>
                               ) : (
-                                <span className="rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
+                                <span className="rounded-full bg-slate-600/30 px-2 py-0.5 text-[11px] text-slate-400">
                                   {t("wl_not_installed")}
                                 </span>
                               )}
@@ -3320,7 +3320,7 @@ export default function WalletsPage() {
                     <span className="truncate">
                       {selectedEthConnectNetwork === "Ethereum" ? "ETH Mainnet" : selectedEthConnectNetwork}
                     </span>
-                    <span className="text-slate-500 text-[10px]">{ethNetworkSelectOpen ? "▲" : "▼"}</span>
+                    <span className="text-slate-500 text-[11px]">{ethNetworkSelectOpen ? "▲" : "▼"}</span>
                   </button>
                   {ethNetworkSelectOpen && (
                     <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[160px] rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
@@ -3362,11 +3362,11 @@ export default function WalletsPage() {
                       >
                         {option.label}{" "}
                         {isClient && isEvmWalletAvailable(option.id) ? (
-                          <span className="ml-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
+                          <span className="ml-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-300">
                             {t("wl_available")}
                           </span>
                         ) : (
-                          <span className="ml-1 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
+                          <span className="ml-1 rounded-full bg-slate-600/30 px-2 py-0.5 text-[11px] text-slate-400">
                             {t("wl_not_installed")}
                           </span>
                         )}
@@ -3486,14 +3486,14 @@ export default function WalletsPage() {
                             placeholder={t("wc_name_ph")}
                           />
                           {item.label && item.network && (
-                            <span className="ml-1.5 text-[10px] font-normal text-slate-500">{item.network}</span>
+                            <span className="ml-1.5 text-[11px] font-normal text-slate-500">{item.network}</span>
                           )}
                           {isConnected ? (
-                            <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
+                            <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-300">
                               {t("wl_connected")}
                             </span>
                           ) : (
-                            <span className="ml-2 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
+                            <span className="ml-2 rounded-full bg-slate-600/30 px-2 py-0.5 text-[11px] text-slate-400">
                               {t("wl_by_address")}
                             </span>
                           )}
@@ -3507,7 +3507,7 @@ export default function WalletsPage() {
                             onClick={() =>
                               setEthShown((prev) => ({ ...prev, [item.address ?? ""]: !prev[item.address ?? ""] }))
                             }
-                            className="rounded-full border border-slate-700 px-2 py-1 text-[10px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                            className="rounded-full border border-slate-700 px-2 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
                             title={ethShown[item.address ?? ""] ? t("wc_hide") : t("ac_show")}
                           >
                             {ethShown[item.address ?? ""] ? "🙈" : "👁️"}
@@ -3523,16 +3523,16 @@ export default function WalletsPage() {
                                 </span>
                               : <span className="text-slate-600 text-[11px]">—</span>}
                               {itemDefiPartial && !itemDefiLoading && (
-                                <span title={t("pcs_defi_partial")} className="cursor-help rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 text-[10px] text-amber-300">{t("wl_defi_partial")}</span>
+                                <span title={t("pcs_defi_partial")} className="cursor-help rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 text-[11px] text-amber-300">{t("wl_defi_partial")}</span>
                               )}
                           {item.address && (
                             <span className="inline-flex items-center gap-1.5">
-                              <a href={`https://app.uniswap.org/positions`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-pink-400 hover:text-pink-300 underline underline-offset-2">Uniswap ↗</a>
-                              <a href={`https://defillama.com/portfolio#${item.address}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-violet-400 hover:text-violet-300 underline underline-offset-2">DeFiLlama ↗</a>
+                              <a href={`https://app.uniswap.org/positions`} target="_blank" rel="noopener noreferrer" className="text-[11px] text-pink-400 hover:text-pink-300 underline underline-offset-2">Uniswap ↗</a>
+                              <a href={`https://defillama.com/portfolio#${item.address}`} target="_blank" rel="noopener noreferrer" className="text-[11px] text-violet-400 hover:text-violet-300 underline underline-offset-2">DeFiLlama ↗</a>
                               <button
                                 type="button"
                                 onClick={() => void fetchDefiForEntry(item.address!, item.network ?? "Ethereum")}
-                                className="text-slate-600 hover:text-orange-400 transition text-[10px]"
+                                className="text-slate-600 hover:text-orange-400 transition text-[11px]"
                                 title={t("wl_refresh_defi")}
                               >↻</button>
                             </span>
@@ -3548,7 +3548,7 @@ export default function WalletsPage() {
                               ? `${itemNftCount} ${itemNftCount === 1 ? t("wc_item") : t("wc_items")}`
                               : "—"}
                           {dk && nftPartial[dk] && !itemNftLoading && (
-                            <span title={t("wl_nft_partial_tip")} className="ml-1.5 cursor-help rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 text-[10px] text-amber-300">{t("wl_defi_partial")}</span>
+                            <span title={t("wl_nft_partial_tip")} className="ml-1.5 cursor-help rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 text-[11px] text-amber-300">{t("wl_defi_partial")}</span>
                           )}
                         </p>
                         {!hideBalances && itemNfts.length > 0 && (
@@ -3683,7 +3683,7 @@ export default function WalletsPage() {
                     <span className="truncate">
                       {solWalletOptions.find((o) => o.id === selectedSolProvider)?.label ?? selectedSolProvider}
                     </span>
-                    <span className="text-slate-500 text-[10px]">{solWalletSelectOpen ? "▲" : "▼"}</span>
+                    <span className="text-slate-500 text-[11px]">{solWalletSelectOpen ? "▲" : "▼"}</span>
                   </button>
                   {solWalletSelectOpen ? (
                     <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[220px] rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
@@ -3716,11 +3716,11 @@ export default function WalletsPage() {
                             >
                               <span>{option.label}</span>
                               {isClient && isSolanaWalletAvailable(option.id) ? (
-                                <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
+                                <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-300">
                                   {t("wl_available")}
                                 </span>
                               ) : (
-                                <span className="rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
+                                <span className="rounded-full bg-slate-600/30 px-2 py-0.5 text-[11px] text-slate-400">
                                   {t("wl_not_installed")}
                                 </span>
                               )}
@@ -3740,7 +3740,7 @@ export default function WalletsPage() {
                     <span className="truncate">
                       {selectedSolNetwork === "Mainnet" ? "SOL Mainnet" : "SOL Devnet"}
                     </span>
-                    <span className="text-slate-500 text-[10px]">{solNetworkSelectOpen ? "▲" : "▼"}</span>
+                    <span className="text-slate-500 text-[11px]">{solNetworkSelectOpen ? "▲" : "▼"}</span>
                   </button>
                   {solNetworkSelectOpen && (
                     <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[160px] rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
@@ -3773,11 +3773,11 @@ export default function WalletsPage() {
                   >
                     {option.label}{" "}
                     {isClient && isSolanaWalletAvailable(option.id) ? (
-                      <span className="ml-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
+                      <span className="ml-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-300">
                         {t("wl_available")}
                       </span>
                     ) : (
-                      <span className="ml-1 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
+                      <span className="ml-1 rounded-full bg-slate-600/30 px-2 py-0.5 text-[11px] text-slate-400">
                         {t("wl_not_installed")}
                       </span>
                     )}
@@ -3803,7 +3803,7 @@ export default function WalletsPage() {
                     <span className="truncate">
                       {solNetworkOptions.find((o) => o.id === solNewWalletId)?.label ?? solNewWalletId}
                     </span>
-                    <span className="text-slate-500 text-[10px] shrink-0">{solNewWalletSelectOpen ? "▲" : "▼"}</span>
+                    <span className="text-slate-500 text-[11px] shrink-0">{solNewWalletSelectOpen ? "▲" : "▼"}</span>
                   </button>
                   {solNewWalletSelectOpen ? (
                     <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
@@ -3895,9 +3895,9 @@ export default function WalletsPage() {
                               placeholder={t("wc_name_ph")}
                             />
                             {isConnected ? (
-                              <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">{t("wl_connected")}</span>
+                              <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-300">{t("wl_connected")}</span>
                             ) : (
-                              <span className="ml-2 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">{t("wl_by_address")}</span>
+                              <span className="ml-2 rounded-full bg-slate-600/30 px-2 py-0.5 text-[11px] text-slate-400">{t("wl_by_address")}</span>
                             )}
                           </p>
                           <div className="flex items-center gap-2">
@@ -3907,7 +3907,7 @@ export default function WalletsPage() {
                             <button
                               type="button"
                               onClick={() => setSolShown((prev) => ({ ...prev, [addr]: !prev[addr] }))}
-                              className="rounded-full border border-slate-700 px-2 py-1 text-[10px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                              className="rounded-full border border-slate-700 px-2 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
                               title={solShown[addr] ? "Ocultar" : "Mostrar"}
                             >
                               {solShown[addr] ? "🙈" : "👁️"}
@@ -3924,16 +3924,16 @@ export default function WalletsPage() {
                                   </span>
                                 : <span className="text-slate-600 text-[11px]">—</span>}
                                 {itemDefiPartial && !itemDefiLoading && (
-                                  <span title={t("pcs_defi_partial")} className="cursor-help rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 text-[10px] text-amber-300">{t("wl_defi_partial")}</span>
+                                  <span title={t("pcs_defi_partial")} className="cursor-help rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 text-[11px] text-amber-300">{t("wl_defi_partial")}</span>
                                 )}
                             {addr && (
                               <span className="inline-flex items-center gap-1.5">
-                                <a href="https://app.meteora.ag/portfolio" target="_blank" rel="noopener noreferrer" className="text-[10px] text-violet-400 hover:text-violet-300 underline underline-offset-2">Meteora ↗</a>
-                                <a href={`https://defillama.com/portfolio#${addr}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-violet-400 hover:text-violet-300 underline underline-offset-2">DeFiLlama ↗</a>
+                                <a href="https://app.meteora.ag/portfolio" target="_blank" rel="noopener noreferrer" className="text-[11px] text-violet-400 hover:text-violet-300 underline underline-offset-2">Meteora ↗</a>
+                                <a href={`https://defillama.com/portfolio#${addr}`} target="_blank" rel="noopener noreferrer" className="text-[11px] text-violet-400 hover:text-violet-300 underline underline-offset-2">DeFiLlama ↗</a>
                                 <button
                                   type="button"
                                   onClick={() => { void fetchDefiTotal(addr, "sol"); void fetchNftBalance(addr, "sol"); }}
-                                  className="text-slate-600 hover:text-orange-400 transition text-[10px]"
+                                  className="text-slate-600 hover:text-orange-400 transition text-[11px]"
                                   title={t("wl_refresh_defi")}
                                 >↻</button>
                               </span>
@@ -4062,7 +4062,7 @@ export default function WalletsPage() {
                     <span className="truncate">
                       {btcWalletOptions.find((o) => o.id === selectedBtcProvider)?.label ?? selectedBtcProvider}
                     </span>
-                    <span className="text-slate-500 text-[10px]">{btcWalletSelectOpen ? "▲" : "▼"}</span>
+                    <span className="text-slate-500 text-[11px]">{btcWalletSelectOpen ? "▲" : "▼"}</span>
                   </button>
                   {btcWalletSelectOpen ? (
                     <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[200px] rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
@@ -4095,11 +4095,11 @@ export default function WalletsPage() {
                             >
                               <span>{option.label}</span>
                               {isClient && isBtcWalletAvailable(option.id) ? (
-                                <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
+                                <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-300">
                                   {t("wl_available")}
                                 </span>
                               ) : (
-                                <span className="rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
+                                <span className="rounded-full bg-slate-600/30 px-2 py-0.5 text-[11px] text-slate-400">
                                   {t("wl_not_installed")}
                                 </span>
                               )}
@@ -4150,7 +4150,7 @@ export default function WalletsPage() {
                     onClick={() => setBtcNewNetworkSelectOpen((prev) => !prev)}
                   >
                     <span>{btcNetLabel(btcNewLabel)}</span>
-                    <span className="text-slate-500 text-[10px] shrink-0">{btcNewNetworkSelectOpen ? "▲" : "▼"}</span>
+                    <span className="text-slate-500 text-[11px] shrink-0">{btcNewNetworkSelectOpen ? "▲" : "▼"}</span>
                   </button>
                   {btcNewNetworkSelectOpen ? (
                     <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
@@ -4244,11 +4244,11 @@ export default function WalletsPage() {
                             placeholder={t("wc_name_ph")}
                           />
                           {isConnected ? (
-                            <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
+                            <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-300">
                               {t("wl_connected")}
                             </span>
                           ) : (
-                            <span className="ml-2 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
+                            <span className="ml-2 rounded-full bg-slate-600/30 px-2 py-0.5 text-[11px] text-slate-400">
                               {t("wl_by_address")}
                             </span>
                           )}
@@ -4260,7 +4260,7 @@ export default function WalletsPage() {
                           <button
                             type="button"
                             onClick={() => setBtcShown((prev) => ({ ...prev, [addr]: !prev[addr] }))}
-                            className="rounded-full border border-slate-700 px-2 py-1 text-[10px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                            className="rounded-full border border-slate-700 px-2 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
                             title={btcShown[addr] ? "Ocultar" : "Mostrar"}
                           >
                             {btcShown[addr] ? "🙈" : "👁️"}
@@ -4302,9 +4302,9 @@ export default function WalletsPage() {
                         {isBtcNative && !hideBalances && (
                           <>
                             {btcRunesLoading[addr] ? (
-                              <p className="text-[10px] text-slate-500">{t("wl_runes_loading")}</p>
+                              <p className="text-[11px] text-slate-500">{t("wl_runes_loading")}</p>
                             ) : (btcRunesByAddress[addr]?.length ?? 0) > 0 ? (
-                              <div className="space-y-0.5 text-[10px] text-amber-200/90">
+                              <div className="space-y-0.5 text-[11px] text-amber-200/90">
                                 {btcRunesByAddress[addr]!.map((r) => (
                                   <div key={r.symbol} className="flex gap-2">
                                     <span className="truncate max-w-[120px]" title={r.displayName}>{r.displayName}</span>
@@ -4463,7 +4463,7 @@ export default function WalletsPage() {
                     <div className="rounded-xl border border-orange-500/20 bg-slate-900/60 p-4 space-y-3">
                       <p className="text-xs font-semibold text-orange-400">{t("wl_cip45_code")}</p>
                       <div ref={adaQrCanvasRef} className="flex justify-center" />
-                      <p className="text-[10px] text-slate-500 break-all font-mono bg-slate-950 rounded p-2 select-all">{adaPeerAddress}</p>
+                      <p className="text-[11px] text-slate-500 break-all font-mono bg-slate-950 rounded p-2 select-all">{adaPeerAddress}</p>
                       <p className="text-[11px] text-slate-400">{t("wl_ada_qr_hint_a")} <strong className="text-slate-200">{t("wl_ada_link_dapp")}</strong> {t("wl_ada_qr_hint_b")}</p>
                       <button type="button" onClick={() => { setAdaPeerAddress(null); setAdaPeerConnecting(false); }} className="text-xs text-slate-500 hover:text-slate-300">✕ {t("cancel")}</button>
                     </div>
@@ -4483,7 +4483,7 @@ export default function WalletsPage() {
                     <span className="truncate">
                       {adaWalletOptions.find((o) => o.id === selectedAdaProvider)?.label ?? selectedAdaProvider}
                     </span>
-                    <span className="text-slate-500 text-[10px]">{adaWalletSelectOpen ? "▲" : "▼"}</span>
+                    <span className="text-slate-500 text-[11px]">{adaWalletSelectOpen ? "▲" : "▼"}</span>
                   </button>
                   {adaWalletSelectOpen ? (
                     <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[200px] rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
@@ -4516,11 +4516,11 @@ export default function WalletsPage() {
                             >
                               <span>{option.label}</span>
                               {isClient && isCardanoWalletAvailable(option.id) ? (
-                                <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
+                                <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-300">
                                   {t("wl_available")}
                                 </span>
                               ) : (
-                                <span className="rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
+                                <span className="rounded-full bg-slate-600/30 px-2 py-0.5 text-[11px] text-slate-400">
                                   {t("wl_not_installed")}
                                 </span>
                               )}
@@ -4551,11 +4551,11 @@ export default function WalletsPage() {
                       >
                         {option.label}{" "}
                         {isClient && isCardanoWalletAvailable(option.id) ? (
-                          <span className="ml-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
+                          <span className="ml-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-300">
                             {t("wl_available")}
                           </span>
                         ) : (
-                          <span className="ml-1 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
+                          <span className="ml-1 rounded-full bg-slate-600/30 px-2 py-0.5 text-[11px] text-slate-400">
                             {t("wl_not_installed")}
                           </span>
                         )}
@@ -4578,7 +4578,7 @@ export default function WalletsPage() {
                     onClick={() => setAdaNewNetworkSelectOpen((prev) => !prev)}
                   >
                     <span>{adaNetworkOptions.find((o) => o.id === adaNewNetworkId)?.label ?? "Cardano"}</span>
-                    <span className="text-slate-500 text-[10px] shrink-0">{adaNewNetworkSelectOpen ? "▲" : "▼"}</span>
+                    <span className="text-slate-500 text-[11px] shrink-0">{adaNewNetworkSelectOpen ? "▲" : "▼"}</span>
                   </button>
                   {adaNewNetworkSelectOpen ? (
                     <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
@@ -4664,11 +4664,11 @@ export default function WalletsPage() {
                             placeholder={t("wc_name_ph")}
                           />
                           {isConnected ? (
-                            <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-300">
+                            <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-300">
                               {t("wl_connected")}
                             </span>
                           ) : (
-                            <span className="ml-2 rounded-full bg-slate-600/30 px-2 py-0.5 text-[10px] text-slate-400">
+                            <span className="ml-2 rounded-full bg-slate-600/30 px-2 py-0.5 text-[11px] text-slate-400">
                               {t("wl_by_address")}
                             </span>
                           )}
@@ -4682,7 +4682,7 @@ export default function WalletsPage() {
                             onClick={() =>
                               setAdaShown((prev) => ({ ...prev, [addr]: !prev[addr] }))
                             }
-                            className="rounded-full border border-slate-700 px-2 py-1 text-[10px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
+                            className="rounded-full border border-slate-700 px-2 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
                             title={adaShown[addr] ? "Ocultar" : "Mostrar"}
                           >
                             {adaShown[addr] ? "🙈" : "👁️"}
@@ -4969,7 +4969,7 @@ export default function WalletsPage() {
                     <div>
                       <p className="font-semibold text-white">{symbol}</p>
                       <p className="text-slate-500">{label !== network ? label : network}</p>
-                      <p className="mt-0.5 text-[10px] text-slate-600 uppercase tracking-wide">{network !== label ? `${source} · ${network}` : source}</p>
+                      <p className="mt-0.5 text-[11px] text-slate-600 uppercase tracking-wide">{network !== label ? `${source} · ${network}` : source}</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3 text-right">
                       <div>
@@ -5019,7 +5019,7 @@ export default function WalletsPage() {
                   <div>
                     <p className="font-semibold text-white">{e.symbol}</p>
                     <p className="text-slate-500">{e.network}</p>
-                    <p className="mt-0.5 text-[10px] text-slate-600 uppercase tracking-wide">{t("wl_by_address")}</p>
+                    <p className="mt-0.5 text-[11px] text-slate-600 uppercase tracking-wide">{t("wl_by_address")}</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-3 text-right">
                     <div>
@@ -5034,7 +5034,7 @@ export default function WalletsPage() {
                         {market ? fmtMkt(market.priceUsd, { decimals: 4 }) : "—"}
                       </span>
                     </span>
-                    <span className="rounded-full border border-slate-700/40 bg-slate-800/40 px-3 py-2 text-[10px] text-slate-500">{t("wl_stablecoin")}</span>
+                    <span className="rounded-full border border-slate-700/40 bg-slate-800/40 px-3 py-2 text-[11px] text-slate-500">{t("wl_stablecoin")}</span>
                     <button
                       onClick={() => setStablecoinEntries((prev) => prev.filter((x) => x.id !== e.id))}
                       title={t("wl_remove")}
@@ -5058,11 +5058,11 @@ export default function WalletsPage() {
                 >
                   <div>
                     <p className="font-semibold text-white">{item.label ?? item.network ?? addr}</p>
-                    <p className="text-slate-500 font-mono text-[10px]">{addr.length > 20 ? `${addr.slice(0, 10)}…${addr.slice(-6)}` : addr}</p>
-                    <p className="mt-0.5 text-[10px] text-slate-600 uppercase tracking-wide">{t("wl_tracking_tag")} · {item.network}</p>
+                    <p className="text-slate-500 font-mono text-[11px]">{addr.length > 20 ? `${addr.slice(0, 10)}…${addr.slice(-6)}` : addr}</p>
+                    <p className="mt-0.5 text-[11px] text-slate-600 uppercase tracking-wide">{t("wl_tracking_tag")} · {item.network}</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-3 text-right">
-                    <span className="rounded-full border border-slate-700/40 bg-slate-800/40 px-3 py-2 text-[10px] text-slate-500">{t("wl_no_price")}</span>
+                    <span className="rounded-full border border-slate-700/40 bg-slate-800/40 px-3 py-2 text-[11px] text-slate-500">{t("wl_no_price")}</span>
                     <button
                       onClick={() => {
                         const next = otherWallets.filter((w) => !(w.address === item.address && w.network === item.network));
@@ -5092,7 +5092,7 @@ export default function WalletsPage() {
                   <option key={r.symbol} value={r.symbol}>{r.symbol} · {r.name}</option>
                 ))}
               </select>
-              <span className="text-[10px] text-slate-600">{t("wl_reg_no_wallet")}</span>
+              <span className="text-[11px] text-slate-600">{t("wl_reg_no_wallet")}</span>
             </div>
             {sortedCryptoSymbols.length === 0 && !(ethWallets.length > 0 || ethAddress || solWallets.length > 0 || solAddress || btcWallets.length > 0 || btcAddress || adaWallets.length > 0 || adaAddress) && stablecoinEntries.length === 0 && otherWallets.length === 0 ? (
               <EmptyState compact icon="🪙" title={t("wl_no_asset_added")} description={t("wl_use_selector")} />
@@ -5119,15 +5119,15 @@ export default function WalletsPage() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <div className="flex flex-col gap-0.5">
-                        <label className="text-[10px] text-slate-600 px-1">{t("wl_invested")} ({curSym})</label>
+                        <label className="text-[11px] text-slate-600 px-1">{t("wl_invested")} ({curSym})</label>
                         {moneyField({ eur: holding.buyValue, onEur: (v) => updateCryptoHolding(symbol, { buyValue: v }), placeholder: "200", width: "w-36", ariaLabel: `${t("wl_invested")} ${symbol}` })}
                       </div>
                       <div className="flex flex-col gap-0.5">
-                        <label className="text-[10px] text-slate-600 px-1" title={t("wl_qty_hint")}>{t("wl_quantity")} ({symbol})</label>
+                        <label className="text-[11px] text-slate-600 px-1" title={t("wl_qty_hint")}>{t("wl_quantity")} ({symbol})</label>
                         {qtyField({ value: holding.quantity, onValue: (v) => updateCryptoHolding(symbol, { quantity: v }), placeholder: "0,5", title: t("wl_qty_hint"), width: "w-28", ariaLabel: `${t("wl_quantity")} ${symbol}` })}
                       </div>
                       <div className="flex flex-col gap-0.5">
-                        <label className="text-[10px] text-slate-600 px-1">{t("wl_buy_date")}</label>
+                        <label className="text-[11px] text-slate-600 px-1">{t("wl_buy_date")}</label>
                         <input
                           type="date"
                           value={holding.buyDate ?? ""}
@@ -5621,7 +5621,7 @@ export default function WalletsPage() {
                         return (
                           <div key={net.id}>
                             {showGroup && (
-                              <p className="px-3 pt-2 pb-1 text-[9px] font-bold uppercase tracking-widest text-slate-600">{net.group}</p>
+                              <p className="px-3 pt-2 pb-1 text-[11px] font-bold uppercase tracking-widest text-slate-600">{net.group}</p>
                             )}
                             <button
                               type="button"
@@ -5774,7 +5774,7 @@ export default function WalletsPage() {
                 value={manualCryptoAssetAmountUsd}
                 onChange={(e) => setManualCryptoAssetAmountUsd(cleanDecimalInput(e.target.value))}
               />
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-500">{curCode}</span>
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-slate-500">{curCode}</span>
             </div>
             <input
               type="text"
@@ -5854,7 +5854,7 @@ export default function WalletsPage() {
                           <button
                             type="button"
                             onClick={() => setStableShown((prev) => ({ ...prev, [e.id]: !prev[e.id] }))}
-                            className="shrink-0 rounded-full border border-slate-700 px-1.5 py-0.5 text-[10px] text-slate-200 transition hover:border-slate-500 hover:text-white"
+                            className="shrink-0 rounded-full border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-200 transition hover:border-slate-500 hover:text-white"
                             title={stableShown[e.id] ? t("wc_hide_addr") : t("wc_show_addr")}
                             aria-label={stableShown[e.id] ? t("wc_hide_addr") : t("wc_show_addr")}
                           >

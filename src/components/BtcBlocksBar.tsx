@@ -104,7 +104,7 @@ function ConfirmedCard({ b }: { b: ConfirmedBlock }) {
         <span className={`font-black text-base tracking-tight ${col.accent}`}>
           {fmtNum(b.height)}
         </span>
-        <span className="text-[10px] text-slate-500">{timeAgo(b.timestamp, t)}</span>
+        <span className="text-[11px] text-slate-500">{timeAgo(b.timestamp, t)}</span>
       </div>
 
       {/* Fee range */}
@@ -149,7 +149,7 @@ function MempoolCard({ b, i }: { b: MempoolBlock; i: number }) {
       {/* ETA */}
       <div className="flex items-center justify-between">
         <span className={`font-bold text-[11px] ${col.accent}`}>{t("bb_eta").replace("{n}", String(etaMin))}</span>
-        <span className="text-[10px] text-slate-600 border border-slate-700 rounded px-1 py-0.5">{t("bb_next")}</span>
+        <span className="text-[11px] text-slate-600 border border-slate-700 rounded px-1 py-0.5">{t("bb_next")}</span>
       </div>
 
       {/* Fee range */}
@@ -213,6 +213,23 @@ export default function BtcBlocksBar() {
     return () => { aliveRef.current = false; clearInterval(id); document.removeEventListener("visibilitychange", onVis); };
   }, []);
 
+  // No telemóvel, esta barra ocupava metade do primeiro ecrã — em TODAS as
+  // páginas — antes de aparecer o que a pessoa vem ver (medido: 336 px de 691
+  // até ao primeiro conteúdo do utilizador). Passa a começar fechada abaixo dos
+  // 768 px, com a escolha lembrada. No computador fica como estava.
+  const [aberto, setAberto] = useState(true);
+  useEffect(() => {
+    try {
+      const guardado = localStorage.getItem("cfa-btc-blocos");
+      if (guardado !== null) { setAberto(guardado === "1"); return; }
+      setAberto(window.matchMedia("(min-width: 768px)").matches);
+    } catch { /* na dúvida, fica aberta */ }
+  }, []);
+  const alternar = () => setAberto((v) => {
+    try { localStorage.setItem("cfa-btc-blocos", v ? "0" : "1"); } catch { /* ignore */ }
+    return !v;
+  });
+
   const scroll = (dir: "left" | "right") => {
     if (!scrollRef.current) return;
     scrollRef.current.scrollBy({ left: dir === "right" ? 380 : -380, behavior: "smooth" });
@@ -220,12 +237,28 @@ export default function BtcBlocksBar() {
 
   return (
     <div className="keep-dark border-b border-slate-800/60 bg-slate-950/50 select-none shrink-0">
-      {/* Header */}
+      {/* Header — é também o botão que abre e fecha */}
       <div className="flex items-center gap-2 px-4 pt-2.5 pb-1.5">
-        <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-orange-400/90">₿ {t("bb_title")}</span>
-        <span className="text-[10px] text-slate-600">{t("bb_live")} · mempool.space</span>
-        <span className={`ml-1 h-1.5 w-1.5 rounded-full ${error ? "bg-rose-500" : "bg-emerald-500"} animate-pulse`} />
-        <div className="ml-auto flex gap-1">
+        <button
+          type="button"
+          onClick={alternar}
+          aria-expanded={aberto}
+          className="press flex min-w-0 items-center gap-2 rounded-lg text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/60"
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"
+            className={`shrink-0 text-slate-500 transition-transform duration-200 ${aberto ? "rotate-90" : ""}`} aria-hidden>
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+          <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-orange-400/90 whitespace-nowrap">₿ {t("bb_title")}</span>
+          {/* Fechada, a barra ainda diz o essencial numa linha: qual é o último bloco. */}
+          {!aberto && confirmed[0] ? (
+            <span className="truncate text-[11px] text-slate-500">#{fmtNum(confirmed[0].height)}</span>
+          ) : (
+            <span className="hidden truncate text-[11px] text-slate-500 sm:inline">{t("bb_live")} · mempool.space</span>
+          )}
+        </button>
+        <span className={`ml-1 h-1.5 w-1.5 shrink-0 rounded-full ${error ? "bg-rose-500" : "bg-emerald-500"} animate-pulse`} />
+        <div className={`ml-auto flex gap-1 ${aberto ? "" : "hidden"}`}>
           <button type="button" onClick={() => scroll("left")} aria-label={t("previous")}
             className="p-1.5 rounded-lg text-slate-600 hover:text-slate-300 hover:bg-white/5 transition">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6" /></svg>
@@ -240,7 +273,7 @@ export default function BtcBlocksBar() {
       {/* Blocks row */}
       <div
         ref={scrollRef}
-        className="flex gap-2.5 px-4 pb-3.5 overflow-x-auto"
+        className={`gap-2.5 px-4 pb-3.5 overflow-x-auto ${aberto ? "flex" : "hidden"}`}
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
         {loading ? (

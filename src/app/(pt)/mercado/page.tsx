@@ -311,7 +311,7 @@ function FearGreedWidget({
           return (
             <div className="mt-4">
               <CandleChart candles={fgCandles} showVolume={false} heightClass="h-24" />
-              <div className="mt-1 flex justify-between text-[10px] text-slate-500">
+              <div className="mt-1 flex justify-between text-[11px] text-slate-500">
                 <span>{fgCandles.length}d</span>
                 <span>{t("merc_now")}</span>
               </div>
@@ -632,7 +632,7 @@ function Hint({ text, children }: { text: string; children: React.ReactNode }) {
   return (
     <span className="group relative inline-flex items-center gap-1">
       {children}
-      <button type="button" aria-label={text} className="text-[10px] text-slate-500 hover:text-orange-300 focus:outline-none focus-visible:text-orange-300">ⓘ</button>
+      <button type="button" aria-label={text} className="text-[11px] text-slate-500 hover:text-orange-300 focus:outline-none focus-visible:text-orange-300">ⓘ</button>
       {/* 80 ms de intenção ao abrir (evita disparos ao passar), 0 ao fechar; cresce a partir do ⓘ. */}
       <span role="tooltip" className="pointer-events-none invisible absolute left-0 top-full z-20 mt-1 w-64 origin-top-left scale-[0.98] opacity-0 rounded-lg border border-slate-700 bg-slate-900 p-2 text-[11px] font-normal leading-relaxed text-slate-300 shadow-xl transition-[opacity,transform,visibility] duration-[125ms] ease-[var(--ease-out)] group-hover:visible group-hover:scale-100 group-hover:opacity-100 group-hover:delay-[80ms] group-focus-within:visible group-focus-within:scale-100 group-focus-within:opacity-100 motion-reduce:scale-100">{text}</span>
     </span>
@@ -706,9 +706,9 @@ function DerivativesPanel({ data, loading, symbol, updatedAt, error, onRefresh }
               </ul>
             )}
             {data.missing && data.missing.length > 0 && (
-              <p className="mt-1.5 text-[10px] text-slate-500">{t("mc_score_missing")}: {data.missing.join(", ")}</p>
+              <p className="mt-1.5 text-[11px] text-slate-500">{t("mc_score_missing")}: {data.missing.join(", ")}</p>
             )}
-            <p className="mt-1.5 text-[10px] text-slate-600">{t("mc_score_disclaimer")}</p>
+            <p className="mt-1.5 text-[11px] text-slate-600">{t("mc_score_disclaimer")}</p>
           </details>
         </div>
       )}
@@ -717,7 +717,7 @@ function DerivativesPanel({ data, loading, symbol, updatedAt, error, onRefresh }
         <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-3">
           <div className="mb-1 flex items-center justify-between px-1">
             <p className="text-xs font-semibold text-slate-300">{symbol}/USDT · 1H</p>
-            <p className="text-[10px] text-slate-500">OKX</p>
+            <p className="text-[11px] text-slate-500">OKX</p>
           </div>
           <CandleChart candles={data.candles} />
         </div>
@@ -2133,9 +2133,9 @@ export default function MercadoPage() {
                       )}
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-[10px] font-semibold uppercase tracking-wider text-orange-400">{item.source}</span>
+                          <span className="text-[11px] font-semibold uppercase tracking-wider text-orange-400">{item.source}</span>
                           {item.pubDate && (
-                            <span className="text-[10px] text-slate-500">
+                            <span className="text-[11px] text-slate-500">
                               {new Date(item.pubDate).toLocaleString(uiLocale(), { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                             </span>
                           )}
@@ -2224,7 +2224,7 @@ export default function MercadoPage() {
                     <div className="rounded-xl border border-orange-500/20 bg-slate-950/60 p-5 space-y-3">
                       <div className="flex items-center justify-between">
                         <p className="text-xs uppercase tracking-[0.2em] text-orange-400">{t("mc_ai_news")}</p>
-                        <span className="text-[10px] text-slate-500">{newsBriefingDate}</span>
+                        <span className="text-[11px] text-slate-500">{newsBriefingDate}</span>
                       </div>
                       <div className="space-y-1">
                         {newsBriefing.split("\n").map((line, i) => {
@@ -2327,7 +2327,7 @@ export default function MercadoPage() {
                                 : "bg-slate-800 border border-slate-700 text-slate-200"
                             }`}>
                               {msg.role === "assistant" && (
-                                <p className="text-[10px] text-orange-400 font-semibold mb-1">🤖 ChainFolioAI</p>
+                                <p className="text-[11px] text-orange-400 font-semibold mb-1">🤖 ChainFolioAI</p>
                               )}
                               <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                             </div>
@@ -2336,7 +2336,7 @@ export default function MercadoPage() {
                         {chatLoading && (
                           <div className="flex justify-start">
                             <div className="bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5">
-                              <p className="text-[10px] text-orange-400 font-semibold mb-1">🤖 ChainFolioAI</p>
+                              <p className="text-[11px] text-orange-400 font-semibold mb-1">🤖 ChainFolioAI</p>
                               <div className="flex gap-1 items-center h-4">
                                 <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:0ms]"/>
                                 <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce [animation-delay:150ms]"/>

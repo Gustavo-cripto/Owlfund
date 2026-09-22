@@ -56,16 +56,16 @@ function CodeBlock({ code, lang, labels }: { code: string; lang: string; labels:
   return (
     <div className="relative my-2 overflow-hidden rounded-xl border border-slate-700/70 bg-slate-950/80">
       <div className="flex items-center justify-between gap-2 border-b border-slate-800 px-3 py-1.5">
-        <span className="font-mono text-[10px] uppercase tracking-wider text-slate-500">{lang || "text"}</span>
+        <span className="font-mono text-[11px] uppercase tracking-wider text-slate-500">{lang || "text"}</span>
         <span className="flex gap-1.5">
           {looksCsv && (
             <button type="button" onClick={downloadCsv}
-              className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-300 hover:bg-emerald-500/20">
+              className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-300 hover:bg-emerald-500/20">
               ⬇ {labels.downloadCsv}
             </button>
           )}
           <button type="button" onClick={copy}
-            className="rounded-md border border-slate-700 px-2 py-0.5 text-[10px] text-slate-400 hover:text-white">
+            className="rounded-md border border-slate-700 px-2 py-0.5 text-[11px] text-slate-400 hover:text-white">
             {copied ? labels.copied : labels.copy}
           </button>
         </span>

@@ -145,7 +145,7 @@ function TokenRow({ wallet, price, pnlToday, total }: { wallet: WalletBalance; p
         <p className="text-xs text-slate-500">
           {wallet.symbol}
           {wallet.network && wallet.network !== wallet.symbol && (
-            <span className="ml-1.5 rounded px-1 py-0.5 text-[10px] border border-slate-700 text-slate-500">{wallet.network}</span>
+            <span className="ml-1.5 rounded px-1 py-0.5 text-[11px] border border-slate-700 text-slate-500">{wallet.network}</span>
           )}
         </p>
       </div>
@@ -189,7 +189,7 @@ function NftCard({ nft }: { nft: NftItem }) {
       </div>
       <div className="p-2">
         <p className="text-xs font-semibold text-white truncate">{nft.name || "NFT"}</p>
-        {nft.tokenId && <p className="text-[10px] text-slate-500">#{String(nft.tokenId).slice(0, 8)}</p>}
+        {nft.tokenId && <p className="text-[11px] text-slate-500">#{String(nft.tokenId).slice(0, 8)}</p>}
       </div>
     </div>
   );
@@ -447,7 +447,7 @@ export default function PortfolioChartSection({
           ) : (
             <PortfolioHistoryChart bars={bars} mode={reconstructed ? mode : "area"} averages={reconstructed ? averages : []} intraday={intraday} up={isUp} format={fmtStable} locale={locale} onHover={setHover} />
           )}
-          {historyLoading && bars.length >= 2 && <div className="pointer-events-none absolute right-4 top-2 text-[10px] text-slate-500">{t("loading")}</div>}
+          {historyLoading && bars.length >= 2 && <div className="pointer-events-none absolute right-4 top-2 text-[11px] text-slate-500">{t("loading")}</div>}
         </div>
         <div className="flex flex-wrap items-center gap-1 px-4 pb-1 pt-2">
           {TIMEFRAMES.map(({ key, labelKey }) => (
@@ -495,11 +495,11 @@ export default function PortfolioChartSection({
                 <button type="button" onClick={() => { setMaKeys([]); try { localStorage.removeItem("cfa-chart-ma"); } catch { /* ignore */ } }} className="rounded-full px-2.5 py-1 text-[11px] text-slate-500 hover:text-white">{t("pcs_ma_clear")}</button>
               )}
             </div>
-            <p className="mt-2 text-[10px] leading-relaxed text-slate-500">{t("pcs_ma_help")}</p>
+            <p className="mt-2 text-[11px] leading-relaxed text-slate-500">{t("pcs_ma_help")}</p>
           </div>
         )}
         {reconstructed && averages.length > 0 && (
-          <div className="flex flex-wrap gap-x-3 gap-y-1 px-6 pb-1 text-[10px] text-slate-400">
+          <div className="flex flex-wrap gap-x-3 gap-y-1 px-6 pb-1 text-[11px] text-slate-400">
             {MOVING_AVERAGES.filter((m) => maKeys.includes(maKey(m))).map((m) => (
               <span key={maKey(m)} className="inline-flex items-center gap-1.5">
                 <span className="inline-block h-0.5 w-4 rounded" style={{ backgroundColor: m.color }} />
@@ -508,7 +508,7 @@ export default function PortfolioChartSection({
             ))}
           </div>
         )}
-        <p className="px-6 pb-4 text-[10px] text-slate-600">{reconstructed ? t("pcs_reconstructed_note") : t("pcs_snapshots_note")}</p>
+        <p className="px-6 pb-4 text-[11px] text-slate-600">{reconstructed ? t("pcs_reconstructed_note") : t("pcs_snapshots_note")}</p>
       </div>
 
       {/* ── Tabs ── */}
@@ -520,10 +520,10 @@ export default function PortfolioChartSection({
             }`}>
             {t(labelKey as Parameters<typeof t>[0])}
             {key === "nfts" && totalNfts > 0 && (
-              <span className="text-[10px] bg-slate-700 text-slate-300 rounded-full px-1.5 py-0.5">{hideBalances ? "••••" : totalNfts}</span>
+              <span className="text-[11px] bg-slate-700 text-slate-300 rounded-full px-1.5 py-0.5">{hideBalances ? "••••" : totalNfts}</span>
             )}
             {key === "defi" && totalDefi > 0 && (
-              <span className="text-[10px] bg-emerald-500/20 text-emerald-400 rounded-full px-1.5 py-0.5">{fmtUsdCompact(totalDefi)}</span>
+              <span className="text-[11px] bg-emerald-500/20 text-emerald-400 rounded-full px-1.5 py-0.5">{fmtUsdCompact(totalDefi)}</span>
             )}
           </button>
         ))}
@@ -596,9 +596,9 @@ export default function PortfolioChartSection({
                 <div key={`${wd.address}-${wd.chain}-${wd.label}`}>
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-xs font-semibold text-slate-300">{wd.label}</span>
-                    <span className="text-[10px] text-slate-600 font-mono">{wd.address.slice(0, 6)}…{wd.address.slice(-4)}</span>
-                    <span className="text-[10px] border border-slate-700 text-slate-500 rounded px-1">{wd.chain.toUpperCase()}</span>
-                    {wd.nfts.length > 0 && <span className="text-[10px] text-slate-400 ml-auto">{wd.nfts.length} NFTs</span>}
+                    <span className="text-[11px] text-slate-600 font-mono">{wd.address.slice(0, 6)}…{wd.address.slice(-4)}</span>
+                    <span className="text-[11px] border border-slate-700 text-slate-500 rounded px-1">{wd.chain.toUpperCase()}</span>
+                    {wd.nfts.length > 0 && <span className="text-[11px] text-slate-400 ml-auto">{wd.nfts.length} NFTs</span>}
                   </div>
                   {wd.loading ? (
                     <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
@@ -647,8 +647,8 @@ export default function PortfolioChartSection({
                 <div key={`${wd.address}-${wd.chain}-${wd.label}`} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-xs font-semibold text-slate-300">{wd.label}</span>
-                    <span className="text-[10px] text-slate-600 font-mono">{wd.address.slice(0, 6)}…{wd.address.slice(-4)}</span>
-                    <span className="text-[10px] border border-slate-700 text-slate-500 rounded px-1">{wd.chain.toUpperCase()}</span>
+                    <span className="text-[11px] text-slate-600 font-mono">{wd.address.slice(0, 6)}…{wd.address.slice(-4)}</span>
+                    <span className="text-[11px] border border-slate-700 text-slate-500 rounded px-1">{wd.chain.toUpperCase()}</span>
                     {wd.positions.length > 0 && (
                       <span className={`ml-auto text-sm font-bold ${wd.total >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{fmtUsd(wd.total)}</span>
                     )}
@@ -684,9 +684,9 @@ export default function PortfolioChartSection({
                         </div>
                       ))}
                       {wd.positions.some((p) => p.kind === "lending") && (
-                        <p className="pt-1 text-[10px] text-slate-600">{t("pcs_defi_net_note")}</p>
+                        <p className="pt-1 text-[11px] text-slate-600">{t("pcs_defi_net_note")}</p>
                       )}
-                      {wd.partial && <p className="pt-1 text-[10px] text-slate-600">{t("pcs_defi_partial")}</p>}
+                      {wd.partial && <p className="pt-1 text-[11px] text-slate-600">{t("pcs_defi_partial")}</p>}
                     </div>
                   )}
                 </div>

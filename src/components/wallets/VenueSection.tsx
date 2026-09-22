@@ -129,7 +129,7 @@ export default function VenueSection({ onTotalChange, usdToEur = 0.92 }: { onTot
                 <button key={v.id} type="button" onClick={() => { setVenue(v.id); setImportacao(null); setErroFicheiro(null); }}
                   className={`rounded-xl border px-3 py-2.5 text-left text-xs transition ${venue === v.id ? "border-orange-400 bg-orange-500/15 text-orange-100" : "border-slate-700 text-slate-300 hover:border-slate-500"}`}>
                   <span className="block font-semibold">{v.id === "outra" ? t("vn_other") : v.label}</span>
-                  <span className="block text-[10px] text-slate-500">
+                  <span className="block text-[11px] text-slate-500">
                     {v.csv ? t("vn_tag_csv") : v.api ? t("vn_tag_api_or_manual") : t("vn_tag_manual")}
                   </span>
                 </button>
@@ -165,7 +165,7 @@ export default function VenueSection({ onTotalChange, usdToEur = 0.92 }: { onTot
                       )}
                       <div className="flex flex-wrap gap-1.5 pt-1">
                         {Object.entries(importacao.saldos).filter(([, q]) => q > 0).slice(0, 12).map(([a, q]) => (
-                          <span key={a} className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px]"><b>{a}</b> {q.toLocaleString(undefined, { maximumFractionDigits: 6 })}</span>
+                          <span key={a} className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px]"><b>{a}</b> {q.toLocaleString(undefined, { maximumFractionDigits: 6 })}</span>
                         ))}
                       </div>
                       <div className="flex gap-2 pt-2">
@@ -174,12 +174,12 @@ export default function VenueSection({ onTotalChange, usdToEur = 0.92 }: { onTot
                       </div>
                     </div>
                   )}
-                  <p className="text-[10px] text-slate-500">{t("vn_csv_or_manual")}</p>
+                  <p className="text-[11px] text-slate-500">{t("vn_csv_or_manual")}</p>
                 </div>
               )}
 
               {escolhida.api && (
-                <p className="text-[10px] text-slate-500">{t("vn_api_hint")}</p>
+                <p className="text-[11px] text-slate-500">{t("vn_api_hint")}</p>
               )}
 
               {/* Registo manual: moeda + quantidade, uma linha por moeda */}
@@ -225,7 +225,7 @@ export default function VenueSection({ onTotalChange, usdToEur = 0.92 }: { onTot
               <div className="mb-3 flex items-center justify-between gap-2">
                 <div>
                   <p className="text-sm font-semibold text-white">{v.label ?? (info?.id === "outra" ? t("vn_other") : info?.label ?? v.venue)}</p>
-                  <p className="text-[10px] uppercase tracking-wide text-slate-500">
+                  <p className="text-[11px] uppercase tracking-wide text-slate-500">
                     {v.source === "csv" ? t("vn_src_csv") : t("vn_src_manual")} · {new Date(v.updatedAt).toLocaleDateString()}
                   </p>
                 </div>

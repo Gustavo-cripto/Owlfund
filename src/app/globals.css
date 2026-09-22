@@ -270,6 +270,25 @@ details[open] > .faq-a { animation: fade-in-up var(--duration-fast) var(--ease-o
   font-size: 13px;
 }
 .skip-link:focus-visible { top: 12px; }
+/* ── Cinzentos de texto que se leem ───────────────────────────────────────
+   Medido a 23 de setembro de 2026 contra os fundos reais do site (#020617,
+   #0b0f1a e #0f172a), com a fórmula de contraste da WCAG:
+
+     text-slate-500  4,24 / 4,02 / 3,75   487 usos — a cor MAIS usada do site
+     text-slate-600  2,66 / 2,53 / 2,36   116 usos
+     text-slate-700  1,95 / 1,85 / 1,72     5 usos
+
+   O mínimo para texto normal é 4,5. Eram ~600 pedaços de texto abaixo do
+   mínimo, quase todos pequenos — legendas, rótulos, notas. Não é só uma
+   questão legal: cinzento-pálido pequeno é o que faz um site parecer
+   inacabado.
+
+   Sobem para valores medidos, mantendo dois níveis distintos. Só no tema
+   escuro: o tema claro já remapeia estas classes mais abaixo. */
+body:not(.theme-light) .text-slate-500 { color: #818fa6; }   /* 6,16 / 5,84 / 5,45 */
+body:not(.theme-light) .text-slate-600,
+body:not(.theme-light) .text-slate-700 { color: #75829a; }   /* 5,20 / 4,94 / 4,60 */
+
 /* ── Molduras translúcidas ────────────────────────────────────────────────
    A barra lateral e o cabeçalho eram pretos opacos com um traço de 1px por
    baixo. Uma barra opaca come uma faixa do ecrã e lê-se como uma caixa; uma
@@ -453,8 +472,10 @@ body.theme-light .text-orange-300\/90 { color: #c2410c !important; }
 
 body.theme-light .text-slate-300 { color: #1e293b !important; }
 body.theme-light .text-slate-400 { color: #475569 !important; }
-body.theme-light .text-slate-500 { color: #64748b !important; }
-body.theme-light .text-slate-600 { color: #64748b !important; }
+/* #64748b sobre o fundo claro (#f1f5f9) dava 4,43 — abaixo do mínimo por pouco. */
+body.theme-light .text-slate-500,
+body.theme-light .text-slate-600,
+body.theme-light .text-slate-700 { color: #5a6a7d !important; }
 
 /* Inputs */
 body.theme-light input,

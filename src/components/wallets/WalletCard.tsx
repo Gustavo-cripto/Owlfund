@@ -118,7 +118,7 @@ export default function WalletCard({
           >
             {isAvailable ? t("wc_available") : t("wc_unavailable")}
           </span>
-          <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold text-sky-300">
+          <span className="inline-flex items-center gap-1 rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[11px] font-semibold text-sky-300">
             🔒 {t("wc_readonly_badge")}
           </span>
         </div>
@@ -171,18 +171,18 @@ export default function WalletCard({
                 </span>
               : <span className="text-slate-600 text-[11px]">—</span>}
           {defiPartial && !defiLoading && (
-            <span title={t("pcs_defi_partial")} className="cursor-help rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 text-[10px] text-amber-300">{t("wl_defi_partial")}</span>
+            <span title={t("pcs_defi_partial")} className="cursor-help rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 text-[11px] text-amber-300">{t("wl_defi_partial")}</span>
           )}
           {address && balanceUnit !== "BTC" && balanceUnit !== "ADA" && (
             <span className="inline-flex items-center gap-1.5">
               {balanceUnit === "SOL"
-                ? <a href="https://app.meteora.ag/portfolio" target="_blank" rel="noopener noreferrer" className="text-[10px] text-violet-400 hover:text-violet-300 underline underline-offset-2">Meteora ↗</a>
+                ? <a href="https://app.meteora.ag/portfolio" target="_blank" rel="noopener noreferrer" className="text-[11px] text-violet-400 hover:text-violet-300 underline underline-offset-2">Meteora ↗</a>
                 : <>
-                    <a href={`https://app.uniswap.org/positions`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-pink-400 hover:text-pink-300 underline underline-offset-2">Uniswap ↗</a>
-                    <a href={`https://defillama.com/portfolio#${address}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-violet-400 hover:text-violet-300 underline underline-offset-2">DeFiLlama ↗</a>
+                    <a href={`https://app.uniswap.org/positions`} target="_blank" rel="noopener noreferrer" className="text-[11px] text-pink-400 hover:text-pink-300 underline underline-offset-2">Uniswap ↗</a>
+                    <a href={`https://defillama.com/portfolio#${address}`} target="_blank" rel="noopener noreferrer" className="text-[11px] text-violet-400 hover:text-violet-300 underline underline-offset-2">DeFiLlama ↗</a>
                   </>}
               {onRefreshDefi && (
-                <button type="button" onClick={onRefreshDefi} className="text-slate-600 hover:text-orange-400 transition text-[10px]" title={t("wc_refresh_defi")}>↻</button>
+                <button type="button" onClick={onRefreshDefi} className="text-slate-600 hover:text-orange-400 transition text-[11px]" title={t("wc_refresh_defi")}>↻</button>
               )}
             </span>
           )}
@@ -237,19 +237,19 @@ export default function WalletCard({
                         loading="lazy"
                       />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">
+                      <div className="flex h-full w-full items-center justify-center text-[11px] text-slate-500">
                         —
                       </div>
                     )}
                   </div>
-                  <p className="truncate px-1 py-0.5 text-[10px] text-slate-400 group-hover:text-slate-200" title={nft.name}>
+                  <p className="truncate px-1 py-0.5 text-[11px] text-slate-400 group-hover:text-slate-200" title={nft.name}>
                     {nft.name || "NFT"}
                   </p>
                 </a>
               ))}
             </div>
             {nfts.length > 20 ? (
-              <p className="mt-2 text-[10px] text-slate-500">{t("wc_showing").replace("{n}", "20").replace("{total}", String(nfts.length))}</p>
+              <p className="mt-2 text-[11px] text-slate-500">{t("wc_showing").replace("{n}", "20").replace("{total}", String(nfts.length))}</p>
             ) : null}
           </div>
         ) : null}

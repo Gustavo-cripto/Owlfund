@@ -107,7 +107,7 @@ export default function ScenarioSimulator({ portfolioTotal, allocations, traditi
                 onChange={e => setSliders(prev => ({ ...prev, [alloc.symbol]: Number(e.target.value) }))}
                 className="w-full accent-orange-500 h-1.5 cursor-pointer"
               />
-              <div className="flex justify-between text-[9px] text-slate-600 mt-0.5">
+              <div className="flex justify-between text-[11px] text-slate-600 mt-0.5">
                 <span>-90%</span><span>0</span><span>+200%</span>
               </div>
             </div>
@@ -136,7 +136,7 @@ export default function ScenarioSimulator({ portfolioTotal, allocations, traditi
                 onChange={e => setSliders(prev => ({ ...prev, traditional: Number(e.target.value) }))}
                 className="w-full accent-orange-500 h-1.5 cursor-pointer"
               />
-              <div className="flex justify-between text-[9px] text-slate-600 mt-0.5">
+              <div className="flex justify-between text-[11px] text-slate-600 mt-0.5">
                 <span>-90%</span><span>0</span><span>+100%</span>
               </div>
             </div>

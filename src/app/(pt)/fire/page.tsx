@@ -350,10 +350,10 @@ export default function FirePage() {
                   <input type="range" min={f.min} max={f.max} step={f.step} value={f.value}
                     onChange={e => f.set(Number(e.target.value))}
                     className="w-full accent-orange-500 h-1.5 cursor-pointer" />
-                  <div className="flex justify-between text-[9px] text-slate-600 mt-0.5">
+                  <div className="flex justify-between text-[11px] text-slate-600 mt-0.5">
                     <span>{f.key.includes("Return") || f.key.includes("inflation") || f.key === "currentAge" ? f.min : fmt(f.min)}</span><span>{f.key.includes("Return") || f.key.includes("inflation") || f.key === "currentAge" ? f.max : fmt(f.max)}</span>
                   </div>
-                  <p className="text-[10px] leading-snug text-slate-500 mt-1.5">{f.hint}</p>
+                  <p className="text-[11px] leading-snug text-slate-500 mt-1.5">{f.hint}</p>
                 </div>
               ))}
               <div>
@@ -367,7 +367,7 @@ export default function FirePage() {
                     📊 {t("fire_use_live")} {hideBalances ? "••••" : fmt(cur(livePortfolio))}
                   </button>
                 )}
-                <p className="text-[10px] leading-snug text-slate-500 mt-1.5">{t("fire_hint_portfolio")}</p>
+                <p className="text-[11px] leading-snug text-slate-500 mt-1.5">{t("fire_hint_portfolio")}</p>
               </div>
             </div>
           </div>
@@ -412,7 +412,7 @@ export default function FirePage() {
               <div className="h-3 overflow-hidden rounded-full bg-slate-800">
                 <div className="h-full rounded-full bg-gradient-to-r from-orange-500 to-emerald-400 transition-[width] duration-300" style={{ width: `${progressPct}%` }} />
               </div>
-              <div className="mt-1.5 flex justify-between text-[10px] text-slate-500">
+              <div className="mt-1.5 flex justify-between text-[11px] text-slate-500">
                 <span>{hideBalances ? "••••" : fmt(portfolioValue)}</span>
                 <span>{hideBalances ? "••••" : fmt(fireTarget)}</span>
               </div>
@@ -420,12 +420,12 @@ export default function FirePage() {
                 <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.05] p-3 text-center">
                   <p className="text-lg font-black text-emerald-300">{hideBalances ? "••••" : `${fmt(passiveNow)}/${t("fire_month_short")}`}</p>
                   <p className="mt-0.5 text-[11px] text-slate-400">{t("fire_passive_title")}</p>
-                  <p className="text-[10px] text-slate-600">{t("fire_passive_sub")} {swr.toFixed(1)}%</p>
+                  <p className="text-[11px] text-slate-600">{t("fire_passive_sub")} {swr.toFixed(1)}%</p>
                 </div>
                 <div className="rounded-xl border border-sky-500/20 bg-sky-500/[0.05] p-3 text-center">
                   <p className="text-lg font-black text-sky-300">{coastYears === null ? "—" : coastYears === 0 ? "🔥" : `${coastYears} ${t("fire_years")}`}</p>
                   <p className="mt-0.5 text-[11px] text-slate-400">{t("fire_coast_title")}</p>
-                  <p className="text-[10px] text-slate-600">{t("fire_coast_sub")}</p>
+                  <p className="text-[11px] text-slate-600">{t("fire_coast_sub")}</p>
                 </div>
               </div>
             </div>
@@ -505,12 +505,12 @@ export default function FirePage() {
                 <div key={item.label} className="flex items-center gap-4">
                   <div className="w-28 flex-shrink-0">
                     <p className="text-sm font-semibold text-white">{item.pct}%</p>
-                    <p className="text-[10px] text-slate-500">{fmt(item.value)}</p>
+                    <p className="text-[11px] text-slate-500">{fmt(item.value)}</p>
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs text-slate-300">{item.label}</span>
-                      <span className="text-[10px] text-slate-500">{item.rec}</span>
+                      <span className="text-[11px] text-slate-500">{item.rec}</span>
                     </div>
                     <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
                       <div className="h-full bg-gradient-to-r from-orange-500 to-orange-400 rounded-full transition-[width] duration-300" style={{ width: `${item.pct}%` }} />
@@ -535,11 +535,11 @@ export default function FirePage() {
                   className={`rounded-xl border p-4 text-left transition hover:brightness-110 ${f.multiplier === fireMultiple ? "border-orange-500/40 bg-orange-500/5 ring-1 ring-orange-500/30" : "border-slate-700 bg-slate-900/40 hover:border-slate-600"}`}>
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm font-bold text-white">{f.type}</p>
-                    {f.multiplier === fireMultiple && <span className="text-[10px] rounded-full border border-orange-500/40 px-2 py-0.5 text-orange-400">{t("fire_in_use")}</span>}
+                    {f.multiplier === fireMultiple && <span className="text-[11px] rounded-full border border-orange-500/40 px-2 py-0.5 text-orange-400">{t("fire_in_use")}</span>}
                   </div>
                   <p className="text-lg font-black text-orange-300">{fmt(f.target)}</p>
                   <p className="text-xs text-slate-400 mt-1">{f.desc}</p>
-                  <p className="mt-1.5 text-[10px] text-slate-500">×{f.multiplier} · {t("fire_swr_label")} {(100 / f.multiplier).toFixed(1)}% · {t("fire_variant_tap")}</p>
+                  <p className="mt-1.5 text-[11px] text-slate-500">×{f.multiplier} · {t("fire_swr_label")} {(100 / f.multiplier).toFixed(1)}% · {t("fire_variant_tap")}</p>
                 </button>
               ))}
             </div>

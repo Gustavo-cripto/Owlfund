@@ -1437,7 +1437,7 @@ export default function PortfolioPage() {
                     )}
                   </div>
                 ))}
-                <p className="text-[10px] text-slate-600">{t("pfu_dist_note")}</p>
+                <p className="text-[11px] text-slate-600">{t("pfu_dist_note")}</p>
               </div>
             </div>
 
@@ -1534,7 +1534,7 @@ export default function PortfolioPage() {
                       </div>
                     )}
                     <div className={large ? "min-h-0 flex-1" : ""}>{chart(large)}</div>
-                    <p className="mt-2 text-[10px] text-slate-600">
+                    <p className="mt-2 text-[11px] text-slate-600">
                       {t("pf_pnl_note")}{pnlSummary.days7 !== 0 && !hideBalances ? ` ${t("pf_7d_avg")}: ${fmtSigned(pnlSummary.daily7d)}/${t("pf_day_short")}.` : ""}
                     </p>
                   </div>
@@ -1638,9 +1638,9 @@ export default function PortfolioPage() {
                     </ResponsiveContainer>
                     {/* Total ao centro do anel */}
                     <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-                      <span className="text-[10px] uppercase tracking-wider text-slate-500">{t("pf_total")}</span>
+                      <span className="text-[11px] uppercase tracking-wider text-slate-500">{t("pf_total")}</span>
                       <span className={`font-bold text-white ${large ? "text-2xl" : "text-base"}`}>{fmt(total)}</span>
-                      <span className="text-[10px] text-slate-500">{pieData.length} {t("pfu_positions")}</span>
+                      <span className="text-[11px] text-slate-500">{pieData.length} {t("pfu_positions")}</span>
                     </div>
                     </div>
                     {/* Legenda: nome, percentagem e valor; ordenada do maior para o menor */}
@@ -1721,7 +1721,7 @@ export default function PortfolioPage() {
                   <div>
                     {!large && <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{t("pf_history")}</p>}
                     {!large && <h2 className="text-base font-bold text-white mt-0.5">{t("pf_evolution")}</h2>}
-                    <p className="text-[10px] text-slate-500">{t("pf_evolution_sub").replace("{n}", String(snapshotTotals.length))}</p>
+                    <p className="text-[11px] text-slate-500">{t("pf_evolution_sub").replace("{n}", String(snapshotTotals.length))}</p>
                   </div>
                   {/* Variacao DO INTERVALO escolhido (primeiro → ultimo snapshot), nao a posicao global. */}
                   <span className={`text-sm font-bold ${varRange >= 0 ? "text-emerald-400" : "text-rose-400"}`} title={t("pcs_since_start")}>
@@ -1802,7 +1802,7 @@ export default function PortfolioPage() {
                 </tbody>
               </table>
             </div>
-            <p className="mt-2 text-[10px] text-slate-600">{t("pfb_note")}</p>
+            <p className="mt-2 text-[11px] text-slate-600">{t("pfb_note")}</p>
           </section>
         )}
 
@@ -1847,7 +1847,7 @@ export default function PortfolioPage() {
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                       <span className={`metric-value text-xl font-black leading-none ${portfolioScore.color}`}>{portfolioScore.score}</span>
-                      <span className="text-[9px] text-slate-500 font-bold">/100</span>
+                      <span className="text-[11px] text-slate-500 font-bold">/100</span>
                     </div>
                   </div>
                   <div>
@@ -1862,7 +1862,7 @@ export default function PortfolioPage() {
                       <div className="flex items-center gap-2 mb-1">
                         <span className={`text-xs ${r.pending ? "text-slate-500" : r.ok ? "text-emerald-400" : "text-rose-400"}`}>{r.pending ? "…" : r.ok ? "✓" : "✗"}</span>
                         <span className="text-xs text-slate-300 flex-1">{r.label}{r.pending ? ` · ${t("pf_score_pending")}` : ""}</span>
-                        <span className="text-[10px] font-semibold text-slate-500 tabular-nums">{r.pending ? "—" : `${r.points}/${r.max}`}</span>
+                        <span className="text-[11px] font-semibold text-slate-500 tabular-nums">{r.pending ? "—" : `${r.points}/${r.max}`}</span>
                       </div>
                       <div className="h-1 w-full rounded-full bg-slate-800 overflow-hidden">
                         <div
@@ -1871,14 +1871,14 @@ export default function PortfolioPage() {
                         />
                       </div>
                       {/* O que mediu e o que da a pontuacao maxima — descreve a regra, nao aconselha. */}
-                      <p className="mt-1 text-[10px] leading-relaxed text-slate-500">
+                      <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
                         <span className={r.pending ? "" : r.ok ? "text-slate-400" : "text-slate-300"}>{r.detail}</span>
                         {!r.ok && !r.pending && <span> · {r.rule}</span>}
                       </p>
                     </div>
                   ))}
                 </div>
-                <p className="text-[10px] text-slate-600">{t("pfs_disclaimer")}</p>
+                <p className="text-[11px] text-slate-600">{t("pfs_disclaimer")}</p>
               </div>
             ) : null}
           </div>
@@ -1908,9 +1908,9 @@ export default function PortfolioPage() {
                 { label: t("pf_pnl_pos"), value: fmtSigned(pnlSummary.position), sub: advancedMetrics ? `ROI ${advancedMetrics.roi >= 0 ? "+" : ""}${advancedMetrics.roi.toFixed(1)}% · ${t("pf_since_date").replace("{d}", snapshotTotals.length ? new Date(snapshotTotals[snapshotTotals.length - 1].createdAt).toLocaleDateString(locale, { day: "2-digit", month: "short" }) : "—")}` : t("pf_score_pending"), color: pnlSummary.position >= 0 ? "text-emerald-400" : "text-rose-400" },
               ].map(m => (
                 <div key={m.label} className="rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
-                  <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">{m.label}</p>
+                  <p className="text-[11px] uppercase tracking-wider text-slate-500 mb-1">{m.label}</p>
                   <p className={`text-base font-bold ${m.color}`}>{m.value}</p>
-                  <p className="text-[10px] text-slate-600 mt-0.5">{m.sub}</p>
+                  <p className="text-[11px] text-slate-600 mt-0.5">{m.sub}</p>
                 </div>
               ))}
             </div>
@@ -1918,17 +1918,17 @@ export default function PortfolioPage() {
             {/* Carteiras activas */}
             <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-slate-500">{t("pf_connected_assets")}</p>
+                <p className="text-[11px] uppercase tracking-wider text-slate-500">{t("pf_connected_assets")}</p>
                 <p className="text-base font-bold text-white mt-0.5">
                   {wallets.filter(w => Number(w.balance) > 0).length + Object.keys(cryptoHoldings).length + Object.keys(traditionalHoldings).length}
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] uppercase tracking-wider text-slate-500">{t("pf_snapshots")}</p>
+                <p className="text-[11px] uppercase tracking-wider text-slate-500">{t("pf_snapshots")}</p>
                 <p className="text-base font-bold text-white mt-0.5">{(snapshotCount ?? snapshots.length).toLocaleString(locale)}</p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] uppercase tracking-wider text-slate-500">{t("pf_last_snapshot")}</p>
+                <p className="text-[11px] uppercase tracking-wider text-slate-500">{t("pf_last_snapshot")}</p>
                 <p className="text-base font-bold text-white mt-0.5">
                   {snapshots[0] ? new Date(snapshots[0].created_at).toLocaleDateString(locale, { day: "2-digit", month: "short" }) : "—"}
                 </p>
@@ -2368,9 +2368,9 @@ export default function PortfolioPage() {
                 }] : []),
               ].map((m, i) => (
                 <div key={m.label} className={`card-hover rounded-xl border border-slate-700 bg-slate-900/80 p-4 text-center animate-count-up delay-${i * 100}`}>
-                  <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-2">{m.label}</p>
+                  <p className="text-[11px] uppercase tracking-wider text-slate-500 mb-2">{m.label}</p>
                   <p className={`metric-value text-2xl font-black ${m.color}`}>{m.value}</p>
-                  <p className="text-[10px] text-slate-600 mt-1.5">{m.hint}</p>
+                  <p className="text-[11px] text-slate-600 mt-1.5">{m.hint}</p>
                 </div>
               ))}
             </div>
@@ -2424,7 +2424,7 @@ export default function PortfolioPage() {
               { label: `PNL ${t("pf_position")}`, value: fmtSigned(pnlSummary.position), color: pnlSummary.position >= 0 ? "text-emerald-400" : "text-rose-400" },
             ].map((c) => (
               <div key={c.label} className="rounded-xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-center">
-                <p className="text-[10px] uppercase tracking-wider text-slate-500">{c.label}</p>
+                <p className="text-[11px] uppercase tracking-wider text-slate-500">{c.label}</p>
                 <p className={`mt-1 text-lg font-black ${c.color}`}>{c.value}</p>
               </div>
             ))}
@@ -2694,7 +2694,7 @@ export default function PortfolioPage() {
               try { localStorage.setItem(`portfolio-note-${getActiveAccountId()}`, v); } catch {}
             }}
           />
-          <p className="mt-1.5 text-[10px] text-slate-600">{t("pf_saved_local")}</p>
+          <p className="mt-1.5 text-[11px] text-slate-600">{t("pf_saved_local")}</p>
         </section>
 
       </main>

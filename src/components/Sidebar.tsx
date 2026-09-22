@@ -263,7 +263,7 @@ export default function Sidebar() {
           </div>
           <div>
             <p className="text-sm font-bold text-white tracking-widest leading-none">CHAINFOLIOAI</p>
-            <p className="text-[10px] text-slate-500 leading-tight mt-0.5">{t("lp_tagline")}</p>
+            <p className="text-[11px] text-slate-500 leading-tight mt-0.5">{t("lp_tagline")}</p>
           </div>
         </a>
         <button
@@ -378,7 +378,7 @@ export default function Sidebar() {
             que sobrava ficava cortado sem forma de chegar lá. */}
         <nav className={`flex-1 min-h-0 overflow-y-auto overscroll-contain py-4 ${expanded ? "px-3" : "px-2"}`}>
           {expanded && (
-            <p className="px-3 mb-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-600 whitespace-nowrap">
+            <p className="px-3 mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-600 whitespace-nowrap">
               {t("sb_nav")}
             </p>
           )}

@@ -156,19 +156,19 @@ function LegislationSection({ isPro, isPremium }: { isPro: boolean; isPremium: b
                 <span className="text-2xl">{c.flag}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-white">{c.name}</p>
-                  <p className={`text-[10px] font-medium ${c.badge}`}>{c.code}</p>
+                  <p className={`text-[11px] font-medium ${c.badge}`}>{c.code}</p>
                 </div>
               </div>
               <div className="space-y-1">
-                <div className="flex justify-between text-[10px]">
+                <div className="flex justify-between text-[11px]">
                   <span className="text-slate-500">{t("fc_short_term")}</span>
                   <span className="text-rose-400 font-medium">{c.taxShort}</span>
                 </div>
-                <div className="flex justify-between text-[10px]">
+                <div className="flex justify-between text-[11px]">
                   <span className="text-slate-500">{t("fc_long_term")}</span>
                   <span className="text-emerald-400 font-medium">{c.taxLong}</span>
                 </div>
-                <div className="flex justify-between text-[10px]">
+                <div className="flex justify-between text-[11px]">
                   <span className="text-slate-500">{t("fc_threshold")}</span>
                   <span className="text-slate-400 font-medium text-right">{c.threshold}</span>
                 </div>
@@ -184,20 +184,20 @@ function LegislationSection({ isPro, isPremium }: { isPro: boolean; isPremium: b
                 <span className="text-2xl">{c.flag}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-white">{c.name}</p>
-                  <p className={`text-[10px] font-medium ${c.badge}`}>{c.code}</p>
+                  <p className={`text-[11px] font-medium ${c.badge}`}>{c.code}</p>
                 </div>
-                <span className="text-[10px]">{c.plan === "premium" ? "💎" : "🔒"}</span>
+                <span className="text-[11px]">{c.plan === "premium" ? "💎" : "🔒"}</span>
               </div>
               <div className="space-y-1">
-                <div className="flex justify-between text-[10px]">
+                <div className="flex justify-between text-[11px]">
                   <span className="text-slate-500">{t("fc_short_term")}</span>
                   <span className="text-rose-400 font-medium">{c.taxShort}</span>
                 </div>
-                <div className="flex justify-between text-[10px]">
+                <div className="flex justify-between text-[11px]">
                   <span className="text-slate-500">{t("fc_long_term")}</span>
                   <span className="text-emerald-400 font-medium">{c.taxLong}</span>
                 </div>
-                <div className="flex justify-between text-[10px]">
+                <div className="flex justify-between text-[11px]">
                   <span className="text-slate-500">{t("fc_threshold")}</span>
                   <span className="text-slate-400 font-medium text-right">{c.threshold}</span>
                 </div>
@@ -1123,7 +1123,7 @@ export default function FiscalidadePage() {
                     <span className="flex-1">
                       ✂️ {regime.allowance.label[lang]}: −{fmtEur(summary.allowanceUsed)} {t("fisc_allowance_applied")}
                     </span>
-                    <span className="shrink-0 rounded-full border border-emerald-500/30 px-2 py-0.5 text-[10px] font-semibold text-emerald-200/80 group-open:hidden">
+                    <span className="shrink-0 rounded-full border border-emerald-500/30 px-2 py-0.5 text-[11px] font-semibold text-emerald-200/80 group-open:hidden">
                       {t("fisc_alw_what")}
                     </span>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
@@ -1204,10 +1204,10 @@ export default function FiscalidadePage() {
                           <td className="py-2 pr-4 text-slate-300">{reportSymbol} {e.sellPrice.toFixed(0)}</td>
                           <td className={`py-2 pr-4 font-semibold ${e.gain >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                             {e.gain >= 0 ? "+" : ""}{reportSymbol} {e.gain.toLocaleString(uiLocale, { maximumFractionDigits: 0 })}
-                            {e.fees > 0 && <span className="block text-[10px] font-normal text-slate-500">{t("hx_fee_short")} −{reportSymbol} {e.fees.toLocaleString(uiLocale, { maximumFractionDigits: 2 })}</span>}
+                            {e.fees > 0 && <span className="block text-[11px] font-normal text-slate-500">{t("hx_fee_short")} −{reportSymbol} {e.fees.toLocaleString(uiLocale, { maximumFractionDigits: 2 })}</span>}
                           </td>
                           <td className="py-2 pr-4">
-                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${e.holding === "longo" ? "bg-emerald-500/20 text-emerald-400" : "bg-orange-500/20 text-orange-400"}`}>
+                            <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${e.holding === "longo" ? "bg-emerald-500/20 text-emerald-400" : "bg-orange-500/20 text-orange-400"}`}>
                               {e.holding === "longo" ? t("fc_long") : t("fc_short")}
                             </span>
                           </td>

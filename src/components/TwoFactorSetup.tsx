@@ -185,7 +185,7 @@ export default function TwoFactorSetup() {
         <div>
           <div className="flex items-center gap-2">
             <p className="text-sm font-semibold text-white">🔐 {t("ac_2fa_title")}</p>
-            <span className={`text-[10px] font-bold rounded-full px-2 py-0.5 border ${
+            <span className={`text-[11px] font-bold rounded-full px-2 py-0.5 border ${
               enrolled
                 ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
                 : "border-slate-600/40 bg-slate-700/40 text-slate-400"

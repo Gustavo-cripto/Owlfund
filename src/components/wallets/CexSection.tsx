@@ -405,7 +405,7 @@ export default function CexSection({
                       : "border-slate-700 text-slate-400 hover:border-slate-500"
                   }`}
                 >
-                  {ex.label}{ex.mica ? <span className="ml-1 text-[9px] text-emerald-400" title={t("cx_mica_tip")}>🇪🇺</span> : null}
+                  {ex.label}{ex.mica ? <span className="ml-1 text-[11px] text-emerald-400" title={t("cx_mica_tip")}>🇪🇺</span> : null}
                 </button>
               ))}
             </div>
@@ -451,25 +451,25 @@ export default function CexSection({
               />
             )}
             {newExchange === "bitpanda" && (
-              <p className="text-[10px] text-emerald-400">{t("cx_note_bitpanda")}</p>
+              <p className="text-[11px] text-emerald-400">{t("cx_note_bitpanda")}</p>
             )}
             {newExchange === "coinbase" && (
-              <p className="text-[10px] text-sky-300">{t("cx_note_coinbase")}</p>
+              <p className="text-[11px] text-sky-300">{t("cx_note_coinbase")}</p>
             )}
             {newExchange === "binance" && (
-              <p className="text-[10px] text-amber-400">{t("cx_warn_binance")}</p>
+              <p className="text-[11px] text-amber-400">{t("cx_warn_binance")}</p>
             )}
             {newExchange === "coinex" && (
-              <p className="text-[10px] text-orange-400">{t("cx_note_coinex")}</p>
+              <p className="text-[11px] text-orange-400">{t("cx_note_coinex")}</p>
             )}
             {newExchange === "cryptocom" && (
-              <p className="text-[10px] text-sky-300">{t("cx_note_cryptocom")}</p>
+              <p className="text-[11px] text-sky-300">{t("cx_note_cryptocom")}</p>
             )}
             {newExchange === "revolutx" && (
-              <p className="text-[10px] text-sky-300">{t("cx_note_revolutx")}</p>
+              <p className="text-[11px] text-sky-300">{t("cx_note_revolutx")}</p>
             )}
             {POR_CONFIRMAR.has(newExchange) && (
-              <p className="text-[10px] text-amber-300">{t("cx_unverified")}</p>
+              <p className="text-[11px] text-amber-300">{t("cx_unverified")}</p>
             )}
             <details className="rounded-lg border border-sky-500/20 bg-sky-500/[0.05] px-3 py-2">
               <summary className="cursor-pointer text-[11px] font-semibold text-sky-300">🔑 {t("cx_guide_title")}</summary>
@@ -487,7 +487,7 @@ export default function CexSection({
                 <li>4. {t("cx_guide_s4")}</li>
               </ol>
             </details>
-            <p className="text-[10px] text-slate-600">{t("cx_warn_readonly")}</p>
+            <p className="text-[11px] text-slate-600">{t("cx_warn_readonly")}</p>
             {serverEnabled && (
               <label className="flex items-start gap-2 rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-2 text-[11px] text-slate-300">
                 <input type="checkbox" checked={guardarNoServidor} onChange={(e) => setGuardarNoServidor(e.target.checked)} className="mt-0.5" />
@@ -535,7 +535,7 @@ export default function CexSection({
             <div className="flex items-center justify-between mb-3">
               <div>
                 <p className="text-sm font-semibold text-white">{acc.label ?? EXCHANGES.find((e) => e.id === acc.exchange)?.label ?? acc.exchange}</p>
-                <p className="text-[10px] text-slate-500 uppercase tracking-wide">{acc.exchange} · <span className="text-sky-300 normal-case">{t("cx_server_badge")}</span>{acc.balances_at ? ` · ${new Date(acc.balances_at).toLocaleString()}` : ""}</p>
+                <p className="text-[11px] text-slate-500 uppercase tracking-wide">{acc.exchange} · <span className="text-sky-300 normal-case">{t("cx_server_badge")}</span>{acc.balances_at ? ` · ${new Date(acc.balances_at).toLocaleString()}` : ""}</p>
               </div>
               <div className="flex items-center gap-3">
                 <button type="button" onClick={() => void refreshServidor(acc.id)} disabled={!!acc.loading}
@@ -571,7 +571,7 @@ export default function CexSection({
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <p className="text-sm font-semibold text-white">{acc.label}</p>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-wide">{acc.exchange}</p>
+                  <p className="text-[11px] text-slate-500 uppercase tracking-wide">{acc.exchange}</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <button
@@ -621,7 +621,7 @@ export default function CexSection({
                               {fmtCur(valueEur)}
                             </p>
                           )}
-                          {b.locked > 0 && <p className="text-[10px] text-slate-600">Locked: {hideBalances ? "••••" : fmtQty(b.locked)}</p>}
+                          {b.locked > 0 && <p className="text-[11px] text-slate-600">Locked: {hideBalances ? "••••" : fmtQty(b.locked)}</p>}
                         </div>
                       );
                     })}
@@ -847,7 +847,7 @@ export default function CexSection({
           {coldSuccess && <p className="text-xs text-emerald-400">{coldSuccess}</p>}
         </div>
 
-        <p className="text-[10px] text-slate-600 leading-relaxed">{t("cx_reads_auto")}</p>
+        <p className="text-[11px] text-slate-600 leading-relaxed">{t("cx_reads_auto")}</p>
 
         {/* Endereços adicionados — ver e remover */}
         {addedAddresses.length > 0 && (
@@ -867,14 +867,14 @@ export default function CexSection({
                 return (
                   <div key={key} className="rounded-xl border border-slate-700/60 bg-slate-950/40 px-3 py-2.5 space-y-2">
                     <div className="flex items-center gap-2">
-                      <span className="rounded-md bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-slate-300">{e.networkLabel}</span>
+                      <span className="rounded-md bg-slate-800 px-2 py-0.5 text-[11px] font-semibold text-slate-300">{e.networkLabel}</span>
                       <span className="flex-1 truncate font-mono text-[11px] text-slate-400">
                         {shown ? e.address : <span className="tracking-widest text-slate-600 select-none">••••••••</span>}
                       </span>
                       <button
                         type="button"
                         onClick={() => setColdShown((prev) => ({ ...prev, [key]: !prev[key] }))}
-                        className="rounded-full border border-slate-700 px-2 py-1 text-[10px] text-slate-400 transition hover:border-slate-500 hover:text-slate-200"
+                        className="rounded-full border border-slate-700 px-2 py-1 text-[11px] text-slate-400 transition hover:border-slate-500 hover:text-slate-200"
                         title={shown ? t("cx_hide_addr") : t("cx_show_addr")}
                       >
                         {shown ? "🙈" : "👁"}
@@ -882,7 +882,7 @@ export default function CexSection({
                       <button
                         type="button"
                         onClick={() => onRemoveAddress?.(e.address, e.kind, e.networkLabel)}
-                        className="rounded-full border border-rose-400/40 px-2.5 py-1 text-[10px] font-semibold text-rose-300 transition hover:border-rose-400 hover:text-white"
+                        className="rounded-full border border-rose-400/40 px-2.5 py-1 text-[11px] font-semibold text-rose-300 transition hover:border-rose-400 hover:text-white"
                       >
                         {t("cx_remove")}
                       </button>
@@ -923,13 +923,13 @@ export default function CexSection({
                       if (toks.length === 0) return null;
                       return (
                         <div className="mt-1 space-y-1 rounded-lg border border-slate-800 bg-slate-900/40 px-2.5 py-2">
-                          <p className="text-[10px] uppercase tracking-wider text-slate-500">{t("cx_tokens")} ({toks.length})</p>
+                          <p className="text-[11px] uppercase tracking-wider text-slate-500">{t("cx_tokens")} ({toks.length})</p>
                           {toks.map((t) => (
                             <div key={`${t.network ?? t.chain}:${t.address}:${t.symbol}`} className="flex items-center justify-between gap-2 text-[11px]">
                               <span className="truncate text-slate-300">
                                 {hideBalances ? "••••" : Number(t.balance).toLocaleString(numberFormat, { maximumFractionDigits: 4 })} <span className="font-semibold">{t.symbol}</span>
                                 {t.network && t.network !== ownNet && (
-                                  <span className="ml-1.5 rounded border border-slate-700 px-1 py-px text-[9px] uppercase tracking-wide text-slate-400">{NETWORK_SHORT[t.network] ?? t.network}</span>
+                                  <span className="ml-1.5 rounded border border-slate-700 px-1 py-px text-[11px] uppercase tracking-wide text-slate-400">{NETWORK_SHORT[t.network] ?? t.network}</span>
                                 )}
                               </span>
                               <span className="shrink-0 text-slate-400">{t.usdValue > 0 ? fmtUsd(t.usdValue) : "—"}</span>

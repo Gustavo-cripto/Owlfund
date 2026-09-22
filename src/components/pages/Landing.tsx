@@ -243,7 +243,7 @@ export default function Landing() {
                 <div className="flex items-start gap-4">
                   <span className="text-3xl leading-none" aria-hidden>🗂️</span>
                   <div>
-                    <span className="mb-2 inline-flex items-center gap-1 rounded-full border border-orange-500/40 bg-orange-500/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-orange-300">✨ Pro · Premium</span>
+                    <span className="mb-2 inline-flex items-center gap-1 rounded-full border border-orange-500/40 bg-orange-500/15 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-widest text-orange-300">✨ Pro · Premium</span>
                     <h2 className="text-lg font-semibold text-white">{t("lp_multi_t")}</h2>
                     <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-slate-400">{t("lp_multi_d")}</p>
                   </div>
@@ -302,7 +302,7 @@ export default function Landing() {
           </div>
           <div className="animate-scale-in delay-200 w-full max-w-sm flex-shrink-0">
             <PnlSummaryCard position={2150} today={120} days30={480} daily7d={-35} />
-            <p className="mt-2 text-center text-[10px] text-slate-600">{t("lp_demo_label")}</p>
+            <p className="mt-2 text-center text-[11px] text-slate-600">{t("lp_demo_label")}</p>
           </div>
         </section>
 
@@ -367,7 +367,7 @@ export default function Landing() {
             <div className="grid grid-cols-2 gap-3 px-5 sm:grid-cols-4">
               {PREVIEW_METRICS.map((m) => (
                 <div key={m.k} className="rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-2">
-                  <p className="text-[10px] uppercase tracking-wide text-slate-500">{m.k}</p>
+                  <p className="text-[11px] uppercase tracking-wide text-slate-500">{m.k}</p>
                   <p className={`text-base font-bold ${m.cls}`}>{m.v}</p>
                 </div>
               ))}

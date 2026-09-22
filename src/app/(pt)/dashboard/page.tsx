@@ -344,7 +344,7 @@ export default function DashboardPage() {
                 <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/70 mb-1">{greeting()}</p>
                 <h1 className="text-3xl font-black text-white leading-tight">{firstName} 👋</h1>
                 <div className="flex items-center gap-2 mt-1.5">
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${planMeta[plan].badge}`}>
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${planMeta[plan].badge}`}>
                     {planMeta[plan].label}
                   </span>
                   {plan !== "premium" && (
@@ -458,7 +458,7 @@ export default function DashboardPage() {
                         const active = tierOrder.indexOf(plan) >= tierOrder.indexOf(tier.plan);
                         return (
                           <div key={tier.plan} className="flex items-start gap-2">
-                            <span className={`mt-0.5 text-[10px] font-bold shrink-0 ${active ? "opacity-100" : "opacity-30"}`}>
+                            <span className={`mt-0.5 text-[11px] font-bold shrink-0 ${active ? "opacity-100" : "opacity-30"}`}>
                               {active ? "✓" : "○"}
                             </span>
                             <div className="flex items-start gap-1.5 min-w-0">
@@ -472,7 +472,7 @@ export default function DashboardPage() {
 
                     {/* Lock notice for inaccessible features */}
                     {!accessible && (
-                      <div className={`rounded-lg px-3 py-2 text-center text-[10px] font-semibold
+                      <div className={`rounded-lg px-3 py-2 text-center text-[11px] font-semibold
                         ${f.minPlan === "premium" ? "bg-violet-500/10 text-violet-400 border border-violet-500/20" : "bg-orange-500/10 text-orange-400 border border-orange-500/20"}`}>
                         {t("dash_requires_plan")} {f.minPlan === "premium" ? "Premium" : "Pro"} — {t("dash_click_prices")}
                       </div>
@@ -530,7 +530,7 @@ export default function DashboardPage() {
                         className={`block w-full rounded-xl px-6 py-3 text-sm font-bold transition ${isPro ? "bg-violet-500 text-white hover:bg-violet-400" : "bg-orange-500 text-slate-950 hover:bg-orange-400"}`}>
                         🧪 {t("dash_beta_cta")}
                       </Link>
-                      <p className="text-[10px] text-slate-600 mt-1.5">{t("dash_beta_note")}</p>
+                      <p className="text-[11px] text-slate-600 mt-1.5">{t("dash_beta_note")}</p>
                     </>
                   ) : (
                     <>
@@ -541,7 +541,7 @@ export default function DashboardPage() {
                         className={`block w-full rounded-xl px-6 py-3 text-sm font-bold transition ${isPro ? "bg-violet-500 text-white hover:bg-violet-400" : "bg-orange-500 text-slate-950 hover:bg-orange-400"}`}>
                         {isPro ? t("dash_upgrade_premium") : t("dash_upgrade_pro")}
                       </Link>
-                      <p className="text-[10px] text-slate-600 mt-1.5">{t("dash_cancel_anytime")}</p>
+                      <p className="text-[11px] text-slate-600 mt-1.5">{t("dash_cancel_anytime")}</p>
                     </>
                   )}
                 </div>

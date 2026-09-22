@@ -90,7 +90,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           aria-label={tr("app_ticker_label")}
           tabIndex={0}
         >
-          {!live && <span className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded bg-slate-800 px-1.5 text-[9px] uppercase tracking-wider text-slate-300">{tr("app_ticker_demo")}</span>}
+          {!live && <span className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded bg-slate-800 px-1.5 text-[11px] uppercase tracking-wider text-slate-300">{tr("app_ticker_demo")}</span>}
           <div className="flex animate-ticker" style={{ width: "max-content" }}>
             {[...ticks, ...ticks, ...ticks].map((tick, i) => (
               <span key={i} className="inline-flex items-center gap-1.5 mx-6 text-xs font-mono whitespace-nowrap">

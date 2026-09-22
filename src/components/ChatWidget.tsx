@@ -262,7 +262,7 @@ export default function ChatWidget({
           <button
             type="button"
             onClick={clearHistory}
-            className="flex items-center gap-1 rounded-full border border-slate-800 px-2.5 py-1 text-[10px] text-slate-500 transition hover:border-slate-600 hover:text-slate-300"
+            className="flex items-center gap-1 rounded-full border border-slate-800 px-2.5 py-1 text-[11px] text-slate-500 transition hover:border-slate-600 hover:text-slate-300"
             title={t("cw_clear_btn")}
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -294,7 +294,7 @@ export default function ChatWidget({
               </p>
               <p className="mt-1 text-xs text-slate-400">{t("cw_greeting_intro")}</p>
               {showAcctChip && (
-                <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-orange-500/25 bg-orange-500/10 px-2.5 py-1 text-[10px] font-medium text-orange-300">
+                <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-orange-500/25 bg-orange-500/10 px-2.5 py-1 text-[11px] font-medium text-orange-300">
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
                   </svg>
@@ -303,7 +303,7 @@ export default function ChatWidget({
               )}
             </div>
             <div className="w-full space-y-2 pt-1">
-              <p className="text-left text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("cw_suggestions")}</p>
+              <p className="text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("cw_suggestions")}</p>
               {suggestions.map((s, i) => (
                 <button
                   key={s}
@@ -325,7 +325,7 @@ export default function ChatWidget({
               {msg.role === "assistant" ? (
                 <img src={assistantAvatar} alt="" className="h-8 w-8 flex-shrink-0 rounded-full border-2 border-orange-400/50 object-cover" />
               ) : (
-                <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-orange-500/30 bg-orange-500/15 text-[10px] font-bold text-orange-300">
+                <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-orange-500/30 bg-orange-500/15 text-[11px] font-bold text-orange-300">
                   {nick ? nick[0].toUpperCase() : "🙂"}
                 </span>
               )}
@@ -338,7 +338,7 @@ export default function ChatWidget({
                 }`}>
                   <ChatMarkdown content={msg.content} labels={{ copy: t("dev_copy"), copied: t("dev_copied"), downloadCsv: t("gz_download_csv") }} />
                 </div>
-                {msg.ts ? <span className="mt-0.5 px-1 text-[9px] text-slate-600">{formatTime(msg.ts, locale)}</span> : null}
+                {msg.ts ? <span className="mt-0.5 px-1 text-[11px] text-slate-600">{formatTime(msg.ts, locale)}</span> : null}
               </div>
             </div>
           ))
@@ -369,7 +369,7 @@ export default function ChatWidget({
         ) : (
           <>
             {!isPro && usage && messages.length > 0 && (
-              <p className="text-right text-[10px] text-slate-600">
+              <p className="text-right text-[11px] text-slate-600">
                 {t("cw_month_count")} <span className={usage.count >= usage.limit - 1 ? "text-amber-400" : "text-slate-500"}>{usage.count}/{usage.limit}</span>
               </p>
             )}

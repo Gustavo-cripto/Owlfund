@@ -132,7 +132,7 @@ function PremiumApiKeys({ isPremium, locale }: { isPremium: boolean; locale: str
     <div className={`rounded-xl border p-5 space-y-4 ${isPremium ? "border-slate-700 bg-slate-900/40" : "border-violet-500/10 bg-slate-950/40"}`}>
       <div className="flex items-center gap-2">
         <p className="text-sm font-semibold text-white">🔑 {t("ac_api_title")}</p>
-        {!isPremium && <span className="text-[10px] border border-violet-500/40 text-violet-400 rounded-full px-2 py-0.5">Premium</span>}
+        {!isPremium && <span className="text-[11px] border border-violet-500/40 text-violet-400 rounded-full px-2 py-0.5">Premium</span>}
       </div>
       {isPremium ? (
         <div className="space-y-4">
@@ -140,19 +140,19 @@ function PremiumApiKeys({ isPremium, locale }: { isPremium: boolean; locale: str
 
           {revealedKey && (
             <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/30 p-3 space-y-2">
-              <p className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wide">{t("ac_key_once")}</p>
+              <p className="text-[11px] text-emerald-400 font-semibold uppercase tracking-wide">{t("ac_key_once")}</p>
               <div className="flex items-center gap-2">
                 <code className="flex-1 text-xs text-emerald-300 font-mono break-all">{revealedKey}</code>
                 <button type="button" onClick={() => { void copyText(revealedKey).then(ok => { setCopied(ok); setTimeout(() => setCopied(false), 1500); }); }}
-                  className="shrink-0 text-[10px] border border-emerald-500/40 text-emerald-400 rounded px-2 py-1 hover:bg-emerald-500/10 transition">
+                  className="shrink-0 text-[11px] border border-emerald-500/40 text-emerald-400 rounded px-2 py-1 hover:bg-emerald-500/10 transition">
                   {copied ? t("dev_copied") : t("dev_copy")}
                 </button>
                 <button type="button" onClick={testKey}
-                  className="shrink-0 text-[10px] border border-slate-600 text-slate-300 rounded px-2 py-1 hover:bg-slate-800 transition">
+                  className="shrink-0 text-[11px] border border-slate-600 text-slate-300 rounded px-2 py-1 hover:bg-slate-800 transition">
                   {t("ac_key_test")}
                 </button>
               </div>
-              {testResult && <p className="text-[10px] text-slate-300">{testResult}</p>}
+              {testResult && <p className="text-[11px] text-slate-300">{testResult}</p>}
             </div>
           )}
           {keysError && <p className="text-xs text-rose-300" role="alert">{keysError}</p>}
@@ -167,11 +167,11 @@ function PremiumApiKeys({ isPremium, locale }: { isPremium: boolean; locale: str
                 <div key={k.id} className="rounded-lg bg-slate-950 border border-slate-800 p-3 flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-xs text-slate-200 font-medium truncate">{k.name}</p>
-                    <code className="text-[10px] text-slate-500 font-mono">{k.key_prefix}••••••••••••</code>
-                    {k.last_used_at && <span className="text-[10px] text-slate-600 ml-2">{t("ac_key_last_used")} {new Date(k.last_used_at).toLocaleDateString(locale)}</span>}
+                    <code className="text-[11px] text-slate-500 font-mono">{k.key_prefix}••••••••••••</code>
+                    {k.last_used_at && <span className="text-[11px] text-slate-600 ml-2">{t("ac_key_last_used")} {new Date(k.last_used_at).toLocaleDateString(locale)}</span>}
                   </div>
                   <button type="button" onClick={() => revokeKey(k.id)} aria-label={`${t("ac_revoke")} ${k.name}`}
-                    className="shrink-0 text-[10px] border border-rose-500/30 text-rose-400 rounded px-2 py-1 hover:bg-rose-500/10 transition">
+                    className="shrink-0 text-[11px] border border-rose-500/30 text-rose-400 rounded px-2 py-1 hover:bg-rose-500/10 transition">
                     {t("ac_revoke")}
                   </button>
                 </div>
@@ -192,9 +192,9 @@ function PremiumApiKeys({ isPremium, locale }: { isPremium: boolean; locale: str
           </div>
 
           <div className="space-y-1.5 border-t border-slate-800 pt-3">
-            <p className="text-[10px] text-slate-600 break-all">{t("ac_endpoint_base")} <code className="text-slate-500">https://chainfolioai.com/api/v1/</code> · {t("ac_header_label")} <code className="text-slate-500">Authorization: Bearer cfa_live_…</code></p>
-            <p className="text-[10px] text-slate-600 break-all">MCP: <code className="text-slate-500">https://chainfolioai.com/api/mcp</code> · {t("ac_mcp_same_key")} · {t("ac_max_keys")}</p>
-            <a href="/developers" className="inline-block pt-1 text-[10px] font-semibold text-orange-300/90 hover:text-orange-200">{t("dev_full_docs")} (12 endpoints · 11 MCP tools) →</a>
+            <p className="text-[11px] text-slate-600 break-all">{t("ac_endpoint_base")} <code className="text-slate-500">https://chainfolioai.com/api/v1/</code> · {t("ac_header_label")} <code className="text-slate-500">Authorization: Bearer cfa_live_…</code></p>
+            <p className="text-[11px] text-slate-600 break-all">MCP: <code className="text-slate-500">https://chainfolioai.com/api/mcp</code> · {t("ac_mcp_same_key")} · {t("ac_max_keys")}</p>
+            <a href="/developers" className="inline-block pt-1 text-[11px] font-semibold text-orange-300/90 hover:text-orange-200">{t("dev_full_docs")} (12 endpoints · 11 MCP tools) →</a>
           </div>
         </div>
       ) : (
@@ -256,7 +256,7 @@ function WebhookConfig({ isPremium }: { isPremium: boolean }) {
     <div className={`rounded-xl border p-5 space-y-3 ${isPremium ? "border-slate-700 bg-slate-900/40" : "border-violet-500/10 bg-slate-950/40"}`}>
       <div className="flex items-center gap-2">
         <p className="text-sm font-semibold text-white">🔔 {t("ac_webhook_title")}</p>
-        {!isPremium && <span className="text-[10px] border border-violet-500/40 text-violet-400 rounded-full px-2 py-0.5">Premium</span>}
+        {!isPremium && <span className="text-[11px] border border-violet-500/40 text-violet-400 rounded-full px-2 py-0.5">Premium</span>}
       </div>
       {isPremium ? (
         <div className="space-y-3">
@@ -265,7 +265,7 @@ function WebhookConfig({ isPremium }: { isPremium: boolean }) {
             <div className="h-9 rounded-lg bg-slate-800 animate-pulse" />
           ) : (
             <>
-              {!url && !secret && <p className="text-[10px] text-slate-500">{t("ac_webhook_empty")}</p>}
+              {!url && !secret && <p className="text-[11px] text-slate-500">{t("ac_webhook_empty")}</p>}
               <div className="flex flex-col gap-2 sm:flex-row">
                 <input type="url" value={url} onChange={e => setUrl(e.target.value)} placeholder={t("ac_webhook_ph")} aria-label={t("ac_webhook_title")}
                   className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-violet-500/50" />
@@ -276,16 +276,16 @@ function WebhookConfig({ isPremium }: { isPremium: boolean }) {
               </div>
               {secret && (
                 <div className="rounded-lg bg-slate-950 border border-slate-800 p-3 space-y-1">
-                  <p className="text-[10px] text-slate-500 uppercase tracking-wide">{t("ac_webhook_secret")}</p>
+                  <p className="text-[11px] text-slate-500 uppercase tracking-wide">{t("ac_webhook_secret")}</p>
                   <div className="flex items-center gap-2">
-                    <code className="block flex-1 text-[10px] text-emerald-300 font-mono break-all">{showSecret ? secret : `${secret.slice(0, 10)}${"•".repeat(24)}`}</code>
-                    <button type="button" onClick={() => setShowSecret(v => !v)} className="text-[10px] text-slate-400 hover:text-white">{showSecret ? t("ac_hide") : t("ac_show")}</button>
+                    <code className="block flex-1 text-[11px] text-emerald-300 font-mono break-all">{showSecret ? secret : `${secret.slice(0, 10)}${"•".repeat(24)}`}</code>
+                    <button type="button" onClick={() => setShowSecret(v => !v)} className="text-[11px] text-slate-400 hover:text-white">{showSecret ? t("ac_hide") : t("ac_show")}</button>
                   </div>
-                  <p className="text-[10px] text-slate-600">{t("ac_header_label")} <code className="text-slate-500">X-ChainFolioAI-Signature: sha256=HMAC_SHA256(secret, body)</code></p>
+                  <p className="text-[11px] text-slate-600">{t("ac_header_label")} <code className="text-slate-500">X-ChainFolioAI-Signature: sha256=HMAC_SHA256(secret, body)</code></p>
                 </div>
               )}
-              {msg && <p className={`text-[10px] ${msg.ok ? "text-emerald-400" : "text-rose-300"}`} role="status">{msg.text}</p>}
-              {url && <button type="button" onClick={remove} className="text-[10px] text-rose-400 hover:text-rose-300 transition">{t("ac_webhook_remove")}</button>}
+              {msg && <p className={`text-[11px] ${msg.ok ? "text-emerald-400" : "text-rose-300"}`} role="status">{msg.text}</p>}
+              {url && <button type="button" onClick={remove} className="text-[11px] text-rose-400 hover:text-rose-300 transition">{t("ac_webhook_remove")}</button>}
             </>
           )}
         </div>
@@ -351,7 +351,7 @@ function ThemeCard({ value, current, label, icon, onClick, activeLabel }: {
       }`}>
       <span className="text-2xl">{icon}</span>
       <span className="text-xs font-medium">{label}</span>
-      {current === value && <span className="text-[10px] text-orange-400">✓ {activeLabel}</span>}
+      {current === value && <span className="text-[11px] text-orange-400">✓ {activeLabel}</span>}
     </button>
   );
 }
@@ -870,10 +870,10 @@ export default function AccountPage() {
                         )}
                         {!loading && (
                           <button type="button" onClick={syncPlan} disabled={planSyncing} title={t("ac_plan_check")}
-                            className="text-[10px] text-slate-500 hover:text-white disabled:opacity-50">{planSyncing ? "…" : "↻"}</button>
+                            className="text-[11px] text-slate-500 hover:text-white disabled:opacity-50">{planSyncing ? "…" : "↻"}</button>
                         )}
                       </div>
-                      {planSyncMsg && <p className="w-full text-[10px] text-slate-400">{planSyncMsg}</p>}
+                      {planSyncMsg && <p className="w-full text-[11px] text-slate-400">{planSyncMsg}</p>}
                     </SettingRow>
                     {isPro && !isPremium && !isCrypto && (
                       <SettingRow label={t("ac_plan_source")}>
@@ -946,7 +946,7 @@ export default function AccountPage() {
                     <div className={`rounded-xl border p-4 ${currentPlan === "free" ? "border-orange-500/30 bg-orange-500/5" : "border-slate-800 bg-slate-950/40"}`}>
                       <div className="flex items-center justify-between mb-3">
                         <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{t("free")}</p>
-                        {currentPlan === "free" && <span className="text-[10px] bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded-full px-2 py-0.5">{t("ac_current_plan")}</span>}
+                        {currentPlan === "free" && <span className="text-[11px] bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded-full px-2 py-0.5">{t("ac_current_plan")}</span>}
                       </div>
                       <ul className="space-y-1.5 text-xs text-slate-400">
                         {[
@@ -968,7 +968,7 @@ export default function AccountPage() {
                     <div className={`rounded-xl border p-4 ${currentPlan === "pro" ? "border-orange-500/40 bg-orange-500/5" : "border-slate-700 bg-slate-900/40"}`}>
                       <div className="flex items-center justify-between mb-3">
                         <p className="text-xs font-bold uppercase tracking-widest text-orange-400">Pro</p>
-                        {currentPlan === "pro" && <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full px-2 py-0.5">{t("ac_active")} ✓</span>}
+                        {currentPlan === "pro" && <span className="text-[11px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full px-2 py-0.5">{t("ac_active")} ✓</span>}
                       </div>
                       <ul className="space-y-1.5 text-xs text-slate-300">
                         {[
@@ -991,7 +991,7 @@ export default function AccountPage() {
                     <div className={`rounded-xl border p-4 ${currentPlan === "premium" ? "border-violet-500/40 bg-violet-500/5" : "border-slate-700 bg-slate-900/40"}`}>
                       <div className="flex items-center justify-between mb-3">
                         <p className="text-xs font-bold uppercase tracking-widest text-violet-400">Premium</p>
-                        {currentPlan === "premium" && <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full px-2 py-0.5">{t("ac_active")} ✓</span>}
+                        {currentPlan === "premium" && <span className="text-[11px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full px-2 py-0.5">{t("ac_active")} ✓</span>}
                       </div>
                       <ul className="space-y-1.5 text-xs text-slate-300">
                         {[
@@ -1163,7 +1163,7 @@ export default function AccountPage() {
                       <Toggle label={t("ac_whale_alerts")} checked={alertsEnabled} onChange={v => setSetting("alertsEnabled", v)} />
                     </SettingRow>
                     <SettingRow label={t("ac_btc_blocks")} desc={t("ac_btc_blocks_desc")}>
-                      <span className="text-[10px] rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-emerald-300">{t("ac_included")}</span>
+                      <span className="text-[11px] rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-emerald-300">{t("ac_included")}</span>
                     </SettingRow>
                   </div>
 
@@ -1186,7 +1186,7 @@ export default function AccountPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <p className="flex items-center gap-1.5 text-sm font-semibold text-white"><img src="/chainfolioai-icon.png" alt="" className="h-4 w-4 rounded-full object-cover" /> {t("ac_p_briefing")}</p>
-                          {!isPro && !isPremium && <span className="text-[10px] border border-orange-500/40 text-orange-400 rounded-full px-2 py-0.5">Pro</span>}
+                          {!isPro && !isPremium && <span className="text-[11px] border border-orange-500/40 text-orange-400 rounded-full px-2 py-0.5">Pro</span>}
                         </div>
                         <p className="text-xs text-slate-400 mt-0.5">{t("ac_briefing_desc")}</p>
                       </div>
@@ -1258,7 +1258,7 @@ export default function AccountPage() {
                     >
                       {briefingSaving ? t("ac_saving") : briefingSaved ? t("ac_saved") : briefingDirty ? `${t("ac_save_schedule")} •` : t("ac_save_schedule")}
                     </button>
-                    {briefingDirty && !briefingSaving && <p className="text-[10px] text-amber-300">{t("ac_unsaved")}</p>}
+                    {briefingDirty && !briefingSaving && <p className="text-[11px] text-amber-300">{t("ac_unsaved")}</p>}
                     {briefingError && <p className="text-xs text-red-400">{briefingError}</p>}
                   </div>
                 </div>
@@ -1407,7 +1407,7 @@ export default function AccountPage() {
                   <div className={`rounded-xl border p-5 space-y-4 ${isPremium ? "border-slate-700 bg-slate-900/40" : "border-violet-500/10 bg-slate-950/40"}`}>
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-semibold text-white">🤖 {t("df_gestor_l")}</p>
-                      {!isPremium && <span className="text-[10px] border border-violet-500/40 text-violet-400 rounded-full px-2 py-0.5">Premium</span>}
+                      {!isPremium && <span className="text-[11px] border border-violet-500/40 text-violet-400 rounded-full px-2 py-0.5">Premium</span>}
                     </div>
                     {isPremium ? (
                       <div className="space-y-3">
@@ -1427,7 +1427,7 @@ export default function AccountPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-semibold text-white">📡 Smart Money RT</p>
-                        {!isPremium && <span className="text-[10px] border border-violet-500/40 text-violet-400 rounded-full px-2 py-0.5">Premium</span>}
+                        {!isPremium && <span className="text-[11px] border border-violet-500/40 text-violet-400 rounded-full px-2 py-0.5">Premium</span>}
                       </div>
                       {isPremium ? (
                         <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-semibold">

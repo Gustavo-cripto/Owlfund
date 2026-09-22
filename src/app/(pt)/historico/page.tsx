@@ -409,7 +409,7 @@ export default function HistoricoPage() {
                 { label: t("hx_transactions"), value: `${summary.txCount} (${summary.assets} ${t("hx_assets_word")})`, color: "text-slate-300" },
               ].map((m) => (
                 <div key={m.label} className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3">
-                  <p className="text-[10px] uppercase tracking-wider text-slate-500">{m.label}</p>
+                  <p className="text-[11px] uppercase tracking-wider text-slate-500">{m.label}</p>
                   <p className={`mt-1 text-base font-bold ${m.color}`}>{m.value}</p>
                 </div>
               ))}
@@ -470,7 +470,7 @@ export default function HistoricoPage() {
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {/* Asset */}
               <div>
-                <label htmlFor="hx-asset" className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_asset")}</label>
+                <label htmlFor="hx-asset" className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_asset")}</label>
                 <select
                   id="hx-asset"
                   value={form.asset}
@@ -497,7 +497,7 @@ export default function HistoricoPage() {
 
               {/* Quantity */}
               <div>
-                <label htmlFor="hx-qty" className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_quantity")} ({form.asset === OTHER_ASSET ? (form.customAsset || "—") : form.asset})</label>
+                <label htmlFor="hx-qty" className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_quantity")} ({form.asset === OTHER_ASSET ? (form.customAsset || "—") : form.asset})</label>
                 <input
                   id="hx-qty"
                   ref={qtyRef}
@@ -513,7 +513,7 @@ export default function HistoricoPage() {
 
               {/* Price */}
               <div>
-                <label htmlFor="hx-price" className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">
+                <label htmlFor="hx-price" className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1">
                   {t("hx_unit_price")} ({inputSymbol})
                   {form.type === "taxa" && <span className="normal-case tracking-normal text-slate-600"> · {t("hx_price_auto")}</span>}
                 </label>
@@ -531,7 +531,7 @@ export default function HistoricoPage() {
 
               {/* Date */}
               <div>
-                <label htmlFor="hx-date" className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_date")}</label>
+                <label htmlFor="hx-date" className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_date")}</label>
                 <input
                   id="hx-date"
                   type="date"
@@ -544,7 +544,7 @@ export default function HistoricoPage() {
 
               {/* Exchange */}
               <div>
-                <label htmlFor="hx-ex" className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_exchange_src")}</label>
+                <label htmlFor="hx-ex" className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_exchange_src")}</label>
                 <select
                   id="hx-ex"
                   value={form.exchange}
@@ -564,7 +564,7 @@ export default function HistoricoPage() {
               {/* Fee (opcional) — nao se aplica a um registo que ja e so taxa */}
               {form.type !== "taxa" && (
               <div>
-                <label htmlFor="hx-fee" className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1" title={t("hx_fee_help")}>
+                <label htmlFor="hx-fee" className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1" title={t("hx_fee_help")}>
                   {t("hx_fee")} <span className="normal-case tracking-normal text-slate-600">· {t("hx_optional")}</span>
                 </label>
                 <div className="flex gap-2">
@@ -595,7 +595,7 @@ export default function HistoricoPage() {
 
               {/* Total (read-only) */}
               <div>
-                <label className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_total")}</label>
+                <label className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_total")}</label>
                 <div className="flex items-center rounded-xl border border-slate-700 bg-slate-950/30 px-3 py-2 text-sm">
                   <span className={`font-bold ${form.type === "compra" ? "text-emerald-400" : form.type === "venda" ? "text-rose-400" : "text-amber-300"}`}>
                     {form.type === "venda" ? "+" : "−"} {fmtCur(formTotal)}
@@ -609,7 +609,7 @@ export default function HistoricoPage() {
 
             {/* Notes */}
             <div className="mt-3">
-              <label htmlFor="hx-notes" className="block text-[10px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_notes")}</label>
+              <label htmlFor="hx-notes" className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_notes")}</label>
               <input
                 id="hx-notes"
                 type="text"
@@ -641,7 +641,7 @@ export default function HistoricoPage() {
                   {t("cancel")}
                 </button>
               )}
-              <span className="ml-auto self-center text-[10px] text-slate-600">{t("hx_enter_hint")}</span>
+              <span className="ml-auto self-center text-[11px] text-slate-600">{t("hx_enter_hint")}</span>
             </div>
           </form>
           )}
@@ -687,7 +687,7 @@ export default function HistoricoPage() {
               <div className="hidden sm:block overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
+                    <tr className="text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
                       <th className="pb-2 text-left">{t("hx_date")}</th>
                       <th className="pb-2 text-left">{t("hx_col_type")}</th>
                       <th className="pb-2 text-left">{t("hx_asset")}</th>
@@ -706,7 +706,7 @@ export default function HistoricoPage() {
                           {fmtDate(tx.date, { day: "2-digit", month: "short", year: "2-digit" })}
                         </td>
                         <td className="py-2.5 pr-3">
-                          <span className={`rounded-full px-2 py-0.5 font-semibold text-[10px] ${typePill(tx.type)}`}>
+                          <span className={`rounded-full px-2 py-0.5 font-semibold text-[11px] ${typePill(tx.type)}`}>
                             {typeLabel(tx.type)}
                           </span>
                         </td>
@@ -718,7 +718,7 @@ export default function HistoricoPage() {
                         <td className="py-2.5 pr-3 text-right tabular-nums text-slate-400">{fmtEur(tx.priceEur)}</td>
                         <td className={`py-2.5 pr-3 text-right tabular-nums font-semibold ${tx.type === "compra" ? "text-white" : tx.type === "venda" ? "text-emerald-300" : "text-amber-300"}`}>
                           {tx.type === "venda" && !hideBalances ? "+" : tx.type === "taxa" && !hideBalances ? "−" : ""}{fmtEur(tx.totalEur)}
-                          {(tx.feeEur ?? 0) > 0 && <span className="block text-[10px] font-normal text-slate-500">{t("hx_fee_short")} {tx.feeAsset ? `${tx.feeInput} ${tx.feeAsset} · ` : ""}{fmtEur(tx.feeEur ?? 0)}</span>}
+                          {(tx.feeEur ?? 0) > 0 && <span className="block text-[11px] font-normal text-slate-500">{t("hx_fee_short")} {tx.feeAsset ? `${tx.feeInput} ${tx.feeAsset} · ` : ""}{fmtEur(tx.feeEur ?? 0)}</span>}
                         </td>
                         <td className="py-2.5 pr-3 text-slate-500">{tx.exchange}</td>
                         <td className="py-2.5 pr-3 text-slate-600 max-w-[120px] truncate" title={tx.notes || undefined}>{tx.notes || "—"}</td>
@@ -727,9 +727,9 @@ export default function HistoricoPage() {
                           {!readOnly && (
                             <div className="flex gap-1 [@media(hover:hover)]:opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition">
                               <button type="button" onClick={() => handleEdit(tx)} aria-label={t("hx_edit_tx")} title={t("hx_edit_tx")}
-                                className="rounded px-2 py-1 text-[10px] text-slate-400 hover:text-white hover:bg-slate-700 transition">✏️</button>
+                                className="rounded px-2 py-1 text-[11px] text-slate-400 hover:text-white hover:bg-slate-700 transition">✏️</button>
                               <button type="button" onClick={() => handleDelete(tx)} aria-label={t("hx_delete")} title={t("hx_delete")}
-                                className="rounded px-2 py-1 text-[10px] text-rose-400 hover:text-white hover:bg-rose-500/20 transition">✕</button>
+                                className="rounded px-2 py-1 text-[11px] text-rose-400 hover:text-white hover:bg-rose-500/20 transition">✕</button>
                             </div>
                           )}
                         </td>
@@ -745,7 +745,7 @@ export default function HistoricoPage() {
                   <div key={tx.id} className={`rounded-xl border p-3 ${flashId === tx.id ? "border-orange-500/50 bg-orange-500/10" : "border-slate-800 bg-slate-950/40"}`}>
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${typePill(tx.type)}`}>
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${typePill(tx.type)}`}>
                           {typeLabel(tx.type)}
                         </span>
                         <span className="font-bold text-white text-sm">{tx.asset}</span>
@@ -765,8 +765,8 @@ export default function HistoricoPage() {
                         {tx.type === "venda" && !hideBalances ? "+" : tx.type === "taxa" && !hideBalances ? "−" : ""}{fmtEur(tx.totalEur)}
                       </span>
                     </div>
-                    {(tx.feeEur ?? 0) > 0 && <p className="mt-1 text-right text-[10px] text-slate-500">{t("hx_fee_short")} {tx.feeAsset ? `${tx.feeInput} ${tx.feeAsset} · ` : ""}{fmtEur(tx.feeEur ?? 0)}</p>}
-                    {tx.notes && <p className="mt-1.5 text-[10px] text-slate-600 italic">{tx.notes}</p>}
+                    {(tx.feeEur ?? 0) > 0 && <p className="mt-1 text-right text-[11px] text-slate-500">{t("hx_fee_short")} {tx.feeAsset ? `${tx.feeInput} ${tx.feeAsset} · ` : ""}{fmtEur(tx.feeEur ?? 0)}</p>}
+                    {tx.notes && <p className="mt-1.5 text-[11px] text-slate-600 italic">{tx.notes}</p>}
                   </div>
                 ))}
               </div>
@@ -822,7 +822,7 @@ export default function HistoricoPage() {
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="font-bold text-white text-sm">{sym}</p>
-                            <p className="text-[10px] text-slate-500">{data.name}</p>
+                            <p className="text-[11px] text-slate-500">{data.name}</p>
                           </div>
                           <span className={`text-xs font-semibold ${negative ? "text-amber-400" : data.qtyNet > 1e-9 ? "text-emerald-400" : "text-slate-500"}`} title={negative ? t("hx_unmatched_title") : undefined}>
                             {negative ? "⚠️ " : ""}{fmtQty(data.qtyNet, sym)} {sym}
@@ -830,22 +830,22 @@ export default function HistoricoPage() {
                         </div>
                         <div className="mt-2 grid grid-cols-3 gap-1 text-xs">
                           <div>
-                            <p className="text-[10px] text-slate-500">{t("hx_buys")}</p>
+                            <p className="text-[11px] text-slate-500">{t("hx_buys")}</p>
                             <p className="text-white font-medium">{fmtEur(data.buys)}</p>
                           </div>
                           <div className="text-center">
-                            <p className="text-[10px] text-slate-500">{t("hx_sells")}</p>
+                            <p className="text-[11px] text-slate-500">{t("hx_sells")}</p>
                             <p className={data.sells > 0 ? "text-emerald-300 font-medium" : "text-slate-500"}>{data.sells > 0 ? fmtEur(data.sells) : "—"}</p>
                           </div>
                           <div className="text-right">
-                            <p className="text-[10px] text-slate-500">{t("hx_pnl_short")}</p>
+                            <p className="text-[11px] text-slate-500">{t("hx_pnl_short")}</p>
                             <p className={`font-medium ${data.sells === 0 ? "text-slate-500" : data.realizedPnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                               {data.sells === 0 ? "—" : formatSigned(data.realizedPnl)}
                             </p>
                           </div>
                         </div>
                         {data.qtyNet > 1e-9 && data.costOpen > 0 && (
-                          <p className="mt-2 text-[10px] text-slate-500">
+                          <p className="mt-2 text-[11px] text-slate-500">
                             {t("hx_avg_cost")}: <span className="text-slate-300">{fmtEur(data.costOpen / data.qtyNet)}</span> · {t("hx_open_cost")}: <span className="text-slate-300">{fmtEur(data.costOpen)}</span>
                           </p>
                         )}
@@ -877,7 +877,7 @@ export default function HistoricoPage() {
                   </p>
                   <div className="mt-3 max-h-64 overflow-auto rounded-xl border border-slate-800">
                     <table className="w-full text-[11px]">
-                      <thead className="sticky top-0 bg-slate-900 text-[10px] uppercase text-slate-500">
+                      <thead className="sticky top-0 bg-slate-900 text-[11px] uppercase text-slate-500">
                         <tr><th className="p-2 text-left">{t("hx_date")}</th><th className="p-2 text-left">{t("hx_col_type")}</th><th className="p-2 text-left">{t("hx_asset")}</th><th className="p-2 text-right">{t("hx_quantity")}</th><th className="p-2 text-right">{t("hx_col_unit")}</th><th className="p-2 text-left">{t("hx_col_exchange")}</th></tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800/60">
@@ -893,9 +893,9 @@ export default function HistoricoPage() {
                         ))}
                       </tbody>
                     </table>
-                    {importPreview.trades.length > 50 && <p className="p-2 text-center text-[10px] text-slate-500">+{importPreview.trades.length - 50}…</p>}
+                    {importPreview.trades.length > 50 && <p className="p-2 text-center text-[11px] text-slate-500">+{importPreview.trades.length - 50}…</p>}
                   </div>
-                  <p className="mt-2 text-[10px] text-slate-500">{t("hx_import_hint")}</p>
+                  <p className="mt-2 text-[11px] text-slate-500">{t("hx_import_hint")}</p>
                 </>
               )}
               <div className="mt-4 flex justify-end gap-2">

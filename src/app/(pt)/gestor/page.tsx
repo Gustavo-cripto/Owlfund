@@ -404,7 +404,7 @@ export default function GestorPage() {
             <div className="flex items-center gap-2">
               <p className="text-sm font-semibold text-white truncate">{t("gz_assistant_name")}</p>
               {showAcctChip && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[10px] font-medium text-violet-300">
+                <span className="inline-flex items-center gap-1 rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[11px] font-medium text-violet-300">
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
                   </svg>
@@ -432,7 +432,7 @@ export default function GestorPage() {
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-xs text-emerald-400 font-semibold">{t("gz_online")}</span>
           </div>
-          <span className="text-[10px] bg-violet-500/20 text-violet-300 border border-violet-500/30 rounded-full px-2 py-0.5 font-semibold">Premium</span>
+          <span className="text-[11px] bg-violet-500/20 text-violet-300 border border-violet-500/30 rounded-full px-2 py-0.5 font-semibold">Premium</span>
         </div>
         {planStatus === "unknown" && (
           <p className="border-b border-amber-500/30 bg-amber-500/[0.06] px-6 py-2 text-xs text-amber-200">⚠️ {t("gz_plan_unknown")}</p>
@@ -444,7 +444,7 @@ export default function GestorPage() {
             {/* Portfolio mini-card — total real em € + categorias */}
             {portfolio && portfolio.totalEur > 0 && (
               <div className="m-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3 space-y-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{t("gz_portfolio")}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("gz_portfolio")}</p>
                 <div className="flex items-baseline justify-between">
                   <span className="text-[11px] text-slate-400">{t("gz_pf_total")}</span>
                   <span className="text-sm font-bold text-white">{hideBalances ? "••••" : fmtEur(portfolio.totalEur)}</span>
@@ -471,7 +471,7 @@ export default function GestorPage() {
 
             {/* Quick actions */}
             <div className="px-3 pt-2 pb-1">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-2">{t("gz_quick")}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">{t("gz_quick")}</p>
               <div className="space-y-1">
                 {quickActions.map(a => (
                   <button key={a.label} type="button"
@@ -535,13 +535,13 @@ export default function GestorPage() {
                       ? <ChatMarkdown content={msg.content} labels={{ copy: t("dev_copy"), copied: t("dev_copied"), downloadCsv: t("gz_download_csv") }} />
                       : msg.content
                     }
-                    <p className="mt-1.5 flex items-center gap-2 text-[10px] opacity-60">
+                    <p className="mt-1.5 flex items-center gap-2 text-[11px] opacity-60">
                       {msg.timestamp.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
                       {msg.role === "assistant" && msg.id !== "welcome" && (
                         <button
                           type="button"
                           onClick={() => { try { void navigator.clipboard.writeText(msg.content).then(() => { setCopiedId(msg.id); setTimeout(() => setCopiedId((p) => (p === msg.id ? null : p)), 1500); }).catch(() => {}); } catch { /* ignore */ } }}
-                          className="rounded border border-slate-700 px-1.5 py-0.5 text-[9px] text-slate-400 [@media(hover:hover)]:opacity-0 transition hover:text-white group-hover:opacity-100 focus:opacity-100"
+                          className="rounded border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-400 [@media(hover:hover)]:opacity-0 transition hover:text-white group-hover:opacity-100 focus:opacity-100"
                           aria-label={t("gz_copy_msg")}
                         >
                           {copiedId === msg.id ? t("dev_copied") : t("gz_copy_msg")}
@@ -612,7 +612,7 @@ export default function GestorPage() {
                   </svg>
                 </button>
               </div>
-              <p className="text-center text-[10px] text-slate-600 mt-2">{t("gz_disclaimer")}</p>
+              <p className="text-center text-[11px] text-slate-600 mt-2">{t("gz_disclaimer")}</p>
             </div>
           </div>
         </div>

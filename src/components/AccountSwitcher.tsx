@@ -173,7 +173,7 @@ export default function AccountSwitcher() {
 
       {open && (
         <div className="absolute right-0 z-50 mt-2 w-72 rounded-2xl border border-slate-700 bg-slate-900 p-2 shadow-2xl shadow-black/60">
-          <p className="px-2 pt-1 pb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+          <p className="px-2 pt-1 pb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
             {t("acs_accounts")} · {accounts.length}/{plan === "unknown" ? "?" : max}
           </p>
 

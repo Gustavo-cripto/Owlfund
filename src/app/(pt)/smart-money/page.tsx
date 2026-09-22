@@ -139,15 +139,15 @@ function TxRow({ tx, whaleName }: { tx: WhaleTx; whaleName?: string }) {
           {whaleName && <span className="text-xs text-orange-400 font-medium truncate max-w-[120px]">{whaleName}</span>}
           <span className="text-sm font-semibold text-white">{tx.amount} {tx.symbol}</span>
           {tx.isBigMove && (
-            <span className="text-[10px] bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded-full px-1.5 py-0.5">
+            <span className="text-[11px] bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded-full px-1.5 py-0.5">
               🐋 {t("sm_big_move")}
             </span>
           )}
         </div>
         <div className="flex items-center gap-2 mt-0.5">
-          <span className="text-[10px] text-slate-500 font-mono">{shortAddr(isIn ? tx.from : tx.to)}</span>
-          <span className="text-[10px] text-slate-600">·</span>
-          <span className="text-[10px] text-slate-500">{timeAgo(tx.timestamp)} {t("sm2_ago")}</span>
+          <span className="text-[11px] text-slate-500 font-mono">{shortAddr(isIn ? tx.from : tx.to)}</span>
+          <span className="text-[11px] text-slate-600">·</span>
+          <span className="text-[11px] text-slate-500">{timeAgo(tx.timestamp)} {t("sm2_ago")}</span>
         </div>
       </div>
       <div className="text-right shrink-0">
@@ -158,7 +158,7 @@ function TxRow({ tx, whaleName }: { tx: WhaleTx; whaleName?: string }) {
           href={txExplorer(tx.hash)}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-[10px] text-slate-600 hover:text-orange-400 transition"
+          className="text-[11px] text-slate-600 hover:text-orange-400 transition"
         >
           {t("sm2_view")} ↗
         </a>
@@ -474,7 +474,7 @@ export default function SmartMoneyPage() {
                   >
                     {labels[tabId]}
                     {tabId === "alerts" && isPro && unreadAlerts > 0 && (
-                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full text-[9px] text-white flex items-center justify-center font-bold">
+                      <span className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full text-[11px] text-white flex items-center justify-center font-bold">
                         {unreadAlerts > 9 ? "9+" : unreadAlerts}
                       </span>
                     )}
@@ -583,7 +583,7 @@ export default function SmartMoneyPage() {
                             {data && !data.loading && !data.error && (
                               <span className="text-right">
                                 <span className="block text-sm font-bold text-emerald-400">{formatUsd(data.totalUsd)}</span>
-                                {data.fetchedAt && <span className="block text-[10px] text-slate-500">{t("updated")} {new Date(data.fetchedAt).toLocaleTimeString(uiLocale(), { hour: "2-digit", minute: "2-digit" })}</span>}
+                                {data.fetchedAt && <span className="block text-[11px] text-slate-500">{t("updated")} {new Date(data.fetchedAt).toLocaleTimeString(uiLocale(), { hour: "2-digit", minute: "2-digit" })}</span>}
                               </span>
                             )}
                             {entry.chain !== "sol" && (
@@ -616,7 +616,7 @@ export default function SmartMoneyPage() {
                                       // eslint-disable-next-line @next/next/no-img-element
                                       <img src={token.logo} alt={token.symbol} className="h-5 w-5 rounded-full" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                                     ) : (
-                                      <div className="h-5 w-5 rounded-full bg-slate-700 flex items-center justify-center text-[9px] text-slate-400">{token.symbol.slice(0, 2)}</div>
+                                      <div className="h-5 w-5 rounded-full bg-slate-700 flex items-center justify-center text-[11px] text-slate-400">{token.symbol.slice(0, 2)}</div>
                                     )}
                                     <div>
                                       <span className="text-sm font-semibold text-white">{token.symbol}</span>
@@ -789,7 +789,7 @@ export default function SmartMoneyPage() {
                   <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-5 space-y-3">
                     <div className="flex items-center gap-2">
                       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-400">{t("sm2_onchain")}</p>
-                      <span className="rounded-full bg-violet-500/20 border border-violet-500/30 px-2 py-0.5 text-[10px] text-violet-300 font-bold">Premium</span>
+                      <span className="rounded-full bg-violet-500/20 border border-violet-500/30 px-2 py-0.5 text-[11px] text-violet-300 font-bold">Premium</span>
                     </div>
                     <p className="text-xs text-slate-400">{t("sm2_onchain_desc")}</p>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

@@ -222,7 +222,7 @@ export default function Pricing() {
               ].map((s) => (
                 <div key={s.label} className="text-center">
                   <p className="text-lg font-bold text-orange-400">{s.value}</p>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-wide">{s.label}</p>
+                  <p className="text-[11px] text-slate-500 uppercase tracking-wide">{s.label}</p>
                 </div>
               ))}
             </div>
@@ -252,7 +252,7 @@ export default function Pricing() {
                 <button type="button" onClick={() => setBillingInterval("year")}
                   className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold transition ${billingInterval === "year" ? "bg-orange-500 text-slate-950" : "text-slate-400 hover:text-white"}`}>
                   {t("pc_annual")}
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${billingInterval === "year" ? "bg-slate-950/20 text-slate-950" : "bg-emerald-500/20 text-emerald-300"}`}>{t("pc_save_2months")}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${billingInterval === "year" ? "bg-slate-950/20 text-slate-950" : "bg-emerald-500/20 text-emerald-300"}`}>{t("pc_save_2months")}</span>
                 </button>
               </div>
             </div>
@@ -268,7 +268,7 @@ export default function Pricing() {
                   <button type="button" onClick={() => setPayMethod("crypto")}
                     className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold transition ${payMethod === "crypto" ? "bg-orange-500 text-slate-950" : "text-slate-400 hover:text-white"}`}>
                     ₿ {t("pc_pay_crypto")}
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${payMethod === "crypto" ? "bg-slate-950/20 text-slate-950" : "bg-emerald-500/20 text-emerald-300"}`}>−{CRYPTO_DISCOUNT_PCT}%</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${payMethod === "crypto" ? "bg-slate-950/20 text-slate-950" : "bg-emerald-500/20 text-emerald-300"}`}>−{CRYPTO_DISCOUNT_PCT}%</span>
                   </button>
                 </div>
                 {payMethod === "crypto" && (
@@ -326,7 +326,7 @@ export default function Pricing() {
 
               {/* Pro */}
               <div className={`rounded-2xl border p-6 space-y-5 relative overflow-hidden ${currentPlan === "pro" ? "border-orange-400 bg-orange-500/10" : "border-orange-500/40 bg-orange-500/5"}`}>
-                <div className={`${btnPrimary} absolute top-3 right-3 text-[10px] px-2 py-0.5`}>{t("pc_badge_popular")}</div>
+                <div className={`${btnPrimary} absolute top-3 right-3 text-[11px] px-2 py-0.5`}>{t("pc_badge_popular")}</div>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-400">Pro</p>
                   <p className="text-3xl font-bold text-white mt-1">{priceLabel("pro")} <span className="text-sm font-normal text-slate-500">{annual ? t("pc_per_year") : t("pc_per_month")}</span></p>
@@ -380,7 +380,7 @@ export default function Pricing() {
 
               {/* Premium */}
               <div className={`rounded-2xl border p-6 space-y-5 relative overflow-hidden ${currentPlan === "premium" ? "border-violet-400 bg-violet-500/10" : "border-violet-500/40 bg-violet-500/5"}`}>
-                <div className="absolute top-3 right-3 text-[10px] bg-violet-700 text-white font-bold px-2 py-0.5 rounded-full">{t("pc_badge_pro")}</div>
+                <div className="absolute top-3 right-3 text-[11px] bg-violet-700 text-white font-bold px-2 py-0.5 rounded-full">{t("pc_badge_pro")}</div>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-400">Premium</p>
                   <p className="text-3xl font-bold text-white mt-1">{priceLabel("premium")} <span className="text-sm font-normal text-slate-500">{annual ? t("pc_per_year") : t("pc_per_month")}</span></p>
