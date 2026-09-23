@@ -30,7 +30,7 @@ const securityHeaders = [
       // SEMPRE em produção com "Erro ao ligar", mal a extensão aprovava.
       // Descoberto a 21 de setembro de 2026; em `next dev` nunca se via, porque
       // aí o 'unsafe-eval' já cobria o WASM.
-      `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""} https://js.stripe.com https://s3.tradingview.com`,
+      `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""} https://js.stripe.com https://s3.tradingview.com https://accounts.google.com`,
       // Estilos: self + inline (Tailwind)
       "style-src 'self' 'unsafe-inline'",
       // Imagens: self + data URIs + todas HTTPS (logos de tokens e NFTs são dinâmicos)
@@ -40,6 +40,7 @@ const securityHeaders = [
       // Conectividade: self + APIs externas usadas
       [
         "connect-src 'self'",
+        "https://accounts.google.com",
         "https://*.supabase.co",
         "https://*.supabase.io",
         "wss://*.supabase.co",
@@ -73,7 +74,7 @@ const securityHeaders = [
         "https://api.stripe.com",
       ].join(" "),
       // iFrames: apenas TradingView
-      "frame-src https://s.tradingview.com https://widget.tradingview.com",
+      "frame-src https://s.tradingview.com https://widget.tradingview.com https://accounts.google.com",
       // Workers
       "worker-src 'self' blob:",
       // WebAssembly (Cardano)

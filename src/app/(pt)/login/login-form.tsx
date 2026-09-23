@@ -7,6 +7,10 @@ import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { sanitizeNext } from "@/lib/auth/redirects";
+import { entrarComEthereum, entrarComSolana } from "@/lib/auth/entrarComCarteira";
+import GoogleOneTap from "@/components/GoogleOneTap";
+import { isMetaMaskAvailable } from "@/lib/wallets/evm";
+import { isPhantomAvailable } from "@/lib/wallets/solana";
 
 export type LoginFormProps = {
   nextParam: string | null;
@@ -215,6 +219,51 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
     finally { setLoading(false); }
   };
 
+  // ── Ligação mágica por email ───────────────────────────────────────────
+  // Sem palavra-passe: escreve o email, recebe um link, clica e está dentro.
+  // Se a conta não existir, o Supabase cria-a nesse clique (shouldCreateUser).
+  const [magicSent, setMagicSent] = useState(false);
+  const handleMagic = async () => {
+    const nextEmail = email.trim();
+    if (!nextEmail) { fail(t("lg_err_email_first")); return; }
+    setLoading(true); setMessage(null); setIsError(false);
+    try {
+      const origin = window.location.origin;
+      const { error } = await supabase.auth.signInWithOtp({
+        email: nextEmail,
+        options: { shouldCreateUser: true, emailRedirectTo: `${origin}/api/auth/callback?next=${encodeURIComponent(nextPath)}` },
+      });
+      if (error) { fail(userErrorText(error.message)); return; }
+      setMagicSent(true);
+      setMessage(t("lg_magic_sent").replace("{email}", nextEmail));
+    } finally { setLoading(false); }
+  };
+
+  // ── Entrar com a carteira ───────────────────────────────────────────────
+  const [walletLoading, setWalletLoading] = useState<"eth" | "sol" | null>(null);
+  const [temMetaMask, setTemMetaMask] = useState(false);
+  const [temPhantom, setTemPhantom] = useState(false);
+  useEffect(() => {
+    const ver = () => { setTemMetaMask(isMetaMaskAvailable()); setTemPhantom(isPhantomAvailable()); };
+    ver();
+    const ids = [400, 1500].map((ms) => setTimeout(ver, ms));   // as extensões injetam-se tarde
+    return () => ids.forEach(clearTimeout);
+  }, []);
+  const handleWallet = async (rede: "eth" | "sol") => {
+    setWalletLoading(rede); setMessage(null); setIsError(false);
+    try {
+      await (rede === "eth" ? entrarComEthereum() : entrarComSolana());
+      // A carteira já ficou ligada: cai directamente nas Carteiras, a não ser
+      // que a pessoa vinha do beta.
+      window.location.href = toBeta ? nextPath : "/wallets";
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "";
+      fail(/disabled|not enabled|unsupported provider|web3/i.test(msg) ? t("lg_wallet_disabled") : userErrorText(msg));
+    } finally { setWalletLoading(null); }
+  };
+
+  const userErrorText = (msg: string) => (msg && msg.length < 160 && !/fetch|network|json/i.test(msg) ? msg : t("lg_err_generic"));
+
   const handleGoogle = async () => {
     setGoogleLoading(true); setMessage(null); setIsError(false);
     try {
@@ -378,9 +427,14 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
           </div>
 
           {mode === "login" && (
-            <button type="button" onClick={handleReset} disabled={busy} className="mt-2 text-xs text-slate-400 transition hover:text-orange-300 disabled:opacity-50">
-              {t("lg_forgot")}
-            </button>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+              <button type="button" onClick={handleReset} disabled={busy} className="text-xs text-slate-400 transition hover:text-orange-300 disabled:opacity-50">
+                {t("lg_forgot")}
+              </button>
+              <button type="button" onClick={handleMagic} disabled={busy || magicSent} className="text-xs font-semibold text-orange-300 transition hover:text-orange-200 disabled:opacity-50">
+                {magicSent ? t("lg_magic_sent_short") : t("lg_magic")}
+              </button>
+            </div>
           )}
 
           {message ? (
@@ -422,8 +476,37 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
             </svg>
             {googleLoading ? t("lg_google_loading") : t("lg_google")}
           </button>
+
+          {process.env.NEXT_PUBLIC_AUTH_APPLE === "1" && (
+            <button type="button" disabled={busy}
+              onClick={async () => { const origin = window.location.origin; await supabase.auth.signInWithOAuth({ provider: "apple", options: { redirectTo: `${origin}/api/auth/callback?next=${encodeURIComponent(nextPath)}` } }); }}
+              className="mt-3 flex w-full items-center justify-center gap-3 rounded-full border border-slate-700 bg-slate-950 px-6 py-3 text-sm font-semibold text-slate-100 transition hover:border-slate-500 disabled:opacity-50">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M16.37 12.73c0-2.6 2.13-3.85 2.22-3.91-1.21-1.77-3.09-2.01-3.75-2.04-1.6-.16-3.12.94-3.93.94-.81 0-2.06-.92-3.39-.9-1.74.03-3.35 1.01-4.25 2.57-1.81 3.14-.46 7.79 1.3 10.34.86 1.25 1.89 2.65 3.24 2.6 1.3-.05 1.79-.84 3.36-.84 1.57 0 2.01.84 3.39.81 1.4-.02 2.28-1.27 3.14-2.52.99-1.45 1.4-2.85 1.42-2.92-.03-.01-2.73-1.05-2.75-4.13ZM13.8 5.1c.72-.87 1.2-2.08 1.07-3.29-1.03.04-2.29.69-3.03 1.56-.66.77-1.25 2-1.09 3.18 1.15.09 2.33-.58 3.05-1.45Z"/></svg>
+              {t("lg_apple")}
+            </button>
+          )}
+
+          {(temMetaMask || temPhantom) && (
+            <div className="mt-4 space-y-2">
+              <p className="text-center text-[11px] text-slate-500">{t("lg_wallet_hint")}</p>
+              {temMetaMask && (
+                <button type="button" onClick={() => void handleWallet("eth")} disabled={busy || walletLoading !== null}
+                  className="flex w-full items-center justify-center gap-3 rounded-full border border-slate-700 bg-slate-950 px-6 py-3 text-sm font-semibold text-slate-100 transition hover:border-orange-400/60 disabled:opacity-50">
+                  <span aria-hidden>🦊</span>{walletLoading === "eth" ? t("lg_wallet_signing") : t("lg_wallet_metamask")}
+                </button>
+              )}
+              {temPhantom && (
+                <button type="button" onClick={() => void handleWallet("sol")} disabled={busy || walletLoading !== null}
+                  className="flex w-full items-center justify-center gap-3 rounded-full border border-slate-700 bg-slate-950 px-6 py-3 text-sm font-semibold text-slate-100 transition hover:border-violet-400/60 disabled:opacity-50">
+                  <span aria-hidden>👻</span>{walletLoading === "sol" ? t("lg_wallet_signing") : t("lg_wallet_phantom")}
+                </button>
+              )}
+              <p className="text-center text-[11px] text-slate-500">{t("lg_wallet_noemail")}</p>
+            </div>
+          )}
         </form>
         )}
+        {!showMfa && jaEntrou === null && <GoogleOneTap next={nextPath} />}
 
         <p className="text-center text-xs text-slate-600">
           {t("lg_terms_1")} <Link href="/termos" className="underline decoration-dotted hover:text-slate-400">{t("legal_terms_short")}</Link> {t("lg_terms_2")} <Link href="/privacidade" className="underline decoration-dotted hover:text-slate-400">{t("legal_privacy_short")}</Link>.
