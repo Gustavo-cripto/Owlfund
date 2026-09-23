@@ -307,7 +307,7 @@ export default function DashboardPage() {
   const planMeta: Record<Plan, { label: string; color: string; border: string; bg: string; badge: string }> = {
     free:    { label: t("free"),   color: "text-slate-300",  border: "border-slate-600", bg: "bg-slate-800/60",   badge: "bg-slate-700 text-slate-300" },
     pro:     { label: "Pro",       color: "text-orange-300", border: "border-orange-500/40", bg: "bg-orange-500/10", badge: "bg-orange-500 text-slate-950" },
-    premium: { label: "Premium",   color: "text-violet-300", border: "border-violet-500/40", bg: "bg-violet-500/10", badge: "bg-violet-500 text-white" },
+    premium: { label: "Premium",   color: "text-violet-300", border: "border-violet-500/40", bg: "bg-violet-500/10", badge: "bg-violet-600 text-white" },
   };
 
   const tierOrder: Plan[] = ["free", "pro", "premium"];
@@ -407,7 +407,7 @@ export default function DashboardPage() {
               </div>
               {plan !== "premium" && (
                 <a href={paymentsFrozen ? "/beta" : "/pricing"}
-                  className={`shrink-0 rounded-xl px-4 py-2 text-xs font-bold transition ${plan === "pro" ? "bg-violet-500 text-white hover:bg-violet-400" : "bg-orange-500 text-slate-950 hover:bg-orange-400"}`}>
+                  className={`shrink-0 rounded-xl px-4 py-2 text-xs font-bold transition ${plan === "pro" ? "bg-violet-600 text-white hover:bg-violet-500" : "bg-orange-500 text-slate-950 hover:bg-orange-400"}`}>
                   {paymentsFrozen ? `🧪 ${t("dash_beta_cta_short")} →` : plan === "pro" ? `${t("dash_upgrade_premium")} →` : `${t("dash_upgrade_pro")} →`}
                 </a>
               )}
@@ -527,7 +527,7 @@ export default function DashboardPage() {
                     <>
                       <p className="text-2xl font-black mb-1 text-emerald-300">{t("dash_beta_free")}</p>
                       <Link href="/beta"
-                        className={`block w-full rounded-xl px-6 py-3 text-sm font-bold transition ${isPro ? "bg-violet-500 text-white hover:bg-violet-400" : "bg-orange-500 text-slate-950 hover:bg-orange-400"}`}>
+                        className={`block w-full rounded-xl px-6 py-3 text-sm font-bold transition ${isPro ? "bg-violet-600 text-white hover:bg-violet-500" : "bg-orange-500 text-slate-950 hover:bg-orange-400"}`}>
                         🧪 {t("dash_beta_cta")}
                       </Link>
                       <p className="text-[11px] text-slate-600 mt-1.5">{t("dash_beta_note")}</p>
@@ -538,7 +538,7 @@ export default function DashboardPage() {
                         {isPro ? "€39" : "€14,99"}<span className="text-sm font-normal text-slate-500">{t("dash_per_month")}</span>
                       </p>
                       <Link href="/pricing"
-                        className={`block w-full rounded-xl px-6 py-3 text-sm font-bold transition ${isPro ? "bg-violet-500 text-white hover:bg-violet-400" : "bg-orange-500 text-slate-950 hover:bg-orange-400"}`}>
+                        className={`block w-full rounded-xl px-6 py-3 text-sm font-bold transition ${isPro ? "bg-violet-600 text-white hover:bg-violet-500" : "bg-orange-500 text-slate-950 hover:bg-orange-400"}`}>
                         {isPro ? t("dash_upgrade_premium") : t("dash_upgrade_pro")}
                       </Link>
                       <p className="text-[11px] text-slate-600 mt-1.5">{t("dash_cancel_anytime")}</p>

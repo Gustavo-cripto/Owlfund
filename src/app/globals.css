@@ -318,6 +318,9 @@ body:not(.theme-light) .text-slate-700 { color: #75829a; }   /* 5,20 / 4,94 / 4,
   pointer-events: none;
   background: linear-gradient(to bottom, rgb(0 0 0 / 0.38), rgb(0 0 0 / 0));
 }
+/* Em tema claro o desvanecimento preto lia-se como uma mancha suja por baixo do
+   cabeçalho; passa a uma sombra leve, da cor do texto. */
+body.theme-light .scroll-edge::after { background: linear-gradient(to bottom, rgb(15 23 42 / 0.10), rgb(15 23 42 / 0)); }
 
 /* Quem pediu menos transparência: vidro fosco passa a fundo sólido. */
 @media (prefers-reduced-transparency: reduce) {

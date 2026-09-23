@@ -906,7 +906,7 @@ export default function FiscalidadePage() {
                 isPremium ? (
                   <button key={c.code} onClick={() => setCountry(c.code)}
                     title={`${c.flag} ${t(c.labelKey)}`}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${country === c.code ? "bg-violet-500 text-white" : "border border-slate-700 text-slate-400 hover:border-violet-400/40 hover:text-violet-200"}`}>
+                    className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${country === c.code ? "bg-violet-600 text-white" : "border border-slate-700 text-slate-400 hover:border-violet-400/40 hover:text-violet-200"}`}>
                     {c.flag} {c.code}
                   </button>
                 ) : (
