@@ -10,5 +10,5 @@ export async function GET(req: Request) {
   const limitado = rateLimitPublic(req, "tax-countries", 60);
   if (limitado) return limitado;
 
-  return apiJson(listTaxCountries());
+  return apiJson(listTaxCountries(), { cache: "public, s-maxage=3600, stale-while-revalidate=604800" });
 }

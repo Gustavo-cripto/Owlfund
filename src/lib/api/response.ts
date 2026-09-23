@@ -2,9 +2,17 @@ import { NextResponse } from "next/server";
 
 // Resposta JSON da API pública com Cache-Control: no-store — nunca deixar
 // dados do utilizador serem guardados em cache por proxies/CDN.
-export function apiJson(data: unknown, init?: { status?: number }): NextResponse {
-  const res = NextResponse.json(data, init);
-  res.headers.set("Cache-Control", "no-store");
+/**
+ * `no-store` por omissão: quase tudo em /api/v1 é por utilizador e nunca pode
+ * ficar numa cache partilhada. As TRÊS rotas públicas (índice, tax-countries,
+ * global) passam `cache` — iguais para toda a gente, ficam na rede de
+ * distribuição e um agente de IA que as cite não apanha o arranque a frio da
+ * função (medido: 7,5 a 8,9 s na primeira chamada, 0,4 s depois). Com
+ * stale-while-revalidate serve-se a última boa enquanto se renova.
+ */
+export function apiJson(data: unknown, init?: { status?: number; cache?: string }): NextResponse {
+  const res = NextResponse.json(data, init?.status ? { status: init.status } : undefined);
+  res.headers.set("Cache-Control", init?.cache ?? "no-store");
   return res;
 }
 

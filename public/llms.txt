@@ -4,6 +4,7 @@
 
 ## What it does
 - Consolidates crypto (on-chain wallets, exchanges, DeFi, NFTs, stablecoins, manual assets) and traditional assets (stocks, ETFs, gold) in one dashboard.
+- DeFi positions read directly from the chain, no third-party aggregator: Aave V3, Spark, Compound V3, Morpho, EigenLayer, and Uniswap V2/V3/V4 (Ethereum and major L2s). Other protocols may be missing; the app labels such totals as "partial".
 - Real-time profit/loss (PNL), portfolio Score (0-100), and benchmarks vs BTC, ETH, S&P 500 and Gold.
 - Portfolio chart with candles and selectable moving averages (SMA 7/20/50/100/200, EMA 9/21), over history rebuilt point by point.
 - Advanced metrics: ROI, CAGR, Sharpe ratio, Sortino, Calmar, Max Drawdown, volatility, VaR 95%.

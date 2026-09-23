@@ -15,5 +15,5 @@ export async function GET() {
     limits: { requestsPerMinute: API_LIMITS.perMinute, chatPerDay: API_LIMITS.chatPerDay, maxActiveKeys: API_LIMITS.maxKeys },
     mcp: { url: "https://chainfolioai.com/api/mcp", transport: "streamable-http", tools: MCP_TOOLS.map(t => t.name) },
     endpoints: API_ENDPOINTS.map(e => ({ method: e.method, path: e.path, auth: e.auth, description: e.desc })),
-  });
+  }, { cache: "public, s-maxage=3600, stale-while-revalidate=604800" });
 }

@@ -10,5 +10,5 @@ export async function GET(req: Request) {
   const limitado = rateLimitPublic(req, "global", 60);
   if (limitado) return limitado;
 
-  return apiJson(await getGlobalMarket());
+  return apiJson(await getGlobalMarket(), { cache: "public, s-maxage=300, stale-while-revalidate=86400" });
 }
