@@ -222,20 +222,29 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
   // ── Ligação mágica por email ───────────────────────────────────────────
   // Sem palavra-passe: escreve o email, recebe um link, clica e está dentro.
   // Se a conta não existir, o Supabase cria-a nesse clique (shouldCreateUser).
+  // Vive num painel proprio, por baixo do "ou", separado do formulario da
+  // palavra-passe: tem o seu email (pre-preenchido) e as suas mensagens.
+  const [magicOpen, setMagicOpen] = useState(false);
+  const [magicEmail, setMagicEmail] = useState("");
   const [magicSent, setMagicSent] = useState(false);
+  const [magicMsg, setMagicMsg] = useState<{ text: string; error: boolean } | null>(null);
+  const abrirMagic = () => {
+    setMagicOpen((v) => !v);
+    if (!magicEmail && email.trim()) setMagicEmail(email.trim());
+  };
   const handleMagic = async () => {
-    const nextEmail = email.trim();
-    if (!nextEmail) { fail(t("lg_err_email_first")); return; }
-    setLoading(true); setMessage(null); setIsError(false);
+    const nextEmail = magicEmail.trim();
+    if (!nextEmail) { setMagicMsg({ text: t("lg_err_email_first"), error: true }); return; }
+    setLoading(true); setMagicMsg(null);
     try {
       const origin = window.location.origin;
       const { error } = await supabase.auth.signInWithOtp({
         email: nextEmail,
         options: { shouldCreateUser: true, emailRedirectTo: `${origin}/api/auth/callback?next=${encodeURIComponent(nextPath)}` },
       });
-      if (error) { fail(userErrorText(error.message)); return; }
+      if (error) { setMagicMsg({ text: userErrorText(error.message), error: true }); return; }
       setMagicSent(true);
-      setMessage(t("lg_magic_sent").replace("{email}", nextEmail));
+      setMagicMsg({ text: t("lg_magic_sent").replace("{email}", nextEmail), error: false });
     } finally { setLoading(false); }
   };
 
@@ -427,12 +436,9 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
           </div>
 
           {mode === "login" && (
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+            <div className="mt-2 text-right">
               <button type="button" onClick={handleReset} disabled={busy} className="text-xs text-slate-400 transition hover:text-orange-300 disabled:opacity-50">
                 {t("lg_forgot")}
-              </button>
-              <button type="button" onClick={handleMagic} disabled={busy || magicSent} className="text-xs font-semibold text-orange-300 transition hover:text-orange-200 disabled:opacity-50">
-                {magicSent ? t("lg_magic_sent_short") : t("lg_magic")}
               </button>
             </div>
           )}
@@ -476,6 +482,31 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
             </svg>
             {googleLoading ? t("lg_google_loading") : t("lg_google")}
           </button>
+
+          <button type="button" onClick={abrirMagic} disabled={busy} aria-expanded={magicOpen} aria-controls="lg-magic-panel"
+            className="mt-3 flex w-full items-center justify-center gap-3 rounded-full border border-slate-700 bg-slate-950 px-6 py-3 text-sm font-semibold text-slate-100 transition hover:border-orange-400/60 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-60">
+            <span aria-hidden>✉️</span>{magicSent ? t("lg_magic_sent_short") : t("lg_magic")}
+          </button>
+          {magicOpen && (
+            <div id="lg-magic-panel" className="mt-3 space-y-3 rounded-2xl border border-orange-500/20 bg-orange-500/[0.04] p-4">
+              <p className="text-xs leading-relaxed text-slate-300">{t("lg_magic_desc")}</p>
+              <div>
+                <label htmlFor="lg-magic-email" className="sr-only">Email</label>
+                <input id="lg-magic-email" className={inputClass} placeholder="Email" type="email" autoComplete="email" inputMode="email"
+                  value={magicEmail} onChange={(event) => setMagicEmail(event.target.value)}
+                  onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void handleMagic(); } }} />
+              </div>
+              <button type="button" onClick={() => void handleMagic()} disabled={busy || magicSent}
+                className={`${btnPrimary} w-full px-6 py-3 text-sm`}>
+                {loading ? t("lg_wait") : magicSent ? t("lg_magic_sent_short") : t("lg_magic_send")}
+              </button>
+              {magicMsg && (
+                <p role="alert" className={`rounded-lg border px-3 py-2 text-sm ${magicMsg.error ? "border-red-500/30 bg-red-500/10 text-red-300" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"}`}>
+                  {magicMsg.text}
+                </p>
+              )}
+            </div>
+          )}
 
           {process.env.NEXT_PUBLIC_AUTH_APPLE === "1" && (
             <button type="button" disabled={busy}
