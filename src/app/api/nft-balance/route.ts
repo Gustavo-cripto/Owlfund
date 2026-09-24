@@ -366,6 +366,8 @@ export async function GET(request: Request) {
         {
           const nfts = ok.flatMap((r) => r.value.nfts.map((n) => ({ ...n, image: toImageUrl(n.image) })));
           const count = ok.reduce((sum, r) => sum + r.value.total, 0);
+          // Diagnostico (sem endereco): o que cada rede deu e o que ficou de fora.
+          console.log("[nft-balance] alchemy", results.map((r, i) => r.status === "fulfilled" ? `${["eth","polygon","arbitrum","base","optimism","bsc","avalanche","linea","zksync"][i]}:${r.value.total}/${r.value.nfts.length}` : `${["eth","polygon","arbitrum","base","optimism","bsc","avalanche","linea","zksync"][i]}:erro`).join(" "), "→ count", count, "nfts", nfts.length);
           // Uma rede que falhou nao apaga as outras — mas o total fica parcial, e diz-se.
           const partial = ok.length < results.length;
           if (ok.length === 0) {
