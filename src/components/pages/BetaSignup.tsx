@@ -11,7 +11,7 @@ import { comSupabase } from "@/lib/supabase/lazy";
 const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
 const ERR_KEY: Record<string, TranslationKey> = { rate_limited: "beta_err_rate", bad_email: "beta_bad_email", send_failed: "beta_err", bad_request: "beta_err" };
 const LOCALE: Record<string, string> = { pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" };
-const CUTOFF_RAW = process.env.NEXT_PUBLIC_BETA_CUTOFF ?? "2026-11-05T23:59:59Z";
+const CUTOFF_RAW = process.env.NEXT_PUBLIC_BETA_CUTOFF ?? "2027-01-15T23:59:59Z";
 
 /**
  * Indicador de etapa: a inscricao sao dois atos e isso tem de se ver.
@@ -90,7 +90,7 @@ export default function BetaSignup() {
 
   // Beta encerrado a novos testers a partir da data de corte (env).
   const betaClosed = (() => {
-    const raw = process.env.NEXT_PUBLIC_BETA_CUTOFF ?? "2026-11-05T23:59:59Z";
+    const raw = process.env.NEXT_PUBLIC_BETA_CUTOFF ?? "2027-01-15T23:59:59Z";
     if (!raw) return false;
     const d = new Date(raw);
     return !Number.isNaN(d.getTime()) && Date.now() > d.getTime();
