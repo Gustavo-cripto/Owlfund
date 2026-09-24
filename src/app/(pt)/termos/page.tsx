@@ -16,10 +16,11 @@ const SECTIONS: { h: TranslationKey; b: TranslationKey }[] = [
   { h: "tp_s9_h", b: "tp_s9_b" },
   { h: "tp_s10_h", b: "tp_s10_b" },
   { h: "tp_s11_h", b: "tp_s11_b" },
+  { h: "tp_s12_h", b: "tp_s12_b" },
   { h: "tp_s8_h", b: "tp_s8_b" },
 ];
 
-const LAST_UPDATED = "2026-09-06";
+const LAST_UPDATED = "2026-09-24";
 
 export default function TermsPage() {
   const { t, lang } = useLanguage();
