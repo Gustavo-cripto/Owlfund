@@ -34,7 +34,7 @@ const STEPS = (paymentsFrozen
 const STATS = [
   { value: "19", k: "lp_st1" },
   { value: "21", k: "lp_st4" },
-  { value: "6 🇪🇺", k: "lp_st5" },
+  { value: "10 🇪🇺", k: "lp_st5" },
   { value: "€0", k: "lp_st2" },
 ] as const;
 
