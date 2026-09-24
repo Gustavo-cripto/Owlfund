@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { repetirVisivel, CINCO_MIN } from "@/lib/polling";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { currencySign } from "@/lib/currency/symbols";
 import type { Lang } from "@/lib/i18n/translations";
@@ -81,8 +82,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       } catch { /* keep previous rates */ }
     };
     load();
-    const id = setInterval(load, 60_000);
-    return () => { active = false; clearInterval(id); };
+    const parar = repetirVisivel(load, CINCO_MIN);
+    return () => { active = false; parar(); };
   }, []);
 
   // Load from localStorage on mount

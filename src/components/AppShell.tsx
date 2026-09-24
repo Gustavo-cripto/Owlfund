@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { repetirVisivel, DOIS_MIN } from "@/lib/polling";
 import Sidebar from "./Sidebar";
 import BtcBlocksBar from "./BtcBlocksBar";
 import AccountSwitcher from "./AccountSwitcher";
@@ -57,8 +58,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       } catch { /* mantém o fallback */ }
     };
     void load();
-    const id = setInterval(load, 60_000);
-    return () => { cancelled = true; clearInterval(id); };
+    const parar = repetirVisivel(() => void load(), DOIS_MIN);
+    return () => { cancelled = true; parar(); };
   }, []);
 
   // Os blocos BTC sao para quem ja usa o site. Num telemovel, a um visitante

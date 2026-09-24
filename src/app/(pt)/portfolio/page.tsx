@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { repetirVisivel, DOIS_MIN } from "@/lib/polling";
 import Segmentos from "@/components/ui/Segmentos";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { userError } from "@/lib/ui/userError";
@@ -411,9 +412,8 @@ export default function PortfolioPage() {
     loadPrices();
     // Fetch historical prices once on mount (cached for 1h server-side)
     fetchHistoricalPrices().then(setHistoricalPrices).catch(() => {});
-    // Refresh current prices every 60s to keep portfolio value live
-    const interval = setInterval(loadPrices, 60_000);
-    return () => clearInterval(interval);
+    // Precos ao vivo de 2 em 2 min, so com a tab visivel (ver src/lib/polling.ts).
+    return repetirVisivel(loadPrices, DOIS_MIN);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

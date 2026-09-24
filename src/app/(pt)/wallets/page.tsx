@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from "react";
+import { repetirVisivel, DOIS_MIN, TRES_MIN } from "@/lib/polling";
 import Segmentos from "@/components/ui/Segmentos";
 import { userError } from "@/lib/ui/userError";
 import ErrorNote from "@/components/ErrorNote";
@@ -1201,8 +1202,7 @@ export default function WalletsPage() {
     if (walletMode !== "web3") return;
     const symbols = cryptoSymbolsKey ? cryptoSymbolsKey.split(",") : [];
     refreshCryptoPrices(symbols);
-    const id = window.setInterval(() => refreshCryptoPrices(symbols), 60000);
-    return () => window.clearInterval(id);
+    return repetirVisivel(() => refreshCryptoPrices(symbols), DOIS_MIN);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walletMode, cryptoSymbolsKey]);
 
@@ -1229,7 +1229,7 @@ export default function WalletsPage() {
   useEffect(() => {
     if (walletMode !== "web3") return;
     refreshWeb3Prices();
-    const id = window.setInterval(refreshWeb3Prices, 60000);
+    const pararPrecos = repetirVisivel(() => void refreshWeb3Prices(), DOIS_MIN);
     // Fetch EUR/USD rate for CEX+DeFi conversion
     fetch("/api/prices", { cache: "no-store" })
       .then(r => r.json())
@@ -1237,7 +1237,7 @@ export default function WalletsPage() {
         if (d.prices?.usdToEur && d.prices.usdToEur > 0) setUsdToEurRate(d.prices.usdToEur);
       })
       .catch(() => {});
-    return () => window.clearInterval(id);
+    return () => pararPrecos();
   }, [walletMode]);
 
   const getFiatValue = (symbol: string, balanceValue?: string | number | null) => {
@@ -1702,8 +1702,7 @@ export default function WalletsPage() {
       return;
     }
     refreshTraditionalQuotes(selectedQuoteSymbols);
-    const id = window.setInterval(() => refreshTraditionalQuotes(selectedQuoteSymbols), 60000);
-    return () => window.clearInterval(id);
+    return repetirVisivel(() => refreshTraditionalQuotes(selectedQuoteSymbols), TRES_MIN);
   }, [walletMode, selectedQuoteSymbols]);
 
   const refreshTraditionalQuote = async (symbol?: string) => {
@@ -2799,15 +2798,12 @@ export default function WalletsPage() {
     };
 
     const startId = window.setTimeout(refreshAll, 100);
-    const id = window.setInterval(refreshAll, 60000);
-    // E ao voltar ao separador: no telemovel o intervalo para quando a app vai
-    // para segundo plano, e a pessoa voltava a ver o saldo de ha uma hora.
-    const aoVoltar = () => { if (document.visibilityState === "visible") void refreshAll(); };
-    document.addEventListener("visibilitychange", aoVoltar);
+    // Saldos de 3 em 3 min com a tab visivel, e logo ao voltar ao separador (no
+    // telemovel o intervalo para em segundo plano e via-se o saldo de ha uma hora).
+    const pararSaldos = repetirVisivel(() => void refreshAll(), TRES_MIN);
     return () => {
       window.clearTimeout(startId);
-      window.clearInterval(id);
-      document.removeEventListener("visibilitychange", aoVoltar);
+      pararSaldos();
     };
   }, [walletMode, ethAddress, solAddress, btcAddress, adaApi]);
 
