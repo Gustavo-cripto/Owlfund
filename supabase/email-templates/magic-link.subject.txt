@@ -1,1 +1,1 @@
-{{ if eq .RedirectTo "https://chainfolioai.com/api/auth/callback?lang=en" }}Your ChainFolioAI sign-in link{{ else if eq .RedirectTo "https://chainfolioai.com/api/auth/callback?lang=es" }}Tu enlace de acceso a ChainFolioAI{{ else if eq .RedirectTo "https://chainfolioai.com/api/auth/callback?lang=fr" }}Votre lien de connexion ChainFolioAI{{ else }}A tua ligação de entrada na ChainFolioAI{{ end }}
+{{ if eq .RedirectTo "https://chainfolioai.com/api/auth/callback?lang=pt" }}A tua ligação de entrada na ChainFolioAI{{ else }}Your ChainFolioAI sign-in link{{ end }}

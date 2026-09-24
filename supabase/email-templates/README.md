@@ -25,9 +25,10 @@ Supabase → Authentication → **Emails** → Templates:
 | Confirm sign up | `confirm-signup.subject.txt` | `confirm-signup.html` |
 | Reset Password | `reset-password.subject.txt` | `reset-password.html` |
 
-Colar o conteúdo inteiro de cada ficheiro (o assunto também é um modelo Go e
-aceita o `{{ if … }}`). Guardar. Não é preciso deploy: os modelos vivem no
-Supabase.
+Colar o conteúdo inteiro de cada ficheiro. O assunto também é um modelo Go, mas
+tem um limite de **255 caracteres** no Supabase — por isso só distingue PT do
+resto (o resto sai em inglês; o corpo sai sempre na língua certa). Guardar. Não é
+preciso deploy: os modelos vivem no Supabase.
 
 Ainda em inglês (não usados pela app hoje): Invite user, Change Email Address,
 Reauthentication.

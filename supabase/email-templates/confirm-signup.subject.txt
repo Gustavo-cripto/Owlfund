@@ -1,1 +1,1 @@
-{{ if eq .RedirectTo "https://chainfolioai.com/api/auth/callback?lang=en" }}Confirm your email — ChainFolioAI{{ else if eq .RedirectTo "https://chainfolioai.com/api/auth/callback?lang=es" }}Confirma tu email — ChainFolioAI{{ else if eq .RedirectTo "https://chainfolioai.com/api/auth/callback?lang=fr" }}Confirmez votre e-mail — ChainFolioAI{{ else }}Confirma o teu email — ChainFolioAI{{ end }}
+{{ if eq .RedirectTo "https://chainfolioai.com/api/auth/callback?lang=pt" }}Confirma o teu email — ChainFolioAI{{ else }}Confirm your email — ChainFolioAI{{ end }}
