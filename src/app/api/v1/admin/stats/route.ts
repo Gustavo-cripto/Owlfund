@@ -167,13 +167,21 @@ export async function GET(req: NextRequest) {
   };
 
   // -- Visualizacoes (page_views, gravadas pelo middleware) -------------------
+  //
+  // PESSOAS e ROBOS em numeros separados, em todo o lado. Ate 24 set 2026 os
+  // totais (last24h/7d/30d, byDay, topPaths) somavam tudo, e foi assim que
+  // "1.100 visitas por dia" chegou ao agente social como se fossem pessoas:
+  // eram sobretudo rastreadores. As chaves antigas continuam a existir mas
+  // passam a contar SO humanos; os robos ficam em `bots`.
   const views: {
     last24h: number | null;
     last7d: number | null;
     last30d: number | null;
+    /** Pedidos de agentes automaticos (crawlers, agentes de IA, monitores), a parte. */
+    bots: { last24h: number | null; last7d: number | null; last30d: number | null };
     topPaths: Array<{ path: string; count: number }>;
     bottomPaths: Array<{ path: string; count: number }>;
-    byDay: Array<{ day: string; count: number }>;
+    byDay: Array<{ day: string; count: number; bots: number }>;
     /**
      * Visitas dos ultimos 7 dias por origem do link (?src=…), com as PESSOAS
      * separadas dos robos.
@@ -185,9 +193,14 @@ export async function GET(req: NextRequest) {
      */
     bySource: Array<{ src: string; humans: number; bots: number; count: number }>;
   } = {
-    last24h: await countOf(head(admin, "page_views").gte("created_at", ISO(daysAgo(1)))),
-    last7d: await countOf(head(admin, "page_views").gte("created_at", ISO(daysAgo(7)))),
-    last30d: await countOf(head(admin, "page_views").gte("created_at", ISO(daysAgo(30)))),
+    last24h: await countOf(head(admin, "page_views").eq("is_bot", false).gte("created_at", ISO(daysAgo(1)))),
+    last7d: await countOf(head(admin, "page_views").eq("is_bot", false).gte("created_at", ISO(daysAgo(7)))),
+    last30d: await countOf(head(admin, "page_views").eq("is_bot", false).gte("created_at", ISO(daysAgo(30)))),
+    bots: {
+      last24h: await countOf(head(admin, "page_views").eq("is_bot", true).gte("created_at", ISO(daysAgo(1)))),
+      last7d: await countOf(head(admin, "page_views").eq("is_bot", true).gte("created_at", ISO(daysAgo(7)))),
+      last30d: await countOf(head(admin, "page_views").eq("is_bot", true).gte("created_at", ISO(daysAgo(30)))),
+    },
     topPaths: [],
     bottomPaths: [],
     byDay: [],
@@ -226,16 +239,19 @@ export async function GET(req: NextRequest) {
     const sevenAgo = daysAgo(7).getTime();
     const pathCounts: Record<string, number> = {};
     const dayCounts: Record<string, number> = {};
+    const dayBots: Record<string, number> = {};
     const srcCounts: Record<string, { humans: number; bots: number }> = {};
     for (const r of data ?? []) {
       const iso = String(r.created_at);
       const t = new Date(iso).getTime();
-      if (t >= sevenAgo) pathCounts[r.path] = (pathCounts[r.path] ?? 0) + 1;
+      const day = iso.slice(0, 10);
+      if (r.is_bot) { dayBots[day] = (dayBots[day] ?? 0) + 1; }
       if (t >= sevenAgo && r.src) {
         const c = (srcCounts[r.src] ??= { humans: 0, bots: 0 });
         if (r.is_bot) c.bots++; else c.humans++;
       }
-      const day = iso.slice(0, 10);
+      if (r.is_bot) continue; // paginas mais/menos vistas e serie diaria: so pessoas
+      if (t >= sevenAgo) pathCounts[r.path] = (pathCounts[r.path] ?? 0) + 1;
       dayCounts[day] = (dayCounts[day] ?? 0) + 1;
     }
     const ranked = Object.entries(pathCounts)
@@ -253,10 +269,10 @@ export async function GET(req: NextRequest) {
       .sort((a, b) => a.count - b.count)
       .slice(0, 5);
     // Serie de 14 dias, do mais antigo ao mais recente, com zeros preenchidos.
-    const byDay: Array<{ day: string; count: number }> = [];
+    const byDay: Array<{ day: string; count: number; bots: number }> = [];
     for (let i = 13; i >= 0; i--) {
       const day = ISO(daysAgo(i)).slice(0, 10);
-      byDay.push({ day, count: dayCounts[day] ?? 0 });
+      byDay.push({ day, count: dayCounts[day] ?? 0, bots: dayBots[day] ?? 0 });
     }
     views.byDay = byDay;
   } catch { /* sem detalhe de views */ }
