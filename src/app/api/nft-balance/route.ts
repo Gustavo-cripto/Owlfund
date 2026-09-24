@@ -355,7 +355,15 @@ export async function GET(request: Request) {
         // Todas as redes EVM; uma que a Alchemy nao cubra falha sozinha e nao apaga as outras.
         const results = await Promise.allSettled((["eth", "polygon", "arbitrum", "base", "optimism", "bsc", "avalanche", "linea", "zksync"] as EvmChainKey[]).map((c) => alchemyNftsForOwner(address, c)));
         const ok = results.filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof alchemyNftsForOwner>>> => r.status === "fulfilled");
-        if (ok.length > 0 || !moralisKey) {
+        // Antes, com a MORALIS_API_KEY definida, uma falha total da Alchemy caia
+        // em silencio na Moralis (plano terminado → 401 → "0 itens", sem erro nem
+        // registo). Agora regista-se sempre e devolve-se 503 com o motivo.
+        if (ok.length === 0) {
+          const motivos = results.map((r) => (r.status === "rejected" ? String(r.reason instanceof Error ? r.reason.message : r.reason) : "")).filter(Boolean);
+          console.error("[nft-balance] Alchemy falhou em todas as redes:", motivos.join("; "));
+          return NextResponse.json({ error: apiMsg(request, "nft_provider_down"), count: 0, nfts: [], motivo: motivos[0] ?? null }, { status: 503 });
+        }
+        {
           const nfts = ok.flatMap((r) => r.value.nfts.map((n) => ({ ...n, image: toImageUrl(n.image) })));
           const count = ok.reduce((sum, r) => sum + r.value.total, 0);
           // Uma rede que falhou nao apaga as outras — mas o total fica parcial, e diz-se.

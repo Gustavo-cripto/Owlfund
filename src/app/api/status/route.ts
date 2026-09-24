@@ -12,18 +12,18 @@ import { cgFetch } from "@/lib/market/coingecko";
 export const revalidate = 300;
 
 type Estado = "ok" | "degradado" | "falha" | "nao_configurado";
-type Servico = { id: string; nome: string; funcao: string; estado: Estado; ms: number | null };
+type Servico = { id: string; nome: string; funcao: string; estado: Estado; ms: number | null; codigo?: number };
 
 const TIMEOUT_MS = 6_000;
 
-async function ping(fn: () => Promise<Response>): Promise<{ estado: Estado; ms: number }> {
+async function ping(fn: () => Promise<Response>): Promise<{ estado: Estado; ms: number; codigo?: number }> {
   const t0 = Date.now();
   try {
     const res = await fn();
     const ms = Date.now() - t0;
-    if (res.ok) return { estado: ms > 3_000 ? "degradado" : "ok", ms };
+    if (res.ok) return { estado: ms > 3_000 ? "degradado" : "ok", ms, codigo: res.status };
     // 429 = a fonte esta viva mas a limitar; para quem le, "degradado" e mais honesto que "falha".
-    return { estado: res.status === 429 ? "degradado" : "falha", ms };
+    return { estado: res.status === 429 ? "degradado" : "falha", ms, codigo: res.status };
   } catch {
     return { estado: "falha", ms: Date.now() - t0 };
   }
@@ -56,6 +56,10 @@ export async function GET(req: Request) {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] }),
       }) : null },
+    // A API de NFTs e outro servico da Alchemy (nft/v3), com quota e permissoes
+    // proprias: o eth_blockNumber acima pode estar OK e esta em baixo.
+    { id: "alchemy_nft", nome: "Alchemy NFT", funcao: "NFTs e posicoes Uniswap V4 (API v3)",
+      run: alchemyKey ? () => get(`https://eth-mainnet.g.alchemy.com/nft/v3/${alchemyKey}/getNFTsForOwner?owner=0xC36442b4a4522E871399CD717aBDD847Ab11FE88&pageSize=1&withMetadata=false`) : null },
     { id: "frankfurter", nome: "Frankfurter (BCE)", funcao: "câmbios históricos",
       run: () => get("https://api.frankfurter.dev/v1/latest?symbols=USD") },
     { id: "twelvedata", nome: "Twelve Data", funcao: "ações, ETFs e índices",
@@ -67,7 +71,7 @@ export async function GET(req: Request) {
   const servicos: Servico[] = await Promise.all(checks.map(async (c) => {
     if (!c.run) return { id: c.id, nome: c.nome, funcao: c.funcao, estado: "nao_configurado" as Estado, ms: null };
     const r = await ping(c.run);
-    return { id: c.id, nome: c.nome, funcao: c.funcao, estado: r.estado, ms: r.ms };
+    return { id: c.id, nome: c.nome, funcao: c.funcao, estado: r.estado, ms: r.ms, ...(r.codigo && r.estado !== "ok" ? { codigo: r.codigo } : {}) };
   }));
 
   const geral: Estado = servicos.some((s) => s.estado === "falha") ? "falha"

@@ -261,7 +261,7 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
   const handleWallet = async (rede: "eth" | "sol") => {
     setWalletLoading(rede); setMessage(null); setIsError(false);
     try {
-      await (rede === "eth" ? entrarComEthereum() : entrarComSolana());
+      await (rede === "eth" ? entrarComEthereum(lang) : entrarComSolana(lang));
       // A carteira já ficou ligada: cai directamente nas Carteiras, a não ser
       // que a pessoa vinha do beta.
       window.location.href = toBeta ? nextPath : "/wallets";

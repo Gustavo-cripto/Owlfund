@@ -148,6 +148,32 @@ type NftV3Response = {
   totalCount?: number;
 };
 
+/**
+ * Só os tokenIds que o endereço tem num contrato ERC-721 (ex.: o PositionManager
+ * do Uniswap V4, que não é enumerável on-chain). Substitui a Moralis, cujo plano
+ * terminou — sem isto as posições V4 apareciam sempre a 0. Segue a paginação
+ * até 3 páginas (300 posições chega). Lança AlchemyError em falha HTTP.
+ */
+export async function alchemyNftTokenIds(address: string, chain: EvmChainKey, contract: string): Promise<string[]> {
+  const ids: string[] = [];
+  let pageKey: string | undefined;
+  for (let pagina = 0; pagina < 3; pagina++) {
+    const url = new URL(`https://${SUBDOMAIN[chain]}.g.alchemy.com/nft/v3/${key()}/getNFTsForOwner`);
+    url.searchParams.set("owner", address);
+    url.searchParams.set("withMetadata", "false");
+    url.searchParams.set("pageSize", "100");
+    url.searchParams.append("contractAddresses[]", contract);
+    if (pageKey) url.searchParams.set("pageKey", pageKey);
+    const res = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(12000), next: { revalidate: 120 } });
+    if (!res.ok) throw new AlchemyError(`Alchemy NFT ${res.status}`, res.status);
+    const json = (await res.json()) as { ownedNfts?: Array<{ tokenId?: string }>; pageKey?: string | null };
+    for (const n of json.ownedNfts ?? []) if (n.tokenId) ids.push(n.tokenId);
+    if (!json.pageKey) break;
+    pageKey = json.pageKey;
+  }
+  return ids;
+}
+
 /** NFTs de um endereço numa rede (sem spam). Lança AlchemyError em falha HTTP. */
 export async function alchemyNftsForOwner(address: string, chain: EvmChainKey, pageSize = 50): Promise<{ nfts: AlchemyNft[]; total: number }> {
   const url = new URL(`https://${SUBDOMAIN[chain]}.g.alchemy.com/nft/v3/${key()}/getNFTsForOwner`);

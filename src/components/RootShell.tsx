@@ -5,6 +5,7 @@ import { ConfirmProvider } from "@/components/ConfirmDialog";
 import FloatingChat from "@/components/FloatingChat";
 import ErrorMonitor from "@/components/ErrorMonitor";
 import NavProgress from "@/components/NavProgress";
+import ParceirosHardware from "@/components/wallets/ParceirosHardware";
 import { Suspense } from "react";
 import { ThemeProvider } from "@/lib/theme/ThemeContext";
 import type { Lang } from "@/lib/i18n/translations";
@@ -35,6 +36,8 @@ export default function RootShell({ lang, Provider, children }: { lang: Lang; Pr
                 browser. Ver o aviso em ConfirmDialog.useConfirm. */}
             <ConfirmProvider>
             {children}
+            {/* Ledger & Trezor no fim de todas as paginas (pedido de 24 set). */}
+            <ParceirosHardware />
             <FloatingChat />
             <ErrorMonitor />
             {/* useSearchParams obriga a Suspense para nao tornar a pagina toda dinamica. */}

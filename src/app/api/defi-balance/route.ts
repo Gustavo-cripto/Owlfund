@@ -6,6 +6,7 @@ import { encodeAbiParameters, keccak256 } from "viem";
 import { cgFetch } from "@/lib/market/coingecko";
 import { getLendingPositions, isOnchainLendingProtocol, LENDING_CHAINS, type LendingChain, type LendingPosition } from "@/lib/defi/lending";
 import { getEigenLayerPositions, getMorphoPositions } from "@/lib/defi/morphoEigen";
+import { alchemyNftTokenIds, hasAlchemy, type EvmChainKey } from "@/lib/providers/alchemy";
 
 // Tudo o que se le sem intermediario: Aave/Spark/Compound (contratos), Morpho
 // (API publica) e EigenLayer (contratos). Nunca lanca.
@@ -926,10 +927,16 @@ function decodeInt24FromWord(hex6: string): number {
 }
 
 async function fetchUniV4PositionTokenIds(
-  address: string, posm: string, chain: string, moralisKey: string
+  address: string, posm: string, chain: string, moralisKey: string | undefined
 ): Promise<string[]> {
+  // O PositionManager do V4 nao e enumeravel on-chain: alguem tem de listar os
+  // tokenIds. Alchemy primeiro (e o que temos ativo); Moralis so se existir.
+  if (hasAlchemy()) {
+    try { return await alchemyNftTokenIds(address, chain as EvmChainKey, posm); }
+    catch (e) { console.error("[defi-balance] Alchemy V4 tokenIds", chain, e instanceof Error ? e.message : e); }
+  }
   const mChain = CHAIN_TO_MORALIS[chain];
-  if (!mChain) return [];
+  if (!mChain || !moralisKey) return [];
   try {
     const url = `${MORALIS_NFT}/${address}/nft?chain=${mChain}&format=decimal&token_addresses%5B%5D=${posm}&limit=50`;
     const res = await fetch(url, {
@@ -948,7 +955,7 @@ async function fetchUniswapV4ViaPositionManager(
   const posm = UNI_V4_NPM[chain];
   const stateView = UNI_V4_STATE_VIEW[chain];
   const rpc = EVM_RPC[chain];
-  if (!posm || !stateView || !rpc || !moralisKey) return { total: 0, positions: [] };
+  if (!posm || !stateView || !rpc) return { total: 0, positions: [] };
 
   // 1. Does the wallet hold any V4 position NFTs?
   const paddedOwner = address.toLowerCase().slice(2).padStart(64, "0");
