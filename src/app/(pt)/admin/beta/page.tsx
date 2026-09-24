@@ -44,6 +44,26 @@ export default function AdminBetaPage() {
     }
   };
 
+  const testarAviso = async () => {
+    if (tgBusy) return;
+    setTgBusy(true);
+    setTgMsg(null);
+    try {
+      const r = await fetch("/api/admin/telegram-setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "test" }),
+      });
+      const j = (await r.json().catch(() => ({}))) as { error?: string; chatTail?: string };
+      if (!r.ok) { setTgMsg({ ok: false, text: j.error || "Falhou." }); return; }
+      setTgMsg({ ok: true, text: `✅ Mensagem de teste enviada ao chat …${j.chatTail ?? "?"} do bot que está na Vercel. Se não a vês, estás a olhar para outro bot ou outro chat.` });
+    } catch {
+      setTgMsg({ ok: false, text: "Erro de rede." });
+    } finally {
+      setTgBusy(false);
+    }
+  };
+
   const removeBotWebhook = async () => {
     if (tgBusy) return;
     if (!(await askConfirm({ message: "Remover o webhook do bot? Os botões de ativação no Telegram deixam de funcionar até reconfigurares.", danger: true, okLabel: "Remover" }))) return;
@@ -274,8 +294,16 @@ export default function AdminBetaPage() {
               {/* Reconfigurar o webhook do bot (usar depois de rodar o token). */}
               <div className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
                 <p className="text-sm font-semibold text-white">Bot Telegram</p>
-                <p className="mt-1 text-xs text-slate-500">Ambos os botões atuam sobre o bot cujo token está <b>agora</b> na Vercel. <b>Reconfigurar</b> = registar o webhook nesse bot. <b>Remover webhook</b> = tirar o webhook desse bot (usa antes de trocares para outro bot).</p>
+                <p className="mt-1 text-xs text-slate-500">Os botões atuam sobre o bot cujo token está <b>agora</b> na Vercel. <b>Testar aviso</b> = manda uma mensagem de teste ao chat dos avisos de inscrição e mostra o erro real se não chegar. <b>Reconfigurar</b> = registar o webhook nesse bot. <b>Remover webhook</b> = tirar o webhook desse bot (usa antes de trocares para outro bot).</p>
                 <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={testarAviso}
+                    disabled={tgBusy}
+                    className="rounded-xl border border-emerald-500/40 px-4 py-2 text-sm font-semibold text-emerald-300 transition hover:border-emerald-400 disabled:opacity-40"
+                  >
+                    {tgBusy ? "A processar…" : "Testar aviso"}
+                  </button>
                   <button
                     type="button"
                     onClick={reconfigBot}

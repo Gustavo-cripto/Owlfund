@@ -18,11 +18,23 @@ export async function sendTelegram(text: string, replyMarkup?: unknown): Promise
       }),
       signal: AbortSignal.timeout(8000),
     });
+    if (!res.ok) {
+      // Antes engolia-se o motivo; sem ele ninguem sabia se era token, chat_id ou rede.
+      const desc = await res.json().then((j: { description?: string }) => j.description).catch(() => undefined);
+      ultimoErro = `${res.status}${desc ? ` ${desc}` : ""}`;
+      console.error("[telegram] sendMessage falhou:", ultimoErro);
+    }
     return res.ok;
-  } catch {
+  } catch (e) {
+    ultimoErro = e instanceof Error ? e.message : String(e);
+    console.error("[telegram] sendMessage:", ultimoErro);
     return false;
   }
 }
+
+let ultimoErro: string | null = null;
+/** Motivo da ultima falha de envio nesta instancia (para o botao "Testar aviso" do painel). */
+export function ultimoErroTelegram(): string | null { return ultimoErro; }
 
 /** Escapa texto para o parse_mode HTML do Telegram. */
 export function tgEsc(x: string): string {

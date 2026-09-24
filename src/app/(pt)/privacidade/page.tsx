@@ -19,7 +19,7 @@ const SECTIONS: { h: TranslationKey; b: TranslationKey }[] = [
   { h: "pp_s8_h", b: "pp_s8_b" },
 ];
 
-const LAST_UPDATED = "2026-09-06";
+const LAST_UPDATED = "2026-09-24";
 
 export default function PrivacyPage() {
   const { t, lang } = useLanguage();
