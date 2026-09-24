@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Segmentos from "@/components/ui/Segmentos";
 import AppShell from "@/components/AppShell";
 import { btnPrimary } from "@/lib/ui/buttons";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -244,33 +245,27 @@ export default function Pricing() {
 
             {/* Monthly / Annual toggle */}
             <div className="flex justify-center">
-              <div className="inline-flex items-center gap-1 rounded-full border border-slate-800 bg-slate-900/60 p-1">
-                <button type="button" onClick={() => setBillingInterval("month")}
-                  className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${billingInterval === "month" ? "bg-orange-500 text-slate-950" : "text-slate-400 hover:text-white"}`}>
-                  {t("pc_monthly")}
-                </button>
-                <button type="button" onClick={() => setBillingInterval("year")}
-                  className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold transition ${billingInterval === "year" ? "bg-orange-500 text-slate-950" : "text-slate-400 hover:text-white"}`}>
-                  {t("pc_annual")}
-                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${billingInterval === "year" ? "bg-slate-950/20 text-slate-950" : "bg-emerald-500/20 text-emerald-300"}`}>{t("pc_save_2months")}</span>
-                </button>
-              </div>
+              <Segmentos
+                valor={billingInterval}
+                aoMudar={setBillingInterval}
+                opcoes={[
+                  { id: "month", label: t("pc_monthly") },
+                  { id: "year", label: (ativo) => (<>{t("pc_annual")}<span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${ativo ? "bg-slate-950/20 text-slate-950" : "bg-emerald-500/20 text-emerald-300"}`}>{t("pc_save_2months")}</span></>) },
+                ]}
+              />
             </div>
 
             {/* Payment method toggle (Cartão / Cripto) — só quando ativado */}
             {CRYPTO_PAYMENTS_ENABLED && (
               <div className="flex flex-col items-center gap-2 -mt-6">
-                <div className="inline-flex items-center gap-1 rounded-full border border-slate-800 bg-slate-900/60 p-1">
-                  <button type="button" onClick={() => setPayMethod("fiat")}
-                    className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${payMethod === "fiat" ? "bg-orange-500 text-slate-950" : "text-slate-400 hover:text-white"}`}>
-                    💳 {t("pc_pay_card")}
-                  </button>
-                  <button type="button" onClick={() => setPayMethod("crypto")}
-                    className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold transition ${payMethod === "crypto" ? "bg-orange-500 text-slate-950" : "text-slate-400 hover:text-white"}`}>
-                    ₿ {t("pc_pay_crypto")}
-                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${payMethod === "crypto" ? "bg-slate-950/20 text-slate-950" : "bg-emerald-500/20 text-emerald-300"}`}>−{CRYPTO_DISCOUNT_PCT}%</span>
-                  </button>
-                </div>
+                <Segmentos
+                  valor={payMethod}
+                  aoMudar={setPayMethod}
+                  opcoes={[
+                    { id: "fiat", label: `💳 ${t("pc_pay_card")}` },
+                    { id: "crypto", label: (ativo) => (<>₿ {t("pc_pay_crypto")}<span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${ativo ? "bg-slate-950/20 text-slate-950" : "bg-emerald-500/20 text-emerald-300"}`}>−{CRYPTO_DISCOUNT_PCT}%</span></>) },
+                  ]}
+                />
                 {payMethod === "crypto" && (
                   <p className="text-[11px] text-slate-500 max-w-xs text-center">{t("pc_crypto_pay_note")}</p>
                 )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import Segmentos from "@/components/ui/Segmentos";
 import { userError } from "@/lib/ui/userError";
 import ErrorNote from "@/components/ErrorNote";
 import { FREE_WHALE_LIMIT } from "@/lib/plans";
@@ -653,18 +654,13 @@ export default function SmartMoneyPage() {
                     <>
                       {/* Wallet selector */}
                       <div className="flex flex-wrap gap-2">
-                        <button type="button"
-                          onClick={() => setHistoryAddr("")}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${historyAddr === "" ? "bg-orange-500/20 text-orange-400 border border-orange-500/30" : "bg-slate-800 text-slate-400 hover:text-white"}`}>
-                          {t("all")} ({ethWatchlist.length})
-                        </button>
-                        {ethWatchlist.map((e) => (
-                          <button key={e.address} type="button"
-                            onClick={() => handleHistorySelect(e.address)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${historyAddr === e.address ? "bg-orange-500/20 text-orange-400 border border-orange-500/30" : "bg-slate-800 text-slate-400 hover:text-white"}`}>
-                            {e.label}
-                          </button>
-                        ))}
+                        <Segmentos
+                          tamanho="sm"
+                          wrap
+                          valor={historyAddr ?? ""}
+                          aoMudar={(id) => { if (id === "") setHistoryAddr(""); else handleHistorySelect(id); }}
+                          opcoes={[{ id: "", label: `${t("all")} (${ethWatchlist.length})` }, ...ethWatchlist.map((e) => ({ id: e.address, label: e.label }))]}
+                        />
                         <button type="button"
                           onClick={() => {
                             if (historyAddr) {

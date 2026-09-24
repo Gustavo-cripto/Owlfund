@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useMemo, useEffect, useRef } from "react";
+import Segmentos from "@/components/ui/Segmentos";
+import { useState, useMemo, useEffect } from "react";
 import { userError } from "@/lib/ui/userError";
 import ErrorNote from "@/components/ErrorNote";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -215,19 +216,6 @@ export default function PortfolioChartSection({
   const [history, setHistory] = useState<{ tf: TimeFrame; bars: Bar[] } | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [tab, setTab] = useState<Tab>("overview");
-  // Sublinhado dos tabs: mede o botao ativo e desliza ate la. Re-mede quando
-  // o texto muda (lingua, badges de NFTs/DeFi) ou a janela muda de tamanho.
-  const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement | null>>>({});
-  const [tabInd, setTabInd] = useState<{ left: number; width: number } | null>(null);
-  useEffect(() => {
-    const measure = () => {
-      const el = tabRefs.current[tab];
-      if (el) setTabInd({ left: el.offsetLeft, width: el.offsetWidth });
-    };
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  });
   // Cripto manual com quantidade (lida do mesmo sitio que a pagina de Carteiras).
   const [manualCrypto, setManualCrypto] = useState<CryptoHoldings>({});
   useEffect(() => {
@@ -449,13 +437,8 @@ export default function PortfolioChartSection({
           )}
           {historyLoading && bars.length >= 2 && <div className="pointer-events-none absolute right-4 top-2 text-[11px] text-slate-500">{t("loading")}</div>}
         </div>
-        <div className="flex flex-wrap items-center gap-1 px-4 pb-1 pt-2">
-          {TIMEFRAMES.map(({ key, labelKey }) => (
-            <button key={key} type="button" onClick={() => setTf(key)} aria-pressed={tf === key}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
-                tf === key ? "bg-slate-700 text-white" : "text-slate-500 hover:text-white hover:bg-slate-800"
-              }`}>{t(labelKey)}</button>
-          ))}
+        <div className="px-4 pb-1 pt-2">
+          <Segmentos tamanho="xs" valor={tf} aoMudar={setTf} opcoes={TIMEFRAMES.map(({ key, labelKey }) => ({ id: key, label: t(labelKey) }))} />
         </div>
         {reconstructed && (
           <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-2">
@@ -512,31 +495,30 @@ export default function PortfolioChartSection({
       </div>
 
       {/* ── Tabs ── */}
-      <div className="relative flex gap-0 border-b border-slate-800 mt-6">
-        {TABS.map(({ key, labelKey }) => (
-          <button key={key} type="button" onClick={() => setTab(key)} ref={(el) => { tabRefs.current[key] = el; }}
-            className={`press px-4 py-3 text-sm font-medium flex items-center gap-1.5 ${
-              tab === key ? "text-white" : "text-slate-400 hover:text-white"
-            }`}>
-            {t(labelKey as Parameters<typeof t>[0])}
-            {key === "nfts" && totalNfts > 0 && (
-              <span className="text-[11px] bg-slate-700 text-slate-300 rounded-full px-1.5 py-0.5">{hideBalances ? "••••" : totalNfts}</span>
-            )}
-            {key === "defi" && totalDefi > 0 && (
-              <span className="text-[11px] bg-emerald-500/20 text-emerald-400 rounded-full px-1.5 py-0.5">{fmtUsdCompact(totalDefi)}</span>
-            )}
-          </button>
-        ))}
-        {/* Sublinhado que desliza até ao tab ativo (em vez de saltar). */}
-        {tabInd && (
-          <span aria-hidden="true" className="pointer-events-none absolute -bottom-px left-0 h-0.5 bg-blue-500 transition-[transform,width] duration-[250ms] ease-[var(--ease-in-out)] motion-reduce:transition-none"
-            style={{ transform: `translateX(${tabInd.left}px)`, width: tabInd.width }} />
-        )}
+      <div className="mt-6 mb-3">
+        <Segmentos
+          valor={tab}
+          aoMudar={setTab}
+          opcoes={TABS.map(({ key, labelKey }) => ({
+            id: key,
+            label: (ativo: boolean) => (
+              <>
+                {t(labelKey as Parameters<typeof t>[0])}
+                {key === "nfts" && totalNfts > 0 && (
+                  <span className={`rounded-full px-1.5 py-0.5 text-[11px] ${ativo ? "bg-slate-950/20 text-slate-950" : "bg-slate-700 text-slate-300"}`}>{hideBalances ? "••••" : totalNfts}</span>
+                )}
+                {key === "defi" && totalDefi > 0 && (
+                  <span className={`rounded-full px-1.5 py-0.5 text-[11px] ${ativo ? "bg-slate-950/20 text-slate-950" : "bg-emerald-500/20 text-emerald-400"}`}>{fmtUsdCompact(totalDefi)}</span>
+                )}
+              </>
+            ),
+          }))}
+        />
       </div>
 
       {/* ── Tab: Tokens ── */}
       {tab === "tokens" && (
-        <div className="rounded-b-2xl bg-slate-900/40 border border-t-0 border-slate-800 overflow-hidden">
+        <div className="rounded-2xl bg-slate-900/40 border border-slate-800 overflow-hidden">
           <div className="px-4 pt-4 pb-2">
             <h3 className="text-sm font-bold text-white">{t("pcs_assets_value")}</h3>
             <p className="text-xs text-slate-500 mt-0.5">{t("pcs_sorted")}</p>
@@ -578,7 +560,7 @@ export default function PortfolioChartSection({
 
       {/* ── Tab: NFTs ── */}
       {tab === "nfts" && (
-        <div className="rounded-b-2xl bg-slate-900/40 border border-t-0 border-slate-800 p-4">
+        <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-4">
           {hideBalances ? (
             <div className="text-center py-8">
               <p className="text-3xl mb-2">🙈</p>
@@ -626,7 +608,7 @@ export default function PortfolioChartSection({
 
       {/* ── Tab: DeFi ── */}
       {tab === "defi" && (
-        <div className="rounded-b-2xl bg-slate-900/40 border border-t-0 border-slate-800 p-4">
+        <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-4">
           {addressedWallets.filter(w => ["ETH", "SOL"].includes(w.symbol)).length === 0 ? (
             <div className="text-center py-8">
               <p className="text-3xl mb-2">⚡</p>

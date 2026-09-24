@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Segmentos from "@/components/ui/Segmentos";
 import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -156,14 +157,7 @@ export default function DevelopersContent() {
             <section id="rest" className="mt-12 scroll-mt-24">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-lg font-bold text-white">{t("dev_sec_rest")}</h2>
-                <div className="flex gap-1 rounded-xl border border-slate-800 bg-slate-900/60 p-1" role="tablist" aria-label={t("dev_lang")}>
-                  {LANGS.map(l => (
-                    <button key={l.id} type="button" role="tab" aria-selected={lang === l.id} onClick={() => pickLang(l.id)}
-                      className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${lang === l.id ? "bg-orange-500 text-slate-950" : "text-slate-400 hover:text-white"}`}>
-                      {l.label}
-                    </button>
-                  ))}
-                </div>
+                <Segmentos tamanho="sm" label={t("dev_lang")} valor={lang} aoMudar={pickLang} opcoes={LANGS} />
               </div>
               <p className="mt-2 text-xs text-slate-500">{t("dev_env_hint")} <code className="text-slate-400">CFA_KEY</code>.</p>
               <div className="mt-4 space-y-8">

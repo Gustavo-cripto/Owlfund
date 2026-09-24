@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import Segmentos from "@/components/ui/Segmentos";
 import { userError } from "@/lib/ui/userError";
 import ErrorNote from "@/components/ErrorNote";
 import { btnPrimary } from "@/lib/ui/buttons";
@@ -1375,41 +1376,15 @@ export default function MercadoPage() {
               ? t("mc_coinex_desc")
               : t("mc_trad_desc")}
           </p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setMarketMode("crypto")}
-              className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
-                marketMode === "crypto"
-                  ? "border-orange-400 bg-orange-500 text-slate-950"
-                  : "border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500"
-              }`}
-            >
-              {t("mc_crypto_market")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setMarketMode("tradicional")}
-              className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
-                marketMode === "tradicional"
-                  ? "border-orange-400 bg-orange-500 text-slate-950"
-                  : "border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500"
-              }`}
-            >
-              {t("mc_trad_market")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setMarketMode("noticias")}
-              className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
-                marketMode === "noticias"
-                  ? "border-orange-400 bg-orange-500 text-slate-950"
-                  : "border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500"
-              }`}
-            >
-              {t("mc_news_ai")}
-            </button>
-          </div>
+          <Segmentos
+            valor={marketMode}
+            aoMudar={setMarketMode}
+            opcoes={[
+              { id: "crypto", label: t("mc_crypto_market") },
+              { id: "tradicional", label: t("mc_trad_market") },
+              { id: "noticias", label: t("mc_news_ai") },
+            ]}
+          />
         </div>
 
         {marketMode === "crypto" && chartSource === "coinglass" && (
@@ -1557,22 +1532,7 @@ export default function MercadoPage() {
               </div>
             </div>
 
-            <div className="mt-5 flex flex-wrap gap-2">
-              {traditionalCategories.map((category) => (
-                <button
-                  key={category}
-                  type="button"
-                  onClick={() => setTraditionalCategory(category)}
-                  className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
-                    traditionalCategory === category
-                      ? "border-orange-400 bg-orange-500 text-slate-950"
-                      : "border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500"
-                  }`}
-                >
-                  {categoryLabel(category, t)}
-                </button>
-              ))}
-            </div>
+            <Segmentos className="mt-5" tamanho="sm" wrap valor={traditionalCategory} aoMudar={setTraditionalCategory} opcoes={traditionalCategories.map((c) => ({ id: c, label: categoryLabel(c, t) }))} />
 
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               {visibleTraditionalAssets.map((asset) => {
@@ -2073,11 +2033,15 @@ export default function MercadoPage() {
 
               {/* Tabs crypto/tradicional/diarias */}
               <div className="flex gap-2">
-                {(["crypto", "tradicional", "diarias"] as const).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={async () => {
+                <Segmentos
+                  tamanho="sm"
+                  valor={newsMode}
+                  opcoes={[
+                    { id: "crypto", label: t("mc_crypto") },
+                    { id: "tradicional", label: t("mc_traditional") },
+                    { id: "diarias", label: `📰 ${t("mc_news")}` },
+                  ]}
+                  aoMudar={async (m) => {
                       setNewsMode(m);
                       // O briefing/chat pertencem ao modo anterior — não mostrar com o rótulo novo
                       setNewsContent(null); setNewsError(null); setNewsDate(null);
@@ -2095,15 +2059,7 @@ export default function MercadoPage() {
                         }
                       }
                     }}
-                    className={`press rounded-full border px-4 py-1.5 text-xs font-semibold ${
-                      newsMode === m
-                        ? "border-orange-400 bg-orange-500/20 text-orange-200"
-                        : "border-slate-700 text-slate-400 hover:border-slate-500"
-                    }`}
-                  >
-                    {m === "crypto" ? t("mc_crypto") : m === "tradicional" ? t("mc_traditional") : `📰 ${t("mc_news")}`}
-                  </button>
-                ))}
+                />
               </div>
 
               {/* News feed */}

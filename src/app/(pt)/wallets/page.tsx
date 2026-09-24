@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from "react";
+import Segmentos from "@/components/ui/Segmentos";
 import { userError } from "@/lib/ui/userError";
 import ErrorNote from "@/components/ErrorNote";
 import { cleanDecimalInput, parseDecimal } from "@/lib/format/decimal";
@@ -3096,30 +3097,11 @@ export default function WalletsPage() {
           {cloudSyncError ? (
             <ErrorNote>{cloudSyncError}</ErrorNote>
           ) : null}
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setWalletMode("web3")}
-              className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
-                walletMode === "web3"
-                  ? "border-orange-400 bg-orange-500 text-slate-950"
-                  : "border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500"
-              }`}
-            >
-              {t("port_blockchain")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setWalletMode("tradicional")}
-              className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
-                walletMode === "tradicional"
-                  ? "border-orange-400 bg-orange-500 text-slate-950"
-                  : "border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500"
-              }`}
-            >
-              {t("port_traditional")}
-            </button>
-          </div>
+          <Segmentos
+            valor={walletMode}
+            aoMudar={setWalletMode}
+            opcoes={[{ id: "web3", label: t("port_blockchain") }, { id: "tradicional", label: t("port_traditional") }]}
+          />
         </div>
 
         {walletMode === "web3" ? (
@@ -5214,22 +5196,7 @@ export default function WalletsPage() {
             {/* Adicionar ação/ETF manual */}
             <div className="mt-5 rounded-xl border border-slate-700 bg-slate-900/40 p-4 space-y-3">
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{t("wl_add_stock")}</p>
-              <div className="flex flex-wrap gap-2">
-                {(["Ações", "ETFs"] as const).map((cat) => (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => setCustomTickerCategory(cat)}
-                    className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                      customTickerCategory === cat
-                        ? "border-orange-400 bg-orange-500/20 text-orange-200"
-                        : "border-slate-700 text-slate-400 hover:border-slate-500"
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
+              <Segmentos tamanho="sm" valor={customTickerCategory} aoMudar={setCustomTickerCategory} opcoes={[{ id: "Ações", label: "Ações" }, { id: "ETFs", label: "ETFs" }]} />
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -5295,22 +5262,7 @@ export default function WalletsPage() {
               )}
             </div>
 
-            <div className="mt-5 flex flex-wrap gap-2">
-              {traditionalCategories.map((category) => (
-                <button
-                  key={category}
-                  type="button"
-                  onClick={() => setTraditionalCategory(category)}
-                  className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
-                    traditionalCategory === category
-                      ? "border-orange-400 bg-orange-500 text-slate-950"
-                      : "border-slate-700 bg-slate-950/60 text-slate-200 hover:border-slate-500"
-                  }`}
-                >
-                  {categoryLabel(category, t)}
-                </button>
-              ))}
-            </div>
+            <Segmentos className="mt-5" tamanho="sm" wrap valor={traditionalCategory} aoMudar={setTraditionalCategory} opcoes={traditionalCategories.map((c) => ({ id: c, label: categoryLabel(c, t) }))} />
 
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               {visibleTraditionalAssets.map((asset) => {

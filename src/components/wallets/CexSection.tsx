@@ -1,6 +1,7 @@
 "use client";
 
 import PlanBadge from "@/components/PlanBadge";
+import Segmentos from "@/components/ui/Segmentos";
 import ErrorNote from "@/components/ErrorNote";
 import VenueSection from "@/components/wallets/VenueSection";
 import { NETWORK_SHORT, networkKey } from "@/lib/wallets/networkKey";
@@ -393,22 +394,13 @@ export default function CexSection({
 
         {showAddCex && (
           <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-4 space-y-3">
-            <div className="flex gap-2 flex-wrap">
-              {EXCHANGES.map((ex) => (
-                <button
-                  key={ex.id}
-                  type="button"
-                  onClick={() => setNewExchange(ex.id as typeof newExchange)}
-                  className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                    newExchange === ex.id
-                      ? "border-orange-400 bg-orange-500/20 text-orange-200"
-                      : "border-slate-700 text-slate-400 hover:border-slate-500"
-                  }`}
-                >
-                  {ex.label}{ex.mica ? <span className="ml-1 text-[11px] text-emerald-400" title={t("cx_mica_tip")}>🇪🇺</span> : null}
-                </button>
-              ))}
-            </div>
+            <Segmentos
+              tamanho="sm"
+              wrap
+              valor={newExchange}
+              aoMudar={setNewExchange}
+              opcoes={EXCHANGES.map((ex) => ({ id: ex.id as typeof newExchange, label: (<>{ex.label}{ex.mica ? <span className="text-[11px]" title={t("cx_mica_tip")}>🇪🇺</span> : null}</>) }))}
+            />
             <input
               type="text"
               placeholder={t("cx_label_opt")}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Segmentos from "@/components/ui/Segmentos";
 import Link from "next/link";
 import { btnPrimary } from "@/lib/ui/buttons";
 import { createClient } from "@/lib/supabase/client";
@@ -399,15 +400,13 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
           {toBeta && (
             <div className="mb-4 rounded-xl border border-amber-500/40 bg-amber-500/[0.08] px-4 py-3 text-xs leading-relaxed text-amber-200">🧪 {t("lg_beta_hint")}</div>
           )}
-          <div className="mb-5 grid grid-cols-2 gap-1 rounded-full border border-slate-800 bg-slate-950 p-1" role="tablist">
-            {(["login", "signup"] as const).map((m) => (
-              <button key={m} type="button" role="tab" aria-selected={mode === m}
-                onClick={() => { setMode(m); setMessage(null); setIsError(false); setSignedUp(false); setCanResend(false); }}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${mode === m ? "bg-orange-500 text-slate-950" : "text-slate-400 hover:text-white"}`}>
-                {m === "login" ? t("lg_tab_login") : t("lg_tab_signup")}
-              </button>
-            ))}
-          </div>
+          <Segmentos
+            className="mb-5"
+            cheio
+            valor={mode}
+            aoMudar={(m) => { setMode(m); setMessage(null); setIsError(false); setSignedUp(false); setCanResend(false); }}
+            opcoes={[{ id: "login", label: t("lg_tab_login") }, { id: "signup", label: t("lg_tab_signup") }]}
+          />
 
           <div className="space-y-3">
             <div>

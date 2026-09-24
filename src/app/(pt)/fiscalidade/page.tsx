@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Segmentos from "@/components/ui/Segmentos";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { COUNTRIES, TAX_REGIMES, guideUrl, moedaDoRelatorio } from "@/lib/tax/countries";
 import { loadFxTable, type FxTable } from "@/lib/fx/historical";
@@ -1076,16 +1077,7 @@ export default function FiscalidadePage() {
           {anosDisponiveis.length > 1 && (
             <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3">
               <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t("fisc_year")}</span>
-              <div className="flex flex-wrap gap-1.5">
-                {anosDisponiveis.map((a) => (
-                  <button key={a} type="button" onClick={() => setAnoFiscal(a)} aria-pressed={a === anoAtivo}
-                    className={`press rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
-                      a === anoAtivo ? "bg-orange-500 text-slate-950" : "border border-slate-700 text-slate-300 hover:border-orange-400/50 hover:text-white"
-                    }`}>
-                    {a}
-                  </button>
-                ))}
-              </div>
+              <Segmentos tamanho="sm" wrap valor={String(anoAtivo)} aoMudar={(a) => setAnoFiscal(Number(a))} opcoes={anosDisponiveis.map((a) => ({ id: String(a), label: String(a) }))} />
               <span className="ml-auto text-[11px] text-slate-500">{t("fisc_year_hint")}</span>
             </div>
           )}

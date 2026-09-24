@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Segmentos from "@/components/ui/Segmentos";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { userError } from "@/lib/ui/userError";
 import ErrorNote from "@/components/ErrorNote";
@@ -1728,16 +1729,7 @@ export default function PortfolioPage() {
                     {chartData.length >= 2 ? fmtSigned(varRange) : ""}
                   </span>
                 </div>
-                <div className="flex gap-1 mb-3">
-                  {RANGES.map(r => (
-                    <button key={r.id} onClick={() => setChartRange(r.id)}
-                      className={`px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors ${
-                        chartRange === r.id ? "bg-orange-500 text-white" : "bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700"
-                      }`}>
-                      {r.label}
-                    </button>
-                  ))}
-                </div>
+                <Segmentos className="mb-3" tamanho="xs" valor={chartRange} aoMudar={setChartRange} opcoes={RANGES.map((r) => ({ id: r.id as string, label: r.label }))} />
                 {chartData.length >= 2 ? (
                   <div className={large ? "min-h-0 flex-1" : ""}>{evo(large)}</div>
                 ) : (

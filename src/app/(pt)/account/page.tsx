@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Segmentos from "@/components/ui/Segmentos";
 import ErrorNote from "@/components/ErrorNote";
 import { btnPrimary } from "@/lib/ui/buttons";
 import AppShell from "@/components/AppShell";
@@ -1206,23 +1207,12 @@ export default function AccountPage() {
                         {/* Modo */}
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <p className="text-xs text-slate-400">{t("ac_analysis_type")}</p>
-                          <div className="flex flex-wrap gap-1">
-                            {(["crypto", "tradicional", "both"] as const).map((m) => (
-                              <button
-                                key={m}
-                                type="button"
-                                aria-pressed={briefingMode === m}
-                                onClick={() => { setBriefingMode(m); setBriefingDirty(true); }}
-                                className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                                  briefingMode === m
-                                    ? "border-orange-400 bg-orange-500/20 text-orange-200"
-                                    : "border-slate-700 text-slate-400 hover:border-slate-500"
-                                }`}
-                              >
-                                {m === "crypto" ? t("ac_crypto") : m === "tradicional" ? t("ac_traditional") : t("ac_both")}
-                              </button>
-                            ))}
-                          </div>
+                          <Segmentos
+                            tamanho="sm"
+                            valor={briefingMode}
+                            aoMudar={(m) => { setBriefingMode(m); setBriefingDirty(true); }}
+                            opcoes={[{ id: "crypto", label: t("ac_crypto") }, { id: "tradicional", label: t("ac_traditional") }, { id: "both", label: t("ac_both") }]}
+                          />
                         </div>
                         <p className="text-[11px] text-slate-600">{t("ac_email_sent_to")} {email ?? "—"}</p>
                       </div>
