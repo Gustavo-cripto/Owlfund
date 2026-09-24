@@ -5,6 +5,7 @@ import Link from "next/link";
 import { btnPrimary } from "@/lib/ui/buttons";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { destinoDoEmail, destinoDoReset } from "@/lib/auth/emailRedirect";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { sanitizeNext } from "@/lib/auth/redirects";
 import { entrarComEthereum, entrarComSolana } from "@/lib/auth/entrarComCarteira";
@@ -38,7 +39,7 @@ function mapAuthError(err: { code?: string; message?: string } | null | undefine
 
 export default function LoginForm({ nextParam, modeParam, emailParam, errorParam }: LoginFormProps) {
   const supabase = createClient();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const nextPath = sanitizeNext(nextParam);
   const [email, setEmail] = useState(emailParam ?? "");
   const [password, setPassword] = useState("");
@@ -186,10 +187,9 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
     if (creds.password !== confirmPassword) { fail(t("lg_err_mismatch")); setLoading(false); return; }
     if (creds.password.toLowerCase() === creds.email.toLowerCase()) { fail(t("ac_password_weak")); setLoading(false); return; }
     try {
-      const origin = window.location.origin;
       const { data, error } = await supabase.auth.signUp({
         ...creds,
-        options: { emailRedirectTo: `${origin}/api/auth/callback?next=${encodeURIComponent(nextPath)}` },
+        options: { emailRedirectTo: destinoDoEmail(lang, nextPath), data: { lang } },
       });
       if (error) { fail(t(mapAuthError(error))); return; }
       // Com "confirm email" ativo, um email já registado devolve sucesso falso com
@@ -212,7 +212,7 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
     if (!nextEmail) { fail(t("lg_err_email_first")); return; }
     setLoading(true);
     try {
-      const { error } = await supabase.auth.resend({ type: "signup", email: nextEmail, options: { emailRedirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(nextPath)}` } });
+      const { error } = await supabase.auth.resend({ type: "signup", email: nextEmail, options: { emailRedirectTo: destinoDoEmail(lang, nextPath) } });
       if (error) fail(t(mapAuthError(error)));
       else { setResent(true); setMessage(t("lg_resent")); setIsError(false); }
     } catch { fail(t("lg_err_generic")); }
@@ -237,10 +237,9 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
     if (!nextEmail) { setMagicMsg({ text: t("lg_err_email_first"), error: true }); return; }
     setLoading(true); setMagicMsg(null);
     try {
-      const origin = window.location.origin;
       const { error } = await supabase.auth.signInWithOtp({
         email: nextEmail,
-        options: { shouldCreateUser: true, emailRedirectTo: `${origin}/api/auth/callback?next=${encodeURIComponent(nextPath)}` },
+        options: { shouldCreateUser: true, emailRedirectTo: destinoDoEmail(lang, nextPath), data: { lang } },
       });
       if (error) { setMagicMsg({ text: userErrorText(error.message), error: true }); return; }
       setMagicSent(true);
@@ -291,7 +290,7 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
     if (!nextEmail) { fail(t("lg_err_email_first")); return; }
     setLoading(true); setMessage(null); setIsError(false);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(nextEmail, { redirectTo: `${window.location.origin}/reset-password` });
+      const { error } = await supabase.auth.resetPasswordForEmail(nextEmail, { redirectTo: destinoDoReset(lang) });
       if (error) fail(t(mapAuthError(error)));
       else { setMessage(t("lg_reset_sent")); setIsError(false); }
     } catch { fail(t("lg_err_generic")); }
