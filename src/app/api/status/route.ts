@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { alchemyNftUrl } from "@/lib/providers/alchemy";
 import { rateLimitPublic } from "@/lib/api/requireUser";
 import { cgFetch } from "@/lib/market/coingecko";
 
@@ -59,7 +60,8 @@ export async function GET(req: Request) {
     // A API de NFTs e outro servico da Alchemy (nft/v3), com quota e permissoes
     // proprias: o eth_blockNumber acima pode estar OK e esta em baixo.
     { id: "alchemy_nft", nome: "Alchemy NFT", funcao: "NFTs e posicoes Uniswap V4 (API v3)",
-      run: alchemyKey ? () => get(`https://eth-mainnet.g.alchemy.com/nft/v3/${alchemyKey}/getNFTsForOwner?owner=0xC36442b4a4522E871399CD717aBDD847Ab11FE88&pageSize=1&withMetadata=false`) : null },
+      // O mesmo URL que a app usa (filtros incluidos): se este falhar, falha para todos.
+      run: alchemyKey ? () => get(alchemyNftUrl("0xC36442b4a4522E871399CD717aBDD847Ab11FE88", "eth", 1)) : null },
     { id: "frankfurter", nome: "Frankfurter (BCE)", funcao: "câmbios históricos",
       run: () => get("https://api.frankfurter.dev/v1/latest?symbols=USD") },
     { id: "twelvedata", nome: "Twelve Data", funcao: "ações, ETFs e índices",

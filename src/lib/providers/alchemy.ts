@@ -158,12 +158,7 @@ export async function alchemyNftTokenIds(address: string, chain: EvmChainKey, co
   const ids: string[] = [];
   let pageKey: string | undefined;
   for (let pagina = 0; pagina < 3; pagina++) {
-    const url = new URL(`https://${SUBDOMAIN[chain]}.g.alchemy.com/nft/v3/${key()}/getNFTsForOwner`);
-    url.searchParams.set("owner", address);
-    url.searchParams.set("withMetadata", "false");
-    url.searchParams.set("pageSize", "100");
-    url.searchParams.append("contractAddresses[]", contract);
-    if (pageKey) url.searchParams.set("pageKey", pageKey);
+    const url = `https://${SUBDOMAIN[chain]}.g.alchemy.com/nft/v3/${key()}/getNFTsForOwner?owner=${encodeURIComponent(address)}&withMetadata=false&pageSize=100&contractAddresses[]=${encodeURIComponent(contract)}${pageKey ? `&pageKey=${encodeURIComponent(pageKey)}` : ""}`;
     const res = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(12000), next: { revalidate: 120 } });
     if (!res.ok) throw new AlchemyError(`Alchemy NFT ${res.status}`, res.status);
     const json = (await res.json()) as { ownedNfts?: Array<{ tokenId?: string }>; pageKey?: string | null };
@@ -175,12 +170,14 @@ export async function alchemyNftTokenIds(address: string, chain: EvmChainKey, co
 }
 
 /** NFTs de um endereço numa rede (sem spam). Lança AlchemyError em falha HTTP. */
+/** URL exato do pedido de NFTs — partilhado com /api/status para a verificacao usar o mesmo caminho. */
+export function alchemyNftUrl(address: string, chain: EvmChainKey, pageSize = 50): string {
+  // Parentesis retos literais: com %5B%5D (URLSearchParams) a Alchemy respondia 400 em todas as redes.
+  return `https://${SUBDOMAIN[chain]}.g.alchemy.com/nft/v3/${key()}/getNFTsForOwner?owner=${encodeURIComponent(address)}&withMetadata=true&pageSize=${pageSize}&excludeFilters[]=SPAM`;
+}
+
 export async function alchemyNftsForOwner(address: string, chain: EvmChainKey, pageSize = 50): Promise<{ nfts: AlchemyNft[]; total: number }> {
-  const url = new URL(`https://${SUBDOMAIN[chain]}.g.alchemy.com/nft/v3/${key()}/getNFTsForOwner`);
-  url.searchParams.set("owner", address);
-  url.searchParams.set("withMetadata", "true");
-  url.searchParams.set("pageSize", String(pageSize));
-  url.searchParams.append("excludeFilters[]", "SPAM");
+  const url = alchemyNftUrl(address, chain, pageSize);
   const res = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(12000), next: { revalidate: 300 } });
   if (!res.ok) throw new AlchemyError(`Alchemy NFT ${res.status}`, res.status);
   const json = (await res.json()) as NftV3Response;
