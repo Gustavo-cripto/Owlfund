@@ -434,10 +434,10 @@ export default function Landing() {
             <table className="w-full min-w-[640px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-slate-800">
-                  <th className="px-5 py-4 text-left font-semibold text-slate-400"></th>
-                  <th className="px-4 py-4 text-center font-semibold text-slate-400">{t("lp_cmp_col_sheet")}</th>
-                  <th className="px-4 py-4 text-center font-semibold text-slate-400">{t("lp_cmp_col_generic")}</th>
-                  <th className="px-4 py-4 text-center font-bold text-orange-300">
+                  <th scope="col" className="px-5 py-4 text-left font-semibold text-slate-400"><span className="sr-only">{t("lp_cmp_title")}</span></th>
+                  <th scope="col" className="px-4 py-4 text-center font-semibold text-slate-400">{t("lp_cmp_col_sheet")}</th>
+                  <th scope="col" className="px-4 py-4 text-center font-semibold text-slate-400">{t("lp_cmp_col_generic")}</th>
+                  <th scope="col" className="px-4 py-4 text-center font-bold text-orange-300">
                     <span className="inline-flex items-center gap-2">
                       <img src="/chainfolioai-icon.png" alt="" className="h-5 w-5 rounded object-cover" />
                       ChainFolioAI
@@ -448,7 +448,7 @@ export default function Landing() {
               <tbody>
                 {COMPARISON.map((r) => (
                   <tr key={r.l} className="border-b border-slate-800/60 last:border-0">
-                    <td className="px-5 py-4 text-left font-medium text-slate-200">{t(r.l)}</td>
+                    <th scope="row" className="px-5 py-4 text-left font-medium text-slate-200">{t(r.l)}</th>
                     <td className="px-4 py-4 text-center text-slate-500">{t(r.a)}</td>
                     <td className="px-4 py-4 text-center text-slate-400">{t(r.b)}</td>
                     <td className="bg-orange-500/[0.06] px-4 py-4 text-center font-semibold text-orange-200">{t(r.c)}</td>

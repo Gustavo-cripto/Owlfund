@@ -40,16 +40,16 @@ export default function ParceirosHardware() {
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-950/80 text-lg ring-1 ring-inset ring-white/10" aria-hidden>{m.selo}</span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-bold text-white">{m.nome}</span>
-                  <span className="block truncate text-[11px] text-slate-500">{t(m.descKey)}</span>
+                  <span className="block truncate text-[11px] text-slate-400">{t(m.descKey)}</span>
                 </span>
-                <span className="shrink-0 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[11px] font-semibold text-emerald-300 ring-1 ring-inset ring-emerald-400/30 group-hover:bg-emerald-500/25">
+                <span className="shrink-0 rounded-full bg-emerald-400 px-3 py-1.5 text-[11px] font-bold text-slate-950 ring-1 ring-inset ring-white/20 transition group-hover:bg-emerald-300">
                   {t("hw_cta").replace("{marca}", m.nome)}
                 </span>
               </a>
             ))}
           </div>
         </div>
-        <p className="mt-3 text-[11px] text-slate-500">{AFILIADO ? t("hw_aff_note") : t("hw_direct_note")}</p>
+        <p className="mt-3 text-[11px] text-slate-400">{AFILIADO ? t("hw_aff_note") : t("hw_direct_note")}</p>
       </div>
     </aside>
   );
