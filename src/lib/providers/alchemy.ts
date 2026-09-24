@@ -172,8 +172,11 @@ export async function alchemyNftTokenIds(address: string, chain: EvmChainKey, co
 /** NFTs de um endereço numa rede (sem spam). Lança AlchemyError em falha HTTP. */
 /** URL exato do pedido de NFTs — partilhado com /api/status para a verificacao usar o mesmo caminho. */
 export function alchemyNftUrl(address: string, chain: EvmChainKey, pageSize = 50): string {
-  // Parentesis retos literais: com %5B%5D (URLSearchParams) a Alchemy respondia 400 em todas as redes.
-  return `https://${SUBDOMAIN[chain]}.g.alchemy.com/nft/v3/${key()}/getNFTsForOwner?owner=${encodeURIComponent(address)}&withMetadata=true&pageSize=${pageSize}&excludeFilters[]=SPAM`;
+  // Sem `excludeFilters[]=SPAM`: no plano gratuito a Alchemy responde 403 a esse
+  // filtro (e 400 quando vinha com os parentesis codificados) — era isto que
+  // punha os NFTs a "0 itens" em todas as redes. O spam continua a ser tirado
+  // do nosso lado, pelo `contract.isSpam` que a resposta traz.
+  return `https://${SUBDOMAIN[chain]}.g.alchemy.com/nft/v3/${key()}/getNFTsForOwner?owner=${encodeURIComponent(address)}&withMetadata=true&pageSize=${pageSize}`;
 }
 
 export async function alchemyNftsForOwner(address: string, chain: EvmChainKey, pageSize = 50): Promise<{ nfts: AlchemyNft[]; total: number }> {
