@@ -4,6 +4,9 @@
 
 ## What it does
 - Consolidates crypto (on-chain wallets, exchanges, DeFi, NFTs, stablecoins, manual assets) and traditional assets (stocks, ETFs, gold) in one dashboard.
+- Exchanges: 13 connected by read-only API key (10 of them MiCA-licensed in the EU: Kraken, Coinbase, OKX, Bybit, Crypto.com, Bitpanda, Bitvavo, Bitstamp, Bit2Me, Revolut X; plus Nexo Pro, Binance, CoinEx), CSV import and manual entry for the rest. Keys stay in the browser by default, or encrypted (AES-256-GCM) on the server if the user opts in.
+- NFTs on 9 EVM networks, Solana, Cardano and Bitcoin (Ordinals), read through Alchemy/Helius/Blockfrost; spam collections filtered.
+- Sign-in: email + password, passwordless email link, Google, or a wallet signature (MetaMask on Ethereum, Phantom on Solana — Sign-In with Ethereum/Solana, no email needed). A wallet-only account has no email and receives no emails until one is added.
 - DeFi positions read directly from the chain, no third-party aggregator: Aave V3, Spark, Compound V3, Morpho, EigenLayer, and Uniswap V2/V3/V4 (Ethereum and major L2s). Other protocols may be missing; the app labels such totals as "partial".
 - Real-time profit/loss (PNL), portfolio Score (0-100), and benchmarks vs BTC, ETH, S&P 500 and Gold.
 - Portfolio chart with candles and selectable moving averages (SMA 7/20/50/100/200, EMA 9/21), over history rebuilt point by point.
@@ -34,6 +37,7 @@
 - [How it works](https://chainfolioai.com/como-funciona): tool-by-tool walkthrough.
 - [Crypto tax guides](https://chainfolioai.com/guias/impostos-cripto): 21 countries, rates, holding periods and reference law.
 - [Pricing](https://chainfolioai.com/pricing): Free (€0), Pro (€14.99/mo), Premium (€39/mo). Card (Stripe) or crypto stablecoins (Helio).
+- [Beta](https://chainfolioai.com/beta): open until 15 January 2027 — testers get Premium free for 60 days; payments are off during the beta.
 - [Developers (API + MCP)](https://chainfolioai.com/developers): programmatic access for apps and AI agents.
 - [Status](https://chainfolioai.com/estado): live status of the data sources we depend on.
 - [Terms](https://chainfolioai.com/termos)
