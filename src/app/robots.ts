@@ -27,7 +27,11 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: "/",
+        // As tres rotas publicas da API sao "livres de consultar e citar" (llms.txt
+        // e diretorios MCP): tem de ficar de fora do Disallow /api/, senao os
+        // rastreadores de IA que respeitam o robots nunca as leem. A regra mais
+        // especifica ganha; "$" fecha o indice para nao abrir /api/v1/<privado>.
+        allow: ["/", "/api/v1$", "/api/v1/tax-countries", "/api/v1/global"],
         disallow: PRIVATE_PATHS,
       },
     ],
