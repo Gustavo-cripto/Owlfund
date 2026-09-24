@@ -879,44 +879,35 @@ export default function FiscalidadePage() {
               <h1 className="mt-2 text-2xl font-bold text-white">{t("fisc_title")}</h1>
               <p className="mt-1 text-sm text-slate-400">{t("fisc_subtitle")}</p>
             </div>
-            {/* País */}
+            {/* País: os disponiveis no controlo segmentado; os bloqueados ficam
+                ao lado como ligacoes de upgrade, com o cadeado do plano. */}
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs text-slate-400">{t("fisc_country")}:</span>
-              {FREE_COUNTRIES.map(c => (
-                <button key={c} onClick={() => setCountry(c)}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${country === c ? "bg-orange-500 text-slate-950" : "border border-slate-700 text-slate-400 hover:border-orange-400/40 hover:text-orange-200"}`}>
-                  {c}
-                </button>
+              <Segmentos
+                tamanho="sm"
+                wrap
+                valor={country}
+                aoMudar={setCountry}
+                label={t("fisc_country")}
+                opcoes={[
+                  ...FREE_COUNTRIES.map((c) => ({ id: c as string, label: c as string })),
+                  ...(isPro ? PRO_COUNTRIES.map((c) => ({ id: c.code, label: `${c.flag} ${c.code}`, title: `${c.flag} ${t(c.labelKey)}` })) : []),
+                  ...(isPremium ? PREMIUM_COUNTRIES.map((c) => ({ id: c.code, label: `${c.flag} ${c.code}`, title: `${c.flag} ${t(c.labelKey)}` })) : []),
+                ]}
+              />
+              {!isPro && PRO_COUNTRIES.map(c => (
+                <a key={c.code} href={upgradeHref}
+                  title={`${c.flag} ${t(c.labelKey)} — ${t("fc_plan_pro")}`}
+                  className="rounded-xl px-3 py-1.5 text-xs font-semibold border border-orange-500/25 text-orange-300/70 hover:border-orange-500/50 hover:text-orange-200 transition flex items-center gap-1">
+                  {c.flag} {c.code} 🔒
+                </a>
               ))}
-              {PRO_COUNTRIES.map(c => (
-                isPro ? (
-                  <button key={c.code} onClick={() => setCountry(c.code)}
-                    title={`${c.flag} ${t(c.labelKey)}`}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${country === c.code ? "bg-orange-500 text-slate-950" : "border border-slate-700 text-slate-400 hover:border-orange-400/40 hover:text-orange-200"}`}>
-                    {c.flag} {c.code}
-                  </button>
-                ) : (
-                  <a key={c.code} href={upgradeHref}
-                    title={`${c.flag} ${t(c.labelKey)} — ${t("fc_plan_pro")}`}
-                    className="rounded-lg px-3 py-1.5 text-xs font-bold border border-orange-500/20 text-orange-400/60 hover:border-orange-500/40 transition flex items-center gap-1">
-                    {c.flag} {c.code} 🔒
-                  </a>
-                )
-              ))}
-              {PREMIUM_COUNTRIES.map(c => (
-                isPremium ? (
-                  <button key={c.code} onClick={() => setCountry(c.code)}
-                    title={`${c.flag} ${t(c.labelKey)}`}
-                    className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${country === c.code ? "bg-violet-600 text-white" : "border border-slate-700 text-slate-400 hover:border-violet-400/40 hover:text-violet-200"}`}>
-                    {c.flag} {c.code}
-                  </button>
-                ) : (
-                  <a key={c.code} href={upgradeHref}
-                    title={`${c.flag} ${t(c.labelKey)} — ${t("fc_plan_premium")}`}
-                    className="rounded-lg px-3 py-1.5 text-xs font-bold border border-violet-500/20 text-violet-400/60 hover:border-violet-500/40 transition flex items-center gap-1">
-                    {c.flag} {c.code} 💎
-                  </a>
-                )
+              {!isPremium && PREMIUM_COUNTRIES.map(c => (
+                <a key={c.code} href={upgradeHref}
+                  title={`${c.flag} ${t(c.labelKey)} — ${t("fc_plan_premium")}`}
+                  className="rounded-xl px-3 py-1.5 text-xs font-semibold border border-violet-500/25 text-violet-300/70 hover:border-violet-500/50 hover:text-violet-200 transition flex items-center gap-1">
+                  {c.flag} {c.code} 💎
+                </a>
               ))}
             </div>
           </div>
