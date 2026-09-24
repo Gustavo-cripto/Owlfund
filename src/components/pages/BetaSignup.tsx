@@ -6,7 +6,8 @@ import { btnPrimary } from "@/lib/ui/buttons";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { pageUrl } from "@/lib/i18n/routes";
 import type { TranslationKey } from "@/lib/i18n/translations";
-import { comSupabase } from "@/lib/supabase/lazy";
+import { comSupabase, getSupabase } from "@/lib/supabase/lazy";
+import { destinoDoEmail } from "@/lib/auth/emailRedirect";
 
 const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
 const ERR_KEY: Record<string, TranslationKey> = { rate_limited: "beta_err_rate", bad_email: "beta_bad_email", send_failed: "beta_err", bad_request: "beta_err" };
@@ -87,6 +88,9 @@ export default function BetaSignup() {
   const [note, setNote] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "ok" | "error">("idle");
   const [err, setErr] = useState("");
+  // Um passo so: a seguir a inscricao, sem sessao, enviamos a ligacao por
+  // email que cria a conta ao abrir. null = nao tentado (ja havia conta).
+  const [linkEnviado, setLinkEnviado] = useState<boolean | null>(null);
 
   // Beta encerrado a novos testers a partir da data de corte (env).
   const betaClosed = (() => {
@@ -135,6 +139,18 @@ export default function BetaSignup() {
         throw new Error(code === "beta_closed" ? t("beta_closed_body") : t(ERR_KEY[code] ?? "beta_err"));
       }
       setAlready(!!j?.already);
+      if (!temConta) {
+        // A inscricao ja esta segura; a ligacao e o melhor esforco. Se falhar
+        // (limite de envios, rede), fica o botao "Criar conta / entrar".
+        try {
+          const c = await getSupabase();
+          const { error } = await c.auth.signInWithOtp({
+            email: email.trim(),
+            options: { shouldCreateUser: true, emailRedirectTo: destinoDoEmail(lang, "/dashboard"), data: { lang } },
+          });
+          setLinkEnviado(!error);
+        } catch { setLinkEnviado(false); }
+      }
       setState("ok");
     } catch (e2) {
       setErr(e2 instanceof Error ? e2.message : t("beta_err"));
@@ -176,9 +192,9 @@ export default function BetaSignup() {
                 criar outra, e quem nao tem precisa de ver que FALTA o passo 2,
                 e nao um agradecimento que soa a fim de linha. */}
             <p className="mt-2 text-sm leading-relaxed text-slate-300">
-              {temConta ? t("beta_ok_body_account") : t("beta_ok_body")}
+              {temConta ? t("beta_ok_body_account") : linkEnviado ? t("beta_ok_body").replace("{email}", email.trim()) : t("beta_ok_link_fail")}
             </p>
-            {!temConta && (
+            {!temConta && !linkEnviado && (
               // Nao ha reencaminhamento automatico de proposito: levar a pessoa
               // para fora sem ela mandar parece avaria e tira-lhe a confirmacao
               // de que a inscricao resultou. Em vez disso o remate e este botao,
