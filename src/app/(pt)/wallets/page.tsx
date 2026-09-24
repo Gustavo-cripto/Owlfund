@@ -7,6 +7,7 @@ import ErrorNote from "@/components/ErrorNote";
 import { cleanDecimalInput, parseDecimal } from "@/lib/format/decimal";
 import { FREE_WALLET_LIMIT } from "@/lib/plans";
 import { btnPrimary } from "@/lib/ui/buttons";
+import ParceirosHardware from "@/components/wallets/ParceirosHardware";
 
 import AppShell from "@/components/AppShell";
 import EmptyState from "@/components/EmptyState";
@@ -5845,6 +5846,9 @@ export default function WalletsPage() {
             </div>
           ) : null}
         </section>
+        {/* ── Carteiras fisicas (Ledger & Trezor) em primeiro lugar, para toda a gente ── */}
+        <ParceirosHardware />
+
         {/* ── CEX + Hyperliquid + Ledger ── */}
         {isPro ? (
           <CexSection

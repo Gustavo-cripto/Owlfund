@@ -35,9 +35,9 @@ type Props<T extends string> = {
 };
 
 const TAMANHO = {
-  xs: "px-2.5 py-1 text-[11px]",
-  sm: "px-3 py-1.5 text-xs",
-  md: "px-4 py-2 text-sm",
+  xs: "px-3 py-1.5 text-[11px]",
+  sm: "px-3.5 py-2 text-xs",
+  md: "px-5 py-2.5 text-sm",
 } as const;
 
 const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
@@ -72,12 +72,12 @@ export default function Segmentos<T extends string>({
       ref={calha}
       role="tablist"
       aria-label={label}
-      className={`relative ${cheio ? "flex w-full" : "inline-flex max-w-full"} ${wrap ? "flex-wrap" : ""} gap-1 rounded-2xl border border-slate-800 bg-slate-950/70 p-1 shadow-inner shadow-black/30 backdrop-blur ${className}`}
+      className={`relative ${cheio ? "flex w-full" : "inline-flex max-w-full"} ${wrap ? "flex-wrap" : ""} gap-1.5 rounded-2xl border border-slate-700/80 bg-slate-900/80 p-1.5 shadow-lg shadow-black/30 backdrop-blur ${className}`}
     >
       {deslizante && (
         <span
           aria-hidden
-          className="pointer-events-none absolute top-1 bottom-1 rounded-xl bg-gradient-to-b from-orange-400 to-orange-500 ring-1 ring-inset ring-white/20 shadow-md shadow-orange-500/30 transition-[left,width] duration-300 ease-[cubic-bezier(.2,.8,.2,1)] motion-reduce:transition-none"
+          className="pointer-events-none absolute top-1 bottom-1 rounded-xl bg-gradient-to-b from-orange-400 to-orange-500 ring-1 ring-inset ring-white/25 shadow-lg shadow-orange-500/40 transition-[left,width] duration-300 ease-[cubic-bezier(.2,.8,.2,1)] motion-reduce:transition-none"
           style={{ left: cursor.left, width: cursor.width }}
         />
       )}
@@ -95,8 +95,8 @@ export default function Segmentos<T extends string>({
             disabled={o.disabled}
             onClick={() => { if (!ativo) aoMudar(o.id); }}
             className={`relative z-10 inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl font-semibold transition-colors duration-200 disabled:opacity-40 ${cheio ? "flex-1" : ""} ${TAMANHO[tamanho]} ${
-              ativo ? "text-slate-950" : "text-slate-300 hover:bg-white/[0.06] hover:text-white"
-            } ${pintaSozinho ? "bg-gradient-to-b from-orange-400 to-orange-500 ring-1 ring-inset ring-white/20 shadow-md shadow-orange-500/30" : ""}`}
+              ativo ? "font-bold text-slate-950" : "bg-white/[0.05] text-slate-100 ring-1 ring-inset ring-white/[0.08] hover:bg-white/[0.10] hover:text-white"
+            } ${pintaSozinho ? "bg-gradient-to-b from-orange-400 to-orange-500 ring-1 ring-inset ring-white/25 shadow-lg shadow-orange-500/40" : ""}`}
           >
             {typeof o.label === "function" ? o.label(ativo) : o.label}
           </button>

@@ -376,6 +376,181 @@ export default function CexSection({
 
   return (
     <div className="space-y-6 mt-8">
+      {/* ── Hardware Wallet (cold) — modo seguro read-only ── */}
+      <div className="rounded-2xl border border-emerald-500/20 bg-slate-900/60 p-5 space-y-4">
+        <div className="flex items-start gap-3">
+          <span className="text-2xl">🔐</span>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-400">Ledger &amp; Trezor</p>
+            <p className="text-sm text-slate-300 mt-0.5">{t("cx_cold_subtitle")}</p>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
+          <p className="text-xs text-emerald-200/90 leading-relaxed">{t("cx_security_full")}</p>
+        </div>
+
+        <div className="space-y-2.5">
+          <p className="text-xs font-semibold text-slate-300">{t("cx_how_add")}</p>
+          <div className="space-y-2 text-xs text-slate-400">
+            <p><span className="text-emerald-400 font-semibold">1.</span> {t("cx_step1")}</p>
+            <p><span className="text-emerald-400 font-semibold">2.</span> {t("cx_step2a")} <strong className="text-slate-200">{t("cx_receive")}</strong> {t("cx_step2b")}</p>
+            <p><span className="text-emerald-400 font-semibold">3.</span> {t("cx_step3a")} <strong className="text-slate-200">{t("cx_add")}</strong></p>
+          </div>
+        </div>
+
+        {/* Form inline: rede + endereço + adicionar */}
+        <div className="space-y-2 pt-1">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <select
+              value={coldNetwork}
+              onChange={(e) => setColdNetwork(e.target.value)}
+              className="rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-xs text-slate-200 outline-none focus:border-emerald-400 sm:w-[180px]"
+            >
+              {coldWalletNetworks.length > 0 ? (
+                coldWalletNetworks.map((n) => (
+                  <option key={n.id} value={n.id}>{n.label}</option>
+                ))
+              ) : (
+                <>
+                  <option value="eth">Ethereum (ETH)</option>
+                  <option value="btc">Bitcoin (BTC)</option>
+                  <option value="sol">Solana (SOL)</option>
+                  <option value="ada">Cardano (ADA)</option>
+                </>
+              )}
+            </select>
+            <input
+              type="text"
+              value={coldAddress}
+              onChange={(e) => setColdAddress(e.target.value)}
+              placeholder={t("cx_paste_addr")}
+              className="flex-1 rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-xs text-slate-200 placeholder:text-slate-600 outline-none focus:border-emerald-400"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setColdError(null);
+              setColdSuccess(null);
+              if (!onAddColdWalletAddress) { setColdError(t("cx_load_fail")); return; }
+              const err = onAddColdWalletAddress(coldAddress, coldNetwork);
+              if (err) { setColdError(err); return; }
+              setColdSuccess("✓ " + t("cx_add_cold"));
+              setColdAddress("");
+            }}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500/90 px-4 py-3 text-sm font-bold text-slate-950 hover:bg-emerald-400 transition"
+          >
+            <span>📋</span>
+            <span>{t("cx_add_cold")}</span>
+          </button>
+          {coldError && <ErrorNote>{coldError}</ErrorNote>}
+          {coldSuccess && <p className="text-xs text-emerald-400">{coldSuccess}</p>}
+        </div>
+
+        <p className="text-[11px] text-slate-600 leading-relaxed">{t("cx_reads_auto")}</p>
+
+        {/* Endereços adicionados — ver e remover */}
+        {addedAddresses.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-slate-300">{t("cx_added_addrs")} ({addedAddresses.length})</p>
+            <div className="space-y-1.5">
+              {addedAddresses.map((e) => {
+                const key = `${e.kind}:${e.networkLabel}:${e.address}`;
+                const shown = !!coldShown[key];
+                // Distinguir os três estados. Um saldo de 0 é um valor válido (não é
+                // "a carregar"), e uma consulta falhada grava "—" (Number → NaN).
+                // Redes sem leitura de saldo vêm sem símbolo.
+                const balanceNum = e.balance == null ? null : Number(e.balance);
+                const balanceReady = balanceNum != null && Number.isFinite(balanceNum);
+                const balanceUnavailable = !balanceReady && (e.balance != null || !e.symbol);
+                const fmtUsd = (v: number) => formatUsd(v, { decimals: 2 });
+                return (
+                  <div key={key} className="rounded-xl border border-slate-700/60 bg-slate-950/40 px-3 py-2.5 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-md bg-slate-800 px-2 py-0.5 text-[11px] font-semibold text-slate-300">{e.networkLabel}</span>
+                      <span className="flex-1 truncate font-mono text-[11px] text-slate-400">
+                        {shown ? e.address : <span className="tracking-widest text-slate-600 select-none">••••••••</span>}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setColdShown((prev) => ({ ...prev, [key]: !prev[key] }))}
+                        className="rounded-full border border-slate-700 px-2 py-1 text-[11px] text-slate-400 transition hover:border-slate-500 hover:text-slate-200"
+                        title={shown ? t("cx_hide_addr") : t("cx_show_addr")}
+                      >
+                        {shown ? "🙈" : "👁"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onRemoveAddress?.(e.address, e.kind, e.networkLabel)}
+                        className="rounded-full border border-rose-400/40 px-2.5 py-1 text-[11px] font-semibold text-rose-300 transition hover:border-rose-400 hover:text-white"
+                      >
+                        {t("cx_remove")}
+                      </button>
+                    </div>
+                    {/* Saldo · NFTs · DeFi */}
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pl-1 text-[11px]">
+                      <span className="text-slate-400">
+                        <span className="text-slate-500">{t("cx_balance")}</span>{" "}
+                        {hideBalances ? (
+                          <span className="font-semibold tracking-widest text-slate-500 select-none">••••</span>
+                        ) : balanceReady ? (
+                          <span className="font-semibold text-slate-200">
+                            {balanceNum.toLocaleString(numberFormat, { maximumFractionDigits: 6 })} {e.symbol}
+                            {e.fiatUsd != null ? <span className="text-slate-500"> ({fmtUsd(e.fiatUsd)})</span> : null}
+                          </span>
+                        ) : balanceUnavailable ? (
+                          <span className="text-slate-600">—</span>
+                        ) : (
+                          <span className="text-slate-600">{t("cx_loading")}</span>
+                        )}
+                      </span>
+                      <span className="text-slate-400">
+                        <span className="text-slate-500">{t("cx_nfts")}</span>{" "}
+                        <span className="font-semibold text-slate-200">{hideBalances ? "••••" : e.nftCount != null ? e.nftCount : "—"}</span>
+                      </span>
+                      <span className="text-slate-400">
+                        <span className="text-slate-500">{t("cx_defi")}</span>{" "}
+                        <span className="font-semibold text-emerald-300">{e.defiUsd != null ? fmtUsd(e.defiUsd) : "—"}</span>
+                      </span>
+                    </div>
+                    {/* Tokens (wETH, USDC, etc.) — exclui o nativo da rede desta carteira (ja no Saldo);
+                        o nativo de OUTRAS redes (ETH na Arbitrum, POL na Polygon…) mostra-se com a rede. */}
+                    {(() => {
+                      const ownNet = networkKey(e.networkLabel);
+                      const toks = (tokensByAddress[`${e.kind}:${e.address}`] ?? [])
+                        .filter((t) => !(t.address === "native" && (!t.network || t.network === ownNet)) && Number(t.balance) > 0)
+                        .sort((a, b) => b.usdValue - a.usdValue);
+                      if (toks.length === 0) return null;
+                      return (
+                        <div className="mt-1 space-y-1 rounded-lg border border-slate-800 bg-slate-900/40 px-2.5 py-2">
+                          <p className="text-[11px] uppercase tracking-wider text-slate-500">{t("cx_tokens")} ({toks.length})</p>
+                          {toks.map((t) => (
+                            <div key={`${t.network ?? t.chain}:${t.address}:${t.symbol}`} className="flex items-center justify-between gap-2 text-[11px]">
+                              <span className="truncate text-slate-300">
+                                {hideBalances ? "••••" : Number(t.balance).toLocaleString(numberFormat, { maximumFractionDigits: 4 })} <span className="font-semibold">{t.symbol}</span>
+                                {t.network && t.network !== ownNet && (
+                                  <span className="ml-1.5 rounded border border-slate-700 px-1 py-px text-[11px] uppercase tracking-wide text-slate-400">{NETWORK_SHORT[t.network] ?? t.network}</span>
+                                )}
+                              </span>
+                              <span className="shrink-0 text-slate-400">{t.usdValue > 0 ? fmtUsd(t.usdValue) : "—"}</span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <div className="rounded-xl border border-slate-700/60 bg-slate-950/40 px-4 py-3">
+          <p className="text-[11px] text-slate-400 leading-relaxed">{t("cx_storage_note")}</p>
+        </div>
+      </div>
+
       {/* ── CEX ── */}
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 space-y-4">
         <div className="flex items-center justify-between">
@@ -767,180 +942,6 @@ export default function CexSection({
         </div>
       </div>
 
-      {/* ── Hardware Wallet (cold) — modo seguro read-only ── */}
-      <div className="rounded-2xl border border-emerald-500/20 bg-slate-900/60 p-5 space-y-4">
-        <div className="flex items-start gap-3">
-          <span className="text-2xl">🔐</span>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-400">Ledger &amp; Trezor</p>
-            <p className="text-sm text-slate-300 mt-0.5">{t("cx_cold_subtitle")}</p>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
-          <p className="text-xs text-emerald-200/90 leading-relaxed">{t("cx_security_full")}</p>
-        </div>
-
-        <div className="space-y-2.5">
-          <p className="text-xs font-semibold text-slate-300">{t("cx_how_add")}</p>
-          <div className="space-y-2 text-xs text-slate-400">
-            <p><span className="text-emerald-400 font-semibold">1.</span> {t("cx_step1")}</p>
-            <p><span className="text-emerald-400 font-semibold">2.</span> {t("cx_step2a")} <strong className="text-slate-200">{t("cx_receive")}</strong> {t("cx_step2b")}</p>
-            <p><span className="text-emerald-400 font-semibold">3.</span> {t("cx_step3a")} <strong className="text-slate-200">{t("cx_add")}</strong></p>
-          </div>
-        </div>
-
-        {/* Form inline: rede + endereço + adicionar */}
-        <div className="space-y-2 pt-1">
-          <div className="flex flex-col sm:flex-row gap-2">
-            <select
-              value={coldNetwork}
-              onChange={(e) => setColdNetwork(e.target.value)}
-              className="rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-xs text-slate-200 outline-none focus:border-emerald-400 sm:w-[180px]"
-            >
-              {coldWalletNetworks.length > 0 ? (
-                coldWalletNetworks.map((n) => (
-                  <option key={n.id} value={n.id}>{n.label}</option>
-                ))
-              ) : (
-                <>
-                  <option value="eth">Ethereum (ETH)</option>
-                  <option value="btc">Bitcoin (BTC)</option>
-                  <option value="sol">Solana (SOL)</option>
-                  <option value="ada">Cardano (ADA)</option>
-                </>
-              )}
-            </select>
-            <input
-              type="text"
-              value={coldAddress}
-              onChange={(e) => setColdAddress(e.target.value)}
-              placeholder={t("cx_paste_addr")}
-              className="flex-1 rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2.5 text-xs text-slate-200 placeholder:text-slate-600 outline-none focus:border-emerald-400"
-            />
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setColdError(null);
-              setColdSuccess(null);
-              if (!onAddColdWalletAddress) { setColdError(t("cx_load_fail")); return; }
-              const err = onAddColdWalletAddress(coldAddress, coldNetwork);
-              if (err) { setColdError(err); return; }
-              setColdSuccess("✓ " + t("cx_add_cold"));
-              setColdAddress("");
-            }}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500/90 px-4 py-3 text-sm font-bold text-slate-950 hover:bg-emerald-400 transition"
-          >
-            <span>📋</span>
-            <span>{t("cx_add_cold")}</span>
-          </button>
-          {coldError && <ErrorNote>{coldError}</ErrorNote>}
-          {coldSuccess && <p className="text-xs text-emerald-400">{coldSuccess}</p>}
-        </div>
-
-        <p className="text-[11px] text-slate-600 leading-relaxed">{t("cx_reads_auto")}</p>
-
-        {/* Endereços adicionados — ver e remover */}
-        {addedAddresses.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-slate-300">{t("cx_added_addrs")} ({addedAddresses.length})</p>
-            <div className="space-y-1.5">
-              {addedAddresses.map((e) => {
-                const key = `${e.kind}:${e.networkLabel}:${e.address}`;
-                const shown = !!coldShown[key];
-                // Distinguir os três estados. Um saldo de 0 é um valor válido (não é
-                // "a carregar"), e uma consulta falhada grava "—" (Number → NaN).
-                // Redes sem leitura de saldo vêm sem símbolo.
-                const balanceNum = e.balance == null ? null : Number(e.balance);
-                const balanceReady = balanceNum != null && Number.isFinite(balanceNum);
-                const balanceUnavailable = !balanceReady && (e.balance != null || !e.symbol);
-                const fmtUsd = (v: number) => formatUsd(v, { decimals: 2 });
-                return (
-                  <div key={key} className="rounded-xl border border-slate-700/60 bg-slate-950/40 px-3 py-2.5 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="rounded-md bg-slate-800 px-2 py-0.5 text-[11px] font-semibold text-slate-300">{e.networkLabel}</span>
-                      <span className="flex-1 truncate font-mono text-[11px] text-slate-400">
-                        {shown ? e.address : <span className="tracking-widest text-slate-600 select-none">••••••••</span>}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setColdShown((prev) => ({ ...prev, [key]: !prev[key] }))}
-                        className="rounded-full border border-slate-700 px-2 py-1 text-[11px] text-slate-400 transition hover:border-slate-500 hover:text-slate-200"
-                        title={shown ? t("cx_hide_addr") : t("cx_show_addr")}
-                      >
-                        {shown ? "🙈" : "👁"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onRemoveAddress?.(e.address, e.kind, e.networkLabel)}
-                        className="rounded-full border border-rose-400/40 px-2.5 py-1 text-[11px] font-semibold text-rose-300 transition hover:border-rose-400 hover:text-white"
-                      >
-                        {t("cx_remove")}
-                      </button>
-                    </div>
-                    {/* Saldo · NFTs · DeFi */}
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pl-1 text-[11px]">
-                      <span className="text-slate-400">
-                        <span className="text-slate-500">{t("cx_balance")}</span>{" "}
-                        {hideBalances ? (
-                          <span className="font-semibold tracking-widest text-slate-500 select-none">••••</span>
-                        ) : balanceReady ? (
-                          <span className="font-semibold text-slate-200">
-                            {balanceNum.toLocaleString(numberFormat, { maximumFractionDigits: 6 })} {e.symbol}
-                            {e.fiatUsd != null ? <span className="text-slate-500"> ({fmtUsd(e.fiatUsd)})</span> : null}
-                          </span>
-                        ) : balanceUnavailable ? (
-                          <span className="text-slate-600">—</span>
-                        ) : (
-                          <span className="text-slate-600">{t("cx_loading")}</span>
-                        )}
-                      </span>
-                      <span className="text-slate-400">
-                        <span className="text-slate-500">{t("cx_nfts")}</span>{" "}
-                        <span className="font-semibold text-slate-200">{hideBalances ? "••••" : e.nftCount != null ? e.nftCount : "—"}</span>
-                      </span>
-                      <span className="text-slate-400">
-                        <span className="text-slate-500">{t("cx_defi")}</span>{" "}
-                        <span className="font-semibold text-emerald-300">{e.defiUsd != null ? fmtUsd(e.defiUsd) : "—"}</span>
-                      </span>
-                    </div>
-                    {/* Tokens (wETH, USDC, etc.) — exclui o nativo da rede desta carteira (ja no Saldo);
-                        o nativo de OUTRAS redes (ETH na Arbitrum, POL na Polygon…) mostra-se com a rede. */}
-                    {(() => {
-                      const ownNet = networkKey(e.networkLabel);
-                      const toks = (tokensByAddress[`${e.kind}:${e.address}`] ?? [])
-                        .filter((t) => !(t.address === "native" && (!t.network || t.network === ownNet)) && Number(t.balance) > 0)
-                        .sort((a, b) => b.usdValue - a.usdValue);
-                      if (toks.length === 0) return null;
-                      return (
-                        <div className="mt-1 space-y-1 rounded-lg border border-slate-800 bg-slate-900/40 px-2.5 py-2">
-                          <p className="text-[11px] uppercase tracking-wider text-slate-500">{t("cx_tokens")} ({toks.length})</p>
-                          {toks.map((t) => (
-                            <div key={`${t.network ?? t.chain}:${t.address}:${t.symbol}`} className="flex items-center justify-between gap-2 text-[11px]">
-                              <span className="truncate text-slate-300">
-                                {hideBalances ? "••••" : Number(t.balance).toLocaleString(numberFormat, { maximumFractionDigits: 4 })} <span className="font-semibold">{t.symbol}</span>
-                                {t.network && t.network !== ownNet && (
-                                  <span className="ml-1.5 rounded border border-slate-700 px-1 py-px text-[11px] uppercase tracking-wide text-slate-400">{NETWORK_SHORT[t.network] ?? t.network}</span>
-                                )}
-                              </span>
-                              <span className="shrink-0 text-slate-400">{t.usdValue > 0 ? fmtUsd(t.usdValue) : "—"}</span>
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        <div className="rounded-xl border border-slate-700/60 bg-slate-950/40 px-4 py-3">
-          <p className="text-[11px] text-slate-400 leading-relaxed">{t("cx_storage_note")}</p>
-        </div>
-      </div>
     </div>
   );
 }
