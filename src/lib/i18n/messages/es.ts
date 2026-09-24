@@ -2025,7 +2025,7 @@ export const es: Record<TranslationKey, string> = {
     beta_sending: "Enviando…",
     beta_ok_title: "¡Recibido! 🎉",
     beta_ok_body: "Solo falta abrir el email: enviamos un enlace a {email}. Al abrirlo en este dispositivo, tu cuenta queda creada, sin contraseña.",
-    beta_ok_link_fail: "La inscripción quedó registrada, pero no pudimos enviar el enlace de acceso ahora. Crea la cuenta con este email con el botón de abajo.",
+    beta_ok_link_fail: "La inscripción quedó registrada, pero no pudimos enviar el enlace de acceso ahora. Crea la cuenta con este email usando el botón de abajo.",
     beta_ok_cta: "Crear cuenta / entrar",
     beta_ok_cta_hint: "También puedes entrar con Google en un solo paso.",
     beta_bot_title: "¿Encontraste un problema? Háblanos por Telegram",
