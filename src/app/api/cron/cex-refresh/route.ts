@@ -6,8 +6,6 @@ import { eExchange, lerSaldos } from "@/lib/cex/leitores";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
-// Frankfurt: a Binance devolve 451 aos servidores nos EUA (regiao por omissao da Vercel).
-export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 

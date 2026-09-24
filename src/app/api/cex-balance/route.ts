@@ -5,8 +5,6 @@ import { eExchange, lerSaldos, type CexBalance, type CexBalanceResponse } from "
 
 export type { CexBalance, CexBalanceResponse };
 
-// Frankfurt: a Binance devolve 451 aos servidores nos EUA (regiao por omissao da Vercel).
-export const preferredRegion = "fra1";
 
 // Os leitores por exchange vivem em src/lib/cex/leitores.ts, partilhados com o
 // cron que actualiza as contas guardadas no servidor (src/app/api/cron/cex-refresh).
