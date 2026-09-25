@@ -1286,7 +1286,7 @@ export default function PortfolioPage() {
               <li className="flex items-start gap-2"><span className="font-black text-orange-400">3.</span> {t("pfe_s3")}</li>
             </ol>
             <Link href="/wallets" className={`${btnPrimary} mt-4 inline-flex px-5 py-2.5 text-sm`}>
-              🔗 {t("dash_connect_wallets")} →
+              🔗 {t("dash_connect_wallets")}
             </Link>
           </div>
         )}

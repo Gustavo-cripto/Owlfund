@@ -30,13 +30,58 @@ const BOT = '<a href="https://t.me/ChainFolioAiBetaBot" style="color:#38bdf8;fon
 
 // Lingua por tester: user_metadata.lang → beta_signups.lang → pt (ver src/lib/user/lang.ts).
 
+const BETA_ABERTO = () => Date.now() < new Date(process.env.NEXT_PUBLIC_BETA_CUTOFF ?? "2027-01-15T23:59:59Z").getTime();
+const BETA_LINK = (lang: Lang) => `<a href="https://chainfolioai.com/${lang === "pt" ? "" : `${lang}/`}beta" style="color:#38bdf8;font-weight:700">chainfolioai.com/${lang === "pt" ? "" : `${lang}/`}beta</a>`;
+
 const COPY: {
+  welcome: Record<Lang, (beta: boolean) => { subject: string; html: string }>;
   step1: Record<Lang, (plan: string) => { subject: string; html: string }>;
   idle: Record<Lang, (days: number) => { subject: string; html: string }>;
   d3: Record<Lang, (plan: string, end: string) => { subject: string; html: string }>;
   offer: Record<Lang, (plan: string) => { subject: string; html: string }>;
   ended: Record<Lang, () => { subject: string; html: string }>;
 } = {
+  // Boas-vindas a quem cria conta FORA do beta (os testers recebem o step1 abaixo).
+  // Um so envio, no dia seguinte a criar conta. Sem isto, uma conta gratuita
+  // normal nunca recebia nada do produto.
+  welcome: {
+    pt: (beta: boolean) => ({
+      subject: "Bem-vindo ao ChainFolioAI — o primeiro passo (2 minutos)",
+      html: shell(`<p style="color:#fff;font-size:16px;font-weight:700">A tua conta está criada 👋</p>
+        <p>O site só te serve para alguma coisa quando vê o que tens. O primeiro passo é ligar uma carteira, e leva menos de dois minutos:</p>
+        <p style="background:#1f2937;border-radius:10px;padding:12px 14px">1️⃣ Abre ${APP} → <b>Carteiras</b><br>2️⃣ Cola o <b>endereço público</b> (aquele que dás a quem te envia moedas)<br>3️⃣ Os saldos, os tokens e o histórico aparecem sozinhos</p>
+        <p>Só precisamos do endereço público. <b>Nunca pedimos chaves privadas nem seed phrase</b>, e o site é só-leitura: não move fundos nem assina nada.</p>
+        ${beta ? `<p style="background:#0c4a6e33;border:1px solid #0ea5e955;border-radius:10px;padding:12px 14px">🧪 Estamos em beta: podes ter o <b>Premium grátis durante 60 dias</b>. Inscreve-te com este email em ${BETA_LINK("pt")} e ativamos-to.</p>` : ""}
+        <p>Dúvidas ou sugestões? Responde a este email.</p>`),
+    }),
+    en: (beta: boolean) => ({
+      subject: "Welcome to ChainFolioAI — your first step (2 minutes)",
+      html: shell(`<p style="color:#fff;font-size:16px;font-weight:700">Your account is ready 👋</p>
+        <p>The site can only be useful once it can see what you hold. The first step is connecting a wallet, and it takes under two minutes:</p>
+        <p style="background:#1f2937;border-radius:10px;padding:12px 14px">1️⃣ Open ${APP} → <b>Wallets</b><br>2️⃣ Paste the <b>public address</b> (the one you give people who send you coins)<br>3️⃣ Balances, tokens and history show up on their own</p>
+        <p>We only need the public address. <b>We never ask for private keys or your seed phrase</b>, and the site is read-only: it moves nothing and signs nothing.</p>
+        ${beta ? `<p style="background:#0c4a6e33;border:1px solid #0ea5e955;border-radius:10px;padding:12px 14px">🧪 We are in beta: you can get <b>Premium free for 60 days</b>. Sign up with this email at ${BETA_LINK("en")} and we will switch it on.</p>` : ""}
+        <p>Questions or ideas? Just reply to this email.</p>`),
+    }),
+    es: (beta: boolean) => ({
+      subject: "Bienvenido a ChainFolioAI — tu primer paso (2 minutos)",
+      html: shell(`<p style="color:#fff;font-size:16px;font-weight:700">Tu cuenta ya está creada 👋</p>
+        <p>El sitio solo te sirve cuando puede ver lo que tienes. El primer paso es conectar un monedero, y lleva menos de dos minutos:</p>
+        <p style="background:#1f2937;border-radius:10px;padding:12px 14px">1️⃣ Abre ${APP} → <b>Monederos</b><br>2️⃣ Pega la <b>dirección pública</b> (la que das a quien te envía monedas)<br>3️⃣ Los saldos, los tokens y el historial aparecen solos</p>
+        <p>Solo necesitamos la dirección pública. <b>Nunca pedimos claves privadas ni tu frase semilla</b>, y el sitio es de solo lectura: no mueve fondos ni firma nada.</p>
+        ${beta ? `<p style="background:#0c4a6e33;border:1px solid #0ea5e955;border-radius:10px;padding:12px 14px">🧪 Estamos en beta: puedes tener el <b>Premium gratis durante 60 días</b>. Apúntate con este correo en ${BETA_LINK("es")} y te lo activamos.</p>` : ""}
+        <p>¿Dudas o sugerencias? Responde a este correo.</p>`),
+    }),
+    fr: (beta: boolean) => ({
+      subject: "Bienvenue sur ChainFolioAI — votre première étape (2 minutes)",
+      html: shell(`<p style="color:#fff;font-size:16px;font-weight:700">Votre compte est créé 👋</p>
+        <p>Le site ne sert à rien tant qu'il ne voit pas ce que vous détenez. La première étape est de connecter un portefeuille, en moins de deux minutes :</p>
+        <p style="background:#1f2937;border-radius:10px;padding:12px 14px">1️⃣ Ouvrez ${APP} → <b>Portefeuilles</b><br>2️⃣ Collez l'<b>adresse publique</b> (celle que vous donnez à qui vous envoie des cryptos)<br>3️⃣ Les soldes, les jetons et l'historique arrivent tout seuls</p>
+        <p>Nous n'avons besoin que de l'adresse publique. <b>Nous ne demandons jamais de clés privées ni votre phrase de récupération</b>, et le site est en lecture seule : il ne déplace rien et ne signe rien.</p>
+        ${beta ? `<p style="background:#0c4a6e33;border:1px solid #0ea5e955;border-radius:10px;padding:12px 14px">🧪 Nous sommes en bêta : vous pouvez avoir le <b>Premium gratuit pendant 60 jours</b>. Inscrivez-vous avec cet email sur ${BETA_LINK("fr")} et nous l'activons.</p>` : ""}
+        <p>Des questions ou des idées ? Répondez simplement à cet email.</p>`),
+    }),
+  },
   // Primeiro passo, no dia seguinte a ativacao. Ate aqui um tester ativado nao
   // recebia absolutamente nada ate ao dia 50, e os dois primeiros entraram uma
   // unica vez, no dia da ativacao, e nunca mais voltaram.
@@ -249,11 +294,11 @@ export async function GET(request: Request) {
   } catch (e) { console.error("[beta-expiry] expirar", e instanceof Error ? e.message : e); }
 
   // Mapa id → {email, lastSignIn} numa única listagem (antes: 1 pedido por tester, todos os dias).
-  const users = new Map<string, { email: string; lastSignIn: string | null; lastSeen: string | null; lang: Lang | null }>();
+  const users = new Map<string, { email: string; lastSignIn: string | null; lastSeen: string | null; lang: Lang | null; createdAt: string | null }>();
   try {
     for (let page = 1; page <= 5; page++) {
       const { data } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
-      for (const u of data.users) users.set(u.id, { email: u.email ?? "", lastSignIn: (u.last_sign_in_at as string | undefined) ?? null, lastSeen: (u.user_metadata?.last_seen_at as string | undefined) ?? null, lang: langFromMetadata(u.user_metadata) });
+      for (const u of data.users) users.set(u.id, { email: u.email ?? "", lastSignIn: (u.last_sign_in_at as string | undefined) ?? null, lastSeen: (u.user_metadata?.last_seen_at as string | undefined) ?? null, lang: langFromMetadata(u.user_metadata), createdAt: (u.created_at as string | undefined) ?? null });
       if (data.users.length < 1000) break;
     }
   } catch (e) { console.error("[beta-expiry] listUsers", e instanceof Error ? e.message : e); }
@@ -262,6 +307,25 @@ export async function GET(request: Request) {
   const langByEmail = await signupLangByEmail(admin);
   const langOf = (uid: string, email: string): Lang => resolveLang(users.get(uid)?.lang, langByEmail.get(email.toLowerCase()));
   const planOf = (priceId: unknown) => (isPremiumPriceId(priceId) ? "Premium" : "Pro");
+
+  // ── 0) Boas-vindas a contas novas FORA do beta (1–3 dias de conta) ───────
+  // Testers (subscricao manual) e quem se inscreveu no beta ficam de fora: tem
+  // os emails proprios do beta. Contas so com carteira (sem email) tambem.
+  // Recurso do registo de envios = so no 1.o dia exato (nunca uma serie).
+  let welcome = 0;
+  try {
+    const { data: manuais } = await admin.from("subscriptions").select("user_id").eq("source", "manual");
+    const testers = new Set((manuais ?? []).map((m) => m.user_id as string));
+    const beta = BETA_ABERTO();
+    for (const [uid, u] of users) {
+      if (!u.email || !u.createdAt || testers.has(uid) || langByEmail.has(u.email.toLowerCase())) continue;
+      const dias = Math.floor((now.getTime() - new Date(u.createdAt).getTime()) / DAY);
+      if (dias < 1 || dias > 3) continue;
+      if (!(await markSent(admin, uid, "welcome_account", dias === 1))) continue;
+      const m = COPY.welcome[langOf(uid, u.email)](beta);
+      if (await sendEmail({ to: u.email, subject: m.subject, html: m.html, tag: "welcome_account" })) welcome++;
+    }
+  } catch (e) { console.error("[beta-expiry] boas-vindas", e instanceof Error ? e.message : e); }
 
   // ── 1a) Primeiro passo: dia seguinte à ativação ───────────────────────────
   // Um tester ativado não recebia NADA até ao dia 50. Os dois primeiros entraram
@@ -419,5 +483,5 @@ export async function GET(request: Request) {
     }
   } catch (e) { console.error("[beta-expiry] inatividade", e instanceof Error ? e.message : e); }
 
-  return NextResponse.json({ ok: true, expired, notified: tgLines.length, testerMails, offers, ended, step1, idleMails, inactiveAlerts: inactive, at: nowIso });
+  return NextResponse.json({ ok: true, expired, notified: tgLines.length, testerMails, offers, ended, welcome, step1, idleMails, inactiveAlerts: inactive, at: nowIso });
 }
