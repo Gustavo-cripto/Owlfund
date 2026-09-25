@@ -13,6 +13,7 @@ import { pageUrl } from "@/lib/i18n/routes";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { btnPrimary, btnSecondary } from "@/lib/ui/buttons";
 import Lightbox from "@/components/Lightbox";
+import ExperimentarSemConta from "@/components/ExperimentarSemConta";
 
 // Durante o beta os pagamentos estão congelados: os CTAs de planos pagos
 // apontam para o convite /beta (Pro/Premium grátis 60 dias).
@@ -299,6 +300,7 @@ export default function Landing() {
               )}
             </div>
             <p className="animate-fade-in-up delay-400 text-xs text-slate-500">{paymentsFrozen ? t("lp_no_card_beta") : t("lp_no_card")}</p>
+            <a href="#experimentar" className="animate-fade-in-up delay-400 inline-block text-sm font-semibold text-orange-300 underline decoration-dotted underline-offset-4 transition hover:text-orange-200">{t("lp_try_hero_link")}</a>
           </div>
           <div className="animate-scale-in delay-200 w-full max-w-sm flex-shrink-0">
             <PnlSummaryCard position={2150} today={120} days30={480} daily7d={-35} />
@@ -317,6 +319,9 @@ export default function Landing() {
             ))}
           </div>
         </section>
+
+        {/* EXPERIMENTAR SEM CONTA — cola um endereço público e vê os saldos */}
+        <ExperimentarSemConta />
 
         {/* DADOS & CONFIANÇA */}
         <section className="mx-auto w-full max-w-5xl px-6 pt-16">
