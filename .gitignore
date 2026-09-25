@@ -58,3 +58,6 @@ e2e/.auth/
 playwright-report/
 test-results/
 mobile/.env
+
+# Contexto de marketing para as skills (estrategia interna, repo publico)
+.agents/
