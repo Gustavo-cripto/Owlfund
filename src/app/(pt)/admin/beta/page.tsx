@@ -7,6 +7,47 @@ import { useConfirm } from "@/components/ConfirmDialog";
 
 type Tester = { email: string; plan: "pro" | "premium"; activatedAt?: string | null; expiresAt: string | null; daysLeft: number | null; lastSignInAt?: string | null; inactiveDays?: number | null; founder?: boolean };
 type Pending = { email: string; name: string | null; note: string | null; createdAt: string };
+type Etapas = { paginaInicial: number | null; experimentar: number | null; registo: number | null; contas: number | null; comCarteira: number | null };
+type Funil = { d7: Etapas; d30: Etapas; retencao7d: { coorte: number; voltaram: number } | null; geradoEm: string };
+
+// Funil de pessoas (sem robos), 7 e 30 dias. Cada linha mostra tambem a
+// passagem da etapa anterior, que e o numero que diz onde a gente se perde.
+function CartaoFunil({ f }: { f: Funil }) {
+  const linhas: Array<{ k: keyof Etapas; label: string }> = [
+    { k: "paginaInicial", label: "Visitas à página inicial" },
+    { k: "experimentar", label: "Usaram «experimentar sem conta»" },
+    { k: "registo", label: "Submeteram registo (conta, ligação ou beta)" },
+    { k: "contas", label: "Contas criadas" },
+    { k: "comCarteira", label: "Contas com pelo menos uma carteira" },
+  ];
+  const pct = (a: number | null, b: number | null) => (a == null || b == null || b === 0 ? "" : `${Math.round((a / b) * 100)}%`);
+  return (
+    <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+      <p className="text-sm font-semibold text-white">Funil (só pessoas)</p>
+      <table className="mt-3 w-full text-sm">
+        <thead><tr className="text-left text-xs text-slate-400"><th className="py-1 font-medium">Etapa</th><th className="py-1 text-right font-medium">7 dias</th><th className="py-1 text-right font-medium">30 dias</th></tr></thead>
+        <tbody>
+          {linhas.map((l, i) => {
+            const ant = i > 0 ? linhas[i - 1].k : null;
+            return (
+              <tr key={l.k} className="border-t border-slate-800/70">
+                <td className="py-1.5 text-slate-300">{l.label}</td>
+                <td className="py-1.5 text-right font-semibold text-white">{f.d7[l.k] ?? "—"} <span className="text-xs font-normal text-slate-500">{ant ? pct(f.d7[l.k], f.d7[ant]) : ""}</span></td>
+                <td className="py-1.5 text-right font-semibold text-white">{f.d30[l.k] ?? "—"} <span className="text-xs font-normal text-slate-500">{ant ? pct(f.d30[l.k], f.d30[ant]) : ""}</span></td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      {f.retencao7d && (
+        <p className="mt-3 text-xs text-slate-400">
+          Voltaram 7+ dias depois de criar conta: <b className="text-white">{f.retencao7d.voltaram}</b> de {f.retencao7d.coorte} (contas criadas há 7–37 dias).
+        </p>
+      )}
+      <p className="mt-1 text-[11px] text-slate-500">A demonstração e o registo só começaram a ser medidos a 25 set 2026.</p>
+    </div>
+  );
+}
 
 export default function AdminBetaPage() {
   const askConfirm = useConfirm();
@@ -15,6 +56,7 @@ export default function AdminBetaPage() {
   const [count, setCount] = useState(0);
   const [testers, setTesters] = useState<Tester[]>([]);
   const [pending, setPending] = useState<Pending[]>([]);
+  const [funil, setFunil] = useState<Funil | null>(null);
 
   const [grantEmail, setGrantEmail] = useState("");
   const [granting, setGranting] = useState(false);
@@ -100,6 +142,9 @@ export default function AdminBetaPage() {
   };
 
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    fetch("/api/admin/funil").then((r) => (r.ok ? r.json() : null)).then((j) => { if (j && j.d7) setFunil(j as Funil); }).catch(() => {});
+  }, []);
 
   // Marca/desmarca a reserva de preço de fundador de um tester.
   const toggleFounder = async (email: string, on: boolean) => {
@@ -170,6 +215,7 @@ export default function AdminBetaPage() {
 
           {state === "ok" && (
             <>
+              {funil && <CartaoFunil f={funil} />}
               {/* Ativar um tester — cola o email da notificação e clica. Sem SQL. */}
               <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
                 <p className="text-sm font-semibold text-white">Ativar tester (60 dias)</p>

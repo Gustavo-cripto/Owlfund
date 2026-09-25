@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { marcarEvento } from "@/lib/analytics/eventos";
 import Segmentos from "@/components/ui/Segmentos";
 import Link from "next/link";
 import { btnPrimary } from "@/lib/ui/buttons";
@@ -188,6 +189,7 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
     if (creds.password !== confirmPassword) { fail(t("lg_err_mismatch")); setLoading(false); return; }
     if (creds.password.toLowerCase() === creds.email.toLowerCase()) { fail(t("ac_password_weak")); setLoading(false); return; }
     try {
+      marcarEvento("registo");
       const { data, error } = await supabase.auth.signUp({
         ...creds,
         options: { emailRedirectTo: destinoDoEmail(lang, nextPath), data: { lang } },
@@ -244,6 +246,7 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
       });
       if (error) { setMagicMsg({ text: userErrorText(error.message), error: true }); return; }
       setMagicSent(true);
+      marcarEvento("registo");
       setMagicMsg({ text: t("lg_magic_sent").replace("{email}", nextEmail), error: false });
     } finally { setLoading(false); }
   };

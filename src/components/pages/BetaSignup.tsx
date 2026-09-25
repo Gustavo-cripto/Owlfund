@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { marcarEvento } from "@/lib/analytics/eventos";
 import Link from "next/link";
 import { btnPrimary } from "@/lib/ui/buttons";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -139,6 +140,7 @@ export default function BetaSignup() {
         throw new Error(code === "beta_closed" ? t("beta_closed_body") : t(ERR_KEY[code] ?? "beta_err"));
       }
       setAlready(!!j?.already);
+      marcarEvento("registo");
       if (!temConta) {
         // A inscricao ja esta segura; a ligacao e o melhor esforco. Se falhar
         // (limite de envios, rede), fica o botao "Criar conta / entrar".

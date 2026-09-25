@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { calcularFunil } from "@/lib/analytics/funil";
 import { apiJson } from "@/lib/api/response";
 import { verifyAdminAuth } from "@/lib/api/admin-auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -193,13 +194,13 @@ export async function GET(req: NextRequest) {
      */
     bySource: Array<{ src: string; humans: number; bots: number; count: number }>;
   } = {
-    last24h: await countOf(head(admin, "page_views").eq("is_bot", false).gte("created_at", ISO(daysAgo(1)))),
-    last7d: await countOf(head(admin, "page_views").eq("is_bot", false).gte("created_at", ISO(daysAgo(7)))),
-    last30d: await countOf(head(admin, "page_views").eq("is_bot", false).gte("created_at", ISO(daysAgo(30)))),
+    last24h: await countOf(head(admin, "page_views").eq("is_bot", false).not("path", "like", "/_ev/%").gte("created_at", ISO(daysAgo(1)))),
+    last7d: await countOf(head(admin, "page_views").eq("is_bot", false).not("path", "like", "/_ev/%").gte("created_at", ISO(daysAgo(7)))),
+    last30d: await countOf(head(admin, "page_views").eq("is_bot", false).not("path", "like", "/_ev/%").gte("created_at", ISO(daysAgo(30)))),
     bots: {
-      last24h: await countOf(head(admin, "page_views").eq("is_bot", true).gte("created_at", ISO(daysAgo(1)))),
-      last7d: await countOf(head(admin, "page_views").eq("is_bot", true).gte("created_at", ISO(daysAgo(7)))),
-      last30d: await countOf(head(admin, "page_views").eq("is_bot", true).gte("created_at", ISO(daysAgo(30)))),
+      last24h: await countOf(head(admin, "page_views").eq("is_bot", true).not("path", "like", "/_ev/%").gte("created_at", ISO(daysAgo(1)))),
+      last7d: await countOf(head(admin, "page_views").eq("is_bot", true).not("path", "like", "/_ev/%").gte("created_at", ISO(daysAgo(7)))),
+      last30d: await countOf(head(admin, "page_views").eq("is_bot", true).not("path", "like", "/_ev/%").gte("created_at", ISO(daysAgo(30)))),
     },
     topPaths: [],
     bottomPaths: [],
@@ -242,6 +243,7 @@ export async function GET(req: NextRequest) {
     const dayBots: Record<string, number> = {};
     const srcCounts: Record<string, { humans: number; bots: number }> = {};
     for (const r of data ?? []) {
+      if (r.path.startsWith("/_ev/")) continue; // momentos do funil: contados em `funnel`, nao como paginas
       const iso = String(r.created_at);
       const t = new Date(iso).getTime();
       const day = iso.slice(0, 10);
@@ -358,5 +360,7 @@ export async function GET(req: NextRequest) {
     payments,
     views,
     betaSignups,
+    // Funil de pessoas (7 e 30 dias) + retencao a 7 dias — src/lib/analytics/funil.ts
+    funnel: await calcularFunil(admin).catch(() => null),
   });
 }

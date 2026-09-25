@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { marcarEvento } from "@/lib/analytics/eventos";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import { pageUrl } from "@/lib/i18n/routes";
@@ -39,7 +40,7 @@ export default function ExperimentarSemConta() {
         setEstado("error");
         return;
       }
-      setDados(j); setEstado("ok");
+      setDados(j); setEstado("ok"); marcarEvento("experimentar");
     } catch {
       setErro(t("lp_try_err_generic")); setEstado("error");
     }

@@ -2458,7 +2458,7 @@ export const en: Record<TranslationKey, string> = {
     pp_s8_h: "Contact",
     pp_s8_b: "For privacy questions, contact us at suporte@chainfolioai.com.",
     pp_s9_h: "Cookies",
-    pp_s9_b: "We use essential cookies to keep you signed in (Supabase authentication) — without them the platform does not work. We also store a first-party cookie called “cfa-src”, for 30 days, containing only the name of the channel you arrived from (for example “reddit”), so we know which outreach works; it holds no identifier of you. For usage statistics we use Vercel Analytics and our own page log: both record only the page address and the source, with no cookie, no IP address and nothing that identifies you. We do not use advertising cookies or third-party trackers (Google Analytics, Meta Pixel and the like).",
+    pp_s9_b: "We use essential cookies to keep you signed in (Supabase authentication) — without them the platform does not work. We also store a first-party cookie called “cfa-src”, for 30 days, containing only the name of the channel you arrived from (for example “reddit”), so we know which outreach works; it holds no identifier of you. For usage statistics we use Vercel Analytics and our own log of pages visited and of a few steps along the way (for example, using the demo or submitting the sign-up): both record only the page address and the source, with no cookie, no IP address and nothing that identifies you. We do not use advertising cookies or third-party trackers (Google Analytics, Meta Pixel and the like).",
     // ── Terms of Service ──
     tp_title: "Terms of Service",
     tp_intro: "By using ChainFolioAI, you agree to these terms. Please read them carefully.",
