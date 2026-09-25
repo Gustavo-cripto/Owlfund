@@ -179,7 +179,14 @@ export async function POST(req: NextRequest) {
   const note = str(body.note, 1000);
   const lang = (str(body.lang, 5) || "pt").toLowerCase();
   // Origem (?src=twitter) — só letras/números/traços, p/ atribuição por rede.
-  const src = str(body.src, 40).replace(/[^a-zA-Z0-9_-]/g, "");
+  // O URL do formulário muitas vezes já não traz o ?src=: quem chega à home por
+  // um link etiquetado e só depois carrega em "entrar no beta" perde-o na
+  // navegação, e a inscrição ficava registada como "(direto)". Nesse caso vale o
+  // cookie de primeiro toque `cfa-src`, posto pelo middleware (30 dias, o
+  // primeiro canal manda) — o mesmo que já alimenta o user_metadata.src das
+  // contas. Sem isto o betaSignups.bySource30d nunca bate certo com o de contas.
+  const src = str(body.src, 40).replace(/[^a-zA-Z0-9_-]/g, "")
+    || (req.cookies.get("cfa-src")?.value ?? "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 40);
   if (!isEmail(email)) return NextResponse.json({ error: "bad_email" }, { status: 400 });
 
   // Deduplicação: o mesmo email inscrito de novo não gera outra notificação nem

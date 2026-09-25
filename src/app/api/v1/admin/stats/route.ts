@@ -301,7 +301,9 @@ export async function GET(req: NextRequest) {
       try {
         const { data } = await admin.auth.admin.getUserById(sub.user_id as string);
         email = data.user?.email ?? "";
-        lastSignInAt = (data.user?.last_sign_in_at as string | undefined) ?? null;
+        // O mais recente entre o login e o ultimo acesso real (user_metadata.last_seen_at, gravado pelo AppShell).
+        const carimbos = [data.user?.last_sign_in_at, data.user?.user_metadata?.last_seen_at].filter((x): x is string => typeof x === "string");
+        lastSignInAt = carimbos.length ? new Date(Math.max(...carimbos.map((x) => new Date(x).getTime()))).toISOString() : null;
       } catch { /* ignore */ }
       const end = sub.current_period_end ? new Date(sub.current_period_end as string) : null;
       const daysLeft = end ? Math.ceil((end.getTime() - now.getTime()) / 86_400_000) : null;

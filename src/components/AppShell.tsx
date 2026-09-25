@@ -68,7 +68,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [hasSession, setHasSession] = useState(false);
   useEffect(() => comSupabase((supabase) => {
     let alive = true;
-    supabase.auth.getSession().then(({ data }: { data: { session: unknown } }) => { if (alive) setHasSession(Boolean(data.session)); }).catch(() => {});
+    supabase.auth.getSession().then(({ data }: { data: { session: unknown } }) => {
+      if (!alive) return;
+      setHasSession(Boolean(data.session));
+      // "Ultimo acesso" verdadeiro em user_metadata.last_seen_at. O
+      // last_sign_in_at do Supabase so muda num login novo, e quem fica com a
+      // sessao guardada parecia inativo ha semanas (o cron do beta mandava
+      // "nao te vemos ha 20 dias" a quem entrava todos os dias). 2x por dia
+      // chega, e so com sessao.
+      if (!data.session) return;
+      try {
+        const chave = "cfa-seen-at"; const agora = Date.now();
+        const ultimo = Number(localStorage.getItem(chave) ?? 0);
+        if (agora - ultimo < 12 * 3_600_000) return;
+        localStorage.setItem(chave, String(agora));
+        void supabase.auth.updateUser({ data: { last_seen_at: new Date(agora).toISOString() } }).catch(() => {});
+      } catch { /* sem localStorage: nao faz mal */ }
+    }).catch(() => {});
     const { data: sub } = supabase.auth.onAuthStateChange((_e: string, s: unknown) => { if (alive) setHasSession(Boolean(s)); });
     return () => { alive = false; sub.subscription.unsubscribe(); };
   }), []);
