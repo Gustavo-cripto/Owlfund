@@ -273,7 +273,7 @@ export async function GET(request: Request) {
   try {
     const { data: novos } = await admin
       .from("subscriptions")
-      .select("user_id, price_id")
+      .select("user_id, price_id, current_period_end")
       .eq("source", "manual")
       .eq("status", "active")
       .gt("current_period_end", new Date(now.getTime() + (TRIAL_DAYS - 3) * DAY).toISOString())
@@ -281,7 +281,11 @@ export async function GET(request: Request) {
     for (const s of novos ?? []) {
       const uid = s.user_id as string;
       const em = users.get(uid)?.email ?? "";
-      if (!em || !(await markSent(admin, uid, "welcome_step1", true))) continue;
+      // Se o registo de envios falhar, o recurso NAO pode ser "envia": a janela
+      // tem 3 dias e o tester levava o mesmo email 3 vezes. Recurso = so no dia
+      // em que faltam exatamente TRIAL_DAYS-1 dias (um envio, no pior caso).
+      const faltam = Math.ceil((new Date(s.current_period_end as string).getTime() - now.getTime()) / DAY);
+      if (!em || !(await markSent(admin, uid, "welcome_step1", faltam === TRIAL_DAYS - 1))) continue;
       const m = COPY.step1[langOf(uid, em)](planOf(s.price_id));
       if (await sendEmail({ to: em, subject: m.subject, html: m.html, tag: "welcome_step1" })) step1++;
     }
@@ -399,7 +403,9 @@ export async function GET(request: Request) {
       // Toque ao PRÓPRIO tester (uma vez). Estava a faltar: o alerta abaixo ia
       // só para o dono, e o ciclo acabava aí porque o toque era manual.
       const em = u?.email ?? "";
-      if (em && (await markSent(admin, uid, "idle_tester", true))) {
+      // Recurso = so no 14.o dia exato: com "true", uma falha do registo de
+      // envios mandava este email TODOS os dias ate o tester voltar.
+      if (em && (await markSent(admin, uid, "idle_tester", days === IDLE_DAYS))) {
         const m = COPY.idle[langOf(uid, em)](days);
         if (await sendEmail({ to: em, subject: m.subject, html: m.html, tag: "idle_tester" })) idleMails++;
       }
