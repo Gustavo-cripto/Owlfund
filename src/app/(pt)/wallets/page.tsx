@@ -8,6 +8,7 @@ import ErrorNote from "@/components/ErrorNote";
 import { cleanDecimalInput, parseDecimal } from "@/lib/format/decimal";
 import { FREE_WALLET_LIMIT } from "@/lib/plans";
 import { btnPrimary } from "@/lib/ui/buttons";
+import { detetarRede } from "@/lib/wallets/detetarRede";
 
 import AppShell from "@/components/AppShell";
 import EmptyState from "@/components/EmptyState";
@@ -518,7 +519,11 @@ export default function WalletsPage() {
   const [showEthNetworks, setShowEthNetworks] = useState(false);
   const [selectedBtcProvider, setSelectedBtcProvider] = useState<BtcWalletId>("xverse");
   const [showSolWalletsList, setShowSolWalletsList] = useState(false);
-  const [manualAddNetwork, setManualAddNetwork] = useState<string>("sol");
+  // Ethereum por omissao (era Solana); e a rede muda sozinha quando se cola um endereco.
+  const [manualAddNetwork, setManualAddNetwork] = useState<string>("eth");
+  // Campo rapido do topo (so para quem ainda nao tem carteiras).
+  const [quickAddr, setQuickAddr] = useState("");
+  const [quickMsg, setQuickMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [manualAddNetworkOpen, setManualAddNetworkOpen] = useState(false);
   const [manualAddNetworkFilter, setManualAddNetworkFilter] = useState("");
   const manualAddNetworkRef = useRef<HTMLDivElement>(null);
@@ -2501,6 +2506,21 @@ export default function WalletsPage() {
     return null;
   };
 
+  // Campo unico do topo: reconhece a rede pelo formato e adiciona com um toque.
+  // Frases de recuperacao e chaves privadas sao recusadas AQUI, antes de irem
+  // para qualquer lado (nunca sao guardadas nem enviadas).
+  const handleQuickAdd = () => {
+    const d = detetarRede(quickAddr);
+    if (d.tipo === "frase") { setQuickMsg({ ok: false, text: t("wl_quick_seed") }); setQuickAddr(""); return; }
+    if (d.tipo === "chave") { setQuickMsg({ ok: false, text: t("wl_quick_key") }); setQuickAddr(""); return; }
+    if (d.tipo !== "rede") { setQuickMsg({ ok: false, text: t("wl_quick_unknown") }); return; }
+    const err = addManualAddress(quickAddr, d.rede);
+    if (err) { setQuickMsg({ ok: false, text: err }); return; }
+    setQuickAddr("");
+    setQuickMsg(null);
+    window.setTimeout(() => document.getElementById("chain-cards")?.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
+  };
+
   const handleManualAddAddress = () => {
     setManualAddError(null);
     setManualAddOk(null);
@@ -3049,8 +3069,26 @@ export default function WalletsPage() {
           </p>
           {totalWallets === 0 && (
             <div className="rounded-2xl border border-orange-500/30 bg-orange-500/[0.06] p-5">
-              <p className="text-sm font-bold text-white">🚀 {t("wl_start_title")}</p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              <p className="text-sm font-bold text-white">🚀 {t("wl_quick_title")}</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-400">{t("wl_quick_desc")}</p>
+              <form className="mt-3 flex flex-col gap-2 sm:flex-row" onSubmit={(e) => { e.preventDefault(); handleQuickAdd(); }}>
+                <label htmlFor="wl-quick" className="sr-only">{t("wl_quick_ph")}</label>
+                <input
+                  id="wl-quick"
+                  value={quickAddr}
+                  onChange={(e) => { setQuickAddr(e.target.value); setQuickMsg(null); }}
+                  placeholder={t("wl_quick_ph")}
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-3 font-mono text-sm text-slate-100 outline-none transition placeholder:font-sans placeholder:text-slate-500 focus:border-orange-400"
+                />
+                <button type="submit" disabled={!quickAddr.trim()} className={`${btnPrimary} px-6 py-3 text-sm`}>{t("wl_quick_btn")}</button>
+              </form>
+              {quickMsg && (
+                <p role="alert" className={`mt-2 rounded-lg border px-3 py-2 text-xs ${quickMsg.ok ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-rose-500/30 bg-rose-500/10 text-rose-200"}`}>{quickMsg.text}</p>
+              )}
+              <p className="mt-4 text-xs font-semibold text-slate-400">{t("wl_quick_or")}</p>
+              <div className="mt-2 grid gap-3 sm:grid-cols-3">
                 <a href="#chain-cards" className="rounded-xl border border-slate-700 bg-slate-900/60 p-4 transition hover:border-orange-400/50">
                   <p className="text-lg">🦊</p>
                   <p className="mt-1 text-sm font-semibold text-white">{t("wl_start_1t")}</p>
@@ -5611,7 +5649,16 @@ export default function WalletsPage() {
                         : t("wl_ph_soon")
               }
               value={manualAddAddress}
-              onChange={(e) => setManualAddAddress(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value;
+                setManualAddAddress(v);
+                // Rede pelo formato: so troca quando a atual nao serve para este
+                // endereco (quem escolheu Base para um 0x… fica com Base).
+                const d = detetarRede(v);
+                if (d.tipo !== "rede") return;
+                const evm = Boolean(MANUAL_ADD_TO_EVM_NETWORK[manualAddNetwork]);
+                if (d.rede === "eth" ? !evm : manualAddNetwork !== d.rede) setManualAddNetwork(d.rede);
+              }}
             />
             <input
               className="w-32 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200 outline-none placeholder:text-slate-500"
