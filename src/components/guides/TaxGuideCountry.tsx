@@ -52,8 +52,12 @@ export default function TaxGuideCountry({ lang, country }: { lang: GuideLang; co
         description: text.summary,
         inLanguage: c.locale,
         datePublished: "2026-09-11",
+        // Ultima mudanca real dos regimes (git log de src/lib/tax/countries.ts).
+        // Atualizar quando as taxas ou prazos mudarem — nunca "hoje" automatico.
+        dateModified: "2026-09-19",
+        image: `${SITE}/opengraph-image`,
         author: { "@type": "Organization", name: "ChainFolioAI", url: SITE },
-        publisher: { "@type": "Organization", name: "ChainFolioAI", url: SITE },
+        publisher: { "@type": "Organization", name: "ChainFolioAI", url: SITE, logo: { "@type": "ImageObject", url: `${SITE}/chainfolioai-icon.png` } },
         mainEntityOfPage: here,
       },
       {

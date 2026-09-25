@@ -7,6 +7,7 @@
 //  2× e um dia falhado é apanhado no seguinte). Idioma do tester lido de
 //  beta_signups (pt/en; es/fr caem em en).
 import { NextResponse } from "next/server";
+import { TEM_ENDERECO } from "@/lib/analytics/funil";
 import { internalError } from "@/lib/api/response";
 import { isPremiumPriceId } from "@/lib/payments/priceIds";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -33,7 +34,10 @@ const BOT = '<a href="https://t.me/ChainFolioAiBetaBot" style="color:#38bdf8;fon
 const BETA_ABERTO = () => Date.now() < new Date(process.env.NEXT_PUBLIC_BETA_CUTOFF ?? "2027-01-15T23:59:59Z").getTime();
 const BETA_LINK = (lang: Lang) => `<a href="https://chainfolioai.com/${lang === "pt" ? "" : `${lang}/`}beta" style="color:#38bdf8;font-weight:700">chainfolioai.com/${lang === "pt" ? "" : `${lang}/`}beta</a>`;
 
+const CARTEIRAS = '<a href="https://chainfolioai.com/wallets" style="display:inline-block;background:#f97316;color:#0f172a;font-weight:700;text-decoration:none;padding:11px 20px;border-radius:10px">';
+
 const COPY: {
+  nudgeWallet: Record<Lang, () => { subject: string; html: string }>;
   welcome: Record<Lang, (beta: boolean) => { subject: string; html: string }>;
   step1: Record<Lang, (plan: string) => { subject: string; html: string }>;
   idle: Record<Lang, (days: number) => { subject: string; html: string }>;
@@ -41,6 +45,42 @@ const COPY: {
   offer: Record<Lang, (plan: string) => { subject: string; html: string }>;
   ended: Record<Lang, () => { subject: string; html: string }>;
 } = {
+  // Ao 3.o dia, SO a quem ainda nao ligou nenhuma carteira. E o passo onde o
+  // funil perde mais gente (25 set 2026: 1 em 7 contas tinha carteira).
+  nudgeWallet: {
+    pt: () => ({
+      subject: "Falta um passo: liga a tua primeira carteira (1 minuto)",
+      html: shell(`<p style="color:#fff;font-size:16px;font-weight:700">A tua conta ainda está vazia 👀</p>
+        <p>Sem uma carteira, o ChainFolioAI não tem nada para te mostrar. Agora é só um passo: em <b>Carteiras</b> há um campo no topo — colas o <b>endereço público</b> e nós reconhecemos a rede sozinhos (Ethereum, Bitcoin, Solana ou Cardano).</p>
+        <p style="margin:18px 0">${CARTEIRAS}Ligar a minha carteira →</a></p>
+        <p style="color:#94a3b8;font-size:13px">Só o endereço público, aquele que dás para receber moedas. <b>Nunca</b> a frase de recuperação nem chaves privadas — se as colares por engano, o campo apaga-as.</p>
+        <p>Tens as moedas numa corretora? Também dá para ligar por chave só de leitura, ou registar à mão. Dúvidas: responde a este email.</p>`),
+    }),
+    en: () => ({
+      subject: "One step left: connect your first wallet (1 minute)",
+      html: shell(`<p style="color:#fff;font-size:16px;font-weight:700">Your account is still empty 👀</p>
+        <p>Without a wallet, ChainFolioAI has nothing to show you. It's one step now: in <b>Wallets</b> there's a field at the top — paste the <b>public address</b> and we detect the network for you (Ethereum, Bitcoin, Solana or Cardano).</p>
+        <p style="margin:18px 0">${CARTEIRAS}Connect my wallet →</a></p>
+        <p style="color:#94a3b8;font-size:13px">Only the public address, the one you give to receive coins. <b>Never</b> your recovery phrase or private keys — if you paste them by mistake, the field wipes them.</p>
+        <p>Coins on an exchange? You can connect it with a read-only key, or add them by hand. Questions: just reply to this email.</p>`),
+    }),
+    es: () => ({
+      subject: "Falta un paso: conecta tu primer monedero (1 minuto)",
+      html: shell(`<p style="color:#fff;font-size:16px;font-weight:700">Tu cuenta sigue vacía 👀</p>
+        <p>Sin un monedero, ChainFolioAI no tiene nada que mostrarte. Ahora es un solo paso: en <b>Monederos</b> hay un campo arriba — pegas la <b>dirección pública</b> y reconocemos la red solos (Ethereum, Bitcoin, Solana o Cardano).</p>
+        <p style="margin:18px 0">${CARTEIRAS}Conectar mi monedero →</a></p>
+        <p style="color:#94a3b8;font-size:13px">Solo la dirección pública, la que das para recibir monedas. <b>Nunca</b> tu frase de recuperación ni claves privadas: si las pegas por error, el campo las borra.</p>
+        <p>¿Tienes las monedas en un exchange? También puedes conectarlo con una clave de solo lectura, o añadirlas a mano. ¿Dudas? Responde a este correo.</p>`),
+    }),
+    fr: () => ({
+      subject: "Plus qu'une étape : connectez votre premier portefeuille (1 minute)",
+      html: shell(`<p style="color:#fff;font-size:16px;font-weight:700">Votre compte est encore vide 👀</p>
+        <p>Sans portefeuille, ChainFolioAI n'a rien à vous montrer. C'est une seule étape : dans <b>Portefeuilles</b>, un champ en haut — collez l'<b>adresse publique</b> et nous reconnaissons le réseau (Ethereum, Bitcoin, Solana ou Cardano).</p>
+        <p style="margin:18px 0">${CARTEIRAS}Connecter mon portefeuille →</a></p>
+        <p style="color:#94a3b8;font-size:13px">Uniquement l'adresse publique, celle que vous donnez pour recevoir des cryptos. <b>Jamais</b> votre phrase de récupération ni vos clés privées — si vous les collez par erreur, le champ les efface.</p>
+        <p>Vos cryptos sont sur une plateforme ? Vous pouvez la connecter avec une clé en lecture seule, ou les ajouter à la main. Des questions : répondez à cet email.</p>`),
+    }),
+  },
   // Boas-vindas a quem cria conta FORA do beta (os testers recebem o step1 abaixo).
   // Um so envio, no dia seguinte a criar conta. Sem isto, uma conta gratuita
   // normal nunca recebia nada do produto.
@@ -327,6 +367,33 @@ export async function GET(request: Request) {
     }
   } catch (e) { console.error("[beta-expiry] boas-vindas", e instanceof Error ? e.message : e); }
 
+  // ── 0b) Ao 3.º dia sem carteira: um lembrete, uma vez ─────────────────────
+  // Todas as contas com email (testers incluidos), criadas ha 3–5 dias, sem
+  // nenhum endereco guardado em wallet_config. Recurso = so no 3.o dia exato.
+  let nudgeWallet = 0;
+  try {
+    const candidatos = [...users].filter(([, u]) => {
+      if (!u.email || !u.createdAt) return false;
+      const dias = Math.floor((now.getTime() - new Date(u.createdAt).getTime()) / DAY);
+      return dias >= 3 && dias <= 5;
+    });
+    if (candidatos.length) {
+      const comCarteira = new Set<string>();
+      const ids = candidatos.map(([id]) => id);
+      for (let i = 0; i < ids.length; i += 200) {
+        const { data } = await admin.from("wallet_config").select("user_id, data").in("user_id", ids.slice(i, i + 200));
+        for (const r of data ?? []) if (TEM_ENDERECO.test(JSON.stringify(r.data ?? ""))) comCarteira.add(r.user_id as string);
+      }
+      for (const [uid, u] of candidatos) {
+        if (comCarteira.has(uid)) continue;
+        const dias = Math.floor((now.getTime() - new Date(u.createdAt!).getTime()) / DAY);
+        if (!(await markSent(admin, uid, "nudge_wallet", dias === 3))) continue;
+        const m = COPY.nudgeWallet[langOf(uid, u.email)]();
+        if (await sendEmail({ to: u.email, subject: m.subject, html: m.html, tag: "nudge_wallet" })) nudgeWallet++;
+      }
+    }
+  } catch (e) { console.error("[beta-expiry] lembrete carteira", e instanceof Error ? e.message : e); }
+
   // ── 1a) Primeiro passo: dia seguinte à ativação ───────────────────────────
   // Um tester ativado não recebia NADA até ao dia 50. Os dois primeiros entraram
   // uma única vez, no dia da ativação, e nunca mais voltaram. Como o trial é
@@ -483,5 +550,5 @@ export async function GET(request: Request) {
     }
   } catch (e) { console.error("[beta-expiry] inatividade", e instanceof Error ? e.message : e); }
 
-  return NextResponse.json({ ok: true, expired, notified: tgLines.length, testerMails, offers, ended, welcome, step1, idleMails, inactiveAlerts: inactive, at: nowIso });
+  return NextResponse.json({ ok: true, expired, notified: tgLines.length, testerMails, offers, ended, welcome, nudgeWallet, step1, idleMails, inactiveAlerts: inactive, at: nowIso });
 }

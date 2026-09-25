@@ -17,7 +17,7 @@ export type Funil = {
 
 const INICIAIS = ["/", "/en", "/es", "/fr"];
 // Um endereco publico qualquer dentro do JSON guardado das carteiras.
-const TEM_ENDERECO = /0x[a-fA-F0-9]{40}|\b(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,}\b|\baddr1[0-9a-z]{20,}|\bstake1[0-9a-z]{20,}|\b[1-9A-HJ-NP-Za-km-z]{32,44}\b/;
+export const TEM_ENDERECO = /0x[a-fA-F0-9]{40}|\b(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,}\b|\baddr1[0-9a-z]{20,}|\bstake1[0-9a-z]{20,}|\b[1-9A-HJ-NP-Za-km-z]{32,44}\b/;
 
 export async function calcularFunil(admin: SupabaseClient): Promise<Funil> {
   const agora = Date.now();

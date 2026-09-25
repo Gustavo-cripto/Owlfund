@@ -48,8 +48,12 @@ export default function ComparisonPage({ lang, competitor }: { lang: Lang; compe
         description: c.metaDescription(n),
         inLanguage: lang,
         mainEntityOfPage: here,
+        // Datas reais do conteudo (git log de src/lib/compare/competitors.ts).
+        datePublished: "2026-09-20",
+        dateModified: "2026-09-20",
+        image: `${SITE}/opengraph-image`,
         author: { "@type": "Organization", name: "ChainFolioAI", url: SITE },
-        publisher: { "@type": "Organization", name: "ChainFolioAI", url: SITE },
+        publisher: { "@type": "Organization", name: "ChainFolioAI", url: SITE, logo: { "@type": "ImageObject", url: `${SITE}/chainfolioai-icon.png` } },
       },
       {
         "@type": "BreadcrumbList",
