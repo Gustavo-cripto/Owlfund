@@ -93,7 +93,7 @@ export default function ExperimentarSemConta() {
               </div>
               <p className="text-xs text-slate-400">
                 {t("lp_try_networks")}: {dados.networks.map((n) => REDE[n] ?? n).join(" · ")}
-                {dados.nftCount != null && <> · {t("lp_try_nfts")}: <span className="font-semibold text-slate-200">{dados.nftCount}</span></>}
+                {dados.nftCount != null && <> · {t("lp_try_nfts")}: <span className="font-semibold text-slate-200">{dados.nftCount >= 10_000 ? `${(10_000).toLocaleString(lang === "en" ? "en-GB" : "pt-PT")}+` : dados.nftCount}</span></>}
               </p>
             </div>
 
