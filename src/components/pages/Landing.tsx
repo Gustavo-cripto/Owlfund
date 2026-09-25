@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { compareUrl } from "@/lib/compare/competitors";
+import { COUNTRIES, TEXT_PREFIX, guideUrl } from "@/lib/tax/countries";
 import { useEffect, useState } from "react";
 import { SOCIAL_LINKS } from "@/lib/social";
 import AppShell from "@/components/AppShell";
@@ -587,6 +588,44 @@ export default function Landing() {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* GUIAS FISCAIS E COMPARAÇÕES — ligações diretas a partir da página mais
+            forte do site. Antes só havia o índice no rodapé, e o Google tinha
+            1 página indexada em 83 (set 2026). */}
+        <section id="guias" className="mx-auto w-full max-w-5xl px-6 pt-4 pb-8">
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 md:p-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">{t("lp_seo_tag")}</p>
+            <h2 className="mt-2 text-2xl font-bold text-white">{t("lp_seo_title")}</h2>
+            <p className="mt-2 text-sm text-slate-400">{t("lp_seo_sub")}</p>
+            <ul className="mt-5 flex flex-wrap gap-2">
+              {COUNTRIES.filter((c) => ["PT", "ES", "FR", "DE", "GB", "IT", "NL", "BE", "BR", "US"].includes(c.code)).map((c) => (
+                <li key={c.code}>
+                  <Link href={guideUrl(lang === "pt" ? "pt" : "en", c)}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-1.5 text-sm text-slate-200 transition hover:border-orange-400/60 hover:text-white">
+                    <span aria-hidden>{c.flag}</span>{t(`fc_${TEXT_PREFIX[c.code]}_name` as TranslationKey)}
+                  </Link>
+                </li>
+              ))}
+              <li>
+                <Link href={lang === "pt" ? "/guias/impostos-cripto" : "/guides/crypto-tax"}
+                  className="inline-flex items-center rounded-xl px-3 py-1.5 text-sm font-semibold text-orange-300 transition hover:text-orange-200">
+                  {t("lp_seo_all")}
+                </Link>
+              </li>
+            </ul>
+            <p className="mt-6 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t("lp_seo_cmp")}</p>
+            <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+              {/* So nome e slug: importar COMPETITORS trazia 21 KB de texto das comparacoes para a landing. */}
+              {([["koinly", "Koinly"], ["cointracking", "CoinTracking"], ["zerion", "Zerion"]] as const).map(([slug, name]) => (
+                <li key={slug}>
+                  <Link href={`${compareUrl(lang)}/${slug}`} className="text-slate-200 underline decoration-slate-600 underline-offset-4 transition hover:text-orange-300 hover:decoration-orange-400">
+                    ChainFolioAI vs {name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
 
