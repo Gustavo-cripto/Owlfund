@@ -41,6 +41,8 @@ export default function ExperimentarSemConta() {
         return;
       }
       setDados(j); setEstado("ok"); marcarEvento("experimentar");
+      // So no browser da pessoa: se criar conta, o endereco aparece ja no campo de Carteiras.
+      try { localStorage.setItem("cfa-demo-address", a); } catch { /* sem armazenamento: nao faz mal */ }
     } catch {
       setErro(t("lp_try_err_generic")); setEstado("error");
     }

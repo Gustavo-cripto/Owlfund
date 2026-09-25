@@ -2509,6 +2509,19 @@ export default function WalletsPage() {
   // Campo unico do topo: reconhece a rede pelo formato e adiciona com um toque.
   // Frases de recuperacao e chaves privadas sao recusadas AQUI, antes de irem
   // para qualquer lado (nunca sao guardadas nem enviadas).
+  // Endereco experimentado na demonstracao da pagina inicial (so no browser):
+  // com 0 carteiras, aparece ja no campo rapido; com carteiras, esquece-se.
+  const [quickFromDemo, setQuickFromDemo] = useState(false);
+  useEffect(() => {
+    try {
+      const guardado = localStorage.getItem("cfa-demo-address");
+      if (!guardado) return;
+      if (totalWallets > 0) { localStorage.removeItem("cfa-demo-address"); return; }
+      setQuickAddr((atual) => atual || guardado);
+      setQuickFromDemo(true);
+    } catch { /* sem localStorage */ }
+  }, [totalWallets]);
+
   const handleQuickAdd = () => {
     const d = detetarRede(quickAddr);
     if (d.tipo === "frase") { setQuickMsg({ ok: false, text: t("wl_quick_seed") }); setQuickAddr(""); return; }
@@ -2518,6 +2531,8 @@ export default function WalletsPage() {
     if (err) { setQuickMsg({ ok: false, text: err }); return; }
     setQuickAddr("");
     setQuickMsg(null);
+    setQuickFromDemo(false);
+    try { localStorage.removeItem("cfa-demo-address"); } catch { /* ignore */ }
     window.setTimeout(() => document.getElementById("chain-cards")?.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
   };
 
@@ -3076,7 +3091,7 @@ export default function WalletsPage() {
                 <input
                   id="wl-quick"
                   value={quickAddr}
-                  onChange={(e) => { setQuickAddr(e.target.value); setQuickMsg(null); }}
+                  onChange={(e) => { setQuickAddr(e.target.value); setQuickMsg(null); setQuickFromDemo(false); }}
                   placeholder={t("wl_quick_ph")}
                   autoComplete="off"
                   spellCheck={false}
@@ -3084,6 +3099,9 @@ export default function WalletsPage() {
                 />
                 <button type="submit" disabled={!quickAddr.trim()} className={`${btnPrimary} px-6 py-3 text-sm`}>{t("wl_quick_btn")}</button>
               </form>
+              {quickFromDemo && !quickMsg && quickAddr && (
+                <p className="mt-2 text-xs text-emerald-300">✨ {t("wl_quick_from_demo")}</p>
+              )}
               {quickMsg && (
                 <p role="alert" className={`mt-2 rounded-lg border px-3 py-2 text-xs ${quickMsg.ok ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-rose-500/30 bg-rose-500/10 text-rose-200"}`}>{quickMsg.text}</p>
               )}
