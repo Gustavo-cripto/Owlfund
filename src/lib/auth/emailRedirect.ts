@@ -13,7 +13,12 @@ import type { Lang } from "@/lib/i18n/translations";
 export const COOKIE_NEXT = "cfa-next";
 
 export function destinoDoEmail(lang: Lang, next: string): string {
-  document.cookie = `${COOKIE_NEXT}=${encodeURIComponent(next)}; path=/; max-age=3600; SameSite=Lax`;
+  // "/dashboard" e o destino por omissao: nesse caso nao se guarda nada, para o
+  // callback saber que ninguem pediu destino e poder levar uma conta NOVA
+  // direto a Carteiras (ver src/app/api/auth/callback/route.ts).
+  document.cookie = next && next !== "/dashboard"
+    ? `${COOKIE_NEXT}=${encodeURIComponent(next)}; path=/; max-age=3600; SameSite=Lax`
+    : `${COOKIE_NEXT}=; path=/; max-age=0; SameSite=Lax`;
   return `${window.location.origin}/api/auth/callback?lang=${lang}`;
 }
 

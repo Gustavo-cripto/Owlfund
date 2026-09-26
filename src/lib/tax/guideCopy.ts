@@ -100,7 +100,7 @@ export const GUIDE_COPY: Record<GuideLang, Copy> = {
     // titulo saia a gaguejar: "18-24% e 18-24%", "0% (investidor privado) e 0%
     // (investidor privado)". E o que aparecia no Google.
     countryMetaTitle: (n, s, l) =>
-      `Impostos sobre cripto em ${n} (2026): ${s.trim().toLowerCase() === l.trim().toLowerCase() ? s : `${s}, ${l.toLowerCase()}`}`,
+      `Impostos sobre cripto em ${n} (2026): ${s.trim().toLowerCase() === l.trim().toLowerCase() ? s : `${s} ou ${l.toLowerCase()}`}`,
     countryMetaTitleShort: (n) => `Impostos sobre cripto em ${n} (2026)`,
     faqHowMuch: (n) => `Quanto se paga de imposto sobre cripto em ${n}?`,
     faqAllowance: (n) => `Há isenção anual sobre mais-valias de cripto em ${n}?`,
@@ -152,7 +152,7 @@ export const GUIDE_COPY: Record<GuideLang, Copy> = {
       "⚠️ General information, not tax advice. Rules change and your situation may have specifics (residency, professional activity, staking, mining). Confirm with an accountant or your tax authority before filing.",
     countryTitle: (n) => `Crypto tax in ${n}`,
     countryMetaTitle: (n, s, l) =>
-      `Crypto tax in ${n} (2026): ${s.trim().toLowerCase() === l.trim().toLowerCase() ? s : `${s}, ${l.toLowerCase()}`}`,
+      `Crypto tax in ${n} (2026): ${s.trim().toLowerCase() === l.trim().toLowerCase() ? s : `${s} or ${l.toLowerCase()}`}`,
     countryMetaTitleShort: (n) => `Crypto tax in ${n} (2026)`,
     faqHowMuch: (n) => `How much tax do you pay on crypto in ${n}?`,
     faqAllowance: (n) => `Is there an annual allowance on crypto gains in ${n}?`,

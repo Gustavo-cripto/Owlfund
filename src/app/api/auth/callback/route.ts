@@ -24,10 +24,19 @@ export async function GET(request: Request) {
     return limpar(NextResponse.redirect(`${origin}/login?error=${kind}&next=${encodeURIComponent(next)}`));
   }
 
+  // Conta acabada de criar (ligacao por email, Google, confirmacao) e sem
+  // destino pedido: vai direta a Carteiras, que e o passo que falta — e onde
+  // o funil perdia 6 em cada 7 contas (set 2026). Quem ja tinha conta, ou
+  // pediu um destino (?next= ou cookie), segue para onde ia.
+  let destino = next;
+  const pediuDestino = Boolean(searchParams.get("next") || doCookie);
+
   if (code) {
     try {
       const supabase = await createClient();
-      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      const { data: sessao, error } = await supabase.auth.exchangeCodeForSession(code);
+      const criada = sessao?.user?.created_at ? new Date(sessao.user.created_at).getTime() : 0;
+      if (!error && !pediuDestino && criada && Date.now() - criada < 15 * 60_000) destino = "/wallets";
       if (error) {
         console.error("[auth/callback] exchange:", error.message);
         return limpar(NextResponse.redirect(`${origin}/login?error=confirm&next=${encodeURIComponent(next)}`));
@@ -38,5 +47,5 @@ export async function GET(request: Request) {
     }
   }
 
-  return limpar(NextResponse.redirect(`${origin}${next}`));
+  return limpar(NextResponse.redirect(`${origin}${destino}`));
 }

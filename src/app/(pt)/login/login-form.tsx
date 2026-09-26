@@ -283,7 +283,7 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
       // `next` vai no redirectTo — o `state` é gerido pelo PKCE e não chegava ao callback.
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: `${origin}/api/auth/callback?next=${encodeURIComponent(nextPath)}` },
+        options: { redirectTo: `${origin}/api/auth/callback${nextParam ? `?next=${encodeURIComponent(nextPath)}` : ""}` },
       });
       if (error) { fail(t("lg_err_google")); setGoogleLoading(false); }
     } catch { fail(t("lg_err_google")); setGoogleLoading(false); }
@@ -511,7 +511,7 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
 
           {process.env.NEXT_PUBLIC_AUTH_APPLE === "1" && (
             <button type="button" disabled={busy}
-              onClick={async () => { const origin = window.location.origin; await supabase.auth.signInWithOAuth({ provider: "apple", options: { redirectTo: `${origin}/api/auth/callback?next=${encodeURIComponent(nextPath)}` } }); }}
+              onClick={async () => { const origin = window.location.origin; await supabase.auth.signInWithOAuth({ provider: "apple", options: { redirectTo: `${origin}/api/auth/callback${nextParam ? `?next=${encodeURIComponent(nextPath)}` : ""}` } }); }}
               className="mt-3 flex w-full items-center justify-center gap-3 rounded-full border border-slate-700 bg-slate-950 px-6 py-3 text-sm font-semibold text-slate-100 transition hover:border-slate-500 disabled:opacity-50">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M16.37 12.73c0-2.6 2.13-3.85 2.22-3.91-1.21-1.77-3.09-2.01-3.75-2.04-1.6-.16-3.12.94-3.93.94-.81 0-2.06-.92-3.39-.9-1.74.03-3.35 1.01-4.25 2.57-1.81 3.14-.46 7.79 1.3 10.34.86 1.25 1.89 2.65 3.24 2.6 1.3-.05 1.79-.84 3.36-.84 1.57 0 2.01.84 3.39.81 1.4-.02 2.28-1.27 3.14-2.52.99-1.45 1.4-2.85 1.42-2.92-.03-.01-2.73-1.05-2.75-4.13ZM13.8 5.1c.72-.87 1.2-2.08 1.07-3.29-1.03.04-2.29.69-3.03 1.56-.66.77-1.25 2-1.09 3.18 1.15.09 2.33-.58 3.05-1.45Z"/></svg>
               {t("lg_apple")}
