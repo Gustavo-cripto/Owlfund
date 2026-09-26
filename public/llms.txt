@@ -19,7 +19,7 @@
 - FIRE (financial independence) calculator.
 - Live market: prices, BTC/ETH dominance, Fear & Greed, derivatives (open interest, funding, long/short, CVD), TradingView charts, AI-summarised news, daily AI briefing.
 - Smart Money: track whale wallets and their on-chain moves (ETH/BTC/SOL).
-- AI assistants: "Chain" (in-app chat that knows your real portfolio) and "Block" (Premium dedicated AI portfolio manager).
+- AI assistants: "Chain" (in-app chat that knows your real portfolio) and "Block" (Premium dedicated AI portfolio manager, up to 150 messages/day in the app). The API/MCP AI chat (`/api/v1/chat`, `ask_ai`) has its own separate limit of 50 messages/day per account.
 - Multi-portfolio: several isolated accounts (Free: 1, Pro: 3, Premium: 10).
 - Trade history is manual entry or CSV import. There is no automatic sync of exchange transactions into the history.
 

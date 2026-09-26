@@ -1,4 +1,5 @@
 import { apiJson } from "@/lib/api/response";
+import { GESTOR_DAILY_LIMIT } from "@/lib/plans";
 import { API_ENDPOINTS, API_LIMITS, MCP_TOOLS } from "@/lib/api/catalog";
 
 export const runtime = "nodejs";
@@ -12,7 +13,13 @@ export async function GET() {
     documentation: "https://chainfolioai.com/developers",
     authentication:
       "Bearer token — cabeçalho 'Authorization: Bearer cfa_live_…'. Gera chaves em Conta → API & MCP (plano Premium).",
-    limits: { requestsPerMinute: API_LIMITS.perMinute, chatPerDay: API_LIMITS.chatPerDay, maxActiveKeys: API_LIMITS.maxKeys },
+    limits: {
+      requestsPerMinute: API_LIMITS.perMinute,
+      chatPerDay: API_LIMITS.chatPerDay,
+      maxActiveKeys: API_LIMITS.maxKeys,
+      // Limite PROPRIO da app, separado do chat da API/MCP acima: o Gestor IA (Premium) no site.
+      appAiManagerMessagesPerDay: GESTOR_DAILY_LIMIT,
+    },
     mcp: { url: "https://chainfolioai.com/api/mcp", transport: "streamable-http", tools: MCP_TOOLS.map(t => t.name) },
     endpoints: API_ENDPOINTS.map(e => ({ method: e.method, path: e.path, auth: e.auth, description: e.desc })),
   }, { cache: "public, s-maxage=3600, stale-while-revalidate=604800" });

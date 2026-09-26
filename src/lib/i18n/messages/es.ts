@@ -805,7 +805,7 @@ export const es: Record<TranslationKey, string> = {
     dev_ep_news: "Últimas noticias cripto (CoinDesk, CoinTelegraph). limit = 1–30.",
     dev_ep_btc_blocks: "Bloques Bitcoin recientes (altura, nº de transacciones, comisión mediana, pool, timestamp) y comisiones recomendadas de la mempool.",
     dev_ep_fire: "Años hasta la independencia financiera (regla del 4%). Por defecto: 2000 / 500 / 7 / 3 / 30 / 0. Si el retorno real es ≤ 0, yearsToFire es null con una note.",
-    dev_ep_chat: "Asistente de IA sobre tu cartera real. No da órdenes de compra/venta. message hasta 1000 caracteres; máx. 50 mensajes/día por cuenta (compartido con el MCP).",
+    dev_ep_chat: "Asistente de IA sobre tu cartera real. No da órdenes de compra/venta. message hasta 1000 caracteres; máx. 50 mensajes/día por cuenta (compartido con el MCP). El Gestor IA en la app tiene su propio límite: hasta 150 mensajes/día (Premium).",
     dev_mcp_p1: "El servidor MCP vive en",
     dev_mcp_p2: "(Streamable HTTP), autenticado con la misma clave en la cabecera Authorization. Añádelo como servidor MCP remoto y obtienes estas herramientas:",
     dev_arg: "argumento",
