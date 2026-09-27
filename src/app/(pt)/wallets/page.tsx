@@ -2,23 +2,52 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from "react";
 import { repetirVisivel, DOIS_MIN, TRES_MIN } from "@/lib/polling";
-import Segmentos from "@/components/ui/Segmentos";
 import { userError } from "@/lib/ui/userError";
 import ErrorNote from "@/components/ErrorNote";
 import { cleanDecimalInput, parseDecimal } from "@/lib/format/decimal";
 import { FREE_WALLET_LIMIT } from "@/lib/plans";
-import { btnPrimary } from "@/lib/ui/buttons";
 import { detetarRede } from "@/lib/wallets/detetarRede";
 
 import AppShell from "@/components/AppShell";
-import EmptyState from "@/components/EmptyState";
 import { nativeSymbolOf, networkKey } from "@/lib/wallets/networkKey";
 import { useConfirm } from "@/components/ConfirmDialog";
-import NftImage from "@/components/NftImage";
 import CexSection from "@/components/wallets/CexSection";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import WalletCard from "@/components/wallets/WalletCard";
+// Blocos de apresentacao da pagina (fase 1 da divisao): recebem tudo por props.
+import CabecalhoCarteiras from "@/components/wallets/CabecalhoCarteiras";
+import ConfirmacaoModal from "@/components/wallets/ConfirmacaoModal";
+import OutrasRedesSecao from "@/components/wallets/OutrasRedesSecao";
+import EthSeletores from "@/components/wallets/EthSeletores";
+import EthAdicionar from "@/components/wallets/EthAdicionar";
+import EthCarteirasLista from "@/components/wallets/EthCarteirasLista";
+import SolSeletores from "@/components/wallets/SolSeletores";
+import SolAdicionar from "@/components/wallets/SolAdicionar";
+import SolCarteirasLista from "@/components/wallets/SolCarteirasLista";
+import BtcSeletor from "@/components/wallets/BtcSeletor";
+import BtcRunesResumo from "@/components/wallets/BtcRunesResumo";
+import BtcAdicionar from "@/components/wallets/BtcAdicionar";
+import BtcCarteirasLista from "@/components/wallets/BtcCarteirasLista";
+import AdaAjudaLigacao from "@/components/wallets/AdaAjudaLigacao";
+import AdaSeletor from "@/components/wallets/AdaSeletor";
+import AdaAdicionar from "@/components/wallets/AdaAdicionar";
+import AdaCarteirasLista from "@/components/wallets/AdaCarteirasLista";
+import CriptoResumoTotais from "@/components/wallets/CriptoResumoTotais";
+import CarteirasLigadasLinhas from "@/components/wallets/CarteirasLigadasLinhas";
+import StablecoinLinhas from "@/components/wallets/StablecoinLinhas";
+import OutrasRedesLinhas from "@/components/wallets/OutrasRedesLinhas";
+import AtivosManuaisLista from "@/components/wallets/AtivosManuaisLista";
+import HistoricoTransacoesCta from "@/components/wallets/HistoricoTransacoesCta";
+import AdicionarTickerManual from "@/components/wallets/AdicionarTickerManual";
+import TradicionalCabecalho from "@/components/wallets/TradicionalCabecalho";
+import CategoriasTradicionais from "@/components/wallets/CategoriasTradicionais";
+import TradicionaisSelecionados from "@/components/wallets/TradicionaisSelecionados";
+import DadosMercadoTradicional from "@/components/wallets/DadosMercadoTradicional";
+import EnderecoManualSecao from "@/components/wallets/EnderecoManualSecao";
+import AtivoCriptoManualSecao from "@/components/wallets/AtivoCriptoManualSecao";
+import StablecoinsSecao from "@/components/wallets/StablecoinsSecao";
+import CexHardwareProAviso from "@/components/wallets/CexHardwareProAviso";
 import { createClient } from "@/lib/supabase/client";
 import {
   connectEvmProvider,
@@ -29,7 +58,6 @@ import {
   getEvmProviderLabel,
   getEvmProviderOptions,
   getEvmTokenBalance,
-  isEvmWalletAvailable,
   isMetaMaskAvailable,
   switchEvmNetwork,
   STABLECOIN_TOKEN_ADDRESSES,
@@ -68,7 +96,7 @@ import {
 } from "@/lib/wallets/storage";
 import { pushWalletCloud, pullWalletCloud } from "@/lib/portfolios/cloudSync";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
-import { categoryLabel, traditionalAssets, traditionalCategories } from "@/lib/traditional/assets";
+import { traditionalAssets } from "@/lib/traditional/assets";
 import {
   hasQuantity,
   loadTraditionalHoldings,
@@ -85,267 +113,38 @@ import {
   type CryptoHoldings,
   type StablecoinEntry,
 } from "@/lib/crypto/storage";
-
-type TraditionalQuote = {
-  symbol: string;
-  price: number | null;
-  /** Moeda do instrumento (USD, EUR, GBP...). Necessaria para converter
-   *  quantidade x preco no total do portefolio. */
-  currency?: string | null;
-  changePercent: number | null;
-  volume: number | null;
-  updatedAt?: string;
-};
-
-type MarketRow = {
-  symbol: string;
-  name: string;
-  priceUsd: number;
-  marketCapUsd?: number | null;
-};
+import { getAllowedHosts, isAdaAddress, isBtcAddress, isEvmAddress, isSolAddress, sanitizeLabel } from "@/lib/wallets/validar";
+import {
+  adaNetworkOptions,
+  adaWalletOptions,
+  btcNetworkOptions,
+  btcWalletOptions,
+  MANUAL_ADD_NETWORKS,
+  MANUAL_ADD_TO_EVM_NETWORK,
+  MANUAL_ADD_TO_SOL_NETWORK,
+  solWalletOptions,
+  type BtcWalletId,
+} from "@/lib/wallets/opcoes";
+import {
+  defiKey,
+  ethBalanceKey,
+  fiatValue,
+  formatAddress,
+  formatRuneAmount as formatRuneAmountIn,
+  networkToMoralisChain,
+  normalizeChain,
+  propsDefiNftCartao,
+  removeWallet,
+  upsertWallet,
+  type DefiChain,
+} from "@/lib/wallets/formatar";
+import { quotePriceEurFrom } from "@/lib/wallets/totais";
+import type { MarketRow, TraditionalQuote } from "@/lib/wallets/tipos";
 
 type SubscriptionStatus = {
   status: string;
   current_period_end: string | null;
 };
-
-const isEvmAddress = (address?: string) => /^0x[a-fA-F0-9]{40}$/.test(address ?? "");
-const isSolAddress = (address?: string) =>
-  typeof address === "string" && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
-const isBtcAddress = (address?: string) =>
-  typeof address === "string" && /^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,}$/.test(address);
-
-// Sanitiza labels inseridos pelo utilizador — remove HTML e limita comprimento
-const sanitizeLabel = (label: string): string =>
-  label.replace(/[<>"'`]/g, "").replace(/javascript:/gi, "").trim().slice(0, 64);
-const isAdaAddress = (address?: string) =>
-  typeof address === "string" && /^(addr1|stake1)[0-9a-z]+$/i.test(address);
-const getAllowedHosts = () =>
-  (process.env.NEXT_PUBLIC_ALLOWED_HOSTS ?? "")
-    .split(",")
-    .map((host) => host.trim())
-    .filter(Boolean);
-
-const evmNetworks: EvmNetwork[] = [
-  "Ethereum", "Arbitrum", "Optimism", "Base", "Polygon", "BSC",
-  "Avalanche", "Fantom", "zkSync", "Linea", "Gnosis", "Celo", "Cronos", "Scroll", "Mantle", "Blast",
-];
-/** Mapeamento do id em "Adicionar endereço manual" para EvmNetwork (permite ler saldo por rede). */
-const MANUAL_ADD_TO_EVM_NETWORK: Record<string, EvmNetwork> = {
-  eth:       "Ethereum",
-  optimism:  "Optimism",
-  arbitrum:  "Arbitrum",
-  base:      "Base",
-  matic:     "Polygon",
-  bsc:       "BSC",
-  avalanche: "Avalanche",
-  fantom:    "Fantom",
-  zksync:    "zkSync",
-  linea:     "Linea",
-  gnosis:    "Gnosis",
-  celo:      "Celo",
-  cronos:    "Cronos",
-  scroll:    "Scroll",
-  mantle:    "Mantle",
-  blast:     "Blast",
-};
-/** Redes que usam endereço Solana (base58). Permite ler saldo SOL. */
-const MANUAL_ADD_TO_SOL_NETWORK: Record<string, string> = {
-  sol: "Solana",
-  sol_l2: "Solana L2",
-  raydium: "Raydium",
-  orca: "Orca",
-  sol_dex: "Solana DEX",
-};
-const ethNetworkLabelOptions: Array<{ id: EvmNetwork | "outro"; label: string; group?: string }> = [
-  { id: "Ethereum",  label: "Ethereum",         group: "L1" },
-  { id: "BSC",       label: "BNB Smart Chain",  group: "L1" },
-  { id: "Avalanche", label: "Avalanche C-Chain", group: "L1" },
-  { id: "Fantom",    label: "Fantom",           group: "L1" },
-  { id: "Cronos",    label: "Cronos",           group: "L1" },
-  { id: "Gnosis",    label: "Gnosis",           group: "L1" },
-  { id: "Celo",      label: "Celo",             group: "L1" },
-  { id: "Arbitrum",  label: "Arbitrum One",     group: "L2" },
-  { id: "Optimism",  label: "Optimism",         group: "L2" },
-  { id: "Base",      label: "Base",             group: "L2" },
-  { id: "Polygon",   label: "Polygon",          group: "L2" },
-  { id: "zkSync",    label: "zkSync Era",       group: "L2" },
-  { id: "Linea",     label: "Linea",            group: "L2" },
-  { id: "Scroll",    label: "Scroll",           group: "L2" },
-  { id: "Mantle",    label: "Mantle",           group: "L2" },
-  { id: "Blast",     label: "Blast",            group: "L2" },
-  { id: "outro",     label: "Outro (qualquer EVM/L2)" },
-];
-const ethWalletOptions: Array<{ id: EvmProviderId; label: string }> = [
-  { id: "metamask", label: "MetaMask" },
-  { id: "rabby",    label: "Rabby Wallet" },
-  { id: "rainbow",  label: "Rainbow Wallet" },
-  { id: "coinbase", label: "Coinbase Wallet" },
-  { id: "okx",      label: "OKX Wallet" },
-  { id: "bybit",    label: "Bybit Wallet" },
-  { id: "trust",    label: "Trust Wallet" },
-  { id: "binance",  label: "Binance Chain Wallet" },
-];
-const solWalletOptions = [
-  { id: "phantom",  label: "Phantom Wallet" },
-  { id: "backpack", label: "Backpack" },
-  { id: "solflare", label: "Solflare" },
-  { id: "glow",     label: "Glow Wallet" },
-  { id: "flint",    label: "Flint" },
-] as const;
-type SolanaWalletId = (typeof solWalletOptions)[number]["id"];
-const solLabelOptions: Array<{ id: SolanaWalletId | "outro"; label: string }> = [
-  ...solWalletOptions,
-  { id: "outro", label: "Outro (qualquer endereço Solana)" },
-];
-
-/** Lista de redes para o dropdown "adicionar endereço" no card Solana. */
-const solNetworkOptions: Array<{ id: string; label: string }> = [
-  ...Object.entries(MANUAL_ADD_TO_SOL_NETWORK).map(([id, label]) => ({ id, label })),
-  { id: "outro", label: "Outro (qualquer endereço Solana)" },
-];
-
-const adaWalletOptions: Array<{ id: CardanoWalletId; label: string }> = [
-  { id: "eternl", label: "Eternl" },
-  { id: "daedalus", label: "Daedalus" },
-  { id: "yoroi", label: "Yoroi" },
-  { id: "adalite", label: "Ada Lite" },
-  { id: "lace", label: "Lace" },
-];
-
-/** Redes ADA/L2 para o dropdown ao adicionar endereço no card Cardano. */
-const MANUAL_ADD_TO_ADA_NETWORK: Record<string, string> = {
-  cardano: "Cardano",
-  hydra: "Hydra",
-  midnight: "Midnight",
-  outro: "Outro (qualquer endereço Cardano/L2)",
-};
-const adaNetworkOptions: Array<{ id: string; label: string }> = [
-  ...Object.entries(MANUAL_ADD_TO_ADA_NETWORK).map(([id, label]) => ({ id, label })),
-];
-
-const btcWalletOptions = [
-  { id: "xverse", label: "Xverse" },
-  { id: "electrum", label: "Electrum" },
-  { id: "coinbase", label: "Coinbase Wallet" },
-  { id: "exodus", label: "Exodus" },
-] as const;
-type BtcWalletId = (typeof btcWalletOptions)[number]["id"];
-
-/** Redes BTC/L2 para o dropdown ao adicionar endereço no card Bitcoin. */
-const MANUAL_ADD_TO_BTC_NETWORK: Record<string, string> = {
-  bitcoin: "Bitcoin",
-  liquid: "Liquid",
-  rootstock: "Rootstock (RSK)",
-  stacks: "Stacks",
-  lightning: "Lightning",
-};
-const btcNetworkOptions: Array<{ id: string; label: string }> = [
-  ...Object.entries(MANUAL_ADD_TO_BTC_NETWORK).map(([id, label]) => ({ id, label })),
-  { id: "outro", label: "Outro (qualquer endereço)" },  // traduzido na apresentacao por btcNetLabel
-];
-
-/** Redes para "Adicionar endereço manual (todas as redes)". ETH, SOL, BTC e ADA têm suporte a saldo. */
-const MANUAL_ADD_NETWORKS: Array<{ id: string; label: string; group?: string }> = [
-  // ── EVM Layer 1 ──
-  { id: "eth",       label: "Ethereum (ETH)",           group: "EVM L1" },
-  { id: "bsc",       label: "BNB Smart Chain (BSC)",    group: "EVM L1" },
-  { id: "avalanche", label: "Avalanche C-Chain (AVAX)", group: "EVM L1" },
-  { id: "fantom",    label: "Fantom (FTM)",             group: "EVM L1" },
-  { id: "cronos",    label: "Cronos (CRO)",             group: "EVM L1" },
-  { id: "gnosis",    label: "Gnosis Chain (xDAI)",      group: "EVM L1" },
-  { id: "celo",      label: "Celo (CELO)",              group: "EVM L1" },
-  // ── EVM Layer 2 ──
-  { id: "arbitrum",  label: "Arbitrum One",             group: "EVM L2" },
-  { id: "optimism",  label: "Optimism (OP)",            group: "EVM L2" },
-  { id: "base",      label: "Base (Coinbase)",          group: "EVM L2" },
-  { id: "matic",     label: "Polygon (POL)",            group: "EVM L2" },
-  { id: "zksync",    label: "zkSync Era",               group: "EVM L2" },
-  { id: "linea",     label: "Linea (MetaMask)",         group: "EVM L2" },
-  { id: "scroll",    label: "Scroll",                   group: "EVM L2" },
-  { id: "mantle",    label: "Mantle (MNT)",             group: "EVM L2" },
-  { id: "blast",     label: "Blast",                    group: "EVM L2" },
-  // ── Bitcoin & L2 ──
-  { id: "btc",       label: "Bitcoin (BTC)",            group: "Bitcoin" },
-  { id: "liquid",    label: "Liquid Network",           group: "Bitcoin" },
-  { id: "stacks",    label: "Stacks (STX)",             group: "Bitcoin" },
-  { id: "rootstock", label: "Rootstock (RSK)",          group: "Bitcoin" },
-  // ── Solana ──
-  { id: "sol",       label: "Solana (SOL)",             group: "Solana" },
-  { id: "sol_l2",    label: "Solana L2",                group: "Solana" },
-  { id: "raydium",   label: "Raydium",                  group: "Solana" },
-  { id: "orca",      label: "Orca",                     group: "Solana" },
-  // ── Cardano ──
-  { id: "ada",       label: "Cardano (ADA)",            group: "Cardano" },
-  { id: "hydra",     label: "Hydra",                    group: "Cardano" },
-  // ── Outros ──
-  { id: "xrp",       label: "XRP Ledger (XRP)",         group: "Outros" },
-  { id: "doge",      label: "Dogecoin (DOGE)",          group: "Outros" },
-  { id: "trx",       label: "TRON (TRX)",               group: "Outros" },
-  { id: "ltc",       label: "Litecoin (LTC)",           group: "Outros" },
-  { id: "bch",       label: "Bitcoin Cash (BCH)",       group: "Outros" },
-  { id: "xlm",       label: "Stellar (XLM)",            group: "Outros" },
-  { id: "xmr",       label: "Monero (XMR)",             group: "Outros" },
-  { id: "hbar",      label: "Hedera (HBAR)",            group: "Outros" },
-  { id: "dot",       label: "Polkadot (DOT)",           group: "Outros" },
-  { id: "atom",      label: "Cosmos (ATOM)",            group: "Outros" },
-  { id: "ton",       label: "TON (Telegram)",           group: "Outros" },
-  { id: "sui",       label: "SUI",                      group: "Outros" },
-  { id: "apt",       label: "Aptos (APT)",              group: "Outros" },
-  { id: "near",      label: "NEAR Protocol",            group: "Outros" },
-  { id: "algo",      label: "Algorand (ALGO)",          group: "Outros" },
-  { id: "icp",       label: "Internet Computer (ICP)",  group: "Outros" },
-];
-
-// Nome de carteira editável inline (✏️). O endereço nunca é mostrado — a carteira
-// é identificada por este nome.
-function EditableName({
-  current, display, onSave, placeholder,
-}: {
-  current: string;
-  display: React.ReactNode;
-  onSave: (value: string) => void;
-  placeholder: string;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(current);
-  if (editing) {
-    return (
-      <span className="inline-flex items-center gap-1 align-middle">
-        <input
-          autoFocus
-          value={draft}
-          maxLength={64}
-          placeholder={placeholder}
-          onChange={(e) => setDraft(e.target.value)}
-          onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => {
-            e.stopPropagation();
-            if (e.key === "Enter") { onSave(draft); setEditing(false); }
-            if (e.key === "Escape") setEditing(false);
-          }}
-          className="w-36 rounded border border-slate-600 bg-slate-950 px-1.5 py-0.5 text-xs text-slate-100 outline-none focus:border-orange-400"
-        />
-        <button type="button" onClick={(e) => { e.stopPropagation(); onSave(draft); setEditing(false); }} className="text-[11px] text-emerald-400 hover:text-emerald-300">✓</button>
-        <button type="button" onClick={(e) => { e.stopPropagation(); setEditing(false); }} className="text-[11px] text-slate-500 hover:text-slate-300">✕</button>
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-1 align-middle">
-      {display}
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); setDraft(current); setEditing(true); }}
-        className="text-[11px] text-slate-500 transition hover:text-orange-400"
-        title={placeholder}
-        aria-label={placeholder}
-      >
-        ✏️
-      </button>
-    </span>
-  );
-}
 
 export default function WalletsPage() {
   const supabase = useMemo(() => createClient(), []);
@@ -360,7 +159,7 @@ export default function WalletsPage() {
       : id === "outro" ? t("wl_btc_other")
         : btcNetworkOptions.find((o) => o.id === id)?.label ?? "Bitcoin";
   const askConfirm = useConfirm();
-  const { format: fmtCur, symbol: curSym, currency: curCode, rate: curRate, hideBalances, rates: fxRates, numberFormat, formatMarketUsd: fmtMkt } = useCurrencyFormat();
+  const { currency: curCode, rate: curRate, hideBalances, rates: fxRates, numberFormat } = useCurrencyFormat();
   // Esconde qualquer saldo/quantidade/NFT quando a opção "esconder saldos" está ativa.
   const maskBal = (node: React.ReactNode): React.ReactNode => (hideBalances ? "••••" : node);
   const [isClient, setIsClient] = useState(false);
@@ -831,18 +630,6 @@ export default function WalletsPage() {
   //     _totalEur nem _account — enchia a tabela e parava o auto-snapshot e o
   //     PNL da API. O snapshot completo grava-o so a pagina do Portefolio.
 
-  type DefiChain = "eth" | "sol" | "btc" | "ada";
-  const defiKey = (address: string, chain: DefiChain | string) => `${address}:${chain}`;
-
-  /** Maps EVM network name to Moralis chain id (for L2-specific DeFi/NFT queries) */
-  const networkToMoralisChain = (network: string): string => {
-    const map: Record<string, string> = {
-      Ethereum: "eth", Arbitrum: "arbitrum", Optimism: "optimism",
-      Base: "base", Polygon: "polygon", BSC: "bsc", Avalanche: "avalanche",
-      Linea: "linea", zkSync: "zksync",
-    };
-    return map[network] ?? "eth";
-  };
 
   const fetchDefiForEntry = async (address: string, network: string) => {
     const moralisChain = networkToMoralisChain(network);
@@ -1191,12 +978,7 @@ export default function WalletsPage() {
     return () => pararPrecos();
   }, [walletMode]);
 
-  const getFiatValue = (symbol: string, balanceValue?: string | number | null) => {
-    const price = web3Prices[symbol]?.priceUsd ?? null;
-    const amount = Number(balanceValue ?? 0);
-    if (!Number.isFinite(amount) || price == null || !Number.isFinite(price)) return null;
-    return amount * price;
-  };
+  const getFiatValue = (symbol: string, balanceValue?: string | number | null) => fiatValue(web3Prices, symbol, balanceValue);
 
   const ethIsAvailable = isClient && !!getEvmProviderById(selectedEvmProvider);
   const solIsAvailable =
@@ -1204,8 +986,6 @@ export default function WalletsPage() {
     (isSolanaWalletAvailable(selectedSolProvider) || solWallets.length > 0);
   const btcIsAvailable = isClient && isBtcWalletAvailable(selectedBtcProvider);
   const adaIsAvailable = isClient && isCardanoWalletAvailable(selectedAdaProvider);
-
-  const ethBalanceKey = (addr: string, net: string) => `${addr}-${net}`;
 
   // Entrada activa: o wallet da rede seleccionada no dropdown
   const ethActiveEntry = useMemo(() => {
@@ -1294,10 +1074,7 @@ export default function WalletsPage() {
     return { loading, runes };
   }, [btcAddress, btcWallets, btcRunesByAddress, btcRunesLoading]);
 
-  const formatRuneAmount = (amount: number | string) => {
-    const n = typeof amount === "string" ? parseFloat(amount) || 0 : amount;
-    return n >= 1e9 ? String(amount) : n.toLocaleString(numberFormat, { maximumFractionDigits: 4 });
-  };
+  const formatRuneAmount = (amount: number | string) => formatRuneAmountIn(amount, numberFormat);
 
   const totalAdaBalance = useMemo(() => {
     let sum = parseFloat(adaBalance ?? "") || 0;
@@ -1309,29 +1086,6 @@ export default function WalletsPage() {
     });
     return sum.toFixed(6);
   }, [adaBalance, adaWallets, adaAddress, adaBalancesByAddress]);
-
-  const upsertWallet = (
-    list: StoredWalletEntry[],
-    entry: StoredWalletEntry,
-    matcher: (item: StoredWalletEntry) => boolean
-  ) => {
-    const index = list.findIndex(matcher);
-    if (index === -1) return [...list, entry];
-    const next = [...list];
-    next[index] = { ...next[index], ...entry };
-    return next;
-  };
-
-  const removeWallet = (
-    list: StoredWalletEntry[],
-    matcher: (item: StoredWalletEntry) => boolean
-  ) => list.filter((item) => !matcher(item));
-
-  const formatAddress = (address?: string) => {
-    if (!address) return "—";
-    if (address.length <= 12) return address;
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
-  };
 
   const toggleTraditional = (assetId: string) => {
     setTraditionalHoldings((prev) => {
@@ -1348,14 +1102,7 @@ export default function WalletsPage() {
   // Preco de uma cotacao convertido para EUR, a partir da moeda que a fonte
   // indica. Devolve undefined quando nao ha cotacao ou nao sabemos converter —
   // nesse caso o valor do ativo continua a ser o investido, como antes.
-  const quotePriceEur = (quote?: TraditionalQuote): number | undefined => {
-    if (!quote || quote.price == null || !Number.isFinite(quote.price)) return undefined;
-    const cur = (quote.currency ?? "USD").toUpperCase();  // sem moeda, as bolsas do plano gratuito sao americanas
-    if (cur === "EUR") return quote.price;
-    const perEur = (fxRates as Record<string, number>)[cur];
-    if (!perEur || perEur <= 0) return undefined;
-    return quote.price / perEur;
-  };
+  const quotePriceEur = (quote?: TraditionalQuote): number | undefined => quotePriceEurFrom(quote, fxRates as Record<string, number>);
 
   const updateTraditionalBuy = (assetId: string, next: { buyValue?: number; buyDate?: string; quantity?: number }) => {
     setTraditionalHoldings((prev) => {
@@ -1501,13 +1248,6 @@ export default function WalletsPage() {
     return evmNativeUsd + sol + btc + ada;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [evmNativeUsd, totalSolBalance, totalBtcBalance, totalAdaBalance, web3Prices]);
-
-  // "Ethereum" and "eth" refer to the same chain — normalize so the same address
-  // fetched under different key formats isn't double-counted.
-  const normalizeChain = (c: string) => {
-    if (c === "Ethereum" || c === "eth") return "eth";
-    return c.toLowerCase();
-  };
 
   const totalNftCount = useMemo(() => {
     const seen = new Set<string>();
@@ -3029,180 +2769,54 @@ export default function WalletsPage() {
     });
   };
 
+  // Remover um endereco de "outras redes" (usado na secao de acompanhamento e na lista cripto).
+  const removeOtherWallet = (item: StoredWalletEntry) => {
+    const next = otherWallets.filter((w) => !(w.address === item.address && w.network === item.network));
+    setOtherWallets(next);
+    updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: adaWallets, other: next });
+  };
+
+  // Mapas de DeFi/NFT so de leitura, agrupados para os componentes dos cartoes.
+  const defiNftMaps = { defiTotals, defiLoading, defiPartial, defiErrors, nftCounts, nftLoading, nftErrors, nftsByKey, nftPartial };
+
   return (
     <AppShell>
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-20 pt-2">
-        <div className="flex flex-col gap-4">
-          <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">
-            {t("nav_wallets")}
-          </p>
-          <h1 className="text-3xl font-semibold text-white">
-            {t("port_blockchain")} · {t("port_traditional")}
-          </h1>
-          <p className="max-w-2xl text-sm text-slate-400">
-            {t("wl_intro")}
-          </p>
-          {totalWallets === 0 && (
-            <div className="rounded-2xl border border-orange-500/30 bg-orange-500/[0.06] p-5">
-              <p className="text-sm font-bold text-white">🚀 {t("wl_quick_title")}</p>
-              <p className="mt-1 text-xs leading-relaxed text-slate-400">{t("wl_quick_desc")} {t("wl_hw_addr_hint")}</p>
-              <form className="mt-3 flex flex-col gap-2 sm:flex-row" onSubmit={(e) => { e.preventDefault(); handleQuickAdd(); }}>
-                <label htmlFor="wl-quick" className="sr-only">{t("wl_quick_ph")}</label>
-                <input
-                  id="wl-quick"
-                  value={quickAddr}
-                  onChange={(e) => { setQuickAddr(e.target.value); setQuickMsg(null); setQuickFromDemo(false); }}
-                  placeholder={t("wl_quick_ph")}
-                  autoComplete="off"
-                  spellCheck={false}
-                  className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-3 font-mono text-sm text-slate-100 outline-none transition placeholder:font-sans placeholder:text-slate-500 focus:border-orange-400"
-                />
-                <button type="submit" disabled={!quickAddr.trim()} className={`${btnPrimary} px-6 py-3 text-sm`}>{t("wl_quick_btn")}</button>
-              </form>
-              {quickFromDemo && !quickMsg && quickAddr && (
-                <p className="mt-2 text-xs text-emerald-300">✨ {t("wl_quick_from_demo")}</p>
-              )}
-              {quickMsg && (
-                <p role="alert" className={`mt-2 rounded-lg border px-3 py-2 text-xs ${quickMsg.ok ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-rose-500/30 bg-rose-500/10 text-rose-200"}`}>{quickMsg.text}</p>
-              )}
-              <p className="mt-4 text-xs font-semibold text-slate-400">{t("wl_quick_or")}</p>
-              <div className="mt-2 grid gap-3 sm:grid-cols-3">
-                <a href="#chain-cards" className="rounded-xl border border-slate-700 bg-slate-900/60 p-4 transition hover:border-orange-400/50">
-                  <p className="text-lg">🦊</p>
-                  <p className="mt-1 text-sm font-semibold text-white">{t("wl_start_1t")}</p>
-                  <p className="mt-0.5 text-xs text-slate-400">{t("wl_start_1d")}</p>
-                </a>
-                <a href="#manual-address-section" className="rounded-xl border border-slate-700 bg-slate-900/60 p-4 transition hover:border-orange-400/50">
-                  <p className="text-lg">📋</p>
-                  <p className="mt-1 text-sm font-semibold text-white">{t("wl_start_2t")}</p>
-                  <p className="mt-0.5 text-xs text-slate-400">{t("wl_start_2d")}</p>
-                </a>
-                <a href="#manual-crypto-section" className="rounded-xl border border-slate-700 bg-slate-900/60 p-4 transition hover:border-orange-400/50">
-                  <p className="text-lg">✍️</p>
-                  <p className="mt-1 text-sm font-semibold text-white">{t("wl_start_3t")}</p>
-                  <p className="mt-0.5 text-xs text-slate-400">{t("wl_start_3d")}</p>
-                </a>
-              </div>
-            </div>
-          )}
-          <div className="flex items-center gap-2 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-2.5 text-sm text-blue-300">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 shrink-0">
-              <path d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" />
-            </svg>
-            <span>{t("wl_readonly_banner")}</span>
-          </div>
-          {isLoadingAuth ? null : isPro ? (
-            <p className="text-xs text-emerald-300">
-              {t("wl_sync_active")}
-            </p>
-          ) : (
-            <div className="flex items-center gap-3">
-              <p className="text-xs text-slate-500">
-                {t("nav_wallets")}: <span className={totalWallets >= FREE_WALLET_LIMIT ? "text-rose-400 font-semibold" : "text-slate-300 font-semibold"}>{totalWallets}/{FREE_WALLET_LIMIT}</span>
-                {" "}({t("free")}){" "}
-                {totalWallets >= FREE_WALLET_LIMIT && (
-                  <a href={paymentsFrozen ? "/beta" : "/pricing"} className="text-orange-400 underline hover:text-orange-300">{paymentsFrozen ? `🧪 ${t("dash_beta_cta_short")} →` : t("wl_upgrade_pro")}</a>
-                )}
-              </p>
-            </div>
-          )}
-          <Segmentos
-            valor={walletMode}
-            aoMudar={setWalletMode}
-            opcoes={[{ id: "web3", label: t("port_blockchain") }, { id: "tradicional", label: t("port_traditional") }]}
-          />
-        </div>
+        <CabecalhoCarteiras
+          totalWallets={totalWallets}
+          quickAddr={quickAddr}
+          quickMsg={quickMsg}
+          quickFromDemo={quickFromDemo}
+          onQuickAddrChange={(v) => { setQuickAddr(v); setQuickMsg(null); setQuickFromDemo(false); }}
+          onQuickSubmit={handleQuickAdd}
+          isLoadingAuth={isLoadingAuth}
+          isPro={isPro}
+          paymentsFrozen={paymentsFrozen}
+          walletMode={walletMode}
+          onWalletModeChange={setWalletMode}
+        />
 
         {walletMode === "web3" ? (
         <>
         {confirmOpen ? (
-          <div className="pointer-events-auto fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4">
-            <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-950/95 p-6 text-slate-100 shadow-2xl">
-              <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">
-                {confirmRef.current?.title ?? t("wl_confirm")}
-              </p>
-              <p className="mt-3 text-sm text-slate-300">
-                {confirmRef.current?.description ?? t("wl_confirm_op")}
-              </p>
-              {confirmError ? (
-                <ErrorNote className="mt-3">{confirmError}</ErrorNote>
-              ) : null}
-              <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
-                <button
-                  type="button"
-                  className="rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                  onClick={() => setConfirmOpen(false)}
-                >
-                  {t("wl_cancel")}
-                </button>
-                <button
-                  type="button"
-                  className={`${btnPrimary} px-4 py-2 text-xs disabled:opacity-60`}
-                  onClick={handleConfirm}
-                  disabled={confirmBusy}
-                >
-                  {confirmBusy ? "…" : t("wl_confirm")}
-                </button>
-              </div>
-            </div>
-          </div>
+          <ConfirmacaoModal
+            title={confirmRef.current?.title}
+            description={confirmRef.current?.description}
+            error={confirmError}
+            busy={confirmBusy}
+            onCancel={() => setConfirmOpen(false)}
+            onConfirm={handleConfirm}
+          />
         ) : null}
         {otherWallets.length > 0 && (
-          <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-            <div className="mb-3">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{t("wl_other_networks")}</p>
-              <h3 className="text-base font-bold text-white mt-0.5">{t("wl_tracking")}</h3>
-              <p className="text-xs text-slate-500 mt-1">{t("wl_tracking_desc")}</p>
-            </div>
-            <div className="space-y-2">
-              {otherWallets.map((item) => (
-                <div
-                  key={`${item.address}-${item.network}`}
-                  className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300 flex flex-wrap items-center justify-between gap-2"
-                >
-                  <div className="space-y-0.5">
-                    <p className="font-semibold text-white text-[11px]">
-                      <EditableName
-                        current={item.label && item.label !== item.network ? item.label : ""}
-                        display={item.label && item.label !== item.network ? item.label : (item.network ?? "—")}
-                        onSave={(v) => renameWallet("other", item.address, v)}
-                        placeholder={t("wc_name_ph")}
-                      />
-                      <span className="ml-2 rounded-full bg-slate-600/30 px-2 py-0.5 text-[11px] text-slate-400">{item.network}</span>
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <p className="text-slate-500 font-mono text-[11px] break-all">
-                        {otherShown[item.address ?? ""]
-                          ? item.address
-                          : <span className="tracking-widest text-slate-600 select-none">••••••••</span>}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => setOtherShown((prev) => ({ ...prev, [item.address ?? ""]: !prev[item.address ?? ""] }))}
-                        className="shrink-0 rounded-full border border-slate-700 px-2 py-0.5 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                        title={otherShown[item.address ?? ""] ? t("wc_hide_addr") : t("wc_show_addr")}
-                        aria-label={otherShown[item.address ?? ""] ? t("wc_hide_addr") : t("wc_show_addr")}
-                      >
-                        {otherShown[item.address ?? ""] ? "🙈" : "👁️"}
-                      </button>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className="rounded-full border border-rose-400/40 px-3 py-1 text-[11px] font-semibold text-rose-200 transition hover:border-rose-400 hover:text-white shrink-0"
-                    onClick={() => {
-                      const next = otherWallets.filter((w) => !(w.address === item.address && w.network === item.network));
-                      setOtherWallets(next);
-                      updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: adaWallets, other: next });
-                    }}
-                  >
-                    {t("wl_remove")}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </section>
+          <OutrasRedesSecao
+            otherWallets={otherWallets}
+            otherShown={otherShown}
+            setOtherShown={setOtherShown}
+            renameWallet={renameWallet}
+            onRemove={removeOtherWallet}
+          />
         )}
         <div id="chain-cards" className="grid gap-6 md:grid-cols-2 scroll-mt-24">
           <WalletCard
@@ -3221,14 +2835,7 @@ export default function WalletsPage() {
             balance={ethActiveBalance}
             balanceUnit="ETH"
             fiatValueUsd={getFiatValue("ETH", ethActiveBalance)}
-            defiBalanceUsd={ethMainAddress ? defiTotals[defiKey(ethMainAddress, "eth")] ?? null : null}
-            defiPartial={ethMainAddress ? !!defiPartial[defiKey(ethMainAddress, "eth")] : false}
-            defiLoading={ethMainAddress ? !!defiLoading[defiKey(ethMainAddress, "eth")] : false}
-            defiError={ethMainAddress ? defiErrors[defiKey(ethMainAddress, "eth")] ?? null : null}
-            nftCount={ethMainAddress ? nftCounts[defiKey(ethMainAddress, "eth")] ?? null : null}
-            nftLoading={ethMainAddress ? !!nftLoading[defiKey(ethMainAddress, "eth")] : false}
-            nftError={ethMainAddress ? nftErrors[defiKey(ethMainAddress, "eth")] ?? null : null}
-            nfts={ethMainAddress ? nftsByKey[defiKey(ethMainAddress, "eth")] ?? [] : []}
+            {...propsDefiNftCartao(defiNftMaps, ethMainAddress, "eth")}
             usdToEur={usdToEurRate}
             onRefreshDefi={ethMainAddress ? () => void fetchDefiTotal(ethMainAddress, "eth") : undefined}
             isConnected={!!ethAddress || ethWallets.length > 0}
@@ -3242,386 +2849,90 @@ export default function WalletsPage() {
             onToggleAddress={() => setEthShowMain((prev) => !prev)}
             isAddressVisible={ethShowMain}
             topContent={
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[11px] uppercase tracking-[0.3em] text-slate-500">
-                  {t("wl_wallet")} ETH
-                </span>
-                <div className="relative min-w-[140px]" ref={ethWalletSelectRef}>
-                  <button
-                    type="button"
-                    className="flex min-w-[140px] items-center justify-between gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1.5 text-left text-xs text-slate-200 outline-none transition focus:border-orange-400"
-                    onClick={() => setEthWalletSelectOpen((o) => !o)}
-                  >
-                    <span className="truncate">
-                      {ethWalletOptions.find((o) => o.id === selectedEvmProvider)?.label ?? selectedEvmProvider}
-                    </span>
-                    <span className="text-slate-500 text-[11px]">{ethWalletSelectOpen ? "▲" : "▼"}</span>
-                  </button>
-                  {ethWalletSelectOpen ? (
-                    <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[200px] rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
-                      <input
-                        type="text"
-                        className="w-full border-b border-slate-700 bg-slate-900/80 px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none"
-                        placeholder={t("wl_search_wallet")}
-                        value={ethWalletSelectFilter}
-                        onChange={(e) => setEthWalletSelectFilter(e.target.value)}
-                        onKeyDown={(e) => e.stopPropagation()}
-                      />
-                      <div className="max-h-[180px] overflow-y-auto py-1">
-                        {ethWalletOptions
-                          .filter(
-                            (opt) =>
-                              !ethWalletSelectFilter.trim() ||
-                              opt.label.toLowerCase().includes(ethWalletSelectFilter.trim().toLowerCase()) ||
-                              opt.id.toLowerCase().includes(ethWalletSelectFilter.trim().toLowerCase())
-                          )
-                          .map((option) => (
-                            <button
-                              key={option.id}
-                              type="button"
-                              className="flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left text-xs text-slate-200 hover:bg-slate-800"
-                              onClick={() => {
-                                setSelectedEvmProvider(option.id);
-                                setEthWalletSelectOpen(false);
-                                setEthWalletSelectFilter("");
-                              }}
-                            >
-                              <span>{option.label}</span>
-                              {isClient && isEvmWalletAvailable(option.id) ? (
-                                <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-300">
-                                  {t("wl_available")}
-                                </span>
-                              ) : (
-                                <span className="rounded-full bg-slate-600/30 px-2 py-0.5 text-[11px] text-slate-400">
-                                  {t("wl_not_installed")}
-                                </span>
-                              )}
-                            </button>
-                          ))}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-                {/* Network dropdown */}
-                <div className="relative min-w-[130px]" ref={ethNetworkSelectRef}>
-                  <button
-                    type="button"
-                    className="flex min-w-[130px] items-center justify-between gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1.5 text-left text-xs text-slate-200 outline-none transition focus:border-orange-400"
-                    onClick={() => setEthNetworkSelectOpen((o) => !o)}
-                  >
-                    <span className="truncate">
-                      {selectedEthConnectNetwork === "Ethereum" ? "ETH Mainnet" : selectedEthConnectNetwork}
-                    </span>
-                    <span className="text-slate-500 text-[11px]">{ethNetworkSelectOpen ? "▲" : "▼"}</span>
-                  </button>
-                  {ethNetworkSelectOpen && (
-                    <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[160px] rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
-                      {(["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon", "zkSync", "Linea", "Blast"] as EvmNetwork[]).map((net) => (
-                        <button
-                          key={net}
-                          type="button"
-                          className={`flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left text-xs hover:bg-slate-800 ${selectedEthConnectNetwork === net ? "text-orange-300" : "text-slate-200"}`}
-                          onClick={() => { setSelectedEthConnectNetwork(net); setEthNetworkSelectOpen(false); }}
-                        >
-                          <span>{net === "Ethereum" ? "ETH Mainnet" : net}</span>
-                          {selectedEthConnectNetwork === net && <span className="text-orange-400">✓</span>}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
+              <EthSeletores
+                ethWalletSelectRef={ethWalletSelectRef}
+                ethWalletSelectOpen={ethWalletSelectOpen}
+                setEthWalletSelectOpen={setEthWalletSelectOpen}
+                selectedEvmProvider={selectedEvmProvider}
+                setSelectedEvmProvider={setSelectedEvmProvider}
+                ethWalletSelectFilter={ethWalletSelectFilter}
+                setEthWalletSelectFilter={setEthWalletSelectFilter}
+                isClient={isClient}
+                ethNetworkSelectRef={ethNetworkSelectRef}
+                ethNetworkSelectOpen={ethNetworkSelectOpen}
+                setEthNetworkSelectOpen={setEthNetworkSelectOpen}
+                selectedEthConnectNetwork={selectedEthConnectNetwork}
+                setSelectedEthConnectNetwork={setSelectedEthConnectNetwork}
+              />
             }
           >
             <div className="space-y-3">
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                {t("wl_more_wallets")}
-              </p>
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setShowEthNetworks((prev) => !prev)}
-                  className="rounded-full border border-slate-700 px-3 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                >
-                  {t("wl_eth_wallets")}
-                </button>
-                {showEthNetworks ? (
-                  <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-                    {ethWalletOptions.map((option) => (
-                      <span
-                        key={option.id}
-                        className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1 text-slate-200"
-                      >
-                        {option.label}{" "}
-                        {isClient && isEvmWalletAvailable(option.id) ? (
-                          <span className="ml-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-300">
-                            {t("wl_available")}
-                          </span>
-                        ) : (
-                          <span className="ml-1 rounded-full bg-slate-600/30 px-2 py-0.5 text-[11px] text-slate-400">
-                            {t("wl_not_installed")}
-                          </span>
-                        )}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-              <p className="text-xs text-slate-500">
-                {t("wl_connect_or_add")}
-              </p>
-              <button
-                type="button"
-                className="flex items-center gap-2 rounded-full border border-blue-500/40 bg-blue-950/30 px-4 py-2 text-xs font-semibold text-blue-300 transition hover:border-blue-400 hover:text-white disabled:opacity-60"
-                onClick={handleWalletConnect}
-                disabled={ethLoading}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 300 185" fill="currentColor">
-                  <path d="M61.4 36.3c48.9-47.9 128.3-47.9 177.2 0l5.9 5.8c2.4 2.4 2.4 6.2 0 8.6l-20.2 19.8c-1.2 1.2-3.2 1.2-4.4 0l-8.1-7.9c-34.1-33.4-89.4-33.4-123.5 0l-8.7 8.5c-1.2 1.2-3.2 1.2-4.4 0L54.9 51.3c-2.4-2.4-2.4-6.2 0-8.6l6.5-6.4zm218.8 40.8l18 17.6c2.4 2.4 2.4 6.2 0 8.6l-81.2 79.5c-2.4 2.4-6.4 2.4-8.8 0l-57.6-56.4c-.6-.6-1.6-.6-2.2 0l-57.6 56.4c-2.4 2.4-6.4 2.4-8.8 0L.8 103.3c-2.4-2.4-2.4-6.2 0-8.6l18-17.6c2.4-2.4 6.4-2.4 8.8 0l57.6 56.4c.6.6 1.6.6 2.2 0l57.6-56.4c2.4-2.4 6.4-2.4 8.8 0l57.6 56.4c.6.6 1.6.6 2.2 0l57.6-56.4c2.4-2.5 6.4-2.5 8.8-.1z"/>
-                </svg>
-                WalletConnect (QR)
-              </button>
-              <div className="grid gap-3 sm:grid-cols-[1.2fr_0.8fr_auto]">
-                <input
-                  className="w-full rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
-                  placeholder={t("wl_addr_eth")}
-                  value={ethNewAddress}
-                  onChange={(event) => setEthNewAddress(event.target.value)}
-                />
-                <select
-                  className="w-full rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none"
-                  value={ethNewNetwork}
-                  onChange={(e) => setEthNewNetwork(e.target.value as EvmNetwork | "outro")}
-                >
-                  <optgroup label="── Layer 1 ──">
-                    {ethNetworkLabelOptions.filter(o => o.group === "L1").map(opt => (
-                      <option key={opt.id} value={opt.id}>{opt.label}</option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="── Layer 2 ──">
-                    {ethNetworkLabelOptions.filter(o => o.group === "L2").map(opt => (
-                      <option key={opt.id} value={opt.id}>{opt.label}</option>
-                    ))}
-                  </optgroup>
-                  <option value="outro">{t("wl_other_evm")}</option>
-                </select>
-                <button
-                  type="button"
-                  className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white disabled:opacity-60"
-                  onClick={handleAddEthWallet}
-                  disabled={ethNewLoading}
-                >
-                  {ethNewLoading ? t("wl_adding") : t("wl_add")}
-                </button>
-              </div>
-              {ethNewNetwork === "outro" ? (
-                <input
-                  className="w-full max-w-xs rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
-                  placeholder={t("wl_name_opt")}
-                  value={ethNewCustomLabel}
-                  onChange={(e) => setEthNewCustomLabel(e.target.value)}
-                />
-              ) : null}
-              {ethNewError ? <ErrorNote>{ethNewError}</ErrorNote> : null}
-              {ethWallets.length > 1 && (
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    className="rounded-full border border-rose-400/30 px-3 py-1 text-[11px] font-semibold text-rose-300 transition hover:border-rose-400 hover:text-white"
-                    onClick={async () => {
-                      if (!(await askConfirm({ message: t("wl_remove_all_confirm"), danger: true, okLabel: t("remove") }))) return;
-                      setEthWallets([]);
-                      setEthAddress(undefined);
-                      setEthBalance(undefined);
-                      setEthError(null);
-                      setEthBalancesByKey({});
-                      setEthBalanceErrors({});
-                    }}
-                  >
-                    {t("wl_remove_all")}
-                  </button>
-                </div>
-              )}
-              <div className="space-y-2">
-                {ethWallets.map((item) => {
-                  const isConnected = item.address === ethAddress && item.network === ethConnectedNetwork;
-                  const key = ethBalanceKey(item.address ?? "", item.network ?? "Ethereum");
-                  const loading = ethBalancesLoading[key];
-                  const err = ethBalanceErrors[key];
-                  const liveBalance = ethBalancesByKey[key];
-                  const balanceDisplay = isConnected
-                    ? ethBalance ?? "—"
-                    : loading || liveBalance === undefined
-                      ? t("wl_loading")
-                      : err
-                        ? null
-                        : liveBalance ?? "—";
-                  const dk = item.address ? defiKey(item.address, item.network ?? "Ethereum") : null;
-                  const itemDefi = dk ? (defiTotals[dk] ?? null) : null;
-                  const itemDefiLoading = dk ? !!defiLoading[dk] : false;
-                  const itemDefiPartial = dk ? !!defiPartial[dk] : false;
-                  const itemNftCount = dk ? (nftCounts[dk] ?? null) : null;
-                  const itemNftLoading = dk ? !!nftLoading[dk] : false;
-                  const itemNfts = dk ? (nftsByKey[dk] ?? []) : [];
-                  return (
-                    <div
-                      key={`${item.address}-${item.network}`}
-                      className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="space-y-1">
-                        <p className="font-semibold text-white">
-                          <EditableName
-                            current={item.label ?? ""}
-                            display={item.label ?? item.network ?? "Ethereum"}
-                            onSave={(v) => renameWallet("eth", item.address, v)}
-                            placeholder={t("wc_name_ph")}
-                          />
-                          {item.label && item.network && (
-                            <span className="ml-1.5 text-[11px] font-normal text-slate-500">{item.network}</span>
-                          )}
-                          {isConnected ? (
-                            <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-300">
-                              {t("wl_connected")}
-                            </span>
-                          ) : (
-                            <span className="ml-2 rounded-full bg-slate-600/30 px-2 py-0.5 text-[11px] text-slate-400">
-                              {t("wl_by_address")}
-                            </span>
-                          )}
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <p className="text-slate-500">
-                            {ethShown[item.address ?? ""] ? item.address : <span className="tracking-widest text-slate-600 select-none">••••••••</span>}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setEthShown((prev) => ({ ...prev, [item.address ?? ""]: !prev[item.address ?? ""] }))
-                            }
-                            className="rounded-full border border-slate-700 px-2 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                            title={ethShown[item.address ?? ""] ? t("wc_hide") : t("ac_show")}
-                          >
-                            {ethShown[item.address ?? ""] ? "🙈" : "👁️"}
-                          </button>
-                        </div>
-                        <p className="flex flex-wrap items-center gap-1.5 text-slate-500">
-                          DeFi:{" "}
-                          {itemDefiLoading
-                            ? <span className="animate-pulse">{t("wl_loading")}</span>
-                            : itemDefi != null
-                              ? <span className={itemDefi >= 0.01 ? "text-emerald-400 font-semibold" : "text-slate-400"}>
-                                  {fmtCur(itemDefi * usdToEurRate)}
-                                </span>
-                              : <span className="text-slate-600 text-[11px]">—</span>}
-                              {itemDefiPartial && !itemDefiLoading && (
-                                <span title={t("pcs_defi_partial")} className="cursor-help rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 text-[11px] text-amber-300">{t("wl_defi_partial")}</span>
-                              )}
-                          {item.address && (
-                            <span className="inline-flex items-center gap-1.5">
-                              <a href={`https://app.uniswap.org/positions`} target="_blank" rel="noopener noreferrer" className="text-[11px] text-pink-400 hover:text-pink-300 underline underline-offset-2">Uniswap ↗</a>
-                              <a href={`https://defillama.com/portfolio#${item.address}`} target="_blank" rel="noopener noreferrer" className="text-[11px] text-violet-400 hover:text-violet-300 underline underline-offset-2">DeFiLlama ↗</a>
-                              <button
-                                type="button"
-                                onClick={() => void fetchDefiForEntry(item.address!, item.network ?? "Ethereum")}
-                                className="text-slate-600 hover:text-orange-400 transition text-[11px]"
-                                title={t("wl_refresh_defi")}
-                              >↻</button>
-                            </span>
-                          )}
-                        </p>
-                        <p className="text-slate-500">
-                          NFT:{" "}
-                          {hideBalances
-                            ? "••••"
-                            : itemNftLoading
-                            ? t("wl_loading")
-                            : itemNftCount != null
-                              ? `${itemNftCount} ${itemNftCount === 1 ? t("wc_item") : t("wc_items")}`
-                              : "—"}
-                          {dk && nftPartial[dk] && !itemNftLoading && (
-                            <span title={t("wl_nft_partial_tip")} className="ml-1.5 cursor-help rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 text-[11px] text-amber-300">{t("wl_defi_partial")}</span>
-                          )}
-                        </p>
-                        {!hideBalances && itemNfts.length > 0 && (
-                          <div className="mt-1 grid grid-cols-4 gap-1 max-w-[160px]">
-                            {itemNfts.slice(0, 8).map((nft) => (
-                              <a
-                                key={nft.id}
-                                href={nft.tokenAddress && nft.tokenId ? `https://opensea.io/assets/ethereum/${nft.tokenAddress}/${nft.tokenId}` : "#"}
-                                target="_blank" rel="noopener noreferrer"
-                                className="aspect-square overflow-hidden rounded border border-slate-700 bg-slate-800"
-                                title={nft.name}
-                              >
-                                {(nft.image || nft.tokenUri)
-                                  ? <NftImage src={nft.image} tokenUri={nft.tokenUri} alt={nft.name} className="h-full w-full object-cover" />
-                                  : <div className="flex h-full w-full items-center justify-center text-[8px] text-slate-500">—</div>}
-                              </a>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        {balanceDisplay != null && (
-                          <p>
-                            {hideBalances ? "••••" : <>{balanceDisplay} {balanceDisplay !== t("wl_loading") && balanceDisplay !== "—" ? "ETH" : ""}</>}
-                          </p>
-                        )}
-                        {balanceDisplay != null && balanceDisplay !== t("wl_loading") && balanceDisplay !== "—" && getFiatValue("ETH", balanceDisplay) != null ? (
-                          <p className="text-slate-400">{fmtCur((getFiatValue("ETH", balanceDisplay) ?? 0) * usdToEurRate)}</p>
-                        ) : null}
-                        {err ? (
-                          <p className="text-rose-300" title={err}>
-                            {err.length > 40 ? `${err.slice(0, 40)}…` : err}
-                          </p>
-                        ) : null}
-                        <div className="mt-1 flex flex-wrap justify-end gap-1">
-                          {!isConnected && (err || balanceDisplay === "—") ? (
-                            <button
-                              type="button"
-                              className="rounded-full border border-slate-600 px-3 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white disabled:opacity-50"
-                              onClick={() => void fetchEthBalanceForEntry(item.address!, item.network ?? "Ethereum")}
-                              disabled={loading}
-                            >
-                              {loading ? t("wl_loading") : t("wl_retry")}
-                            </button>
-                          ) : null}
-                          <button
-                            className="rounded-full border border-rose-400/40 px-3 py-1 text-[11px] font-semibold text-rose-200 transition hover:border-rose-400 hover:text-white"
-                            type="button"
-                            onClick={() => {
-                              const nextWallets = removeWallet(
-                                ethWallets,
-                                (entry) => entry.address === item.address && entry.network === item.network
-                              );
-                              setEthWallets(nextWallets);
-                              if (item.address === ethAddress && item.network === "Ethereum") {
-                                setEthAddress(undefined);
-                                setEthBalance(undefined);
-                                setEthError(null);
-                              }
-                              const k = ethBalanceKey(item.address ?? "", item.network ?? "");
-                              setEthBalancesByKey((prev) => {
-                                const next = { ...prev };
-                                delete next[k];
-                                return next;
-                              });
-                              setEthBalanceErrors((prev) => {
-                                const next = { ...prev };
-                                delete next[k];
-                                return next;
-                              });
-                            }}
-                          >
-                            {t("wl_remove")}
-                          </button>
-                        </div>
-                      </div>
-                      </div>
-                    </div>
+              <EthAdicionar
+                showEthNetworks={showEthNetworks}
+                setShowEthNetworks={setShowEthNetworks}
+                isClient={isClient}
+                handleWalletConnect={handleWalletConnect}
+                ethLoading={ethLoading}
+                ethNewAddress={ethNewAddress}
+                setEthNewAddress={setEthNewAddress}
+                ethNewNetwork={ethNewNetwork}
+                setEthNewNetwork={setEthNewNetwork}
+                ethNewCustomLabel={ethNewCustomLabel}
+                setEthNewCustomLabel={setEthNewCustomLabel}
+                handleAddEthWallet={handleAddEthWallet}
+                ethNewLoading={ethNewLoading}
+                ethNewError={ethNewError}
+                ethWallets={ethWallets}
+                onRemoveAll={async () => {
+                  if (!(await askConfirm({ message: t("wl_remove_all_confirm"), danger: true, okLabel: t("remove") }))) return;
+                  setEthWallets([]);
+                  setEthAddress(undefined);
+                  setEthBalance(undefined);
+                  setEthError(null);
+                  setEthBalancesByKey({});
+                  setEthBalanceErrors({});
+                }}
+              />
+              <EthCarteirasLista
+                ethWallets={ethWallets}
+                ethAddress={ethAddress}
+                ethConnectedNetwork={ethConnectedNetwork}
+                ethBalance={ethBalance}
+                ethBalancesByKey={ethBalancesByKey}
+                ethBalancesLoading={ethBalancesLoading}
+                ethBalanceErrors={ethBalanceErrors}
+                defiNft={defiNftMaps}
+                ethShown={ethShown}
+                setEthShown={setEthShown}
+                renameWallet={renameWallet}
+                fetchDefiForEntry={fetchDefiForEntry}
+                fetchEthBalanceForEntry={fetchEthBalanceForEntry}
+                getFiatValue={getFiatValue}
+                usdToEurRate={usdToEurRate}
+                onRemove={(item) => {
+                  const nextWallets = removeWallet(
+                    ethWallets,
+                    (entry) => entry.address === item.address && entry.network === item.network
                   );
-                })}
-              </div>
+                  setEthWallets(nextWallets);
+                  if (item.address === ethAddress && item.network === "Ethereum") {
+                    setEthAddress(undefined);
+                    setEthBalance(undefined);
+                    setEthError(null);
+                  }
+                  const k = ethBalanceKey(item.address ?? "", item.network ?? "");
+                  setEthBalancesByKey((prev) => {
+                    const next = { ...prev };
+                    delete next[k];
+                    return next;
+                  });
+                  setEthBalanceErrors((prev) => {
+                    const next = { ...prev };
+                    delete next[k];
+                    return next;
+                  });
+                }}
+              />
             </div>
           </WalletCard>
           <WalletCard
@@ -3640,14 +2951,7 @@ export default function WalletsPage() {
             balance={solWallets.length > 0 ? totalSolBalance : solBalance}
             balanceUnit="SOL"
             fiatValueUsd={getFiatValue("SOL", solWallets.length > 0 ? totalSolBalance : solBalance)}
-            defiBalanceUsd={solMainAddress ? defiTotals[defiKey(solMainAddress, "sol")] ?? null : null}
-            defiPartial={solMainAddress ? !!defiPartial[defiKey(solMainAddress, "sol")] : false}
-            defiLoading={solMainAddress ? !!defiLoading[defiKey(solMainAddress, "sol")] : false}
-            defiError={solMainAddress ? defiErrors[defiKey(solMainAddress, "sol")] ?? null : null}
-            nftCount={solMainAddress ? nftCounts[defiKey(solMainAddress, "sol")] ?? null : null}
-            nftLoading={solMainAddress ? !!nftLoading[defiKey(solMainAddress, "sol")] : false}
-            nftError={solMainAddress ? nftErrors[defiKey(solMainAddress, "sol")] ?? null : null}
-            nfts={solMainAddress ? nftsByKey[defiKey(solMainAddress, "sol")] ?? [] : []}
+            {...propsDefiNftCartao(defiNftMaps, solMainAddress, "sol")}
             usdToEur={usdToEurRate}
             onRefreshDefi={solMainAddress ? () => void fetchDefiTotal(solMainAddress, "sol") : undefined}
             isConnected={!!solAddress || solWallets.length > 0}
@@ -3661,346 +2965,66 @@ export default function WalletsPage() {
             onToggleAddress={() => setSolShowMain((prev) => !prev)}
             isAddressVisible={solShowMain}
             topContent={
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[11px] uppercase tracking-[0.3em] text-slate-500">
-                  {t("wl_wallet")} SOL
-                </span>
-                {/* Wallet selector */}
-                <div className="relative min-w-[160px]" ref={solWalletSelectRef}>
-                  <button
-                    type="button"
-                    className="flex min-w-[160px] items-center justify-between gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1.5 text-left text-xs text-slate-200 outline-none transition focus:border-orange-400"
-                    onClick={() => setSolWalletSelectOpen((o) => !o)}
-                  >
-                    <span className="truncate">
-                      {solWalletOptions.find((o) => o.id === selectedSolProvider)?.label ?? selectedSolProvider}
-                    </span>
-                    <span className="text-slate-500 text-[11px]">{solWalletSelectOpen ? "▲" : "▼"}</span>
-                  </button>
-                  {solWalletSelectOpen ? (
-                    <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[220px] rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
-                      <input
-                        type="text"
-                        className="w-full border-b border-slate-700 bg-slate-900/80 px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none"
-                        placeholder={t("wl_search_wallet")}
-                        value={solWalletSelectFilter}
-                        onChange={(e) => setSolWalletSelectFilter(e.target.value)}
-                        onKeyDown={(e) => e.stopPropagation()}
-                      />
-                      <div className="max-h-[200px] overflow-y-auto py-1">
-                        {solWalletOptions
-                          .filter(
-                            (opt) =>
-                              !solWalletSelectFilter.trim() ||
-                              opt.label.toLowerCase().includes(solWalletSelectFilter.trim().toLowerCase()) ||
-                              opt.id.toLowerCase().includes(solWalletSelectFilter.trim().toLowerCase())
-                          )
-                          .map((option) => (
-                            <button
-                              key={option.id}
-                              type="button"
-                              className="flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left text-xs text-slate-200 hover:bg-slate-800"
-                              onClick={() => {
-                                setSelectedSolProvider(option.id);
-                                setSolWalletSelectOpen(false);
-                                setSolWalletSelectFilter("");
-                              }}
-                            >
-                              <span>{option.label}</span>
-                              {isClient && isSolanaWalletAvailable(option.id) ? (
-                                <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-300">
-                                  {t("wl_available")}
-                                </span>
-                              ) : (
-                                <span className="rounded-full bg-slate-600/30 px-2 py-0.5 text-[11px] text-slate-400">
-                                  {t("wl_not_installed")}
-                                </span>
-                              )}
-                            </button>
-                          ))}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-                {/* Network selector */}
-                <div className="relative min-w-[130px]" ref={solNetworkSelectRef}>
-                  <button
-                    type="button"
-                    className="flex min-w-[130px] items-center justify-between gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1.5 text-left text-xs text-slate-200 outline-none transition focus:border-orange-400"
-                    onClick={() => setSolNetworkSelectOpen((o) => !o)}
-                  >
-                    <span className="truncate">
-                      {selectedSolNetwork === "Mainnet" ? "SOL Mainnet" : "SOL Devnet"}
-                    </span>
-                    <span className="text-slate-500 text-[11px]">{solNetworkSelectOpen ? "▲" : "▼"}</span>
-                  </button>
-                  {solNetworkSelectOpen && (
-                    <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[160px] rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
-                      {(["Mainnet", "Devnet"] as const).map((net) => (
-                        <button
-                          key={net}
-                          type="button"
-                          className={`flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left text-xs hover:bg-slate-800 ${selectedSolNetwork === net ? "text-orange-300" : "text-slate-200"}`}
-                          onClick={() => { setSelectedSolNetwork(net); setSolNetworkSelectOpen(false); }}
-                        >
-                          <span>{net === "Mainnet" ? "SOL Mainnet" : "SOL Devnet"}</span>
-                          {selectedSolNetwork === net && <span className="text-orange-400">✓</span>}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
+              <SolSeletores
+                solWalletSelectRef={solWalletSelectRef}
+                solWalletSelectOpen={solWalletSelectOpen}
+                setSolWalletSelectOpen={setSolWalletSelectOpen}
+                selectedSolProvider={selectedSolProvider}
+                setSelectedSolProvider={setSelectedSolProvider}
+                solWalletSelectFilter={solWalletSelectFilter}
+                setSolWalletSelectFilter={setSolWalletSelectFilter}
+                isClient={isClient}
+                solNetworkSelectRef={solNetworkSelectRef}
+                solNetworkSelectOpen={solNetworkSelectOpen}
+                setSolNetworkSelectOpen={setSolNetworkSelectOpen}
+                selectedSolNetwork={selectedSolNetwork}
+                setSelectedSolNetwork={setSelectedSolNetwork}
+              />
             }
           >
             <div className="space-y-3">
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                {t("wl_more_wallets")}
-              </p>
-              <div className="flex flex-wrap gap-2 text-[11px]">
-                {solWalletOptions.map((option) => (
-                  <span
-                    key={option.id}
-                    className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1 text-slate-200"
-                  >
-                    {option.label}{" "}
-                    {isClient && isSolanaWalletAvailable(option.id) ? (
-                      <span className="ml-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-300">
-                        {t("wl_available")}
-                      </span>
-                    ) : (
-                      <span className="ml-1 rounded-full bg-slate-600/30 px-2 py-0.5 text-[11px] text-slate-400">
-                        {t("wl_not_installed")}
-                      </span>
-                    )}
-                  </span>
-                ))}
-              </div>
-              <p className="text-xs text-slate-500">
-                {t("wl_connect_or_add")}
-              </p>
-              <div className="grid gap-3 sm:grid-cols-[1.2fr_0.8fr_auto]">
-                <input
-                  className="w-full rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
-                  placeholder={t("wl_addr_sol")}
-                  value={solNewAddress}
-                  onChange={(event) => setSolNewAddress(event.target.value)}
-                />
-                <div className="relative min-w-0" ref={solNewWalletSelectRef}>
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-between gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-left text-xs text-slate-200 outline-none transition focus:border-orange-400"
-                    onClick={() => setSolNewWalletSelectOpen((o) => !o)}
-                  >
-                    <span className="truncate">
-                      {solNetworkOptions.find((o) => o.id === solNewWalletId)?.label ?? solNewWalletId}
-                    </span>
-                    <span className="text-slate-500 text-[11px] shrink-0">{solNewWalletSelectOpen ? "▲" : "▼"}</span>
-                  </button>
-                  {solNewWalletSelectOpen ? (
-                    <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
-                      <input
-                        type="text"
-                        className="w-full border-b border-slate-700 bg-slate-900/80 px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none"
-                        placeholder={t("wl_search_network")}
-                        value={solNewWalletSelectFilter}
-                        onChange={(e) => setSolNewWalletSelectFilter(e.target.value)}
-                        onKeyDown={(e) => e.stopPropagation()}
-                      />
-                      <div className="max-h-[200px] overflow-y-auto py-1">
-                        {solNetworkOptions
-                          .filter(
-                            (opt) =>
-                              !solNewWalletSelectFilter.trim() ||
-                              opt.label.toLowerCase().includes(solNewWalletSelectFilter.trim().toLowerCase()) ||
-                              opt.id.toLowerCase().includes(solNewWalletSelectFilter.trim().toLowerCase())
-                          )
-                          .map((opt) => (
-                            <button
-                              key={opt.id}
-                              type="button"
-                              className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-xs text-slate-200 hover:bg-slate-800"
-                              onClick={() => {
-                                setSolNewWalletId(opt.id);
-                                setSolNewWalletSelectOpen(false);
-                                setSolNewWalletSelectFilter("");
-                              }}
-                            >
-                              {opt.label}
-                            </button>
-                          ))}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-                <button
-                  type="button"
-                  className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white disabled:opacity-60"
-                  onClick={handleAddSolWallet}
-                  disabled={solNewLoading}
-                >
-                  {solNewLoading ? t("wl_adding") : t("wl_add")}
-                </button>
-              </div>
-              {solNewWalletId === "outro" ? (
-                <input
-                  className="w-full max-w-xs rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
-                  placeholder={t("wl_name_opt")}
-                  value={solNewCustomLabel}
-                  onChange={(e) => setSolNewCustomLabel(e.target.value)}
-                />
-              ) : null}
-              {solNewError ? <ErrorNote>{solNewError}</ErrorNote> : null}
-              <div className="space-y-2">
-                {solWallets.map((item) => {
-                  const isConnected = item.address === solAddress
-                    || (!!item.label && solWalletOptions.some((o) => o.label === item.label));
+              <SolAdicionar
+                isClient={isClient}
+                solNewAddress={solNewAddress}
+                setSolNewAddress={setSolNewAddress}
+                solNewWalletSelectRef={solNewWalletSelectRef}
+                solNewWalletSelectOpen={solNewWalletSelectOpen}
+                setSolNewWalletSelectOpen={setSolNewWalletSelectOpen}
+                solNewWalletId={solNewWalletId}
+                setSolNewWalletId={setSolNewWalletId}
+                solNewWalletSelectFilter={solNewWalletSelectFilter}
+                setSolNewWalletSelectFilter={setSolNewWalletSelectFilter}
+                handleAddSolWallet={handleAddSolWallet}
+                solNewLoading={solNewLoading}
+                solNewCustomLabel={solNewCustomLabel}
+                setSolNewCustomLabel={setSolNewCustomLabel}
+                solNewError={solNewError}
+              />
+              <SolCarteirasLista
+                solWallets={solWallets}
+                solAddress={solAddress}
+                solBalance={solBalance}
+                solBalancesByAddress={solBalancesByAddress}
+                solBalancesLoading={solBalancesLoading}
+                solBalanceErrors={solBalanceErrors}
+                defiNft={defiNftMaps}
+                solShown={solShown}
+                setSolShown={setSolShown}
+                renameWallet={renameWallet}
+                fetchDefiTotal={fetchDefiTotal}
+                fetchNftBalance={fetchNftBalance}
+                fetchSolBalanceForAddress={fetchSolBalanceForAddress}
+                getFiatValue={getFiatValue}
+                usdToEurRate={usdToEurRate}
+                onRemove={(item) => {
                   const addr = item.address ?? "";
-                  const loading = solBalancesLoading[addr];
-                  const err = solBalanceErrors[addr];
-                  const balanceDisplay = item.address === solAddress
-                    ? solBalance ?? "—"
-                    : loading
-                      ? t("wl_loading")
-                      : err
-                        ? null
-                        : solBalancesByAddress[addr] ?? item.balance ?? "—";
-                  const dk = addr ? defiKey(addr, "sol") : null;
-                  const itemDefi = dk ? (defiTotals[dk] ?? null) : null;
-                  const itemDefiLoading = dk ? !!defiLoading[dk] : false;
-                  const itemDefiPartial = dk ? !!defiPartial[dk] : false;
-                  const itemNftCount = dk ? (nftCounts[dk] ?? null) : null;
-                  const itemNftLoading = dk ? !!nftLoading[dk] : false;
-                  const itemNfts = dk ? (nftsByKey[dk] ?? []) : [];
-                  return (
-                    <div
-                      key={`${item.address}-${item.network ?? "Solana"}`}
-                      className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div className="space-y-1">
-                          <p className="font-semibold text-white">
-                            <EditableName
-                              current={item.label ?? ""}
-                              display={item.label ?? item.network ?? "Solana"}
-                              onSave={(v) => renameWallet("sol", item.address, v)}
-                              placeholder={t("wc_name_ph")}
-                            />
-                            {isConnected ? (
-                              <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-300">{t("wl_connected")}</span>
-                            ) : (
-                              <span className="ml-2 rounded-full bg-slate-600/30 px-2 py-0.5 text-[11px] text-slate-400">{t("wl_by_address")}</span>
-                            )}
-                          </p>
-                          <div className="flex items-center gap-2">
-                            <p className="text-slate-500">
-                              {solShown[addr] ? item.address : <span className="tracking-widest text-slate-600 select-none">••••••••</span>}
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => setSolShown((prev) => ({ ...prev, [addr]: !prev[addr] }))}
-                              className="rounded-full border border-slate-700 px-2 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                              title={solShown[addr] ? "Ocultar" : "Mostrar"}
-                            >
-                              {solShown[addr] ? "🙈" : "👁️"}
-                            </button>
-                          </div>
-                          {/* DeFi */}
-                          <p className="flex flex-wrap items-center gap-1.5 text-slate-500">
-                            DeFi:{" "}
-                            {itemDefiLoading
-                              ? <span className="animate-pulse">{t("wl_loading")}</span>
-                              : itemDefi != null
-                                ? <span className={itemDefi >= 0.01 ? "text-emerald-400 font-semibold" : "text-slate-400"}>
-                                    {fmtCur(itemDefi * usdToEurRate)}
-                                  </span>
-                                : <span className="text-slate-600 text-[11px]">—</span>}
-                                {itemDefiPartial && !itemDefiLoading && (
-                                  <span title={t("pcs_defi_partial")} className="cursor-help rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 text-[11px] text-amber-300">{t("wl_defi_partial")}</span>
-                                )}
-                            {addr && (
-                              <span className="inline-flex items-center gap-1.5">
-                                <a href="https://app.meteora.ag/portfolio" target="_blank" rel="noopener noreferrer" className="text-[11px] text-violet-400 hover:text-violet-300 underline underline-offset-2">Meteora ↗</a>
-                                <a href={`https://defillama.com/portfolio#${addr}`} target="_blank" rel="noopener noreferrer" className="text-[11px] text-violet-400 hover:text-violet-300 underline underline-offset-2">DeFiLlama ↗</a>
-                                <button
-                                  type="button"
-                                  onClick={() => { void fetchDefiTotal(addr, "sol"); void fetchNftBalance(addr, "sol"); }}
-                                  className="text-slate-600 hover:text-orange-400 transition text-[11px]"
-                                  title={t("wl_refresh_defi")}
-                                >↻</button>
-                              </span>
-                            )}
-                          </p>
-                          {/* NFT */}
-                          <p className="text-slate-500">
-                            NFT:{" "}
-                            {hideBalances
-                              ? "••••"
-                              : itemNftLoading
-                              ? t("wl_loading")
-                              : itemNftCount != null
-                                ? `${itemNftCount} ${itemNftCount === 1 ? t("wc_item") : t("wc_items")}`
-                                : "—"}
-                          </p>
-                          {!hideBalances && itemNfts.length > 0 && (
-                            <div className="mt-1 grid grid-cols-4 gap-1 max-w-[160px]">
-                              {itemNfts.slice(0, 8).map((nft) => (
-                                <a
-                                  key={nft.id}
-                                  href={nft.tokenAddress ? `https://magiceden.io/item-details/${nft.tokenAddress}` : "#"}
-                                  target="_blank" rel="noopener noreferrer"
-                                  className="aspect-square overflow-hidden rounded border border-slate-700 bg-slate-800"
-                                  title={nft.name}
-                                >
-                                  {(nft.image || nft.tokenUri)
-                                    ? <NftImage src={nft.image} tokenUri={nft.tokenUri} alt={nft.name} className="h-full w-full object-cover" loading="lazy" />
-                                    : <div className="h-full w-full flex items-center justify-center text-[8px] text-slate-500">{nft.name?.slice(0, 3)}</div>}
-                                </a>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <div className="text-right shrink-0">
-                          {balanceDisplay != null && (
-                            <p>{hideBalances ? "••••" : <>{balanceDisplay}{balanceDisplay !== t("wl_loading") && balanceDisplay !== "—" ? " SOL" : ""}</>}</p>
-                          )}
-                          {balanceDisplay != null && balanceDisplay !== t("wl_loading") && balanceDisplay !== "—" && getFiatValue("SOL", balanceDisplay) != null ? (
-                            <p className="text-slate-400">{fmtCur((getFiatValue("SOL", balanceDisplay) ?? 0) * usdToEurRate)}</p>
-                          ) : null}
-                          {err ? (
-                            <p className="text-rose-300" title={err}>{err.length > 40 ? `${err.slice(0, 40)}…` : err}</p>
-                          ) : null}
-                          <div className="mt-1 flex flex-wrap justify-end gap-1">
-                            {!isConnected && (err || balanceDisplay === "—") ? (
-                              <button
-                                type="button"
-                                className="rounded-full border border-slate-600 px-3 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white disabled:opacity-50"
-                                onClick={() => void fetchSolBalanceForAddress(addr)}
-                                disabled={loading}
-                              >
-                                {loading ? t("wl_loading") : t("wl_retry")}
-                              </button>
-                            ) : null}
-                            <button
-                              className="rounded-full border border-rose-400/40 px-3 py-1 text-[11px] font-semibold text-rose-200 transition hover:border-rose-400 hover:text-white"
-                              type="button"
-                              onClick={() => {
-                                const nextWallets = removeWallet(solWallets, (entry) => entry.address === item.address && (entry.network ?? "Solana") === (item.network ?? "Solana"));
-                                setSolWallets(nextWallets);
-                                if (item.address === solAddress) { setSolAddress(undefined); setSolBalance(undefined); setSolError(null); }
-                                setSolBalancesByAddress((prev) => { const next = { ...prev }; delete next[addr]; return next; });
-                                setSolBalanceErrors((prev) => { const next = { ...prev }; delete next[addr]; return next; });
-                              }}
-                            >
-                              {t("wl_remove")}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                  const nextWallets = removeWallet(solWallets, (entry) => entry.address === item.address && (entry.network ?? "Solana") === (item.network ?? "Solana"));
+                  setSolWallets(nextWallets);
+                  if (item.address === solAddress) { setSolAddress(undefined); setSolBalance(undefined); setSolError(null); }
+                  setSolBalancesByAddress((prev) => { const next = { ...prev }; delete next[addr]; return next; });
+                  setSolBalanceErrors((prev) => { const next = { ...prev }; delete next[addr]; return next; });
+                }}
+              />
             </div>
           </WalletCard>
           <WalletCard
@@ -4020,14 +3044,7 @@ export default function WalletsPage() {
             balanceUnit="BTC"
             fiatValueUsd={getFiatValue("BTC", btcWallets.length > 0 ? totalBtcBalance : (btcBalance ?? undefined))}
             hideDefi
-            defiBalanceUsd={btcMainAddress ? defiTotals[defiKey(btcMainAddress, "btc")] ?? null : null}
-            defiPartial={btcMainAddress ? !!defiPartial[defiKey(btcMainAddress, "btc")] : false}
-            defiLoading={btcMainAddress ? !!defiLoading[defiKey(btcMainAddress, "btc")] : false}
-            defiError={btcMainAddress ? defiErrors[defiKey(btcMainAddress, "btc")] ?? null : null}
-            nftCount={btcMainAddress ? nftCounts[defiKey(btcMainAddress, "btc")] ?? null : null}
-            nftLoading={btcMainAddress ? !!nftLoading[defiKey(btcMainAddress, "btc")] : false}
-            nftError={btcMainAddress ? nftErrors[defiKey(btcMainAddress, "btc")] ?? null : null}
-            nfts={btcMainAddress ? nftsByKey[defiKey(btcMainAddress, "btc")] ?? [] : []}
+            {...propsDefiNftCartao(defiNftMaps, btcMainAddress, "btc")}
             usdToEur={usdToEurRate}
             isConnected={!!btcAddress || btcWallets.length > 0}
             isAvailable={btcIsAvailable}
@@ -4041,343 +3058,98 @@ export default function WalletsPage() {
             onToggleAddress={() => setBtcShowMain((prev) => !prev)}
             isAddressVisible={btcShowMain}
             topContent={
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[11px] uppercase tracking-[0.3em] text-slate-500">
-                  {t("wl_wallet")} BTC
-                </span>
-                <div className="relative min-w-[120px]" ref={btcWalletSelectRef}>
-                  <button
-                    type="button"
-                    className="flex min-w-[120px] items-center justify-between gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1.5 text-left text-xs text-slate-200 outline-none transition focus:border-orange-400"
-                    onClick={() => setBtcWalletSelectOpen((o) => !o)}
-                  >
-                    <span className="truncate">
-                      {btcWalletOptions.find((o) => o.id === selectedBtcProvider)?.label ?? selectedBtcProvider}
-                    </span>
-                    <span className="text-slate-500 text-[11px]">{btcWalletSelectOpen ? "▲" : "▼"}</span>
-                  </button>
-                  {btcWalletSelectOpen ? (
-                    <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[200px] rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
-                      <input
-                        type="text"
-                        className="w-full border-b border-slate-700 bg-slate-900/80 px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none"
-                        placeholder={t("wl_search_wallet")}
-                        value={btcWalletSelectFilter}
-                        onChange={(e) => setBtcWalletSelectFilter(e.target.value)}
-                        onKeyDown={(e) => e.stopPropagation()}
-                      />
-                      <div className="max-h-[180px] overflow-y-auto py-1">
-                        {btcWalletOptions
-                          .filter(
-                            (opt) =>
-                              !btcWalletSelectFilter.trim() ||
-                              opt.label.toLowerCase().includes(btcWalletSelectFilter.trim().toLowerCase()) ||
-                              opt.id.toLowerCase().includes(btcWalletSelectFilter.trim().toLowerCase())
-                          )
-                          .map((option) => (
-                            <button
-                              key={option.id}
-                              type="button"
-                              className="flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left text-xs text-slate-200 hover:bg-slate-800"
-                              onClick={() => {
-                                setSelectedBtcProvider(option.id);
-                                setBtcWalletSelectOpen(false);
-                                setBtcWalletSelectFilter("");
-                              }}
-                            >
-                              <span>{option.label}</span>
-                              {isClient && isBtcWalletAvailable(option.id) ? (
-                                <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-300">
-                                  {t("wl_available")}
-                                </span>
-                              ) : (
-                                <span className="rounded-full bg-slate-600/30 px-2 py-0.5 text-[11px] text-slate-400">
-                                  {t("wl_not_installed")}
-                                </span>
-                              )}
-                            </button>
-                          ))}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
+              <BtcSeletor
+                btcWalletSelectRef={btcWalletSelectRef}
+                btcWalletSelectOpen={btcWalletSelectOpen}
+                setBtcWalletSelectOpen={setBtcWalletSelectOpen}
+                selectedBtcProvider={selectedBtcProvider}
+                setSelectedBtcProvider={setSelectedBtcProvider}
+                btcWalletSelectFilter={btcWalletSelectFilter}
+                setBtcWalletSelectFilter={setBtcWalletSelectFilter}
+                isClient={isClient}
+              />
             }
             extraBalance={{
               label: t("wl_runes_balance"),
-              content:
-                !btcAddress && btcWallets.length === 0 ? (
-                  <span className="text-slate-500">—</span>
-                ) : btcRunesSummary.loading ? (
-                  <span className="text-slate-400">{t("wl_loading")}</span>
-                ) : btcRunesSummary.runes.length > 0 ? (
-                  <div className="mt-1 space-y-1 text-amber-200/90">
-                    {btcRunesSummary.runes.map((r) => (
-                      <div key={r.symbol} className="flex justify-between gap-3 text-xs">
-                        <span className="truncate" title={r.displayName}>{r.displayName}</span>
-                        <span className="shrink-0 tabular-nums">{formatRuneAmount(r.amount)}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <span className="text-slate-500">—</span>
-                ),
+              content: (
+                <BtcRunesResumo
+                  btcAddress={btcAddress}
+                  btcWalletsCount={btcWallets.length}
+                  btcRunesSummary={btcRunesSummary}
+                  formatRuneAmount={formatRuneAmount}
+                />
+              ),
             }}
           >
             <div className="space-y-3">
-              <p className="text-xs text-slate-500">
-                {t("wl_connect_or_add")}
-              </p>
-              <div className="grid gap-3 sm:grid-cols-[1.2fr_0.8fr_auto]">
-                <input
-                  className="w-full rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
-                  placeholder={t("wl_addr_btc")}
-                  value={btcNewAddress}
-                  onChange={(event) => setBtcNewAddress(event.target.value)}
-                />
-                <div className="relative" ref={btcNewNetworkSelectRef}>
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-between rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition hover:border-slate-600"
-                    onClick={() => setBtcNewNetworkSelectOpen((prev) => !prev)}
-                  >
-                    <span>{btcNetLabel(btcNewLabel)}</span>
-                    <span className="text-slate-500 text-[11px] shrink-0">{btcNewNetworkSelectOpen ? "▲" : "▼"}</span>
-                  </button>
-                  {btcNewNetworkSelectOpen ? (
-                    <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
-                      <input
-                        type="text"
-                        className="w-full border-b border-slate-700 bg-slate-900/80 px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none"
-                        placeholder={t("wl_search_network")}
-                        value={btcNewNetworkSelectFilter}
-                        onChange={(e) => setBtcNewNetworkSelectFilter(e.target.value)}
-                        onKeyDown={(e) => e.stopPropagation()}
-                      />
-                      <div className="max-h-[200px] overflow-y-auto py-1">
-                        {btcNetworkOptions
-                          .filter(
-                            (opt) =>
-                              !btcNewNetworkSelectFilter.trim() ||
-                              opt.label.toLowerCase().includes(btcNewNetworkSelectFilter.trim().toLowerCase()) ||
-                              opt.id.toLowerCase().includes(btcNewNetworkSelectFilter.trim().toLowerCase())
-                          )
-                          .map((opt) => (
-                            <button
-                              key={opt.id}
-                              type="button"
-                              className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-xs text-slate-200 hover:bg-slate-800"
-                              onClick={() => {
-                                setBtcNewLabel(opt.id);
-                                setBtcNewNetworkSelectOpen(false);
-                                setBtcNewNetworkSelectFilter("");
-                              }}
-                            >
-                              {btcNetLabel(opt.id)}
-                            </button>
-                          ))}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-                <button
-                  type="button"
-                  className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white disabled:opacity-60"
-                  onClick={handleAddBtcWallet}
-                  disabled={btcNewLoading}
-                >
-                  {btcNewLoading ? t("wl_adding") : t("wl_add")}
-                </button>
-              </div>
-              {btcNewLabel === "outro" ? (
-                <input
-                  className="w-full max-w-xs rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
-                  placeholder={t("wl_name_opt")}
-                  value={btcNewCustomLabel}
-                  onChange={(e) => setBtcNewCustomLabel(e.target.value)}
-                />
-              ) : null}
-              {btcNewError ? <ErrorNote>{btcNewError}</ErrorNote> : null}
-              <div className="space-y-2">
-                {btcWallets.map((item) => {
-                  const isConnected = item.address === btcAddress ||
-                    (!!item.label && btcWalletOptions.some((o) => o.label === item.label));
+              <BtcAdicionar
+                btcNewAddress={btcNewAddress}
+                setBtcNewAddress={setBtcNewAddress}
+                btcNewNetworkSelectRef={btcNewNetworkSelectRef}
+                btcNewNetworkSelectOpen={btcNewNetworkSelectOpen}
+                setBtcNewNetworkSelectOpen={setBtcNewNetworkSelectOpen}
+                btcNetLabel={btcNetLabel}
+                btcNewLabel={btcNewLabel}
+                setBtcNewLabel={setBtcNewLabel}
+                btcNewNetworkSelectFilter={btcNewNetworkSelectFilter}
+                setBtcNewNetworkSelectFilter={setBtcNewNetworkSelectFilter}
+                handleAddBtcWallet={handleAddBtcWallet}
+                btcNewLoading={btcNewLoading}
+                btcNewCustomLabel={btcNewCustomLabel}
+                setBtcNewCustomLabel={setBtcNewCustomLabel}
+                btcNewError={btcNewError}
+              />
+              <BtcCarteirasLista
+                btcWallets={btcWallets}
+                btcAddress={btcAddress}
+                btcBalance={btcBalance}
+                btcBalancesByAddress={btcBalancesByAddress}
+                btcBalancesLoading={btcBalancesLoading}
+                btcBalanceErrors={btcBalanceErrors}
+                btcRunesByAddress={btcRunesByAddress}
+                btcRunesLoading={btcRunesLoading}
+                defiNft={defiNftMaps}
+                btcShown={btcShown}
+                setBtcShown={setBtcShown}
+                renameWallet={renameWallet}
+                fetchBtcBalanceForAddress={fetchBtcBalanceForAddress}
+                getFiatValue={getFiatValue}
+                usdToEurRate={usdToEurRate}
+                formatRuneAmount={formatRuneAmount}
+                onRemove={(item) => {
                   const addr = item.address ?? "";
-                  const loading = btcBalancesLoading[addr];
-                  const err = btcBalanceErrors[addr];
-                  const balanceDisplay = isConnected && item.address === btcAddress
-                    ? (btcBalance != null ? btcBalance.toFixed(8) : "—")
-                    : loading
-                      ? t("wl_loading")
-                      : err
-                        ? null
-                        : btcBalancesByAddress[addr] ?? item.balance ?? "—";
-                  // NFT/Runes counts are stored under the "btc" chain key (see fetchNftBalance(addr, "btc")),
-                  // so look them up with "btc" — not item.network ("Bitcoin") — or they never match.
-                  const dk = addr ? defiKey(addr, "btc") : null;
-                  const itemDefi = dk ? (defiTotals[dk] ?? null) : null;
-                  const itemDefiLoading = dk ? !!defiLoading[dk] : false;
-                  const itemNftCount = dk ? (nftCounts[dk] ?? null) : null;
-                  const itemNftLoading = dk ? !!nftLoading[dk] : false;
-                  const itemNfts = dk ? (nftsByKey[dk] ?? []) : [];
-                  const isBtcNative = !(item.network && ["Liquid", "Rootstock (RSK)", "Stacks", "Lightning (em breve)"].includes(item.network));
-                  return (
-                    <div
-                      key={item.address}
-                      className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="space-y-1">
-                        <p className="font-semibold text-white">
-                          <EditableName
-                            current={item.label ?? ""}
-                            display={item.label ?? item.network ?? "Bitcoin"}
-                            onSave={(v) => renameWallet("btc", item.address, v)}
-                            placeholder={t("wc_name_ph")}
-                          />
-                          {isConnected ? (
-                            <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-300">
-                              {t("wl_connected")}
-                            </span>
-                          ) : (
-                            <span className="ml-2 rounded-full bg-slate-600/30 px-2 py-0.5 text-[11px] text-slate-400">
-                              {t("wl_by_address")}
-                            </span>
-                          )}
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <p className="text-slate-500">
-                            {btcShown[addr] ? item.address : <span className="tracking-widest text-slate-600 select-none">••••••••</span>}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => setBtcShown((prev) => ({ ...prev, [addr]: !prev[addr] }))}
-                            className="rounded-full border border-slate-700 px-2 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                            title={btcShown[addr] ? "Ocultar" : "Mostrar"}
-                          >
-                            {btcShown[addr] ? "🙈" : "👁️"}
-                          </button>
-                        </div>
-                        {isBtcNative && (
-                          <>
-                            <p className="text-slate-500">
-                              NFT (Ordinals):{" "}
-                              {hideBalances
-                                ? "••••"
-                                : itemNftLoading
-                                ? t("wl_loading")
-                                : itemNftCount != null
-                                  ? `${itemNftCount} ${itemNftCount === 1 ? t("wc_item") : t("wc_items")}`
-                                  : "—"}
-                            </p>
-                            {!hideBalances && itemNfts.length > 0 && (
-                              <div className="mt-1 grid grid-cols-4 gap-1 max-w-[160px]">
-                                {itemNfts.slice(0, 8).map((nft) => (
-                                  <a
-                                    key={nft.id}
-                                    href={nft.tokenAddress ? `https://magiceden.us/ordinals/item-details/${nft.tokenAddress}` : "#"}
-                                    target="_blank" rel="noopener noreferrer"
-                                    className="aspect-square rounded overflow-hidden bg-slate-800 border border-slate-700 hover:border-orange-400 transition"
-                                    title={nft.name}
-                                  >
-                                    {(nft.image || nft.tokenUri) ? (
-                                      <NftImage src={nft.image} tokenUri={nft.tokenUri} alt={nft.name} className="w-full h-full object-cover" />
-                                    ) : (
-                                      <div className="w-full h-full flex items-center justify-center text-[8px] text-slate-500 p-0.5 text-center leading-tight">{nft.name}</div>
-                                    )}
-                                  </a>
-                                ))}
-                              </div>
-                            )}
-                          </>
-                        )}
-                        {isBtcNative && !hideBalances && (
-                          <>
-                            {btcRunesLoading[addr] ? (
-                              <p className="text-[11px] text-slate-500">{t("wl_runes_loading")}</p>
-                            ) : (btcRunesByAddress[addr]?.length ?? 0) > 0 ? (
-                              <div className="space-y-0.5 text-[11px] text-amber-200/90">
-                                {btcRunesByAddress[addr]!.map((r) => (
-                                  <div key={r.symbol} className="flex gap-2">
-                                    <span className="truncate max-w-[120px]" title={r.displayName}>{r.displayName}</span>
-                                    <span className="shrink-0 tabular-nums">{formatRuneAmount(r.amount)}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : null}
-                          </>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        {balanceDisplay != null && (
-                          <p>
-                            {hideBalances ? "••••" : <>{balanceDisplay} {balanceDisplay !== t("wl_loading") && balanceDisplay !== "—" ? "BTC" : ""}</>}
-                          </p>
-                        )}
-                        {balanceDisplay != null && balanceDisplay !== t("wl_loading") && balanceDisplay !== "—" && getFiatValue("BTC", balanceDisplay) != null ? (
-                          <p className="text-slate-400">{fmtCur((getFiatValue("BTC", balanceDisplay) ?? 0) * usdToEurRate)}</p>
-                        ) : null}
-                        {err ? (
-                          <p className="text-rose-300" title={err}>
-                            {err.length > 40 ? `${err.slice(0, 40)}…` : err}
-                          </p>
-                        ) : null}
-                        <div className="mt-1 flex flex-wrap justify-end gap-1">
-                          {!isConnected && (err || balanceDisplay === "—") ? (
-                            <button
-                              type="button"
-                              className="rounded-full border border-slate-600 px-3 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white disabled:opacity-50"
-                              onClick={() => void fetchBtcBalanceForAddress(addr)}
-                              disabled={loading}
-                            >
-                              {loading ? t("wl_loading") : t("wl_retry")}
-                            </button>
-                          ) : null}
-                          <button
-                            className="rounded-full border border-rose-400/40 px-3 py-1 text-[11px] font-semibold text-rose-200 transition hover:border-rose-400 hover:text-white"
-                            type="button"
-                            onClick={() => {
-                              const nextWallets = removeWallet(
-                                btcWallets,
-                                (entry) => entry.address === item.address
-                              );
-                              setBtcWallets(nextWallets);
-                              if (item.address === btcAddress) {
-                                setBtcAddress(undefined);
-                                setBtcBalance(null);
-                                setBtcError(null);
-                              }
-                              setBtcBalancesByAddress((prev) => {
-                                const next = { ...prev };
-                                delete next[addr];
-                                return next;
-                              });
-                              setBtcBalanceErrors((prev) => {
-                                const next = { ...prev };
-                                delete next[addr];
-                                return next;
-                              });
-                              setBtcRunesByAddress((prev) => {
-                                const next = { ...prev };
-                                delete next[addr];
-                                return next;
-                              });
-                              setBtcRunesLoading((prev) => {
-                                const next = { ...prev };
-                                delete next[addr];
-                                return next;
-                              });
-                            }}
-                          >
-                            {t("wl_remove")}
-                          </button>
-                        </div>
-                      </div>
-                      </div>
-                    </div>
+                  const nextWallets = removeWallet(
+                    btcWallets,
+                    (entry) => entry.address === item.address
                   );
-                })}
-              </div>
+                  setBtcWallets(nextWallets);
+                  if (item.address === btcAddress) {
+                    setBtcAddress(undefined);
+                    setBtcBalance(null);
+                    setBtcError(null);
+                  }
+                  setBtcBalancesByAddress((prev) => {
+                    const next = { ...prev };
+                    delete next[addr];
+                    return next;
+                  });
+                  setBtcBalanceErrors((prev) => {
+                    const next = { ...prev };
+                    delete next[addr];
+                    return next;
+                  });
+                  setBtcRunesByAddress((prev) => {
+                    const next = { ...prev };
+                    delete next[addr];
+                    return next;
+                  });
+                  setBtcRunesLoading((prev) => {
+                    const next = { ...prev };
+                    delete next[addr];
+                    return next;
+                  });
+                }}
+              />
             </div>
           </WalletCard>
           <WalletCard
@@ -4396,14 +3168,7 @@ export default function WalletsPage() {
             balance={adaWallets.length > 0 ? totalAdaBalance : adaBalance}
             balanceUnit="ADA"
             fiatValueUsd={getFiatValue("ADA", adaWallets.length > 0 ? totalAdaBalance : adaBalance)}
-            defiBalanceUsd={adaMainAddress ? defiTotals[defiKey(adaMainAddress, "ada")] ?? null : null}
-            defiPartial={adaMainAddress ? !!defiPartial[defiKey(adaMainAddress, "ada")] : false}
-            defiLoading={adaMainAddress ? !!defiLoading[defiKey(adaMainAddress, "ada")] : false}
-            defiError={adaMainAddress ? defiErrors[defiKey(adaMainAddress, "ada")] ?? null : null}
-            nftCount={adaMainAddress ? nftCounts[defiKey(adaMainAddress, "ada")] ?? null : null}
-            nftLoading={adaMainAddress ? !!nftLoading[defiKey(adaMainAddress, "ada")] : false}
-            nftError={adaMainAddress ? nftErrors[defiKey(adaMainAddress, "ada")] ?? null : null}
-            nfts={adaMainAddress ? nftsByKey[defiKey(adaMainAddress, "ada")] ?? [] : []}
+            {...propsDefiNftCartao(defiNftMaps, adaMainAddress, "ada")}
             usdToEur={usdToEurRate}
             isConnected={!!adaAddress || adaWallets.length > 0}
             isAvailable={adaIsAvailable || adaWallets.length > 0}
@@ -4418,450 +3183,101 @@ export default function WalletsPage() {
             isAddressVisible={adaShowMain}
           >
             <div className="space-y-3">
-              {/* Eternl setup guide — shown when not connected */}
-              {!adaAddress && adaWallets.length === 0 && (
-                <details className="rounded-xl border border-slate-800 bg-slate-900/40">
-                  <summary className="cursor-pointer px-4 py-2.5 text-xs text-slate-400 hover:text-slate-200 transition select-none">
-                    ℹ️ {t("wl_eternl_howto")}
-                  </summary>
-                  <div className="px-4 pb-4 pt-2 space-y-1.5 text-xs text-slate-400">
-                    <p className="font-semibold text-slate-300 mb-2">{t("wl_eternl_before")}</p>
-                    <p>1. {t("wl_et_s1")} <strong className="text-slate-200">Settings</strong> {t("wl_et_s1b")}</p>
-                    <p>2. {t("wl_et_s2")} <strong className="text-slate-200">dApp Connector</strong></p>
-                    <p>3. {t("wl_et_s3")}</p>
-                    <p>4. {t("wl_et_s4")}</p>
-                    <p className="font-semibold text-slate-300 mt-3 mb-1">{t("wl_eternl_after")}</p>
-                    <p>5. {t("wl_et_s5")} <strong className="text-slate-200">{t("wl_et_icon")}</strong> {t("wl_et_s5b")}</p>
-                    <p>6. {t("wl_et_s6")} <strong className="text-slate-200">Approve</strong></p>
-                  </div>
-                </details>
-              )}
-              {/* CIP-45 Peer Connect — for Eternl companion/mobile */}
-              {!adaAddress && adaWallets.length === 0 && (
-                <div className="space-y-2">
-                  {!adaPeerAddress && !adaPeerConnecting && (
-                    <button
-                      type="button"
-                      onClick={() => void handleAdaPeerConnect()}
-                      className="w-full rounded-xl border border-slate-700 py-2 text-xs text-slate-400 hover:border-orange-500/40 hover:text-orange-300 transition"
-                    >
-                      📱 {t("wl_ada_qr_btn")}
-                    </button>
-                  )}
-                  {adaPeerConnecting && !adaPeerAddress && (
-                    <p className="text-xs text-slate-400 animate-pulse">{t("wl_gen_code")}</p>
-                  )}
-                  {adaPeerAddress && (
-                    <div className="rounded-xl border border-orange-500/20 bg-slate-900/60 p-4 space-y-3">
-                      <p className="text-xs font-semibold text-orange-400">{t("wl_cip45_code")}</p>
-                      <div ref={adaQrCanvasRef} className="flex justify-center" />
-                      <p className="text-[11px] text-slate-500 break-all font-mono bg-slate-950 rounded p-2 select-all">{adaPeerAddress}</p>
-                      <p className="text-[11px] text-slate-400">{t("wl_ada_qr_hint_a")} <strong className="text-slate-200">{t("wl_ada_link_dapp")}</strong> {t("wl_ada_qr_hint_b")}</p>
-                      <button type="button" onClick={() => { setAdaPeerAddress(null); setAdaPeerConnecting(false); }} className="text-xs text-slate-500 hover:text-slate-300">✕ {t("cancel")}</button>
-                    </div>
-                  )}
-                </div>
-              )}
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[11px] uppercase tracking-[0.3em] text-slate-500">
-                  {t("wl_wallet")} ADA
-                </span>
-                <div className="relative min-w-[120px]" ref={adaWalletSelectRef}>
-                  <button
-                    type="button"
-                    className="flex min-w-[120px] items-center justify-between gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1.5 text-left text-xs text-slate-200 outline-none transition focus:border-orange-400"
-                    onClick={() => setAdaWalletSelectOpen((o) => !o)}
-                  >
-                    <span className="truncate">
-                      {adaWalletOptions.find((o) => o.id === selectedAdaProvider)?.label ?? selectedAdaProvider}
-                    </span>
-                    <span className="text-slate-500 text-[11px]">{adaWalletSelectOpen ? "▲" : "▼"}</span>
-                  </button>
-                  {adaWalletSelectOpen ? (
-                    <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[200px] rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
-                      <input
-                        type="text"
-                        className="w-full border-b border-slate-700 bg-slate-900/80 px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none"
-                        placeholder={t("wl_search_wallet")}
-                        value={adaWalletSelectFilter}
-                        onChange={(e) => setAdaWalletSelectFilter(e.target.value)}
-                        onKeyDown={(e) => e.stopPropagation()}
-                      />
-                      <div className="max-h-[180px] overflow-y-auto py-1">
-                        {adaWalletOptions
-                          .filter(
-                            (opt) =>
-                              !adaWalletSelectFilter.trim() ||
-                              opt.label.toLowerCase().includes(adaWalletSelectFilter.trim().toLowerCase()) ||
-                              opt.id.toLowerCase().includes(adaWalletSelectFilter.trim().toLowerCase())
-                          )
-                          .map((option) => (
-                            <button
-                              key={option.id}
-                              type="button"
-                              className="flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-2 text-left text-xs text-slate-200 hover:bg-slate-800"
-                              onClick={() => {
-                                setSelectedAdaProvider(option.id);
-                                setAdaWalletSelectOpen(false);
-                                setAdaWalletSelectFilter("");
-                              }}
-                            >
-                              <span>{option.label}</span>
-                              {isClient && isCardanoWalletAvailable(option.id) ? (
-                                <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-300">
-                                  {t("wl_available")}
-                                </span>
-                              ) : (
-                                <span className="rounded-full bg-slate-600/30 px-2 py-0.5 text-[11px] text-slate-400">
-                                  {t("wl_not_installed")}
-                                </span>
-                              )}
-                            </button>
-                          ))}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                {t("wl_more_wallets")}
-              </p>
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setShowAdaNetworks((prev) => !prev)}
-                  className="rounded-full border border-slate-700 px-3 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                >
-                  {t("wl_ada_wallets")}
-                </button>
-                {showAdaNetworks ? (
-                  <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-                    {adaWalletOptions.map((option) => (
-                      <span
-                        key={option.id}
-                        className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-1 text-slate-200"
-                      >
-                        {option.label}{" "}
-                        {isClient && isCardanoWalletAvailable(option.id) ? (
-                          <span className="ml-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-300">
-                            {t("wl_available")}
-                          </span>
-                        ) : (
-                          <span className="ml-1 rounded-full bg-slate-600/30 px-2 py-0.5 text-[11px] text-slate-400">
-                            {t("wl_not_installed")}
-                          </span>
-                        )}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-              <div className="grid gap-3 sm:grid-cols-[1.2fr_0.8fr_auto]">
-                <input
-                  className="w-full rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
-                  placeholder={t("wl_addr_ada")}
-                  value={adaNewAddress}
-                  onChange={(event) => setAdaNewAddress(event.target.value)}
-                />
-                <div className="relative" ref={adaNewNetworkSelectRef}>
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-between rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition hover:border-slate-600"
-                    onClick={() => setAdaNewNetworkSelectOpen((prev) => !prev)}
-                  >
-                    <span>{adaNetworkOptions.find((o) => o.id === adaNewNetworkId)?.label ?? "Cardano"}</span>
-                    <span className="text-slate-500 text-[11px] shrink-0">{adaNewNetworkSelectOpen ? "▲" : "▼"}</span>
-                  </button>
-                  {adaNewNetworkSelectOpen ? (
-                    <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
-                      <input
-                        type="text"
-                        className="w-full border-b border-slate-700 bg-slate-900/80 px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none"
-                        placeholder={t("wl_search_network")}
-                        value={adaNewNetworkSelectFilter}
-                        onChange={(e) => setAdaNewNetworkSelectFilter(e.target.value)}
-                        onKeyDown={(e) => e.stopPropagation()}
-                      />
-                      <div className="max-h-[200px] overflow-y-auto py-1">
-                        {adaNetworkOptions
-                          .filter(
-                            (opt) =>
-                              !adaNewNetworkSelectFilter.trim() ||
-                              opt.label.toLowerCase().includes(adaNewNetworkSelectFilter.trim().toLowerCase()) ||
-                              opt.id.toLowerCase().includes(adaNewNetworkSelectFilter.trim().toLowerCase())
-                          )
-                          .map((opt) => (
-                            <button
-                              key={opt.id}
-                              type="button"
-                              className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-xs text-slate-200 hover:bg-slate-800"
-                              onClick={() => {
-                                setAdaNewNetworkId(opt.id);
-                                setAdaNewNetworkSelectOpen(false);
-                                setAdaNewNetworkSelectFilter("");
-                              }}
-                            >
-                              {opt.label}
-                            </button>
-                          ))}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-                <button
-                  type="button"
-                  className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
-                  onClick={handleAddAdaWallet}
-                >
-                  {t("wl_add")}
-                </button>
-              </div>
-              {adaNewNetworkId === "outro" ? (
-                <input
-                  className="w-full max-w-xs rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
-                  placeholder={t("wl_name_opt")}
-                  value={adaNewCustomLabel}
-                  onChange={(e) => setAdaNewCustomLabel(e.target.value)}
-                />
-              ) : null}
-              {adaNewError ? <ErrorNote>{adaNewError}</ErrorNote> : null}
-              <p className="text-xs text-slate-500">
-                {t("wl_connect_or_add")}
-              </p>
-              <div className="space-y-2">
-                {adaWallets.map((item) => {
-                  const isConnected = item.address === adaAddress;
+              <AdaAjudaLigacao
+                adaAddress={adaAddress}
+                adaWallets={adaWallets}
+                adaPeerAddress={adaPeerAddress}
+                adaPeerConnecting={adaPeerConnecting}
+                handleAdaPeerConnect={handleAdaPeerConnect}
+                adaQrCanvasRef={adaQrCanvasRef}
+                onPeerCancel={() => { setAdaPeerAddress(null); setAdaPeerConnecting(false); }}
+              />
+              <AdaSeletor
+                adaWalletSelectRef={adaWalletSelectRef}
+                adaWalletSelectOpen={adaWalletSelectOpen}
+                setAdaWalletSelectOpen={setAdaWalletSelectOpen}
+                selectedAdaProvider={selectedAdaProvider}
+                setSelectedAdaProvider={setSelectedAdaProvider}
+                adaWalletSelectFilter={adaWalletSelectFilter}
+                setAdaWalletSelectFilter={setAdaWalletSelectFilter}
+                isClient={isClient}
+              />
+              <AdaAdicionar
+                showAdaNetworks={showAdaNetworks}
+                setShowAdaNetworks={setShowAdaNetworks}
+                isClient={isClient}
+                adaNewAddress={adaNewAddress}
+                setAdaNewAddress={setAdaNewAddress}
+                adaNewNetworkSelectRef={adaNewNetworkSelectRef}
+                adaNewNetworkSelectOpen={adaNewNetworkSelectOpen}
+                setAdaNewNetworkSelectOpen={setAdaNewNetworkSelectOpen}
+                adaNewNetworkId={adaNewNetworkId}
+                setAdaNewNetworkId={setAdaNewNetworkId}
+                adaNewNetworkSelectFilter={adaNewNetworkSelectFilter}
+                setAdaNewNetworkSelectFilter={setAdaNewNetworkSelectFilter}
+                handleAddAdaWallet={handleAddAdaWallet}
+                adaNewCustomLabel={adaNewCustomLabel}
+                setAdaNewCustomLabel={setAdaNewCustomLabel}
+                adaNewError={adaNewError}
+              />
+              <AdaCarteirasLista
+                adaWallets={adaWallets}
+                adaAddress={adaAddress}
+                adaBalance={adaBalance}
+                adaBalancesByAddress={adaBalancesByAddress}
+                adaBalancesLoading={adaBalancesLoading}
+                adaBalanceErrors={adaBalanceErrors}
+                defiNft={defiNftMaps}
+                adaShown={adaShown}
+                setAdaShown={setAdaShown}
+                renameWallet={renameWallet}
+                fetchAdaBalanceForAddress={fetchAdaBalanceForAddress}
+                getFiatValue={getFiatValue}
+                usdToEurRate={usdToEurRate}
+                onRemove={(item) => {
                   const addr = item.address ?? "";
-                  const loading = adaBalancesLoading[addr];
-                  const error = adaBalanceErrors[addr];
-                  const balanceDisplay =
-                    isConnected
-                      ? adaBalance ?? "—"
-                      : loading
-                        ? t("wl_loading")
-                        : error
-                          ? null
-                          : adaBalancesByAddress[addr] ?? "—";
-                  return (
-                    <div
-                      key={`${item.address}-${item.network ?? "Cardano"}`}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300"
-                    >
-                      <div className="space-y-1">
-                        <p className="font-semibold text-white">
-                          <EditableName
-                            current={item.label ?? ""}
-                            display={item.label ?? item.network ?? "Cardano"}
-                            onSave={(v) => renameWallet("ada", item.address, v)}
-                            placeholder={t("wc_name_ph")}
-                          />
-                          {isConnected ? (
-                            <span className="ml-2 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] text-emerald-300">
-                              {t("wl_connected")}
-                            </span>
-                          ) : (
-                            <span className="ml-2 rounded-full bg-slate-600/30 px-2 py-0.5 text-[11px] text-slate-400">
-                              {t("wl_by_address")}
-                            </span>
-                          )}
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <p className="text-slate-500">
-                            {adaShown[addr] ? item.address : <span className="tracking-widest text-slate-600 select-none">••••••••</span>}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setAdaShown((prev) => ({ ...prev, [addr]: !prev[addr] }))
-                            }
-                            className="rounded-full border border-slate-700 px-2 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                            title={adaShown[addr] ? "Ocultar" : "Mostrar"}
-                          >
-                            {adaShown[addr] ? "🙈" : "👁️"}
-                          </button>
-                        </div>
-                        {/* A entrada Cardano não mostrava DeFi nem NFTs — só o saldo. */}
-                        {(() => {
-                          const k = defiKey(addr, "ada");
-                          const d = defiTotals[k] ?? null; const dl = !!defiLoading[k];
-                          const nc = nftCounts[k] ?? null; const nl = !!nftLoading[k]; const ne = nftErrors[k];
-                          return (
-                            <>
-                              <p className="text-slate-500">
-                                DeFi:{" "}
-                                {dl ? <span className="animate-pulse">{t("wl_loading")}</span>
-                                  : d != null ? <span className={d >= 0.01 ? "text-emerald-400 font-semibold" : "text-slate-400"}>{fmtCur(d * usdToEurRate)}</span>
-                                  : <span className="text-slate-600 text-[11px]">—</span>}
-                              </p>
-                              <p className="text-slate-500">
-                                NFT:{" "}
-                                {hideBalances ? "••••" : nl ? t("wl_loading") : ne ? <span className="text-rose-300" title={ne}>{t("wl_err_nft")}</span>
-                                  : nc != null ? `${nc} ${nc === 1 ? t("wc_item") : t("wc_items")}` : "—"}
-                              </p>
-                            </>
-                          );
-                        })()}
-                      </div>
-                      <div className="text-right">
-                        {balanceDisplay != null && (
-                          <p>
-                            {hideBalances ? "••••" : <>
-                            {balanceDisplay}{" "}
-                            {balanceDisplay !== t("wl_loading") && balanceDisplay !== "—"
-                              ? "ADA"
-                              : ""}
-                            </>}
-                          </p>
-                        )}
-                        {balanceDisplay != null && balanceDisplay !== t("wl_loading") && balanceDisplay !== "—" && getFiatValue("ADA", balanceDisplay) != null ? (
-                          <p className="text-slate-400">{fmtCur((getFiatValue("ADA", balanceDisplay) ?? 0) * usdToEurRate)}</p>
-                        ) : null}
-                        {error ? (
-                          <p className="text-rose-300" title={error}>
-                            {error.length > 40 ? `${error.slice(0, 40)}…` : error}
-                          </p>
-                        ) : null}
-                        <div className="mt-1 flex flex-wrap justify-end gap-1">
-                          {!isConnected && !["Hydra", "Midnight"].includes(item.network ?? "") && (error || balanceDisplay === "—") ? (
-                            <button
-                              type="button"
-                              className="rounded-full border border-slate-600 px-3 py-1 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white disabled:opacity-50"
-                              onClick={() => void fetchAdaBalanceForAddress(addr)}
-                              disabled={loading}
-                            >
-                              {loading ? t("wl_loading") : t("wl_retry")}
-                            </button>
-                          ) : null}
-                          <button
-                            className="rounded-full border border-rose-400/40 px-3 py-1 text-[11px] font-semibold text-rose-200 transition hover:border-rose-400 hover:text-white"
-                            type="button"
-                            onClick={() => {
-                              const nextWallets = removeWallet(
-                                adaWallets,
-                                (entry) => entry.address === item.address
-                              );
-                              setAdaWallets(nextWallets);
-                              if (item.address === adaAddress) {
-                                setAdaAddress(undefined);
-                                setAdaBalance(undefined);
-                                setAdaApi(null);
-                              }
-                              setAdaBalancesByAddress((prev) => {
-                                const next = { ...prev };
-                                delete next[addr];
-                                return next;
-                              });
-                              setAdaBalanceErrors((prev) => {
-                                const next = { ...prev };
-                                delete next[addr];
-                                return next;
-                              });
-                            }}
-                          >
-                            {t("wl_remove")}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                  const nextWallets = removeWallet(
+                    adaWallets,
+                    (entry) => entry.address === item.address
                   );
-                })}
-              </div>
+                  setAdaWallets(nextWallets);
+                  if (item.address === adaAddress) {
+                    setAdaAddress(undefined);
+                    setAdaBalance(undefined);
+                    setAdaApi(null);
+                  }
+                  setAdaBalancesByAddress((prev) => {
+                    const next = { ...prev };
+                    delete next[addr];
+                    return next;
+                  });
+                  setAdaBalanceErrors((prev) => {
+                    const next = { ...prev };
+                    delete next[addr];
+                    return next;
+                  });
+                }}
+              />
             </div>
           </WalletCard>
         </div>
         <section id="manual-crypto-section" className="order-last rounded-2xl border border-slate-800 bg-slate-900/60 p-6 scroll-mt-24">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold text-white">{t("wl_crypto_wallet")}</h2>
-              <p className="text-sm text-slate-400">
-                {t("wl_manual_crypto_intro")}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                {t("wl_total_all")}
-              </p>
-              <p className="text-lg font-semibold text-white">
-                {fmtCur((walletsTotalUsd + totalDefiUsd + cexHlTotalUsd + coldTokensExtraUsd) * usdToEurRate + cryptoManualTotal + stablecoinTotalEur)}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-4 rounded-xl border border-slate-700/80 bg-slate-950/50 p-4">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-              {t("wl_balances_nfts")}
-            </p>
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-300">
-              <span title="ETH + POL, BNB, AVAX… (nativo de cada rede EVM)">
-                <span className="text-slate-500">ETH/EVM:</span>{" "}
-                {web3Prices.ETH ? fmtCur(evmNativeUsd * usdToEurRate) : "—"}
-              </span>
-              <span>
-                <span className="text-slate-500">SOL:</span>{" "}
-                {getFiatValue("SOL", totalSolBalance) != null
-                  ? fmtCur((getFiatValue("SOL", totalSolBalance) ?? 0) * usdToEurRate)
-                  : "—"}
-              </span>
-              <span>
-                <span className="text-slate-500">BTC:</span>{" "}
-                {getFiatValue("BTC", totalBtcBalance) != null
-                  ? fmtCur((getFiatValue("BTC", totalBtcBalance) ?? 0) * usdToEurRate)
-                  : "—"}
-              </span>
-              <span>
-                <span className="text-slate-500">ADA:</span>{" "}
-                {getFiatValue("ADA", totalAdaBalance) != null
-                  ? fmtCur((getFiatValue("ADA", totalAdaBalance) ?? 0) * usdToEurRate)
-                  : "—"}
-              </span>
-            </div>
-            <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
-              <span>
-                <span className="text-slate-500">{t("wl_total_wallets")}</span>{" "}
-                <span className="font-semibold text-white">
-                  {fmtCur((walletsTotalUsd + cexHlTotalUsd) * usdToEurRate)}
-                </span>
-              </span>
-              <span>
-                <span className="text-slate-500">DeFi:</span>{" "}
-                <span className="font-semibold text-white">
-                  {fmtCur(totalDefiUsd * usdToEurRate)}
-                </span>
-              </span>
-              {cexHlTotalUsd > 0 && (
-                <span>
-                  <span className="text-slate-500">CEX / HL:</span>{" "}
-                  <span className="font-semibold text-white">
-                    {fmtCur(cexHlTotalUsd * usdToEurRate)}
-                  </span>
-                </span>
-              )}
-              {cryptoManualTotal > 0 && (
-                <span title={t("wl_manual_hint")}>
-                  <span className="text-slate-500">{t("wl_manual_label")}</span>{" "}
-                  <span className="font-semibold text-white">{fmtCur(cryptoManualTotal)}</span>
-                </span>
-              )}
-              {coldTokensExtraUsd > 0 && (
-                <span title={t("wl_tokens_hint")}>
-                  <span className="text-slate-500">{t("wl_tokens_label")}</span>{" "}
-                  <span className="font-semibold text-white">{fmtCur(coldTokensExtraUsd * usdToEurRate)}</span>
-                </span>
-              )}
-              {stablecoinTotalEur > 0 && (
-                <span>
-                  <span className="text-slate-500">{t("wl_stable_label")}</span>{" "}
-                  <span className="font-semibold text-white">{fmtCur(stablecoinTotalEur)}</span>
-                </span>
-              )}
-              <span>
-                <span className="text-slate-500">NFTs:</span>{" "}
-                <span className="font-semibold text-white">
-                  {hideBalances ? "••••" : <>{totalNftCount} {totalNftCount === 1 ? "item" : "itens"}</>}
-                </span>
-              </span>
-            </div>
-          </div>
+          <CriptoResumoTotais
+            walletsTotalUsd={walletsTotalUsd}
+            totalDefiUsd={totalDefiUsd}
+            cexHlTotalUsd={cexHlTotalUsd}
+            coldTokensExtraUsd={coldTokensExtraUsd}
+            usdToEurRate={usdToEurRate}
+            cryptoManualTotal={cryptoManualTotal}
+            stablecoinTotalEur={stablecoinTotalEur}
+            web3Prices={web3Prices}
+            evmNativeUsd={evmNativeUsd}
+            totalSolBalance={totalSolBalance}
+            totalBtcBalance={totalBtcBalance}
+            totalAdaBalance={totalAdaBalance}
+            getFiatValue={getFiatValue}
+            totalNftCount={totalNftCount}
+          />
 
           {cryptoPricesError ? (
             <ErrorNote className="mt-3">{cryptoPricesError}</ErrorNote>
@@ -4870,1000 +3286,220 @@ export default function WalletsPage() {
 
           <div className="mt-4 space-y-3">
             {/* Carteiras conectadas — uma linha por carteira */}
-            {(() => {
-              type WEntry = { key: string; symbol: string; label: string; network: string; balance: string | null; source: string; onRemove: () => void };
-              const entries: WEntry[] = [];
-
-              // ETH — cada carteira separada
-              ethWallets.forEach((w, i) => {
-                const k = ethBalanceKey(w.address ?? "", w.network ?? "Ethereum");
-                const bal = ethBalancesLoading[k] || ethBalancesByKey[k] === undefined ? null : (ethBalancesByKey[k] ?? null);
-                entries.push({
-                  key: `eth-${i}-${w.address}`,
-                  symbol: "ETH",
-                  label: w.label ?? w.network ?? "Ethereum",
-                  network: w.network ?? "Ethereum",
-                  balance: bal,
-                  source: `${t("wl_wallet")} ETH`,
-                  onRemove: () => {
-                    const next = ethWallets.filter((_, j) => j !== i);
-                    setEthWallets(next);
-                    updateWalletSnapshot({ eth: next, sol: solWallets, btc: btcWallets, ada: adaWallets });
-                  },
-                });
-              });
-
-              // SOL — cada carteira separada
-              solWallets.forEach((w, i) => {
-                const bal = w.address ? (solBalancesByAddress[w.address] ?? w.balance ?? null) : null;
-                entries.push({
-                  key: `sol-${i}-${w.address}`,
-                  symbol: "SOL",
-                  label: w.label ?? w.network ?? "Solana",
-                  network: w.network ?? "Solana",
-                  balance: bal,
-                  source: `${t("wl_wallet")} SOL`,
-                  onRemove: () => {
-                    const next = solWallets.filter((_, j) => j !== i);
-                    setSolWallets(next);
-                    updateWalletSnapshot({ eth: ethWallets, sol: next, btc: btcWallets, ada: adaWallets });
-                  },
-                });
-              });
-
-              // BTC — cada carteira separada
-              btcWallets.forEach((w, i) => {
-                const bal = w.address ? (btcBalancesByAddress[w.address] ?? w.balance ?? null) : null;
-                entries.push({
-                  key: `btc-${i}-${w.address}`,
-                  symbol: "BTC",
-                  label: w.label ?? "Bitcoin",
-                  network: "Bitcoin",
-                  balance: bal,
-                  source: `${t("wl_wallet")} BTC`,
-                  onRemove: () => {
-                    const next = btcWallets.filter((_, j) => j !== i);
-                    setBtcWallets(next);
-                    updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: next, ada: adaWallets });
-                  },
-                });
-              });
-
-              // ADA — cada carteira separada
-              adaWallets.forEach((w, i) => {
-                const bal = w.address ? (adaBalancesByAddress[w.address] ?? w.balance ?? null) : null;
-                entries.push({
-                  key: `ada-${i}-${w.address}`,
-                  symbol: "ADA",
-                  label: w.label ?? "Cardano",
-                  network: "Cardano",
-                  balance: bal,
-                  source: `${t("wl_wallet")} ADA`,
-                  onRemove: () => {
-                    const next = adaWallets.filter((_, j) => j !== i);
-                    setAdaWallets(next);
-                    updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: next });
-                  },
-                });
-              });
-
-              if (entries.length === 0) return null;
-              return entries.map(({ key, symbol, label, network, balance, source, onRemove }) => {
-                const market = cryptoPrices[symbol];
-                const balNum = balance !== null && balance !== "—" ? parseFloat(balance) || 0 : 0;
-                const fiatUsd = getFiatValue(symbol, balance);
-                const fiatEur = fiatUsd != null ? fiatUsd * usdToEurRate : null;
-                return (
-                  <div
-                    key={key}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-700/60 bg-slate-900/40 px-4 py-3 text-xs text-slate-100"
-                  >
-                    <div>
-                      <p className="font-semibold text-white">{symbol}</p>
-                      <p className="text-slate-500">{label !== network ? label : network}</p>
-                      <p className="mt-0.5 text-[11px] text-slate-600 uppercase tracking-wide">{network !== label ? `${source} · ${network}` : source}</p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3 text-right">
-                      <div>
-                        {hideBalances
-                          ? <p className="text-slate-300 tabular-nums">••••</p>
-                          : balance === null
-                          ? <p className="text-slate-500 italic">{t("wl_loading")}</p>
-                          : <p className="text-slate-300 tabular-nums">{balNum > 0 ? balNum.toFixed(symbol === "BTC" ? 8 : 4) : "—"} {symbol}</p>
-                        }
-                        {fiatEur != null && fiatEur > 0 && (
-                          <p className="text-slate-500">{fmtCur(fiatEur)}</p>
-                        )}
-                      </div>
-                      <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
-                        {t("wl_current_price")}{" "}
-                        <span className="font-semibold text-white">
-                          {market
-                            ? fmtMkt(market.priceUsd, { decimals: market.priceUsd < 1 ? 6 : 2 })
-                            : "—"}
-                        </span>
-                      </span>
-                      <button
-                        onClick={onRemove}
-                        title={t("wl_remove_wallet")}
-                        className="rounded-full border border-rose-800/40 bg-rose-950/30 p-2 text-rose-400 transition hover:bg-rose-900/50 hover:text-rose-300"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
-                          <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                );
-              });
-            })()}
+            <CarteirasLigadasLinhas
+              ethWallets={ethWallets}
+              solWallets={solWallets}
+              btcWallets={btcWallets}
+              adaWallets={adaWallets}
+              ethBalancesLoading={ethBalancesLoading}
+              ethBalancesByKey={ethBalancesByKey}
+              solBalancesByAddress={solBalancesByAddress}
+              btcBalancesByAddress={btcBalancesByAddress}
+              adaBalancesByAddress={adaBalancesByAddress}
+              cryptoPrices={cryptoPrices}
+              getFiatValue={getFiatValue}
+              usdToEurRate={usdToEurRate}
+              onRemoveEth={(i) => {
+                const next = ethWallets.filter((_, j) => j !== i);
+                setEthWallets(next);
+                updateWalletSnapshot({ eth: next, sol: solWallets, btc: btcWallets, ada: adaWallets });
+              }}
+              onRemoveSol={(i) => {
+                const next = solWallets.filter((_, j) => j !== i);
+                setSolWallets(next);
+                updateWalletSnapshot({ eth: ethWallets, sol: next, btc: btcWallets, ada: adaWallets });
+              }}
+              onRemoveBtc={(i) => {
+                const next = btcWallets.filter((_, j) => j !== i);
+                setBtcWallets(next);
+                updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: next, ada: adaWallets });
+              }}
+              onRemoveAda={(i) => {
+                const next = adaWallets.filter((_, j) => j !== i);
+                setAdaWallets(next);
+                updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: next });
+              }}
+            />
             {/* Stablecoins por endereço */}
-            {stablecoinEntries.map((e) => {
-              const market = cryptoPrices[e.symbol];
-              const bal = stablecoinBalances[e.id];
-              const balNum = bal ? parseFloat(bal) : 0;
-              const fiatEur = balNum > 0 && market ? balNum * market.priceUsd * usdToEurRate : null;
-              return (
-                <div
-                  key={`stable-${e.id}`}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-700/60 bg-slate-900/40 px-4 py-3 text-xs text-slate-100"
-                >
-                  <div>
-                    <p className="font-semibold text-white">{e.symbol}</p>
-                    <p className="text-slate-500">{e.network}</p>
-                    <p className="mt-0.5 text-[11px] text-slate-600 uppercase tracking-wide">{t("wl_by_address")}</p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3 text-right">
-                    <div>
-                      <p className="text-slate-300 tabular-nums">{hideBalances ? "••••" : <>{bal ?? "—"} {e.symbol}</>}</p>
-                      {fiatEur != null && (
-                        <p className="text-slate-500">{fmtCur(fiatEur)}</p>
-                      )}
-                    </div>
-                    <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
-                      {t("wl_current_price")}{" "}
-                      <span className="font-semibold text-white">
-                        {market ? fmtMkt(market.priceUsd, { decimals: 4 }) : "—"}
-                      </span>
-                    </span>
-                    <span className="rounded-full border border-slate-700/40 bg-slate-800/40 px-3 py-2 text-[11px] text-slate-500">{t("wl_stablecoin")}</span>
-                    <button
-                      onClick={() => setStablecoinEntries((prev) => prev.filter((x) => x.id !== e.id))}
-                      title={t("wl_remove")}
-                      className="rounded-full border border-rose-800/40 bg-rose-950/30 p-2 text-rose-400 transition hover:bg-rose-900/50 hover:text-rose-300"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
-                        <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+            <StablecoinLinhas
+              stablecoinEntries={stablecoinEntries}
+              cryptoPrices={cryptoPrices}
+              stablecoinBalances={stablecoinBalances}
+              usdToEurRate={usdToEurRate}
+              onRemove={(id) => setStablecoinEntries((prev) => prev.filter((x) => x.id !== id))}
+            />
             {/* Outras redes — tracking */}
-            {otherWallets.map((item) => {
-              const addr = item.address ?? "";
-              return (
-                <div
-                  key={`other-${addr}-${item.network}`}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-700/60 bg-slate-900/40 px-4 py-3 text-xs text-slate-100"
-                >
-                  <div>
-                    <p className="font-semibold text-white">{item.label ?? item.network ?? addr}</p>
-                    <p className="text-slate-500 font-mono text-[11px]">{addr.length > 20 ? `${addr.slice(0, 10)}…${addr.slice(-6)}` : addr}</p>
-                    <p className="mt-0.5 text-[11px] text-slate-600 uppercase tracking-wide">{t("wl_tracking_tag")} · {item.network}</p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3 text-right">
-                    <span className="rounded-full border border-slate-700/40 bg-slate-800/40 px-3 py-2 text-[11px] text-slate-500">{t("wl_no_price")}</span>
-                    <button
-                      onClick={() => {
-                        const next = otherWallets.filter((w) => !(w.address === item.address && w.network === item.network));
-                        setOtherWallets(next);
-                        updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: adaWallets, other: next });
-                      }}
-                      title={t("wl_remove")}
-                      className="rounded-full border border-rose-800/40 bg-rose-950/30 p-2 text-rose-400 transition hover:bg-rose-900/50 hover:text-rose-300"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
-                        <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-            {/* Adicionar ativo manual */}
-            <div className="flex items-center gap-2 pt-1">
-              <select
-                value=""
-                onChange={(e) => { const s = e.target.value; if (s) toggleCryptoHolding(s); }}
-                className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 outline-none hover:border-orange-400 transition cursor-pointer"
-              >
-                <option value="">{t("wl_add_manual_asset")}</option>
-                {marketRows.filter((r) => !cryptoHoldings[r.symbol]).slice(0, 50).map((r) => (
-                  <option key={r.symbol} value={r.symbol}>{r.symbol} · {r.name}</option>
-                ))}
-              </select>
-              <span className="text-[11px] text-slate-600">{t("wl_reg_no_wallet")}</span>
-            </div>
-            {sortedCryptoSymbols.length === 0 && !(ethWallets.length > 0 || ethAddress || solWallets.length > 0 || solAddress || btcWallets.length > 0 || btcAddress || adaWallets.length > 0 || adaAddress) && stablecoinEntries.length === 0 && otherWallets.length === 0 ? (
-              <EmptyState compact icon="🪙" title={t("wl_no_asset_added")} description={t("wl_use_selector")} />
-            ) : (
-              sortedCryptoSymbols.map((symbol) => {
-                const holding = cryptoHoldings[symbol] ?? {};
-                const market = cryptoPrices[symbol];
-                const priceEur = market?.priceUsd ? market.priceUsd * usdToEurRate : undefined;
-                const qty = Number(holding.quantity ?? 0);
-                const marketValueEur = qty > 0 && priceEur ? qty * priceEur : undefined;
-                const investedEur = Number(holding.buyValue ?? 0);
-                const pnlEur =
-                  marketValueEur != null && investedEur > 0 ? marketValueEur - investedEur : undefined;
-                const pnlPct =
-                  pnlEur != null && investedEur > 0 ? (pnlEur / investedEur) * 100 : undefined;
-                return (
-                  <div
-                    key={symbol}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-xs text-slate-100"
-                  >
-                    <div>
-                      <p className="font-semibold text-white">{symbol}</p>
-                      <p className="text-slate-500">{market?.name ?? "—"}</p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="flex flex-col gap-0.5">
-                        <label className="text-[11px] text-slate-600 px-1">{t("wl_invested")} ({curSym})</label>
-                        {moneyField({ eur: holding.buyValue, onEur: (v) => updateCryptoHolding(symbol, { buyValue: v }), placeholder: "200", width: "w-36", ariaLabel: `${t("wl_invested")} ${symbol}` })}
-                      </div>
-                      <div className="flex flex-col gap-0.5">
-                        <label className="text-[11px] text-slate-600 px-1" title={t("wl_qty_hint")}>{t("wl_quantity")} ({symbol})</label>
-                        {qtyField({ value: holding.quantity, onValue: (v) => updateCryptoHolding(symbol, { quantity: v }), placeholder: "0,5", title: t("wl_qty_hint"), width: "w-28", ariaLabel: `${t("wl_quantity")} ${symbol}` })}
-                      </div>
-                      <div className="flex flex-col gap-0.5">
-                        <label className="text-[11px] text-slate-600 px-1">{t("wl_buy_date")}</label>
-                        <input
-                          type="date"
-                          value={holding.buyDate ?? ""}
-                          onChange={(event) =>
-                            updateCryptoHolding(symbol, { buyDate: event.target.value })
-                          }
-                          className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
-                        />
-                      </div>
-                      <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
-                        {t("wl_current_price")}{" "}
-                        <span className="font-semibold text-white">
-                          {market
-                            ? fmtMkt(market.priceUsd, { decimals: market.priceUsd < 1 ? 6 : 2 })
-                            : "—"}
-                        </span>
-                      </span>
-                      {marketValueEur != null ? (
-                        <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
-                          {t("wl_market_value")}:{" "}
-                          <span className="font-semibold text-white">{fmtCur(marketValueEur)}</span>
-                        </span>
-                      ) : null}
-                      {pnlEur != null ? (
-                        <span
-                          className={`rounded-full border px-3 py-2 text-xs font-semibold ${
-                            pnlEur >= 0
-                              ? "border-emerald-800/50 bg-emerald-950/30 text-emerald-300"
-                              : "border-rose-800/50 bg-rose-950/30 text-rose-300"
-                          }`}
-                        >
-                          {t("wl_pnl")}: {pnlEur >= 0 ? "+" : ""}
-                          {fmtCur(pnlEur)}
-                          {pnlPct != null ? ` (${pnlEur >= 0 ? "+" : ""}${pnlPct.toFixed(1)}%)` : ""}
-                        </span>
-                      ) : null}
-                      <button
-                        type="button"
-                        onClick={() => toggleCryptoHolding(symbol)}
-                        className="rounded-full border border-slate-700 px-3 py-2 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                      >
-                        {t("wl_remove")}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })
-            )}
+            <OutrasRedesLinhas otherWallets={otherWallets} onRemove={removeOtherWallet} />
+            <AtivosManuaisLista
+              marketRows={marketRows}
+              cryptoHoldings={cryptoHoldings}
+              toggleCryptoHolding={toggleCryptoHolding}
+              semAtivos={sortedCryptoSymbols.length === 0 && !(ethWallets.length > 0 || ethAddress || solWallets.length > 0 || solAddress || btcWallets.length > 0 || btcAddress || adaWallets.length > 0 || adaAddress) && stablecoinEntries.length === 0 && otherWallets.length === 0}
+              sortedCryptoSymbols={sortedCryptoSymbols}
+              cryptoPrices={cryptoPrices}
+              usdToEurRate={usdToEurRate}
+              moneyField={moneyField}
+              qtyField={qtyField}
+              updateCryptoHolding={updateCryptoHolding}
+            />
           </div>
           {cryptoPricesLoading ? (
             <p className="mt-3 text-xs text-slate-500">{t("wl_updating_prices")}</p>
           ) : null}
 
           {/* Histórico de compras e vendas */}
-          <div className="mt-6 rounded-2xl border border-slate-700/60 bg-slate-900/40 p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500 mb-0.5">{t("wl_manual_record")}</p>
-              <p className="text-sm font-bold text-white">{t("wl_tx_history")}</p>
-              <p className="text-xs text-slate-500 mt-1">{t("wl_tx_history_desc")}</p>
-            </div>
-            <a
-              href="/historico"
-              className="shrink-0 rounded-xl border border-orange-500/40 bg-orange-500/10 px-5 py-2.5 text-sm font-semibold text-orange-300 hover:bg-orange-500/20 transition"
-            >
-              {t("wl_view_history")}
-            </a>
-          </div>
+          <HistoricoTransacoesCta />
         </section>
         </>
         ) : (
           <div className="rounded-3xl border border-slate-800 bg-slate-950/60 p-6">
-            <div className="flex flex-col gap-3">
-              <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">
-                {t("wl_trad_title")}
-              </p>
-              <h2 className="text-xl font-semibold text-white">
-                {t("wl_trad_sub")}
-              </h2>
-              <p className="text-sm text-slate-400">
-                {t("wl_trad_desc")}
-              </p>
-            </div>
+            <TradicionalCabecalho />
 
             {/* Adicionar ação/ETF manual */}
-            <div className="mt-5 rounded-xl border border-slate-700 bg-slate-900/40 p-4 space-y-3">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{t("wl_add_stock")}</p>
-              <Segmentos tamanho="sm" valor={customTickerCategory} aoMudar={setCustomTickerCategory} opcoes={[{ id: "Ações", label: "Ações" }, { id: "ETFs", label: "ETFs" }]} />
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder={t("wl_ph_ticker")}
-                  value={customTickerInput}
-                  onChange={(e) => setCustomTickerInput(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      const ticker = customTickerInput.trim().toUpperCase();
-                      if (!ticker) return;
-                      const newAsset: import("@/lib/traditional/assets").TraditionalAsset = {
-                        id: ticker,
-                        label: `${ticker}`,
-                        category: customTickerCategory,
-                        alphaSymbol: ticker,
-                      };
-                      setCustomAssets((prev) => prev.some((a) => a.id === ticker) ? prev : [...prev, newAsset]);
-                      setCustomTickerInput("");
-                    }
-                  }}
-                  className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-orange-500 font-mono uppercase"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const ticker = customTickerInput.trim().toUpperCase();
-                    if (!ticker) return;
-                    const newAsset: import("@/lib/traditional/assets").TraditionalAsset = {
-                      id: ticker,
-                      label: `${ticker}`,
-                      category: customTickerCategory,
-                      alphaSymbol: ticker,
-                    };
-                    setCustomAssets((prev) => prev.some((a) => a.id === ticker) ? prev : [...prev, newAsset]);
-                    setCustomTickerInput("");
-                  }}
-                  className={`${btnPrimary} px-4 py-2 text-sm`}
-                >
-                  {t("wl_add")}
-                </button>
-              </div>
-              {customAssets.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {customAssets.map((a) => (
-                    <span key={a.id} className="flex items-center gap-1 rounded-full border border-orange-500/30 bg-orange-500/10 px-3 py-1 text-xs text-orange-200">
-                      {a.id} <span className="text-slate-500">({categoryLabel(a.category, t)})</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCustomAssets((prev) => prev.filter((x) => x.id !== a.id));
-                          if (traditionalHoldings[a.id]) {
-                            const next = { ...traditionalHoldings };
-                            delete next[a.id];
-                            void saveTraditionalHoldings(next);
-                            setTraditionalHoldings(next);
-                          }
-                        }}
-                        className="ml-1 text-slate-500 hover:text-rose-400"
-                      >×</button>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
+            <AdicionarTickerManual
+              customTickerCategory={customTickerCategory}
+              setCustomTickerCategory={setCustomTickerCategory}
+              customTickerInput={customTickerInput}
+              setCustomTickerInput={setCustomTickerInput}
+              customAssets={customAssets}
+              onAddTicker={() => {
+                const ticker = customTickerInput.trim().toUpperCase();
+                if (!ticker) return;
+                const newAsset: import("@/lib/traditional/assets").TraditionalAsset = {
+                  id: ticker,
+                  label: `${ticker}`,
+                  category: customTickerCategory,
+                  alphaSymbol: ticker,
+                };
+                setCustomAssets((prev) => prev.some((a) => a.id === ticker) ? prev : [...prev, newAsset]);
+                setCustomTickerInput("");
+              }}
+              onRemoveCustomAsset={(a) => {
+                setCustomAssets((prev) => prev.filter((x) => x.id !== a.id));
+                if (traditionalHoldings[a.id]) {
+                  const next = { ...traditionalHoldings };
+                  delete next[a.id];
+                  void saveTraditionalHoldings(next);
+                  setTraditionalHoldings(next);
+                }
+              }}
+            />
 
-            <Segmentos className="mt-5" tamanho="sm" wrap valor={traditionalCategory} aoMudar={setTraditionalCategory} opcoes={traditionalCategories.map((c) => ({ id: c, label: categoryLabel(c, t) }))} />
+            <CategoriasTradicionais
+              traditionalCategory={traditionalCategory}
+              setTraditionalCategory={setTraditionalCategory}
+              visibleTraditionalAssets={visibleTraditionalAssets}
+              traditionalHoldings={traditionalHoldings}
+              toggleTraditional={toggleTraditional}
+            />
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              {visibleTraditionalAssets.map((asset) => {
-                const checked = !!traditionalHoldings[asset.id];
-                return (
-                  <button
-                    key={asset.id}
-                    type="button"
-                    onClick={() => toggleTraditional(asset.id)}
-                    aria-pressed={checked}
-                    className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm transition ${
-                      checked
-                        ? "border-orange-400/60 bg-orange-500/10 text-orange-100"
-                        : "border-slate-800 bg-slate-950/60 text-slate-200 hover:border-slate-600"
-                    }`}
-                  >
-                    <div className="flex flex-col">
-                      <span className="font-semibold">{asset.label}</span>
-                      <span className="text-xs text-slate-500">{categoryLabel(asset.category, t)}</span>
-                    </div>
-                    <span
-                      className={`grid h-6 w-6 place-items-center rounded-full border text-xs font-semibold ${
-                        checked
-                          ? "border-orange-400 bg-orange-500/20 text-orange-100"
-                          : "border-slate-700 text-slate-400"
-                      }`}
-                    >
-                      {checked ? "✓" : "+"}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            <TradicionaisSelecionados
+              traditionalSortKey={traditionalSortKey}
+              setTraditionalSortKey={setTraditionalSortKey}
+              traditionalSortDir={traditionalSortDir}
+              setTraditionalSortDir={setTraditionalSortDir}
+              sortedTraditionalAssets={sortedTraditionalAssets}
+              traditionalHoldings={traditionalHoldings}
+              traditionalQuotes={traditionalQuotes}
+              traditionalQuoteLoading={traditionalQuoteLoading}
+              quotePriceEur={quotePriceEur}
+              qtyField={qtyField}
+              moneyField={moneyField}
+              updateTraditionalBuy={updateTraditionalBuy}
+              traditionalPnlRange={traditionalPnlRange}
+              setTraditionalPnlRange={setTraditionalPnlRange}
+              getTraditionalPnl={getTraditionalPnl}
+              refreshTraditionalQuote={refreshTraditionalQuote}
+              toggleTraditional={toggleTraditional}
+              onClear={() => {
+                setTraditionalHoldings({});
+              }}
+            />
 
-            <div className="mt-6">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                  {t("wl_selected")}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setTraditionalHoldings({});
-                  }}
-                  className="rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                >
-                  {t("wl_clear_sel")}
-                </button>
-              </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <select
-                  value={traditionalSortKey}
-                  onChange={(event) =>
-                    setTraditionalSortKey(event.target.value as "date" | "marketCap")
-                  }
-                  className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 outline-none"
-                >
-                  <option value="date">{t("wl_buy_date")}</option>
-                  <option value="marketCap">{t("mc_sort_mcap")}</option>
-                </select>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setTraditionalSortDir((prev) => (prev === "asc" ? "desc" : "asc"))
-                  }
-                  className="rounded-full border border-slate-700 bg-slate-950/80 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                >
-                  {traditionalSortDir === "asc" ? t("wl_asc") : t("wl_desc")}
-                </button>
-              </div>
-
-              {sortedTraditionalAssets.length === 0 ? (
-                <span className="mt-3 block text-sm text-slate-500">
-                  {t("wl_none_selected")}
-                </span>
-              ) : (
-                <div className="mt-3 grid gap-3">
-                  {sortedTraditionalAssets.map((asset) => {
-                    const buy = traditionalHoldings[asset.id] ?? {};
-                    const quote = asset.alphaSymbol
-                      ? traditionalQuotes[asset.alphaSymbol]
-                      : undefined;
-                    const isQuoteLoading = asset.alphaSymbol
-                      ? !!traditionalQuoteLoading[asset.alphaSymbol]
-                      : false;
-                    return (
-                      <div
-                        key={asset.id}
-                        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-xs text-slate-100"
-                      >
-                        <div>
-                          <p className="font-semibold text-white">{asset.label}</p>
-                          <p className="text-slate-500">{categoryLabel(asset.category, t)}</p>
-                          {(() => {
-                            // O valor de hoje so aparece quando ha quantidade E cotacao:
-                            // sem quantidade nao existe valor de mercado, e apresentar o
-                            // montante investido como se fosse o valor atual seria mentira.
-                            const priceEur = quotePriceEur(quote);
-                            if (!hasQuantity(buy) || priceEur == null) return null;
-                            const nowEur = traditionalHoldingValueEur(buy, priceEur);
-                            const invested = Number(buy.buyValue ?? 0);
-                            const diff = invested > 0 ? nowEur - invested : null;
-                            return (
-                              <p className="mt-1 text-[11px] text-slate-400">
-                                {t("wl_market_value")}:{" "}
-                                <span className="font-semibold text-white">{fmtCur(nowEur)}</span>
-                                {diff != null && !hideBalances ? (
-                                  <span className={diff >= 0 ? " text-emerald-300" : " text-rose-300"}>
-                                    {" "}
-                                    ({diff >= 0 ? "+" : "−"}
-                                    {fmtCur(Math.abs(diff))})
-                                  </span>
-                                ) : null}
-                              </p>
-                            );
-                          })()}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          {qtyField({ value: buy.quantity, onValue: (v) => updateTraditionalBuy(asset.id, { quantity: v }), placeholder: t("wl_quantity"), title: t("wl_trad_qty_hint"), width: "w-28", ariaLabel: `${t("wl_quantity")} ${asset.id}` })}
-                          {moneyField({ eur: buy.buyValue, onEur: (v) => updateTraditionalBuy(asset.id, { buyValue: v }), placeholder: `${t("wl_buy_value")} (${curSym})`, width: "w-40", ariaLabel: `${t("wl_buy_value")} ${asset.id}` })}
-                          <input
-                            type="date"
-                            value={buy.buyDate ?? ""}
-                            onChange={(event) =>
-                              updateTraditionalBuy(asset.id, { buyDate: event.target.value })
-                            }
-                            className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400"
-                          />
-                          <span className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
-                            {t("wl_current_price")}{" "}
-                            <span className="font-semibold text-white">
-                              {quote?.price != null
-                                ? `${quote.price.toFixed(2)} ${(quote.currency ?? "USD").toUpperCase()}`
-                                : "—"}
-                            </span>
-                          </span>
-                          <div className="flex items-center gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200">
-                            <select
-                              value={traditionalPnlRange[asset.id] ?? "1d"}
-                              onChange={(event) =>
-                                setTraditionalPnlRange((prev) => ({
-                                  ...prev,
-                                  [asset.id]: event.target.value as "1d" | "30d" | "60d" | "1y",
-                                }))
-                              }
-                              className="bg-transparent text-xs text-slate-200 outline-none"
-                            >
-                              <option value="1d">{t("wl_daily")}</option>
-                              <option value="30d">{t("pc_30_days")}</option>
-                              <option value="60d">{t("wl_60_days")}</option>
-                              <option value="1y">{t("wl_annual")}</option>
-                            </select>
-                            {(() => {
-                              const pnl = getTraditionalPnl(asset.id, quote?.changePercent ?? null);
-                              const value = pnl.value;
-                              return (
-                                <span
-                                  className={
-                                    value == null
-                                      ? "text-slate-400"
-                                      : value >= 0
-                                        ? "text-emerald-300"
-                                        : "text-rose-300"
-                                  }
-                                >
-                                  {value == null ? "—" : `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`}
-                                </span>
-                              );
-                            })()}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => refreshTraditionalQuote(asset.alphaSymbol)}
-                            disabled={!asset.alphaSymbol || isQuoteLoading}
-                            className="rounded-full border border-orange-400/40 px-3 py-2 text-[11px] font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            {isQuoteLoading ? t("wl_updating") : t("wl_update_price")}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => toggleTraditional(asset.id)}
-                            className="rounded-full border border-slate-700 px-3 py-2 text-[11px] font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                            title={t("wl_remove")}
-                          >
-                            {t("wl_remove")}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                  {t("wl_market_data")}
-                </p>
-                {traditionalQuotesLoading ? (
-                  <span className="text-xs text-slate-400">{t("wl_loading2")}</span>
-                ) : null}
-              </div>
-              {traditionalQuotesError ? (
-                <ErrorNote className="mt-2">{traditionalQuotesError}</ErrorNote>
-              ) : null}
-              <div className="mt-3 space-y-2">
-                {selectedTraditionalAssets.length === 0 ? (
-                  <p className="text-sm text-slate-500">{t("wl_select_quotes")}</p>
-                ) : (
-                  selectedTraditionalAssets.map((asset) => {
-                    const quote = asset.alphaSymbol
-                      ? traditionalQuotes[asset.alphaSymbol]
-                      : undefined;
-                    return (
-                      <div
-                        key={asset.id}
-                        className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300"
-                      >
-                        <div>
-                          <p className="font-semibold text-white">{asset.label}</p>
-                          <p className="text-slate-500">{categoryLabel(asset.category, t)}</p>
-                        </div>
-                        {quote ? (
-                          <div className="text-right">
-                            <p className="text-white">
-                              {quote.price != null ? quote.price.toFixed(2) : "—"}
-                            </p>
-                            <p
-                              className={
-                                quote.changePercent != null && quote.changePercent < 0
-                                  ? "text-rose-300"
-                                  : "text-emerald-300"
-                              }
-                            >
-                              {quote.changePercent != null
-                                ? `${quote.changePercent.toFixed(2)}%`
-                                : "—"}
-                            </p>
-                            <p className="text-[11px] text-slate-500">
-                              Vol: {quote.volume != null ? quote.volume.toLocaleString(numberFormat) : "—"}
-                            </p>
-                          </div>
-                        ) : (
-                          <p className="text-xs text-slate-500">
-                            {t("wl_no_market_data")}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-              {selectedTraditionalAssets.length > 0 && (
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 pt-3">
-                  <span
-                    className="text-xs text-slate-400"
-                    title={traditionalWithQty > 0 ? t("wl_trad_market_hint") : t("wl_trad_total_hint")}
-                  >
-                    {traditionalWithQty > 0 ? t("wl_trad_market") : t("wl_trad_total")} · {selectedTraditionalAssets.length} {selectedTraditionalAssets.length === 1 ? t("wl_asset_one") : t("wl_asset_many")}
-                  </span>
-                  <span className="text-sm font-semibold text-white">{fmtCur(traditionalWithQty > 0 ? traditionalMarketTotal : traditionalInvestedTotal)}</span>
-                </div>
-              )}
-            </div>
+            <DadosMercadoTradicional
+              traditionalQuotesLoading={traditionalQuotesLoading}
+              traditionalQuotesError={traditionalQuotesError}
+              selectedTraditionalAssets={selectedTraditionalAssets}
+              traditionalQuotes={traditionalQuotes}
+              traditionalWithQty={traditionalWithQty}
+              traditionalMarketTotal={traditionalMarketTotal}
+              traditionalInvestedTotal={traditionalInvestedTotal}
+            />
           </div>
         )}
         {walletMode === "web3" && (<>
-        <section id="manual-address-section" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 scroll-mt-24">
-          <h3 className="text-sm font-semibold text-white">{t("wl_add_manual")}</h3>
-          <p className="mt-1 text-xs text-slate-500">
-            {t("wl_universal_intro")} {t("wl_hw_addr_hint")}
-          </p>
-          <div className="mt-3 flex flex-wrap items-end gap-2">
-            <div className="relative min-w-[200px]" ref={manualAddNetworkRef}>
-              <button
-                type="button"
-                className="flex w-full min-w-[200px] items-center justify-between gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-left text-xs text-slate-200 outline-none transition focus:border-orange-400"
-                onClick={() => setManualAddNetworkOpen((o) => !o)}
-              >
-                <span className="truncate">
-                  {MANUAL_ADD_NETWORKS.find((n) => n.id === manualAddNetwork)?.label ?? manualAddNetwork}
-                </span>
-                <span className="text-slate-500">{manualAddNetworkOpen ? "▲" : "▼"}</span>
-              </button>
-              {manualAddNetworkOpen ? (
-                <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[260px] rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
-                  <input
-                    type="text"
-                    className="w-full border-b border-slate-700 bg-slate-900/80 px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none"
-                    placeholder={t("wl_search_network")}
-                    value={manualAddNetworkFilter}
-                    onChange={(e) => setManualAddNetworkFilter(e.target.value)}
-                    onKeyDown={(e) => e.stopPropagation()}
-                  />
-                  <div className="max-h-[300px] overflow-y-auto py-1">
-                    {(() => {
-                      const filtered = MANUAL_ADD_NETWORKS.filter(
-                        (net) =>
-                          !manualAddNetworkFilter.trim() ||
-                          net.label.toLowerCase().includes(manualAddNetworkFilter.trim().toLowerCase()) ||
-                          net.id.toLowerCase().includes(manualAddNetworkFilter.trim().toLowerCase())
-                      );
-                      const groups: string[] = [];
-                      return filtered.map((net) => {
-                        const showGroup = net.group && !groups.includes(net.group) && !manualAddNetworkFilter.trim();
-                        if (showGroup && net.group) groups.push(net.group);
-                        return (
-                          <div key={net.id}>
-                            {showGroup && (
-                              <p className="px-3 pt-2 pb-1 text-[11px] font-bold uppercase tracking-widest text-slate-600">{net.group}</p>
-                            )}
-                            <button
-                              type="button"
-                              className="flex w-full cursor-pointer items-center gap-2 px-3 py-1.5 text-left text-xs text-slate-200 hover:bg-slate-800 transition-colors"
-                              onClick={() => {
-                                setManualAddNetwork(net.id);
-                                setManualAddNetworkOpen(false);
-                                setManualAddNetworkFilter("");
-                              }}
-                            >
-                              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{
-                                background: net.group === "EVM L1" ? "#f97316" :
-                                            net.group === "EVM L2" ? "#3b82f6" :
-                                            net.group === "Bitcoin" ? "#eab308" :
-                                            net.group === "Solana" ? "#a855f7" :
-                                            net.group === "Cardano" ? "#06b6d4" : "#64748b"
-                              }} />
-                              {net.label}
-                            </button>
-                          </div>
-                        );
-                      });
-                    })()}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-            <input
-              className="min-w-[200px] flex-1 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
-              placeholder={
-                MANUAL_ADD_TO_EVM_NETWORK[manualAddNetwork]
-                  ? t("wl_ph_evm")
-                  : MANUAL_ADD_TO_SOL_NETWORK[manualAddNetwork]
-                    ? t("wl_ph_sol")
-                    : manualAddNetwork === "btc"
-                      ? t("wl_addr_btc")
-                      : manualAddNetwork === "ada"
-                        ? t("wl_ph_ada")
-                        : t("wl_ph_soon")
-              }
-              value={manualAddAddress}
-              onChange={(e) => {
-                const v = e.target.value;
-                setManualAddAddress(v);
-                // Rede pelo formato: so troca quando a atual nao serve para este
-                // endereco (quem escolheu Base para um 0x… fica com Base).
-                const d = detetarRede(v);
-                if (d.tipo !== "rede") return;
-                const evm = Boolean(MANUAL_ADD_TO_EVM_NETWORK[manualAddNetwork]);
-                if (d.rede === "eth" ? !evm : manualAddNetwork !== d.rede) setManualAddNetwork(d.rede);
-              }}
-            />
-            <input
-              className="w-32 rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200 outline-none placeholder:text-slate-500"
-              placeholder={t("wl_name_opt")}
-              value={manualAddLabel}
-              onChange={(e) => setManualAddLabel(e.target.value)}
-            />
-            <button
-              type="button"
-              className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
-              onClick={handleManualAddAddress}
-            >
-              {t("wl_add")}
-            </button>
-          </div>
-          {manualAddOk ? (
-            <p className="mt-2 text-xs text-emerald-300">{manualAddOk}</p>
-          ) : null}
-          {manualAddError ? (
-            <ErrorNote className="mt-2">{manualAddError}</ErrorNote>
-          ) : null}
-        </section>
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-          <h3 className="text-sm font-semibold text-white">{t("wl_manual_crypto")}</h3>
-          <p className="mt-1 text-xs text-slate-500">
-            {t("wl_manual_asset_intro")} <span className="text-slate-300 font-medium">{curCode} ({curSym})</span>. {t("wl_manual_asset_tail")}
-          </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <div className="relative min-w-[220px]" ref={manualCryptoSelectRef}>
-              <button
-                type="button"
-                className="flex w-full items-center justify-between gap-2 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-left text-xs text-slate-200 outline-none transition focus:border-orange-400"
-                onClick={() => setManualCryptoSelectOpen((o) => !o)}
-              >
-                <span className="truncate">
-                  {manualCryptoAssetSymbol
-                    ? (() => {
-                        const list = cryptoSelectList.length > 0 ? cryptoSelectList : marketRows.map((r) => ({ symbol: r.symbol, name: r.name }));
-                        const name = list.find((r) => r.symbol === manualCryptoAssetSymbol)?.name;
-                        return name ? `${manualCryptoAssetSymbol} · ${name}` : manualCryptoAssetSymbol;
-                      })()
-                    : t("wl_select_crypto")}
-                </span>
-                <span className="text-slate-500">{manualCryptoSelectOpen ? "▲" : "▼"}</span>
-              </button>
-              {manualCryptoSelectOpen ? (
-                <div className="absolute left-0 top-full z-50 mt-1 w-full min-w-[280px] rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
-                  <input
-                    type="text"
-                    className="w-full border-b border-slate-700 bg-slate-900/80 px-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none"
-                    placeholder={t("wl_search_symbol")}
-                    value={manualCryptoFilter}
-                    onChange={(e) => setManualCryptoFilter(e.target.value)}
-                    onKeyDown={(e) => e.stopPropagation()}
-                  />
-                  <div className="max-h-[280px] overflow-y-auto py-1">
-                    {cryptoPricesLoading && cryptoSelectList.length === 0 && marketRows.length === 0 ? (
-                      <p className="px-3 py-4 text-center text-xs text-slate-500">{t("wl_loading_api")}</p>
-                    ) : (() => {
-                      const list = cryptoSelectList.length > 0 ? cryptoSelectList : marketRows.map((r) => ({ symbol: r.symbol, name: r.name }));
-                      const filtered = list.filter(
-                        (row) =>
-                          !manualCryptoFilter.trim() ||
-                          row.symbol.toLowerCase().includes(manualCryptoFilter.trim().toLowerCase()) ||
-                          (row.name && row.name.toLowerCase().includes(manualCryptoFilter.trim().toLowerCase()))
-                      );
-                      if (filtered.length === 0) {
-                        return (
-                          <p className="px-3 py-4 text-center text-xs text-slate-500">
-                            {list.length === 0 ? t("wl_loading_api") : t("wl_no_asset_found")}
-                          </p>
-                        );
-                      }
-                      return filtered.map((row) => (
-                        <button
-                          key={row.symbol}
-                          type="button"
-                          className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-xs text-slate-200 hover:bg-slate-800"
-                          onClick={() => {
-                            setManualCryptoAssetSymbol(row.symbol);
-                            setManualCryptoSelectOpen(false);
-                            setManualCryptoFilter("");
-                          }}
-                        >
-                          <span className="font-medium">{row.symbol}</span>
-                          {row.name ? <span className="text-slate-500">{row.name}</span> : null}
-                        </button>
-                      ));
-                    })()}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-            <input
-              type="date"
-              className="rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
-              value={manualCryptoAssetDate}
-              onChange={(e) => setManualCryptoAssetDate(e.target.value)}
-            />
-            <div className="relative">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">{curSym}</span>
-              <input
-                type="text"
-                inputMode="decimal"
-                autoComplete="off"
-                className="w-36 rounded-full border border-slate-800 bg-slate-950/60 pl-7 pr-12 py-2 text-xs text-slate-200 outline-none placeholder:text-slate-500 transition focus:border-orange-400"
-                placeholder={t("wl_value")}
-                value={manualCryptoAssetAmountUsd}
-                onChange={(e) => setManualCryptoAssetAmountUsd(cleanDecimalInput(e.target.value))}
-              />
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-slate-500">{curCode}</span>
-            </div>
-            <input
-              type="text"
-              inputMode="decimal"
-              autoComplete="off"
-              title={t("wl_qty_hint")}
-              className="w-32 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none placeholder:text-slate-500 transition focus:border-orange-400"
-              placeholder={`${t("wl_quantity")} (opc.)`}
-              value={manualCryptoAssetQty}
-              onChange={(e) => setManualCryptoAssetQty(cleanDecimalInput(e.target.value))}
-            />
-            <button
-              type="button"
-              className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
-              onClick={handleManualAddCryptoAsset}
-            >
-              {t("wl_add")}
-            </button>
-          </div>
-          {manualCryptoAssetError ? (
-            <ErrorNote className="mt-2">{manualCryptoAssetError}</ErrorNote>
-          ) : null}
-        </section>
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-          <h3 className="text-sm font-semibold text-white">{t("wl_stablecoins_addr")}</h3>
-          <p className="mt-1 text-xs text-slate-500">
-            {t("wl_stable_intro")}
-          </p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-[auto_1fr_auto] sm:items-center">
-            <select
-              className="rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-200 outline-none focus:border-orange-400"
-              value={stablecoinAddSymbol}
-              onChange={(e) => setStablecoinAddSymbol(e.target.value)}
-            >
-              {stablecoinSymbolOptions.map((sym) => (
-                <option key={sym} value={sym}>{sym}</option>
-              ))}
-            </select>
-            <input
-              type="text"
-              className="min-w-0 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 placeholder:text-slate-500 outline-none focus:border-orange-400"
-              placeholder={t("wl_ph_stable_addr").replace("{sym}", stablecoinAddSymbol)}
-              value={stablecoinAddAddress}
-              onChange={(e) => setStablecoinAddAddress(e.target.value)}
-            />
-            <button
-              type="button"
-              className="rounded-full border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 transition hover:border-orange-400 hover:text-white"
-              onClick={handleAddStablecoinEntry}
-            >
-              {t("wl_add")}
-            </button>
-          </div>
-          {stablecoinAddError ? (
-            <ErrorNote className="mt-2">{stablecoinAddError}</ErrorNote>
-          ) : null}
-          {stablecoinEntries.length > 0 ? (
-            <div className="mt-4 overflow-x-auto">
-              <table className="w-full min-w-[320px] text-left text-xs text-slate-300">
-                <thead>
-                  <tr className="border-b border-slate-700 text-slate-500">
-                    <th className="py-2 pr-2 font-medium">{t("wl_stablecoin")}</th>
-                    <th className="py-2 pr-2 font-medium">{t("wl_address")}</th>
-                    <th className="py-2 pr-2 text-right font-medium">{t("wl_balance")}</th>
-                    <th className="w-20 py-2"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stablecoinEntries.map((e) => (
-                    <tr key={e.id} className="border-b border-slate-800/80">
-                      <td className="py-2 pr-2 font-medium text-white">{e.symbol}</td>
-                      <td className="max-w-[170px] py-2 pr-2 font-mono text-slate-400">
-                        <span className="inline-flex items-center gap-1.5">
-                          {stableShown[e.id]
-                            ? <span className="truncate">{e.address.slice(0, 6)}…{e.address.slice(-4)}</span>
-                            : <span className="tracking-widest text-slate-600 select-none">••••••••</span>}
-                          <button
-                            type="button"
-                            onClick={() => setStableShown((prev) => ({ ...prev, [e.id]: !prev[e.id] }))}
-                            className="shrink-0 rounded-full border border-slate-700 px-1.5 py-0.5 text-[11px] text-slate-200 transition hover:border-slate-500 hover:text-white"
-                            title={stableShown[e.id] ? t("wc_hide_addr") : t("wc_show_addr")}
-                            aria-label={stableShown[e.id] ? t("wc_hide_addr") : t("wc_show_addr")}
-                          >
-                            {stableShown[e.id] ? "🙈" : "👁️"}
-                          </button>
-                        </span>
-                      </td>
-                      <td className="py-2 pr-2 text-right tabular-nums">
-                        {stablecoinBalancesLoading[e.id] ? t("wl_loading") : (stablecoinBalances[e.id] ?? "—")}
-                      </td>
-                      <td className="py-2">
-                        <button
-                          type="button"
-                          className="rounded-full border border-rose-400/40 px-2 py-1 text-[11px] font-semibold text-rose-200 transition hover:border-rose-400 hover:text-white"
-                          onClick={() => {
-                            setStablecoinEntries((prev) => prev.filter((x) => x.id !== e.id));
-                            setStablecoinBalances((prev) => {
-                              const next = { ...prev };
-                              delete next[e.id];
-                              return next;
-                            });
-                            setStablecoinBalancesLoading((prev) => {
-                              const next = { ...prev };
-                              delete next[e.id];
-                              return next;
-                            });
-                          }}
-                        >
-                          {t("wl_remove")}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
-        </section>
+        <EnderecoManualSecao
+          manualAddNetworkRef={manualAddNetworkRef}
+          manualAddNetworkOpen={manualAddNetworkOpen}
+          setManualAddNetworkOpen={setManualAddNetworkOpen}
+          manualAddNetwork={manualAddNetwork}
+          setManualAddNetwork={setManualAddNetwork}
+          manualAddNetworkFilter={manualAddNetworkFilter}
+          setManualAddNetworkFilter={setManualAddNetworkFilter}
+          manualAddAddress={manualAddAddress}
+          manualAddLabel={manualAddLabel}
+          setManualAddLabel={setManualAddLabel}
+          handleManualAddAddress={handleManualAddAddress}
+          manualAddOk={manualAddOk}
+          manualAddError={manualAddError}
+          onAddressChange={(e) => {
+            const v = e.target.value;
+            setManualAddAddress(v);
+            // Rede pelo formato: so troca quando a atual nao serve para este
+            // endereco (quem escolheu Base para um 0x… fica com Base).
+            const d = detetarRede(v);
+            if (d.tipo !== "rede") return;
+            const evm = Boolean(MANUAL_ADD_TO_EVM_NETWORK[manualAddNetwork]);
+            if (d.rede === "eth" ? !evm : manualAddNetwork !== d.rede) setManualAddNetwork(d.rede);
+          }}
+        />
+        <AtivoCriptoManualSecao
+          manualCryptoSelectRef={manualCryptoSelectRef}
+          manualCryptoSelectOpen={manualCryptoSelectOpen}
+          setManualCryptoSelectOpen={setManualCryptoSelectOpen}
+          manualCryptoAssetSymbol={manualCryptoAssetSymbol}
+          setManualCryptoAssetSymbol={setManualCryptoAssetSymbol}
+          manualCryptoFilter={manualCryptoFilter}
+          setManualCryptoFilter={setManualCryptoFilter}
+          cryptoSelectList={cryptoSelectList}
+          marketRows={marketRows}
+          cryptoPricesLoading={cryptoPricesLoading}
+          manualCryptoAssetDate={manualCryptoAssetDate}
+          setManualCryptoAssetDate={setManualCryptoAssetDate}
+          manualCryptoAssetAmountUsd={manualCryptoAssetAmountUsd}
+          setManualCryptoAssetAmountUsd={setManualCryptoAssetAmountUsd}
+          manualCryptoAssetQty={manualCryptoAssetQty}
+          setManualCryptoAssetQty={setManualCryptoAssetQty}
+          handleManualAddCryptoAsset={handleManualAddCryptoAsset}
+          manualCryptoAssetError={manualCryptoAssetError}
+        />
+        <StablecoinsSecao
+          stablecoinAddSymbol={stablecoinAddSymbol}
+          setStablecoinAddSymbol={setStablecoinAddSymbol}
+          stablecoinSymbolOptions={stablecoinSymbolOptions}
+          stablecoinAddAddress={stablecoinAddAddress}
+          setStablecoinAddAddress={setStablecoinAddAddress}
+          handleAddStablecoinEntry={handleAddStablecoinEntry}
+          stablecoinAddError={stablecoinAddError}
+          stablecoinEntries={stablecoinEntries}
+          stableShown={stableShown}
+          setStableShown={setStableShown}
+          stablecoinBalances={stablecoinBalances}
+          stablecoinBalancesLoading={stablecoinBalancesLoading}
+          onRemoveEntry={(e) => {
+            setStablecoinEntries((prev) => prev.filter((x) => x.id !== e.id));
+            setStablecoinBalances((prev) => {
+              const next = { ...prev };
+              delete next[e.id];
+              return next;
+            });
+            setStablecoinBalancesLoading((prev) => {
+              const next = { ...prev };
+              delete next[e.id];
+              return next;
+            });
+          }}
+        />
         {/* ── CEX + Hyperliquid + Ledger ── */}
         {isPro ? (
           <CexSection
@@ -5878,18 +3514,7 @@ export default function WalletsPage() {
             onRetryTokens={(address, kind) => void fetchColdTokens(address, kind)}
           />
         ) : (
-          <div className="mx-auto w-full max-w-5xl px-4 pb-8">
-            <div className="rounded-2xl border border-orange-500/20 bg-orange-500/5 p-6 flex flex-col sm:flex-row items-center gap-5">
-              <div className="text-4xl">🔒</div>
-              <div className="flex-1 text-center sm:text-left">
-                <p className="text-base font-bold text-white mb-1">{t("wl_cex_hw_pro")}</p>
-                <p className="text-sm text-slate-400">{t("wl_cex_hw_desc")}</p>
-              </div>
-              <a href={paymentsFrozen ? "/beta" : "/pricing"} className={`${btnPrimary} shrink-0 px-5 py-2.5 text-sm`}>
-                {paymentsFrozen ? `🧪 ${t("dash_beta_cta_short")} →` : t("wl_upgrade_pro")}
-              </a>
-            </div>
-          </div>
+          <CexHardwareProAviso paymentsFrozen={paymentsFrozen} />
         )}
         </>)}
       </div>
