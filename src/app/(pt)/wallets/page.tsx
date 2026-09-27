@@ -65,7 +65,6 @@ import {
   loadWalletSnapshot,
   updateWalletSnapshot,
   type StoredWalletEntry,
-  type WalletSnapshot,
 } from "@/lib/wallets/storage";
 import { pushWalletCloud, pullWalletCloud } from "@/lib/portfolios/cloudSync";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
@@ -108,12 +107,6 @@ type MarketRow = {
 type SubscriptionStatus = {
   status: string;
   current_period_end: string | null;
-};
-
-type SnapshotRow = {
-  id: number;
-  created_at: string;
-  data: WalletSnapshot;
 };
 
 const isEvmAddress = (address?: string) => /^0x[a-fA-F0-9]{40}$/.test(address ?? "");
@@ -374,7 +367,6 @@ export default function WalletsPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [isPro, setIsPro] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  const [cloudSyncError, setCloudSyncError] = useState<string | null>(null);
   const [walletMode, setWalletMode] = useState<"web3" | "tradicional">("web3");
   const [traditionalCategory, setTraditionalCategory] = useState("Todos");
   const [customTickerInput, setCustomTickerInput] = useState("");
@@ -826,64 +818,14 @@ export default function WalletsPage() {
     return () => window.clearTimeout(id);
   }, [cryptoHoldings]);
 
-  useEffect(() => {
-    if (!userId || !isPro) return;
-    const loadCloudSnapshot = async () => {
-      const { data: rows } = await supabase
-        .from("portfolio_snapshots")
-        .select("id, created_at, data")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(1);
-
-      const latest = (rows ?? [])[0] as SnapshotRow | undefined;
-      if (!latest?.data) return;
-
-      const localSnapshot = loadWalletSnapshot();
-      const localCount =
-        (localSnapshot.eth?.length ?? 0) +
-        (localSnapshot.sol?.length ?? 0) +
-        (localSnapshot.btc?.length ?? 0) +
-        (localSnapshot.ada?.length ?? 0);
-
-      if (localCount > 0) return;
-
-      updateWalletSnapshot(latest.data);
-      setEthWallets(latest.data.eth ?? []);
-      setSolWallets(latest.data.sol ?? []);
-      setBtcWallets(latest.data.btc ?? []);
-      setAdaWallets(latest.data.ada ?? []);
-      setOtherWallets(latest.data.other ?? []);
-    };
-
-    loadCloudSnapshot();
-  }, [userId, isPro, supabase]);
-
-  useEffect(() => {
-    if (!userId || !isPro) return;
-    if (isLoadingAuth) return;
-    const timeoutId = window.setTimeout(async () => {
-      const snapshot: WalletSnapshot = {
-        eth: ethWallets,
-        sol: solWallets,
-        btc: btcWallets,
-        ada: adaWallets,
-        other: otherWallets,
-      };
-
-      const { error } = await supabase
-        .from("portfolio_snapshots")
-        .insert({ user_id: userId, data: snapshot });
-
-      if (error) {
-        setCloudSyncError(t("wl_err_sync"));
-        return;
-      }
-      setCloudSyncError(null);
-    }, 1200);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [ethWallets, solWallets, btcWallets, adaWallets, userId, isPro, isLoadingAuth, supabase]);
+  // Nota (auditoria set 2026): aqui viviam dois efeitos que ja nao existem.
+  // (1) loadCloudSnapshot copiava as carteiras E os saldos CEX/DeFi do ultimo
+  //     snapshot (de qualquer conta) para a conta ativa quando esta estava vazia
+  //     — uma conta nova herdava tudo da anterior e ficava a contar a dobrar na
+  //     vista "Todas". A nuvem por conta e o pullWalletCloud (blob v3) acima.
+  // (2) um insert em portfolio_snapshots a cada visita (Pro/Premium), sem
+  //     _totalEur nem _account — enchia a tabela e parava o auto-snapshot e o
+  //     PNL da API. O snapshot completo grava-o so a pagina do Portefolio.
 
   type DefiChain = "eth" | "sol" | "btc" | "ada";
   const defiKey = (address: string, chain: DefiChain | string) => `${address}:${chain}`;
@@ -3146,9 +3088,6 @@ export default function WalletsPage() {
               </p>
             </div>
           )}
-          {cloudSyncError ? (
-            <ErrorNote>{cloudSyncError}</ErrorNote>
-          ) : null}
           <Segmentos
             valor={walletMode}
             aoMudar={setWalletMode}

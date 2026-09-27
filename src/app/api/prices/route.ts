@@ -2,17 +2,27 @@ import { NextResponse } from "next/server";
 import { rateLimitPublic } from "@/lib/api/requireUser";
 import { lastGood, rememberGood } from "@/lib/market/lastGood";
 import { cgFetch } from "@/lib/market/coingecko";
+import { precosHaDias, variacaoPct, velasDiariasOkx } from "@/lib/market/okxDaily";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 type Prices = { ETH: number; SOL: number; BTC: number; ADA: number; usdToEur?: number };
+// 7d/30d: null quando a fonte nao os da — nunca 0, que o ecra pintava a verde
+// como "+0,0 %" (auditoria set 2026). BTC/ETH vem das velas 1D da OKX quando
+// a fonte dos precos so tem 24 h; o ouro fica a null ate haver historico.
 type Benchmark = {
-  btc_eur: number; btc_24h: number; btc_7d: number; btc_30d: number;
-  eth_eur: number; eth_24h: number; eth_7d: number; eth_30d: number;
-  gold_eur: number; gold_24h: number; gold_7d: number; gold_30d: number;
+  btc_eur: number; btc_24h: number; btc_7d: number | null; btc_30d: number | null;
+  eth_eur: number; eth_24h: number; eth_7d: number | null; eth_30d: number | null;
+  gold_eur: number; gold_24h: number; gold_7d: number | null; gold_30d: number | null;
   sp500: number;
 };
+
+/** Variacao 7d/30d de um par (ex.: BTC-EUR) a partir das velas diarias da OKX. */
+async function variacoesOkx(instId: string, atual: number): Promise<{ d7: number | null; d30: number | null }> {
+  const ref = precosHaDias(await velasDiariasOkx(instId, 32));
+  return { d7: variacaoPct(atual, ref.d7), d30: variacaoPct(atual, ref.d30) };
+}
 
 // Cotação de um símbolo no Yahoo Finance (grátis, sem chave). Substituiu o
 // stooq, que passou a exigir proof-of-work no browser e devolvia sempre 0.
@@ -183,12 +193,12 @@ async function fromCoinGecko(): Promise<{ prices: Prices; benchmark: Partial<Ben
   const benchmark: Partial<Benchmark> = {
     btc_eur: d.bitcoin?.eur ?? 0,
     btc_24h: d.bitcoin?.eur_24h_change ?? 0,
-    btc_7d: d.bitcoin?.eur_7d_change ?? 0,
-    btc_30d: d.bitcoin?.eur_30d_change ?? 0,
+    btc_7d: d.bitcoin?.eur_7d_change,
+    btc_30d: d.bitcoin?.eur_30d_change,
     eth_eur: d.ethereum?.eur ?? 0,
     eth_24h: d.ethereum?.eur_24h_change ?? 0,
-    eth_7d: d.ethereum?.eur_7d_change ?? 0,
-    eth_30d: d.ethereum?.eur_30d_change ?? 0,
+    eth_7d: d.ethereum?.eur_7d_change,
+    eth_30d: d.ethereum?.eur_30d_change,
     // Sem ouro aqui: o id "gold" da CoinGecko é um token cripto, não o metal.
     // O ouro real vem de fetchMarketBenchmarks() (Yahoo GC=F).
   };
@@ -212,22 +222,29 @@ export async function GET(request: Request) {
       const { prices, benchmark } = await source();
       if (!isValid(prices)) continue;
       // S&P 500 + ouro real (Yahoo). Best-effort: 0 se falhar, nunca rebenta.
-      const market = await fetchMarketBenchmarks();
+      // 7d/30d do BTC/ETH: so a CoinGecko os traz; as outras fontes so dao 24 h,
+      // por isso vao-se buscar as velas diarias da OKX (best-effort, null se falhar).
+      const precisa7d = benchmark.btc_7d == null || benchmark.eth_7d == null;
+      const [market, btcVar, ethVar] = await Promise.all([
+        fetchMarketBenchmarks(),
+        precisa7d ? variacoesOkx("BTC-EUR", prices.BTC) : Promise.resolve({ d7: null, d30: null }),
+        precisa7d ? variacoesOkx("ETH-EUR", prices.ETH) : Promise.resolve({ d7: null, d30: null }),
+      ]);
       const fullBenchmark: Benchmark = {
         sp500: market.sp500,
         btc_eur: benchmark.btc_eur ?? 0,
         btc_24h: benchmark.btc_24h ?? 0,
-        btc_7d: benchmark.btc_7d ?? 0,
-        btc_30d: benchmark.btc_30d ?? 0,
+        btc_7d: benchmark.btc_7d ?? btcVar.d7,
+        btc_30d: benchmark.btc_30d ?? btcVar.d30,
         eth_eur: benchmark.eth_eur ?? 0,
         eth_24h: benchmark.eth_24h ?? 0,
-        eth_7d: benchmark.eth_7d ?? 0,
-        eth_30d: benchmark.eth_30d ?? 0,
+        eth_7d: benchmark.eth_7d ?? ethVar.d7,
+        eth_30d: benchmark.eth_30d ?? ethVar.d30,
         gold_eur: market.gold_eur,
         gold_24h: market.gold_24h,
-        // 7d/30d do ouro exigiriam histórico; ficam a 0 em vez de valores falsos.
-        gold_7d: 0,
-        gold_30d: 0,
+        // 7d/30d do ouro exigiriam historico; null (o ecra mostra "—") em vez de 0.
+        gold_7d: null,
+        gold_30d: null,
       };
       const body = rememberGood("prices", { prices, benchmark: fullBenchmark, source: name });
       return NextResponse.json(body, {

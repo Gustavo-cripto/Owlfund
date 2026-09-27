@@ -1,5 +1,6 @@
 import { createHmac } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { contasMascaradas, juntarContas, whitelistSnapshot } from "@/lib/api/walletBlob";
 
 // Leituras dos dados do utilizador, partilhadas pela API REST e pelo MCP.
 
@@ -13,40 +14,10 @@ export function maskAddress(value: string): string {
   return `wallet_${createHmac("sha256", PSEUDONYM_KEY).update(value.toLowerCase()).digest("hex").slice(0, 10)}`;
 }
 
-// Lista branca: a API só devolve estes campos conhecidos. Qualquer outro campo
-// que venha a ser guardado no blob NÃO escapa pela API. Endereços saem sempre
-// mascarados.
-const WALLET_ARRAYS = ["eth", "sol", "btc", "ada", "other"] as const;
-const ENTRY_FIELDS = ["address", "balance", "network", "label", "source"] as const;
-const NUMBER_FIELDS = ["cexUsd", "defiUsd", "manualEur"] as const;
-
-function whitelistWalletData(data: unknown): Record<string, unknown> | null {
-  if (!data || typeof data !== "object") return null;
-  const src = data as Record<string, unknown>;
-  const out: Record<string, unknown> = {};
-
-  for (const chain of WALLET_ARRAYS) {
-    const arr = src[chain];
-    if (!Array.isArray(arr)) continue;
-    out[chain] = arr.map((raw) => {
-      const entry = (raw && typeof raw === "object") ? raw as Record<string, unknown> : {};
-      const picked: Record<string, unknown> = {};
-      for (const field of ENTRY_FIELDS) {
-        if (!(field in entry)) continue;
-        picked[field] = field === "address" && typeof entry.address === "string"
-          ? maskAddress(entry.address)
-          : entry[field];
-      }
-      return picked;
-    });
-  }
-
-  for (const field of NUMBER_FIELDS) {
-    if (typeof src[field] === "number") out[field] = src[field];
-  }
-
-  return out;
-}
+// Lista branca (só campos conhecidos, endereços sempre mascarados) e leitura
+// dos formatos do blob: src/lib/api/walletBlob.ts — o mesmo leitor para a API
+// REST, o MCP e o contador da Conta.
+const whitelistWalletData = (data: unknown) => whitelistSnapshot(data, maskAddress);
 
 export type PortfolioResult = {
   updatedAt: string | null;
@@ -89,7 +60,11 @@ export async function getPortfolio(userId: string): Promise<PortfolioResult> {
 
 export type WalletsResult = {
   updatedAt: string | null;
-  wallets: unknown | null;
+  /** Uma entrada por portefólio ("conta"), com as carteiras mascaradas. */
+  accounts: Array<{ accountId: string; name: string | null; wallets: Record<string, unknown> }>;
+  /** União de todas as contas (listas juntas, totais somados). null sem blob. */
+  wallets: Record<string, unknown> | null;
+  note: string;
 };
 
 export async function getWallets(userId: string): Promise<WalletsResult> {
@@ -101,8 +76,13 @@ export async function getWallets(userId: string): Promise<WalletsResult> {
     .eq("user_id", userId)
     .maybeSingle();
 
+  // O blob e o v3 por conta que a app sincroniza (cloudSync.ts); antes lia-se
+  // como se fosse o formato plano e a API devolvia sempre {}.
+  const accounts = data?.data != null ? contasMascaradas(data.data, maskAddress) : [];
   return {
     updatedAt: data?.updated_at ?? null,
-    wallets: data?.data != null ? whitelistWalletData(data.data) : null,
+    accounts,
+    wallets: data?.data != null ? juntarContas(accounts) : null,
+    note: "wallets junta todas as contas; accounts separa-as. Endereços pseudonimizados (wallet_…), nunca em claro.",
   };
 }

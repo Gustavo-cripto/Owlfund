@@ -37,10 +37,15 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
   { id: "wallets", method: "GET", path: "/api/v1/wallets", desc: "Carteiras e endereços ligados à conta (pseudonimizados).", descKey: "dev_ep_wallets", auth: true,
     response: `{
   "updatedAt": "2026-09-05T00:00:00Z",
+  "accounts": [
+    { "accountId": "a_…", "name": "Conta 1", "wallets": { "eth": [{ "address": "wallet_8815840fa2", "balance": "1.5", "network": "eth", "label": "Principal" }] } },
+    { "accountId": "a_…", "name": "Conta 2", "wallets": { "btc": [{ "address": "wallet_86ef685f59", "balance": "0.2" }] } }
+  ],
   "wallets": {
     "eth": [{ "address": "wallet_8815840fa2", "balance": "1.5", "network": "eth", "label": "Principal" }],
     "btc": [{ "address": "wallet_86ef685f59", "balance": "0.2" }]
-  }
+  },
+  "note": "wallets junta todas as contas; accounts separa-as."
 }` },
   { id: "pnl", method: "GET", path: "/api/v1/pnl", desc: "Evolução do portefólio em euros: total atual e variação a 24 h, 7 d, 30 d e desde o início.", descKey: "dev_ep_pnl", auth: true,
     response: `{

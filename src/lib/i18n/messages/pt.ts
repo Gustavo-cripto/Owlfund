@@ -1016,7 +1016,7 @@ export const pt = {
     pcs_price: "Preço",
     pcs_balance: "Saldo",
     pcs_value: "Valor",
-    pcs_unrealized: "PNL não realizado",
+    pcs_unrealized: "Variação 24 h",
     pcs_no_token: "Nenhum token com valor encontrado.",
     pcs_total_blockchain: "Total Blockchain",
     pcs_no_wallets: "Sem carteiras ligadas",

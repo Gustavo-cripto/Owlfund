@@ -12,6 +12,7 @@ import type { TranslationKey } from "@/lib/i18n/translations";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { loadNickname } from "@/lib/user/nickname";
+import { repetirVisivel, TRES_MIN } from "@/lib/polling";
 import { categoryLabel,
   traditionalAssets,
   traditionalCategories,
@@ -1137,11 +1138,9 @@ export default function MercadoPage() {
     if (marketMode !== "tradicional") return;
     if (selectedTraditionalQuoteSymbols.length === 0) return;
     refreshTraditionalQuotesBatch(selectedTraditionalQuoteSymbols);
-    const id = window.setInterval(
-      () => refreshTraditionalQuotesBatch(selectedTraditionalQuoteSymbols),
-      60000
-    );
-    return () => window.clearInterval(id);
+    // Como em Carteiras: de 3 em 3 min e so com o separador visivel — antes era
+    // um pedido por minuto mesmo com a tab em fundo (ver src/lib/polling.ts).
+    return repetirVisivel(() => refreshTraditionalQuotesBatch(selectedTraditionalQuoteSymbols), TRES_MIN);
   }, [marketMode, selectedTraditionalQuoteSymbols]);
 
   useEffect(() => {

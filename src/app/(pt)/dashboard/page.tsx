@@ -12,13 +12,14 @@ import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { loadWalletSnapshot, type WalletSnapshot } from "@/lib/wallets/storage";
 import { loadCryptoHoldings, loadStablecoinEntries } from "@/lib/crypto/storage";
 import { loadTraditionalHoldings } from "@/lib/traditional/storage";
+import { getActiveAccountId } from "@/lib/portfolios/accounts";
+import { baseDaPosicao, inicioDaJanela, limiteDaJanela } from "@/lib/portfolio/posicao";
 import { createClient } from "@/lib/supabase/client";
 import { loadNickname, saveNickname, nicknameFromMetadata } from "@/lib/user/nickname";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useTheme, useCurrencyFormat } from "@/lib/theme/ThemeContext";
 
 type TokenPrices = Record<string, number>;
-type SnapshotRow = { id: number; created_at: string; data: WalletSnapshot };
 type Plan = "free" | "pro" | "premium";
 
 async function fetchPrices(): Promise<TokenPrices> {
@@ -66,6 +67,7 @@ export default function DashboardPage() {
   const [nickname, setNickname] = useState<string>("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [plan, setPlan] = useState<Plan>("free");
+  const [planLoaded, setPlanLoaded] = useState(false);
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -100,7 +102,7 @@ export default function DashboardPage() {
   useEffect(() => {
     fetch("/api/subscription").then(r => r.ok ? r.json() : null).then(j => {
       if (j?.plan && mountedRef.current) setPlan(j.plan as Plan);
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => { if (mountedRef.current) setPlanLoaded(true); });
   }, []);
 
   useEffect(() => {
@@ -176,26 +178,43 @@ export default function DashboardPage() {
             }
           }
         } catch { /* ignore */ }
-
-        const { data: rows } = await supabase
-          .from("portfolio_snapshots")
-          .select("id, created_at, data")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(5);
-        const snapshots = (rows ?? []) as SnapshotRow[];
-        const oldest = snapshots[snapshots.length - 1];
-        if (oldest && mountedRef.current) {
-          const storedTotal = (oldest.data as WalletSnapshot & { _totalEur?: number })._totalEur;
-          // _totalEur guardado já inclui manuais/CEX/DeFi; comparar total completo com total completo.
-          const baseTotal = storedTotal ?? (calcTotal(oldest.data, prices) + extras);
-          setPnlPosition((onChainTotal + extras) - baseTotal);
-        }
       } catch { /* silencioso */ }
       finally { if (mountedRef.current) setIsPnlLoading(false); }
     };
     loadPnl();
   }, [supabase]);
+
+  // "PNL da posicao" com a MESMA base do Portefolio (lib/portfolio/posicao):
+  // o snapshot mais antigo com _totalEur, da conta ativa, dentro da janela do
+  // plano. Antes eram os ultimos 5 snapshots de qualquer conta — outro numero
+  // com o mesmo rotulo. So os campos precisos saem da base, nao o blob inteiro.
+  useEffect(() => {
+    if (!planLoaded || !hasWallets || !(currentTotal > 0)) return;
+    let cancelado = false;
+    const run = async () => {
+      try {
+        const { data: authData } = await supabase.auth.getUser();
+        const userId = authData.user?.id;
+        if (!userId) return;
+        const { data: rows } = await supabase
+          .from("portfolio_snapshots")
+          .select("created_at, total:data->_totalEur, conta:data->>_account")
+          .eq("user_id", userId)
+          .not("data->_totalEur", "is", null)
+          .gte("created_at", inicioDaJanela(plan))
+          .order("created_at", { ascending: true })
+          .limit(limiteDaJanela(plan));
+        const linhas = ((rows ?? []) as unknown as Array<{ created_at: string; total: unknown; conta: unknown }>)
+          .map((r) => ({ created_at: r.created_at, data: { _totalEur: r.total, _account: r.conta } }));
+        let activeId = "";
+        try { activeId = getActiveAccountId(); } catch { /* ignore */ }
+        const base = baseDaPosicao(linhas, activeId);
+        if (base && !cancelado && mountedRef.current) setPnlPosition(currentTotal - base.total);
+      } catch { /* silencioso */ }
+    };
+    run();
+    return () => { cancelado = true; };
+  }, [supabase, plan, planLoaded, hasWallets, currentTotal]);
 
   if (isLoading) {
     // Silhueta da pagina dentro do AppShell: a barra lateral e o ticker nao
