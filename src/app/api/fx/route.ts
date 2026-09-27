@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { rateLimitPublic } from "@/lib/api/requireUser";
 import { cgFetch } from "@/lib/market/coingecko";
+import { precoOkx } from "@/lib/market/okxSpot";
 
 // Taxas de câmbio com base no euro: quanto vale 1 EUR em cada moeda.
 //
 // Moeda fiduciária do feed do BCE (frankfurter, gratuito e sem chave); o
-// bitcoin da CoinGecko. As moedas aqui são as dos países dos guias fiscais.
+// bitcoin da OKX (CoinGecko de reserva). As moedas aqui são as dos países dos guias fiscais.
 //
 // O endereço é `api.frankfurter.dev/v1/`: o antigo `api.frankfurter.app`
 // passou a responder 301 e só funcionava porque o fetch segue redireções —
@@ -29,9 +30,11 @@ export async function GET(request: Request) {
   const rates: Rates = { ...FALLBACK };
 
   try {
-    const [fiatRes, btcRes] = await Promise.all([
+    // BTC em EUR: OKX primeiro (par BTC-EUR, lote F) — o CoinGecko so e
+    // chamado se a OKX falhar, para poupar o orcamento mensal.
+    const [fiatRes, btcOkx] = await Promise.all([
       fetch(`https://api.frankfurter.dev/v1/latest?base=EUR&symbols=${FIAT.join(",")}`, { next: { revalidate: 60 } }),
-      cgFetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=eur", { next: { revalidate: 60 } }),
+      precoOkx("BTC-EUR"),
     ]);
 
     if (fiatRes.ok) {
@@ -44,10 +47,15 @@ export async function GET(request: Request) {
       }
     }
 
-    if (btcRes.ok) {
-      const j = (await btcRes.json()) as { bitcoin?: { eur?: number } };
-      const eurPerBtc = j.bitcoin?.eur;
-      if (typeof eurPerBtc === "number" && eurPerBtc > 0) rates.BTC = 1 / eurPerBtc;
+    if (btcOkx != null) {
+      rates.BTC = 1 / btcOkx;
+    } else {
+      const btcRes = await cgFetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=eur", { next: { revalidate: 120 } });
+      if (btcRes.ok) {
+        const j = (await btcRes.json()) as { bitcoin?: { eur?: number } };
+        const eurPerBtc = j.bitcoin?.eur;
+        if (typeof eurPerBtc === "number" && eurPerBtc > 0) rates.BTC = 1 / eurPerBtc;
+      }
     }
   } catch {
     /* fica o recurso */

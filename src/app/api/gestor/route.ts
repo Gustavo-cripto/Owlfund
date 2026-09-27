@@ -10,6 +10,7 @@ import { GESTOR_DAILY_LIMIT } from "@/lib/plans";
 import { generateAiChat, friendlyAiError, errorStatus, type ChatMessage } from "@/lib/ai/groq";
 import { scanWatchlist, type WatchEntry, type Movement } from "@/lib/api/whales";
 import { cgFetch } from "@/lib/market/coingecko";
+import { precoOkx } from "@/lib/market/okxSpot";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -157,6 +158,29 @@ REGRAS:
 - Quando o utilizador pedir CSV/exportação, coloca o conteúdo num bloco de código \`\`\`csv (a aplicação mostra um botão para transferir o ficheiro) — sem instruções de "copia e cola".`;
 }
 
+// Preços em EUR por id do CoinGecko (bitcoin, ethereum, solana, cardano), que é
+// a chave que buildPortfolioContext usa. OKX primeiro (pares -EUR, lote F); o
+// CoinGecko só é chamado se faltar algum. Nunca lança: {} em erro.
+const GESTOR_PARES: Record<string, string> = {
+  bitcoin: "BTC-EUR", ethereum: "ETH-EUR", solana: "SOL-EUR", cardano: "ADA-EUR",
+};
+async function precosEurGestor(): Promise<Record<string, number>> {
+  const ids = Object.keys(GESTOR_PARES);
+  const okx = await Promise.all(ids.map((id) => precoOkx(GESTOR_PARES[id])));
+  const prices: Record<string, number> = {};
+  ids.forEach((id, i) => { const v = okx[i]; if (v != null) prices[id] = v; });
+  const faltam = ids.filter((id) => prices[id] == null);
+  if (!faltam.length) return prices;
+  try {
+    const res = await cgFetch(`https://api.coingecko.com/api/v3/simple/price?ids=${faltam.join(",")}&vs_currencies=eur`,
+      { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return prices;
+    const raw = await res.json() as Record<string, { eur?: number }>;
+    for (const id of faltam) prices[id] = raw[id]?.eur ?? 0;
+  } catch { /* fica o que a OKX deu */ }
+  return prices;
+}
+
 // ── Route handler ─────────────────────────────────────────────────────────────
 
 // Chamada a fornecedor de IA: pode demorar. Sem isto a funcao usa o tempo por
@@ -263,20 +287,13 @@ export async function POST(req: NextRequest) {
         ? supabaseAdmin.from("portfolio_snapshots").select("data").eq("user_id", user.id)
             .order("created_at", { ascending: false }).limit(1).maybeSingle()
         : Promise.resolve({ data: null }),
-      needSnapshot
-        ? cgFetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana,cardano&vs_currencies=eur",
-            { signal: AbortSignal.timeout(5000) })
-        : Promise.resolve(null),
+      needSnapshot ? precosEurGestor() : Promise.resolve({} as Record<string, number>),
       scanWatchlist(watchlist),
     ]);
 
     const snapshotRow = snapshotResult.status === "fulfilled" ? snapshotResult.value.data : null;
 
-    let prices: Record<string, number> = {};
-    if (priceResult.status === "fulfilled" && priceResult.value?.ok) {
-      const raw = await priceResult.value.json() as Record<string, { eur: number }>;
-      prices = Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, v.eur ?? 0]));
-    }
+    const prices: Record<string, number> = priceResult.status === "fulfilled" ? priceResult.value : {};
 
     const movementsList = movements.status === "fulfilled" ? movements.value.movements : [];
 

@@ -8,6 +8,8 @@ import { esc, fmtDate, FROM_BRIEFING, sendEmail } from "@/lib/email";
 import type { Lang } from "@/lib/i18n/translations";
 import { langFromMetadata, resolveLang, signupLangByEmail } from "@/lib/user/lang";
 import { sendTelegram, tgEsc } from "@/lib/notify/telegram";
+import { cgFetch } from "@/lib/market/coingecko";
+import { getGlobalMarket } from "@/lib/api/market";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,9 +20,13 @@ const COINGECKO_IDS: Record<string, string> = {
   BNB: "binancecoin", ADA: "cardano", XRP: "ripple",
 };
 
+// O CoinGecko vai SEMPRE pelo cgFetch (lote F): chave Demo — sem ela conta no
+// IP partilhado da Vercel —, cache mínima por tipo de pedido e travão após 429.
 async function fetchJson<T>(url: string): Promise<T | null> {
   try {
-    const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(6000) });
+    const res = url.startsWith("https://api.coingecko.com/")
+      ? await cgFetch(url, { signal: AbortSignal.timeout(6000) })
+      : await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(6000) });
     if (!res.ok) return null;
     return await res.json() as T;
   } catch { return null; }
@@ -45,12 +51,12 @@ async function buildContext(mode: "crypto" | "tradicional", avisos: string[] = [
   const prices = await fetchJson<PriceData>(
     `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`
   );
-  type GlobalData = { data: { total_market_cap: { usd: number }; market_cap_change_percentage_24h_usd: number; market_cap_percentage: { btc: number } } };
-  const global = await fetchJson<GlobalData>("https://api.coingecko.com/api/v3/global");
+  // Global partilhado com /api/v1/global: cache 30 min e CoinPaprika de reserva.
+  const global = await getGlobalMarket();
   type FG = { data: { value: string; value_classification: string }[] };
   const fg = await fetchJson<FG>("https://api.alternative.me/fng/?limit=1");
   if (!prices) avisos.push("contexto pobre: CoinGecko simple/price sem resposta");
-  if (!global) avisos.push("contexto pobre: CoinGecko global sem resposta");
+  if (!global.source) avisos.push("contexto pobre: CoinGecko e CoinPaprika global sem resposta");
 
   const lines: string[] = [];
   if (prices) {
@@ -61,9 +67,9 @@ async function buildContext(mode: "crypto" | "tradicional", avisos: string[] = [
       lines.push(`${sym}: $${p.usd.toLocaleString("en-US", { maximumFractionDigits: 2 })} (${sign}${p.usd_24h_change?.toFixed(2)}% 24h)`);
     }
   }
-  if (global?.data) {
-    lines.push(`Cap total: $${(global.data.total_market_cap.usd / 1e12).toFixed(2)}T (${global.data.market_cap_change_percentage_24h_usd?.toFixed(2)}% 24h)`);
-    lines.push(`Dominância BTC: ${global.data.market_cap_percentage?.btc?.toFixed(1)}%`);
+  if (global.totalMarketCapUsd != null) {
+    lines.push(`Cap total: $${(global.totalMarketCapUsd / 1e12).toFixed(2)}T (${global.marketCapChange24h?.toFixed(2)}% 24h)`);
+    if (global.btcDominance != null) lines.push(`Dominância BTC: ${global.btcDominance.toFixed(1)}%`);
   }
   if (fg?.data?.[0]) lines.push(`Fear & Greed: ${fg.data[0].value}/100 — ${fg.data[0].value_classification}`);
   return lines.join("\n");

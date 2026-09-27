@@ -43,8 +43,9 @@ async function fetchCoinHistory(coinId: string): Promise<{ d1: number; d7: numbe
   return { d1: get(1), d7: get(7), d30: get(30) };
 }
 
-// Fallback: velas diarias da OKX (a Binance devolve 451 a datacenters — a
-// rota respondia 0 em silencio e o "PNL hoje/30 d" ficava a 0).
+// Velas diarias da OKX (a Binance devolve 451 a datacenters — a rota
+// respondia 0 em silencio e o "PNL hoje/30 d" ficava a 0). Desde o lote F sao
+// a primeira fonte; o CoinGecko ficou de reserva.
 const OKX_PAIRS: Record<string, string> = {
   bitcoin: "BTC-EUR", ethereum: "ETH-EUR", solana: "SOL-EUR", cardano: "ADA-EUR",
 };
@@ -65,6 +66,15 @@ export async function GET(request: Request) {
   await Promise.all(
     COINS.map(async (coinId) => {
       const sym = SYMBOL_MAP[coinId];
+      // OKX primeiro (lote F): as mesmas aberturas das 00:00 UTC sem gastar o
+      // orcamento mensal do CoinGecko, que fica de reserva se faltar algum dia.
+      const okx = precosHaDias(await velasDiariasOkx(OKX_PAIRS[coinId], 32));
+      if (okx.d1 != null && okx.d7 != null && okx.d30 != null) {
+        guardar("1d", sym, okx.d1);
+        guardar("7d", sym, okx.d7);
+        guardar("30d", sym, okx.d30);
+        return;
+      }
       try {
         const { d1, d7, d30 } = await fetchCoinHistory(coinId);
         if (d1 > 0) {
@@ -73,12 +83,11 @@ export async function GET(request: Request) {
           guardar("30d", sym, d30);
           return;
         }
-      } catch { /* cai nas velas da OKX */ }
+      } catch { /* fica o que a OKX deu */ }
 
-      const { d1, d7, d30 } = precosHaDias(await velasDiariasOkx(OKX_PAIRS[coinId], 32));
-      guardar("1d", sym, d1);
-      guardar("7d", sym, d7);
-      guardar("30d", sym, d30);
+      guardar("1d", sym, okx.d1);
+      guardar("7d", sym, okx.d7);
+      guardar("30d", sym, okx.d30);
     })
   );
   if (partial) result.partial = true;

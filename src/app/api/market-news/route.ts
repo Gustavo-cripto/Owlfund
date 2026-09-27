@@ -5,6 +5,7 @@ import { generateAiText, friendlyAiError, errorStatus, hasAnyAiProvider } from "
 import { NO_ADVICE_RULE } from "@/lib/ai/disclaimer";
 import { requireUser } from "@/lib/api/requireUser";
 import { getPlanOrNull, planUnavailableResponse, requiresPlanResponse } from "@/lib/api/entitlement";
+import { cgFetch } from "@/lib/market/coingecko";
 
 const COINGECKO_IDS: Record<string, string> = {
   BTC: "bitcoin", ETH: "ethereum", SOL: "solana",
@@ -12,15 +13,32 @@ const COINGECKO_IDS: Record<string, string> = {
   DOGE: "dogecoin", AVAX: "avalanche-2", DOT: "polkadot",
 };
 
+// O CoinGecko vai SEMPRE pelo cgFetch (lote F): chave Demo — sem ela conta no
+// IP partilhado da Vercel —, cache mínima por tipo de pedido e travão após 429.
 async function fetchJson<T>(url: string): Promise<T | null> {
   try {
-    const res = await fetch(url, { next: { revalidate: 300 } });
+    const f = url.startsWith("https://api.coingecko.com/") ? cgFetch : fetch;
+    const res = await f(url, { next: { revalidate: 300 } });
     if (!res.ok) return null;
     return await res.json() as T;
   } catch { return null; }
 }
 
+// Dentro do unstable_cache o Next ignora a cache de dados dos fetch (trata-os
+// como no-store), e o briefing e gerado por lingua: sem isto eram 3 pedidos ao
+// CoinGecko por lingua. O contexto e o mesmo nas 4 — guarda-se 10 min nesta
+// instancia (lote F). So se guarda com precos: um contexto pobre tenta de novo.
+const CTX_TTL_MS = 10 * 60_000;
+let ctxCripto: { em: number; texto: string } | null = null;
+
 async function buildCryptoContext(): Promise<string> {
+  if (ctxCripto && Date.now() - ctxCripto.em < CTX_TTL_MS) return ctxCripto.texto;
+  const texto = await montarContextoCripto();
+  if (texto.includes("$")) ctxCripto = { em: Date.now(), texto };
+  return texto;
+}
+
+async function montarContextoCripto(): Promise<string> {
   const lines: string[] = [];
 
   // 1. Preços + variação 24h

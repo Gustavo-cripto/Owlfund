@@ -137,6 +137,9 @@ const APIS = [
   ["/api/fx/historical?from=2024-01-10&to=2024-01-16&symbols=USD", (j) => Object.keys(j.rates ?? {}).length >= 4, "≥4 dias úteis"],
   ["/api/markets", (j) => Array.isArray(j.data) && j.data.length >= 5, "≥5 moedas"],
   ["/api/prices", (j) => typeof j === "object" && j !== null, "objeto"],
+  // Lote F: o CoinGecko em 429 deixava isto tudo a null; agora cai na
+  // CoinPaprika (sem dominância ETH, que fica null) — as duas fontes são válidas.
+  ["/api/v1/global", (j) => j.totalMarketCapUsd > 0 && j.btcDominance > 0 && ["coingecko", "coinpaprika"].includes(j.source), "cap total + dominância BTC, source coingecko|coinpaprika"],
   ["/api/fear-greed", (j) => typeof j === "object" && j !== null, "objeto"],
   ["/api/btc-blocks", (j) => typeof j === "object" && j !== null, "objeto"],
 ];

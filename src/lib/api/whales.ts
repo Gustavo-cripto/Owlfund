@@ -3,6 +3,7 @@
 
 import { alchemyErc20Transfers, hasAlchemy } from "@/lib/providers/alchemy";
 import { cgFetch } from "@/lib/market/coingecko";
+import { precosOkxUsd } from "@/lib/market/okxSpot";
 
 export type WatchEntry = { address: string; label: string; chain: "eth" | "sol" | "btc" };
 
@@ -44,6 +45,14 @@ const PRICE_TTL_MS = 60_000;
 export async function getUsdPrices(): Promise<UsdPrices> {
   if (priceCache && Date.now() - priceCache.at < PRICE_TTL_MS) return priceCache.prices;
   let prices: UsdPrices = { btc: null, eth: null, sol: null };
+  // OKX primeiro (lote F): BTC/ETH/SOL sem gastar o orçamento do CoinGecko,
+  // que só é chamado se faltar algum dos três.
+  const okx = await precosOkxUsd(["BTC", "ETH", "SOL"]);
+  prices = { btc: okx.BTC ?? null, eth: okx.ETH ?? null, sol: okx.SOL ?? null };
+  if (prices.btc != null && prices.eth != null && prices.sol != null) {
+    priceCache = { at: Date.now(), prices };
+    return prices;
+  }
   try {
     const res = await cgFetch(
       "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,solana&vs_currencies=usd",
@@ -51,7 +60,11 @@ export async function getUsdPrices(): Promise<UsdPrices> {
     );
     if (res.ok) {
       const j = await res.json() as { bitcoin?: { usd?: number }; ethereum?: { usd?: number }; solana?: { usd?: number } };
-      prices = { btc: j.bitcoin?.usd ?? null, eth: j.ethereum?.usd ?? null, sol: j.solana?.usd ?? null };
+      prices = {
+        btc: prices.btc ?? j.bitcoin?.usd ?? null,
+        eth: prices.eth ?? j.ethereum?.usd ?? null,
+        sol: prices.sol ?? j.solana?.usd ?? null,
+      };
     }
   } catch { /* mantém null → tokens ficam sem valor USD confirmado */ }
   priceCache = { at: Date.now(), prices };

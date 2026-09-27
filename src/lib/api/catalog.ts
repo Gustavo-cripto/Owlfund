@@ -102,7 +102,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
   "countries": [{ "code": "PT", "currency": "EUR", "shortTermRate": 0.28, "longTermRate": 0, "longTermAfterDays": 365, "law": "Lei n.º 24-D/2022, art. 5.º" }]
 }` },
   { id: "global", method: "GET", path: "/api/v1/global", desc: "Capitalização total do mercado cripto, variação 24 h e dominância BTC/ETH. Público, sem chave.", descKey: "dev_ep_global", auth: false,
-    response: `{ "totalMarketCapUsd": 2.31e12, "marketCapChange24h": -1.4, "btcDominance": 58.2, "ethDominance": 11.7 }` },
+    response: `{ "totalMarketCapUsd": 2.31e12, "marketCapChange24h": -1.4, "btcDominance": 58.2, "ethDominance": 11.7, "source": "coingecko" }` },
   { id: "derivatives", method: "GET", path: "/api/v1/derivatives", desc: "Derivados de um símbolo na OKX: open interest, long/short, funding, CVD, taker, velas, put/call e score de sentimento.", descKey: "dev_ep_derivatives", auth: true, query: { symbol: "BTC" },
     response: `{ "symbol": "BTC", "score": 54, "rsi": 48.2, "components": { "longShort": 51, "taker": 49, "rsi": 48, "cvd": 65, "funding": 55, "putCall": 57 } }` },
   { id: "price-on", method: "GET", path: "/api/v1/price-on", desc: "Preço de fecho em dólares de um ativo numa data (UTC). Útil para avaliar uma operação passada.", descKey: "dev_ep_price_on", auth: true, query: { symbol: "BTC", date: "2026-01-15" },

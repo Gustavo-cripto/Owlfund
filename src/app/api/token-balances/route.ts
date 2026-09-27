@@ -8,6 +8,7 @@ import { getUsdPrices } from "@/lib/api/whales";
 import { alchemyTokensByWallet, hasAlchemy, AlchemyError } from "@/lib/providers/alchemy";
 import { heliusAssetsByOwner, hasHelius, HeliusError } from "@/lib/providers/helius";
 import { cgFetch } from "@/lib/market/coingecko";
+import { precosOkxUsd } from "@/lib/market/okxSpot";
 
 const MORALIS_EVM = "https://deep-index.moralis.io/api/v2.2";
 const MORALIS_SOL = "https://solana-gateway.moralis.io/account/mainnet";
@@ -93,21 +94,24 @@ const COINGECKO_SYMBOLS: Record<string, string> = {
 };
 
 async function fetchCoinGeckoPrices(symbols: string[]): Promise<Record<string, number>> {
-  const ids = [...new Set(symbols.map(s => COINGECKO_SYMBOLS[s.toUpperCase()]).filter(Boolean))];
-  if (ids.length === 0) return {};
+  // BTC/ETH/SOL/ADA vêm da OKX (lote F): poupa o orçamento mensal do CoinGecko.
+  const okx = await precosOkxUsd(symbols);
+  const faltam = symbols.filter((s) => okx[s.toUpperCase()] == null);
+  const ids = [...new Set(faltam.map(s => COINGECKO_SYMBOLS[s.toUpperCase()]).filter(Boolean))];
+  if (ids.length === 0) return okx;
   try {
     const res = await cgFetch(
       `https://api.coingecko.com/api/v3/simple/price?ids=${ids.join(",")}&vs_currencies=usd`,
       { next: { revalidate: 300 } }
     );
-    if (!res.ok) return {};
+    if (!res.ok) return okx;
     const data = await res.json() as Record<string, { usd?: number }>;
-    const prices: Record<string, number> = {};
+    const prices: Record<string, number> = { ...okx };
     for (const [sym, id] of Object.entries(COINGECKO_SYMBOLS)) {
-      if (data[id]?.usd) prices[sym] = data[id].usd!;
+      if (data[id]?.usd && prices[sym] == null) prices[sym] = data[id].usd!;
     }
     return prices;
-  } catch { return {}; }
+  } catch { return okx; }
 }
 
 function parseBalance(token: EvmToken): number {
