@@ -488,7 +488,7 @@ export const es: Record<TranslationKey, string> = {
     lg_err_google: "No se pudo iniciar sesión con Google.",
     lg_err_email_first: "Escribe primero tu email.",
     lg_err_link_expired: "El enlace caducó. Pide un nuevo email de confirmación.",
-    lg_err_link_invalid: "Enlace inválido — si lo abriste en otro dispositivo/navegador, ábrelo donde te registraste o pide uno nuevo.",
+    lg_err_link_invalid: "Enlace no válido o ya usado — pide uno nuevo.",
     lg_signup_ok: "¡Cuenta creada! Revisa tu email para confirmar (también spam).",
     lg_resend: "Reenviar email de confirmación",
     lg_resent: "Email reenviado. Revisa la bandeja y el spam.",
@@ -2492,4 +2492,14 @@ export const es: Record<TranslationKey, string> = {
     tp_s7_b: "Podemos actualizar estos términos. Los cambios materiales se comunicarán y se revisará la fecha de actualización.",
     tp_s8_h: "Contacto",
     tp_s8_b: "Para preguntas sobre estos términos, contáctanos en suporte@chainfolioai.com.",
+    // ── Lote B (set 2026) · emails e ativacao ──
+    ac_product_emails: "Correos del producto",
+    ac_product_emails_desc: "Bienvenida, recordatorios y novedades de tu cuenta. Los avisos sobre el fin del periodo de prueba llegan siempre.",
+    ac_product_emails_err: "No se pudo guardar la preferencia. Inténtalo de nuevo.",
+    lg_wallet_no_provider: "El monedero no está disponible en este navegador. Abre la extensión e inténtalo de nuevo.",
+    lg_wallet_no_address: "El monedero no devolvió ninguna dirección. Desbloquéalo e inténtalo de nuevo.",
+    lg_wallet_rejected: "Cancelaste la solicitud en el monedero.",
+    wl_err_tokens: "No se pudieron leer los tokens de este monedero.",
+    wl_err_rate_limited: "Demasiadas solicitudes. Espera un minuto e inténtalo de nuevo.",
+    wl_err_provider_down: "El proveedor de datos no respondió. Inténtalo de nuevo en un momento.",
 };

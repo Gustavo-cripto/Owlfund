@@ -488,7 +488,7 @@ export const fr: Record<TranslationKey, string> = {
     lg_err_google: "Connexion avec Google impossible.",
     lg_err_email_first: "Écris d'abord ton email.",
     lg_err_link_expired: "Le lien a expiré. Demande un nouvel email de confirmation.",
-    lg_err_link_invalid: "Lien invalide — si tu l'as ouvert sur un autre appareil/navigateur, ouvre-le là où tu t'es inscrit ou demande un nouveau.",
+    lg_err_link_invalid: "Lien invalide ou déjà utilisé — demande un nouveau.",
     lg_signup_ok: "Compte créé ! Vérifie ton email pour confirmer (spams aussi).",
     lg_resend: "Renvoyer l'email de confirmation",
     lg_resent: "Email renvoyé. Vérifie ta boîte et les spams.",
@@ -2492,4 +2492,14 @@ export const fr: Record<TranslationKey, string> = {
     tp_s7_b: "Nous pouvons mettre à jour ces conditions. Les modifications importantes seront communiquées et la date de mise à jour sera révisée.",
     tp_s8_h: "Contact",
     tp_s8_b: "Pour toute question concernant ces conditions, contactez-nous à suporte@chainfolioai.com.",
+    // ── Lote B (set 2026) · emails e ativacao ──
+    ac_product_emails: "E-mails du produit",
+    ac_product_emails_desc: "Bienvenue, rappels et nouveautés de votre compte. Les avis sur la fin de votre période d'essai arrivent toujours.",
+    ac_product_emails_err: "Impossible d'enregistrer la préférence. Réessayez.",
+    lg_wallet_no_provider: "Le portefeuille n'est pas disponible dans ce navigateur. Ouvrez l'extension et réessayez.",
+    lg_wallet_no_address: "Le portefeuille n'a renvoyé aucune adresse. Déverrouillez-le et réessayez.",
+    lg_wallet_rejected: "Vous avez annulé la demande dans le portefeuille.",
+    wl_err_tokens: "Impossible de lire les jetons de ce portefeuille.",
+    wl_err_rate_limited: "Trop de requêtes. Attendez une minute et réessayez.",
+    wl_err_provider_down: "Le fournisseur de données n'a pas répondu. Réessayez dans un instant.",
 };

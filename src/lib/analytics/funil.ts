@@ -19,6 +19,43 @@ const INICIAIS = ["/", "/en", "/es", "/fr"];
 // Um endereco publico qualquer dentro do JSON guardado das carteiras.
 export const TEM_ENDERECO = /0x[a-fA-F0-9]{40}|\b(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,}\b|\baddr1[0-9a-z]{20,}|\bstake1[0-9a-z]{20,}|\b[1-9A-HJ-NP-Za-km-z]{32,44}\b/;
 
+// Chaves do blob de wallet_config que guardam ativos registados a mao (cripto,
+// tradicional, corretoras sem API). Nao tem enderecos, por isso a regex acima
+// nao os apanha — e uma conta so com ETFs a mao contava como "vazia".
+const CHAVES_MANUAIS = ["owlfund.crypto.holdings.v1", "owlfund.traditional.holdings.v1", "owlfund.venue.holdings.v1"];
+
+const naoVazio = (x: unknown): boolean => {
+  let v = x;
+  if (typeof v === "string") { try { v = JSON.parse(v); } catch { return false; } }
+  if (Array.isArray(v)) return v.length > 0;
+  return !!v && typeof v === "object" && Object.keys(v as object).length > 0;
+};
+
+/**
+ * "Tem dados" = pelo menos um endereco on-chain OU um registo manual nao vazio,
+ * em qualquer conta do blob (v3, v2 ou o formato antigo — percorre a arvore
+ * toda em vez de assumir a forma). Partilhado pelo cron de emails e pelo funil,
+ * para os dois contarem a mesma coisa. Chaves de corretora vivem noutra tabela
+ * (cex_keys): quem chama junta-as por fora.
+ */
+export function temDados(blob: unknown): boolean {
+  if (blob == null) return false;
+  let raiz: unknown = blob;
+  if (typeof blob === "string") { try { raiz = JSON.parse(blob); } catch { return TEM_ENDERECO.test(blob); } }
+  if (TEM_ENDERECO.test(JSON.stringify(raiz))) return true;
+  const fila: unknown[] = [raiz];
+  let passos = 0;
+  while (fila.length && passos++ < 5000) {
+    const atual = fila.pop();
+    if (!atual || typeof atual !== "object") continue;
+    for (const [k, v] of Object.entries(atual as Record<string, unknown>)) {
+      if (CHAVES_MANUAIS.includes(k) && naoVazio(v)) return true;
+      if (v && typeof v === "object") fila.push(v);
+    }
+  }
+  return false;
+}
+
 export async function calcularFunil(admin: SupabaseClient): Promise<Funil> {
   const agora = Date.now();
   const desde = (d: number) => new Date(agora - d * 86_400_000).toISOString();
@@ -46,15 +83,19 @@ export async function calcularFunil(admin: SupabaseClient): Promise<Funil> {
     }
   } catch { listagemOk = false; }
 
-  // Quem tem pelo menos um endereco guardado (so contas dos ultimos 30 dias).
+  // Quem tem pelo menos um endereco, um registo manual ou uma chave de
+  // corretora (so contas dos ultimos 30 dias). Mesma regra do cron de emails.
   const recentes = users.filter((u) => u.criada >= agora - 30 * 86_400_000);
   const comCarteira = new Set<string>();
   if (recentes.length) {
     try {
       const ids = recentes.map((u) => u.id);
       for (let i = 0; i < ids.length; i += 200) {
-        const { data } = await admin.from("wallet_config").select("user_id, data").in("user_id", ids.slice(i, i + 200));
-        for (const r of data ?? []) if (TEM_ENDERECO.test(JSON.stringify(r.data ?? ""))) comCarteira.add(r.user_id as string);
+        const lote = ids.slice(i, i + 200);
+        const { data } = await admin.from("wallet_config").select("user_id, data").in("user_id", lote);
+        for (const r of data ?? []) if (temDados(r.data)) comCarteira.add(r.user_id as string);
+        const { data: cex } = await admin.from("cex_keys").select("user_id").in("user_id", lote);
+        for (const r of cex ?? []) comCarteira.add(r.user_id as string);
       }
     } catch { /* fica a zero, sem partir o resto */ }
   }

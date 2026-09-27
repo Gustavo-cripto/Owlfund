@@ -14,6 +14,7 @@ import { entrarComEthereum, entrarComSolana } from "@/lib/auth/entrarComCarteira
 import GoogleOneTap from "@/components/GoogleOneTap";
 import { isMetaMaskAvailable } from "@/lib/wallets/evm";
 import { isPhantomAvailable } from "@/lib/wallets/solana";
+import { userError } from "@/lib/ui/userError";
 
 export type LoginFormProps = {
   nextParam: string | null;
@@ -244,7 +245,7 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
         email: nextEmail,
         options: { shouldCreateUser: true, emailRedirectTo: destinoDoEmail(lang, nextPath), data: { lang } },
       });
-      if (error) { setMagicMsg({ text: userErrorText(error.message), error: true }); return; }
+      if (error) { setMagicMsg({ text: t(mapAuthError(error)), error: true }); return; }
       setMagicSent(true);
       marcarEvento("registo");
       setMagicMsg({ text: t("lg_magic_sent").replace("{email}", nextEmail), error: false });
@@ -266,15 +267,19 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
     try {
       await (rede === "eth" ? entrarComEthereum(lang) : entrarComSolana(lang));
       // A carteira já ficou ligada: cai directamente nas Carteiras, a não ser
-      // que a pessoa vinha do beta.
-      window.location.href = toBeta ? nextPath : "/wallets";
+      // que alguém tenha pedido um destino (?next=, incluindo o /beta).
+      window.location.href = nextParam ? nextPath : "/wallets";
     } catch (e) {
       const msg = e instanceof Error ? e.message : "";
-      fail(/disabled|not enabled|unsupported provider|web3/i.test(msg) ? t("lg_wallet_disabled") : userErrorText(msg));
+      if (/disabled|not enabled|unsupported provider|web3/i.test(msg)) { fail(t("lg_wallet_disabled")); return; }
+      // Erros com `code` (entrarComCarteira) e o cancelamento na propria
+      // carteira saem traduzidos; o resto (Supabase, em ingles) cai no generico.
+      fail(userError(e, t("lg_err_generic"), {
+        rejected: t("lg_wallet_rejected"),
+        codes: { no_provider: t("lg_wallet_no_provider"), no_address: t("lg_wallet_no_address"), supabase: /reject|denied|cancel/i.test(msg) ? t("lg_wallet_rejected") : t(mapAuthError({ message: msg })) },
+      }));
     } finally { setWalletLoading(null); }
   };
-
-  const userErrorText = (msg: string) => (msg && msg.length < 160 && !/fetch|network|json/i.test(msg) ? msg : t("lg_err_generic"));
 
   const handleGoogle = async () => {
     setGoogleLoading(true); setMessage(null); setIsError(false);
@@ -538,7 +543,7 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
           )}
         </form>
         )}
-        {!showMfa && jaEntrou === null && <GoogleOneTap next={nextPath} />}
+        {!showMfa && jaEntrou === null && <GoogleOneTap next={nextPath} pediuDestino={Boolean(nextParam)} />}
 
         <p className="text-center text-xs text-slate-600">
           {t("lg_terms_1")} <Link href="/termos" className="underline decoration-dotted hover:text-slate-400">{t("legal_terms_short")}</Link> {t("lg_terms_2")} <Link href="/privacidade" className="underline decoration-dotted hover:text-slate-400">{t("legal_privacy_short")}</Link>.

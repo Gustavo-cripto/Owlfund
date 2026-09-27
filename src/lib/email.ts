@@ -3,6 +3,7 @@
 
 import { Resend } from "resend";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { unsubscribeUrl } from "@/lib/emailOptout";
 
 export const SITE = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://chainfolioai.com").replace(/\/$/, "");
 export const FROM = "ChainFolioAI <noreply@chainfolioai.com>";
@@ -12,11 +13,21 @@ export const REPLY_TO = "suporte@chainfolioai.com";
 export const TZ = "Europe/Lisbon";
 export const EMAIL_LOCALE: Record<string, string> = { pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" };
 
-/** Cabeçalhos de opt-out (RFC 8058 one-click + mailto). */
-export const UNSUB_HEADERS = {
-  "List-Unsubscribe": `<${SITE}/account?section=notifications>, <mailto:${REPLY_TO}?subject=remover>`,
-  "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-};
+/**
+ * Cabeçalhos de opt-out (RFC 8058 one-click + mailto), por destinatário.
+ * Com `userId` (e segredo configurado) o URL é assinado e público — é o único
+ * que o Gmail consegue POSTar sem sessão. Sem `userId` fica só o mailto: o
+ * "One-Click" nunca deve prometer um POST que não regista nada.
+ */
+export function unsubHeaders(userId?: string, lang?: string): Record<string, string> {
+  const url = userId ? unsubscribeUrl(userId, lang, SITE) : null;
+  const mailto = `<mailto:${REPLY_TO}?subject=remover>`;
+  if (!url) return { "List-Unsubscribe": mailto };
+  return {
+    "List-Unsubscribe": `<${url}>, ${mailto}`,
+    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+  };
+}
 
 export const esc = (x: string) => x.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -54,7 +65,7 @@ export function fmtDate(d: Date, lang = "pt", opts: Intl.DateTimeFormatOptions =
   return d.toLocaleDateString(EMAIL_LOCALE[lang] ?? "pt-PT", { timeZone: TZ, ...opts });
 }
 
-type SendOpts = { to: string; subject: string; html: string; from?: string; replyTo?: string; unsubscribe?: boolean; tag?: string };
+type SendOpts = { to: string; subject: string; html: string; from?: string; replyTo?: string; unsubscribe?: boolean; tag?: string; /** Destinatario com conta: gera o URL de cancelamento assinado dele. */ userId?: string; lang?: string };
 
 /** Envia com multipart + (opcional) opt-out; regista falhas em vez de as engolir. */
 
@@ -78,7 +89,7 @@ export async function sendEmail(o: SendOpts): Promise<boolean> {
       subject: o.subject,
       html: o.html,
       text: toText(o.html),
-      headers: o.unsubscribe === false ? undefined : UNSUB_HEADERS,
+      headers: o.unsubscribe === false ? undefined : unsubHeaders(o.userId, o.lang),
     });
     if (error) { console.error(`[email${o.tag ? ":" + o.tag : ""}] ${oculto(o.to)}: ${error.message}`); return false; }
     return true;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/api/requireUser";
 import { createPublicClient, formatEther, http } from "viem";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { apiMsg } from "@/lib/api/apiMessages";
 import {
   arbitrum, avalanche, base, bsc, celo, cronos, fantom, gnosis,
   linea, mainnet, optimism, polygon, zkSync,
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
   if (!auth.ok) return auth.response;
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
   if (!checkRateLimit(ip)) {
-    return NextResponse.json({ error: "Demasiados pedidos." }, { status: 429 });
+    return NextResponse.json({ error: apiMsg(request, "rate_limited") }, { status: 429 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
   const network = (searchParams.get("network") ?? "Ethereum") as keyof typeof chainMap;
 
   if (!address || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
-    return NextResponse.json({ error: "Endereço inválido." }, { status: 400 });
+    return NextResponse.json({ error: apiMsg(request, "address_invalid") }, { status: 400 });
   }
 
   const entry = chainMap[network] ?? chainMap["Ethereum"];
@@ -64,5 +65,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ error: "Falha ao obter saldo." }, { status: 502 });
+  return NextResponse.json({ error: apiMsg(request, "balance_unavailable") }, { status: 502 });
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/api/requireUser";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { apiMsg } from "@/lib/api/apiMessages";
 
 const CACHE_HEADERS = { "Cache-Control": "private, s-maxage=30, stale-while-revalidate=60" };
 
@@ -34,12 +35,12 @@ export async function GET(request: NextRequest) {
   if (!auth.ok) return auth.response;
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
   if (!checkRateLimit(ip)) {
-    return NextResponse.json({ error: "Demasiados pedidos." }, { status: 429 });
+    return NextResponse.json({ error: apiMsg(request, "rate_limited") }, { status: 429 });
   }
 
   const { searchParams } = new URL(request.url);
   const address = searchParams.get("address");
-  if (!address) return NextResponse.json({ error: "address required" }, { status: 400 });
+  if (!address) return NextResponse.json({ error: apiMsg(request, "address_required") }, { status: 400 });
 
   for (const rpc of RPCS) {
     try {
@@ -47,5 +48,5 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ balance }, { headers: CACHE_HEADERS });
     } catch { /* try next */ }
   }
-  return NextResponse.json({ error: "All SOL RPCs failed" }, { status: 502 });
+  return NextResponse.json({ error: apiMsg(request, "balance_unavailable") }, { status: 502 });
 }

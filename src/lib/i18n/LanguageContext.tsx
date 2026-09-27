@@ -60,7 +60,13 @@ export function LanguageProvider({
       try { localStorage.setItem("owlfund-lang", initialLang); } catch { /* modo privado */ }
       return;
     }
-    const stored = localStorage.getItem("owlfund-lang") as Lang | null;
+    // Sem escolha guardada neste browser (aparelho novo), vale o cookie
+    // cfa-lang: o link do email (/api/auth/confirm?lang=xx) grava-o para a
+    // app abrir na lingua em que a pessoa se registou, e nao em portugues.
+    // Lido no cliente de proposito: ler cookies no layout tornava todas as
+    // paginas dinamicas.
+    let stored = localStorage.getItem("owlfund-lang") as Lang | null;
+    if (!stored) stored = (/(?:^|;\s*)cfa-lang=([a-z]{2})/.exec(document.cookie)?.[1] as Lang | undefined) ?? null;
     if (stored && stored in loadMessages && stored !== messagesLang) withMessages(stored, () => setLangState(stored));
   }, [initialLang, messagesLang, withMessages]);
 
