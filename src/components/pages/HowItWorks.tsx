@@ -95,7 +95,7 @@ export default function HowItWorks() {
   return (
     <AppShell>
       <div className="min-h-screen bg-slate-950 text-slate-100">
-        <main className="mx-auto w-full max-w-6xl px-6 py-16">
+        <div className="mx-auto w-full max-w-6xl px-6 py-16">
           <Link href="/" className="text-sm text-orange-300/90 transition hover:text-orange-200">
             {t("legal_back_home")}
           </Link>
@@ -159,7 +159,7 @@ export default function HowItWorks() {
               </a>
             )}
           </div>
-        </main>
+        </div>
       </div>
     </AppShell>
   );

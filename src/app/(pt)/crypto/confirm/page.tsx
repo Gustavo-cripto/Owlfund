@@ -58,7 +58,7 @@ export default function CryptoConfirmPage() {
   return (
     <AppShell>
       <div className="relative min-h-screen bg-slate-950 text-slate-100">
-        <main className="mx-auto flex min-h-screen w-full max-w-lg flex-col items-center justify-center px-6 text-center">
+        <div className="mx-auto flex min-h-screen w-full max-w-lg flex-col items-center justify-center px-6 text-center">
 
           {status === "waiting" && (
             <>
@@ -92,7 +92,7 @@ export default function CryptoConfirmPage() {
             </>
           )}
 
-        </main>
+        </div>
       </div>
     </AppShell>
   );

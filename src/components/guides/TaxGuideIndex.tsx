@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import AppShell from "@/components/AppShell";
-import { COUNTRIES, guideUrl, TAX_DATA_VERIFIED, type GuideLang } from "@/lib/tax/countries";
+import { COUNTRIES, guideUrl, TAX_DATA_VERIFIED, TAX_GUIDE_DATE_MODIFIED, type GuideLang } from "@/lib/tax/countries";
 import { countryText } from "@/lib/tax/countryText";
 import { GUIDE_COPY } from "@/lib/tax/guideCopy";
 
@@ -24,8 +24,12 @@ export default function TaxGuideIndex({ lang }: { lang: GuideLang }) {
         description: c.indexMetaDescription,
         inLanguage: c.locale,
         datePublished: "2026-09-11",
+        // image, dateModified e publisher.logo: o Google exige-os para o
+        // resultado rico de Article; as paginas de pais ja os tinham, o indice nao.
+        dateModified: TAX_GUIDE_DATE_MODIFIED,
+        image: `${SITE}/opengraph-image`,
         author: { "@type": "Organization", name: "ChainFolioAI", url: SITE },
-        publisher: { "@type": "Organization", name: "ChainFolioAI", url: SITE },
+        publisher: { "@type": "Organization", name: "ChainFolioAI", url: SITE, logo: { "@type": "ImageObject", url: `${SITE}/chainfolioai-icon.png` } },
         mainEntityOfPage: `${SITE}${base}`,
       },
       {
@@ -46,10 +50,11 @@ export default function TaxGuideIndex({ lang }: { lang: GuideLang }) {
       {/* Sem este embrulho o conteudo herda o fundo claro do layout e o texto
           branco fica invisivel — foi o que aconteceu na 1.a versao. */}
       <div className="min-h-screen bg-slate-950 text-slate-100">
-        <main className="mx-auto w-full max-w-5xl px-6 py-12">
+        {/* <div>, nao <main>: o AppShell ja tem o <main> da pagina. */}
+        <div className="mx-auto w-full max-w-5xl px-6 py-12">
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-          <nav className="text-xs text-slate-500">
+          <nav aria-label={c.breadcrumbLabel} className="text-xs text-slate-500">
             <Link href="/" className="transition hover:text-slate-300">{c.breadcrumbHome}</Link> · {c.breadcrumbGuides}
           </nav>
 
@@ -100,7 +105,7 @@ export default function TaxGuideIndex({ lang }: { lang: GuideLang }) {
           </section>
 
           <p className="mt-8 text-xs leading-relaxed text-slate-500">{c.disclaimerIndex}</p>
-        </main>
+        </div>
       </div>
     </AppShell>
   );

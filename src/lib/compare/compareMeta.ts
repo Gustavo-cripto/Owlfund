@@ -4,6 +4,7 @@ import { COMPARE_COPY } from "./compareCopy";
 import { competitorBySlug, compareUrl, type Competitor } from "./competitors";
 import { LANGS } from "@/lib/i18n/routes";
 import type { Lang } from "@/lib/i18n/translations";
+import { socialMeta } from "@/lib/seo/site";
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://chainfolioai.com";
 
@@ -26,7 +27,9 @@ export function compareIndexMetadata(lang: Lang): Metadata {
     title: { absolute: c.indexMetaTitle },
     description: c.indexMetaDescription,
     alternates: { canonical, languages: alternatesFor() },
-    openGraph: { title: c.indexMetaTitle, description: c.indexMetaDescription, url: canonical, type: "website", locale: c.locale },
+    // Com images e twitter: sem eles o cartao saia sem imagem e com o titulo
+    // da homepage no X (ver socialMeta).
+    ...socialMeta({ title: c.indexMetaTitle, description: c.indexMetaDescription, url: canonical, type: "website", locale: c.locale }),
   };
 }
 
@@ -41,6 +44,6 @@ export function compareMetadata(lang: Lang, slug: string): Metadata {
     title: { absolute: title },
     description,
     alternates: { canonical, languages: alternatesFor(competitor) },
-    openGraph: { title, description, url: canonical, type: "article", locale: c.locale },
+    ...socialMeta({ title, description, url: canonical, type: "article", locale: c.locale }),
   };
 }

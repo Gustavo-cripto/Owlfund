@@ -49,7 +49,7 @@ export default function Status() {
 
   return (
     <AppShell>
-      <main className="stagger-in mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 pb-24 pt-10">
+      <div className="stagger-in mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 pb-24 pt-10">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">ChainFolioAI</p>
           <h1 className="mt-2 text-3xl font-bold text-white">{t("st_title")}</h1>
@@ -94,7 +94,7 @@ export default function Status() {
         </section>
 
         <p className="text-xs leading-relaxed text-slate-500">{t("st_note")}</p>
-      </main>
+      </div>
     </AppShell>
   );
 }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import type { TranslationKey } from "@/lib/i18n/translations";
+import { LEGAL_LAST_UPDATED } from "@/lib/seo/site";
 
 const SECTIONS: { h: TranslationKey; b: TranslationKey }[] = [
   { h: "tp_s1_h", b: "tp_s1_b" },
@@ -20,7 +21,8 @@ const SECTIONS: { h: TranslationKey; b: TranslationKey }[] = [
   { h: "tp_s8_h", b: "tp_s8_b" },
 ];
 
-const LAST_UPDATED = "2026-09-24";
+// A mesma data que o sitemap anuncia como lastmod (src/lib/seo/site.ts).
+const LAST_UPDATED = LEGAL_LAST_UPDATED;
 
 export default function TermsPage() {
   const { t, lang } = useLanguage();
@@ -29,7 +31,7 @@ export default function TermsPage() {
   return (
     <AppShell>
       <div className="min-h-screen bg-slate-950 text-slate-100">
-        <main className="mx-auto w-full max-w-3xl px-6 py-16">
+        <div className="mx-auto w-full max-w-3xl px-6 py-16">
           <Link href="/" className="text-sm text-orange-300/90 transition hover:text-orange-200">
             {t("legal_back_home")}
           </Link>
@@ -60,7 +62,7 @@ export default function TermsPage() {
               {t("legal_privacy_short")}
             </a>
           </div>
-        </main>
+        </div>
       </div>
     </AppShell>
   );

@@ -1154,7 +1154,7 @@ export default function PortfolioPage() {
   return (
     <AppShell>
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <main className="stagger-in mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-20 pt-2">
+      <div className="stagger-in mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-20 pt-2">
         {/* ── Título ── */}
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold text-white">{t("port_title")}</h1>
@@ -2581,7 +2581,7 @@ export default function PortfolioPage() {
           <p className="mt-1.5 text-[11px] text-slate-600">{t("pf_saved_local")}</p>
         </section>
 
-      </main>
+      </div>
     </div>
     </AppShell>
   );

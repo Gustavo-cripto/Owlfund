@@ -283,7 +283,7 @@ export default function Sidebar() {
 
       {/* ── Mobile dropdown ── */}
       {mobileOpen && (
-        <nav id="sb-mobile-nav" className="animate-menu-in px-3 py-3 grid grid-cols-2 gap-1 border-t border-white/[0.06]">
+        <nav id="sb-mobile-nav" aria-label={t("sb_nav_main")} className="animate-menu-in px-3 py-3 grid grid-cols-2 gap-1 border-t border-white/[0.06]">
           {navList.map((item) => (
             <Link key={item.href} href={item.href} prefetch onClick={() => { setMobileOpen(false); garantirNavegacao(item.href); }}
               aria-current={isActive(item.href) ? "page" : undefined}
@@ -376,7 +376,9 @@ export default function Sidebar() {
             "sair") fica sempre à vista em ecrãs baixos. Com sessão são doze
             itens mais as línguas, que não cabem em muitos portáteis — antes o
             que sobrava ficava cortado sem forma de chegar lá. */}
-        <nav className={`flex-1 min-h-0 overflow-y-auto overscroll-contain py-4 ${expanded ? "px-3" : "px-2"}`}>
+        {/* aria-label: sem nome, este <nav> e o breadcrumb dos guias eram os dois
+            anunciados so como "navegação" nos leitores de ecrã. */}
+        <nav aria-label={t("sb_nav_main")} className={`flex-1 min-h-0 overflow-y-auto overscroll-contain py-4 ${expanded ? "px-3" : "px-2"}`}>
           {expanded && (
             <p className="px-3 mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-600 whitespace-nowrap">
               {t("sb_nav")}

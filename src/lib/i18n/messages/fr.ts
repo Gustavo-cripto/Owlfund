@@ -2508,4 +2508,6 @@ export const fr: Record<TranslationKey, string> = {
     ac_api_counts: "{endpoints} endpoints · {tools} outils MCP",
     wl_hw_addr_hint: "Fonctionne aussi pour les adresses Ledger/Trezor (lecture seule).",
     hw_aff_mixed_note: "Le lien {aff} est un lien d'affiliation (petite commission, sans surcoût pour vous) ; le lien {direct} va directement au fabricant.",
+    // ── Lote D (SEO e partilha, set 2026) ──
+    sb_nav_main: "Navigation principale",
 };

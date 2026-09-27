@@ -3032,7 +3032,7 @@ export default function WalletsPage() {
   return (
     <AppShell>
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-20 pt-2">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-20 pt-2">
         <div className="flex flex-col gap-4">
           <p className="text-xs uppercase tracking-[0.3em] text-orange-300/80">
             {t("nav_wallets")}
@@ -5892,7 +5892,7 @@ export default function WalletsPage() {
           </div>
         )}
         </>)}
-      </main>
+      </div>
     </div>
     </AppShell>
   );

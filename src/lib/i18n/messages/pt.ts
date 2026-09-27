@@ -2523,6 +2523,8 @@ export const pt = {
     ac_api_counts: "{endpoints} endpoints · {tools} ferramentas MCP",
     wl_hw_addr_hint: "Serve também para endereços de Ledger/Trezor (só-leitura).",
     hw_aff_mixed_note: "A ligação da {aff} é de afiliado (pequena comissão, sem custo extra para ti); a da {direct} é direta ao fabricante.",
+    // ── Lote D (SEO e partilha, set 2026) ──
+    sb_nav_main: "Navegação principal",
 };
 
 export type TranslationKey = keyof typeof pt;

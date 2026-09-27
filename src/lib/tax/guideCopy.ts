@@ -12,6 +12,8 @@ type Copy = {
   locale: string;
   breadcrumbHome: string;
   breadcrumbGuides: string;
+  /** aria-label do <nav> do breadcrumb — distingue-o da navegacao principal nos leitores de ecra. */
+  breadcrumbLabel: string;
   indexTitle: string;
   indexMetaTitle: string;
   indexMetaDescription: string;
@@ -59,6 +61,7 @@ export const GUIDE_COPY: Record<GuideLang, Copy> = {
     locale: "pt-PT",
     breadcrumbHome: "Início",
     breadcrumbGuides: "Guias",
+    breadcrumbLabel: "Localização",
     indexTitle: "Impostos sobre cripto em 21 países",
     indexMetaTitle: "Impostos sobre cripto em 21 países (2026)",
     indexMetaDescription:
@@ -114,6 +117,7 @@ export const GUIDE_COPY: Record<GuideLang, Copy> = {
     locale: "en-GB",
     breadcrumbHome: "Home",
     breadcrumbGuides: "Guides",
+    breadcrumbLabel: "Breadcrumb",
     indexTitle: "Crypto tax in 21 countries",
     indexMetaTitle: "Crypto tax in 21 countries (2026)",
     indexMetaDescription:

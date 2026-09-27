@@ -1,6 +1,7 @@
 import { LANGS, PAGE_SLUG, pageUrl, type PublicPage } from "@/lib/i18n/routes";
-import { COMPETITORS, compareUrl } from "@/lib/compare/competitors";
-import { COUNTRIES, guideUrl } from "@/lib/tax/countries";
+import { COMPETITORS, COMPARE_DATE_MODIFIED, compareUrl } from "@/lib/compare/competitors";
+import { COUNTRIES, TAX_GUIDE_DATE_MODIFIED, guideUrl } from "@/lib/tax/countries";
+import { DEVELOPERS_LAST_UPDATED, LEGAL_LAST_UPDATED } from "@/lib/seo/site";
 import type { MetadataRoute } from "next";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://chainfolioai.com";
@@ -13,17 +14,22 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://chainfolioai.com";
 // As paginas com versao em cada idioma (/, /beta, /pricing, /como-funciona)
 // nao estao aqui: sao geradas mais abaixo a partir de PAGE_SLUG, para o sitemap
 // nao ficar por atualizar quando se acrescentar um idioma ou mudar um slug.
-const PAGES: Array<{ path: string; priority: number; changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"] }> = [
-  { path: "/developers", priority: 0.6, changeFrequency: "monthly" },
-  { path: "/guias/impostos-cripto", priority: 0.8, changeFrequency: "monthly" },
-  { path: "/guides/crypto-tax", priority: 0.8, changeFrequency: "monthly" },
-  { path: "/termos", priority: 0.3, changeFrequency: "yearly" },
-  { path: "/privacidade", priority: 0.3, changeFrequency: "yearly" },
+//
+// lastModified e a data REAL da ultima revisao de cada entrada (as mesmas
+// constantes que alimentam o dateModified dos Article e o rodape dos termos).
+// Era `new Date()` em todas: mudava a cada deploy sem o conteudo mudar, o
+// Google ignora-o nesse caso e perdia-se o sinal de que um guia foi revisto.
+// As paginas de produto nao tem data — omitir e melhor do que inventar.
+const PAGES: Array<{ path: string; priority: number; changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"]; lastModified: string }> = [
+  { path: "/developers", priority: 0.6, changeFrequency: "monthly", lastModified: DEVELOPERS_LAST_UPDATED },
+  { path: "/guias/impostos-cripto", priority: 0.8, changeFrequency: "monthly", lastModified: TAX_GUIDE_DATE_MODIFIED },
+  { path: "/guides/crypto-tax", priority: 0.8, changeFrequency: "monthly", lastModified: TAX_GUIDE_DATE_MODIFIED },
+  { path: "/termos", priority: 0.3, changeFrequency: "yearly", lastModified: LEGAL_LAST_UPDATED },
+  { path: "/privacidade", priority: 0.3, changeFrequency: "yearly", lastModified: LEGAL_LAST_UPDATED },
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const lastModified = new Date();
-  const fixed = PAGES.map(({ path, priority, changeFrequency }) => ({
+  const fixed = PAGES.map(({ path, priority, changeFrequency, lastModified }) => ({
     url: `${SITE_URL}${path}`,
     lastModified,
     changeFrequency,
@@ -34,7 +40,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const guias = COUNTRIES.flatMap((c) =>
     (["pt", "en"] as const).map((lang) => ({
       url: `${SITE_URL}${guideUrl(lang, c)}`,
-      lastModified,
+      lastModified: TAX_GUIDE_DATE_MODIFIED,
       changeFrequency: "monthly" as const,
       priority: 0.7,
     })),
@@ -46,7 +52,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const traduzidas = (Object.keys(PAGE_SLUG) as PublicPage[]).filter((p) => prioridade[p] > 0).flatMap((page) =>
     LANGS.map((lang) => ({
       url: `${SITE_URL}${pageUrl(page, lang)}`,
-      lastModified,
       changeFrequency: (page === "howItWorks" ? "monthly" : "weekly") as MetadataRoute.Sitemap[number]["changeFrequency"],
       priority: prioridade[page],
     })),
@@ -54,10 +59,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
   // Comparacoes: indice + uma por concorrente, nas quatro linguas.
   // Geradas da mesma lista que as paginas, para nao ficarem por atualizar.
   const comparacoes = LANGS.flatMap((lang) => [
-    { url: `${SITE_URL}${compareUrl(lang)}`, lastModified, changeFrequency: "monthly" as const, priority: 0.6 },
+    { url: `${SITE_URL}${compareUrl(lang)}`, lastModified: COMPARE_DATE_MODIFIED, changeFrequency: "monthly" as const, priority: 0.6 },
     ...COMPETITORS.map((c) => ({
       url: `${SITE_URL}${compareUrl(lang, c)}`,
-      lastModified,
+      lastModified: COMPARE_DATE_MODIFIED,
       changeFrequency: "monthly" as const,
       priority: 0.7,
     })),

@@ -344,7 +344,7 @@ export default function HistoricoPage() {
   return (
     <AppShell>
       <div className="min-h-screen bg-slate-950 text-slate-100">
-        <main className="mx-auto max-w-5xl space-y-6 px-4 py-8">
+        <div className="mx-auto max-w-5xl space-y-6 px-4 py-8">
 
           {/* ── Header ── */}
           <div className="flex flex-wrap items-end justify-between gap-3">
@@ -860,7 +860,7 @@ export default function HistoricoPage() {
             );
           })()}
 
-        </main>
+        </div>
 
         {/* ── Import preview modal ── */}
         {importPreview && (

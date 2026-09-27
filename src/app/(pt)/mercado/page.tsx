@@ -1367,7 +1367,7 @@ export default function MercadoPage() {
   return (
     <AppShell>
     <div className="min-h-screen bg-slate-950 text-slate-100">
-      <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 pb-20 pt-2 lg:px-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-6 pb-20 pt-2 lg:px-8">
         <div className="flex flex-col gap-4">
           <h1 className="text-3xl font-semibold text-white">{t("mc_market")}</h1>
           <p className="max-w-2xl text-sm text-slate-400">
@@ -2362,7 +2362,7 @@ export default function MercadoPage() {
             </div>
           </div>
         )}
-      </main>
+      </div>
     </div>
     </AppShell>
   );

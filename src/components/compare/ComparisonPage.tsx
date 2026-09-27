@@ -3,7 +3,7 @@ import Link from "next/link";
 import AppShell from "@/components/AppShell";
 import { btnPrimary } from "@/lib/ui/buttons";
 import { COMPARE_COPY } from "@/lib/compare/compareCopy";
-import { COMPETITORS, compareUrl, type Competitor } from "@/lib/compare/competitors";
+import { COMPETITORS, COMPARE_DATE_MODIFIED, compareUrl, type Competitor } from "@/lib/compare/competitors";
 import type { Lang } from "@/lib/i18n/translations";
 import { pageUrl } from "@/lib/i18n/routes";
 
@@ -48,9 +48,10 @@ export default function ComparisonPage({ lang, competitor }: { lang: Lang; compe
         description: c.metaDescription(n),
         inLanguage: lang,
         mainEntityOfPage: here,
-        // Datas reais do conteudo (git log de src/lib/compare/competitors.ts).
+        // Datas reais do conteudo (git log de src/lib/compare/competitors.ts);
+        // dateModified e a mesma constante do sitemap.
         datePublished: "2026-09-20",
-        dateModified: "2026-09-20",
+        dateModified: COMPARE_DATE_MODIFIED,
         image: `${SITE}/opengraph-image`,
         author: { "@type": "Organization", name: "ChainFolioAI", url: SITE },
         publisher: { "@type": "Organization", name: "ChainFolioAI", url: SITE, logo: { "@type": "ImageObject", url: `${SITE}/chainfolioai-icon.png` } },
@@ -77,10 +78,12 @@ export default function ComparisonPage({ lang, competitor }: { lang: Lang; compe
   return (
     <AppShell>
       <div className="min-h-screen bg-slate-950 text-slate-100">
-        <main className="mx-auto w-full max-w-4xl px-6 py-12">
+        {/* <article>, nao <main>: o AppShell ja tem o <main> da pagina e a ARIA
+            so admite um por documento. */}
+        <article className="mx-auto w-full max-w-4xl px-6 py-12">
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-          <nav className="text-xs text-slate-500">
+          <nav aria-label={c.breadcrumbLabel} className="text-xs text-slate-500">
             <Link href={pageUrl("home", lang)} className="transition hover:text-slate-300">{c.breadcrumbHome}</Link> ·{" "}
             <Link href={compareUrl(lang)} className="transition hover:text-slate-300">{c.breadcrumbCompare}</Link> · {n}
           </nav>
@@ -182,7 +185,7 @@ export default function ComparisonPage({ lang, competitor }: { lang: Lang; compe
               ))}
             </div>
           </section>
-        </main>
+        </article>
       </div>
     </AppShell>
   );
