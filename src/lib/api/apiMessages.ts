@@ -159,6 +159,14 @@ export const API_MESSAGES = {
     "No se pudo obtener el saldo ahora. Inténtalo de nuevo en un momento.",
     "Impossible d'obtenir le solde pour le moment. Réessayez dans un instant.",
   ),
+  // ── Lote G ──
+  // Corpo JSON sem o campo esperado (ex.: POST /api/email/optout sem o booleano "optout").
+  invalid_body: M(
+    "Pedido inválido.",
+    "Invalid request.",
+    "Solicitud no válida.",
+    "Requête non valide.",
+  ),
 } as const;
 
 export type ApiMessageKey = keyof typeof API_MESSAGES;

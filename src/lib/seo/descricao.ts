@@ -9,6 +9,15 @@ export const LIMITE_DESCRICAO = 155;
 // Abaixo disto o Google tende a completar com texto da pagina ao acaso: se as
 // frases inteiras nao chegam ca, entra um pedaco da seguinte cortado em palavra.
 export const MINIMO_DESCRICAO = 120;
+// Tolerancia do teste dos guias (scripts/testes/seoMeta.test.ts): 115 e nao 120.
+// O minimo acima e um objetivo, nao uma garantia — quando as frases inteiras
+// nao chegam a 120 e o pedaco da frase seguinte que caberia tem menos de
+// PEDACO_MINIMO (30) caracteres, preferimos parar na frase inteira a acabar em
+// "Doi…". Hoje o guia mais curto fica a 119 (pt/luxemburgo). Os 5 de folga
+// deixam passar esse caso e apanham uma regressao a serio (ex.: descricao so
+// com "Pais: taxa."). Se um guia novo cair abaixo, reescrever o resumo dele,
+// nao baixar este numero.
+export const MINIMO_DESCRICAO_GUIAS = MINIMO_DESCRICAO - 5;
 // Um pedaco cortado so vale a pena se acrescentar algumas palavras; "Doi…" e
 // pior do que parar na frase inteira.
 const PEDACO_MINIMO = 30;

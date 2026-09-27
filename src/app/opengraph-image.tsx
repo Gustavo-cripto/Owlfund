@@ -1,98 +1,15 @@
-import { ImageResponse } from "next/og";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { ogCardResponse } from "@/lib/seo/ogCard";
+import { OG_TEXT } from "@/lib/seo/ogText";
 
-export const alt =
-  "ChainFolioAI — O teu portefólio cripto e tradicional num só lugar";
+export const alt = OG_TEXT.pt.alt;
+// Literal de proposito: o Next le isto para o og:image:width/height. O teste
+// scripts/testes/ogImages.test.ts confirma que bate com OG_SIZE (1200×630).
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-// Cartão social gerado dinamicamente (1200×630).
-// Next injeta automaticamente og:image e, na ausência de twitter-image, twitter:image.
+// Cartão social gerado dinamicamente (1200×630), versão portuguesa. O desenho
+// e os textos das 4 línguas estão em src/lib/seo/ogCard.tsx e ogText.ts; en/es/fr
+// saem em /og/xx/image.png (src/app/og/[lang]/image.png/route.tsx).
 export default async function Image() {
-  // Logótipo real embebido: lido do disco no prerender (rota corre em Node)
-  // e passado como data URI — fetch de caminhos relativos rebenta no build.
-  const logoBuf = await readFile(join(process.cwd(), "public", "chainfolioai-icon.png"));
-  const logo = `data:image/png;base64,${logoBuf.toString("base64")}`;
-  return new ImageResponse(
-    (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          background:
-            "radial-gradient(120% 120% at 20% 0%, #1b2536 0%, #020617 55%)",
-          color: "#f1f5f9",
-          padding: "72px",
-          fontFamily: "sans-serif",
-        }}
-      >
-        {/* Marca */}
-        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text */}
-          <img src={logo} width={64} height={64} style={{ borderRadius: 18 }} />
-          <div style={{ fontSize: 34, fontWeight: 700, letterSpacing: -0.5 }}>
-            ChainFolioAI
-          </div>
-        </div>
-
-        {/* Título */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              fontSize: 66,
-              fontWeight: 800,
-              lineHeight: 1.08,
-              letterSpacing: -1.5,
-              maxWidth: 960,
-            }}
-          >
-            <span style={{ color: "#f1f5f9" }}>O teu portefólio&nbsp;</span>
-            <span style={{ color: "#fb923c" }}>cripto e tradicional&nbsp;</span>
-            <span style={{ color: "#f1f5f9" }}>num só lugar</span>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              fontSize: 30,
-              color: "#94a3b8",
-              maxWidth: 900,
-            }}
-          >
-            PNL em tempo real, métricas avançadas, fiscalidade e um assistente de
-            IA. 100% só-leitura.
-          </div>
-        </div>
-
-        {/* Chips */}
-        <div style={{ display: "flex", gap: 16 }}>
-          {["ROI · Sharpe · Drawdown", "BTC · ETH · SOL · ADA", "Grátis para começar"].map(
-            (chip) => (
-              <div
-                key={chip}
-                style={{
-                  fontSize: 24,
-                  fontWeight: 600,
-                  color: "#fdba74",
-                  background: "rgba(249,115,22,0.12)",
-                  border: "1px solid rgba(249,115,22,0.35)",
-                  borderRadius: 999,
-                  padding: "12px 26px",
-                  display: "flex",
-                }}
-              >
-                {chip}
-              </div>
-            )
-          )}
-        </div>
-      </div>
-    ),
-    { ...size }
-  );
+  return ogCardResponse("pt");
 }

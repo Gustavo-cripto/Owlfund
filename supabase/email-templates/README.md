@@ -26,6 +26,7 @@ telemóvel via sempre "link inválido". O botão aponta agora para
 ```
 https://chainfolioai.com/api/auth/confirm?token_hash={{ .TokenHash }}&type=magiclink&lang=xx   (ligação mágica)
 https://chainfolioai.com/api/auth/confirm?token_hash={{ .TokenHash }}&type=signup&lang=xx      (confirmação)
+https://chainfolioai.com/api/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&lang=xx    (repor palavra-passe)
 ```
 
 e a rota `src/app/api/auth/confirm/route.ts` chama `verifyOtp({ type, token_hash })`
@@ -37,9 +38,19 @@ Os modelos antigos ficam como referência com o sufixo `.pkce.html` — não os
 colar. O `/api/auth/callback` mantém-se para o OAuth Google (e para emails
 antigos ainda por abrir).
 
-`reset-password.html` continua com `{{ .ConfirmationURL }}`: a página
-`/reset-password` troca o código ela própria e só abre o formulário no evento
-de recuperação. Continua a ter de ser aberto no mesmo browser.
+### Repor palavra-passe (lote G, set 2026)
+
+`reset-password.html` passou também a `token_hash` (`type=recovery`). A rota
+`/api/auth/confirm` faz o `verifyOtp` no servidor, cria a sessão e manda a
+pessoa para `/reset-password?lang=xx`, com um cookie curto (`cfa-recovery`,
+15 min, com o id do utilizador). A página só mostra o formulário de nova
+palavra-passe quando esse cookie é do mesmo utilizador da sessão — uma sessão
+normal não chega. Funciona em qualquer aparelho. Ver `src/lib/auth/recuperacao.ts`.
+
+O modelo antigo fica em `reset-password.pkce.html` (não colar). A página
+continua a aceitar o fluxo antigo (`?code=` e o evento `PASSWORD_RECOVERY`),
+por isso os emails já enviados antes da troca continuam a funcionar — no
+browser onde foram pedidos, como sempre.
 
 ## Onde colar (uma vez, projeto `owlfund`)
 
@@ -49,7 +60,7 @@ Supabase → Authentication → **Emails** → Templates:
 |---|---|---|
 | Magic Link | `magic-link.subject.txt` | `magic-link.html` |
 | Confirm sign up | `confirm-signup.subject.txt` | `confirm-signup.html` |
-| Reset Password | `reset-password.subject.txt` | `reset-password.html` |
+| Reset Password | `reset-password.subject.txt` | `reset-password.html` (o novo, com `type=recovery`) |
 
 Colar o conteúdo inteiro de cada ficheiro. O assunto também é um modelo Go, mas
 tem um limite de **255 caracteres** no Supabase — por isso só distingue PT do
@@ -60,6 +71,10 @@ Confirmar também, em Authentication → **URL Configuration**, que
 `https://chainfolioai.com/api/auth/confirm` não precisa de estar na lista de
 redirect URLs (o link não passa pelo Supabase; só o `.RedirectTo` dos
 callbacks acima é que tem de lá estar, como já estava).
+
+Depois de colar o `reset-password.html` novo, testar uma vez: pedir "Esqueci-me
+da palavra-passe" no portátil, abrir o email no telemóvel → tem de abrir o
+formulário de nova palavra-passe (e não "link inválido").
 
 Ainda em inglês (não usados pela app hoje): Invite user, Change Email Address,
 Reauthentication.

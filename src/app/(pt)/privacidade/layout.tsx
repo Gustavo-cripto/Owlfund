@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   description,
   // Sem openGraph proprio a pagina herdava o cartao E o og:url da homepage:
   // partilhar /privacidade contava para a raiz.
-  ...socialMeta({ title, description, url: `${SITE_URL}/privacidade`, type: "website", locale: "pt_PT" }),
+  ...socialMeta({ title, description, url: `${SITE_URL}/privacidade`, type: "website", locale: "pt_PT", lang: "pt" }),
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {

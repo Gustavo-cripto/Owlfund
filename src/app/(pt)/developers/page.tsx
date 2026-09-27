@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/developers" },
   // Sem openGraph proprio a pagina herdava o cartao E o og:url da homepage —
   // e esta e a pagina que se quer por a frente de programadores e diretorios MCP.
-  ...socialMeta({ title, description, url: `${SITE_URL}/developers`, type: "website", locale: "pt_PT" }),
+  ...socialMeta({ title, description, url: `${SITE_URL}/developers`, type: "website", locale: "pt_PT", lang: "pt" }),
 };
 
 export default function DevelopersPage() {

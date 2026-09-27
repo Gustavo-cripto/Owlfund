@@ -53,7 +53,8 @@ export async function getPortfolio(userId: string): Promise<PortfolioResult> {
     updatedAt: latest?.created_at ?? null,
     snapshotCount: count ?? 0,
     accountId: typeof conta === "string" ? conta : null,
-    note: "Último snapshot gravado, do portefólio que estava ativo nesse momento (accountId). Uma conta pode ter vários portefólios; esta leitura não os soma.",
+    // A API e o MCP falam ingles (como o catalogo e os erros das rotas v1).
+    note: "Latest saved snapshot, of the portfolio that was active at that moment (accountId). An account can have several portfolios; this read does not add them up.",
     portfolio: latest?.data != null ? whitelistWalletData(latest.data) : null,
   };
 }
@@ -83,6 +84,6 @@ export async function getWallets(userId: string): Promise<WalletsResult> {
     updatedAt: data?.updated_at ?? null,
     accounts,
     wallets: data?.data != null ? juntarContas(accounts) : null,
-    note: "wallets junta todas as contas; accounts separa-as. Endereços pseudonimizados (wallet_…), nunca em claro.",
+    note: "wallets merges every account; accounts keeps them apart. Addresses are pseudonymised (wallet_…), never in clear text.",
   };
 }

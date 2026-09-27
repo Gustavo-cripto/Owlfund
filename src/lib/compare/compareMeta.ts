@@ -29,7 +29,7 @@ export function compareIndexMetadata(lang: Lang): Metadata {
     alternates: { canonical, languages: alternatesFor() },
     // Com images e twitter: sem eles o cartao saia sem imagem e com o titulo
     // da homepage no X (ver socialMeta).
-    ...socialMeta({ title: c.indexMetaTitle, description: c.indexMetaDescription, url: canonical, type: "website", locale: c.locale }),
+    ...socialMeta({ title: c.indexMetaTitle, description: c.indexMetaDescription, url: canonical, type: "website", locale: c.locale, lang }),
   };
 }
 
@@ -44,6 +44,6 @@ export function compareMetadata(lang: Lang, slug: string): Metadata {
     title: { absolute: title },
     description,
     alternates: { canonical, languages: alternatesFor(competitor) },
-    ...socialMeta({ title, description, url: canonical, type: "article", locale: c.locale }),
+    ...socialMeta({ title, description, url: canonical, type: "article", locale: c.locale, lang }),
   };
 }
