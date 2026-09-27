@@ -17,6 +17,10 @@
 //      404 amanhã).
 //   4. Conta, em cada página traduzida, links que ainda apontem para as
 //      versões portuguesas.
+//   5. Lê o /api/status do próprio site: "falha" conta como erro; "degradado"
+//      (ex.: CoinGecko em 429, snapshots parados) manda aviso ao Telegram se
+//      TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID (ou TOKEN/CHAT) estiverem no ambiente
+//      — antes o 429 persistente da CoinGecko não avisava ninguém.
 // Sai com código 1 se algo falhar — serve para correr antes de anunciar.
 
 const BASE = (process.argv[2] ?? "https://chainfolioai.com").replace(/\/$/, "");
@@ -128,6 +132,43 @@ for (const u of EXTERNAS) {
   if (res.status >= 300 && res.status < 400) { erro(`${host} → ${res.status} redireciona para ${res.headers.get("location")} — atualizar o endereço no código`); continue; }
   if (res.status !== 200) { (res.status === 429 ? aviso : erro)(`${host} → ${res.status}`); continue; }
   ok(`${host.padEnd(24)} ${ms.toString().padStart(5)} ms`);
+}
+
+// ── 6. Estado das fontes visto PELO SITE (/api/status) ──────────────────────
+// A secção 5 testa as fontes a partir do IP do GitHub; esta lê o que o servidor
+// da Vercel vê (chave da CoinGecko, quota, snapshots do cron).
+console.log(`\n── 6) /api/status (o que o servidor vê)`);
+{
+  const { res, texto, falha } = await pedir(BASE + "/api/status");
+  let st = null;
+  if (!res) erro(`/api/status — sem resposta (${falha})`);
+  else if (res.status !== 200) erro(`/api/status → ${res.status}`);
+  else { try { st = JSON.parse(texto); } catch { erro("/api/status — não é JSON"); } }
+  if (st) {
+    const maus = (st.servicos ?? []).filter((s) => s.estado === "falha" || s.estado === "degradado");
+    for (const s of st.servicos ?? []) {
+      const linha = `${String(s.nome).padEnd(20)} ${String(s.estado).padEnd(16)}${s.codigo ? ` código ${s.codigo}` : ""}${s.ms != null ? `  ${s.ms} ms` : ""}`;
+      (s.estado === "falha" ? erro : s.estado === "degradado" ? aviso : ok)(linha);
+    }
+    if (st.geral === "degradado") {
+      const texto = `⚠️ chainfolioai.com /api/status: DEGRADADO\n${maus.map((s) => `• ${s.nome}: ${s.estado}${s.codigo ? ` (${s.codigo})` : ""}`).join("\n")}\nVer ${BASE}/estado`;
+      const enviado = await avisarTelegram(texto);
+      aviso(enviado ? "aviso enviado ao Telegram" : "sem TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID — aviso só aqui");
+    }
+  }
+}
+
+async function avisarTelegram(texto) {
+  const token = process.env.TELEGRAM_BOT_TOKEN ?? process.env.TOKEN ?? "";
+  const chat = process.env.TELEGRAM_CHAT_ID ?? process.env.CHAT ?? "";
+  if (!token || !chat) return false;
+  try {
+    const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chat, text: texto.slice(0, 4000), disable_web_page_preview: true }),
+    });
+    return r.ok;
+  } catch { return false; }
 }
 
 console.log(falhas === 0 ? "\n✅ Site a responder como deve." : `\n${falhas} problema(s).`);

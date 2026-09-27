@@ -42,7 +42,9 @@ const chainRpcs: Record<string, string[]> = {
   Blast:          ["https://rpc.blast.io", "https://blast.drpc.org"],
 };
 
-const EVM_NETWORKS = ["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon", "BSC", "Avalanche", "Fantom", "zkSync", "Linea", "Gnosis", "Celo", "Cronos", "Scroll", "Mantle", "Blast"] as const;
+// Lista exportada (e nao so um tipo): o marketing conta as redes a partir daqui.
+export const EVM_NETWORKS = ["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon", "BSC", "Avalanche", "Fantom", "zkSync", "Linea", "Gnosis", "Celo", "Cronos", "Scroll", "Mantle", "Blast"] as const;
+export const EVM_NETWORK_COUNT = EVM_NETWORKS.length;
 export type EvmNetwork = (typeof EVM_NETWORKS)[number];
 
 // Scroll, Mantle, Blast não estão em viem/chains — definimos manualmente

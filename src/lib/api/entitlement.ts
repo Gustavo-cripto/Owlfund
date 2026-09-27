@@ -57,32 +57,11 @@ export type AiQuota =
   | { ok: false; reason: "limit_reached"; count: number; limit: number }
   | { ok: false; reason: "unavailable" };
 
-/** Verifica (sem gastar) a quota mensal de IA. Pro/Premium: sem limite. */
-export async function checkAiQuota(userId: string): Promise<AiQuota> {
-  try {
-    const admin = getSupabaseAdmin();
-    const plan = await getPlan(admin, userId);
-    if (plan !== "free") return { ok: true, plan, free: false, count: 0, limit: 0 };
-
-    const month = new Date().toISOString().slice(0, 7);
-    const { data, error } = await admin
-      .from("chat_usage")
-      .select("count")
-      .eq("user_id", userId)
-      .eq("month", month)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    const count = (data?.count as number | undefined) ?? 0;
-    if (count >= FREE_AI_LIMIT) return { ok: false, reason: "limit_reached", count, limit: FREE_AI_LIMIT };
-    return { ok: true, plan, free: true, count, limit: FREE_AI_LIMIT };
-  } catch (e) {
-    console.error("[entitlement] quota indisponível (fail-closed):", e instanceof Error ? e.message : e);
-    return { ok: false, reason: "unavailable" };
-  }
-}
-
 /**
  * RESERVA 1 análise do Free — chamar ANTES de falar com o fornecedor de IA.
+ *
+ * (O par antigo `checkAiQuota` + `incrementAiUsage`, que lia e depois escrevia,
+ * foi apagado: ninguém o importava e continuava exportado com ar de API válida.)
  *
  * Antes havia um `checkAiQuota` que lia o contador e, 15 a 25 segundos depois
  * (o tempo da chamada à IA), um incremento que escrevia `lido + 1`. Trinta
@@ -183,14 +162,6 @@ export async function releaseAiUsage(userId: string): Promise<void> {
   } catch (e) {
     console.error("[entitlement] devolução de quota falhou:", e instanceof Error ? e.message : e);
   }
-}
-
-/**
- * @deprecated Usar `reserveAiUsage` antes da chamada à IA. Mantido só para não
- * partir quem ainda chame; não protege contra pedidos em paralelo.
- */
-export async function incrementAiUsage(userId: string, _currentCount: number): Promise<void> {
-  await reserveAiUsage(userId);
 }
 
 export function quotaErrorResponse(q: Extract<AiQuota, { ok: false }>): NextResponse {

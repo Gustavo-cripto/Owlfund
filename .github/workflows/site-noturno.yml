@@ -21,6 +21,11 @@ jobs:
         with:
           node-version-file: .nvmrc
       - name: Verificar chainfolioai.com
+        # Com os segredos, o script avisa no Telegram quando o /api/status vem
+        # "degradado" (CoinGecko em 429, snapshots parados) sem falhar o passo.
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: node scripts/verificar-site.mjs
       # A API e o MCP não aparecem na verificação de páginas: um endpoint pode
       # responder 200 com tudo vazio (aconteceu a 18 set 2026 no /api/v1/global).

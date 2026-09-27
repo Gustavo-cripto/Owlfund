@@ -34,6 +34,7 @@ import { loadTraditionalHoldings, type TraditionalHoldings } from "@/lib/traditi
 import { downloadBlob, loadExcelJS } from "@/lib/export/excel";
 import { cryptoHoldingValueEur, loadCryptoHoldings, loadStablecoinEntries, type CryptoHoldings, type StablecoinEntry } from "@/lib/crypto/storage";
 import { loadNickname } from "@/lib/user/nickname";
+import { metricas, type Ponto } from "@/lib/api/pnlMath";
 import ChartModal from "@/components/ChartModal";
 import { SkeletonLines } from "@/components/PageSkeleton";
 
@@ -904,143 +905,16 @@ export default function PortfolioPage() {
 
   const pnlTotal = pnlSummary.position;
 
-  // ── Métricas avançadas calculadas a partir dos snapshots ──
+  // ── Métricas avançadas: um só algoritmo, o de src/lib/api/pnlMath.ts, que a
+  // API v1/metrics, o MCP e o Gestor também usam (e que tem teste). A cópia que
+  // vivia aqui já divergia na queda máxima. O valor ao vivo entra como último
+  // ponto da série: reproduz a queda "vs agora" e o pico = agora sem código próprio.
   const advancedMetrics = useMemo(() => {
-    const chronoAll = [...snapshotTotals].reverse(); // cronológico
-    if (chronoAll.length < 2) return null;
-
-    // 1 snapshot por dia (o último): duplicados no mesmo dia criavam retornos
-    // de 0% em série que esmagavam o Win rate e anulavam o VaR.
-    const byDay = new Map<string, (typeof chronoAll)[number]>();
-    for (const s of chronoAll) byDay.set(new Date(s.createdAt).toISOString().slice(0, 10), s);
-    const chrono = [...byDay.values()].sort((a, b) => a.createdAt - b.createdAt);
-    if (chrono.length < 2) return null;
-
-    // Limpeza: descartar snapshots claramente corrompidos face à mediana —
-    // tanto os ~0 € (capturas parciais) como picos absurdos (>20× a mediana,
-    // ex.: preço com glitch), que faziam a queda máxima disparar para -100%.
-    const positives = chrono.map((s) => s.total).filter((v) => v > 0).sort((a, b) => a - b);
-    const median = positives.length ? positives[Math.floor(positives.length / 2)] : 0;
-    const sorted = chrono.filter((s) => s.total > median * 0.05 && s.total < median * 20);
-    if (sorted.length < 2) return null;
-
-    const oldest = sorted[0];
-    const current = portfolioTotal;
-    const base = oldest.total;
-    if (base <= 0) return null;
-
-    const days = (Date.now() - oldest.createdAt) / (1000 * 60 * 60 * 24);
-
-    // ROI
-    const roi = ((current - base) / base) * 100;
-
-    // CAGR — só a partir de um trimestre.
-    //
-    // Anualizar períodos curtos não informa, inventa: um ganho de 16× em 70
-    // dias elevado a 365/70 dava "249.346.051,22%" num relatório, a par de
-    // valores reais. Abaixo de 90 dias o número honesto é o ROI do período,
-    // que já está ali ao lado. Acima disso ainda pode ser grande, mas é uma
-    // extrapolação defensável.
-    const cagrRaw = days >= 90 ? (Math.pow(current / base, 365 / days) - 1) * 100 : null;
-    const cagr = cagrRaw !== null && Number.isFinite(cagrRaw) ? cagrRaw : null;
-
-    // Retornos entre snapshots consecutivos
-    const rawReturns: number[] = [];
-    for (let i = 1; i < sorted.length; i++) {
-      const prev = sorted[i - 1].total;
-      const cur = sorted[i].total;
-      if (prev > 0) rawReturns.push((cur - prev) / prev);
-    }
-    // Para as métricas de risco, ignorar saltos > ±50% entre snapshots: quase
-    // sempre são depósitos/levantamentos (entrada ou saída de capital), não
-    // movimento de mercado — e inflacionavam a volatilidade de forma irreal.
-    const dailyReturns = rawReturns.filter((r) => Math.abs(r) < 0.5);
-
-    // Anualização a partir do espaçamento real dos snapshots (não assumir 1/dia).
-    const stepsPerYear = rawReturns.length > 0 && days > 0
-      ? Math.min(365, Math.max(12, 365 / (days / rawReturns.length)))
-      : 252;
-    const ann = Math.sqrt(stepsPerYear);
-
-    // Sharpe Ratio (benchmark risk-free ≈ 0)
-    let sharpe: number | null = null;
-    if (dailyReturns.length >= 5) {
-      const mean = dailyReturns.reduce((s, r) => s + r, 0) / dailyReturns.length;
-      const variance =
-        dailyReturns.reduce((s, r) => s + Math.pow(r - mean, 2), 0) / dailyReturns.length;
-      const stdDev = Math.sqrt(variance);
-      if (stdDev > 0) sharpe = (mean / stdDev) * ann;
-    }
-
-    // Max Drawdown
-    let peak = sorted[0].total;
-    let maxDrawdown = 0;
-    for (const s of sorted) {
-      if (s.total > peak) peak = s.total;
-      const dd = (s.total - peak) / peak;
-      if (dd < maxDrawdown) maxDrawdown = dd;
-    }
-    // vs current
-    const curDd = (current - peak) / peak;
-    if (curDd < maxDrawdown) maxDrawdown = curDd;
-
-    // Volatilidade anualizada
-    let volatility: number | null = null;
-    if (dailyReturns.length >= 5) {
-      const mean = dailyReturns.reduce((s, r) => s + r, 0) / dailyReturns.length;
-      const variance =
-        dailyReturns.reduce((s, r) => s + Math.pow(r - mean, 2), 0) / dailyReturns.length;
-      volatility = Math.sqrt(variance) * ann * 100;
-    }
-
-    const maxDdPct = maxDrawdown * 100;
-
-    // Sortino (como o Sharpe mas só penaliza a queda)
-    let sortino: number | null = null;
-    if (dailyReturns.length >= 5) {
-      const mean = dailyReturns.reduce((s, r) => s + r, 0) / dailyReturns.length;
-      const downsideVar =
-        dailyReturns.reduce((s, r) => s + (r < 0 ? r * r : 0), 0) / dailyReturns.length;
-      const dd = Math.sqrt(downsideVar);
-      if (dd > 0) sortino = (mean / dd) * ann;
-    }
-
-    // Calmar = CAGR / |Max Drawdown|
-    const calmar = cagr !== null && maxDdPct < 0 ? cagr / Math.abs(maxDdPct) : null;
-
-    // Win rate + melhor/pior período
-    let winRate: number | null = null;
-    let bestReturn: number | null = null;
-    let worstReturn: number | null = null;
-    if (dailyReturns.length >= 1) {
-      winRate = (dailyReturns.filter((r) => r > 0).length / dailyReturns.length) * 100;
-      bestReturn = Math.max(...dailyReturns) * 100;
-      worstReturn = Math.min(...dailyReturns) * 100;
-    }
-
-    // Drawdown atual + dias desde o pico
-    let peakVal = sorted[0].total;
-    let peakAt = sorted[0].createdAt;
-    for (const s of sorted) {
-      if (s.total > peakVal) { peakVal = s.total; peakAt = s.createdAt; }
-    }
-    if (current > peakVal) { peakVal = current; peakAt = Date.now(); }
-    const currentDrawdown = peakVal > 0 ? ((current - peakVal) / peakVal) * 100 : 0;
-    const daysSincePeak = Math.max(0, Math.round((Date.now() - peakAt) / (1000 * 60 * 60 * 24)));
-
-    // VaR 95% histórico — perda diária no 5º percentil (negativo)
-    let var95: number | null = null;
-    if (dailyReturns.length >= 10) {
-      const s = [...dailyReturns].sort((a, b) => a - b);
-      var95 = s[Math.floor(0.05 * s.length)] * 100;
-    }
-
-    return {
-      roi, cagr, sharpe, sortino, calmar,
-      maxDrawdown: maxDdPct, volatility,
-      winRate, bestReturn, worstReturn, currentDrawdown, daysSincePeak, var95,
-      days: Math.round(days),
-    };
+    if (snapshotTotals.length < 2) return null;
+    const agora = Date.now();
+    const serie: Ponto[] = snapshotTotals.map((s) => ({ t: s.createdAt, total: s.total, iso: new Date(s.createdAt).toISOString() }));
+    serie.push({ t: agora, total: portfolioTotal, iso: new Date(agora).toISOString() });
+    return metricas(serie, agora);
   }, [snapshotTotals, portfolioTotal]);
 
   // ── Beta vs mercado (BTC e S&P 500) ──

@@ -9,11 +9,11 @@ import { pageUrl } from "@/lib/i18n/routes";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { comSupabase, getSupabase } from "@/lib/supabase/lazy";
 import { destinoDoEmail } from "@/lib/auth/emailRedirect";
+import { BETA_CUTOFF_ISO, betaAberto } from "@/lib/plans";
 
 const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
 const ERR_KEY: Record<string, TranslationKey> = { rate_limited: "beta_err_rate", bad_email: "beta_bad_email", send_failed: "beta_err", bad_request: "beta_err" };
 const LOCALE: Record<string, string> = { pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" };
-const CUTOFF_RAW = process.env.NEXT_PUBLIC_BETA_CUTOFF ?? "2027-01-15T23:59:59Z";
 
 /**
  * Indicador de etapa: a inscricao sao dois atos e isso tem de se ver.
@@ -93,15 +93,10 @@ export default function BetaSignup() {
   // email que cria a conta ao abrir. null = nao tentado (ja havia conta).
   const [linkEnviado, setLinkEnviado] = useState<boolean | null>(null);
 
-  // Beta encerrado a novos testers a partir da data de corte (env).
-  const betaClosed = (() => {
-    const raw = process.env.NEXT_PUBLIC_BETA_CUTOFF ?? "2027-01-15T23:59:59Z";
-    if (!raw) return false;
-    const d = new Date(raw);
-    return !Number.isNaN(d.getTime()) && Date.now() > d.getTime();
-  })();
+  // Beta encerrado a novos testers a partir da data de corte (src/lib/plans.ts).
+  const betaClosed = !betaAberto();
   const cutoffStr = (() => {
-    const d = new Date(CUTOFF_RAW);
+    const d = new Date(BETA_CUTOFF_ISO);
     if (Number.isNaN(d.getTime())) return "";
     return d.toLocaleDateString(LOCALE[lang] ?? "pt-PT", { day: "numeric", month: "long" });
   })();

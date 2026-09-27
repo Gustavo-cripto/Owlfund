@@ -2492,4 +2492,7 @@ export const fr: Record<TranslationKey, string> = {
     tp_s7_b: "Nous pouvons mettre à jour ces conditions. Les modifications importantes seront communiquées et la date de mise à jour sera révisée.",
     tp_s8_h: "Contact",
     tp_s8_b: "Pour toute question concernant ces conditions, contactez-nous à suporte@chainfolioai.com.",
+
+    // ── Lote E (robustez): /estado — serviço "Snapshots diários" ──
+    st_f_snapshots: "historique du Portefeuille (cron quotidien)",
 };

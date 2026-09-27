@@ -2507,6 +2507,9 @@ export const pt = {
     tp_s7_b: "Podemos atualizar estes termos. As alterações materiais serão comunicadas e a data de atualização será revista.",
     tp_s8_h: "Contacto",
     tp_s8_b: "Para questões sobre estes termos, contacta-nos em suporte@chainfolioai.com.",
+
+    // ── Lote E (robustez): /estado — serviço "Snapshots diários" ──
+    st_f_snapshots: "histórico do Portefólio (cron diário)",
 };
 
 export type TranslationKey = keyof typeof pt;

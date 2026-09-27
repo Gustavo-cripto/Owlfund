@@ -31,19 +31,25 @@ export async function POST(req: NextRequest) {
   const admin = getSupabaseAdmin();
 
   // Teto diário de mensagens de chat (contador de janela de 24h por conta).
+  // Falha FECHADO, como o ask_ai do MCP: se o contador não responder, não se
+  // chama IA paga sem contar (antes deixava passar e o teto de 50/dia
+  // prometido em /developers não valia nesses momentos).
   try {
     const { data, error } = await admin.rpc("api_rate_check", {
       p_key_hash: `${auth.userId}:chat`,
       p_limit: DAILY_CHAT_LIMIT,
       p_window_seconds: 86400,
     });
-    if (error) console.error("[v1/chat] api_rate_check indisponível:", error.message);
-    if (!error && data === false) {
+    if (error) throw new Error(error.message);
+    if (data === false) {
       const res = apiJson({ error: "chat_limit", message: `Limite diário de ${DAILY_CHAT_LIMIT} mensagens atingido. Tenta amanhã.` }, { status: 429 });
       res.headers.set("Retry-After", "86400");
       return res;
     }
-  } catch { /* função ainda não migrada → deixa passar */ }
+  } catch (e) {
+    console.error("[v1/chat] api_rate_check indisponível (fail-closed):", e instanceof Error ? e.message : e);
+    return apiJson({ error: "service_unavailable", message: "Assistente de IA temporariamente indisponível." }, { status: 503 });
+  }
 
   const portfolio = await getPortfolio(auth.userId);
 

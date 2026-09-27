@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getPlanOrNull, planUnavailableResponse, requiresPlanResponse } from "@/lib/api/entitlement";
 import { requireUser } from "@/lib/api/requireUser";
+import { isValidEvmAddress } from "@/lib/wallets/address";
+import { apiMsg } from "@/lib/api/apiMessages";
 
 export interface HlBalance {
   coin: string;
@@ -21,8 +23,9 @@ export async function POST(request: Request) {
   const body = await request.json() as { address: string };
   const { address } = body;
 
-  if (!address || !address.startsWith("0x")) {
-    return NextResponse.json({ error: "Invalid address" }, { status: 400 });
+  // Formato completo (0x + 40 hex), nao so o prefixo: cada tentativa custava 2 pedidos a Hyperliquid.
+  if (!isValidEvmAddress(address)) {
+    return NextResponse.json({ error: apiMsg(request, "address_invalid"), code: "address_invalid" }, { status: 400 });
   }
 
   try {
@@ -31,6 +34,7 @@ export async function POST(request: Request) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type: "spotClearinghouseState", user: address }),
+      signal: AbortSignal.timeout(8_000),
     });
     const spotData = await spotRes.json() as { balances: { coin: string; total: string; hold: string }[] };
 
@@ -39,6 +43,7 @@ export async function POST(request: Request) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type: "clearinghouseState", user: address }),
+      signal: AbortSignal.timeout(8_000),
     });
     const perpData = await perpRes.json() as {
       marginSummary?: { accountValue: string };

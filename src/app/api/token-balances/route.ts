@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { apiMsg } from "@/lib/api/apiMessages";
 import { isValidBtcAddress } from "@/lib/wallets/btcAddress";
+import { isValidEvmAddress, isValidSolAddress } from "@/lib/wallets/address";
+import { maskAddress } from "@/lib/api/data";
 import { requireUser } from "@/lib/api/requireUser";
 import { getUsdPrices } from "@/lib/api/whales";
 import { alchemyTokensByWallet, hasAlchemy, AlchemyError } from "@/lib/providers/alchemy";
@@ -58,12 +60,10 @@ export type TokenBalance = {
   network?: string;
 };
 
-function isEvmAddress(a: string) {
-  return /^0x[a-fA-F0-9]{40}$/.test(a);
-}
-function isSolAddress(a: string) {
-  return typeof a === "string" && a.length >= 32 && a.length <= 44;
-}
+// Formato a serio (base58 de 32 bytes / 0x + 40 hex), partilhado com as rotas
+// irmas — antes qualquer string de 32-44 caracteres passava por Solana.
+const isEvmAddress = isValidEvmAddress;
+const isSolAddress = isValidSolAddress;
 // Checksum a serio, nao so formato: um endereco "bem parecido" que nao existe
 // deve dar "invalido", nao "falha ao consultar" (que parece avaria nossa).
 const isBtcAddress = isValidBtcAddress;
@@ -142,6 +142,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ tokens, totalUsd: usdValue });
   }
 
+  // Validar ANTES de qualquer fetch: cada tentativa invalida gastava pedidos a
+  // Alchemy/Helius/Moralis e acabava em "sem tokens" sem explicacao.
+  if ((chain === "eth" && !isEvmAddress(address)) || (chain === "sol" && !isSolAddress(address))) {
+    return NextResponse.json({ error: apiMsg(request, "address_invalid"), code: "address_invalid", tokens: [] }, { status: 400 });
+  }
+
   const moralisKey = (process.env.MORALIS_API_KEY ?? "").trim();
   const providerDown = (name: string, status: number) =>
     NextResponse.json(
@@ -181,7 +187,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ tokens, totalUsd, provider: "alchemy" });
     } catch (e) {
       const status = e instanceof AlchemyError ? e.status : 0;
-      console.error("[token-balances] Alchemy", address.slice(0, 10) + "…", e instanceof Error ? e.message : e);
+      console.error("[token-balances] Alchemy", maskAddress(address), e instanceof Error ? e.message : e);
       if (!moralisKey) return providerDown("Alchemy", status);
       // com Moralis configurada, tenta-a a seguir
     }
@@ -202,7 +208,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ tokens: tokens.slice(0, 30), totalUsd, provider: "helius" });
     } catch (e) {
       const status = e instanceof HeliusError ? e.status : 0;
-      console.error("[token-balances] Helius", address.slice(0, 10) + "…", e instanceof Error ? e.message : e);
+      console.error("[token-balances] Helius", maskAddress(address), e instanceof Error ? e.message : e);
       if (!moralisKey) return providerDown("Helius", status);
     }
   }
@@ -247,7 +253,7 @@ export async function GET(request: Request) {
     // Antes, um erro da Moralis (quota esgotada, chave inválida) era engolido e a
     // carteira aparecia a "0,00 US$" sem explicação. Se a mainnet falhou, ou
     // falharam todas as redes, dizemos a verdade em vez de inventar um zero.
-    if (failed.length > 0) console.error(`[token-balances] ${address.slice(0, 10)}… falhas Moralis: ${failed.join(", ")}`);
+    if (failed.length > 0) console.error(`[token-balances] ${maskAddress(address)} falhas Moralis: ${failed.join(", ")}`);
     if (failed.length === evmChains.length || failed.some((f) => f.startsWith("eth:"))) {
       return NextResponse.json(
         {
