@@ -1270,7 +1270,6 @@ export const en: Record<TranslationKey, string> = {
     wl_select_quotes: "Select assets to see quotes.",
     wl_cex_hw_pro: "Exchanges (CEX) — Pro Plan",
     wl_cex_hw_desc: "Connect 13 exchanges via read-only key (Kraken, Coinbase, OKX, Bybit, Crypto.com, Bitpanda, Bitvavo, Bitstamp, Bit2Me, Revolut X, Nexo Pro, Binance, CoinEx) with the Pro Plan. Ledger/Trezor addresses work on every plan: paste them into the manual address form.",
-    wl_err_sync: "Could not save the wallets to the cloud. They stay in this browser and we will try again shortly.",
     wl_err_defi: "Error loading DeFi.",
     wl_defi_partial: "partial",
     wl_nft_partial_tip: "Partial count: one of the networks did not answer. NFTs on that network may be missing.",

@@ -114,7 +114,7 @@ export async function GET(req: Request) {
   ]);
   const servicos: Servico[] = [
     ...servicosPing,
-    { id: "snapshots", nome: "Snapshots diários", funcao: "histórico do Portefólio (cron das 00:00 UTC)", estado: snapshots.estado, ms: snapshots.ms },
+    { id: "snapshots", nome: "Snapshots", funcao: "histórico do Portefólio (cron das 00:00 UTC)", estado: snapshots.estado, ms: snapshots.ms },
   ];
 
   const geral: Estado = servicos.some((s) => s.estado === "falha") ? "falha"

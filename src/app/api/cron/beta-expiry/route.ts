@@ -440,7 +440,7 @@ export async function GET(request: Request) {
       // tem 3 dias e o tester levava o mesmo email 3 vezes. Recurso = so no dia
       // em que faltam exatamente TRIAL_DAYS-1 dias (um envio, no pior caso).
       const faltam = Math.ceil((new Date(s.current_period_end as string).getTime() - now.getTime()) / DAY);
-      if (!em || !(await markSent(admin, uid, "welcome_step1", faltam === TRIAL_DAYS - 1))) continue;
+      if (!em || excluidos.has(uid) || !(await markSent(admin, uid, "welcome_step1", faltam === TRIAL_DAYS - 1))) continue;
       const lang = langOf(uid, em);
       const m = COPY.step1[lang](planOf(s.price_id));
       if (await sendEmail({ to: em, subject: m.subject, html: m.html, tag: "welcome_step1", userId: uid, lang })) step1++;

@@ -912,7 +912,9 @@ export default function PortfolioPage() {
   const advancedMetrics = useMemo(() => {
     if (snapshotTotals.length < 2) return null;
     const agora = Date.now();
-    const serie: Ponto[] = snapshotTotals.map((s) => ({ t: s.createdAt, total: s.total, iso: new Date(s.createdAt).toISOString() }));
+    // snapshotTotals vem por ordem decrescente; metricas() deduplica "um por dia,
+    // o ultimo" pela ordem de chegada, por isso a serie tem de ir cronologica.
+    const serie: Ponto[] = [...snapshotTotals].reverse().map((s) => ({ t: s.createdAt, total: s.total, iso: new Date(s.createdAt).toISOString() }));
     serie.push({ t: agora, total: portfolioTotal, iso: new Date(agora).toISOString() });
     return metricas(serie, agora);
   }, [snapshotTotals, portfolioTotal]);

@@ -1279,7 +1279,6 @@ export const pt = {
     wl_select_quotes: "Seleciona ativos para ver cotações.",
     wl_cex_hw_pro: "Exchanges (CEX) — Plano Pro",
     wl_cex_hw_desc: "Liga 13 exchanges por chave só-leitura (Kraken, Coinbase, OKX, Bybit, Crypto.com, Bitpanda, Bitvavo, Bitstamp, Bit2Me, Revolut X, Nexo Pro, Binance, CoinEx) com o Plano Pro. Endereços de Ledger/Trezor entram em qualquer plano: cola-os no formulário de endereço manual.",
-    wl_err_sync: "Não foi possível guardar as carteiras na nuvem. Ficam neste browser e tentamos outra vez daqui a pouco.",
     wl_err_defi: "Erro ao carregar DeFi.",
     wl_defi_partial: "parcial",
     wl_nft_partial_tip: "Contagem parcial: uma das redes não respondeu. Os NFTs dessa rede podem faltar.",

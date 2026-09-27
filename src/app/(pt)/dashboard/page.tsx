@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { SUPPORTED_CHAINS } from "@/lib/wallets/evm";
 import { useEffect, useRef, useState } from "react";
 import { btnPrimary } from "@/lib/ui/buttons";
 import AppShell from "@/components/AppShell";
@@ -505,7 +506,7 @@ export default function DashboardPage() {
           {/* ── Quick stats ── */}
           <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { value: "15+", label: t("dash_stat_networks"), icon: "🔗" },
+              { value: String(SUPPORTED_CHAINS), label: t("dash_stat_networks"), icon: "🔗" },
               { value: "100%", label: t("dash_stat_readonly"), icon: "🔒" },
               { value: "24/7", label: t("dash_stat_realtime"), icon: "📡" },
               { value: isPremium ? "€39" : isPro ? "€14,99" : "€0", label: isPremium ? t("dash_stat_plan_premium") : isPro ? t("dash_stat_plan_pro") : t("dash_stat_plan_free"), icon: isPremium ? "💎" : isPro ? "⭐" : "✨" },

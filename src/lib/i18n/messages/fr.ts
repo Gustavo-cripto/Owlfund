@@ -1270,7 +1270,6 @@ export const fr: Record<TranslationKey, string> = {
     wl_select_quotes: "Sélectionnez des actifs pour voir les cotations.",
     wl_cex_hw_pro: "Exchanges (CEX) — Forfait Pro",
     wl_cex_hw_desc: "Connectez 13 exchanges par clé en lecture seule (Kraken, Coinbase, OKX, Bybit, Crypto.com, Bitpanda, Bitvavo, Bitstamp, Bit2Me, Revolut X, Nexo Pro, Binance, CoinEx) avec le Forfait Pro. Les adresses Ledger/Trezor fonctionnent avec toutes les offres : collez-les dans le formulaire d'adresse manuelle.",
-    wl_err_sync: "Impossible d'enregistrer les portefeuilles dans le cloud. Ils restent dans ce navigateur et nous réessaierons bientôt.",
     wl_err_defi: "Erreur lors du chargement DeFi.",
     wl_defi_partial: "partiel",
     wl_nft_partial_tip: "Décompte partiel : l’un des réseaux n’a pas répondu. Des NFT de ce réseau peuvent manquer.",
