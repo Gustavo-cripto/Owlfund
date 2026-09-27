@@ -94,8 +94,11 @@ for (const p of ["/en", "/es", "/fr", "/en/pricing", "/fr/tarifs", "/es/beta"]) 
 }
 
 // ── 3b. Arestas de SEO que já regrediram uma vez ────────────────────────────
-// Slug inválido numa comparação: tem de cair no 404 global (html lang + h1 com
-// texto), não no invólucro vazio do Next (<html id="__next_error__"> sem lang).
+// Slug inválido numa comparação: com dynamicParams=false o URL não corresponde a
+// rota nenhuma e cai em src/app/global-not-found.tsx (h1 "Página não encontrada"),
+// não no invólucro vazio do Next (<html id="__next_error__"> sem lang). Aceita
+// também o h1 do not-found.tsx do grupo (pt) ("Esta página não existe") para o
+// caso de o Next um dia passar a resolver o 404 dentro do grupo.
 // E um guia e uma comparação têm de sair com og:image — `openGraph` numa página
 // substitui o bloco herdado por inteiro, e 60 páginas ficaram sem imagem.
 console.log(`\n── 3b) 404 das comparações e og:image dos guias/comparações`);
@@ -104,7 +107,7 @@ console.log(`\n── 3b) 404 das comparações e og:image dos guias/comparaçõ
   if (!res) erro(`/comparacoes/xyz — sem resposta (${falha})`);
   else {
     const lang = (texto.match(/<html[^>]*\blang="([^"]+)"/) ?? [])[1];
-    const h1 = /<h1[^>]*>[^<]*Esta página não existe/.test(texto);
+    const h1 = /<h1[^>]*>[^<]*(Página não encontrada|Esta página não existe)/.test(texto);
     if (res.status !== 404) erro(`/comparacoes/xyz → ${res.status} (esperava 404)`);
     else if (lang !== "pt-PT") erro(`/comparacoes/xyz sem <html lang="pt-PT"> (invólucro de erro vazio? falta dynamicParams=false na rota)`);
     else if (!h1) erro(`/comparacoes/xyz sem o h1 do 404 global`);

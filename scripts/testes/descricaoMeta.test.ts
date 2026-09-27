@@ -4,10 +4,14 @@ const eq = (name: string, got: string, want: string) => { const ok = got === wan
 const le = (name: string, got: string, max: number) => { const ok = got.length <= max; if (!ok) fails++; console.log(`${ok ? "✅" : "❌"} ${name}: ${got.length} chars`); };
 
 const PT = "Mais-valias cripto com detenção superior a 365 dias são isentas de imposto (desde 2023). Abaixo disso, aplica-se uma taxa de 28% sobre o lucro. Obrigatório declarar no IRS (Anexo G).";
-// Com a 2.a frase ficariam 158 caracteres: para na 1.a (fim de frase, nunca a meio).
-eq("base + frases que cabem", descricaoMeta("Portugal: 28%", PT),
-  "Portugal: 28%. Mais-valias cripto com detenção superior a 365 dias são isentas de imposto (desde 2023).");
+// Com a 2.a frase inteira ficariam 158 caracteres; so a 1.a dava 102 (< 120),
+// por isso a 2.a entra cortada na ultima palavra que cabe, com "…".
+eq("base + 1.a frase + 2.a cortada em palavra", descricaoMeta("Portugal: 28%", PT),
+  "Portugal: 28%. Mais-valias cripto com detenção superior a 365 dias são isentas de imposto (desde 2023). Abaixo disso, aplica-se uma taxa de 28% sobre o…");
 le("nunca passa o limite", descricaoMeta("Portugal: 28%", PT), 155);
+// Sem minimo (0) para na 1.a frase inteira: fim de frase, nunca a meio.
+eq("minimo 0 → so frases inteiras", descricaoMeta("Portugal: 28%", PT, 155, 0),
+  "Portugal: 28%. Mais-valias cripto com detenção superior a 365 dias são isentas de imposto (desde 2023).");
 // Com limite maior a 2.a frase ja entra; a 3.a nao.
 eq("limite 160 → 2 frases", descricaoMeta("Portugal: 28%", PT, 160),
   "Portugal: 28%. Mais-valias cripto com detenção superior a 365 dias são isentas de imposto (desde 2023). Abaixo disso, aplica-se uma taxa de 28% sobre o lucro.");
@@ -25,8 +29,16 @@ eq("sem base", descricaoMeta("", "Frase curta. Outra frase."), "Frase curta. Out
 
 // "(CGT). Para" e um fim de frase real (ponto + espaco + maiuscula).
 const SG = "Singapura não tem imposto sobre mais-valias (CGT). Para investidores privados, os ganhos cripto são geralmente isentos de imposto. Se o trading for considerado atividade comercial habitual, os lucros podem ser tributados como rendimento empresarial.";
-eq("corta em fim de frase real", descricaoMeta("Singapura: 0% (investidor privado)", SG),
+eq("corta em fim de frase real", descricaoMeta("Singapura: 0% (investidor privado)", SG, 155, 0),
   "Singapura: 0% (investidor privado). Singapura não tem imposto sobre mais-valias (CGT).");
+// 86 caracteres com a 1.a frase (< 120): a 2.a entra cortada em palavra.
+eq("abaixo do minimo → 2.a frase cortada", descricaoMeta("Singapura: 0% (investidor privado)", SG),
+  "Singapura: 0% (investidor privado). Singapura não tem imposto sobre mais-valias (CGT). Para investidores privados, os ganhos cripto são geralmente isentos…");
+le("com a 2.a cortada nao passa o limite", descricaoMeta("Singapura: 0% (investidor privado)", SG), 155);
+// Se o pedaco que caberia da frase seguinte for curto (< 30 chars), nao vale
+// a pena: fica a frase inteira sem "…".
+eq("pedaco curto nao entra", descricaoMeta("A: 1%", "Uma frase inteira que cabe bem. Segunda frase mais comprida do que o espaco que sobra.", 60),
+  "A: 1%. Uma frase inteira que cabe bem.");
 eq("com espaco para a 2.a frase", descricaoMeta("Singapura: 0% (investidor privado)", SG, 170),
   "Singapura: 0% (investidor privado). Singapura não tem imposto sobre mais-valias (CGT). Para investidores privados, os ganhos cripto são geralmente isentos de imposto.");
 

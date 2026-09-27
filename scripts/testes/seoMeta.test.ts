@@ -6,7 +6,7 @@ import { countryMetadata, indexMetadata } from "@/lib/tax/guideMeta";
 import { compareIndexMetadata, compareMetadata } from "@/lib/compare/compareMeta";
 import { COUNTRIES, TAX_GUIDE_DATE_MODIFIED } from "@/lib/tax/countries";
 import { COMPETITORS, COMPARE_DATE_MODIFIED } from "@/lib/compare/competitors";
-import { LIMITE_DESCRICAO } from "@/lib/seo/descricao";
+import { LIMITE_DESCRICAO, MINIMO_DESCRICAO } from "@/lib/seo/descricao";
 import sitemap from "@/app/sitemap";
 
 let fails = 0;
@@ -38,7 +38,9 @@ for (const c of COUNTRIES) for (const lang of ["pt", "en"] as const) {
 }
 ok(`42 guias com descricao (nenhum vazio)`, sem === 0);
 ok(`descricao mais longa <= ${LIMITE_DESCRICAO}`, maisLonga <= LIMITE_DESCRICAO, `${maisLonga}`);
-ok(`descricao mais curta >= 60`, maisCurta >= 60, `${maisCurta}`);
+// Com a frase seguinte cortada em palavra quando as inteiras nao chegam a 120,
+// o guia mais curto fica a 119 (pt/luxemburgo: o pedaco que sobra e < 30 chars).
+ok(`descricao mais curta >= ${MINIMO_DESCRICAO - 5}`, maisCurta >= MINIMO_DESCRICAO - 5, `${maisCurta}`);
 const pt = countryMetadata("pt", "portugal") as M;
 ok(`Portugal comeca por "Portugal: 28%."`, (pt.description ?? "").startsWith("Portugal: 28%. "), pt.description);
 ok(`Portugal acaba em fim de frase`, /[.!?…]$/.test(pt.description ?? ""));
