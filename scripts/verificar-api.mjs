@@ -89,7 +89,9 @@ for (const e of endpoints) {
     mal(`${e.path} respondeu 200 mas VAZIO (todos os campos a null/0) — foi este o erro de 18 set`);
     continue;
   }
-  const aviso = r.json.upstreamStatus ? ` (fonte devolveu ${r.json.upstreamStatus})` : "";
+  // /api/v1/global cai na CoinPaprika quando o CoinGecko falha: diz-se qual respondeu.
+  const aviso = (r.json.upstreamStatus ? ` (fonte devolveu ${r.json.upstreamStatus})` : "")
+    + (r.json.source && r.json.source !== "coingecko" ? ` [fonte: ${r.json.source}]` : "");
   ok(`${e.path} com conteúdo, ${r.ms} ms${aviso}`);
 }
 

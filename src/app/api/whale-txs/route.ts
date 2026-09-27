@@ -97,7 +97,7 @@ function toUsd(value: string, decimals: string, priceUsd: number): number {
 }
 
 async function getEthWhaleTxs(address: string): Promise<WhaleTx[]> {
-  // Preços LIVE (CoinGecko, cache 60s) — antes estavam fixos no código
+  // Preços LIVE (OKX, CoinGecko de reserva; cache 60s) — antes estavam fixos no código
   // (ETH 3200, BTC 97000…) e todos os valores USD/alertas saíam errados.
   const live = await getUsdPrices();
   const ETH_PRICE_USD = live.eth ?? 0;

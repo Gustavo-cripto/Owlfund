@@ -9,6 +9,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 // Cada verificacao e um pedido leve (um "ping") com 6 s de limite, feito no
 // servidor — nunca expoe chaves. A resposta fica em cache 5 min: chega para
 // quem quer saber "e comigo ou e o site?" e nao gasta quota das APIs.
+// O CoinGecko e a excecao (quota mensal apertada): ver pingCoinGecko.
 // Nao substitui a monitorizacao (verificacao noturna + bot); complementa-a.
 
 export const revalidate = 300;
@@ -29,6 +30,24 @@ async function ping(fn: () => Promise<Response>): Promise<{ estado: Estado; ms: 
   } catch {
     return { estado: "falha", ms: Date.now() - t0 };
   }
+}
+
+// CoinGecko (lote F): o ping a cada verificacao (5 min, no-store) gastava ate
+// ~8 600 dos 10 000 pedidos/mes do plano gratuito. Agora mostra-se o ultimo
+// resultado real conhecido: a resposta 200 fica 1 h na cache de dados do Next
+// (partilhada entre instancias; o cgFetch impoe-no) e qualquer resultado real
+// fica 1 h em memoria nesta instancia — inclusive um 429, para nao insistir.
+// Durante o travao do cgFetch vem um 429 sintetico: mostra "degradado", que e
+// verdade, mas nao se guarda como resultado real.
+const CG_ESTADO_TTL_MS = 60 * 60_000;
+let ultimoCg: { em: number; status: number } | null = null;
+async function pingCoinGecko(): Promise<Response> {
+  if (ultimoCg && Date.now() - ultimoCg.em < CG_ESTADO_TTL_MS) return new Response(null, { status: ultimoCg.status });
+  const res = await cgFetch("https://api.coingecko.com/api/v3/ping", {
+    signal: AbortSignal.timeout(TIMEOUT_MS), next: { revalidate: 3600 },
+  });
+  if (!res.headers.has("X-CG-Travao")) ultimoCg = { em: Date.now(), status: res.status };
+  return res;
 }
 
 const get = (url: string, init: RequestInit = {}) =>
@@ -83,7 +102,7 @@ export async function GET(req: Request) {
     { id: "okx", nome: "OKX", funcao: "cotações cripto e velas",
       run: () => get("https://www.okx.com/api/v5/market/ticker?instId=BTC-USDT") },
     { id: "coingecko", nome: "CoinGecko", funcao: "mercado e sentimento",
-      run: () => cgFetch("https://api.coingecko.com/api/v3/ping", { signal: AbortSignal.timeout(TIMEOUT_MS), cache: "no-store" }) },
+      run: pingCoinGecko },
     { id: "mempool", nome: "mempool.space", funcao: "blocos e saldos Bitcoin",
       run: () => get("https://mempool.space/api/blocks/tip/height") },
     { id: "alchemy", nome: "Alchemy", funcao: "tokens e NFTs (9 redes EVM)",

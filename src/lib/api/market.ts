@@ -1,7 +1,8 @@
 import { UpstreamError, assertUpstream } from "@/lib/api/upstream";
 import { cgFetch } from "@/lib/market/coingecko";
+import { lerGlobalCoinGecko, lerGlobalCoinPaprika } from "@/lib/market/globalLeitores";
 // Dados de mercado (top criptoativos), para a API pública e o MCP.
-// Fonte: CoinGecko (a mesma que a app já usa).
+// Fonte: CoinGecko (a mesma que a app já usa); o global cai na CoinPaprika.
 
 export type MarketCoin = {
   rank: number | null;
@@ -37,7 +38,8 @@ export async function getMarket(limit: number): Promise<MarketResult> {
     `&per_page=${perPage}&page=1&price_change_percentage=24h,7d`;
 
   let res: Response;
-  try { res = await fetch(url, { signal: AbortSignal.timeout(8000) }); }
+  // cgFetch: chave Demo, cache minima de 300 s e travao depois de um 429 (lote F).
+  try { res = await cgFetch(url, { signal: AbortSignal.timeout(8000), next: { revalidate: 300 } }); }
   catch { throw new UpstreamError(504, "coingecko"); }
   assertUpstream(res, "coingecko");
   if (!res.ok) return { coins: [], count: 0, source: "coingecko", timestamp: Date.now() };
@@ -66,44 +68,53 @@ export type GlobalMarket = {
   btcDominance: number | null;
   ethDominance: number | null;
   activeCryptocurrencies: number | null;
+  /** De onde vieram os números; null quando nenhuma fonte respondeu. */
+  source: "coingecko" | "coinpaprika" | null;
   timestamp: number;
-  /** Só presente quando a fonte recusou o pedido (para não falhar em silêncio). */
+  /** Só presente quando o CoinGecko recusou o pedido (para não falhar em silêncio). */
   upstreamStatus?: number;
 };
 
-/** Capitalização total e dominância BTC/ETH (CoinGecko). */
+const GLOBAL_TTL_S = 1800;
+
+/** Capitalização total e dominância BTC/ETH. CoinGecko; CoinPaprika se falhar.
+ *  Partilhada por /api/v1/global, o MCP e o bloco `global` de /api/markets. */
 export async function getGlobalMarket(): Promise<GlobalMarket> {
   const vazio: GlobalMarket = {
     totalMarketCapUsd: null, marketCapChange24h: null, btcDominance: null,
-    ethDominance: null, activeCryptocurrencies: null, timestamp: Date.now(),
+    ethDominance: null, activeCryptocurrencies: null, source: null, timestamp: Date.now(),
   };
+  // 1) CoinGecko. O cgFetch impõe o mínimo de 600 s; pede-se 30 min porque a
+  // capitalização total e a dominância mexem devagar e este pedido é dos que
+  // correm a toda a hora (fita, /mercado, API, MCP): 1 440 pedidos/mês no
+  // máximo, em vez de 4 320 a 600 s (orçamento: 10 000/mês para tudo).
+  let upstreamStatus: number | undefined;
   try {
-    // Sem `signal` nem `next` aqui: é exatamente a chamada que a rota /api/markets
-    // faz há meses e que responde. Com as opções extra a resposta vinha vazia.
-    const res = await cgFetch("https://api.coingecko.com/api/v3/global");
-    // Falhar em silêncio escondia a causa; o estado da fonte fica na resposta.
-    if (!res.ok) return { ...vazio, upstreamStatus: res.status };
-    const j = (await res.json()) as {
-      data?: {
-        total_market_cap?: { usd?: number };
-        market_cap_change_percentage_24h_usd?: number;
-        market_cap_percentage?: { btc?: number; eth?: number };
-        active_cryptocurrencies?: number;
-      };
-    };
-    const d = j.data;
-    if (!d) return vazio;
-    return {
-      totalMarketCapUsd: d.total_market_cap?.usd ?? null,
-      marketCapChange24h: d.market_cap_change_percentage_24h_usd ?? null,
-      btcDominance: d.market_cap_percentage?.btc ?? null,
-      ethDominance: d.market_cap_percentage?.eth ?? null,
-      activeCryptocurrencies: d.active_cryptocurrencies ?? null,
-      timestamp: Date.now(),
-    };
-  } catch {
-    return vazio;
-  }
+    const res = await cgFetch("https://api.coingecko.com/api/v3/global", { next: { revalidate: GLOBAL_TTL_S } });
+    if (res.ok) {
+      const n = lerGlobalCoinGecko(await res.json().catch(() => null));
+      if (n) return { ...n, source: "coingecko", timestamp: Date.now() };
+    } else {
+      upstreamStatus = res.status;
+    }
+  } catch { /* cai na CoinPaprika */ }
+
+  // 2) CoinPaprika (grátis, sem chave): em produção o CoinGecko chegou a dar
+  // 429 dias seguidos e isto respondia tudo a null. Falhar em silêncio
+  // escondia a causa: o estado do CoinGecko continua na resposta.
+  const extra = upstreamStatus ? { upstreamStatus } : {};
+  try {
+    const res = await fetch("https://api.coinpaprika.com/v1/global", {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(8000),
+      next: { revalidate: GLOBAL_TTL_S },
+    });
+    if (res.ok) {
+      const n = lerGlobalCoinPaprika(await res.json().catch(() => null));
+      if (n) return { ...n, source: "coinpaprika", timestamp: Date.now(), ...extra };
+    }
+  } catch { /* nenhuma fonte */ }
+  return { ...vazio, ...extra };
 }
 
 // ── Preço de um dia (velas diárias da OKX) ───────────────────────────────────

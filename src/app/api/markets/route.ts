@@ -2,10 +2,13 @@ import { NextResponse } from "next/server";
 import { rateLimitPublic } from "@/lib/api/requireUser";
 import { lastGood, rememberGood } from "@/lib/market/lastGood";
 import { cgFetch } from "@/lib/market/coingecko";
+import { getGlobalMarket } from "@/lib/api/market";
 
-// "Mercado em tempo real": revalida a cada 60s em vez de ficar em cache estática.
+// "Mercado em tempo real": revalida periodicamente em vez de ficar em cache estática.
 // Sem isto, o Next torna a rota estática e os preços/colunas ficam congelados.
-export const revalidate = 60;
+// Lote F (set 2026): 300 s, não 60 — o plano gratuito do CoinGecko são 10 000
+// pedidos/MÊS e esta rota era a maior gastadora.
+export const revalidate = 300;
 
 // O `revalidate` acima não chega, e media-se: a rota respondia em 1,1 a 1,5
 // segundos SEMPRE, com `x-vercel-cache: MISS` a cada pedido. A razão é que o
@@ -18,7 +21,7 @@ export const revalidate = 60;
 // guardar a resposta e servi-la a todos os outros. É o mesmo que /api/btc-blocks
 // já faz. `stale-while-revalidate` serve a última boa enquanto se busca a nova,
 // para ninguém esperar pela atualização.
-const CACHE = { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" };
+const CACHE = { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" };
 
 // A resposta inteira são 590 KB, e a maior parte são as linhas de sete dias de
 // cada uma das 161 moedas — que servem os gráficos da página /mercado. A fita de
@@ -181,18 +184,26 @@ export async function GET(request: Request) {
   const soAFita = parametros.get("ticker") === "1";
   const semSparkline = parametros.get("nospark") === "1";
   try {
-    // Tres chamadas ao CoinGecko, nao quatro: o "top 50" para o sentimento e
-    // um subconjunto das 250 por capitalizacao — vem da mesma resposta.
-    const [coinexResponse, coingeckoResponse, coingeckoExtraResponse, coingeckoGlobalResponse] = await Promise.all([
+    // Duas chamadas ao CoinGecko, nao quatro: o "top 50" para o sentimento e
+    // um subconjunto das 250 por capitalizacao — vem da mesma resposta — e o
+    // global vem da funcao partilhada com /api/v1/global (cache 30 min e
+    // CoinPaprika de reserva). Cada uma com cache propria (lote F).
+    const [coinexResponse, coingeckoResponse, coingeckoExtraResponse, globalMarket] = await Promise.all([
       fetch("https://api.coinex.com/v2/spot/ticker"),
       cgFetch(
-        "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&sparkline=true&price_change_percentage=1h,24h,7d,30d"
+        "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&sparkline=true&price_change_percentage=1h,24h,7d,30d",
+        // 15 min: o preco e a variacao 24 h vem da CoinEx a cada pedido; do
+        // CoinGecko so saem capitalizacao, linhas de 7 dias e 1h/7d/30d.
+        // Pedido a toda a hora (fita + /mercado aberto): 2 880/mes no maximo.
+        { next: { revalidate: 900 } }
       ),
+      // As estaveis extra quase nao mudam e so servem a lista manual: 1 dia.
       cgFetch(
-        `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${EXTRA_STABLE_IDS.join(",")}`
+        `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${EXTRA_STABLE_IDS.join(",")}`,
+        { next: { revalidate: 86_400 } }
       ),
       // Dados globais: dominância BTC/ETH, capitalização total e variação 24h.
-      cgFetch("https://api.coingecko.com/api/v3/global"),
+      getGlobalMarket(),
     ]);
 
     const coinexPayload = coinexResponse.ok
@@ -299,17 +310,14 @@ export async function GET(request: Request) {
       if (!bySymbol.has(entry.symbol)) bySymbol.set(entry.symbol, entry);
     }
 
-    // Dados globais (dominância + cap total). Falha aqui não parte a rota.
-    type GlobalPayload = { data?: { total_market_cap?: { usd?: number }; market_cap_change_percentage_24h_usd?: number; market_cap_percentage?: { btc?: number; eth?: number } } };
-    const globalPayload = coingeckoGlobalResponse.ok
-      ? await coingeckoGlobalResponse.json().catch(() => ({}) as GlobalPayload) as GlobalPayload
-      : {} as GlobalPayload;
-    const global = globalPayload.data
+    // Dados globais (dominância + cap total). Falha aqui não parte a rota
+    // (getGlobalMarket nunca lança; sem fonte nenhuma fica `global: null`).
+    const global = globalMarket.source
       ? {
-          totalMarketCapUsd: globalPayload.data.total_market_cap?.usd ?? null,
-          marketCapChange24h: globalPayload.data.market_cap_change_percentage_24h_usd ?? null,
-          btcDominance: globalPayload.data.market_cap_percentage?.btc ?? null,
-          ethDominance: globalPayload.data.market_cap_percentage?.eth ?? null,
+          totalMarketCapUsd: globalMarket.totalMarketCapUsd,
+          marketCapChange24h: globalMarket.marketCapChange24h,
+          btcDominance: globalMarket.btcDominance,
+          ethDominance: globalMarket.ethDominance,
         }
       : null;
 

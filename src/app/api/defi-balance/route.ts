@@ -4,6 +4,7 @@ import { apiMsg } from "@/lib/api/apiMessages";
 import { requireUser } from "@/lib/api/requireUser";
 import { encodeAbiParameters, keccak256 } from "viem";
 import { cgFetch } from "@/lib/market/coingecko";
+import { precoOkx } from "@/lib/market/okxSpot";
 import { getLendingPositions, isOnchainLendingProtocol, LENDING_CHAINS, type LendingChain, type LendingPosition } from "@/lib/defi/lending";
 import { getEigenLayerPositions, getMorphoPositions } from "@/lib/defi/morphoEigen";
 import { alchemyNftTokenIds, hasAlchemy, type EvmChainKey } from "@/lib/providers/alchemy";
@@ -1294,8 +1295,11 @@ const CARDANO_LP_POLICIES: Record<string, string> = {
 
 type BlockfrostAmount = { unit: string; quantity: string };
 
-/** ADA→USD spot (CoinGecko), to convert ADA-denominated pool values to USD. */
+/** ADA→USD spot (OKX, CoinGecko de reserva), to convert ADA-denominated pool values to USD. */
 async function fetchAdaUsd(): Promise<number> {
+  // OKX primeiro (lote F): o mesmo preço sem gastar o orçamento do CoinGecko.
+  const okx = await precoOkx("ADA-USDT");
+  if (okx != null) return okx;
   try {
     const r = await cgFetch(
       "https://api.coingecko.com/api/v3/simple/price?ids=cardano&vs_currencies=usd",

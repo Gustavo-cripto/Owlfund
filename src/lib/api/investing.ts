@@ -1,4 +1,5 @@
 import { UpstreamError, assertUpstream } from "@/lib/api/upstream";
+import { cgFetch } from "@/lib/market/coingecko";
 // Ferramentas de investimento para a API pública e o MCP.
 // Cada função é autónoma (busca a própria fonte) para não tocar nas rotas internas.
 
@@ -28,7 +29,8 @@ export async function getAsset(symbol: string): Promise<AssetQuote | null> {
   if (!s) return null;
   try {
     const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&symbols=${encodeURIComponent(s)}&price_change_percentage=24h,7d`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    // cgFetch: chave Demo, cache mínima de 300 s e travão após 429 (lote F).
+    const res = await cgFetch(url, { signal: AbortSignal.timeout(8000), next: { revalidate: 300 } });
     assertUpstream(res, "coingecko");
     if (!res.ok) return null;
     const rows = await res.json() as Array<Record<string, unknown>>;
