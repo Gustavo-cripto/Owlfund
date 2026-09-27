@@ -24,36 +24,73 @@ export default function FirePage() {
   // utilizador em BTC via "500 a 20.000 ₿".
   const cur = (eur: number) => convert(eur);
 
-  // Inputs do utilizador — persistidos localmente para a página abrir com o plano dele
-  const saved = useMemo<Record<string, number | string>>(() => {
-    try { return JSON.parse(localStorage.getItem("fire-plan-v1") ?? "{}"); } catch { return {}; }
-  }, []);
-  const n = (k: string, d: number) => (typeof saved[k] === "number" ? (saved[k] as number) : d);
-  const [monthlyExpenses, setMonthlyExpenses] = useState(() => n("exp", 2000));
-  const [monthlyInvestment, setMonthlyInvestment] = useState(() => n("inv", 500));
-  const [annualReturn, setAnnualReturn] = useState(() => n("ret", 7)); // % ao ano
-  const [inflationRate, setInflationRate] = useState(() => n("inf", 3)); // %
-  const [currentAge, setCurrentAge] = useState(() => n("age", 30));
+  // Inputs do utilizador — persistidos localmente, POR CONTA.
+  //
+  // Era uma chave fixa, "fire-plan-v1", sem o utilizador nenhures. Num browser
+  // onde entre mais do que uma pessoa (ou onde se troque de conta), a segunda
+  // abria a pagina com o plano da primeira: despesas, idade e patrimonio. Nao
+  // saia do computador — o localStorage nao viaja — mas num computador
+  // partilhado e' o plano de uma pessoa a ser mostrado a outra. (26/09/2026)
+  const chavePlano = userId ? `fire-plan-v1:${userId}` : null;
+  const [monthlyExpenses, setMonthlyExpenses] = useState(2000);
+  const [monthlyInvestment, setMonthlyInvestment] = useState(500);
+  const [annualReturn, setAnnualReturn] = useState(7); // % ao ano
+  const [inflationRate, setInflationRate] = useState(3); // %
+  const [currentAge, setCurrentAge] = useState(30);
 
-  const [portfolioOverride, setPortfolioOverride] = useState<string>(() => (typeof saved["pv"] === "string" ? (saved["pv"] as string) : ""));
-  const [fireMultiple, setFireMultiple] = useState(() => n("mult", 25)); // 20 Lean · 25 Regular · 33 Fat
+  const [portfolioOverride, setPortfolioOverride] = useState<string>("");
+  const [fireMultiple, setFireMultiple] = useState(25); // 20 Lean · 25 Regular · 33 Fat
+
+  // O plano so' se pode ler DEPOIS de se saber quem esta' ligado, por isso sai
+  // do useState e passa para um efeito. `planoCarregado` e' ESTADO (nao ref): os
+  // efeitos do mesmo render correm em sequencia, e com uma ref o efeito de
+  // gravacao, logo a seguir, via-a ja a true e escrevia os valores por omissao
+  // por cima do plano guardado. Com estado, a gravacao so corre no render
+  // seguinte, quando os valores lidos ja estao no ecra.
+  const [planoCarregado, setPlanoCarregado] = useState<string | null>(null);
+  // Moeda em que o plano foi guardado (o efeito de conversao, mais abaixo,
+  // converte-o para a moeda atual se forem diferentes).
+  const moedaDoPlano = useRef<string | null>(null);
+  useEffect(() => {
+    if (!chavePlano) return;
+    moedaDoPlano.current = null;
+    try {
+      // Limpa a chave global antiga: contem o plano de quem usou o browser
+      // antes e nao pertence a ninguem em particular.
+      localStorage.removeItem("fire-plan-v1");
+      const g = JSON.parse(localStorage.getItem(chavePlano) ?? "{}") as Record<string, unknown>;
+      const num = (k: string, d: number) => (typeof g[k] === "number" ? (g[k] as number) : d);
+      setMonthlyExpenses(num("exp", 2000));
+      setMonthlyInvestment(num("inv", 500));
+      setAnnualReturn(num("ret", 7));
+      setInflationRate(num("inf", 3));
+      setCurrentAge(num("age", 30));
+      setFireMultiple(num("mult", 25));
+      setPortfolioOverride(typeof g["pv"] === "string" ? (g["pv"] as string) : "");
+      if (typeof g["cur"] === "string") moedaDoPlano.current = g["cur"];
+    } catch { /* modo privado, etc. */ }
+    setPlanoCarregado(chavePlano);
+  }, [chavePlano]);
 
   useEffect(() => {
+    if (!chavePlano || planoCarregado !== chavePlano) return;
     try {
-      localStorage.setItem("fire-plan-v1", JSON.stringify({
+      localStorage.setItem(chavePlano, JSON.stringify({
         exp: monthlyExpenses, inv: monthlyInvestment, ret: annualReturn,
         inf: inflationRate, age: currentAge, pv: portfolioOverride, mult: fireMultiple,
         cur: curCode,
       }));
     } catch { /* modo privado, etc. */ }
-  }, [monthlyExpenses, monthlyInvestment, annualReturn, inflationRate, currentAge, portfolioOverride, fireMultiple, curCode]);
+  }, [chavePlano, planoCarregado, monthlyExpenses, monthlyInvestment, annualReturn, inflationRate, currentAge, portfolioOverride, fireMultiple, curCode]);
 
   // Ao trocar de moeda, os valores acompanham: quem tinha 2.000 €/mes de
   // despesas passa a ver o equivalente em dolares, e nao "2.000 $" — que seria
   // outro plano. Converte-se uma vez por mudanca de moeda (nunca quando as
   // taxas de cambio se atualizam, senao convertia em cada minuto).
-  const moedaAnterior = useRef<string>((typeof saved["cur"] === "string" ? (saved["cur"] as string) : curCode));
+  const moedaAnterior = useRef<string>(curCode);
   useEffect(() => {
+    // Plano acabado de ler, guardado noutra moeda: converte a partir dessa.
+    if (moedaDoPlano.current) { moedaAnterior.current = moedaDoPlano.current; moedaDoPlano.current = null; }
     const de = moedaAnterior.current;
     if (de === curCode) return;
     const taxaDe = (rates as Record<string, number>)[de] ?? 1;
@@ -64,7 +101,7 @@ export default function FirePage() {
     setMonthlyInvestment((v) => Math.round(v * f * 100) / 100);
     setPortfolioOverride((v) => (v.trim() === "" ? v : String(Math.round(Number(v) * f * 100) / 100)));
     moedaAnterior.current = curCode;
-  }, [curCode, rates]);
+  }, [curCode, rates, planoCarregado]);
 
   // Último snapshot do portefólio (para pré-preencher com 1 clique)
   const [livePortfolio, setLivePortfolio] = useState<number | null>(null);
