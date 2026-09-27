@@ -2492,4 +2492,7 @@ export const es: Record<TranslationKey, string> = {
     tp_s7_b: "Podemos actualizar estos términos. Los cambios materiales se comunicarán y se revisará la fecha de actualización.",
     tp_s8_h: "Contacto",
     tp_s8_b: "Para preguntas sobre estos términos, contáctanos en suporte@chainfolioai.com.",
+
+    // ── Lote D (SEO e partilha, set 2026) ──
+    sb_nav_main: "Navegación principal",
 };

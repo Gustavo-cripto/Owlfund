@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { countryBySlug, guideUrl, type GuideLang } from "./countries";
 import { countryText } from "./countryText";
 import { GUIDE_COPY } from "./guideCopy";
+import { descricaoMeta } from "@/lib/seo/descricao";
+import { socialMeta } from "@/lib/seo/site";
 
 // Metadata dos guias, incluindo hreflang: diz ao Google que /guias/…/portugal e
 // /guides/…/portugal sao a MESMA pagina em linguas diferentes. Sem isto as duas
@@ -33,7 +35,9 @@ export function indexMetadata(lang: GuideLang): Metadata {
     title: { absolute: c.indexMetaTitle },
     description: c.indexMetaDescription,
     alternates: { canonical, languages: languagesFor(guideUrl("pt"), guideUrl("en")) },
-    openGraph: { title: c.indexMetaTitle, description: c.indexMetaDescription, url: canonical, type: "article", locale: c.locale },
+    // Com images e twitter: sem eles o cartao saia sem imagem e com o titulo
+    // da homepage no X (ver socialMeta).
+    ...socialMeta({ title: c.indexMetaTitle, description: c.indexMetaDescription, url: canonical, type: "article", locale: c.locale }),
   };
 }
 
@@ -44,7 +48,10 @@ export function countryMetadata(lang: GuideLang, slug: string): Metadata {
   const text = countryText(country.code, lang);
   const title = c.countryMetaTitle(text.name, text.taxShort, text.taxLong);
   const titleCurto = c.countryMetaTitleShort(text.name);
-  const description = text.summary.slice(0, 300);
+  // "Pais: taxa" + as primeiras frases do resumo que caibam em ~155 caracteres,
+  // cortado em fim de frase. Antes ia o resumo inteiro (ate 300): o Google
+  // cortava a meio e a taxa — o gancho — ficava de fora do snippet.
+  const description = descricaoMeta(`${text.name}: ${text.taxShort}`, text.summary);
   const canonical = `${SITE}${guideUrl(lang, country)}`;
   return {
     title: tituloAbsoluto(title, titleCurto),
@@ -53,6 +60,6 @@ export function countryMetadata(lang: GuideLang, slug: string): Metadata {
       canonical,
       languages: languagesFor(guideUrl("pt", country), guideUrl("en", country)),
     },
-    openGraph: { title: title.length <= LIMITE_TITULO ? title : titleCurto, description, url: canonical, type: "article", locale: c.locale },
+    ...socialMeta({ title: title.length <= LIMITE_TITULO ? title : titleCurto, description, url: canonical, type: "article", locale: c.locale }),
   };
 }

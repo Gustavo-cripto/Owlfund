@@ -312,7 +312,7 @@ export default function FirePage() {
         <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-[700px] h-[300px] rounded-full bg-orange-500/6 blur-[100px]" />
       </div>
       <div className="relative z-10">
-        <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-6 space-y-8">
+        <div className="mx-auto w-full max-w-5xl px-6 pb-24 pt-6 space-y-8">
 
           {/* Header */}
           <div>
@@ -545,7 +545,7 @@ export default function FirePage() {
             </div>
           </div>
 
-        </main>
+        </div>
       </div>
     </div>
     </AppShell>

@@ -7,6 +7,8 @@ export type CompareCopy = {
   locale: string;
   breadcrumbHome: string;
   breadcrumbCompare: string;
+  /** aria-label do <nav> do breadcrumb — distingue-o da navegacao principal nos leitores de ecra. */
+  breadcrumbLabel: string;
   indexTitle: string;
   indexMetaTitle: string;
   indexMetaDescription: string;
@@ -57,6 +59,7 @@ export const COMPARE_COPY: Record<Lang, CompareCopy> = {
     locale: "pt_PT",
     breadcrumbHome: "Início",
     breadcrumbCompare: "Comparações",
+    breadcrumbLabel: "Localização",
     indexTitle: "ChainFolioAI comparado com outras ferramentas",
     indexMetaTitle: "ChainFolioAI vs Koinly, CoinTracking e Zerion",
     indexMetaDescription: "Comparação honesta do ChainFolioAI com o Koinly, o CoinTracking e o Zerion, incluindo o que cada um faz melhor do que nós.",
@@ -97,6 +100,7 @@ export const COMPARE_COPY: Record<Lang, CompareCopy> = {
     locale: "en_GB",
     breadcrumbHome: "Home",
     breadcrumbCompare: "Comparisons",
+    breadcrumbLabel: "Breadcrumb",
     indexTitle: "ChainFolioAI compared with other tools",
     indexMetaTitle: "ChainFolioAI vs Koinly, CoinTracking and Zerion",
     indexMetaDescription: "An honest comparison of ChainFolioAI with Koinly, CoinTracking and Zerion, including what each of them does better than us.",
@@ -137,6 +141,7 @@ export const COMPARE_COPY: Record<Lang, CompareCopy> = {
     locale: "es_ES",
     breadcrumbHome: "Inicio",
     breadcrumbCompare: "Comparativas",
+    breadcrumbLabel: "Ubicación",
     indexTitle: "ChainFolioAI comparado con otras herramientas",
     indexMetaTitle: "ChainFolioAI vs Koinly, CoinTracking y Zerion",
     indexMetaDescription: "Comparativa honesta de ChainFolioAI con Koinly, CoinTracking y Zerion, incluido lo que cada uno hace mejor que nosotros.",
@@ -177,6 +182,7 @@ export const COMPARE_COPY: Record<Lang, CompareCopy> = {
     locale: "fr_FR",
     breadcrumbHome: "Accueil",
     breadcrumbCompare: "Comparatifs",
+    breadcrumbLabel: "Fil d'Ariane",
     indexTitle: "ChainFolioAI comparé à d'autres outils",
     indexMetaTitle: "ChainFolioAI vs Koinly, CoinTracking et Zerion",
     indexMetaDescription: "Comparatif honnête de ChainFolioAI avec Koinly, CoinTracking et Zerion, y compris ce que chacun fait mieux que nous.",

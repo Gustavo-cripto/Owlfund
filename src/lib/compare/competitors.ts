@@ -16,6 +16,11 @@ import type { Lang } from "@/lib/i18n/translations";
 //
 // Última revisão dos factos: 20 de setembro de 2026.
 
+// A mesma data em ISO, num sitio so: dateModified do Article de cada
+// comparacao e lastmod do sitemap. Atualizar junto com o texto `reviewed`
+// de compareCopy.ts quando os factos forem revistos.
+export const COMPARE_DATE_MODIFIED = "2026-09-20";
+
 export type CompareSlug = "koinly" | "cointracking" | "zerion";
 
 export type Competitor = {

@@ -191,7 +191,7 @@ export default function Landing() {
             <div className="absolute bottom-0 right-0 h-[360px] w-[460px] rounded-full bg-slate-700/20 blur-[100px]" />
           </div>
           <div className="relative z-10">
-            <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 pb-24 pt-10">
+            <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 pb-24 pt-10">
               {/* Welcome header */}
               <header className="space-y-3">
                 <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-orange-300">
@@ -251,7 +251,7 @@ export default function Landing() {
                   </div>
                 </div>
               </section>
-            </main>
+            </div>
           </div>
         </div>
       </AppShell>

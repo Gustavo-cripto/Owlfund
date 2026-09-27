@@ -737,7 +737,7 @@ export default function AccountPage() {
         <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full bg-orange-500/6 blur-[100px]" />
       </div>
       <div className="relative z-10">
-        <main className="mx-auto w-full max-w-4xl px-6 pb-20 pt-6">
+        <div className="mx-auto w-full max-w-4xl px-6 pb-20 pt-6">
 
           {/* Header */}
           <div className="mb-8">
@@ -1452,7 +1452,7 @@ export default function AccountPage() {
             </button>
             <p className="text-[11px] text-slate-600">ChainFolioAI v{APP_VERSION}</p>
           </div>
-        </main>
+        </div>
       </div>
     </div>
     </AppShell>

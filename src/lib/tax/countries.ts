@@ -181,3 +181,9 @@ export const TAX_DATA_VERIFIED: Record<GuideLang, string> = {
   pt: "setembro de 2026",
   en: "September 2026",
 };
+
+// Ultima mudanca real dos regimes (git log deste ficheiro). Alimenta o
+// dateModified do Article dos guias (indice e paises) E o lastmod do sitemap,
+// num sitio so — antes o sitemap dizia "hoje" a cada deploy e contradizia o
+// Article. Atualizar quando as taxas ou prazos mudarem — nunca "hoje" automatico.
+export const TAX_GUIDE_DATE_MODIFIED = "2026-09-19";

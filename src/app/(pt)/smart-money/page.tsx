@@ -437,7 +437,7 @@ export default function SmartMoneyPage() {
         </div>
 
         <div className="relative z-10">
-          <main className="mx-auto w-full max-w-5xl px-6 pb-24 pt-6 space-y-6">
+          <div className="mx-auto w-full max-w-5xl px-6 pb-24 pt-6 space-y-6">
 
             {/* Header */}
             <div>
@@ -812,7 +812,7 @@ export default function SmartMoneyPage() {
               </div>
             )}
 
-          </main>
+          </div>
         </div>
       </div>
     </AppShell>

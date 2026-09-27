@@ -322,7 +322,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="relative z-10">
-        <main className="stagger-in mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 pb-24 pt-8">
+        <div className="stagger-in mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 pb-24 pt-8">
 
           {/* ── Hero ── */}
           <section className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
@@ -593,7 +593,7 @@ export default function DashboardPage() {
             </div>
           </section>
 
-        </main>
+        </div>
       </div>
     </div>
     </AppShell>

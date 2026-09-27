@@ -93,6 +93,36 @@ for (const p of ["/en", "/es", "/fr", "/en/pricing", "/fr/tarifs", "/es/beta"]) 
   (n === 0 ? ok : erro)(`${p.padEnd(14)} ${n} por localizar`);
 }
 
+// ── 3b. Arestas de SEO que já regrediram uma vez ────────────────────────────
+// Slug inválido numa comparação: tem de cair no 404 global (html lang + h1 com
+// texto), não no invólucro vazio do Next (<html id="__next_error__"> sem lang).
+// E um guia e uma comparação têm de sair com og:image — `openGraph` numa página
+// substitui o bloco herdado por inteiro, e 60 páginas ficaram sem imagem.
+console.log(`\n── 3b) 404 das comparações e og:image dos guias/comparações`);
+{
+  const { res, texto, falha } = await pedir(BASE + "/comparacoes/xyz");
+  if (!res) erro(`/comparacoes/xyz — sem resposta (${falha})`);
+  else {
+    const lang = (texto.match(/<html[^>]*\blang="([^"]+)"/) ?? [])[1];
+    const h1 = /<h1[^>]*>[^<]*Esta página não existe/.test(texto);
+    if (res.status !== 404) erro(`/comparacoes/xyz → ${res.status} (esperava 404)`);
+    else if (lang !== "pt-PT") erro(`/comparacoes/xyz sem <html lang="pt-PT"> (invólucro de erro vazio? falta dynamicParams=false na rota)`);
+    else if (!h1) erro(`/comparacoes/xyz sem o h1 do 404 global`);
+    else ok(`/comparacoes/xyz → 404 com lang="pt-PT" e o h1 do 404`);
+  }
+}
+for (const p of ["/guias/impostos-cripto/portugal", "/guides/crypto-tax/germany", "/comparacoes/koinly", "/en/comparisons/koinly", "/termos", "/developers"]) {
+  const { res, texto, falha } = await pedir(BASE + p);
+  if (!res || res.status !== 200) { erro(`${p} → ${res ? res.status : `sem resposta (${falha})`}`); continue; }
+  const og = (texto.match(/<meta property="og:image" content="([^"]+)"/) ?? [])[1];
+  const tw = /<meta name="twitter:card" content="summary_large_image"/.test(texto);
+  const locale = (texto.match(/<meta property="og:locale" content="([^"]+)"/) ?? [])[1] ?? "";
+  if (!og) erro(`${p} sem og:image`);
+  else if (!tw) erro(`${p} sem twitter:card summary_large_image`);
+  else if (locale.includes("-")) erro(`${p} com og:locale "${locale}" — o Open Graph exige sublinhado (pt_PT)`);
+  else ok(`${p.padEnd(32)} og:image + twitter:card${locale ? ` + og:locale ${locale}` : ""}`);
+}
+
 // ── 4. APIs públicas ────────────────────────────────────────────────────────
 console.log(`\n── 4) APIs públicas`);
 const APIS = [

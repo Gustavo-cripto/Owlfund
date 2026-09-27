@@ -36,10 +36,11 @@ export default function ComparisonIndex({ lang }: { lang: Lang }) {
   return (
     <AppShell>
       <div className="min-h-screen bg-slate-950 text-slate-100">
-        <main className="mx-auto w-full max-w-4xl px-6 py-12">
+        {/* <div>, nao <main>: o AppShell ja tem o <main> da pagina. */}
+        <div className="mx-auto w-full max-w-4xl px-6 py-12">
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-          <nav className="text-xs text-slate-500">
+          <nav aria-label={c.breadcrumbLabel} className="text-xs text-slate-500">
             <Link href={pageUrl("home", lang)} className="transition hover:text-slate-300">{c.breadcrumbHome}</Link> · {c.breadcrumbCompare}
           </nav>
 
@@ -58,7 +59,7 @@ export default function ComparisonIndex({ lang }: { lang: Lang }) {
           </div>
 
           <p className="mt-8 text-xs leading-relaxed text-slate-600">{c.reviewed}</p>
-        </main>
+        </div>
       </div>
     </AppShell>
   );

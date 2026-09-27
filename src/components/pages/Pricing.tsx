@@ -193,7 +193,7 @@ export default function Pricing() {
         </div>
 
         <div className="relative z-10">
-          <main className="mx-auto w-full max-w-6xl px-6 pb-24 pt-6 space-y-12">
+          <div className="mx-auto w-full max-w-6xl px-6 pb-24 pt-6 space-y-12">
 
             {/* Header */}
             <div className="text-center space-y-4">
@@ -546,7 +546,7 @@ export default function Pricing() {
               </p>
             </div>
 
-          </main>
+          </div>
         </div>
       </div>
     </AppShell>

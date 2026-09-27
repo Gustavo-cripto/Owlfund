@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import AppShell from "@/components/AppShell";
-import { COUNTRIES, guideUrl, TAX_DATA_VERIFIED, type Country, type GuideLang } from "@/lib/tax/countries";
+import { COUNTRIES, guideUrl, TAX_DATA_VERIFIED, TAX_GUIDE_DATE_MODIFIED, type Country, type GuideLang } from "@/lib/tax/countries";
 import { countryText } from "@/lib/tax/countryText";
 import { GUIDE_COPY } from "@/lib/tax/guideCopy";
 
@@ -52,9 +52,8 @@ export default function TaxGuideCountry({ lang, country }: { lang: GuideLang; co
         description: text.summary,
         inLanguage: c.locale,
         datePublished: "2026-09-11",
-        // Ultima mudanca real dos regimes (git log de src/lib/tax/countries.ts).
-        // Atualizar quando as taxas ou prazos mudarem — nunca "hoje" automatico.
-        dateModified: "2026-09-19",
+        // Ultima mudanca real dos regimes — a mesma constante do indice e do sitemap.
+        dateModified: TAX_GUIDE_DATE_MODIFIED,
         image: `${SITE}/opengraph-image`,
         author: { "@type": "Organization", name: "ChainFolioAI", url: SITE },
         publisher: { "@type": "Organization", name: "ChainFolioAI", url: SITE, logo: { "@type": "ImageObject", url: `${SITE}/chainfolioai-icon.png` } },
@@ -84,10 +83,12 @@ export default function TaxGuideCountry({ lang, country }: { lang: GuideLang; co
   return (
     <AppShell>
       <div className="min-h-screen bg-slate-950 text-slate-100">
-        <main className="mx-auto w-full max-w-4xl px-6 py-12">
+        {/* <article>, nao <main>: o AppShell ja tem o <main> da pagina e a ARIA
+            so admite um por documento. */}
+        <article className="mx-auto w-full max-w-4xl px-6 py-12">
           <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-          <nav className="text-xs text-slate-500">
+          <nav aria-label={c.breadcrumbLabel} className="text-xs text-slate-500">
             <Link href="/" className="transition hover:text-slate-300">{c.breadcrumbHome}</Link> ·{" "}
             <Link href={base} className="transition hover:text-slate-300">{c.breadcrumbGuides}</Link> · {text.name}
           </nav>
@@ -163,7 +164,7 @@ export default function TaxGuideCountry({ lang, country }: { lang: GuideLang; co
           </section>
 
           <p className="mt-10 text-xs leading-relaxed text-slate-500">{c.disclaimerCountry}</p>
-        </main>
+        </article>
       </div>
     </AppShell>
   );

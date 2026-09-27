@@ -106,7 +106,7 @@ export default function DevelopersContent() {
   return (
     <AppShell>
       <div className="min-h-screen bg-slate-950 text-slate-100">
-        <main className="mx-auto w-full max-w-5xl px-6 py-16 lg:grid lg:grid-cols-[200px_1fr] lg:gap-10">
+        <div className="mx-auto w-full max-w-5xl px-6 py-16 lg:grid lg:grid-cols-[200px_1fr] lg:gap-10">
           {/* TOC */}
           <nav className="hidden lg:block" aria-label={t("dev_toc")}>
             <div className="sticky top-24 space-y-1 text-sm">
@@ -255,7 +255,7 @@ export default function DevelopersContent() {
               <Link href="/account?section=api" className="text-sm font-semibold text-orange-300 hover:text-orange-200">{t("dev_manage_keys")} →</Link>
             </div>
           </div>
-        </main>
+        </div>
       </div>
     </AppShell>
   );
