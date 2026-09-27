@@ -37,7 +37,7 @@
 - [Home](https://chainfolioai.com/): product overview.
 - [How it works](https://chainfolioai.com/como-funciona): tool-by-tool walkthrough.
 - [Crypto tax guides](https://chainfolioai.com/guias/impostos-cripto): 21 countries, rates, holding periods and reference law.
-- [Pricing](https://chainfolioai.com/pricing): Free (€0), Pro (€14.99/mo), Premium (€39/mo). Card (Stripe) or crypto stablecoins (Helio).
+- [Pricing](https://chainfolioai.com/pricing): Free (€0), Pro (€14.99/mo), Premium (€39/mo). Card (Stripe). Crypto stablecoin payments (EURC/USDC via Helio) are planned and not yet enabled.
 - [Beta](https://chainfolioai.com/beta): open until 15 January 2027 — testers get Premium free for 60 days; payments are off during the beta.
 - [Developers (API + MCP)](https://chainfolioai.com/developers): programmatic access for apps and AI agents.
 - [Status](https://chainfolioai.com/estado): live status of the data sources we depend on.

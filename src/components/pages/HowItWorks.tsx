@@ -6,6 +6,7 @@ import { btnPrimary } from "@/lib/ui/buttons";
 import AppShell from "@/components/AppShell";
 import PlanBadge from "@/components/PlanBadge";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { preencherContagens } from "@/lib/api/catalog";
 import { pageUrl } from "@/lib/i18n/routes";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import Lightbox from "@/components/Lightbox";
@@ -79,7 +80,7 @@ function ToolRow({ tool, index }: { tool: (typeof TOOLS)[number]; index: number 
           {tool.b.map((b) => (
             <li key={b} className="flex items-start gap-2.5 text-sm text-slate-300">
               <span className="mt-0.5 shrink-0 text-orange-400">✓</span>
-              <span>{t(b)}</span>
+              <span>{preencherContagens(t(b))}</span>
             </li>
           ))}
         </ul>

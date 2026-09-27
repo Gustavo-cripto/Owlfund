@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { getSupabase } from "@/lib/supabase/lazy";
 import { CRYPTO_PAYMENTS_ENABLED } from "@/lib/payments/config";
 import { cryptoPrice, CRYPTO_DISCOUNT_PCT , FIAT_PRICES } from "@/lib/payments/pricing";
+import { SUPPORTED_CHAINS } from "@/lib/wallets/evm";
 
 // ── Feature comparison table data ─────────────────────────────────────────
 
@@ -53,7 +54,7 @@ export default function Pricing() {
       { label: t("pc_r_ai_chat"), free: false, pro: true, premium: true },
     ]},
     { category: t("pc_cat_tax"), rows: [
-      { label: t("pc_r_tax_calc"), free: t("pc_30_days"), pro: t("pc_unlimited"), premium: t("pc_unlimited") },
+      { label: t("pc_r_tax_calc"), free: true, pro: true, premium: true },
       { label: t("pc_r_countries"), free: t("pc_4_countries"), pro: t("pc_8_countries"), premium: t("pc_all") },
       { label: t("pc_r_tax_guide"), free: true, pro: true, premium: true },
       { label: t("pc_r_tax_pdf"), free: false, pro: true, premium: true },
@@ -216,7 +217,7 @@ export default function Pricing() {
             {/* Stats bar */}
             <div className="flex flex-wrap justify-center gap-6 text-center">
               {[
-                { value: "10+", label: t("pc_stat_chains") },
+                { value: String(SUPPORTED_CHAINS), label: t("pc_stat_chains") },
                 { value: "13 CEX", label: t("pc_stat_cex") },
                 { value: `21 ${t("pc_countries_word")}`, label: t("pc_stat_tax") },
                 { value: "API/MCP", label: t("pc_stat_api") },

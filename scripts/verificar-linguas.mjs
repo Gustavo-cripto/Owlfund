@@ -66,6 +66,59 @@ for (const c of codigos) {
   }
 }
 
+// ── 4. contagens da API escritas à mão ──────────────────────────────────────
+// A landing, o Como Funciona e a Conta diziam "12 endpoints / 11 ferramentas"
+// quando já eram 24/23. Os números vêm de src/lib/api/catalog.ts via os
+// placeholders {endpoints}/{tools}; um literal aqui é regressão.
+console.log("── Contagens da API (endpoints/ferramentas) escritas à mão");
+const LITERAL_API = /\b\d+\s+(endpoints?|ferramentas?|tools?|herramientas?|outils?)\b/i;
+for (const f of [...LANGS.map((l) => `src/lib/i18n/messages/${l}.ts`), "src/app/(pt)/account/page.tsx"]) {
+  readFileSync(f, "utf8").split("\n").forEach((linha, i) => {
+    if (linha.trimStart().startsWith("//")) return;
+    const m = LITERAL_API.exec(linha);
+    if (m) erro(`${f}:${i + 1}: "${m[0]}" escrito à mão — usa {endpoints}/{tools} + preencherContagens()`);
+  });
+}
+
+// ── 5. números diferentes entre línguas na mesma chave ──────────────────────
+// O espanhol dizia "15+ fuentes" onde as outras diziam "19 redes". Para cada
+// chave, o conjunto de números tem de ser o mesmo nas 4 línguas. Normaliza os
+// separadores de milhar/decimais (14,99 = 14.99 = 10 000) e ignora cores hex
+// e URLs, que variam sem ser erro.
+console.log("── Números por chave iguais nas 4 línguas");
+const VALOR = /(?:^ {4}|,\s)([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'|`((?:[^`\\]|\\.)*)`)/g;
+const numeros = (s) => {
+  const limpo = s
+    .replace(/\\u\{[0-9a-fA-F]+\}|\\u[0-9a-fA-F]{4}|\\x[0-9a-fA-F]{2}/g, " ") // escapes — etc. nao sao numeros
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/#[0-9a-fA-F]{3,8}\b/g, " ")
+    .replace(/(\d)[   .,](?=\d)/g, "$1")
+    .replace(/(\d+)[   ]?k\b/g, (_, n) => `${n}000`); // $100k = 100 k$ = 100 000 $
+  return [...new Set(limpo.match(/\d+/g) ?? [])].sort().join(",");
+};
+// Chaves em que uma língua escreve o número por extenso ("1 ano" vs "un an",
+// "1 minuto" vs "une minute"). Cada entrada é uma decisão, não uma exceção cega.
+const POR_EXTENSO = new Set(["dash_plan_pro_desc", "dash_cta_pro_desc", "wl_quotes_rate", "fisc_pdf_notes_text", "fc_de_sum"]);
+const valores = {};
+for (const l of LANGS) {
+  valores[l] = {};
+  for (const linha of T.slice(inicio[l], fim[l])) {
+    for (const m of linha.matchAll(VALOR)) valores[l][m[1]] = m[2] ?? m[3] ?? m[4] ?? "";
+  }
+}
+let comparadas = 0;
+for (const k of Object.keys(valores.pt)) {
+  if (POR_EXTENSO.has(k)) continue;
+  const ref = numeros(valores.pt[k]);
+  comparadas++;
+  for (const l of LANGS.slice(1)) {
+    if (!(k in valores[l])) continue;
+    const outro = numeros(valores[l][k]);
+    if (outro !== ref) erro(`${k}: números diferentes — pt [${ref}] vs ${l} [${outro}]`);
+  }
+}
+console.log(`  ${comparadas} chaves comparadas`);
+
 console.log(falhas === 0 ? "\n✅ Traduções em ordem." : `\n${falhas} problema(s).`);
 process.exit(falhas === 0 ? 0 : 1);
 

@@ -193,3 +193,9 @@ export const MCP_TOOLS: McpTool[] = [
 ];
 
 export const API_LIMITS = { perMinute: 60, chatPerDay: 50, maxKeys: 5 } as const;
+
+// Preenche {endpoints}/{tools} numa frase traduzida com as contagens reais do
+// catalogo. Landing, Como Funciona e Conta passam por aqui: os numeros nunca
+// se escrevem a mao nas mensagens (o verificar-linguas.mjs acusa se aparecerem).
+export const preencherContagens = (frase: string) =>
+  frase.replace(/\{endpoints\}/g, String(API_ENDPOINTS.length)).replace(/\{tools\}/g, String(MCP_TOOLS.length));

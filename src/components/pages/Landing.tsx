@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { compareUrl } from "@/lib/compare/competitors";
 import { COUNTRIES, TEXT_PREFIX, guideUrl } from "@/lib/tax/countries";
+import { preencherContagens } from "@/lib/api/catalog";
+import { SUPPORTED_CHAINS } from "@/lib/wallets/evm";
 import { useEffect, useState } from "react";
 import { SOCIAL_LINKS } from "@/lib/social";
 import AppShell from "@/components/AppShell";
@@ -34,8 +36,8 @@ const STEPS = (paymentsFrozen
     ]) as ReadonlyArray<{ num: string; t: "lp_s1_t" | "lp_s2_t" | "lp_s3_t" | "lp_s_beta_t"; d: "lp_s1_d" | "lp_s2_d" | "lp_s3_d" | "lp_s_beta_d" }>;
 
 const STATS = [
-  { value: "19", k: "lp_st1" },
-  { value: "21", k: "lp_st4" },
+  { value: String(SUPPORTED_CHAINS), k: "lp_st1" },
+  { value: String(COUNTRIES.length), k: "lp_st_countries" },
   { value: "10 🇪🇺", k: "lp_st5" },
   { value: "€0", k: "lp_st2" },
 ] as const;
@@ -422,7 +424,7 @@ export default function Landing() {
                 >
                   <div className="mb-4 text-3xl leading-none">{f.icon}</div>
                   <h3 className="flex items-center gap-2 text-base font-bold text-white">{t(f.t)}{f.plan && <PlanBadge plan={f.plan} size="xs" />}</h3>
-                  <p className="mt-2 text-sm text-slate-400 leading-relaxed">{t(f.d)}</p>
+                  <p className="mt-2 text-sm text-slate-400 leading-relaxed">{preencherContagens(t(f.d))}</p>
                 </div>
               ))}
             </div>
