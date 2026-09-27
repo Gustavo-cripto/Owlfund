@@ -10,16 +10,6 @@ const connectionPrimary = new Connection(RPC_PRIMARY, "confirmed");
 const connectionFallback = new Connection(RPC_FALLBACK, "confirmed");
 const connectionFallback2 = new Connection(RPC_FALLBACK2, "confirmed");
 
-const isRpcError = (err: unknown) => {
-  const msg = err instanceof Error ? err.message : String(err);
-  return (
-    msg.includes("403") ||
-    msg.includes("Access forbidden") ||
-    msg.includes("API key") ||
-    msg.includes("forbidden")
-  );
-};
-
 export type SolanaWalletId = "phantom" | "backpack" | "solflare" | "glow" | "flint";
 
 export const isPhantomAvailable = () =>

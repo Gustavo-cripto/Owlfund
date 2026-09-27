@@ -28,6 +28,14 @@ type WhaleTx = {
 const ETHERSCAN_API = "https://api.etherscan.io/v2/api";
 const API_KEY = (process.env.ETHERSCAN_API_KEY ?? "").trim();
 
+// As baleias da lista sao as MESMAS para toda a gente: 60 s de cache no servidor
+// evitam repetir as 4 chamadas por cada abertura do Smart Money (a chave
+// gratuita da Etherscan tem 5 pedidos/s), e o timeout impede um upstream lento
+// de segurar a funcao ate ao limite da Vercel.
+// Funcao, nao constante: um AbortSignal.timeout criado no arranque do modulo
+// dispararia 8 s depois e abortava todos os pedidos seguintes.
+const UPSTREAM = () => ({ next: { revalidate: 60 }, signal: AbortSignal.timeout(8_000) });
+
 function requireEtherscanKey() {
   if (!API_KEY) throw new Error("Histórico ETH indisponível: falta ETHERSCAN_API_KEY (a API V2 da Etherscan exige chave).");
 }
@@ -55,7 +63,7 @@ async function getEthTxs(address: string): Promise<EtherscanTx[]> {
     chainid: "1", apikey: API_KEY,
   });
   const res = await fetch(`${ETHERSCAN_API}?${params}`, {
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; ChainFolioAI/1.0)" }, cache: "no-store",
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; ChainFolioAI/1.0)" }, ...UPSTREAM(),
   });
   if (!res.ok) throw new Error(`etherscan ${res.status}`);
   const data = (await res.json()) as { status: string; message?: string; result: EtherscanTx[] | string };
@@ -70,7 +78,7 @@ async function getEthNativeTxs(address: string): Promise<EtherscanTx[]> {
     chainid: "1", apikey: API_KEY,
   });
   const res = await fetch(`${ETHERSCAN_API}?${params}`, {
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; ChainFolioAI/1.0)" }, cache: "no-store",
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; ChainFolioAI/1.0)" }, ...UPSTREAM(),
   });
   if (!res.ok) return [];
   const data = (await res.json()) as { status: string; message?: string; result: EtherscanTx[] | string };
@@ -137,13 +145,13 @@ async function getBtcWhaleTxs(address: string): Promise<WhaleTx[]> {
 
   const res = await fetch(
     `https://mempool.space/api/address/${encodeURIComponent(address)}/txs`,
-    { headers: { "User-Agent": "Mozilla/5.0 (compatible; ChainFolioAI/1.0)" }, cache: "no-store" }
+    { headers: { "User-Agent": "Mozilla/5.0 (compatible; ChainFolioAI/1.0)" }, ...UPSTREAM() }
   );
   if (!res.ok) {
     // fallback blockstream
     const res2 = await fetch(
       `https://blockstream.info/api/address/${encodeURIComponent(address)}/txs`,
-      { headers: { "User-Agent": "Mozilla/5.0 (compatible; ChainFolioAI/1.0)" }, cache: "no-store" }
+      { headers: { "User-Agent": "Mozilla/5.0 (compatible; ChainFolioAI/1.0)" }, ...UPSTREAM() }
     );
     if (!res2.ok) throw new Error(`BTC API ${res2.status}`);
     const data = (await res2.json()) as MempoolTx[];

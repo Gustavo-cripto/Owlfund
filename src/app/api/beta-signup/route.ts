@@ -6,21 +6,12 @@ import { createHash } from "crypto";
 import { Resend } from "resend";
 import { sendTelegram, tgEsc } from "@/lib/notify/telegram";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { betaAberto } from "@/lib/plans";
 
 const TO = process.env.BETA_SIGNUP_TO ?? "suporte@chainfolioai.com";
 const FROM = "ChainFolioAI <noreply@chainfolioai.com>";
 const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? "https://chainfolioai.com";
 const TRIAL_DAYS = 60;
-
-// Data de corte do beta: a partir dela não se aceitam NOVOS testers. Os que já
-// têm plano mantêm os dias que faltam até expirar (depois renovam/pagam).
-// Definir em NEXT_PUBLIC_BETA_CUTOFF (ISO, ex.: "2026-10-01"). Vazio = sempre aberto.
-function betaClosed(): boolean {
-  const raw = process.env.NEXT_PUBLIC_BETA_CUTOFF ?? "2027-01-15T23:59:59Z";
-  if (!raw) return false;
-  const d = new Date(raw);
-  return !Number.isNaN(d.getTime()) && Date.now() > d.getTime();
-}
 
 // Travao por endereco IP, com contador PARTILHADO na base de dados.
 //
@@ -90,8 +81,11 @@ function shell(inner: string): string {
 }
 
 // Boas-vindas ao tester, por idioma (curto e com marketing).
-function welcome(lang: string, name: string, untilStr: string, email: string): { subject: string; html: string } {
-  const hi = name ? `, ${esc(name)}` : "";
+// O nome NAO entra neste email: o POST e publico e o email sai assinado pelo
+// nosso dominio para o endereco que vier no pedido — com o nome interpolado,
+// qualquer texto do atacante ("Premio em bit.ly/x") chegava a terceiros com a
+// nossa marca. O nome fica so na notificacao interna (suporte@ + Telegram).
+function welcome(lang: string, untilStr: string, email: string): { subject: string; html: string } {
   // Os botoes levavam ao /login generico, sem dizer que e para CRIAR conta e sem
   // o email preenchido — pior do que o caminho no site, que abre o separador de
   // registo ja com o email. O email e a outra porta para o passo 2; tem de dar
@@ -101,7 +95,7 @@ function welcome(lang: string, name: string, untilStr: string, email: string): {
   const T: Record<string, { subject: string; body: string }> = {
     en: {
       subject: "Welcome to the ChainFolioAI beta",
-      body: `<p style="color:#fff;font-size:17px;font-weight:700">You're on the list${hi}! 🎉</p>
+      body: `<p style="color:#fff;font-size:17px;font-weight:700">You're on the list! 🎉</p>
         <p>Thanks for joining the <b>ChainFolioAI</b> beta — the dashboard that brings your <b>crypto and traditional assets</b> together, with real-time PNL, tax tools and an AI that knows your real portfolio.</p>
         <p style="background:#1f2937;border-radius:10px;padding:12px 14px">✅ You'll get <b>Pro or Premium free for ${TRIAL_DAYS} days</b> once we activate your account (indicative until <b>${untilStr}</b>).</p>
         <p><b>Next step:</b> open the sign-in link we sent you in a separate email — it creates your account with one click, no password. Already have an account? Just sign in and hang tight: we’ll activate your plan shortly.</p>
@@ -111,7 +105,7 @@ function welcome(lang: string, name: string, untilStr: string, email: string): {
     },
     es: {
       subject: "Bienvenido a la beta de ChainFolioAI",
-      body: `<p style="color:#fff;font-size:17px;font-weight:700">¡Estás en la lista${hi}! 🎉</p>
+      body: `<p style="color:#fff;font-size:17px;font-weight:700">¡Estás en la lista! 🎉</p>
         <p>Gracias por unirte a la beta de <b>ChainFolioAI</b> — el panel que reúne tu <b>cripto y activos tradicionales</b>, con PNL en tiempo real, impuestos y una IA que conoce tu cartera real.</p>
         <p style="background:#1f2937;border-radius:10px;padding:12px 14px">✅ Tendrás <b>Pro o Premium gratis ${TRIAL_DAYS} días</b> cuando activemos tu cuenta (indicativo hasta el <b>${untilStr}</b>).</p>
         <p><b>Siguiente paso:</b> abre el enlace de acceso que te enviamos en otro email — crea tu cuenta con un clic, sin contraseña. ¿Ya tienes cuenta? Entra y espera: activaremos tu plan en breve.</p>
@@ -121,7 +115,7 @@ function welcome(lang: string, name: string, untilStr: string, email: string): {
     },
     fr: {
       subject: "Bienvenue dans la bêta de ChainFolioAI",
-      body: `<p style="color:#fff;font-size:17px;font-weight:700">Vous êtes sur la liste${hi} ! 🎉</p>
+      body: `<p style="color:#fff;font-size:17px;font-weight:700">Vous êtes sur la liste ! 🎉</p>
         <p>Merci de rejoindre la bêta de <b>ChainFolioAI</b> — le tableau de bord qui réunit vos <b>cryptos et actifs traditionnels</b>, avec PNL en temps réel, fiscalité et une IA qui connaît votre portefeuille réel.</p>
         <p style="background:#1f2937;border-radius:10px;padding:12px 14px">✅ Vous aurez <b>Pro ou Premium gratuit ${TRIAL_DAYS} jours</b> dès l'activation de votre compte (indicatif jusqu'au <b>${untilStr}</b>).</p>
         <p><b>Étape suivante :</b> ouvrez le lien de connexion envoyé dans un autre e-mail — il crée votre compte en un clic, sans mot de passe. Vous avez déjà un compte ? Connectez-vous : nous activerons votre offre sous peu.</p>
@@ -131,7 +125,7 @@ function welcome(lang: string, name: string, untilStr: string, email: string): {
     },
     pt: {
       subject: "Bem-vindo ao beta do ChainFolioAI",
-      body: `<p style="color:#fff;font-size:17px;font-weight:700">Estás na lista${hi}! 🎉</p>
+      body: `<p style="color:#fff;font-size:17px;font-weight:700">Estás na lista! 🎉</p>
         <p>Obrigado por entrares no beta do <b>ChainFolioAI</b> — o painel que junta a tua <b>cripto e ativos tradicionais</b>, com PNL em tempo real, fiscalidade e uma IA que conhece o teu portefólio real.</p>
         <p style="background:#1f2937;border-radius:10px;padding:12px 14px">✅ Vais ter <b>Pro ou Premium grátis durante ${TRIAL_DAYS} dias</b> assim que ativarmos a tua conta (indicativo até <b>${untilStr}</b>).</p>
         <p><b>Próximo passo:</b> abre a ligação de entrada que te enviámos noutro email — cria a tua conta num clique, sem palavra-passe. Já tens conta? Entra e aguarda: ativamos o teu plano em breve.</p>
@@ -159,7 +153,8 @@ const toText = (h: string) =>
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
   if (!(await allowed(ip))) return NextResponse.json({ error: "rate_limited" }, { status: 429 });
-  if (betaClosed()) return NextResponse.json({ error: "beta_closed" }, { status: 403 });
+  // Data de corte do beta: fonte unica em src/lib/plans.ts (BETA_CUTOFF_ISO).
+  if (!betaAberto()) return NextResponse.json({ error: "beta_closed" }, { status: 403 });
 
   const key = process.env.RESEND_API_KEY ?? "";
   if (!key) return NextResponse.json({ error: "send_failed" }, { status: 503 });
@@ -269,7 +264,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Boas-vindas ao tester (best-effort; a inscrição já está segura).
-  const w = welcome(lang, name, untilStr, email);
+  const w = welcome(lang, untilStr, email);
   await resend.emails.send({
     from: FROM, to: email, replyTo: "suporte@chainfolioai.com", subject: w.subject, html: w.html, text: toText(w.html),
     headers: { "List-Unsubscribe": "<mailto:suporte@chainfolioai.com?subject=remover>", "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },

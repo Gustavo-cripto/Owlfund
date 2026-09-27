@@ -23,6 +23,7 @@ const KEY: Record<Estado, TranslationKey> = {
 const FUNCAO: Record<string, TranslationKey> = {
   supabase: "st_f_supabase", okx: "st_f_okx", coingecko: "st_f_coingecko", mempool: "st_f_mempool",
   alchemy: "st_f_alchemy", frankfurter: "st_f_frankfurter", twelvedata: "st_f_twelvedata", telegram: "st_f_telegram",
+  snapshots: "st_f_snapshots",
 };
 
 export default function Status() {

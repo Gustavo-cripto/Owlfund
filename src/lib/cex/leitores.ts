@@ -24,12 +24,12 @@ export interface CexBalanceResponse {
 
 // ── Binance ────────────────────────────────────────────────────────────────
 
-export async function fetchBinance(apiKey: string, apiSecret: string): Promise<CexBalance[]> {
+export async function fetchBinance(apiKey: string, apiSecret: string, signal?: AbortSignal): Promise<CexBalance[]> {
   const ts = Date.now();
   const query = `timestamp=${ts}&recvWindow=10000`;
   const sig = crypto.createHmac("sha256", apiSecret).update(query).digest("hex");
   const url = `https://api.binance.com/api/v3/account?${query}&signature=${sig}`;
-  const res = await fetch(url, { headers: { "X-MBX-APIKEY": apiKey } });
+  const res = await fetch(url, { headers: { "X-MBX-APIKEY": apiKey }, signal });
   if (res.status === 451) throw new Error("Binance bloqueou o acesso a partir dos servidores da app (restrição geográfica). Usa a Binance diretamente ou experimenta a Kraken/CoinEx.");
   if (!res.ok) throw new Error(`Binance: ${res.status}`);
   const data = await res.json() as { balances: { asset: string; free: string; locked: string }[] };
@@ -40,7 +40,7 @@ export async function fetchBinance(apiKey: string, apiSecret: string): Promise<C
 
 // ── Kraken ─────────────────────────────────────────────────────────────────
 
-export async function fetchKraken(apiKey: string, apiSecret: string): Promise<CexBalance[]> {
+export async function fetchKraken(apiKey: string, apiSecret: string, signal?: AbortSignal): Promise<CexBalance[]> {
   const nonce = Date.now().toString();
   const path = "/0/private/Balance";
   const body = `nonce=${nonce}`;
@@ -53,6 +53,7 @@ export async function fetchKraken(apiKey: string, apiSecret: string): Promise<Ce
     method: "POST",
     headers: { "API-Key": apiKey, "API-Sign": sig, "Content-Type": "application/x-www-form-urlencoded" },
     body,
+    signal,
   });
   if (!res.ok) throw new Error(`Kraken: ${res.status}`);
   const data = await res.json() as { error: string[]; result: Record<string, string> };
@@ -64,7 +65,7 @@ export async function fetchKraken(apiKey: string, apiSecret: string): Promise<Ce
 
 // ── CoinEx ─────────────────────────────────────────────────────────────────
 
-export async function fetchCoinEx(apiKey: string, apiSecret: string): Promise<CexBalance[]> {
+export async function fetchCoinEx(apiKey: string, apiSecret: string, signal?: AbortSignal): Promise<CexBalance[]> {
   const key    = apiKey.replace(/[\s\r\n\t]/g, "");
   const secret = apiSecret.replace(/[\s\r\n\t]/g, "");
 
@@ -82,6 +83,7 @@ export async function fetchCoinEx(apiKey: string, apiSecret: string): Promise<Ce
         "X-COINEX-TIMESTAMP": ts,
       },
       cache: "no-store",
+      signal,
     });
   };
 
@@ -111,7 +113,7 @@ export async function fetchCoinEx(apiKey: string, apiSecret: string): Promise<Ce
 
 // ── OKX (MiCA · Malta) — precisa de passphrase ─────────────────────────────
 
-export async function fetchOkx(apiKey: string, apiSecret: string, passphrase: string): Promise<CexBalance[]> {
+export async function fetchOkx(apiKey: string, apiSecret: string, passphrase: string, signal?: AbortSignal): Promise<CexBalance[]> {
   const call = async (path: string) => {
     const ts = new Date().toISOString();
     const sig = crypto.createHmac("sha256", apiSecret).update(ts + "GET" + path).digest("base64");
@@ -123,6 +125,7 @@ export async function fetchOkx(apiKey: string, apiSecret: string, passphrase: st
         "OK-ACCESS-PASSPHRASE": passphrase,
       },
       cache: "no-store",
+      signal,
     });
     if (!res.ok) throw new Error(`OKX: ${res.status}`);
     return res.json() as Promise<{ code: string; msg?: string; data?: unknown[] }>;
@@ -156,7 +159,7 @@ export async function fetchOkx(apiKey: string, apiSecret: string, passphrase: st
 
 // ── Bybit (MiCA · Áustria) ─────────────────────────────────────────────────
 
-export async function fetchBybit(apiKey: string, apiSecret: string): Promise<CexBalance[]> {
+export async function fetchBybit(apiKey: string, apiSecret: string, signal?: AbortSignal): Promise<CexBalance[]> {
   const call = async (path: string, query: string) => {
     const ts = Date.now().toString();
     const recv = "10000";
@@ -169,6 +172,7 @@ export async function fetchBybit(apiKey: string, apiSecret: string): Promise<Cex
         "X-BAPI-SIGN": sig,
       },
       cache: "no-store",
+      signal,
     });
     if (!res.ok) throw new Error(`Bybit: ${res.status}`);
     return res.json() as Promise<{ retCode: number; retMsg?: string; result?: unknown }>;
@@ -204,7 +208,7 @@ export async function fetchBybit(apiKey: string, apiSecret: string): Promise<Cex
 
 // ── Crypto.com (MiCA · Malta) ──────────────────────────────────────────────
 
-export async function fetchCryptoCom(apiKey: string, apiSecret: string): Promise<CexBalance[]> {
+export async function fetchCryptoCom(apiKey: string, apiSecret: string, signal?: AbortSignal): Promise<CexBalance[]> {
   const id = Date.now();
   const nonce = Date.now();
   const method = "private/user-balance";
@@ -215,6 +219,7 @@ export async function fetchCryptoCom(apiKey: string, apiSecret: string): Promise
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ id, method, api_key: apiKey, params: {}, nonce, sig }),
     cache: "no-store",
+    signal,
   });
   if (!res.ok) throw new Error(`Crypto.com: ${res.status}`);
   const data = await res.json() as { code: number; message?: string; result?: { data?: { position_balances?: { instrument_name: string; quantity: string }[] }[] } };
@@ -232,7 +237,7 @@ export async function fetchCryptoCom(apiKey: string, apiSecret: string): Promise
 }
 
 // ── Bitvavo (MiCA · Países Baixos) ─────────────────────────────────────────
-export async function fetchBitvavo(apiKey: string, apiSecret: string): Promise<CexBalance[]> {
+export async function fetchBitvavo(apiKey: string, apiSecret: string, signal?: AbortSignal): Promise<CexBalance[]> {
   const ts = Date.now();
   const res = await fetch("https://api.bitvavo.com/v2/balance", {
     headers: {
@@ -243,6 +248,7 @@ export async function fetchBitvavo(apiKey: string, apiSecret: string): Promise<C
       Accept: "application/json",
     },
     cache: "no-store",
+    signal,
   });
   const data = (await res.json().catch(() => null)) as Array<{ symbol: string; available: string; inOrder: string }> | { errorCode?: number; error?: string } | null;
   if (!res.ok || !Array.isArray(data)) throw new Error(`Bitvavo: ${(data as { error?: string })?.error ?? res.status}`);
@@ -252,7 +258,7 @@ export async function fetchBitvavo(apiKey: string, apiSecret: string): Promise<C
 }
 
 // ── Bitstamp (MiCA · Luxemburgo) ───────────────────────────────────────────
-export async function fetchBitstamp(apiKey: string, apiSecret: string): Promise<CexBalance[]> {
+export async function fetchBitstamp(apiKey: string, apiSecret: string, signal?: AbortSignal): Promise<CexBalance[]> {
   const caminho = "/api/v2/account_balances/";
   const nonce = crypto.randomUUID();
   const ts = Date.now();
@@ -261,6 +267,7 @@ export async function fetchBitstamp(apiKey: string, apiSecret: string): Promise<
     method: "POST",
     headers: { "X-Auth": `BITSTAMP ${apiKey.trim()}`, "X-Auth-Signature": sig, "X-Auth-Nonce": nonce, "X-Auth-Timestamp": String(ts), "X-Auth-Version": "v2" },
     cache: "no-store",
+    signal,
   });
   const data = (await res.json().catch(() => null)) as Array<{ currency: string; total: string; available: string; reserved: string }> | { reason?: unknown; code?: string } | null;
   if (!res.ok || !Array.isArray(data)) throw new Error(`Bitstamp: ${JSON.stringify((data as { reason?: unknown })?.reason ?? res.status).slice(0, 120)}`);
@@ -270,12 +277,13 @@ export async function fetchBitstamp(apiKey: string, apiSecret: string): Promise<
 }
 
 // ── Bit2Me (MiCA · Espanha) ────────────────────────────────────────────────
-export async function fetchBit2Me(apiKey: string, apiSecret: string): Promise<CexBalance[]> {
+export async function fetchBit2Me(apiKey: string, apiSecret: string, signal?: AbortSignal): Promise<CexBalance[]> {
   const caminho = "/v1/trading/wallet/balance";
   const nonce = Date.now();
   const res = await fetch(`https://gateway.bit2me.com${caminho}`, {
     headers: { "x-api-key": apiKey.trim(), "api-signature": assinarBit2Me(apiSecret.trim(), nonce, caminho), "x-nonce": String(nonce), "Content-type": "application/json" },
     cache: "no-store",
+    signal,
   });
   const data = (await res.json().catch(() => null)) as unknown;
   if (!res.ok) throw new Error(`Bit2Me: ${(data as { message?: string })?.message ?? res.status}`);
@@ -294,12 +302,13 @@ export async function fetchBit2Me(apiKey: string, apiSecret: string): Promise<Ce
 
 // ── Revolut X (a exchange da Revolut) ──────────────────────────────────────
 // O "secret" é a chave privada Ed25519 gerada ao criar a chave de API.
-export async function fetchRevolutX(apiKey: string, chavePrivada: string): Promise<CexBalance[]> {
+export async function fetchRevolutX(apiKey: string, chavePrivada: string, signal?: AbortSignal): Promise<CexBalance[]> {
   const caminho = "/api/1.0/balances";
   const ts = Date.now();
   const res = await fetch(`https://revx.revolut.com${caminho}`, {
     headers: { "X-Revx-API-Key": apiKey.trim(), "X-Revx-Timestamp": String(ts), "X-Revx-Signature": assinarRevolutX(chavePrivada, ts, "GET", caminho), Accept: "application/json" },
     cache: "no-store",
+    signal,
   });
   const data = (await res.json().catch(() => null)) as unknown;
   if (!res.ok) throw new Error(`Revolut X: ${(data as { message?: string })?.message ?? res.status}`);
@@ -314,11 +323,12 @@ export async function fetchRevolutX(apiKey: string, chavePrivada: string): Promi
 }
 
 // ── Nexo Pro (a exchange da Nexo) ──────────────────────────────────────────
-export async function fetchNexoPro(apiKey: string, apiSecret: string): Promise<CexBalance[]> {
+export async function fetchNexoPro(apiKey: string, apiSecret: string, signal?: AbortSignal): Promise<CexBalance[]> {
   const nonce = Date.now();
   const res = await fetch("https://pro-api.nexo.io/api/v1/accountSummary", {
     headers: { "X-API-KEY": apiKey.trim(), "X-NONCE": String(nonce), "X-SIGNATURE": assinarNexoPro(apiSecret.trim(), nonce), Accept: "application/json" },
     cache: "no-store",
+    signal,
   });
   const data = (await res.json().catch(() => null)) as { balances?: Array<{ assetName: string; totalBalance: number; availableBalance: number; lockedBalance: number }>; errorMessage?: string } | null;
   if (!res.ok || !data?.balances) throw new Error(`Nexo Pro: ${data?.errorMessage ?? res.status}`);
@@ -329,11 +339,11 @@ export async function fetchNexoPro(apiKey: string, apiSecret: string): Promise<C
 
 // ── Bitpanda (MiCA · Áustria) — só precisa da API key ──────────────────────
 
-export async function fetchBitpanda(apiKey: string): Promise<CexBalance[]> {
+export async function fetchBitpanda(apiKey: string, signal?: AbortSignal): Promise<CexBalance[]> {
   const headers = { "X-Api-Key": apiKey.trim() };
   const out: CexBalance[] = [];
 
-  const res = await fetch("https://api.bitpanda.com/v1/wallets", { headers, cache: "no-store" });
+  const res = await fetch("https://api.bitpanda.com/v1/wallets", { headers, cache: "no-store", signal });
   if (res.status === 401) throw new Error("Bitpanda: chave inválida.");
   if (!res.ok) throw new Error(`Bitpanda: ${res.status}`);
   const data = await res.json() as { data?: { attributes?: { cryptocoin_symbol?: string; balance?: string } }[] };
@@ -345,7 +355,7 @@ export async function fetchBitpanda(apiKey: string): Promise<CexBalance[]> {
 
   // Carteiras fiat (EUR etc.) — best-effort
   try {
-    const fr = await fetch("https://api.bitpanda.com/v1/fiatwallets", { headers, cache: "no-store" });
+    const fr = await fetch("https://api.bitpanda.com/v1/fiatwallets", { headers, cache: "no-store", signal });
     if (fr.ok) {
       const fd = await fr.json() as { data?: { attributes?: { fiat_symbol?: string; balance?: string } }[] };
       for (const w of fd.data ?? []) {
@@ -372,7 +382,7 @@ export function coinbaseJwt(keyName: string, pem: string, method: string, path: 
   return `${signingInput}.${sig.toString("base64url")}`;
 }
 
-export async function fetchCoinbase(keyName: string, rawPem: string): Promise<CexBalance[]> {
+export async function fetchCoinbase(keyName: string, rawPem: string, signal?: AbortSignal): Promise<CexBalance[]> {
   // O JSON descarregado da Coinbase traz "\n" literais dentro da string PEM.
   const pem = rawPem.trim().replace(/\\n/g, "\n");
   if (!/-----BEGIN (EC )?PRIVATE KEY-----/.test(pem)) throw new Error("Coinbase: o secret tem de ser a chave privada em PEM (começa por -----BEGIN EC PRIVATE KEY-----).");
@@ -385,7 +395,7 @@ export async function fetchCoinbase(keyName: string, rawPem: string): Promise<Ce
     let jwt: string;
     try { jwt = coinbaseJwt(keyName.trim(), pem, "GET", path); }
     catch { throw new Error("Coinbase: chave privada inválida (PEM EC P-256)."); }
-    const res = await fetch(`https://api.coinbase.com${path}${qs}`, { headers: { Authorization: `Bearer ${jwt}`, Accept: "application/json" }, cache: "no-store" });
+    const res = await fetch(`https://api.coinbase.com${path}${qs}`, { headers: { Authorization: `Bearer ${jwt}`, Accept: "application/json" }, cache: "no-store", signal });
     if (res.status === 401) throw new Error("Coinbase: chave inválida ou sem permissão 'View'.");
     if (!res.ok) throw new Error(`Coinbase: ${res.status}`);
     const data = await res.json() as { accounts?: { currency?: string; available_balance?: { value?: string }; hold?: { value?: string } }[]; has_next?: boolean; cursor?: string };
@@ -406,23 +416,37 @@ export const EXCHANGES_COM_API = ["binance", "kraken", "coinex", "okx", "bybit",
 export type ExchangeId = (typeof EXCHANGES_COM_API)[number];
 export const eExchange = (x: string): x is ExchangeId => (EXCHANGES_COM_API as readonly string[]).includes(x);
 
-/** Um só ponto de entrada: escolhe o leitor pela exchange. Lança Error com a razão. */
+// Tempo maximo por leitura. Sem isto, uma exchange pendurada segurava o GET de
+// /api/cex-keys (Promise.all de ate 5 contas → 504 sem NENHUM saldo, nem os que
+// estavam em cache) e consumia os 60 s do cron cex-refresh, deixando as contas
+// seguintes sem actualizacao e sem last_error.
+export const CEX_TIMEOUT_MS = 8_000;
+
+/** Um só ponto de entrada: escolhe o leitor pela exchange. Lança Error com a razão (`timeout` se a exchange não respondeu a tempo). */
 export async function lerSaldos(exchange: ExchangeId, apiKey: string, apiSecret?: string, apiPassphrase?: string): Promise<CexBalance[]> {
   if (!apiKey || (!apiSecret && exchange !== "bitpanda")) throw new Error("Faltam a chave ou o secret.");
   if (exchange === "okx" && !apiPassphrase) throw new Error("OKX precisa da passphrase da chave.");
-  switch (exchange) {
-    case "binance": return fetchBinance(apiKey, apiSecret!);
-    case "kraken": return fetchKraken(apiKey, apiSecret!);
-    case "coinex": return fetchCoinEx(apiKey, apiSecret!);
-    case "okx": return fetchOkx(apiKey, apiSecret!, apiPassphrase!);
-    case "bybit": return fetchBybit(apiKey, apiSecret!);
-    case "cryptocom": return fetchCryptoCom(apiKey, apiSecret!);
-    case "bitpanda": return fetchBitpanda(apiKey);
-    case "coinbase": return fetchCoinbase(apiKey, apiSecret!);
-    case "bitvavo": return fetchBitvavo(apiKey, apiSecret!);
-    case "bitstamp": return fetchBitstamp(apiKey, apiSecret!);
-    case "bit2me": return fetchBit2Me(apiKey, apiSecret!);
-    case "revolutx": return fetchRevolutX(apiKey, apiSecret!);
-    case "nexopro": return fetchNexoPro(apiKey, apiSecret!);
+  const signal = AbortSignal.timeout(CEX_TIMEOUT_MS);
+  try {
+    switch (exchange) {
+      case "binance": return await fetchBinance(apiKey, apiSecret!, signal);
+      case "kraken": return await fetchKraken(apiKey, apiSecret!, signal);
+      case "coinex": return await fetchCoinEx(apiKey, apiSecret!, signal);
+      case "okx": return await fetchOkx(apiKey, apiSecret!, apiPassphrase!, signal);
+      case "bybit": return await fetchBybit(apiKey, apiSecret!, signal);
+      case "cryptocom": return await fetchCryptoCom(apiKey, apiSecret!, signal);
+      case "bitpanda": return await fetchBitpanda(apiKey, signal);
+      case "coinbase": return await fetchCoinbase(apiKey, apiSecret!, signal);
+      case "bitvavo": return await fetchBitvavo(apiKey, apiSecret!, signal);
+      case "bitstamp": return await fetchBitstamp(apiKey, apiSecret!, signal);
+      case "bit2me": return await fetchBit2Me(apiKey, apiSecret!, signal);
+      case "revolutx": return await fetchRevolutX(apiKey, apiSecret!, signal);
+      case "nexopro": return await fetchNexoPro(apiKey, apiSecret!, signal);
+    }
+  } catch (e) {
+    // O fetch abortado lanca um DOMException "TimeoutError"; os chamadores
+    // gravam e.message em last_error, por isso a razao fica legivel.
+    if (signal.aborted || (e instanceof Error && e.name === "TimeoutError")) throw new Error("timeout");
+    throw e;
   }
 }

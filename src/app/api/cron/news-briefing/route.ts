@@ -7,6 +7,7 @@ import { verifyCronAuth } from "@/lib/api/cron-auth";
 import { esc, fmtDate, FROM_BRIEFING, sendEmail } from "@/lib/email";
 import type { Lang } from "@/lib/i18n/translations";
 import { langFromMetadata, resolveLang, signupLangByEmail } from "@/lib/user/lang";
+import { sendTelegram, tgEsc } from "@/lib/notify/telegram";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,7 +35,9 @@ const L: Record<Lang, { in: string; crypto: string; trad: string; briefing: stri
 };
 const BRIEFING_DATE: Intl.DateTimeFormatOptions = { weekday: "long", day: "numeric", month: "long", year: "numeric" };
 
-async function buildContext(mode: "crypto" | "tradicional"): Promise<string> {
+// `avisos` recebe o que faltou (CoinGecko em 429, por exemplo): o briefing sai
+// na mesma, mas com contexto pobre — e isso tem de chegar ao Telegram.
+async function buildContext(mode: "crypto" | "tradicional", avisos: string[] = []): Promise<string> {
   if (mode === "tradicional") return "Análise de mercado tradicional: foca em contexto macro, Fed, inflação e tendências setoriais.";
 
   const ids = Object.values(COINGECKO_IDS).join(",");
@@ -46,6 +49,8 @@ async function buildContext(mode: "crypto" | "tradicional"): Promise<string> {
   const global = await fetchJson<GlobalData>("https://api.coingecko.com/api/v3/global");
   type FG = { data: { value: string; value_classification: string }[] };
   const fg = await fetchJson<FG>("https://api.alternative.me/fng/?limit=1");
+  if (!prices) avisos.push("contexto pobre: CoinGecko simple/price sem resposta");
+  if (!global) avisos.push("contexto pobre: CoinGecko global sem resposta");
 
   const lines: string[] = [];
   if (prices) {
@@ -139,11 +144,16 @@ export async function GET(request: Request) {
   // Contas Hobby só permitem 1 cron/dia — não é possível respeitar a hora
   // escolhida por cada utilizador, por isso enviamos a todos os que têm o
   // briefing ativo nesta única execução diária.
-  const { data: users } = await supabase
+  const { data: users, error: usersError } = await supabase
     .from("news_briefing_schedule")
     .select("user_id, email, mode, hour_utc")
     .eq("enabled", true);
 
+  if (usersError) {
+    console.error("[briefing] lista de subscritores indisponível:", usersError.message);
+    await sendTelegram(`🔴 <b>Briefing diário FALHOU</b>\n${tgEsc(usersError.message)}\n\nNinguém recebeu o briefing.`).catch(() => false);
+    return NextResponse.json({ error: "schedule unavailable" }, { status: 500 });
+  }
   if (!users || users.length === 0) {
     return NextResponse.json({ sent: 0, hour: currentHour });
   }
@@ -187,9 +197,9 @@ export async function GET(request: Request) {
   const briefingFor = async (mode: "crypto" | "tradicional", lang: Lang) => {
     const key = `${mode}:${lang}`;
     if (!cache.has(key)) {
-      if (!contexts.has(mode)) contexts.set(mode, await buildContext(mode));
+      if (!contexts.has(mode)) contexts.set(mode, await buildContext(mode, errors));
       const b = await generateBriefing(mode, contexts.get(mode) ?? "", lang);
-      if (!b) console.error(`[briefing] ${key}: IA indisponível — briefing não enviado`);
+      if (!b) { console.error(`[briefing] ${key}: IA indisponível — briefing não enviado`); errors.push(`${key}: IA indisponível`); }
       cache.set(key, b ? buildEmailHtml(b, mode, fmtDate(new Date(), lang, BRIEFING_DATE), lang) : null);
     }
     return cache.get(key) ?? null;
@@ -207,5 +217,20 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ sent, total: users.length, eligible: eligible.length, lapsed: lapsed.length, hour: currentHour, errors });
+  const resumo = { sent, total: users.length, eligible: eligible.length, lapsed: lapsed.length, hour: currentHour, errors };
+
+  // Um cron so responde 200 se fez o que devia. Quem paga o briefing e nao o
+  // recebe nao se queixa ao console.error: e preciso Telegram e um codigo que a
+  // Vercel marque como falha (500 = ninguem recebeu; 207 = houve falhas parciais).
+  if (eligible.length > 0 && sent === 0) {
+    console.error("[briefing] FALHOU: nenhum email enviado", errors);
+    await sendTelegram(`🔴 <b>Briefing diário FALHOU</b>\n${eligible.length} subscritor(es) elegíveis, 0 enviados.\n${tgEsc(errors.slice(0, 8).join("\n") || "sem motivo registado")}`).catch(() => false);
+    return NextResponse.json({ ...resumo, error: "briefing_failed" }, { status: 500 });
+  }
+  if (errors.length > 0) {
+    console.error("[briefing] falhas parciais", errors);
+    await sendTelegram(`⚠️ <b>Briefing diário com falhas</b>\n${sent} enviado(s), ${errors.length} problema(s):\n${tgEsc(errors.slice(0, 8).join("\n"))}`).catch(() => false);
+    return NextResponse.json(resumo, { status: 207 });
+  }
+  return NextResponse.json(resumo);
 }

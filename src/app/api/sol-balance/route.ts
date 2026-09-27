@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/api/requireUser";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { isValidSolAddress } from "@/lib/wallets/address";
+import { apiMsg } from "@/lib/api/apiMessages";
 
 const CACHE_HEADERS = { "Cache-Control": "private, s-maxage=30, stale-while-revalidate=60" };
 
@@ -40,6 +42,8 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const address = searchParams.get("address");
   if (!address) return NextResponse.json({ error: "address required" }, { status: 400 });
+  // Antes de gastar 3 RPCs: um endereco mal colado e "invalido", nao "falha dos RPCs".
+  if (!isValidSolAddress(address)) return NextResponse.json({ error: apiMsg(request, "address_invalid"), code: "address_invalid" }, { status: 400 });
 
   for (const rpc of RPCS) {
     try {

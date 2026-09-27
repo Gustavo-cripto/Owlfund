@@ -16,6 +16,7 @@ import type { Lang } from "@/lib/i18n/translations";
 import { langFromMetadata, resolveLang, signupLangByEmail } from "@/lib/user/lang";
 import { sendTelegram, tgEsc } from "@/lib/notify/telegram";
 import { esc, fmtDate, markSent, sendEmail, shell, TZ } from "@/lib/email";
+import { betaAberto } from "@/lib/plans";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,7 +32,6 @@ const BOT = '<a href="https://t.me/ChainFolioAiBetaBot" style="color:#38bdf8;fon
 
 // Lingua por tester: user_metadata.lang → beta_signups.lang → pt (ver src/lib/user/lang.ts).
 
-const BETA_ABERTO = () => Date.now() < new Date(process.env.NEXT_PUBLIC_BETA_CUTOFF ?? "2027-01-15T23:59:59Z").getTime();
 const BETA_LINK = (lang: Lang) => `<a href="https://chainfolioai.com/${lang === "pt" ? "" : `${lang}/`}beta" style="color:#38bdf8;font-weight:700">chainfolioai.com/${lang === "pt" ? "" : `${lang}/`}beta</a>`;
 
 const CARTEIRAS = '<a href="https://chainfolioai.com/wallets" style="display:inline-block;background:#f97316;color:#0f172a;font-weight:700;text-decoration:none;padding:11px 20px;border-radius:10px">';
@@ -320,6 +320,16 @@ export async function GET(request: Request) {
   const now = new Date();
   const nowIso = now.toISOString();
 
+  // Cada etapa tem o seu try/catch para nao travar as seguintes, mas as falhas
+  // acumulam-se: no fim vao para o Telegram e a resposta e 500, em vez do
+  // {ok:true} que escondia emails de boas-vindas e lembretes nunca enviados.
+  const falhas: string[] = [];
+  const falhou = (etapa: string, e: unknown) => {
+    const m = e instanceof Error ? e.message : String(e);
+    console.error(`[beta-expiry] ${etapa}`, m);
+    falhas.push(`${etapa}: ${m}`);
+  };
+
   // ── 0) Expirar testers manuais cujo período terminou → Free ───────────────
   let expired = 0;
   try {
@@ -331,7 +341,7 @@ export async function GET(request: Request) {
       .lt("current_period_end", nowIso)
       .select("user_id");
     expired = data?.length ?? 0;
-  } catch (e) { console.error("[beta-expiry] expirar", e instanceof Error ? e.message : e); }
+  } catch (e) { falhou("expirar", e); }
 
   // Mapa id → {email, lastSignIn} numa única listagem (antes: 1 pedido por tester, todos os dias).
   const users = new Map<string, { email: string; lastSignIn: string | null; lastSeen: string | null; lang: Lang | null; createdAt: string | null }>();
@@ -341,7 +351,7 @@ export async function GET(request: Request) {
       for (const u of data.users) users.set(u.id, { email: u.email ?? "", lastSignIn: (u.last_sign_in_at as string | undefined) ?? null, lastSeen: (u.user_metadata?.last_seen_at as string | undefined) ?? null, lang: langFromMetadata(u.user_metadata), createdAt: (u.created_at as string | undefined) ?? null });
       if (data.users.length < 1000) break;
     }
-  } catch (e) { console.error("[beta-expiry] listUsers", e instanceof Error ? e.message : e); }
+  } catch (e) { falhou("listUsers", e); }
 
   // Lingua de cada tester: a da conta, senao a da inscricao no beta, senao pt.
   const langByEmail = await signupLangByEmail(admin);
@@ -356,7 +366,7 @@ export async function GET(request: Request) {
   try {
     const { data: manuais } = await admin.from("subscriptions").select("user_id").eq("source", "manual");
     const testers = new Set((manuais ?? []).map((m) => m.user_id as string));
-    const beta = BETA_ABERTO();
+    const beta = betaAberto();
     for (const [uid, u] of users) {
       if (!u.email || !u.createdAt || testers.has(uid) || langByEmail.has(u.email.toLowerCase())) continue;
       const dias = Math.floor((now.getTime() - new Date(u.createdAt).getTime()) / DAY);
@@ -365,7 +375,7 @@ export async function GET(request: Request) {
       const m = COPY.welcome[langOf(uid, u.email)](beta);
       if (await sendEmail({ to: u.email, subject: m.subject, html: m.html, tag: "welcome_account" })) welcome++;
     }
-  } catch (e) { console.error("[beta-expiry] boas-vindas", e instanceof Error ? e.message : e); }
+  } catch (e) { falhou("boas-vindas", e); }
 
   // ── 0b) Ao 3.º dia sem carteira: um lembrete, uma vez ─────────────────────
   // Todas as contas com email (testers incluidos), criadas ha 3–5 dias, sem
@@ -392,7 +402,7 @@ export async function GET(request: Request) {
         if (await sendEmail({ to: u.email, subject: m.subject, html: m.html, tag: "nudge_wallet" })) nudgeWallet++;
       }
     }
-  } catch (e) { console.error("[beta-expiry] lembrete carteira", e instanceof Error ? e.message : e); }
+  } catch (e) { falhou("lembrete carteira", e); }
 
   // ── 1a) Primeiro passo: dia seguinte à ativação ───────────────────────────
   // Um tester ativado não recebia NADA até ao dia 50. Os dois primeiros entraram
@@ -420,7 +430,7 @@ export async function GET(request: Request) {
       const m = COPY.step1[langOf(uid, em)](planOf(s.price_id));
       if (await sendEmail({ to: em, subject: m.subject, html: m.html, tag: "welcome_step1" })) step1++;
     }
-  } catch (e) { console.error("[beta-expiry] primeiro passo", e instanceof Error ? e.message : e); }
+  } catch (e) { falhou("primeiro passo", e); }
 
   // ── 1) Ativos a terminar nos próximos 11 dias ─────────────────────────────
   const horizon = new Date(now.getTime() + (OFFER_DAY + 1) * DAY);
@@ -507,7 +517,7 @@ export async function GET(request: Request) {
         inline_keyboard: [[{ text: "🏆 Confirmar fundador", callback_data: `f:${uid}` }]],
       }).catch(() => {});
     }
-  } catch (e) { console.error("[beta-expiry] fim", e instanceof Error ? e.message : e); }
+  } catch (e) { falhou("fim", e); }
 
   // ── 3) Inatividade: ≥14 dias sem login → alerta 1x no Telegram ────────────
   let inactive = 0;
@@ -548,7 +558,12 @@ export async function GET(request: Request) {
     if (lines.length > 0) {
       await sendTelegram(`⚠️ <b>Testers inativos (≥${IDLE_DAYS}d sem login)</b>\n${lines.join("\n")}\nJá lhes foi por email um toque automático. Um teu, pessoal, vale mais.`).catch(() => {});
     }
-  } catch (e) { console.error("[beta-expiry] inatividade", e instanceof Error ? e.message : e); }
+  } catch (e) { falhou("inatividade", e); }
 
-  return NextResponse.json({ ok: true, expired, notified: tgLines.length, testerMails, offers, ended, welcome, nudgeWallet, step1, idleMails, inactiveAlerts: inactive, at: nowIso });
+  const resumo = { expired, notified: tgLines.length, testerMails, offers, ended, welcome, nudgeWallet, step1, idleMails, inactiveAlerts: inactive, at: nowIso };
+  if (falhas.length > 0) {
+    await sendTelegram(`🔴 <b>Cron beta-expiry com falhas</b>\n${tgEsc(falhas.slice(0, 8).join("\n"))}`).catch(() => false);
+    return NextResponse.json({ ok: false, ...resumo, falhas }, { status: 500 });
+  }
+  return NextResponse.json({ ok: true, ...resumo });
 }
