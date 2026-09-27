@@ -1007,7 +1007,7 @@ export const es: Record<TranslationKey, string> = {
     pcs_price: "Precio",
     pcs_balance: "Saldo",
     pcs_value: "Valor",
-    pcs_unrealized: "PNL no realizado",
+    pcs_unrealized: "Variación 24 h",
     pcs_no_token: "No se encontró ningún token con valor.",
     pcs_total_blockchain: "Total Blockchain",
     pcs_no_wallets: "Sin carteras conectadas",

@@ -48,11 +48,14 @@ export async function GET(request: Request) {
   for (const profile of profiles) {
     const userId = profile.id as string;
 
-    // Verificar se já existe snapshot nas últimas 20h
+    // Verificar se já existe snapshot COM total nas últimas 20h. Um snapshot
+    // sem _totalEur (os antigos gravados por visita) não conta como recente
+    // nem serve de "último" — copiá-lo só perpetuava um ponto sem valor.
     const { data: recent } = await supabase
       .from("portfolio_snapshots")
       .select("id")
       .eq("user_id", userId)
+      .not("data->_totalEur", "is", null)
       .gte("created_at", new Date(cutoff).toISOString())
       .limit(1);
 
@@ -65,6 +68,7 @@ export async function GET(request: Request) {
       .from("portfolio_snapshots")
       .select("data")
       .eq("user_id", userId)
+      .not("data->_totalEur", "is", null)
       .order("created_at", { ascending: false })
       .limit(1);
 

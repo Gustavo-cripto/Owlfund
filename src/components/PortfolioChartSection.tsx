@@ -131,13 +131,16 @@ function buildChartData(
 }
 
 // ── Token row ───────────────────────────────────────────────────────────────
-function TokenRow({ wallet, price, pnlToday, total }: { wallet: WalletBalance; price: number; pnlToday: number; total: number }) {
+// Variacao 24 h POR TOKEN: preco de ha 1 dia do proprio simbolo (historicalPrices).
+// Antes cada linha mostrava a percentagem do portefolio inteiro, igual em todas.
+function TokenRow({ wallet, price, price1d }: { wallet: WalletBalance; price: number; price1d: number | undefined }) {
   const { format: fmt, formatSigned: fmtSigned, hideBalances } = useCurrencyFormat();
   const balanceNum = parseFloat(wallet.balance ?? "0") || 0;
   const value = balanceNum * price;
   if (value < 0.01) return null;
-  const pnlPct = total > 0 ? (pnlToday / total) * 100 : 0;
-  const pnlEur = value * (pnlPct / 100);
+  const temHistorico = typeof price1d === "number" && price1d > 0 && price > 0;
+  const pnlPct = temHistorico ? ((price - price1d) / price1d) * 100 : 0;
+  const pnlEur = temHistorico ? balanceNum * (price - price1d) : 0;
   return (
     <div className="flex items-center gap-3 py-3 border-b border-slate-800/60 last:border-0">
       <div className="h-9 w-9 rounded-full bg-slate-800 flex items-center justify-center shrink-0 text-sm font-bold text-slate-300">{wallet.symbol.slice(0, 2)}</div>
@@ -160,7 +163,7 @@ function TokenRow({ wallet, price, pnlToday, total }: { wallet: WalletBalance; p
         <p className="text-sm font-semibold text-white">{fmt(value)}</p>
       </div>
       <div className="w-28 text-right">
-        {pnlPct !== 0 ? (
+        {temHistorico ? (
           <>
             <p className={`text-sm font-semibold ${pnlEur >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
               {fmtSigned(pnlEur)}
@@ -232,7 +235,6 @@ export default function PortfolioChartSection({
     () => buildChartData(tf, portfolioTotal, snapshotTotals, locale, nowLabel),
     [tf, portfolioTotal, snapshotTotals, locale, nowLabel]
   );
-  void historicalPrices;
 
   // Quantidades por ativo com vela (carteiras on-chain + cripto manual com
   // quantidade). O resto do portefolio (tradicionais, stablecoins, tokens,
@@ -540,7 +542,7 @@ export default function PortfolioChartSection({
                   return vb - va;
                 })
                 .map((w, i) => (
-                  <TokenRow key={`${w.symbol}-${i}`} wallet={w} price={priceMap[w.symbol] ?? 0} pnlToday={pnlToday} total={portfolioTotal} />
+                  <TokenRow key={`${w.symbol}-${i}`} wallet={w} price={priceMap[w.symbol] ?? 0} price1d={historicalPrices["1d"]?.[w.symbol]} />
                 ))}
           </div>
           {(() => {

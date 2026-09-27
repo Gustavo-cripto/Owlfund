@@ -7,6 +7,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
 import { FREE_AI_LIMIT } from "@/lib/plans";
+import { contarCarteiras } from "@/lib/api/walletBlob";
 
 export async function GET() {
   const cookieStore = await cookies();
@@ -36,14 +37,9 @@ export async function GET() {
   const aiUsed = (usageRes.data?.count as number | undefined) ?? 0;
   const snapshots = snapRes.count ?? 0;
 
-  let wallets = 0;
-  const data = walletRes.data?.data as Record<string, unknown> | undefined;
-  if (data) {
-    for (const key of ["eth", "sol", "btc", "ada", "other"]) {
-      const arr = data[key];
-      if (Array.isArray(arr)) wallets += arr.length;
-    }
-  }
+  // Todas as contas, no formato que a app escreve (leitor unico: walletBlob.ts).
+  // Antes contava eth/sol/… no topo do blob v3 → "0 carteiras" para toda a gente.
+  const wallets = contarCarteiras(walletRes.data?.data);
 
   return NextResponse.json({ aiUsed, aiLimit: FREE_AI_LIMIT, snapshots, wallets });
 }

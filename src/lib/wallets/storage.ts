@@ -47,6 +47,9 @@ const normalizeSnapshot = (value: unknown): WalletSnapshot => {
     defiUsd: typeof raw.defiUsd === "number" ? raw.defiUsd : undefined,
     manualEur: typeof raw.manualEur === "number" ? raw.manualEur : undefined,
     tokensUsd: typeof raw.tokensUsd === "number" ? raw.tokensUsd : undefined,
+    // Sem isto o valor de mercado dos tradicionais nunca chegava ao localStorage
+    // nem a nuvem: Painel, Portefolio e IA caiam sempre no valor investido.
+    traditionalEur: typeof raw.traditionalEur === "number" ? raw.traditionalEur : undefined,
   };
 };
 
@@ -68,6 +71,7 @@ export const loadWalletSnapshot = (): WalletSnapshot => {
         if (typeof snap.defiUsd === "number") merged.defiUsd = (merged.defiUsd ?? 0) + snap.defiUsd;
         if (typeof snap.manualEur === "number") merged.manualEur = (merged.manualEur ?? 0) + snap.manualEur;
         if (typeof snap.tokensUsd === "number") merged.tokensUsd = (merged.tokensUsd ?? 0) + snap.tokensUsd;
+        if (typeof snap.traditionalEur === "number") merged.traditionalEur = (merged.traditionalEur ?? 0) + snap.traditionalEur;
       }
       return merged;
     }
@@ -102,5 +106,6 @@ export const updateWalletSnapshot = (patch: WalletSnapshot) => {
   if (typeof patch.defiUsd === "number") next.defiUsd = patch.defiUsd;
   if (typeof patch.manualEur === "number") next.manualEur = patch.manualEur;
   if (typeof patch.tokensUsd === "number") next.tokensUsd = patch.tokensUsd;
+  if (typeof patch.traditionalEur === "number") next.traditionalEur = patch.traditionalEur;
   saveWalletSnapshot(next);
 };

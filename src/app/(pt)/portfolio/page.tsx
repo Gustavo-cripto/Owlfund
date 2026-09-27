@@ -22,6 +22,7 @@ import { createClient } from "@/lib/supabase/client";
 import { loadWalletSnapshot, updateWalletSnapshot, type StoredWalletEntry, type WalletSnapshot } from "@/lib/wallets/storage";
 import { pushWalletCloud, pullWalletCloud } from "@/lib/portfolios/cloudSync";
 import { getActiveAccountId, listAccounts } from "@/lib/portfolios/accounts";
+import { baseDaPosicao, daConta } from "@/lib/portfolio/posicao";
 import { getEvmBalance } from "@/lib/wallets/evm";
 import { getSolBalance } from "@/lib/wallets/solana";
 import { getBtcBalanceFromAddress } from "@/lib/wallets/bitcoin";
@@ -71,7 +72,8 @@ type TokenPrices = Record<string, number> & { usdToEur?: number }; // symbol →
 
 type PricesApiResponse = {
   prices?: TokenPrices;
-  benchmark?: Record<string, number>;
+  // 7d/30d vem a null quando a fonte nao os da (a celula mostra "—", nunca 0).
+  benchmark?: Record<string, number | null>;
   error?: string;
 };
 
@@ -112,9 +114,9 @@ async function fetchBenchmarkSnapshot(): Promise<BenchSnapshot | null> {
     const b = ((await res.json()) as PricesApiResponse).benchmark;
     if (!b) return null;
     const out: BenchSnapshot = {};
-    if (b.btc_eur > 0) out.btc = b.btc_eur;
-    if (b.sp500 > 0) out.sp500 = b.sp500;
-    if (b.gold_eur > 0) out.gold = b.gold_eur;
+    if ((b.btc_eur ?? 0) > 0) out.btc = b.btc_eur!;
+    if ((b.sp500 ?? 0) > 0) out.sp500 = b.sp500!;
+    if ((b.gold_eur ?? 0) > 0) out.gold = b.gold_eur!;
     return Object.keys(out).length > 0 ? out : null;
   } catch {
     return null;
@@ -385,16 +387,16 @@ export default function PortfolioPage() {
             setBenchmarkPrices({
               btc_eur: data.benchmark.btc_eur ?? 0,
               btc_24h: data.benchmark.btc_24h ?? 0,
-              btc_7d: data.benchmark.btc_7d ?? 0,
-              btc_30d: data.benchmark.btc_30d ?? 0,
+              btc_7d: data.benchmark.btc_7d ?? null,
+              btc_30d: data.benchmark.btc_30d ?? null,
               eth_eur: data.benchmark.eth_eur ?? 0,
               eth_24h: data.benchmark.eth_24h ?? 0,
-              eth_7d: data.benchmark.eth_7d ?? 0,
-              eth_30d: data.benchmark.eth_30d ?? 0,
+              eth_7d: data.benchmark.eth_7d ?? null,
+              eth_30d: data.benchmark.eth_30d ?? null,
               gold_eur: data.benchmark.gold_eur ?? 0,
               gold_24h: data.benchmark.gold_24h ?? 0,
-              gold_7d: data.benchmark.gold_7d ?? 0,
-              gold_30d: data.benchmark.gold_30d ?? 0,
+              gold_7d: data.benchmark.gold_7d ?? null,
+              gold_30d: data.benchmark.gold_30d ?? null,
             });
           }
           if (data.prices && Object.keys(data.prices).length > 0) {
@@ -786,7 +788,15 @@ export default function PortfolioPage() {
     // snapshot ha 24 h+" era sempre verdade e guardava-se um por visita —
     // foi assim que uma conta chegou a mais de mil.
     if (!snapshotsLoaded) return;
-    const latest = snapshots[0];
+    // "Ultimo" = o mais recente COM _totalEur e da conta ativa. Um snapshot sem
+    // total (os que a pagina de Carteiras gravava por visita) contava como
+    // "fresco" e o auto-snapshot nunca disparava.
+    let activeId = "";
+    try { activeId = getActiveAccountId(); } catch { /* ignore */ }
+    const latest = snapshots.find((r) => {
+      const d = r.data as WalletSnapshot & { _totalEur?: unknown };
+      return typeof d._totalEur === "number" && d._totalEur > 0 && daConta(d, activeId);
+    });
     const lastSaved = latest ? new Date(latest.created_at).getTime() : 0;
     const hoursSince = (Date.now() - lastSaved) / (1000 * 60 * 60);
     if (hoursSince >= 24) {
@@ -815,7 +825,7 @@ export default function PortfolioPage() {
   const snapshotAnomalies = useMemo(() => {
     const vals = accountSnapshots.map((row) => {
       const storedTotal = (row.data as WalletSnapshot & { _totalEur?: number })._totalEur;
-      return { id: row.id, total: (storedTotal != null ? storedTotal : snapshotTotal(row.data, tokenPrices)) + manualTotals };
+      return { id: row.id, total: storedTotal != null ? storedTotal : snapshotTotal(row.data, tokenPrices) + manualTotals };
     });
     if (vals.length < 4) return new Set<number>();
     const sorted = vals.map((v) => v.total).filter((t) => t > 0).sort((a, b) => a - b);
@@ -829,11 +839,14 @@ export default function PortfolioPage() {
     return accountSnapshots
       .filter((row) => !snapshotAnomalies.has(row.id))
       .map((row) => {
-        // Use stored EUR total if available (saved after this fix was deployed)
-        // Falls back to recalculating with current prices for older snapshots
+        // _totalEur e o portfolioTotal do momento — JA inclui manuais,
+        // tradicionais e stablecoins (handleSaveSnapshot). Somar manualTotals
+        // outra vez contava-os a dobrar em cada ponto guardado e a "posicao"
+        // saia mais baixa em exatamente esse valor. So os snapshots antigos sem
+        // total (recalculados com os precos de hoje) precisam da soma.
         const storedTotal = (row.data as WalletSnapshot & { _totalEur?: number })._totalEur;
         const total = storedTotal != null
-          ? storedTotal + manualTotals
+          ? storedTotal
           : snapshotTotal(row.data, tokenPrices) + manualTotals;
         return {
           id: row.id,
@@ -871,8 +884,11 @@ export default function PortfolioPage() {
     const days30  = total30d > 0 ? currentTotal - total30d : 0;
     const daily7d = days7 !== 0 ? days7 / 7 : 0;
 
-    // position: usa snapshot mais antigo do Supabase se existir, senão usa 30d
-    const oldest = snapshotTotals[snapshotTotals.length - 1];
+    // position: o snapshot mais antigo COM total gravado, da conta ativa,
+    // dentro da janela do plano (a mesma base que o Painel usa); sem nenhum, 30d.
+    let activeId = "";
+    try { activeId = getActiveAccountId(); } catch { /* ignore */ }
+    const oldest = baseDaPosicao(snapshots, activeId);
     const position = oldest
       ? currentTotal - oldest.total
       : days30;
@@ -882,8 +898,9 @@ export default function PortfolioPage() {
     return {
       position, today, days30, daily7d, days7,
       base: { today: total1d, days7: total7d, days30: total30d, position: oldest ? oldest.total : total30d },
+      sinceAt: oldest ? oldest.createdAt : null,
     };
-  }, [portfolioTotal, historicalPrices, manualTotals, snapshotTotals, snapshotCexEur, snapshotDefiEur, snapshotTokensEur]);
+  }, [portfolioTotal, historicalPrices, manualTotals, snapshots, snapshotCexEur, snapshotDefiEur, snapshotTokensEur]);
 
   const pnlTotal = pnlSummary.position;
 
@@ -1077,7 +1094,7 @@ export default function PortfolioPage() {
   }, [accountSnapshots]);
 
   // ── Estado do benchmark ──
-  const [benchmarkPrices, setBenchmarkPrices] = useState<Record<string, number>>({});
+  const [benchmarkPrices, setBenchmarkPrices] = useState<Record<string, number | null>>({});
   const [benchmarkLoading, setBenchmarkLoading] = useState(false);
 
   const cryptoAllocations = useMemo(() => {
@@ -1130,8 +1147,8 @@ export default function PortfolioPage() {
       .filter((x) => x.total > 0 && x.btc > 0)
       .sort((a, b) => a.t - b.t);
     const first = rows[0];
-    const btcNow = benchmarkPrices.btc_eur;
-    if (!first || !btcNow || btcNow <= 0) return null;
+    const btcNow = benchmarkPrices.btc_eur ?? 0;
+    if (!first || btcNow <= 0) return null;
     const btcRoi = (btcNow / first.btc - 1) * 100;
     return { btcRoi, since: first.t };
   }, [accountSnapshots, benchmarkPrices]);
@@ -1779,7 +1796,8 @@ export default function PortfolioPage() {
                       return <span className={v >= 0 ? "text-emerald-400" : "text-rose-400"}>{v >= 0 ? "+" : ""}{v.toFixed(1)}%</span>;
                     };
                     const rows: Array<{ name: string; vals: Array<number | null | undefined>; me?: boolean }> = [
-                      { name: `📊 ${t("pfb_you")}`, me: true, vals: [pct(pnlSummary.today), pct(pnlSummary.daily7d * 7), pct(pnlSummary.days30 ?? null)] },
+                      // Sem preco historico para o periodo (historical-prices parcial) a base e 0: mostra "—", nao "+0,0 %".
+                      { name: `📊 ${t("pfb_you")}`, me: true, vals: [pnlSummary.base.today > 0 ? pct(pnlSummary.today) : null, pnlSummary.base.days7 > 0 ? pct(pnlSummary.daily7d * 7) : null, pnlSummary.base.days30 > 0 ? pct(pnlSummary.days30) : null] },
                       { name: "₿ Bitcoin", vals: [benchmarkPrices.btc_24h, benchmarkPrices.btc_7d, benchmarkPrices.btc_30d] },
                       { name: "Ξ Ethereum", vals: [benchmarkPrices.eth_24h, benchmarkPrices.eth_7d, benchmarkPrices.eth_30d] },
                       { name: `🥇 ${t("pfb_gold")}`, vals: [benchmarkPrices.gold_24h, benchmarkPrices.gold_7d, benchmarkPrices.gold_30d] },
@@ -1897,7 +1915,7 @@ export default function PortfolioPage() {
                 { label: t("pf_crypto"), value: fmt(cryptoTotal), sub: `${portfolioSplit.crypto}% ${t("pf_of_total")}`, color: "text-orange-300" },
                 { label: t("pf_traditional"), value: fmt(traditionalTotal), sub: `${portfolioSplit.traditional}% ${t("pf_of_total")}`, color: "text-sky-400" },
                 { label: t("pf_pnl_30d"), value: fmtSigned(pnlSummary.days30), sub: portfolioTotal - pnlSummary.days30 > 0 ? `${pnlSummary.days30 >= 0 ? "+" : "−"}${Math.abs((pnlSummary.days30 / (portfolioTotal - pnlSummary.days30)) * 100).toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% ${t("pf_vs_30d_ago")}` : t("pf_no_30d_base"), color: pnlSummary.days30 >= 0 ? "text-emerald-400" : "text-rose-400" },
-                { label: t("pf_pnl_pos"), value: fmtSigned(pnlSummary.position), sub: advancedMetrics ? `ROI ${advancedMetrics.roi >= 0 ? "+" : ""}${advancedMetrics.roi.toFixed(1)}% · ${t("pf_since_date").replace("{d}", snapshotTotals.length ? new Date(snapshotTotals[snapshotTotals.length - 1].createdAt).toLocaleDateString(locale, { day: "2-digit", month: "short" }) : "—")}` : t("pf_score_pending"), color: pnlSummary.position >= 0 ? "text-emerald-400" : "text-rose-400" },
+                { label: t("pf_pnl_pos"), value: fmtSigned(pnlSummary.position), sub: advancedMetrics ? `ROI ${advancedMetrics.roi >= 0 ? "+" : ""}${advancedMetrics.roi.toFixed(1)}% · ${t("pf_since_date").replace("{d}", pnlSummary.sinceAt ? new Date(pnlSummary.sinceAt).toLocaleDateString(locale, { day: "2-digit", month: "short" }) : "—")}` : t("pf_score_pending"), color: pnlSummary.position >= 0 ? "text-emerald-400" : "text-rose-400" },
               ].map(m => (
                 <div key={m.label} className="rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-3">
                   <p className="text-[11px] uppercase tracking-wider text-slate-500 mb-1">{m.label}</p>
