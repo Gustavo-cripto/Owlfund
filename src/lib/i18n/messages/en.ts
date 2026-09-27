@@ -267,7 +267,7 @@ export const en: Record<TranslationKey, string> = {
     pcc_p_ainews: "AI news analysis (real-time)",
     pcc_p_aiport: "Unlimited AI portfolio analysis",
     pcc_p_export: "CSV + tax PDF export",
-    pcc_p_history: "1 year+ history",
+    pcc_p_history: "1 year history",
     pcc_p_countries: "13 tax countries",
     pcc_pr_history: "Unlimited history",
     pcc_pr_countries: "All tax countries",
