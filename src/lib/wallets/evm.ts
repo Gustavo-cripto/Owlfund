@@ -42,8 +42,11 @@ const chainRpcs: Record<string, string[]> = {
   Blast:          ["https://rpc.blast.io", "https://blast.drpc.org"],
 };
 
-const EVM_NETWORKS = ["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon", "BSC", "Avalanche", "Fantom", "zkSync", "Linea", "Gnosis", "Celo", "Cronos", "Scroll", "Mantle", "Blast"] as const;
+export const EVM_NETWORKS = ["Ethereum", "Arbitrum", "Optimism", "Base", "Polygon", "BSC", "Avalanche", "Fantom", "zkSync", "Linea", "Gnosis", "Celo", "Cronos", "Scroll", "Mantle", "Blast"] as const;
 export type EvmNetwork = (typeof EVM_NETWORKS)[number];
+// Contagem UNICA de blockchains suportadas (EVM + Bitcoin + Solana + Cardano),
+// usada nas faixas de numeros da landing e do /pricing para envelhecerem juntas.
+export const SUPPORTED_CHAINS = EVM_NETWORKS.length + 3;
 
 // Scroll, Mantle, Blast não estão em viem/chains — definimos manualmente
 const scroll = { id: 534352, name: "Scroll", nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 }, rpcUrls: { default: { http: ["https://rpc.scroll.io"] } } } as const;

@@ -12,6 +12,7 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { useTheme, useCurrencyFormat, type Theme, type Currency, type NumberFormat } from "@/lib/theme/ThemeContext";
 import { CRYPTO_PAYMENTS_ENABLED } from "@/lib/payments/config";
+import { preencherContagens } from "@/lib/api/catalog";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { NAMESPACED_BASE_KEYS, ACCOUNTS_EVENT, listAccounts, readNamespaced } from "@/lib/portfolios/accounts";
 
@@ -194,8 +195,8 @@ function PremiumApiKeys({ isPremium, locale }: { isPremium: boolean; locale: str
 
           <div className="space-y-1.5 border-t border-slate-800 pt-3">
             <p className="text-[11px] text-slate-600 break-all">{t("ac_endpoint_base")} <code className="text-slate-500">https://chainfolioai.com/api/v1/</code> · {t("ac_header_label")} <code className="text-slate-500">Authorization: Bearer cfa_live_…</code></p>
-            <p className="text-[11px] text-slate-600 break-all">MCP: <code className="text-slate-500">https://chainfolioai.com/api/mcp</code> · {t("ac_mcp_same_key")} · {t("ac_max_keys")}</p>
-            <a href="/developers" className="inline-block pt-1 text-[11px] font-semibold text-orange-300/90 hover:text-orange-200">{t("dev_full_docs")} (12 endpoints · 11 MCP tools) →</a>
+            <p className="text-[11px] text-slate-600 break-all">MCP: <code className="text-slate-500">https://chainfolioai.com/api/mcp</code> · {preencherContagens(t("ac_mcp_same_key"))} · {t("ac_max_keys")}</p>
+            <a href="/developers" className="inline-block pt-1 text-[11px] font-semibold text-orange-300/90 hover:text-orange-200">{t("dev_full_docs")} ({preencherContagens(t("ac_api_counts"))}) →</a>
           </div>
         </div>
       ) : (

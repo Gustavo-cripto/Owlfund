@@ -3085,7 +3085,7 @@ export default function WalletsPage() {
           {totalWallets === 0 && (
             <div className="rounded-2xl border border-orange-500/30 bg-orange-500/[0.06] p-5">
               <p className="text-sm font-bold text-white">🚀 {t("wl_quick_title")}</p>
-              <p className="mt-1 text-xs leading-relaxed text-slate-400">{t("wl_quick_desc")}</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-400">{t("wl_quick_desc")} {t("wl_hw_addr_hint")}</p>
               <form className="mt-3 flex flex-col gap-2 sm:flex-row" onSubmit={(e) => { e.preventDefault(); handleQuickAdd(); }}>
                 <label htmlFor="wl-quick" className="sr-only">{t("wl_quick_ph")}</label>
                 <input
@@ -5586,7 +5586,7 @@ export default function WalletsPage() {
         <section id="manual-address-section" className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 scroll-mt-24">
           <h3 className="text-sm font-semibold text-white">{t("wl_add_manual")}</h3>
           <p className="mt-1 text-xs text-slate-500">
-            {t("wl_universal_intro")}
+            {t("wl_universal_intro")} {t("wl_hw_addr_hint")}
           </p>
           <div className="mt-3 flex flex-wrap items-end gap-2">
             <div className="relative min-w-[200px]" ref={manualAddNetworkRef}>
