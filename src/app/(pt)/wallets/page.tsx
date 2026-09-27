@@ -501,6 +501,10 @@ export default function WalletsPage() {
   type ColdToken = { address: string; symbol: string; name: string; logo?: string; balance: string; usdValue: number; usdPrice: number; chain: string; network?: string };
   const [coldTokensByAddr, setColdTokensByAddr] = useState<Record<string, ColdToken[]>>({});
   const [coldTokensLoading, setColdTokensLoading] = useState<Record<string, boolean>>({});
+  // Erro por carteira ao ler tokens (Alchemy/Helius 429/503, sessao a expirar).
+  // Antes era engolido e a carteira aparecia "sem tokens" — logo depois de a
+  // demonstracao os ter mostrado. O resultado anterior fica; so se marca o erro.
+  const [coldTokensError, setColdTokensError] = useState<Record<string, string>>({});
   const [evmProviders, setEvmProviders] = useState<Array<{ id: EvmProviderId; label: string }>>(
     []
   );
@@ -2551,13 +2555,24 @@ export default function WalletsPage() {
   const fetchColdTokens = useCallback(async (address: string, chain: "eth" | "sol") => {
     const key = `${chain}:${address}`;
     setColdTokensLoading((prev) => ({ ...prev, [key]: true }));
+    setColdTokensError((prev) => { if (!(key in prev)) return prev; const next = { ...prev }; delete next[key]; return next; });
+    const falhou = (msg: string) => {
+      setColdTokensError((prev) => ({ ...prev, [key]: msg }));
+      // Sem resultado anterior fica uma lista vazia (para o resto do ecra nao
+      // esperar); com resultado anterior, mantem-se.
+      setColdTokensByAddr((prev) => (key in prev ? prev : { ...prev, [key]: [] }));
+    };
     try {
       const base = typeof window !== "undefined" ? window.location.origin : "";
       const res = await fetch(`${base}/api/token-balances?address=${encodeURIComponent(address)}&chain=${chain}`);
-      const data = await res.json() as { tokens?: ColdToken[] };
+      const data = await res.json().catch(() => ({})) as { tokens?: ColdToken[]; error?: string };
+      if (!res.ok || data.error) {
+        falhou(res.status === 429 ? t("wl_err_rate_limited") : res.status === 502 || res.status === 503 ? t("wl_err_provider_down") : t("wl_err_tokens"));
+        return;
+      }
       setColdTokensByAddr((prev) => ({ ...prev, [key]: data.tokens ?? [] }));
     } catch {
-      setColdTokensByAddr((prev) => ({ ...prev, [key]: [] }));
+      falhou(t("wl_err_tokens"));
     } finally {
       setColdTokensLoading((prev) => ({ ...prev, [key]: false }));
     }
@@ -2828,7 +2843,11 @@ export default function WalletsPage() {
     const timer = window.setTimeout(() => controller.abort(), 15_000);
     try {
       const res = await fetch(`${base}/api/evm-balance?address=${encodeURIComponent(address)}&network=${encodeURIComponent(network)}`, { signal: controller.signal });
-      const data = await res.json() as { balance?: string; error?: string };
+      const data = await res.json().catch(() => ({})) as { balance?: string; error?: string };
+      // Pelo estado, nao pela frase: 429 (limite) e 502/503 (fornecedor em
+      // baixo) tem texto proprio traduzido; o resto usa o erro do servidor.
+      if (res.status === 429) throw new Error(t("wl_err_rate_limited"));
+      if (res.status === 502 || res.status === 503) throw new Error(t("wl_err_provider_down"));
       if (!res.ok || data.error) throw new Error(data.error ?? t("wl_err_balance"));
       return Number(data.balance ?? 0).toFixed(4);
     } finally {
@@ -5855,6 +5874,8 @@ export default function WalletsPage() {
             addedAddresses={coldWalletEntries}
             onRemoveAddress={removeManualAddress}
             tokensByAddress={coldTokensByAddr}
+            tokensErrorByAddress={coldTokensError}
+            onRetryTokens={(address, kind) => void fetchColdTokens(address, kind)}
           />
         ) : (
           <div className="mx-auto w-full max-w-5xl px-4 pb-8">

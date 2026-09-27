@@ -7,7 +7,8 @@
 //  2× e um dia falhado é apanhado no seguinte). Idioma do tester lido de
 //  beta_signups (pt/en; es/fr caem em en).
 import { NextResponse } from "next/server";
-import { TEM_ENDERECO } from "@/lib/analytics/funil";
+import { temDados } from "@/lib/analytics/funil";
+import { loadOptouts } from "@/lib/emailOptout";
 import { internalError } from "@/lib/api/response";
 import { isPremiumPriceId } from "@/lib/payments/priceIds";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -344,11 +345,11 @@ export async function GET(request: Request) {
   } catch (e) { falhou("expirar", e); }
 
   // Mapa id → {email, lastSignIn} numa única listagem (antes: 1 pedido por tester, todos os dias).
-  const users = new Map<string, { email: string; lastSignIn: string | null; lastSeen: string | null; lang: Lang | null; createdAt: string | null }>();
+  const users = new Map<string, { email: string; lastSignIn: string | null; lastSeen: string | null; lang: Lang | null; createdAt: string | null; emailConfirmedAt: string | null }>();
   try {
     for (let page = 1; page <= 5; page++) {
       const { data } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
-      for (const u of data.users) users.set(u.id, { email: u.email ?? "", lastSignIn: (u.last_sign_in_at as string | undefined) ?? null, lastSeen: (u.user_metadata?.last_seen_at as string | undefined) ?? null, lang: langFromMetadata(u.user_metadata), createdAt: (u.created_at as string | undefined) ?? null });
+      for (const u of data.users) users.set(u.id, { email: u.email ?? "", lastSignIn: (u.last_sign_in_at as string | undefined) ?? null, lastSeen: (u.user_metadata?.last_seen_at as string | undefined) ?? null, lang: langFromMetadata(u.user_metadata), createdAt: (u.created_at as string | undefined) ?? null, emailConfirmedAt: (u.email_confirmed_at as string | undefined) ?? null });
       if (data.users.length < 1000) break;
     }
   } catch (e) { falhou("listUsers", e); }
@@ -357,6 +358,10 @@ export async function GET(request: Request) {
   const langByEmail = await signupLangByEmail(admin);
   const langOf = (uid: string, email: string): Lang => resolveLang(users.get(uid)?.lang, langByEmail.get(email.toLowerCase()));
   const planOf = (priceId: unknown) => (isPremiumPriceId(priceId) ? "Premium" : "Pro");
+  // Quem pediu para nao receber emails do produto (tabela email_optout, lida
+  // uma vez). Salta boas-vindas, lembrete, inatividade e oferta; os avisos de
+  // fim de trial (3 dias, obrigado) continuam — sao transacionais.
+  const excluidos = await loadOptouts(admin);
 
   // ── 0) Boas-vindas a contas novas FORA do beta (1–3 dias de conta) ───────
   // Testers (subscricao manual) e quem se inscreveu no beta ficam de fora: tem
@@ -369,21 +374,26 @@ export async function GET(request: Request) {
     const beta = betaAberto();
     for (const [uid, u] of users) {
       if (!u.email || !u.createdAt || testers.has(uid) || langByEmail.has(u.email.toLowerCase())) continue;
+      // So a quem confirmou o email: um endereco mal escrito (ou um bot) nunca
+      // confirma, e mandar-lhe "a tua conta esta criada" e email a um estranho.
+      if (!u.emailConfirmedAt || excluidos.has(uid)) continue;
       const dias = Math.floor((now.getTime() - new Date(u.createdAt).getTime()) / DAY);
       if (dias < 1 || dias > 3) continue;
       if (!(await markSent(admin, uid, "welcome_account", dias === 1))) continue;
-      const m = COPY.welcome[langOf(uid, u.email)](beta);
-      if (await sendEmail({ to: u.email, subject: m.subject, html: m.html, tag: "welcome_account" })) welcome++;
+      const lang = langOf(uid, u.email);
+      const m = COPY.welcome[lang](beta);
+      if (await sendEmail({ to: u.email, subject: m.subject, html: m.html, tag: "welcome_account", userId: uid, lang })) welcome++;
     }
   } catch (e) { falhou("boas-vindas", e); }
 
-  // ── 0b) Ao 3.º dia sem carteira: um lembrete, uma vez ─────────────────────
-  // Todas as contas com email (testers incluidos), criadas ha 3–5 dias, sem
-  // nenhum endereco guardado em wallet_config. Recurso = so no 3.o dia exato.
+  // ── 0b) Ao 3.º dia sem dados: um lembrete, uma vez ────────────────────────
+  // Todas as contas com email confirmado (testers incluidos), criadas ha 3–5
+  // dias, sem nada registado: nem endereco, nem ativos a mao (wallet_config,
+  // ver temDados), nem chave de corretora (cex_keys). Recurso = so no 3.o dia.
   let nudgeWallet = 0;
   try {
-    const candidatos = [...users].filter(([, u]) => {
-      if (!u.email || !u.createdAt) return false;
+    const candidatos = [...users].filter(([uid, u]) => {
+      if (!u.email || !u.createdAt || !u.emailConfirmedAt || excluidos.has(uid)) return false;
       const dias = Math.floor((now.getTime() - new Date(u.createdAt).getTime()) / DAY);
       return dias >= 3 && dias <= 5;
     });
@@ -391,15 +401,19 @@ export async function GET(request: Request) {
       const comCarteira = new Set<string>();
       const ids = candidatos.map(([id]) => id);
       for (let i = 0; i < ids.length; i += 200) {
-        const { data } = await admin.from("wallet_config").select("user_id, data").in("user_id", ids.slice(i, i + 200));
-        for (const r of data ?? []) if (TEM_ENDERECO.test(JSON.stringify(r.data ?? ""))) comCarteira.add(r.user_id as string);
+        const lote = ids.slice(i, i + 200);
+        const { data } = await admin.from("wallet_config").select("user_id, data").in("user_id", lote);
+        for (const r of data ?? []) if (temDados(r.data)) comCarteira.add(r.user_id as string);
+        const { data: cex } = await admin.from("cex_keys").select("user_id").in("user_id", lote);
+        for (const r of cex ?? []) comCarteira.add(r.user_id as string);
       }
       for (const [uid, u] of candidatos) {
         if (comCarteira.has(uid)) continue;
         const dias = Math.floor((now.getTime() - new Date(u.createdAt!).getTime()) / DAY);
         if (!(await markSent(admin, uid, "nudge_wallet", dias === 3))) continue;
-        const m = COPY.nudgeWallet[langOf(uid, u.email)]();
-        if (await sendEmail({ to: u.email, subject: m.subject, html: m.html, tag: "nudge_wallet" })) nudgeWallet++;
+        const lang = langOf(uid, u.email);
+        const m = COPY.nudgeWallet[lang]();
+        if (await sendEmail({ to: u.email, subject: m.subject, html: m.html, tag: "nudge_wallet", userId: uid, lang })) nudgeWallet++;
       }
     }
   } catch (e) { falhou("lembrete carteira", e); }
@@ -427,8 +441,9 @@ export async function GET(request: Request) {
       // em que faltam exatamente TRIAL_DAYS-1 dias (um envio, no pior caso).
       const faltam = Math.ceil((new Date(s.current_period_end as string).getTime() - now.getTime()) / DAY);
       if (!em || !(await markSent(admin, uid, "welcome_step1", faltam === TRIAL_DAYS - 1))) continue;
-      const m = COPY.step1[langOf(uid, em)](planOf(s.price_id));
-      if (await sendEmail({ to: em, subject: m.subject, html: m.html, tag: "welcome_step1" })) step1++;
+      const lang = langOf(uid, em);
+      const m = COPY.step1[lang](planOf(s.price_id));
+      if (await sendEmail({ to: em, subject: m.subject, html: m.html, tag: "welcome_step1", userId: uid, lang })) step1++;
     }
   } catch (e) { falhou("primeiro passo", e); }
 
@@ -460,9 +475,9 @@ export async function GET(request: Request) {
     const endStr = fmtDate(end, lang, { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
     // Oferta de fundador (≤10 dias, uma vez).
-    if (daysLeft <= OFFER_DAY && daysLeft > 3 && em && (await markSent(admin, uid, "founder_offer", daysLeft === OFFER_DAY))) {
+    if (daysLeft <= OFFER_DAY && daysLeft > 3 && em && !excluidos.has(uid) && (await markSent(admin, uid, "founder_offer", daysLeft === OFFER_DAY))) {
       const m = COPY.offer[lang](plan);
-      if (await sendEmail({ to: em, subject: m.subject, html: m.html, tag: "founder_offer" })) { offers++; testerMails++; }
+      if (await sendEmail({ to: em, subject: m.subject, html: m.html, tag: "founder_offer", userId: uid, lang })) { offers++; testerMails++; }
       await sendTelegram(`🏆 Oferta de fundador enviada a ${tgEsc(em)} (${plan}, faltam ${daysLeft} dias)\nQuando o tester responder no bot a reservar, confirma aqui:`, {
         inline_keyboard: [[{ text: "🏆 Confirmar fundador", callback_data: `f:${uid}` }]],
       }).catch(() => {});
@@ -472,7 +487,7 @@ export async function GET(request: Request) {
     if (daysLeft <= 3) {
       if (em && (await markSent(admin, uid, "beta_3d", daysLeft === 3))) {
         const m = COPY.d3[lang](plan, endStr);
-        if (await sendEmail({ to: em, subject: m.subject, html: m.html, tag: "beta_3d" })) testerMails++;
+        if (await sendEmail({ to: em, subject: m.subject, html: m.html, tag: "beta_3d", userId: uid, lang })) testerMails++;
       }
       const kind = daysLeft <= 1 ? "admin_1d" : "admin_3d";
       if (await markSent(admin, uid, kind, daysLeft === (daysLeft <= 1 ? 1 : 3))) {
@@ -511,8 +526,9 @@ export async function GET(request: Request) {
       const em = users.get(uid)?.email ?? "";
       if (!em) continue;
       if (!(await markSent(admin, uid, "beta_ended", true))) continue;
-      const m = COPY.ended[langOf(uid, em)]();
-      if (await sendEmail({ to: em, subject: m.subject, html: m.html, tag: "beta_ended" })) { ended++; testerMails++; }
+      const lang = langOf(uid, em);
+      const m = COPY.ended[lang]();
+      if (await sendEmail({ to: em, subject: m.subject, html: m.html, tag: "beta_ended", userId: uid, lang })) { ended++; testerMails++; }
       await sendTelegram(`🏁 <b>Beta terminou</b>: ${tgEsc(em)} — voltou ao Free; email de balanço final enviado.\nSe reservar o preço de fundador, confirma aqui:`, {
         inline_keyboard: [[{ text: "🏆 Confirmar fundador", callback_data: `f:${uid}` }]],
       }).catch(() => {});
@@ -546,9 +562,10 @@ export async function GET(request: Request) {
       const em = u?.email ?? "";
       // Recurso = so no 14.o dia exato: com "true", uma falha do registo de
       // envios mandava este email TODOS os dias ate o tester voltar.
-      if (em && (await markSent(admin, uid, "idle_tester", days === IDLE_DAYS))) {
-        const m = COPY.idle[langOf(uid, em)](days);
-        if (await sendEmail({ to: em, subject: m.subject, html: m.html, tag: "idle_tester" })) idleMails++;
+      if (em && !excluidos.has(uid) && (await markSent(admin, uid, "idle_tester", days === IDLE_DAYS))) {
+        const lang = langOf(uid, em);
+        const m = COPY.idle[lang](days);
+        if (await sendEmail({ to: em, subject: m.subject, html: m.html, tag: "idle_tester", userId: uid, lang })) idleMails++;
       }
       if (await markSent(admin, uid, "inactive_14d", days === IDLE_DAYS)) {
         lines.push(`😴 ${tgEsc(u?.email ?? uid)} — ${days} dias sem entrar`);

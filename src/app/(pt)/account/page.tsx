@@ -427,6 +427,22 @@ export default function AccountPage() {
   const [briefingSaving, setBriefingSaving] = useState(false);
   const [briefingSaved, setBriefingSaved] = useState(false);
   const [briefingError, setBriefingError] = useState<string | null>(null);
+  // Emails do produto (boas-vindas, lembretes, inatividade, oferta). true =
+  // recebe. Escreve na tabela email_optout, a mesma do link "cancelar" dos
+  // emails, para o cron respeitar as duas vias.
+  const [productEmails, setProductEmails] = useState(true);
+  const [productEmailsBusy, setProductEmailsBusy] = useState(false);
+  const [productEmailsError, setProductEmailsError] = useState<string | null>(null);
+  const toggleProductEmails = async (on: boolean) => {
+    setProductEmailsBusy(true); setProductEmailsError(null);
+    const antes = productEmails;
+    setProductEmails(on);
+    try {
+      const res = await fetch("/api/email/optout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ optout: !on }) });
+      if (!res.ok) throw new Error(String(res.status));
+    } catch { setProductEmails(antes); setProductEmailsError(t("ac_product_emails_err")); }
+    finally { setProductEmailsBusy(false); }
+  };
   // Nickname
   const [nickname, setNickname] = useState("");
   const [nicknameSaving, setNicknameSaving] = useState(false);
@@ -585,6 +601,11 @@ export default function AccountPage() {
           .then((j: { crypto: CryptoSub | null } | null) => { if (!cancelled && j?.crypto) setCryptoSub(j.crypto); })
           .catch(() => {});
       }
+      // Emails do produto: excluido ou nao (não bloqueia o carregamento)
+      fetch("/api/email/optout")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j: { optout?: boolean } | null) => { if (!cancelled && j) setProductEmails(!j.optout); })
+        .catch(() => {});
       // Uso & limites (não bloqueia o carregamento)
       fetch("/api/usage")
         .then((r) => (r.ok ? r.json() : null))
@@ -1166,6 +1187,11 @@ export default function AccountPage() {
                     <SettingRow label={t("ac_btc_blocks")} desc={t("ac_btc_blocks_desc")}>
                       <span className="text-[11px] rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-emerald-300">{t("ac_included")}</span>
                     </SettingRow>
+                    {email && (
+                      <SettingRow label={t("ac_product_emails")} desc={productEmailsError ?? t("ac_product_emails_desc")}>
+                        <Toggle label={t("ac_product_emails")} checked={productEmails} disabled={productEmailsBusy} onChange={(v) => void toggleProductEmails(v)} />
+                      </SettingRow>
+                    )}
                   </div>
 
                   {!isPro && !isPremium && !planUnknown && !loading && (

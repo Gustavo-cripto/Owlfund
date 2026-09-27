@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/api/requireUser";
+import { apiMsg } from "@/lib/api/apiMessages";
 import { eNaoEncontrado, lerCarteiraCardano, statusDoErro } from "@/lib/cardano/blockfrost";
 
 
@@ -13,14 +14,14 @@ export async function GET(request: Request) {
 
   if (!address || !/^addr1[a-z0-9]+$/i.test(address)) {
     return NextResponse.json(
-      { error: "Endereço Cardano inválido." },
+      { error: apiMsg(request, "address_invalid_for_chain", { chain: "Cardano" }) },
       { status: 400 }
     );
   }
 
   if (!projectId) {
     return NextResponse.json(
-      { error: "Serviço de saldo por endereço não configurado." },
+      { error: apiMsg(request, "server_unconfigured") },
       { status: 503 }
     );
   }
@@ -34,9 +35,11 @@ export async function GET(request: Request) {
   } catch (e) {
     if (eNaoEncontrado(e)) return NextResponse.json({ balance: "0", lovelace: "0" });
     console.error("[ada-balance]", e instanceof Error ? e.message : e);
+    // A mensagem do upstream (Blockfrost, em ingles) ja nao vai para o ecra:
+    // fica no registo acima e o utilizador ve a frase na lingua dele.
     const st = statusDoErro(e);
     return NextResponse.json(
-      { error: e instanceof Error && st && st < 500 ? e.message : "Erro ao consultar saldo." },
+      { error: apiMsg(request, st === 429 ? "rate_limited" : "balance_unavailable") },
       { status: st && st < 500 ? st : 503 }
     );
   }

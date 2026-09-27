@@ -497,7 +497,7 @@ export const pt = {
     lg_err_google: "Não foi possível iniciar sessão com Google.",
     lg_err_email_first: "Escreve o teu email primeiro.",
     lg_err_link_expired: "O link expirou. Pede um novo email de confirmação.",
-    lg_err_link_invalid: "Link inválido — se o abriste noutro dispositivo/browser, abre-o no mesmo onde te registaste ou pede um novo.",
+    lg_err_link_invalid: "Ligação inválida ou já usada — pede uma nova.",
     lg_signup_ok: "Conta criada! Verifica o teu email para confirmar (vê também o spam).",
     lg_resend: "Reenviar email de confirmação",
     lg_resent: "Email reenviado. Verifica a caixa de entrada e o spam.",
@@ -2510,6 +2510,16 @@ export const pt = {
 
     // ── Lote E (robustez): /estado — serviço "Snapshots diários" ──
     st_f_snapshots: "histórico do Portefólio (cron diário)",
+    // ── Lote B (set 2026) · emails e ativacao ──
+    ac_product_emails: "Emails do produto",
+    ac_product_emails_desc: "Boas-vindas, lembretes e novidades da tua conta. Os avisos sobre o fim do período de teste chegam sempre.",
+    ac_product_emails_err: "Não foi possível guardar a preferência. Tenta de novo.",
+    lg_wallet_no_provider: "A carteira não está disponível neste browser. Abre a extensão e tenta de novo.",
+    lg_wallet_no_address: "A carteira não devolveu nenhum endereço. Desbloqueia-a e tenta de novo.",
+    lg_wallet_rejected: "Cancelaste o pedido na carteira.",
+    wl_err_tokens: "Não foi possível ler os tokens desta carteira.",
+    wl_err_rate_limited: "Demasiados pedidos. Espera um minuto e tenta de novo.",
+    wl_err_provider_down: "O fornecedor de dados não respondeu. Tenta de novo daqui a pouco.",
 };
 
 export type TranslationKey = keyof typeof pt;

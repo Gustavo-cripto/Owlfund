@@ -16,6 +16,21 @@ import { pushWalletCloud } from "@/lib/portfolios/cloudSync";
 import type { Lang } from "@/lib/i18n/translations";
 import { fraseCarteira } from "@/lib/auth/fraseCarteira";
 
+/**
+ * Erro com `code` para o ecra traduzir (userError({ codes })), em vez de uma
+ * frase fixa em portugues que aparecia tal e qual na interface inglesa.
+ *  - no_provider: a extensao nao esta disponivel
+ *  - no_address: a carteira nao devolveu nenhum endereco
+ *  - supabase: o Supabase recusou a assinatura (mensagem em ingles)
+ */
+export class ErroCarteira extends Error {
+  code: "no_provider" | "no_address" | "supabase";
+  constructor(code: "no_provider" | "no_address" | "supabase", message = code) {
+    super(message);
+    this.code = code;
+  }
+}
+
 function guardarCarteiraLigada(rede: "eth" | "sol", address: string, network: string): void {
   const snap = loadWalletSnapshot();
   const lista: StoredWalletEntry[] = [...(snap[rede] ?? [])];
@@ -27,25 +42,25 @@ function guardarCarteiraLigada(rede: "eth" | "sol", address: string, network: st
 
 export async function entrarComEthereum(lang: Lang = "pt"): Promise<{ address: string }> {
   const provider = getEvmProviderById("metamask") ?? (typeof window !== "undefined" ? window.ethereum : undefined);
-  if (!provider) throw new Error("MetaMask não está disponível.");
+  if (!provider) throw new ErroCarteira("no_provider");
   const contas = (await provider.request({ method: "eth_requestAccounts" })) as string[];
   const address = contas?.[0];
-  if (!address) throw new Error("A carteira não devolveu nenhum endereço.");
+  if (!address) throw new ErroCarteira("no_address");
   const supabase = await getSupabase();
   const { error } = await supabase.auth.signInWithWeb3({ chain: "ethereum", wallet: provider as never, statement: fraseCarteira(lang) });
-  if (error) throw new Error(error.message);
+  if (error) throw new ErroCarteira("supabase", error.message);
   guardarCarteiraLigada("eth", address, "Ethereum");
   return { address };
 }
 
 export async function entrarComSolana(lang: Lang = "pt"): Promise<{ address: string }> {
   const wallet = typeof window !== "undefined" ? (window.solana as unknown as { publicKey?: { toBase58?: () => string }; connect?: (o?: unknown) => Promise<unknown> } | undefined) : undefined;
-  if (!wallet) throw new Error("Phantom não está disponível.");
+  if (!wallet) throw new ErroCarteira("no_provider");
   const supabase = await getSupabase();
   const { error } = await supabase.auth.signInWithWeb3({ chain: "solana", wallet: wallet as never, statement: fraseCarteira(lang) });
-  if (error) throw new Error(error.message);
+  if (error) throw new ErroCarteira("supabase", error.message);
   const address = wallet.publicKey?.toBase58?.();
-  if (!address) throw new Error("A carteira não devolveu nenhum endereço.");
+  if (!address) throw new ErroCarteira("no_address");
   guardarCarteiraLigada("sol", address, "Solana");
   return { address };
 }

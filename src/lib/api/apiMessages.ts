@@ -152,6 +152,13 @@ export const API_MESSAGES = {
     "Fonctionnalité non configurée sur le serveur.",
   ),
   code_missing: M("Código em falta.", "Missing code.", "Falta el código.", "Code manquant."),
+  // Rotas de saldo (evm/sol/btc/ada-balance): o ecra mostra esta frase tal e qual.
+  balance_unavailable: M(
+    "Não foi possível obter o saldo agora. Tenta de novo daqui a pouco.",
+    "Could not fetch the balance right now. Try again in a moment.",
+    "No se pudo obtener el saldo ahora. Inténtalo de nuevo en un momento.",
+    "Impossible d'obtenir le solde pour le moment. Réessayez dans un instant.",
+  ),
 } as const;
 
 export type ApiMessageKey = keyof typeof API_MESSAGES;

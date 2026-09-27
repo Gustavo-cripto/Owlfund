@@ -488,7 +488,7 @@ export const en: Record<TranslationKey, string> = {
     lg_err_google: "Couldn't sign in with Google.",
     lg_err_email_first: "Type your email first.",
     lg_err_link_expired: "The link expired. Request a new confirmation email.",
-    lg_err_link_invalid: "Invalid link — if you opened it on another device/browser, open it where you signed up or request a new one.",
+    lg_err_link_invalid: "Invalid or already used link — request a new one.",
     lg_signup_ok: "Account created! Check your email to confirm (spam too).",
     lg_resend: "Resend confirmation email",
     lg_resent: "Email resent. Check inbox and spam.",
@@ -2495,4 +2495,14 @@ export const en: Record<TranslationKey, string> = {
 
     // ── Lote E (robustez): /estado — serviço "Snapshots diários" ──
     st_f_snapshots: "Portfolio history (daily cron)",
+    // ── Lote B (set 2026) · emails e ativacao ──
+    ac_product_emails: "Product emails",
+    ac_product_emails_desc: "Welcome, reminders and news about your account. Notices about the end of your trial always arrive.",
+    ac_product_emails_err: "Could not save the preference. Try again.",
+    lg_wallet_no_provider: "The wallet is not available in this browser. Open the extension and try again.",
+    lg_wallet_no_address: "The wallet did not return an address. Unlock it and try again.",
+    lg_wallet_rejected: "You cancelled the request in the wallet.",
+    wl_err_tokens: "Could not read this wallet's tokens.",
+    wl_err_rate_limited: "Too many requests. Wait a minute and try again.",
+    wl_err_provider_down: "The data provider did not respond. Try again in a moment.",
 };

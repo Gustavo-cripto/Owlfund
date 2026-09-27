@@ -11,6 +11,7 @@
 import { useEffect } from "react";
 
 import { getSupabase } from "@/lib/supabase/lazy";
+import { contaSemCarteiras } from "@/lib/auth/contaNova";
 
 declare global {
   interface Window {
@@ -18,7 +19,10 @@ declare global {
   }
 }
 
-export default function GoogleOneTap({ next }: { next: string }) {
+// `next` e o destino ja saneado; `pediuDestino` diz se alguem o pediu (?next=).
+// Sem destino pedido, uma conta sem nada guardado vai a Carteiras — a mesma
+// regra do callback e do /api/auth/confirm (ver src/lib/auth/contaNova.ts).
+export default function GoogleOneTap({ next, pediuDestino = false }: { next: string; pediuDestino?: boolean }) {
   useEffect(() => {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     if (!clientId) return;
@@ -37,8 +41,12 @@ export default function GoogleOneTap({ next }: { next: string }) {
       window.google.accounts.id.initialize({
         client_id: clientId,
         callback: async (resp: { credential: string }) => {
-          const { error } = await supabase.auth.signInWithIdToken({ provider: "google", token: resp.credential });
-          if (!error) window.location.href = next;
+          const { data, error } = await supabase.auth.signInWithIdToken({ provider: "google", token: resp.credential });
+          if (error) return;
+          let destino = next;
+          const uid = data.user?.id ?? "";
+          if (!pediuDestino && uid && (await contaSemCarteiras(supabase, uid))) destino = "/wallets";
+          window.location.href = destino;
         },
         auto_select: false,
         cancel_on_tap_outside: true,
@@ -47,6 +55,6 @@ export default function GoogleOneTap({ next }: { next: string }) {
       window.google.accounts.id.prompt();
     })();
     return () => { cancelado = true; try { window.google?.accounts.id.cancel(); } catch { /* ignore */ } };
-  }, [next]);
+  }, [next, pediuDestino]);
   return null;
 }

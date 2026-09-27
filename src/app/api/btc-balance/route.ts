@@ -12,11 +12,11 @@ export async function GET(req: NextRequest) {
   if (!auth.ok) return auth.response;
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
   if (!checkRateLimit(ip)) {
-    return NextResponse.json({ error: "Demasiados pedidos." }, { status: 429 });
+    return NextResponse.json({ error: apiMsg(req, "rate_limited") }, { status: 429 });
   }
 
   const address = req.nextUrl.searchParams.get("address");
-  if (!address) return NextResponse.json({ error: "Missing address" }, { status: 400 });
+  if (!address) return NextResponse.json({ error: apiMsg(req, "address_required") }, { status: 400 });
   // Checksum antes de gastar pedidos: um endereco que nao existe nunca vai ter saldo.
   if (!isValidBtcAddress(address)) return NextResponse.json({ error: apiMsg(req, "btc_address_not_on_chain") }, { status: 400 });
 
@@ -40,5 +40,5 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ error: "Failed to fetch BTC balance" }, { status: 502 });
+  return NextResponse.json({ error: apiMsg(req, "btc_balance_failed") }, { status: 502 });
 }

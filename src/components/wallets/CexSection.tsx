@@ -105,6 +105,8 @@ export default function CexSection({
   addedAddresses = [],
   onRemoveAddress,
   tokensByAddress = {},
+  tokensErrorByAddress = {},
+  onRetryTokens,
 }: {
   onTotalChange?: (usd: number) => void;
   usdToEur?: number;
@@ -117,6 +119,9 @@ export default function CexSection({
   }>;
   onRemoveAddress?: (address: string, kind: "eth" | "sol" | "btc" | "ada" | "other", networkLabel: string) => void;
   tokensByAddress?: Record<string, Array<{ address: string; symbol: string; name: string; logo?: string; balance: string; usdValue: number; chain: string; network?: string }>>;
+  /** Erro (ja traduzido) ao ler os tokens desta carteira, por "kind:address". */
+  tokensErrorByAddress?: Record<string, string>;
+  onRetryTokens?: (address: string, kind: "eth" | "sol") => void;
 }) {
   const { t } = useLanguage();
   const { format: fmtCur, formatUsd, hideBalances, numberFormat } = useCurrencyFormat();
@@ -516,6 +521,18 @@ export default function CexSection({
                     </div>
                     {/* Tokens (wETH, USDC, etc.) — exclui o nativo da rede desta carteira (ja no Saldo);
                         o nativo de OUTRAS redes (ETH na Arbitrum, POL na Polygon…) mostra-se com a rede. */}
+                    {/* Falha ao ler tokens: diz-se e deixa-se repetir, em vez de fingir "sem tokens". */}
+                    {tokensErrorByAddress[`${e.kind}:${e.address}`] && (e.kind === "eth" || e.kind === "sol") && (
+                      <p className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-amber-300/90">
+                        <span>⚠️ {tokensErrorByAddress[`${e.kind}:${e.address}`]}</span>
+                        {onRetryTokens && (
+                          <button type="button" onClick={() => onRetryTokens(e.address, e.kind as "eth" | "sol")}
+                            className="rounded border border-amber-400/40 px-2 py-0.5 font-semibold text-amber-200 transition hover:bg-amber-400/10">
+                            {t("err_retry")}
+                          </button>
+                        )}
+                      </p>
+                    )}
                     {(() => {
                       const ownNet = networkKey(e.networkLabel);
                       const toks = (tokensByAddress[`${e.kind}:${e.address}`] ?? [])

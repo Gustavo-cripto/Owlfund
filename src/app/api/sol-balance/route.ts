@@ -36,12 +36,12 @@ export async function GET(request: NextRequest) {
   if (!auth.ok) return auth.response;
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
   if (!checkRateLimit(ip)) {
-    return NextResponse.json({ error: "Demasiados pedidos." }, { status: 429 });
+    return NextResponse.json({ error: apiMsg(request, "rate_limited") }, { status: 429 });
   }
 
   const { searchParams } = new URL(request.url);
   const address = searchParams.get("address");
-  if (!address) return NextResponse.json({ error: "address required" }, { status: 400 });
+  if (!address) return NextResponse.json({ error: apiMsg(request, "address_required") }, { status: 400 });
   // Antes de gastar 3 RPCs: um endereco mal colado e "invalido", nao "falha dos RPCs".
   if (!isValidSolAddress(address)) return NextResponse.json({ error: apiMsg(request, "address_invalid"), code: "address_invalid" }, { status: 400 });
 
@@ -51,5 +51,5 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ balance }, { headers: CACHE_HEADERS });
     } catch { /* try next */ }
   }
-  return NextResponse.json({ error: "All SOL RPCs failed" }, { status: 502 });
+  return NextResponse.json({ error: apiMsg(request, "balance_unavailable") }, { status: 502 });
 }
