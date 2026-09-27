@@ -88,7 +88,7 @@ export const en: Record<TranslationKey, string> = {
     dash_beta_free: "Free for 60 days",
     dash_beta_note: "Beta until 5 Nov · Premium for honest feedback",
     dash_chip_gestor: "Personal AI Manager", dash_chip_smrt: "Real-time Smart Money", dash_chip_api: "API + MCP", dash_chip_countries: "All tax countries",
-    dash_chip_wallets: "Unlimited wallets", dash_chip_history: "1yr+ history", dash_chip_whales: "Whale alerts", dash_chip_export: "PDF/Excel tax export",
+    dash_chip_wallets: "Unlimited wallets", dash_chip_history: "1yr history", dash_chip_whales: "Whale alerts", dash_chip_export: "PDF/Excel tax export",
     df_hist_l: "Trade History", df_hist_s: "Log buys and sells and track realized PNL.",
     df_hist_0: "Manual log + FIFO realized PNL + per-asset summary",
     dash_upgrade_premium: "Upgrade to Premium",
