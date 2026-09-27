@@ -37,7 +37,7 @@ export function indexMetadata(lang: GuideLang): Metadata {
     alternates: { canonical, languages: languagesFor(guideUrl("pt"), guideUrl("en")) },
     // Com images e twitter: sem eles o cartao saia sem imagem e com o titulo
     // da homepage no X (ver socialMeta).
-    ...socialMeta({ title: c.indexMetaTitle, description: c.indexMetaDescription, url: canonical, type: "article", locale: c.locale }),
+    ...socialMeta({ title: c.indexMetaTitle, description: c.indexMetaDescription, url: canonical, type: "article", locale: c.locale, lang }),
   };
 }
 
@@ -60,6 +60,6 @@ export function countryMetadata(lang: GuideLang, slug: string): Metadata {
       canonical,
       languages: languagesFor(guideUrl("pt", country), guideUrl("en", country)),
     },
-    ...socialMeta({ title: title.length <= LIMITE_TITULO ? title : titleCurto, description, url: canonical, type: "article", locale: c.locale }),
+    ...socialMeta({ title: title.length <= LIMITE_TITULO ? title : titleCurto, description, url: canonical, type: "article", locale: c.locale, lang }),
   };
 }

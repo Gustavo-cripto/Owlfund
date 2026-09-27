@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/api/requireUser";
 import { apiMsg } from "@/lib/api/apiMessages";
-import { eNaoEncontrado, lerCarteiraCardano, statusDoErro } from "@/lib/cardano/blockfrost";
+import { eNaoEncontrado, lerCarteiraCardano, respostaDoErroBlockfrost, statusDoErro } from "@/lib/cardano/blockfrost";
 
 
 export async function GET(request: Request) {
@@ -37,10 +37,11 @@ export async function GET(request: Request) {
     console.error("[ada-balance]", e instanceof Error ? e.message : e);
     // A mensagem do upstream (Blockfrost, em ingles) ja nao vai para o ecra:
     // fica no registo acima e o utilizador ve a frase na lingua dele.
-    const st = statusDoErro(e);
+    // 4xx do endereco → "endereco invalido" (400); quota/chave nossa → 503.
+    const r = respostaDoErroBlockfrost(statusDoErro(e));
     return NextResponse.json(
-      { error: apiMsg(request, st === 429 ? "rate_limited" : "balance_unavailable") },
-      { status: st && st < 500 ? st : 503 }
+      { error: apiMsg(request, r.key, r.key === "address_invalid_for_chain" ? { chain: "Cardano" } : undefined) },
+      { status: r.status }
     );
   }
 }

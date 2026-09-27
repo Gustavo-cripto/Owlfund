@@ -43,6 +43,24 @@ async function pedir<T>(path: string, projectId: string, revalidate = 60): Promi
 export const eNaoEncontrado = (e: unknown) => e instanceof BlockfrostErro && e.status === 404;
 export const statusDoErro = (e: unknown) => (e instanceof BlockfrostErro ? e.status : null);
 
+// Estados da Blockfrost que sao problema NOSSO (chave/quota), nao do endereco:
+// 402 limite diario da conta, 403 project_id invalido, 418 conta banida por
+// excesso, 425 mempool cheia. Dizer "endereco invalido" nesses casos mandava a
+// pessoa apagar uma carteira boa.
+const ERROS_DO_SERVIDOR = new Set([402, 403, 418, 425]);
+
+/**
+ * Resposta de /api/ada-balance para um erro da Blockfrost (404 trata-se antes:
+ * endereco sem historico = saldo 0). Lote G: os 4xx que vêm do endereço (400 —
+ * mal formado ou de outra rede) passam a "endereço inválido" com 400 em vez de
+ * "saldo indisponível", que convidava a tentar outra vez sem nada mudar.
+ */
+export function respostaDoErroBlockfrost(status: number | null): { key: "address_invalid_for_chain" | "rate_limited" | "balance_unavailable"; status: number } {
+  if (status === 429) return { key: "rate_limited", status: 429 };
+  if (status && status >= 400 && status < 500 && !ERROS_DO_SERVIDOR.has(status)) return { key: "address_invalid_for_chain", status: 400 };
+  return { key: "balance_unavailable", status: 503 };
+}
+
 /** Lê a carteira inteira a partir de um endereço qualquer dela. */
 export async function lerCarteiraCardano(address: string, projectId: string): Promise<CarteiraCardano> {
   const addr = address.trim();

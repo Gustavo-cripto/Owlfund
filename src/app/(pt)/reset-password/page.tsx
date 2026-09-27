@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { btnPrimary } from "@/lib/ui/buttons";
 import { createClient } from "@/lib/supabase/client";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { COOKIE_RECUPERACAO, lerCookie, sessaoDeRecuperacao } from "@/lib/auth/recuperacao";
 
 const MIN_PASSWORD = 8;
 
@@ -46,6 +47,20 @@ export default function ResetPasswordPage() {
       if (event === "PASSWORD_RECOVERY" && session) markReady();
     });
 
+    // Link novo (token_hash, lote G): /api/auth/confirm ja verificou o link e
+    // criou a sessao no servidor, e deixou o cookie cfa-recovery com o id do
+    // utilizador. Funciona em qualquer aparelho. So abre o formulario se a
+    // sessao for do mesmo utilizador do cookie (ver src/lib/auth/recuperacao.ts).
+    if (!code && !hasHash && lerCookie(document.cookie, COOKIE_RECUPERACAO)) {
+      supabase.auth.getSession()
+        .then(({ data }: { data: { session: { user?: { id?: string } } | null } }) => {
+          if (!active) return;
+          if (sessaoDeRecuperacao(document.cookie, data.session?.user?.id)) markReady(); else setChecking(false);
+        })
+        .catch(() => { if (active) setChecking(false); });
+      return () => { active = false; sub.subscription.unsubscribe(); };
+    }
+
     if (!code && !hasHash) {
       const tm = setTimeout(() => { if (active) setChecking(false); }, 1500);
       return () => { active = false; clearTimeout(tm); sub.subscription.unsubscribe(); };
@@ -73,6 +88,8 @@ export default function ResetPasswordPage() {
       }
       // Termina outras sessões (quem tinha a palavra-passe antiga deixa de entrar).
       try { await supabase.auth.signOut({ scope: "others" }); } catch { /* ignore */ }
+      // O link ja foi usado: o formulario nao volta a abrir so com esta sessao.
+      document.cookie = `${COOKIE_RECUPERACAO}=; path=/; max-age=0; SameSite=Lax`;
       setDone(true);
       setMessage(t("rp_done"));
       setIsError(false);

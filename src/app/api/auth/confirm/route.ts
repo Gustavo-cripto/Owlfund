@@ -6,6 +6,7 @@ import { sanitizeNext } from "@/lib/auth/redirects";
 import { COOKIE_NEXT } from "@/lib/auth/emailRedirect";
 import { COOKIE_LANG, contaSemCarteiras, langDoPedido } from "@/lib/auth/contaNova";
 import { pageUrl } from "@/lib/i18n/routes";
+import { COOKIE_RECUPERACAO, RECUPERACAO_MAX_AGE, destinoDaConfirmacao } from "@/lib/auth/recuperacao";
 
 // Confirmacao de email e ligacao magica por `token_hash` (modelos em
 // supabase/email-templates/*.html): /api/auth/confirm?token_hash=…&type=…&lang=xx
@@ -16,7 +17,12 @@ import { pageUrl } from "@/lib/i18n/routes";
 // verifyOtp com token_hash e verificado no servidor e funciona em qualquer
 // aparelho. O destino (next/cookie cfa-next, conta nova → /wallets) e o mesmo
 // do callback, que se mantem para o OAuth Google e para emails antigos.
-const TIPOS: readonly EmailOtpType[] = ["signup", "magiclink", "email", "invite", "email_change"];
+//
+// type=recovery (repor palavra-passe, lote G): depois do verifyOtp a sessao
+// fica criada e a pessoa vai para /reset-password?lang=xx, com o cookie curto
+// cfa-recovery (id do utilizador) que diz a pagina que esta sessao veio de um
+// link de recuperacao. Ver src/lib/auth/recuperacao.ts.
+const TIPOS: readonly EmailOtpType[] = ["signup", "magiclink", "email", "invite", "email_change", "recovery"];
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -35,7 +41,8 @@ export async function GET(request: Request) {
 
   if (!tokenHash || !type || !TIPOS.includes(type)) return paraLogin("confirm");
 
-  let destino = next;
+  let contaNova = false;
+  let uid = "";
   const pediuDestino = Boolean(searchParams.get("next") || doCookie);
   try {
     const supabase = await createClient();
@@ -45,14 +52,21 @@ export async function GET(request: Request) {
       // otp_expired: o link tem mais de 1 h (ou ja foi usado) — pede outro.
       return paraLogin(/expired|otp_expired/i.test(`${error.code ?? ""} ${error.message}`) ? "expired" : "confirm");
     }
-    const uid = sessao?.user?.id ?? "";
-    if (!pediuDestino && uid) {
-      try { if (await contaSemCarteiras(getSupabaseAdmin(), uid)) destino = "/wallets"; } catch { /* sem admin: fica o destino normal */ }
+    uid = sessao?.user?.id ?? "";
+    if (type !== "recovery" && !pediuDestino && uid) {
+      try { contaNova = await contaSemCarteiras(getSupabaseAdmin(), uid); } catch { /* sem admin: fica o destino normal */ }
     }
   } catch (e) {
     console.error("[auth/confirm]", e instanceof Error ? e.message : e);
     return paraLogin("confirm");
   }
 
-  return limpar(NextResponse.redirect(`${origin}${destino}`));
+  const destino = destinoDaConfirmacao({ type, lang, next, contaNova, pediuDestino });
+  const res = limpar(NextResponse.redirect(`${origin}${destino}`));
+  if (type === "recovery" && uid) {
+    // Lido pela pagina no cliente (por isso sem httpOnly); so vale junto com a
+    // sessao do MESMO utilizador, e a pagina apaga-o depois de gravar.
+    res.cookies.set({ name: COOKIE_RECUPERACAO, value: uid, path: "/", maxAge: RECUPERACAO_MAX_AGE, sameSite: "lax", secure: origin.startsWith("https://") });
+  }
+  return res;
 }

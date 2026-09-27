@@ -22,7 +22,11 @@ export function destinoDoEmail(lang: Lang, next: string): string {
   return `${window.location.origin}/api/auth/callback?lang=${lang}`;
 }
 
-/** Recuperação de palavra-passe: a página /reset-password troca o código ela própria. */
+/**
+ * Recuperação de palavra-passe. Com o modelo novo (token_hash, lote G) este URL
+ * só escolhe o ramo de língua do email — o link vai para /api/auth/confirm. Com
+ * o modelo antigo (.pkce.html) é o destino real e a página troca o código.
+ */
 export function destinoDoReset(lang: Lang): string {
   return `${window.location.origin}/reset-password?lang=${lang}`;
 }

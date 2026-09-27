@@ -27,7 +27,7 @@ export async function POST(req: Request) {
   if (!auth.ok) return auth.response;
   let optout: unknown;
   try { optout = ((await req.json()) as { optout?: unknown })?.optout; } catch { /* corpo vazio */ }
-  if (typeof optout !== "boolean") return NextResponse.json({ error: apiMsg(req, "code_missing") }, { status: 400 });
+  if (typeof optout !== "boolean") return NextResponse.json({ error: apiMsg(req, "invalid_body") }, { status: 400 });
   let ok = false;
   try { ok = await setOptout(getSupabaseAdmin(), auth.userId, optout); } catch (e) { console.error("[email/optout]", e instanceof Error ? e.message : e); }
   if (!ok) return NextResponse.json({ error: apiMsg(req, "server_unconfigured") }, { status: 503 });
