@@ -460,7 +460,7 @@ export const pt = {
     lg_or: "ou",
     lg_google: "Continuar com Google",
     lg_magic: "Entrar sem palavra-passe",
-    lg_magic_desc: "Recebes um email com uma ligação. Abre-a neste aparelho e entras logo, sem palavra-passe. Se ainda não tens conta, fica criada nesse clique.",
+    lg_magic_desc: "Recebes um email com uma ligação. Abre-a (aqui ou no telemóvel) e entras logo, sem palavra-passe. Se ainda não tens conta, fica criada nesse clique.",
     lg_magic_send: "Enviar ligação por email",
     lg_magic_sent_short: "Ligação enviada ✓",
     lg_magic_sent: "Enviámos uma ligação para {email}. Abre-a neste aparelho e entras logo — se ainda não tinhas conta, fica criada nesse clique.",
@@ -2524,6 +2524,10 @@ export const pt = {
     hw_aff_mixed_note: "A ligação da {aff} é de afiliado (pequena comissão, sem custo extra para ti); a da {direct} é direta ao fabricante.",
     // ── Lote D (SEO e partilha, set 2026) ──
     sb_nav_main: "Navegação principal",
+    // ── Login: painel de repor palavra-passe (set 2026) ──
+    lg_reset_desc: "Escreve o email da tua conta. Enviamos uma ligação para escolheres uma palavra-passe nova — podes abri-la aqui ou no telemóvel.",
+    lg_reset_send: "Enviar email de recuperação",
+    lg_reset_sent_short: "Email enviado ✓",
 };
 
 export type TranslationKey = keyof typeof pt;

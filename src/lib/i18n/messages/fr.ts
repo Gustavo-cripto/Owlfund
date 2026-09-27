@@ -451,7 +451,7 @@ export const fr: Record<TranslationKey, string> = {
     lg_or: "ou",
     lg_google: "Continuer avec Google",
     lg_magic: "Se connecter sans mot de passe",
-    lg_magic_desc: "Tu reçois un e-mail avec un lien. Ouvre-le sur cet appareil et tu es connecté, sans mot de passe. Sans compte, il est créé à ce clic.",
+    lg_magic_desc: "Tu reçois un e-mail avec un lien. Ouvre-le (ici ou sur ton téléphone) et tu es connecté, sans mot de passe. Sans compte, il est créé à ce clic.",
     lg_magic_send: "Envoyer le lien par e-mail",
     lg_magic_sent_short: "Lien envoyé ✓",
     lg_magic_sent: "Nous avons envoyé un lien à {email}. Ouvre-le sur cet appareil et tu es connecté — sans compte, il est créé à ce clic.",
@@ -2509,4 +2509,8 @@ export const fr: Record<TranslationKey, string> = {
     hw_aff_mixed_note: "Le lien {aff} est un lien d'affiliation (petite commission, sans surcoût pour vous) ; le lien {direct} va directement au fabricant.",
     // ── Lote D (SEO e partilha, set 2026) ──
     sb_nav_main: "Navigation principale",
+    // ── Login: painel de repor palavra-passe (set 2026) ──
+    lg_reset_desc: "Saisis l'e-mail de ton compte. On t'envoie un lien pour choisir un nouveau mot de passe — tu peux l'ouvrir ici ou sur ton téléphone.",
+    lg_reset_send: "Envoyer l'e-mail de récupération",
+    lg_reset_sent_short: "E-mail envoyé ✓",
 };

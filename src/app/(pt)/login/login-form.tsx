@@ -294,15 +294,29 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
     } catch { fail(t("lg_err_google")); setGoogleLoading(false); }
   };
 
+  // ── Repor a palavra-passe ────────────────────────────────────────────────
+  // Painel proprio (como a ligacao magica), aberto pelo "Esqueceste-te da
+  // palavra-passe?": tem o seu campo de email, pre-preenchido com o de cima.
+  // Antes o link so dava "Escreve o teu email primeiro" se o campo estivesse
+  // vazio — sem dizer onde nem porque.
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetSent, setResetSent] = useState(false);
+  const [resetMsg, setResetMsg] = useState<{ text: string; error: boolean } | null>(null);
+  const abrirReset = () => {
+    setResetOpen((v) => !v);
+    if (!resetEmail && email.trim()) setResetEmail(email.trim());
+  };
   const handleReset = async () => {
-    const nextEmail = email.trim();
-    if (!nextEmail) { fail(t("lg_err_email_first")); return; }
-    setLoading(true); setMessage(null); setIsError(false);
+    const nextEmail = resetEmail.trim();
+    if (!nextEmail) { setResetMsg({ text: t("lg_err_email_first"), error: true }); return; }
+    setLoading(true); setResetMsg(null);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(nextEmail, { redirectTo: destinoDoReset(lang) });
-      if (error) fail(t(mapAuthError(error)));
-      else { setMessage(t("lg_reset_sent")); setIsError(false); }
-    } catch { fail(t("lg_err_generic")); }
+      if (error) { setResetMsg({ text: t(mapAuthError(error)), error: true }); return; }
+      setResetSent(true);
+      setResetMsg({ text: t("lg_reset_sent"), error: false });
+    } catch { setResetMsg({ text: t("lg_err_generic"), error: true }); }
     finally { setLoading(false); }
   };
 
@@ -443,9 +457,30 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
 
           {mode === "login" && (
             <div className="mt-2 text-right">
-              <button type="button" onClick={handleReset} disabled={busy} className="text-xs text-slate-400 transition hover:text-orange-300 disabled:opacity-50">
+              <button type="button" onClick={abrirReset} disabled={busy} aria-expanded={resetOpen} aria-controls="lg-reset-panel"
+                className="text-xs text-slate-400 transition hover:text-orange-300 disabled:opacity-50">
                 {t("lg_forgot")}
               </button>
+            </div>
+          )}
+          {mode === "login" && resetOpen && (
+            <div id="lg-reset-panel" className="mt-3 space-y-3 rounded-2xl border border-orange-500/20 bg-orange-500/[0.04] p-4">
+              <p className="text-xs leading-relaxed text-slate-300">{t("lg_reset_desc")}</p>
+              <div>
+                <label htmlFor="lg-reset-email" className="sr-only">Email</label>
+                <input id="lg-reset-email" className={inputClass} placeholder="Email" type="email" autoComplete="email" inputMode="email"
+                  value={resetEmail} onChange={(event) => setResetEmail(event.target.value)}
+                  onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void handleReset(); } }} />
+              </div>
+              <button type="button" onClick={() => void handleReset()} disabled={busy || resetSent}
+                className={`${btnPrimary} w-full px-6 py-3 text-sm`}>
+                {loading ? t("lg_wait") : resetSent ? t("lg_reset_sent_short") : t("lg_reset_send")}
+              </button>
+              {resetMsg && (
+                <p role="alert" className={`rounded-lg border px-3 py-2 text-sm ${resetMsg.error ? "border-red-500/30 bg-red-500/10 text-red-300" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"}`}>
+                  {resetMsg.text}
+                </p>
+              )}
             </div>
           )}
 
