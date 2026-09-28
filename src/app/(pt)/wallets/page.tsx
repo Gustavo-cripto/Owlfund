@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, startTransition } fr
 import { repetirVisivel, DOIS_MIN, TRES_MIN } from "@/lib/polling";
 import { userError } from "@/lib/ui/userError";
 import ErrorNote from "@/components/ErrorNote";
-import { cleanDecimalInput, parseDecimal } from "@/lib/format/decimal";
+import { parseDecimal } from "@/lib/format/decimal";
 import { FREE_WALLET_LIMIT } from "@/lib/plans";
 import { detetarRede } from "@/lib/wallets/detetarRede";
 
@@ -15,6 +15,9 @@ import CexSection from "@/components/wallets/CexSection";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import WalletCard from "@/components/wallets/WalletCard";
+import { propsCartaoAda, propsCartaoBtc, propsCartaoEth, propsCartaoSol } from "@/lib/wallets/cartoes";
+import { criarMoneyField, criarQtyField } from "@/components/wallets/camposNumero";
+import { remocaoEth, remocaoPorEndereco, remocaoSol, semChave } from "@/lib/wallets/remover";
 // Blocos de apresentacao da pagina (fase 1 da divisao): recebem tudo por props.
 import CabecalhoCarteiras from "@/components/wallets/CabecalhoCarteiras";
 import ConfirmacaoModal from "@/components/wallets/ConfirmacaoModal";
@@ -116,7 +119,6 @@ import {
 import { getAllowedHosts, isAdaAddress, isBtcAddress, isEvmAddress, isSolAddress, sanitizeLabel } from "@/lib/wallets/validar";
 import {
   adaNetworkOptions,
-  adaWalletOptions,
   btcNetworkOptions,
   btcWalletOptions,
   MANUAL_ADD_NETWORKS,
@@ -129,11 +131,9 @@ import {
   defiKey,
   ethBalanceKey,
   fiatValue,
-  formatAddress,
   formatRuneAmount as formatRuneAmountIn,
   networkToMoralisChain,
   normalizeChain,
-  propsDefiNftCartao,
   removeWallet,
   upsertWallet,
   type DefiChain,
@@ -2376,52 +2376,10 @@ export default function WalletsPage() {
     }
   };
 
-  // Campos de dinheiro nas listas (investido, valor de compra): guardados em EUR,
-  // mas a pessoa escreve e ve na moeda que escolheu (etiqueta com o simbolo).
-  // Texto + inputMode="decimal" para aceitar virgula no iPhone. Sem `value`
-  // controlado: o que se escreve nao e reescrito a meio; `key` re-sincroniza
-  // quando a moeda ou o valor guardado mudam por fora.
-  const moneyField = (opts: { eur: number | undefined; onEur: (v: number | undefined) => void; placeholder: string; width: string; ariaLabel: string }) => {
-    const shown = opts.eur != null && Number.isFinite(opts.eur) ? Math.round(opts.eur * (curRate || 1) * 100) / 100 : undefined;
-    return (
-      <input
-        key={`${curCode}:${shown ?? ""}`}
-        type={hideBalances ? "password" : "text"}
-        inputMode="decimal"
-        autoComplete="off"
-        placeholder={opts.placeholder}
-        aria-label={opts.ariaLabel}
-        defaultValue={shown != null ? shown.toLocaleString(numberFormat, { maximumFractionDigits: 2, useGrouping: false }) : ""}
-        onBlur={(event) => {
-          const text = cleanDecimalInput(event.target.value);
-          if (text === "") { opts.onEur(undefined); return; }
-          const v = parseDecimal(text);
-          if (Number.isFinite(v) && v >= 0) opts.onEur(v / (curRate || 1));
-        }}
-        className={`${opts.width} rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400`}
-      />
-    );
-  };
-  // Quantidades (moedas/acoes): so o numero, aceita virgula.
-  const qtyField = (opts: { value: number | undefined; onValue: (v: number | undefined) => void; placeholder: string; title?: string; width: string; ariaLabel: string }) => (
-    <input
-      key={`q:${opts.value ?? ""}`}
-      type={hideBalances ? "password" : "text"}
-      inputMode="decimal"
-      autoComplete="off"
-      placeholder={opts.placeholder}
-      title={opts.title}
-      aria-label={opts.ariaLabel}
-      defaultValue={opts.value != null ? String(opts.value) : ""}
-      onBlur={(event) => {
-        const text = cleanDecimalInput(event.target.value);
-        if (text === "") { opts.onValue(undefined); return; }
-        const v = parseDecimal(text);
-        if (Number.isFinite(v) && v >= 0) opts.onValue(v);
-      }}
-      className={`${opts.width} rounded-full border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none transition focus:border-orange-400`}
-    />
-  );
+  // Campos de dinheiro e de quantidade das listas: funcoes de render (nao
+  // componentes) em src/components/wallets/camposNumero.tsx.
+  const moneyField = criarMoneyField({ curRate, curCode, hideBalances, numberFormat });
+  const qtyField = criarQtyField({ hideBalances });
 
   const handleManualAddCryptoAsset = () => {
     setManualCryptoAssetError(null);
@@ -2820,34 +2778,11 @@ export default function WalletsPage() {
         )}
         <div id="chain-cards" className="grid gap-6 md:grid-cols-2 scroll-mt-24">
           <WalletCard
-            title="Ethereum"
-            description={
-              ethWallets.length > 0
-                ? `${selectedEthConnectNetwork === "Ethereum" ? "ETH Mainnet" : selectedEthConnectNetwork} · ${t("wl_networks_n").replace("{n}", String(ethWallets.length))}`
-                : "MetaMask (ETH)"
-            }
-            address={ethActiveEntry?.address ?? ethAddress ?? ethWallets[0]?.address}
-            addressDisplay={
-              ethShowMain
-                ? (ethActiveEntry?.address ?? ethAddress ?? ethWallets[0]?.address)
-                : formatAddress(ethActiveEntry?.address ?? ethAddress ?? ethWallets[0]?.address)
-            }
-            balance={ethActiveBalance}
-            balanceUnit="ETH"
-            fiatValueUsd={getFiatValue("ETH", ethActiveBalance)}
-            {...propsDefiNftCartao(defiNftMaps, ethMainAddress, "eth")}
-            usdToEur={usdToEurRate}
-            onRefreshDefi={ethMainAddress ? () => void fetchDefiTotal(ethMainAddress, "eth") : undefined}
-            isConnected={!!ethAddress || ethWallets.length > 0}
-            isAvailable={ethIsAvailable || ethWallets.length > 0}
-            isLoading={ethLoading}
-            error={ethError}
-            onConnect={handleEthConnect}
-            onConnectAnother={handleEthConnect}
-            onDisconnect={handleEthDisconnect}
-            onRefresh={handleEthRefresh}
-            onToggleAddress={() => setEthShowMain((prev) => !prev)}
-            isAddressVisible={ethShowMain}
+            {...propsCartaoEth({
+              t, ethWallets, selectedEthConnectNetwork, ethActiveEntry, ethAddress, ethShowMain, ethActiveBalance, getFiatValue,
+              defiNftMaps, ethMainAddress, usdToEurRate, fetchDefiTotal, ethIsAvailable, ethLoading, ethError,
+              handleEthConnect, handleEthDisconnect, handleEthRefresh, setEthShowMain,
+            })}
             topContent={
               <EthSeletores
                 ethWalletSelectRef={ethWalletSelectRef}
@@ -2910,60 +2845,25 @@ export default function WalletsPage() {
                 getFiatValue={getFiatValue}
                 usdToEurRate={usdToEurRate}
                 onRemove={(item) => {
-                  const nextWallets = removeWallet(
-                    ethWallets,
-                    (entry) => entry.address === item.address && entry.network === item.network
-                  );
-                  setEthWallets(nextWallets);
-                  if (item.address === ethAddress && item.network === "Ethereum") {
+                  const r = remocaoEth(ethWallets, item, ethAddress);
+                  setEthWallets(r.nextWallets);
+                  if (r.eraLigada) {
                     setEthAddress(undefined);
                     setEthBalance(undefined);
                     setEthError(null);
                   }
-                  const k = ethBalanceKey(item.address ?? "", item.network ?? "");
-                  setEthBalancesByKey((prev) => {
-                    const next = { ...prev };
-                    delete next[k];
-                    return next;
-                  });
-                  setEthBalanceErrors((prev) => {
-                    const next = { ...prev };
-                    delete next[k];
-                    return next;
-                  });
+                  setEthBalancesByKey((prev) => semChave(prev, r.chave));
+                  setEthBalanceErrors((prev) => semChave(prev, r.chave));
                 }}
               />
             </div>
           </WalletCard>
           <WalletCard
-            title="Solana"
-            description={
-              solWallets.length > 0
-                ? `${solWallets.length} carteira(s) · Saldo total SOL`
-                : "Phantom (SOL)"
-            }
-            address={solAddress ?? solWallets[0]?.address}
-            addressDisplay={
-              solShowMain
-                ? solAddress ?? solWallets[0]?.address
-                : formatAddress(solAddress ?? solWallets[0]?.address)
-            }
-            balance={solWallets.length > 0 ? totalSolBalance : solBalance}
-            balanceUnit="SOL"
-            fiatValueUsd={getFiatValue("SOL", solWallets.length > 0 ? totalSolBalance : solBalance)}
-            {...propsDefiNftCartao(defiNftMaps, solMainAddress, "sol")}
-            usdToEur={usdToEurRate}
-            onRefreshDefi={solMainAddress ? () => void fetchDefiTotal(solMainAddress, "sol") : undefined}
-            isConnected={!!solAddress || solWallets.length > 0}
-            isAvailable={solIsAvailable || solWallets.length > 0}
-            isLoading={solLoading}
-            error={solError}
-            onConnect={handleSolConnect}
-            onConnectAnother={handleSolConnect}
-            onDisconnect={handleSolDisconnect}
-            onRefresh={handleSolRefresh}
-            onToggleAddress={() => setSolShowMain((prev) => !prev)}
-            isAddressVisible={solShowMain}
+            {...propsCartaoSol({
+              solWallets, solAddress, solShowMain, totalSolBalance, solBalance, getFiatValue, defiNftMaps, solMainAddress,
+              usdToEurRate, fetchDefiTotal, solIsAvailable, solLoading, solError,
+              handleSolConnect, handleSolDisconnect, handleSolRefresh, setSolShowMain,
+            })}
             topContent={
               <SolSeletores
                 solWalletSelectRef={solWalletSelectRef}
@@ -3017,46 +2917,21 @@ export default function WalletsPage() {
                 getFiatValue={getFiatValue}
                 usdToEurRate={usdToEurRate}
                 onRemove={(item) => {
-                  const addr = item.address ?? "";
-                  const nextWallets = removeWallet(solWallets, (entry) => entry.address === item.address && (entry.network ?? "Solana") === (item.network ?? "Solana"));
-                  setSolWallets(nextWallets);
-                  if (item.address === solAddress) { setSolAddress(undefined); setSolBalance(undefined); setSolError(null); }
-                  setSolBalancesByAddress((prev) => { const next = { ...prev }; delete next[addr]; return next; });
-                  setSolBalanceErrors((prev) => { const next = { ...prev }; delete next[addr]; return next; });
+                  const r = remocaoSol(solWallets, item, solAddress);
+                  setSolWallets(r.nextWallets);
+                  if (r.eraLigada) { setSolAddress(undefined); setSolBalance(undefined); setSolError(null); }
+                  setSolBalancesByAddress((prev) => semChave(prev, r.chave));
+                  setSolBalanceErrors((prev) => semChave(prev, r.chave));
                 }}
               />
             </div>
           </WalletCard>
           <WalletCard
-            title="Bitcoin"
-            description={
-              btcWallets.length > 0
-                ? `${btcWallets.length} carteira(s) · Saldo total BTC`
-                : `${btcWalletOptions.find((o) => o.id === selectedBtcProvider)?.label ?? "Xverse"} (BTC)`
-            }
-            address={btcAddress ?? btcWallets[0]?.address}
-            addressDisplay={
-              btcShowMain
-                ? btcAddress ?? btcWallets[0]?.address
-                : formatAddress(btcAddress ?? btcWallets[0]?.address)
-            }
-            balance={btcWallets.length > 0 ? totalBtcBalance : (btcBalance !== null ? btcBalance.toFixed(8) : null)}
-            balanceUnit="BTC"
-            fiatValueUsd={getFiatValue("BTC", btcWallets.length > 0 ? totalBtcBalance : (btcBalance ?? undefined))}
-            hideDefi
-            {...propsDefiNftCartao(defiNftMaps, btcMainAddress, "btc")}
-            usdToEur={usdToEurRate}
-            isConnected={!!btcAddress || btcWallets.length > 0}
-            isAvailable={btcIsAvailable}
-            isLoading={btcLoading}
-            error={btcError}
-            onConnect={handleBtcConnect}
-            onConnectAnother={handleBtcConnect}
-            onDisconnect={handleBtcDisconnect}
-            onRefresh={handleBtcRefresh}
-            allowConnectWhenUnavailable
-            onToggleAddress={() => setBtcShowMain((prev) => !prev)}
-            isAddressVisible={btcShowMain}
+            {...propsCartaoBtc({
+              btcWallets, selectedBtcProvider, btcAddress, btcShowMain, totalBtcBalance, btcBalance, getFiatValue,
+              defiNftMaps, btcMainAddress, usdToEurRate, btcIsAvailable, btcLoading, btcError,
+              handleBtcConnect, handleBtcDisconnect, handleBtcRefresh, setBtcShowMain,
+            })}
             topContent={
               <BtcSeletor
                 btcWalletSelectRef={btcWalletSelectRef}
@@ -3117,70 +2992,27 @@ export default function WalletsPage() {
                 usdToEurRate={usdToEurRate}
                 formatRuneAmount={formatRuneAmount}
                 onRemove={(item) => {
-                  const addr = item.address ?? "";
-                  const nextWallets = removeWallet(
-                    btcWallets,
-                    (entry) => entry.address === item.address
-                  );
-                  setBtcWallets(nextWallets);
-                  if (item.address === btcAddress) {
+                  const r = remocaoPorEndereco(btcWallets, item, btcAddress);
+                  setBtcWallets(r.nextWallets);
+                  if (r.eraLigada) {
                     setBtcAddress(undefined);
                     setBtcBalance(null);
                     setBtcError(null);
                   }
-                  setBtcBalancesByAddress((prev) => {
-                    const next = { ...prev };
-                    delete next[addr];
-                    return next;
-                  });
-                  setBtcBalanceErrors((prev) => {
-                    const next = { ...prev };
-                    delete next[addr];
-                    return next;
-                  });
-                  setBtcRunesByAddress((prev) => {
-                    const next = { ...prev };
-                    delete next[addr];
-                    return next;
-                  });
-                  setBtcRunesLoading((prev) => {
-                    const next = { ...prev };
-                    delete next[addr];
-                    return next;
-                  });
+                  setBtcBalancesByAddress((prev) => semChave(prev, r.chave));
+                  setBtcBalanceErrors((prev) => semChave(prev, r.chave));
+                  setBtcRunesByAddress((prev) => semChave(prev, r.chave));
+                  setBtcRunesLoading((prev) => semChave(prev, r.chave));
                 }}
               />
             </div>
           </WalletCard>
           <WalletCard
-            title="Cardano"
-            description={
-              adaWallets.length > 0
-                ? `${adaWallets.length} carteira(s) · Saldo total ADA`
-                : `${adaWalletOptions.find((o) => o.id === selectedAdaProvider)?.label ?? "Eternl"} (ADA)`
-            }
-            address={adaAddress ?? adaWallets[0]?.address}
-            addressDisplay={
-              adaShowMain
-                ? adaAddress ?? adaWallets[0]?.address
-                : formatAddress(adaAddress ?? adaWallets[0]?.address)
-            }
-            balance={adaWallets.length > 0 ? totalAdaBalance : adaBalance}
-            balanceUnit="ADA"
-            fiatValueUsd={getFiatValue("ADA", adaWallets.length > 0 ? totalAdaBalance : adaBalance)}
-            {...propsDefiNftCartao(defiNftMaps, adaMainAddress, "ada")}
-            usdToEur={usdToEurRate}
-            isConnected={!!adaAddress || adaWallets.length > 0}
-            isAvailable={adaIsAvailable || adaWallets.length > 0}
-            isLoading={adaLoading}
-            loadingMessage={adaLoadingMsg}
-            error={adaError}
-            onConnect={handleAdaConnect}
-            onConnectAnother={handleAdaConnect}
-            onDisconnect={handleAdaDisconnect}
-            onRefresh={handleAdaRefresh}
-            onToggleAddress={() => setAdaShowMain((prev) => !prev)}
-            isAddressVisible={adaShowMain}
+            {...propsCartaoAda({
+              adaWallets, selectedAdaProvider, adaAddress, adaShowMain, totalAdaBalance, adaBalance, getFiatValue,
+              defiNftMaps, adaMainAddress, usdToEurRate, adaIsAvailable, adaLoading, adaLoadingMsg, adaError,
+              handleAdaConnect, handleAdaDisconnect, handleAdaRefresh, setAdaShowMain,
+            })}
           >
             <div className="space-y-3">
               <AdaAjudaLigacao
@@ -3235,27 +3067,15 @@ export default function WalletsPage() {
                 getFiatValue={getFiatValue}
                 usdToEurRate={usdToEurRate}
                 onRemove={(item) => {
-                  const addr = item.address ?? "";
-                  const nextWallets = removeWallet(
-                    adaWallets,
-                    (entry) => entry.address === item.address
-                  );
-                  setAdaWallets(nextWallets);
-                  if (item.address === adaAddress) {
+                  const r = remocaoPorEndereco(adaWallets, item, adaAddress);
+                  setAdaWallets(r.nextWallets);
+                  if (r.eraLigada) {
                     setAdaAddress(undefined);
                     setAdaBalance(undefined);
                     setAdaApi(null);
                   }
-                  setAdaBalancesByAddress((prev) => {
-                    const next = { ...prev };
-                    delete next[addr];
-                    return next;
-                  });
-                  setAdaBalanceErrors((prev) => {
-                    const next = { ...prev };
-                    delete next[addr];
-                    return next;
-                  });
+                  setAdaBalancesByAddress((prev) => semChave(prev, r.chave));
+                  setAdaBalanceErrors((prev) => semChave(prev, r.chave));
                 }}
               />
             </div>
@@ -3488,16 +3308,8 @@ export default function WalletsPage() {
           stablecoinBalancesLoading={stablecoinBalancesLoading}
           onRemoveEntry={(e) => {
             setStablecoinEntries((prev) => prev.filter((x) => x.id !== e.id));
-            setStablecoinBalances((prev) => {
-              const next = { ...prev };
-              delete next[e.id];
-              return next;
-            });
-            setStablecoinBalancesLoading((prev) => {
-              const next = { ...prev };
-              delete next[e.id];
-              return next;
-            });
+            setStablecoinBalances((prev) => semChave(prev, e.id));
+            setStablecoinBalancesLoading((prev) => semChave(prev, e.id));
           }}
         />
         {/* ── CEX + Hyperliquid + Ledger ── */}
