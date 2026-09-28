@@ -1205,11 +1205,36 @@ export default function MercadoPage() {
     return () => observer.disconnect();
   }, []);
 
+  // Ecrã inteiro do gráfico. O iPhone (Safari e os outros browsers do iOS)
+  // só deixa pôr VÍDEOS em ecrã inteiro — o requestFullscreen de um div não
+  // existe e o botão não fazia nada. Aí usa-se um "ecrã inteiro" de reserva:
+  // o gráfico passa a ocupar a janela toda por cima da página (fixed inset-0).
+  const [fsReserva, setFsReserva] = useState(false);
   useEffect(() => {
     const handleChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
     document.addEventListener("fullscreenchange", handleChange);
     return () => document.removeEventListener("fullscreenchange", handleChange);
   }, []);
+  useEffect(() => {
+    if (!fsReserva) return;
+    const antes = document.body.style.overflow;
+    document.body.style.overflow = "hidden";  // a página por baixo não rola
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setFsReserva(false); };
+    window.addEventListener("keydown", esc);
+    return () => { document.body.style.overflow = antes; window.removeEventListener("keydown", esc); };
+  }, [fsReserva]);
+  const emEcraInteiro = isFullscreen || fsReserva;
+  const alternarEcraInteiro = () => {
+    if (fsReserva) { setFsReserva(false); return; }
+    if (document.fullscreenElement) { void document.exitFullscreen().catch(() => {}); return; }
+    const el = chartRef.current as (HTMLDivElement & { webkitRequestFullscreen?: () => void }) | null;
+    if (!el) return;
+    try {
+      if (el.requestFullscreen) { el.requestFullscreen().catch(() => setFsReserva(true)); return; }
+      if (el.webkitRequestFullscreen) { el.webkitRequestFullscreen(); return; }
+    } catch { /* cai na reserva */ }
+    setFsReserva(true);
+  };
 
   const tradingViewSymbol = useMemo(() => {
     // Use BINANCE symbols for better widget compatibility (table is still CoinEx).
@@ -1416,59 +1441,43 @@ export default function MercadoPage() {
             </div>
             <div className="flex flex-wrap items-center gap-3">
               {/* timeframe bar removed (use chart internal controls) */}
-              <div className="keep-dark flex items-center gap-2 rounded-full border border-slate-700 bg-slate-950/80 px-2 py-1 text-xs font-semibold text-slate-200">
-                <button
-                  type="button"
-                  className={`rounded-full px-3 py-1 transition ${
-                    chartSource === "tradingview"
-                      ? "bg-slate-800 text-white"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                  onClick={() => setChartSource("tradingview")}
-                >
-                  TradingView
-                </button>
-                <button
-                  type="button"
-                  className={`rounded-full px-3 py-1 transition ${
-                    chartSource === "coinglass"
-                      ? "bg-slate-800 text-white"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                  onClick={() => setChartSource("coinglass")}
-                >
-                  {t("mc_tab_sentiment")}
-                </button>
-              </div>
+              <Segmentos
+                className="keep-dark"
+                tamanho="sm"
+                valor={chartSource}
+                aoMudar={(v) => { setChartSource(v); if (v !== "tradingview") setFsReserva(false); }}
+                opcoes={[
+                  { id: "tradingview", label: "TradingView" },
+                  { id: "coinglass", label: t("mc_tab_sentiment") },
+                ]}
+              />
               {chartSource === "tradingview" && (
                 <button
                   type="button"
-                  className="keep-dark rounded-full border border-slate-700 bg-slate-950/80 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white"
-                  onClick={() => {
-                    if (document.fullscreenElement) {
-                      document.exitFullscreen();
-                      return;
-                    }
-                    chartRef.current?.requestFullscreen?.();
-                  }}
+                  className="keep-dark inline-flex items-center gap-2 rounded-xl border border-orange-400/40 bg-orange-500/10 px-4 py-2 text-sm font-semibold text-orange-100 shadow-lg shadow-black/30 transition hover:border-orange-400/70 hover:bg-orange-500/20 hover:text-white"
+                  onClick={alternarEcraInteiro}
                 >
-                  {isFullscreen ? t("mc_exit_fs") : t("mc_fullscreen")}
+                  <span aria-hidden>⛶</span>
+                  {emEcraInteiro ? t("mc_exit_fs") : t("mc_fullscreen")}
                 </button>
               )}
             </div>
           </div>
           <div
-            className={`mt-6 ${
-              isFullscreen ? "h-[92vh] px-2 py-3" : "h-[560px] lg:h-[640px]"
-            } relative`}
+            className={
+              fsReserva
+                ? "fixed inset-0 z-[100] h-[100dvh] bg-slate-950 px-1 pb-1 pt-14"
+                : `mt-6 ${isFullscreen ? "h-[92vh] px-2 py-3" : "h-[560px] lg:h-[640px]"} relative`
+            }
             ref={chartRef}
           >
-            {isFullscreen && (
+            {emEcraInteiro && (
               <button
                 type="button"
-                className="absolute right-4 top-4 z-50 rounded-full border border-slate-700 bg-slate-950/90 px-4 py-2 text-xs font-semibold text-slate-100 shadow-lg transition hover:border-slate-500 hover:text-white"
-                onClick={() => document.exitFullscreen()}
+                className="absolute right-3 top-2 z-50 inline-flex items-center gap-2 rounded-xl border border-orange-400/50 bg-slate-950/95 px-4 py-2 text-sm font-semibold text-orange-100 shadow-lg transition hover:border-orange-400 hover:text-white"
+                onClick={alternarEcraInteiro}
               >
+                <span aria-hidden>✕</span>
                 {t("mc_exit_fs")}
               </button>
             )}
