@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { createClient } from "@/lib/supabase/client";
+import { claimLocalData } from "@/lib/portfolios/accounts";
 
 /**
  * Exige sessão para ver a página.
@@ -90,6 +91,11 @@ export function useRequireAuth(redirectTo: string = "/login") {
         }
 
         if (!isMounted) return;
+        // Dados locais de OUTRA pessoa neste browser (lista de baleias,
+        // favoritos, nome, portefólios…) saem ANTES de a página saber quem
+        // entrou: as páginas só leem o localStorage depois de terem o userId,
+        // por isso nunca chegam a ver os do utilizador anterior.
+        claimLocalData(user!.id);
         setUserId(user!.id);
         setIsLoading(false);
         return;

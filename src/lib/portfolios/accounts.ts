@@ -29,6 +29,26 @@ export const NAMESPACED_BASE_KEYS = [
 
 export const SYNC_TS_BASE = "owlfund.sync.ts.v1";
 
+/**
+ * Chaves PESSOAIS que não são de portefólio e por isso nunca foram prefixadas
+ * por conta — mas pertencem a uma pessoa. Sem entrarem na limpeza do
+ * claimLocalData, quem entrasse depois no mesmo browser via as escolhas do
+ * anterior: a lista de baleias dele, os favoritos dele, e a IA a tratá-lo pelo
+ * nome dele. É o mesmo defeito que o plano FIRE tinha (corrigido a 26/09/2026),
+ * na mesma família de chaves fixas.
+ */
+export const PERSONAL_KEYS = [
+  "smart-money-watchlist",        // lista de baleias (o /gestor também a lê)
+  "smart-money-alerts",           // alertas dessa lista
+  "owlfund.market.favorites.v1",  // favoritos do /mercado
+  "owlfund.nickname",             // o nome por que a IA trata a pessoa
+  // `cfa-demo-address` fica de fora de propósito: é quase sempre de quem está
+  // a criar conta agora (demonstração → registo → Carteiras pré-preenchida),
+  // e é um endereço público. Apagá-lo aqui partia esse passo em qualquer
+  // computador que já tivesse tido outro dono. A página de Carteiras apaga-o
+  // depois de o usar.
+] as const;
+
 const REGISTRY_KEY = "cf.accounts.v1";
 const OWNER_KEY = "cf.owner.v1";
 /** Evento disparado quando a conta ativa (ou a lista) muda. */
@@ -112,7 +132,8 @@ export function ensureAccounts(): Registry {
  * (e sincronizaria para a nuvem dele) as contas do utilizador anterior.
  * - 1.º login no dispositivo: reclama os dados existentes (migração legada).
  * - Mesmo utilizador: no-op.
- * - Utilizador diferente: limpa registo, contas e chaves legadas primeiro.
+ * - Utilizador diferente: limpa registo, contas, chaves legadas e as chaves
+ *   pessoais de PERSONAL_KEYS (lista de baleias, favoritos, nickname, …).
  * Retorna true se limpou dados de outro utilizador.
  */
 export function claimLocalData(userId: string): boolean {
@@ -124,10 +145,12 @@ export function claimLocalData(userId: string): boolean {
       window.localStorage.setItem(OWNER_KEY, userId);
       return false;
     }
-    const toRemove: string[] = [REGISTRY_KEY, ...NAMESPACED_BASE_KEYS];
+    const toRemove: string[] = [REGISTRY_KEY, ...NAMESPACED_BASE_KEYS, ...PERSONAL_KEYS];
     for (let i = 0; i < window.localStorage.length; i++) {
       const k = window.localStorage.key(i);
-      if (k && k.startsWith("cf.acct.")) toRemove.push(k);
+      // `fire-plan-v1:<userId>`: já não se vê trocado (tem o id lá dentro), mas
+      // é o plano de reforma de outra pessoa a ficar no browser dela. Sai também.
+      if (k && (k.startsWith("cf.acct.") || k.startsWith("fire-plan-v1:"))) toRemove.push(k);
     }
     for (const k of toRemove) {
       try { window.localStorage.removeItem(k); } catch { /* ignore */ }

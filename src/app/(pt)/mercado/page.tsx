@@ -826,7 +826,7 @@ function DerivativesPanel({ data, loading, symbol, updatedAt, error, onRefresh }
 }
 
 export default function MercadoPage() {
-  useRequireAuth("/login");
+  const { userId } = useRequireAuth("/login");
   const { t, lang } = useLanguage();
   const { format: fmtCur, rates: fxRates, formatMarketUsd: fmtMkt, currency: curCode } = useCurrencyFormat();
   const [userPlan, setUserPlan] = useState<"unknown" | "free" | "pro" | "premium">("unknown");
@@ -1123,9 +1123,11 @@ export default function MercadoPage() {
   );
 
   useEffect(() => {
+    // Só com o userId: o useRequireAuth já limpou os favoritos de outra pessoa.
+    if (!userId) return;
     setFavorites(loadFavorites());
     favoritesHydratedRef.current = true;
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     setTraditionalHoldings(loadTraditionalHoldings());

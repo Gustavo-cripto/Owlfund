@@ -199,13 +199,17 @@ export default function SmartMoneyPage() {
   const hydratedRef = useRef(false);
 
   useEffect(() => {
+    // Só com o userId: o useRequireAuth já limpou os dados de quem usou este
+    // browser antes. Lido no arranque, podia trazer a lista de outra pessoa —
+    // e, sendo Premium, sincronizá-la para a conta de quem entrou agora.
+    if (!userId) return;
     const list = loadWatchlist();
     setWatchlist(list);
     setAlerts(loadAlerts());
     // só depois do render com a lista restaurada é que passamos a gravar
     const id = window.setTimeout(() => { hydratedRef.current = true; }, 0);
     return () => window.clearTimeout(id);
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     if (!hydratedRef.current) return;
