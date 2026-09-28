@@ -13,6 +13,12 @@ export async function ogCardResponse(lang: Lang): Promise<ImageResponse> {
   // e passado como data URI — fetch de caminhos relativos rebenta no build.
   const logoBuf = await readFile(join(process.cwd(), "public", "chainfolioai-icon.png"));
   const logo = `data:image/png;base64,${logoBuf.toString("base64")}`;
+  // Fonte do cartão fixada: o Next 16 trocou a fonte por omissão do next/og
+  // (Noto Sans -> Geist), o que mudava a largura do texto e a quebra de linha
+  // do título. É a mesma Noto Sans (SIL OFL 1.1) que o Next 15 trazia, com o
+  // mesmo nome e peso com que ele a registava — o cartão fica igual ao de antes.
+  const fonte = await readFile(join(process.cwd(), "src", "lib", "seo", "fontes", "noto-sans-v27-latin-regular.ttf"));
+  const tamanho = { ...OG_SIZE };
   // Titulos mais compridos (fr) descem um pouco para caberem nas mesmas linhas.
   const tituloLongo = txt.title.join("").length > 52;
   return new ImageResponse(
@@ -94,6 +100,6 @@ export async function ogCardResponse(lang: Lang): Promise<ImageResponse> {
         </div>
       </div>
     ),
-    { ...OG_SIZE }
+    { ...tamanho, fonts: [{ name: "sans serif", data: fonte, weight: 700, style: "normal" }] }
   );
 }
