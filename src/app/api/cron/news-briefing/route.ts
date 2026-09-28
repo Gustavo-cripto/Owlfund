@@ -10,6 +10,7 @@ import { langFromMetadata, resolveLang, signupLangByEmail } from "@/lib/user/lan
 import { sendTelegram, tgEsc } from "@/lib/notify/telegram";
 import { cgFetch } from "@/lib/market/coingecko";
 import { getGlobalMarket } from "@/lib/api/market";
+import { precosOkx24h } from "@/lib/market/okxSpot";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,6 +33,8 @@ async function fetchJson<T>(url: string): Promise<T | null> {
   } catch { return null; }
 }
 
+type PriceData = Record<string, { usd: number; usd_24h_change: number }>;
+
 // Tudo o que o email diz por si (fora do texto da IA), nas 4 linguas.
 const L: Record<Lang, { in: string; crypto: string; trad: string; briefing: string; cta: string; foot: string; unsub: string }> = {
   pt: { in: "em português europeu", crypto: "Cripto", trad: "Mercado Tradicional", briefing: "Briefing", cta: "Ver Mercado →", foot: "Não constitui aconselhamento financeiro. Para cancelar, vai a", unsub: "Conta → Notificações" },
@@ -47,15 +50,23 @@ async function buildContext(mode: "crypto" | "tradicional", avisos: string[] = [
   if (mode === "tradicional") return "Análise de mercado tradicional: foca em contexto macro, Fed, inflação e tendências setoriais.";
 
   const ids = Object.values(COINGECKO_IDS).join(",");
-  type PriceData = Record<string, { usd: number; usd_24h_change: number }>;
-  const prices = await fetchJson<PriceData>(
+  let prices = await fetchJson<PriceData>(
     `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`
   );
+  if (!prices) {
+    // Plano B: OKX (src/lib/market/okxSpot.ts). Era a unica chamada de precos
+    // sem reserva; a 28/09/2026 o email das 08:36 saiu sem precos nenhuns.
+    prices = await precosOkx24h(COINGECKO_IDS);
+    // De proposito NAO entra nos `avisos` quando a OKX cobre: o briefing saiu
+    // completo, e chamar-lhe "problema" treinava-nos a ignorar o alarme. O
+    // CoinGecko em baixo ja e dito pelo /api/status e pelo site-noturno.
+    if (prices) console.warn("[briefing] CoinGecko sem precos — usei a OKX");
+  }
   // Global partilhado com /api/v1/global: cache 30 min e CoinPaprika de reserva.
   const global = await getGlobalMarket();
   type FG = { data: { value: string; value_classification: string }[] };
   const fg = await fetchJson<FG>("https://api.alternative.me/fng/?limit=1");
-  if (!prices) avisos.push("contexto pobre: CoinGecko simple/price sem resposta");
+  if (!prices) avisos.push("contexto pobre: sem precos (CoinGecko e OKX sem resposta)");
   if (!global.source) avisos.push("contexto pobre: CoinGecko e CoinPaprika global sem resposta");
 
   const lines: string[] = [];

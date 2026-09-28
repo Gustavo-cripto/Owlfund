@@ -6,6 +6,8 @@ import { NO_ADVICE_RULE } from "@/lib/ai/disclaimer";
 import { requireUser } from "@/lib/api/requireUser";
 import { getPlanOrNull, planUnavailableResponse, requiresPlanResponse } from "@/lib/api/entitlement";
 import { cgFetch } from "@/lib/market/coingecko";
+import { getGlobalMarket } from "@/lib/api/market";
+import { precosOkx24h } from "@/lib/market/okxSpot";
 
 const COINGECKO_IDS: Record<string, string> = {
   BTC: "bitcoin", ETH: "ethereum", SOL: "solana",
@@ -44,9 +46,10 @@ async function montarContextoCripto(): Promise<string> {
   // 1. Preços + variação 24h
   const ids = Object.values(COINGECKO_IDS).join(",");
   type PriceData = Record<string, { usd: number; usd_24h_change: number; usd_market_cap: number; usd_24h_vol: number }>;
-  const prices = await fetchJson<PriceData>(
+  const prices: PriceData | null = (await fetchJson<PriceData>(
     `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true&include_market_cap=true&include_24hr_vol=true`
-  );
+  // Plano B: OKX (sem capitalização — a linha "Mcap" simplesmente não aparece).
+  )) ?? ((await precosOkx24h(COINGECKO_IDS)) as PriceData | null);
 
   lines.push("=== PREÇOS EM TEMPO REAL ===");
   if (prices) {
@@ -59,16 +62,15 @@ async function montarContextoCripto(): Promise<string> {
     }
   }
 
-  // 2. Dados globais do mercado
-  type GlobalData = { data: { total_market_cap: { usd: number }; total_volume: { usd: number }; market_cap_percentage: { btc: number; eth: number }; market_cap_change_percentage_24h_usd: number; active_cryptocurrencies: number } };
-  const global = await fetchJson<GlobalData>("https://api.coingecko.com/api/v3/global");
-  if (global?.data) {
-    const g = global.data;
+  // 2. Dados globais do mercado — o mesmo do /api/v1/global e do briefing:
+  // cache 30 min e CoinPaprika de reserva quando o CoinGecko falha.
+  const g = await getGlobalMarket();
+  if (g.totalMarketCapUsd != null) {
     lines.push("\n=== MERCADO GLOBAL ===");
-    lines.push(`Cap total: $${(g.total_market_cap.usd / 1e12).toFixed(2)}T`);
-    lines.push(`Volume 24h: $${(g.total_volume.usd / 1e9).toFixed(1)}B`);
-    lines.push(`Variação cap 24h: ${g.market_cap_change_percentage_24h_usd?.toFixed(2)}%`);
-    lines.push(`Dominância BTC: ${g.market_cap_percentage?.btc?.toFixed(1)}% | ETH: ${g.market_cap_percentage?.eth?.toFixed(1)}%`);
+    lines.push(`Cap total: $${(g.totalMarketCapUsd / 1e12).toFixed(2)}T`);
+    if (g.marketCapChange24h != null) lines.push(`Variação cap 24h: ${g.marketCapChange24h.toFixed(2)}%`);
+    const dom = [g.btcDominance != null ? `BTC: ${g.btcDominance.toFixed(1)}%` : null, g.ethDominance != null ? `ETH: ${g.ethDominance.toFixed(1)}%` : null].filter(Boolean).join(" | ");
+    if (dom) lines.push(`Dominância ${dom}`);
   }
 
   // 3. Fear & Greed
