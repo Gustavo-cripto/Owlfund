@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { eInterno } from "@/lib/analytics/interno";
 import { NextResponse, type NextRequest, type NextFetchEvent } from "next/server";
 import { isProtectedPath } from "@/lib/auth/redirects";
 import { isBotUserAgent } from "@/lib/analytics/bots";
@@ -25,6 +26,9 @@ function trackPageView(request: NextRequest, event: NextFetchEvent): void {
   // so o pathname (nunca a query nem o User-Agent), por isso nao ha risco de
   // apanhar tokens. /auth continua de fora: e o callback do OAuth.
   if (path.startsWith("/api") || path.startsWith("/auth") || path.includes(".")) return;
+
+  // Visitas internas (o dono, os agentes, testes) não contam: src/lib/analytics/interno.ts
+  if (eInterno(request.headers.get("cookie"))) return;
 
   // TRACK_SECRET (quando definido) prova a /api/track que o pedido vem daqui e
   // não de fora — o beacon escreve com o service role, por isso não pode aceitar

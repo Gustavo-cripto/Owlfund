@@ -1,4 +1,4 @@
-import { Analytics } from "@vercel/analytics/react";
+import AnalyticsCliente from "@/components/AnalyticsCliente";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "@/app/globals.css";
 import { ConfirmProvider } from "@/components/ConfirmDialog";
@@ -45,7 +45,8 @@ export default function RootShell({ lang, Provider, children }: { lang: Lang; Pr
             </ConfirmProvider>
           </Provider>
         </ThemeProvider>
-        <Analytics />
+        {/* Sem as visitas internas (?interno=1, páginas /admin): src/lib/analytics/interno.ts */}
+        <AnalyticsCliente />
         <SpeedInsights />
       </body>
     </html>
