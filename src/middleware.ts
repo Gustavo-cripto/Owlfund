@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { eInterno } from "@/lib/analytics/interno";
+import { eAberturaDePagina } from "@/lib/analytics/abertura";
 import { NextResponse, type NextRequest, type NextFetchEvent } from "next/server";
 import { isProtectedPath } from "@/lib/auth/redirects";
 import { isBotUserAgent } from "@/lib/analytics/bots";
@@ -16,6 +17,9 @@ function trackPageView(request: NextRequest, event: NextFetchEvent): void {
     request.headers.get("next-router-prefetch") === "1" ||
     request.headers.get("purpose") === "prefetch";
   if (isPrefetch) return;
+  // Só páginas abertas contam: prefetches e navegações RSC não (o Next retira
+  // os cabeçalhos acima antes do middleware — ver src/lib/analytics/abertura.ts).
+  if (!eAberturaDePagina(request.headers)) return;
 
   const path = request.nextUrl.pathname;
   // So paginas: fora /api, /auth e ficheiros estaticos/crawler (robots.txt,
