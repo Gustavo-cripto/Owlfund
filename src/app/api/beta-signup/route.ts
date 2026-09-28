@@ -234,9 +234,12 @@ export async function POST(req: NextRequest) {
     ? {
         // Todos os testers do beta recebem Premium; o botão Pro foi retirado para
         // um toque distraído não dar o plano errado (o painel /admin/beta mantém os dois).
-        inline_keyboard: [[
-          { text: "✅ Ativar Premium (60 dias)", callback_data: `g:premium:${email}` },
-        ]],
+        // Linhas separadas de propósito: ativar e dispensar lado a lado dava
+        // toques errados no telemóvel, e um deles é difícil de desfazer.
+        inline_keyboard: [
+          [{ text: "✅ Ativar Premium (60 dias)", callback_data: `g:premium:${email}` }],
+          [{ text: "🚫 Dispensar", callback_data: `x:${email}` }],
+        ],
       }
     : undefined;
   // await — em serverless, sem await o envio é abortado quando a função devolve.
@@ -245,7 +248,7 @@ export async function POST(req: NextRequest) {
       (name ? `\n👤 ${tgEsc(name)}` : "") +
       (note ? `\n📝 ${tgEsc(note)}` : "") +
       (src ? `\n📣 via ${tgEsc(src)}` : "") +
-      `\n\n${canButtons ? "Toca num botão para ativar (60 dias) 👇" : `▶ <a href="${SITE}/admin/beta?email=${encodeURIComponent(email)}">Ativar no painel</a> (Premium · ${TRIAL_DAYS} dias)`}`,
+      `\n\n${canButtons ? "Ativar (60 dias) ou dispensar 👇" : `▶ <a href="${SITE}/admin/beta?email=${encodeURIComponent(email)}">Ativar no painel</a> (Premium · ${TRIAL_DAYS} dias)`}`,
     replyMarkup,
   ).catch(() => false);
 

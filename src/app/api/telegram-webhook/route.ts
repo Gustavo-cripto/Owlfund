@@ -1,8 +1,9 @@
 // Webhook do @ChainFolioAi_Bot — trata os cliques nos botões "Ativar Pro/Premium"
-// das notificações de beta. Só aceita cliques do chat do admin (TELEGRAM_CHAT_ID).
+// e "Dispensar" das notificações de beta. Só aceita cliques do chat do admin (TELEGRAM_CHAT_ID).
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { grantTester } from "@/lib/beta/grant";
+import { dispensarInscricao } from "@/lib/beta/dispensar";
 import { setFounder } from "@/lib/beta/founder";
 import { webhookSecret } from "@/lib/notify/telegramWebhook";
 
@@ -98,6 +99,21 @@ export async function POST(req: NextRequest) {
         `🏆 <b>Preço de fundador reservado!</b>\n📧 ${res.email}\n💶 Pro €9,99/mês ou €99/ano · Premium €19/mês ou €190/ano (vitalício)\n\nO tester vê a reserva na página de planos; o preço aplica-se automaticamente quando os pagamentos abrirem.`,
       );
     }
+    return NextResponse.json({ ok: true });
+  }
+
+  // 🚫 Dispensar a inscrição: tira-a da lista de pendentes do painel.
+  // Não apaga contas nem mexe em planos (ver src/lib/beta/dispensar.ts).
+  const x = String(cq.data ?? "").match(/^x:(.+)$/);
+  if (x) {
+    const alvo = x[1];
+    const res = await dispensarInscricao(alvo);
+    if (!res.ok) {
+      await answerCb(cq.id, `⚠️ ${res.error ?? "Falhou."}`, true);
+      return NextResponse.json({ ok: true });
+    }
+    await answerCb(cq.id, `🚫 Inscrição de ${alvo} dispensada.`, true);
+    if (cq.message) await markDone(cq.message.chat.id, cq.message.message_id, `🚫 Dispensada — ${alvo}`);
     return NextResponse.json({ ok: true });
   }
 

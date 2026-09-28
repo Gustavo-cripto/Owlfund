@@ -61,6 +61,7 @@ export default function AdminBetaPage() {
   const [grantEmail, setGrantEmail] = useState("");
   const [granting, setGranting] = useState(false);
   const [grantMsg, setGrantMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [dispensando, setDispensando] = useState<string | null>(null);
 
   const [founderBusy, setFounderBusy] = useState<string | null>(null);
   const [tgBusy, setTgBusy] = useState(false);
@@ -197,6 +198,35 @@ export default function AdminBetaPage() {
     }
   };
 
+  // Dispensar = tirar o pedido da lista de pendentes (status "ignored").
+  // NÃO apaga a conta que a pessoa tenha criado no site — só o pedido de beta.
+  const dispensarPendente = async (email: string) => {
+    if (dispensando || granting) return;
+    const ok = await askConfirm({
+      message: `Dispensar a inscrição de ${email}? Sai da lista de pendentes e não recebe o Premium do beta. Se já criou conta no site, a conta não é apagada — fica no plano gratuito.`,
+      danger: true,
+      okLabel: "Dispensar",
+    });
+    if (!ok) return;
+    setDispensando(email);
+    setGrantMsg(null);
+    try {
+      const r = await fetch("/api/admin/dispensar-inscricao", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const j = (await r.json().catch(() => ({}))) as { error?: string };
+      if (!r.ok) { setGrantMsg({ ok: false, text: j.error || "Falhou." }); return; }
+      setGrantMsg({ ok: true, text: `🚫 Inscrição de ${email} dispensada.` });
+      load();
+    } catch {
+      setGrantMsg({ ok: false, text: "Erro de rede." });
+    } finally {
+      setDispensando(null);
+    }
+  };
+
   const fmt = (d: string | null) => (d ? new Date(d).toLocaleDateString("pt-PT", { day: "2-digit", month: "short", year: "numeric" }) : "—");
 
   return (
@@ -263,8 +293,9 @@ export default function AdminBetaPage() {
                           {p.note ? <p className="mt-0.5 truncate text-xs text-slate-500">{p.note}</p> : null}
                         </div>
                         <div className="flex shrink-0 gap-2">
-                          <button type="button" onClick={() => grant("pro", p.email)} disabled={granting} className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-semibold text-slate-950 transition hover:bg-orange-400 disabled:opacity-40">Ativar Pro</button>
-                          <button type="button" onClick={() => grant("premium", p.email)} disabled={granting} className="rounded-lg bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-400 disabled:opacity-40">Ativar Premium</button>
+                          <button type="button" onClick={() => grant("pro", p.email)} disabled={granting || dispensando !== null} className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-semibold text-slate-950 transition hover:bg-orange-400 disabled:opacity-40">Ativar Pro</button>
+                          <button type="button" onClick={() => grant("premium", p.email)} disabled={granting || dispensando !== null} className="rounded-lg bg-violet-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-400 disabled:opacity-40">Ativar Premium</button>
+                          <button type="button" onClick={() => dispensarPendente(p.email)} disabled={granting || dispensando !== null} className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-rose-500/60 hover:text-rose-300 disabled:opacity-40" title="Tira o pedido da lista. Não apaga contas.">{dispensando === p.email ? "A dispensar…" : "Dispensar"}</button>
                         </div>
                       </div>
                     ))}
