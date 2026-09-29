@@ -58,7 +58,7 @@ export function rootMetadata(lang: Lang): Metadata {
       "Solana", "Cardano", "DeFi", "crypto tax", "fiscalidade cripto", "AI assistant", "read-only",
     ],
     authors: [{ name: "ChainFolioAI" }],
-    icons: { icon: "/chainfolioai-icon.png", apple: "/apple-touch-icon.png" },
+    icons: { icon: { url: "/chainfolioai-icon-96.png", type: "image/png", sizes: "96x96" }, apple: "/apple-touch-icon.png" },
     manifest: "/manifest.webmanifest",
     openGraph: {
       type: "website",
