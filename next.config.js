@@ -108,9 +108,9 @@ const nextConfig = {
   // Um erro de tipos ou de lint PARA o build (antes era ignorado e fazia
   // deploy na mesma). O CI (.github/workflows/verificar.yml) corre o mesmo
   // antes de a Vercel sequer arrancar; `npm run verificar` corre-o localmente.
-  eslint: {
-    ignoreDuringBuilds: false,
-  },
+  // Next 16: o `next build` deixou de correr o ESLint e a opção `eslint` saiu
+  // do next.config — o lint no build passou para o script "build" do
+  // package.json (`eslint . --quiet && next build`), com o mesmo efeito.
   typescript: {
     ignoreBuildErrors: false,
   },
@@ -130,6 +130,14 @@ const nextConfig = {
         headers: [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }],
       },
       {
+        // Cartão social pt (src/app/opengraph-image.tsx). No Next 15 o
+        // ImageResponse estático saía com este cabeçalho; no Next 16 o
+        // prerender passou a servi-lo com "max-age=0, must-revalidate". Fixado
+        // aqui para manter o comportamento de antes.
+        source: "/opengraph-image",
+        headers: [{ key: "Cache-Control", value: "public, immutable, no-transform, max-age=31536000" }],
+      },
+      {
         // CORS para API routes — só permite origem própria
         source: "/api/:path*",
         headers: [
@@ -142,6 +150,9 @@ const nextConfig = {
       },
     ];
   },
+  // Next 16 usa Turbopack por omissão; com esta config de webpack o build
+  // recusa-se a correr. O script "build" passa `--webpack` (e o "dev" já o
+  // passava) — o bundler de produção continua o mesmo de antes.
   webpack: (config) => {
     // Support browser WASM dependencies (Cardano serialization lib)
     config.experiments = {
