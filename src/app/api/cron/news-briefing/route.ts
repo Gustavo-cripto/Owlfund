@@ -11,6 +11,7 @@ import { sendTelegram, tgEsc } from "@/lib/notify/telegram";
 import { cgFetch } from "@/lib/market/coingecko";
 import { getGlobalMarket } from "@/lib/api/market";
 import { precosOkx24h } from "@/lib/market/okxSpot";
+import { mascararEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -230,7 +231,8 @@ export async function GET(request: Request) {
       const html = await briefingFor(mode, lang);
       if (!html) continue;
       const ok = await sendEmail({ from: FROM_BRIEFING, to: user.email, subject: `${L[lang].briefing} ${mode === "crypto" ? L[lang].crypto : L[lang].trad} — ${fmtDate(new Date(), lang, BRIEFING_DATE)}`, html, tag: "briefing" });
-      if (ok) sent++; else errors.push(`${user.email}/${mode}`);
+      // Email mascarado: os registos da Vercel e o Telegram não guardam dados pessoais.
+      if (ok) sent++; else errors.push(`${mascararEmail(user.email)}/${mode}`);
     }
   }
 

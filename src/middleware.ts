@@ -157,6 +157,15 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
     return comOrigem(response);
   }
 
+  // Visitante sem cookies de sessao numa pagina publica: nao ha sessao para
+  // renovar nem rota para proteger — poupa-se a chamada de rede ao Supabase em
+  // cada pagina e em cada prefetch (o Next 16 faz dois por ligacao visivel).
+  // Quem tem cookie `sb-…` ou pede uma rota protegida segue o caminho de sempre.
+  const temSessao = request.cookies.getAll().some((c) => c.name.startsWith("sb-"));
+  if (!temSessao && !isProtectedPath(request.nextUrl.pathname)) {
+    return comOrigem(response);
+  }
+
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       get(name: string) {

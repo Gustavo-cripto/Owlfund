@@ -1130,11 +1130,18 @@ export default function MercadoPage() {
   }, [userId]);
 
   useEffect(() => {
-    setTraditionalHoldings(loadTraditionalHoldings());
-    traditionalHydratedRef.current = true;
     // Auto-select first asset so chart is visible on load
     setSelectedTraditional(traditionalAssets[0] ?? null);
   }, []);
+
+  useEffect(() => {
+    // So com o userId (o useRequireAuth ja limpou os dados de outra pessoa
+    // neste browser): lidos no arranque, os ativos manuais de quem esteve
+    // antes podiam ser gravados na conta de quem entrou agora.
+    if (!userId) return;
+    setTraditionalHoldings(loadTraditionalHoldings());
+    traditionalHydratedRef.current = true;
+  }, [userId]);
 
   useEffect(() => {
     if (marketMode !== "tradicional") return;
@@ -1146,9 +1153,10 @@ export default function MercadoPage() {
   }, [marketMode, selectedTraditionalQuoteSymbols]);
 
   useEffect(() => {
+    if (!userId) return;
     setCryptoHoldings(loadCryptoHoldings());
     cryptoHydratedRef.current = true;
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     const loadFearGreed = async () => {
@@ -1227,11 +1235,12 @@ export default function MercadoPage() {
   const alternarEcraInteiro = () => {
     if (fsReserva) { setFsReserva(false); return; }
     if (document.fullscreenElement) { void document.exitFullscreen().catch(() => {}); return; }
-    const el = chartRef.current as (HTMLDivElement & { webkitRequestFullscreen?: () => void }) | null;
+    const el = chartRef.current;
     if (!el) return;
     try {
       if (el.requestFullscreen) { el.requestFullscreen().catch(() => setFsReserva(true)); return; }
-      if (el.webkitRequestFullscreen) { el.webkitRequestFullscreen(); return; }
+      // So com prefixo webkit (Safari antigo): o estado nao acompanhava o ecra
+      // inteiro nativo e o botao de sair nao aparecia. Usa-se a reserva.
     } catch { /* cai na reserva */ }
     setFsReserva(true);
   };

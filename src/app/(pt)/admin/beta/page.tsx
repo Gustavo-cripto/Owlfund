@@ -2,6 +2,7 @@
 
 // Painel admin: beta testers ativos + validade. Acesso restrito (ADMIN_EMAILS).
 import { useEffect, useState } from "react";
+import { marcarInterno } from "@/lib/analytics/interno";
 import AppShell from "@/components/AppShell";
 import { useConfirm } from "@/components/ConfirmDialog";
 
@@ -138,6 +139,9 @@ export default function AdminBetaPage() {
         setTesters(j.testers);
         setPending(j.pending ?? []);
         setState("ok");
+        // Admin confirmado pelo servidor: as visitas deste browser deixam de
+        // contar nas estatísticas (src/lib/analytics/interno.ts).
+        marcarInterno(true);
       })
       .catch(() => setState("error"));
   };

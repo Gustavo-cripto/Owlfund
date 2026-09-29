@@ -9,6 +9,8 @@
 // mudarem. A migração dos dados antigos (não-prefixados) para a "Conta 1" é feita
 // COPIANDO — nunca apaga as chaves legadas.
 
+import { contasRedundantes, identidades, NOME_AUTOMATICO, type Conteudo, type ContaParaDedupe } from "@/lib/portfolios/duplicados";
+
 export type Account = { id: string; name: string };
 
 /** Id especial da vista combinada ("Todas as contas"). Agregação em etapa posterior. */
@@ -263,6 +265,121 @@ export function mergeRegistry(cloud: { accounts: Account[]; activeId?: string })
   return true;
 }
 
+/** Um valor guardado tem conteúdo? (listas/objetos vazios e zeros não contam) */
+export function temConteudo(raw: string | null | undefined): boolean {
+  if (raw == null || raw.trim() === "") return false;
+  let v: unknown;
+  try { v = JSON.parse(raw); } catch { return true; }  // não sei ler: trato como conteúdo
+  const tem = (x: unknown): boolean => {
+    if (x == null || typeof x === "boolean") return false;
+    if (typeof x === "number") return x !== 0;
+    if (typeof x === "string") return x.trim() !== "";
+    if (Array.isArray(x)) return x.length > 0;
+    if (typeof x === "object") return Object.values(x as Record<string, unknown>).some(tem);
+    return false;
+  };
+  return tem(v);
+}
+
+/** A conta não tem nada — nem neste aparelho, nem (se dados) na nuvem. Os carimbos não contam. */
+export function contaVazia(accountId: string, daNuvem?: Record<string, string>): boolean {
+  for (const base of NAMESPACED_BASE_KEYS) {
+    if (base === SYNC_TS_BASE) continue;
+    if (temConteudo(readNamespaced(accountId, base))) return false;
+    if (daNuvem && temConteudo(daNuvem[base])) return false;
+  }
+  return true;
+}
+
+/**
+ * Junta o registo da nuvem com o local, SEM contas-fantasma nem duplicadas.
+ *
+ * Porquê (auditoria 28–29 set 2026): num aparelho/browser novo o ensureAccounts
+ * cria uma "Conta 1" vazia e ativa-a ANTES de a nuvem responder. O merge por
+ * união mantinha-a ativa — a pessoa via "saldo a 0", voltava a juntar as mesmas
+ * carteiras, e o push mandava mais uma "Conta 1" para a nuvem. Havia contas com
+ * 11 portefólios, quase todos iguais.
+ *
+ * Regras (ver src/lib/portfolios/duplicados.ts):
+ * - união como antes: contas com nome dado pela pessoa, ou com algo que mais
+ *   nenhuma tem, nunca saem; o nome local ganha;
+ * - uma "Conta 1" sai quando tudo o que tem já existe noutra "Conta 1" que fica
+ *   (uma vazia está sempre coberta);
+ * - a conta ativa local mantém-se se sobreviver; senão a da nuvem; senão a 1.ª.
+ * Devolve os ids removidos (para não se escreverem dados neles).
+ */
+export function juntarRegistoDaNuvem(
+  cloud: { accounts: Account[]; activeId?: string },
+  dadosNuvem: Record<string, Record<string, string>> = {},
+): string[] {
+  if (!cloud || !Array.isArray(cloud.accounts) || cloud.accounts.length === 0) return [];
+  const local = readRegistry();
+  const porId = new Map<string, Account>();
+  for (const a of cloud.accounts) {
+    if (a && a.id) porId.set(a.id, { id: a.id, name: (a.name ?? "").trim() || "Conta" });
+  }
+  for (const a of local?.accounts ?? []) porId.set(a.id, a);   // nome local ganha; só-locais entram
+  // Ordem: as da nuvem primeiro (a ordem de quem já usava o site), depois as só-locais.
+  const todas = Array.from(porId.values());
+  const naNuvem = new Set(cloud.accounts.map((a) => a?.id));
+  todas.sort((x, y) => Number(naNuvem.has(y.id)) - Number(naNuvem.has(x.id)));
+
+  const ativaLocal = local?.activeId;
+  const ativaRef = ativaLocal && porId.has(ativaLocal) ? ativaLocal : cloud.activeId;
+  const carimbosDaNuvem = (id: string): Record<string, number> => {
+    try { const r = dadosNuvem[id]?.[SYNC_TS_BASE]; return r ? (JSON.parse(r) as Record<string, number>) : {}; } catch { return {}; }
+  };
+  const paraDedupe: ContaParaDedupe[] = todas.map((a) => {
+    const possivel: Conteudo = {};
+    const final: Conteudo = {};
+    const tsLocal = lerCarimbos(a.id);
+    const tsNuvem = carimbosDaNuvem(a.id);
+    for (const base of NAMESPACED_BASE_KEYS) {
+      if (base === SYNC_TS_BASE) continue;
+      const doLocal = readNamespaced(a.id, base);
+      const daNuvem = dadosNuvem[a.id]?.[base] ?? null;
+      const iLocal = identidades(base, doLocal);
+      const iNuvem = identidades(base, daNuvem);
+      possivel[base] = new Set([...iLocal, ...iNuvem]);
+      // O que fica depois do merge por chave (a mesma decisão do pullWalletCloud):
+      // os trades fundem-se; no resto manda a gravação mais recente.
+      final[base] = base === "trade-history-v1" ? possivel[base]
+        : daNuvem == null ? iLocal
+        : adotarNuvem(doLocal != null, tsLocal[base], tsNuvem[base]) ? iNuvem : iLocal;
+    }
+    return { id: a.id, name: a.name, ativa: a.id === ativaRef, naNuvem: naNuvem.has(a.id), possivel, final };
+  });
+
+  let removidos = contasRedundantes(paraDedupe);
+  // Nunca se fica sem contas.
+  if (removidos.length >= todas.length) removidos = removidos.filter((id) => id !== (ativaRef && porId.has(ativaRef) ? ativaRef : todas[0].id));
+  const fora = new Set(removidos);
+  const finais = todas.filter((a) => !fora.has(a.id));
+
+  if (hasWindow()) {
+    for (const id of removidos) {
+      for (const base of NAMESPACED_BASE_KEYS) {
+        try { window.localStorage.removeItem(nsKey(id, base)); } catch { /* ignore */ }
+      }
+    }
+  }
+
+  const ficam = new Set(finais.map((a) => a.id));
+  const activeId =
+    ativaLocal && (ativaLocal === ALL_ACCOUNTS_ID || ficam.has(ativaLocal)) ? ativaLocal
+    : cloud.activeId && ficam.has(cloud.activeId) ? cloud.activeId
+    // A ativa era uma duplicada: passa para a "Conta 1" que ficou (a que a cobria).
+    : (finais.find((a) => a.name === NOME_AUTOMATICO) ?? finais[0]).id;
+
+  const antes = JSON.stringify(local);
+  const depois: Registry = { accounts: finais, activeId };
+  if (JSON.stringify(depois) !== antes) {
+    writeRegistry(depois);
+    emitChange();
+  }
+  return removidos;
+}
+
 export function createAccount(name?: string): Account {
   const reg = ensureAccounts();
   const id = uid();
@@ -325,6 +442,29 @@ export function marcarAlterado(base: string, accountId?: string): void {
   const mapa = lerCarimbos(id);
   mapa[base] = Date.now();
   try { window.localStorage.setItem(nsKey(id, SYNC_TS_BASE), JSON.stringify(mapa)); } catch { /* ignore */ }
+}
+
+/**
+ * Grava uma chave da conta ativa SÓ se o conteúdo mudou, e carimba-a.
+ *
+ * O carimbo diz "este aparelho tem a versão mais recente desta chave". As
+ * páginas gravavam ao abrir (com o que tinham acabado de ler, ou com o estado
+ * inicial vazio), renovando o carimbo sem mudança nenhuma — e a partir daí a
+ * versão da nuvem, gravada noutro aparelho, nunca mais era adotada (auditoria
+ * 28 set 2026). Gravar "nada" onde não havia nada também não conta.
+ * Devolve true se gravou.
+ */
+export function gravarSeMudou(base: string, raw: string): boolean {
+  if (!hasWindow()) return false;
+  const id = getActiveAccountId();
+  if (id === ALL_ACCOUNTS_ID) return false;
+  const chave = nsKey(id, base);
+  const atual = window.localStorage.getItem(chave);
+  if (atual === raw) return false;
+  if (atual == null && !temConteudo(raw)) return false;
+  window.localStorage.setItem(chave, raw);
+  marcarAlterado(base, id);
+  return true;
 }
 
 export function lerCarimbos(accountId: string): Record<string, number> {

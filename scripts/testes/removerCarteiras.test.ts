@@ -22,7 +22,9 @@ const eth = [
 ];
 const r1 = remocaoEth(eth, { address: "0xA", network: "Base" }, "0xA");
 eq("eth remove so a rede certa", r1.nextWallets, [{ address: "0xA", network: "Ethereum" }, { address: "0xB", network: "Ethereum" }]);
-eq("eth Base nao e a ligada", r1.eraLigada, false);
+eq("eth Base nao e a ligada (extensao na mainnet)", r1.eraLigada, false);
+eq("eth Base E a ligada quando a extensao esta na Base", remocaoEth(eth, { address: "0xA", network: "Base" }, "0xA", "Base").eraLigada, true);
+eq("eth mainnet nao e a ligada quando a extensao esta na Base", remocaoEth(eth, { address: "0xA", network: "Ethereum" }, "0xA", "Base").eraLigada, false);
 eq("eth chave endereco-rede", r1.chave, "0xA-Base");
 const r2 = remocaoEth(eth, { address: "0xA", network: "Ethereum" }, "0xA");
 eq("eth mainnet com o mesmo endereco e a ligada", [r2.eraLigada, r2.chave, r2.nextWallets.length], [true, "0xA-Ethereum", 2]);

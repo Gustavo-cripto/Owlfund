@@ -1,4 +1,4 @@
-import { accKey, marcarAlterado, allAccountIds, isAllAccountsActive, readNamespaced } from "@/lib/portfolios/accounts";
+import { accKey, gravarSeMudou, allAccountIds, isAllAccountsActive, readNamespaced } from "@/lib/portfolios/accounts";
 
 export type StoredWalletEntry = {
   address?: string;
@@ -86,8 +86,7 @@ export const saveWalletSnapshot = (next: WalletSnapshot) => {
   if (typeof window === "undefined") return;
   if (isAllAccountsActive()) return; // vista combinada é só leitura
   try {
-    window.localStorage.setItem(walletsKey(), JSON.stringify(normalizeSnapshot(next)));
-    marcarAlterado("portfolio-wallets");
+    gravarSeMudou("portfolio-wallets", JSON.stringify(normalizeSnapshot(next)));
   } catch {
     // ignore storage errors
   }
@@ -107,5 +106,9 @@ export const updateWalletSnapshot = (patch: WalletSnapshot) => {
   if (typeof patch.manualEur === "number") next.manualEur = patch.manualEur;
   if (typeof patch.tokensUsd === "number") next.tokensUsd = patch.tokensUsd;
   if (typeof patch.traditionalEur === "number") next.traditionalEur = patch.traditionalEur;
+  // Nada mudou? Nao se grava nem se carimba. O carimbo diz "este aparelho tem a
+  // versao mais recente" — renova-lo sem mudanca fazia este aparelho ganhar a
+  // gravacoes reais feitas noutro (auditoria 28 set 2026).
+  if (JSON.stringify(normalizeSnapshot(next)) === JSON.stringify(normalizeSnapshot(current))) return;
   saveWalletSnapshot(next);
 };
