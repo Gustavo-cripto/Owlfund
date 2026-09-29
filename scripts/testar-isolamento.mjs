@@ -71,12 +71,14 @@ async function testarTabelas(a, b, sentido) {
   for (const t of TABELAS) {
     // Leitura das linhas da outra conta.
     const ler = await a.cliente.from(t.nome).select("*").eq(t.dono, b.uid).limit(5);
-    if (ler.error) marcar(sentido, t.nome, "ler", ler.error.code === "42P01" ? "INCONCLUSIVO" : "OK", `recusado (${ler.error.code ?? ler.error.message})`);
+    // Só uma recusa da política conta como OK. Coluna errada (42703), tabela
+    // inexistente (42P01) ou falha de rede não provam nada: INCONCLUSIVO.
+    if (ler.error) marcar(sentido, t.nome, "ler", eRecusaDePolitica(ler.error) ? "OK" : "INCONCLUSIVO", `${eRecusaDePolitica(ler.error) ? "recusado" : "erro"} (${ler.error.code ?? ler.error.message})`);
     else marcar(sentido, t.nome, "ler", ler.data.length === 0 ? "OK" : "FALHA", `${ler.data.length} linha(s) de outra conta`);
 
     // UPDATE sem efeito (o dono fica igual): só conta se devolve linhas.
     const up = await a.cliente.from(t.nome).update({ [t.dono]: b.uid }).eq(t.dono, b.uid).select(t.dono);
-    if (up.error) marcar(sentido, t.nome, "alterar", "OK", `recusado (${up.error.code ?? "erro"})`);
+    if (up.error) marcar(sentido, t.nome, "alterar", eRecusaDePolitica(up.error) ? "OK" : "INCONCLUSIVO", `${eRecusaDePolitica(up.error) ? "recusado" : "erro"} (${up.error.code ?? up.error.message})`);
     else marcar(sentido, t.nome, "alterar", up.data.length === 0 ? "OK" : "FALHA", `${up.data.length} linha(s) alteráveis`);
 
     // INSERT em nome da outra conta.
@@ -88,8 +90,11 @@ async function testarTabelas(a, b, sentido) {
       // tinha dado chave duplicada), por isso a do dono é esta.
       let limpar = a.cliente.from(t.nome).delete().eq(t.dono, b.uid);
       if (t.inserir.data) limpar = limpar.eq("data->>_isolamento", "true");
-      const { error: eLimpar } = await limpar;
-      marcar(sentido, t.nome, "inserir", "FALHA", `linha criada em nome de outra conta — ${eLimpar ? `NÃO apagada (${eLimpar.code}), apagar à mão` : "apagada a seguir"}`);
+      // Um DELETE travado pela política volta SEM erro e com 0 linhas: decide-se
+      // pela contagem do que foi mesmo apagado.
+      const { data: apagadas, error: eLimpar } = await limpar.select(t.dono);
+      const apagou = !eLimpar && (apagadas?.length ?? 0) > 0;
+      marcar(sentido, t.nome, "inserir", "FALHA", `linha criada em nome de outra conta — ${apagou ? "apagada a seguir" : "NÃO apagada, apagar à mão"}`);
     } else if (eRecusaDePolitica(ins.error)) marcar(sentido, t.nome, "inserir", "OK", "recusado pela política");
     else marcar(sentido, t.nome, "inserir", "INCONCLUSIVO", `recusado por outro motivo (${ins.error.code ?? ins.error.message})`);
   }

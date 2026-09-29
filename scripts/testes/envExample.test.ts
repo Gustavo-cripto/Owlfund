@@ -8,6 +8,8 @@ import { join, resolve } from "node:path";
 const EXCECOES = new Set([
   "NODE_ENV",    // Node/Next
   "VERCEL_URL",  // a Vercel define-a
+  "VERCEL_ENV",  // idem: "production" | "preview" | "development"
+  "NEXT_PUBLIC_VERCEL_ENV",  // idem, versao exposta ao browser
   "CFA_KEY",     // exemplo nos docs da API (nao e lida pelo servidor)
 ]);
 

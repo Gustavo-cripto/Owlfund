@@ -263,6 +263,100 @@ export function mergeRegistry(cloud: { accounts: Account[]; activeId?: string })
   return true;
 }
 
+/** Um valor guardado tem conteúdo? (listas/objetos vazios e zeros não contam) */
+export function temConteudo(raw: string | null | undefined): boolean {
+  if (raw == null || raw.trim() === "") return false;
+  let v: unknown;
+  try { v = JSON.parse(raw); } catch { return true; }  // não sei ler: trato como conteúdo
+  const tem = (x: unknown): boolean => {
+    if (x == null || typeof x === "boolean") return false;
+    if (typeof x === "number") return x !== 0;
+    if (typeof x === "string") return x.trim() !== "";
+    if (Array.isArray(x)) return x.length > 0;
+    if (typeof x === "object") return Object.values(x as Record<string, unknown>).some(tem);
+    return false;
+  };
+  return tem(v);
+}
+
+/** A conta não tem nada — nem neste aparelho, nem (se dados) na nuvem. Os carimbos não contam. */
+export function contaVazia(accountId: string, daNuvem?: Record<string, string>): boolean {
+  for (const base of NAMESPACED_BASE_KEYS) {
+    if (base === SYNC_TS_BASE) continue;
+    if (temConteudo(readNamespaced(accountId, base))) return false;
+    if (daNuvem && temConteudo(daNuvem[base])) return false;
+  }
+  return true;
+}
+
+/** Nome que o ensureAccounts dá à conta criada sozinha num aparelho novo. */
+const NOME_AUTOMATICO = "Conta 1";
+
+/**
+ * Junta o registo da nuvem com o local, SEM contas-fantasma.
+ *
+ * Porquê (auditoria 28 set 2026): num aparelho/browser novo o ensureAccounts
+ * cria uma "Conta 1" vazia e ativa-a ANTES de a nuvem responder. O merge por
+ * união mantinha-a ativa — a pessoa via "saldo a 0" com as carteiras dela
+ * noutra conta — e o push seguinte mandava a conta vazia para a nuvem, de onde
+ * passava a todos os aparelhos.
+ *
+ * Regras:
+ * - união como antes (nunca se perdem contas com dados; o nome local ganha);
+ * - uma conta chamada "Conta 1" e vazia aqui E na nuvem é fantasma e sai —
+ *   a não ser que seja a única (quem ainda não tem nada fica com uma);
+ * - a conta ativa local mantém-se se sobreviver; senão a da nuvem; senão a 1.ª.
+ * Devolve os ids removidos (para não se escreverem dados neles).
+ */
+export function juntarRegistoDaNuvem(
+  cloud: { accounts: Account[]; activeId?: string },
+  dadosNuvem: Record<string, Record<string, string>> = {},
+): string[] {
+  if (!cloud || !Array.isArray(cloud.accounts) || cloud.accounts.length === 0) return [];
+  const local = readRegistry();
+  const porId = new Map<string, Account>();
+  for (const a of cloud.accounts) {
+    if (a && a.id) porId.set(a.id, { id: a.id, name: (a.name ?? "").trim() || "Conta" });
+  }
+  for (const a of local?.accounts ?? []) porId.set(a.id, a);   // nome local ganha; só-locais entram
+  // Ordem: as da nuvem primeiro (a ordem de quem já usava o site), depois as só-locais.
+  const todas = Array.from(porId.values());
+  const naNuvem = new Set(cloud.accounts.map((a) => a?.id));
+  todas.sort((x, y) => Number(naNuvem.has(y.id)) - Number(naNuvem.has(x.id)));
+
+  const fantasma = (a: Account) => a.name === NOME_AUTOMATICO && contaVazia(a.id, dadosNuvem[a.id]);
+  const fantasmas = todas.filter(fantasma);
+  let finais = todas.filter((a) => !fantasma(a));
+  if (finais.length === 0) {
+    const fica = fantasmas.find((a) => a.id === cloud.activeId) ?? fantasmas.find((a) => naNuvem.has(a.id)) ?? fantasmas[0];
+    finais = [fica];
+  }
+  const ficam = new Set(finais.map((a) => a.id));
+  const removidos = todas.filter((a) => !ficam.has(a.id)).map((a) => a.id);
+
+  if (hasWindow()) {
+    for (const id of removidos) {
+      for (const base of NAMESPACED_BASE_KEYS) {
+        try { window.localStorage.removeItem(nsKey(id, base)); } catch { /* ignore */ }
+      }
+    }
+  }
+
+  const ativaLocal = local?.activeId;
+  const activeId =
+    ativaLocal && (ativaLocal === ALL_ACCOUNTS_ID || ficam.has(ativaLocal)) ? ativaLocal
+    : cloud.activeId && ficam.has(cloud.activeId) ? cloud.activeId
+    : finais[0].id;
+
+  const antes = JSON.stringify(local);
+  const depois: Registry = { accounts: finais, activeId };
+  if (JSON.stringify(depois) !== antes) {
+    writeRegistry(depois);
+    emitChange();
+  }
+  return removidos;
+}
+
 export function createAccount(name?: string): Account {
   const reg = ensureAccounts();
   const id = uid();
@@ -325,6 +419,29 @@ export function marcarAlterado(base: string, accountId?: string): void {
   const mapa = lerCarimbos(id);
   mapa[base] = Date.now();
   try { window.localStorage.setItem(nsKey(id, SYNC_TS_BASE), JSON.stringify(mapa)); } catch { /* ignore */ }
+}
+
+/**
+ * Grava uma chave da conta ativa SÓ se o conteúdo mudou, e carimba-a.
+ *
+ * O carimbo diz "este aparelho tem a versão mais recente desta chave". As
+ * páginas gravavam ao abrir (com o que tinham acabado de ler, ou com o estado
+ * inicial vazio), renovando o carimbo sem mudança nenhuma — e a partir daí a
+ * versão da nuvem, gravada noutro aparelho, nunca mais era adotada (auditoria
+ * 28 set 2026). Gravar "nada" onde não havia nada também não conta.
+ * Devolve true se gravou.
+ */
+export function gravarSeMudou(base: string, raw: string): boolean {
+  if (!hasWindow()) return false;
+  const id = getActiveAccountId();
+  if (id === ALL_ACCOUNTS_ID) return false;
+  const chave = nsKey(id, base);
+  const atual = window.localStorage.getItem(chave);
+  if (atual === raw) return false;
+  if (atual == null && !temConteudo(raw)) return false;
+  window.localStorage.setItem(chave, raw);
+  marcarAlterado(base, id);
+  return true;
 }
 
 export function lerCarimbos(accountId: string): Record<string, number> {

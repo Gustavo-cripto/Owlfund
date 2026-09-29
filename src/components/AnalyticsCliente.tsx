@@ -1,21 +1,21 @@
 "use client";
 
 import { Suspense, useEffect } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Analytics } from "@vercel/analytics/react";
 import { eInterno, marcarInterno } from "@/lib/analytics/interno";
 
 // Vercel Analytics sem as visitas internas (ver src/lib/analytics/interno.ts),
-// e o sítio onde ?interno=1 / ?interno=0 e as páginas /admin ligam a marca.
+// e o sítio onde ?interno=1 / ?interno=0 ligam a marca. As páginas /admin
+// ligam-na elas próprias, DEPOIS de o servidor confirmar que é admin — pelo
+// caminho, qualquer pessoa com sessão que abrisse /admin ficava fora das contas.
 function MarcaInterna() {
   const params = useSearchParams();
-  const caminho = usePathname();
   useEffect(() => {
     const pedido = params.get("interno");
     if (pedido === "1") marcarInterno(true);
     else if (pedido === "0") marcarInterno(false);
-    else if (caminho?.startsWith("/admin")) marcarInterno(true);
-  }, [params, caminho]);
+  }, [params]);
   return null;
 }
 

@@ -12,7 +12,7 @@ import { SYNC_TS_BASE, adotarNuvem, lerCarimbos,
   NAMESPACED_BASE_KEYS,
   claimLocalData,
   getRegistry,
-  mergeRegistry,
+  juntarRegistoDaNuvem,
   readNamespaced,
   writeNamespaced,
   type Account,
@@ -85,10 +85,12 @@ export async function pullWalletCloud(): Promise<boolean> {
 
     // v3 — todos os dados por conta
     if (data.v === 3 && data.registry && data.data) {
-      // União do registo (nunca remove contas locais).
-      mergeRegistry(data.registry as { accounts: Account[]; activeId: string });
       const byAcc = data.data as Record<string, Record<string, string>>;
+      // União do registo (nunca remove contas com dados), sem contas-fantasma:
+      // a "Conta 1" vazia que um aparelho novo cria antes de a nuvem responder.
+      const fora = new Set(juntarRegistoDaNuvem(data.registry as { accounts: Account[]; activeId: string }, byAcc));
       for (const [id, perAcc] of Object.entries(byAcc)) {
+        if (fora.has(id)) continue;
         // Carimbos: o da nuvem diz quando cada chave foi gravada no outro
         // dispositivo; o local diz quando foi gravada aqui. Funde-se pelo máximo.
         const tsLocal = lerCarimbos(id);
@@ -121,9 +123,11 @@ export async function pullWalletCloud(): Promise<boolean> {
 
     // v2 — só carteiras por conta
     if (data.v === 2 && data.registry && data.wallets) {
-      mergeRegistry(data.registry as { accounts: Account[]; activeId: string });
       const wallets = data.wallets as Record<string, unknown>;
+      const dadosV2 = Object.fromEntries(Object.entries(wallets).map(([id, snap]) => [id, { [WALLET_BASE]: JSON.stringify(snap) }]));
+      const fora = new Set(juntarRegistoDaNuvem(data.registry as { accounts: Account[]; activeId: string }, dadosV2));
       for (const [id, snap] of Object.entries(wallets)) {
+        if (fora.has(id)) continue;
         if (readNamespaced(id, WALLET_BASE) == null) {
           writeNamespaced(id, WALLET_BASE, JSON.stringify(snap));
         }

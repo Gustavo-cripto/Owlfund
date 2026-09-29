@@ -59,6 +59,12 @@ const securityHeaders = [
         "https://api.ordinals.com",
         "https://open-api.unisat.io",
         "https://api.mainnet-beta.solana.com",
+        // RPCs de reserva do saldo Solana e a 2.a fonte do saldo Bitcoin: estavam
+        // no codigo (src/lib/wallets/solana.ts, bitcoin.ts) mas o browser
+        // bloqueava-os, e cada leitura acabava nas rotas do site (com limite).
+        "https://solana.publicnode.com",
+        "https://solana-rpc.publicnode.com",
+        "https://blockstream.info",
         "https://rpc.ankr.com",
         "https://cloudflare-eth.com",
         "https://ethereum.publicnode.com",
@@ -74,7 +80,9 @@ const securityHeaders = [
         "https://api.stripe.com",
       ].join(" "),
       // iFrames: apenas TradingView
-      "frame-src https://s.tradingview.com https://widget.tradingview.com https://accounts.google.com",
+      // js.stripe.com / hooks.stripe.com: o Stripe.js cria um iframe proprio
+      // (antifraude); sem isto o browser recusava-o na pagina do Portefolio.
+      "frame-src https://s.tradingview.com https://widget.tradingview.com https://accounts.google.com https://js.stripe.com https://hooks.stripe.com",
       // Workers
       "worker-src 'self' blob:",
       // WebAssembly (Cardano)

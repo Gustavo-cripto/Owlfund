@@ -78,6 +78,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No data" }, { status: 400 });
   }
 
+  // Pre-visualizacoes da Vercel usam a MESMA base de dados mas nao tem as
+  // chaves dos fornecedores (saldos e tokens falham) e correm noutra origem
+  // (localStorage vazio): gravar dali punha zeros e contas vazias na conta
+  // real. A pre-visualizacao le, mas nao escreve (auditoria 28 set 2026).
+  if (process.env.VERCEL_ENV === "preview") {
+    return NextResponse.json({ ok: true, skipped: "preview" });
+  }
+
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
   const { error } = await admin
     .from("wallet_config")

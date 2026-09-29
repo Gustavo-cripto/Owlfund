@@ -618,6 +618,12 @@ export default function PortfolioPage() {
       ...(scoreRef.current ? { _score: scoreRef.current } : {}),
       ...(bench ? { _bench: bench } : {}),
     };
+    // Numa pre-visualizacao da Vercel (mesma base, sem chaves de fornecedores) o
+    // total pode estar errado: nao se grava historico a partir de la.
+    if (process.env.NEXT_PUBLIC_VERCEL_ENV === "preview") {
+      if (!silent) setSaveMessage({ ok: false, text: t("pf_save_fail") });
+      return;
+    }
     const { error } = await supabase
       .from("portfolio_snapshots")
       .insert({ user_id: userId, data: dataWithTotal });

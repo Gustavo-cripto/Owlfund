@@ -114,3 +114,11 @@ export async function markSent(admin: SupabaseClient, userId: string, kind: stri
     return Array.isArray(data) && data.length > 0;
   } catch { return fallback; }
 }
+
+/** "gustavo@exemplo.com" → "g***@exemplo.com" — para registos e avisos (nunca o email inteiro). */
+export function mascararEmail(email: string | null | undefined): string {
+  const e = (email ?? "").trim();
+  const i = e.indexOf("@");
+  if (i <= 0) return "***";
+  return `${e[0]}***${e.slice(i)}`;
+}
