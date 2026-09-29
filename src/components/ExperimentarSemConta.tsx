@@ -191,7 +191,7 @@ export default function ExperimentarSemConta({ rede, semCabecalho = false }: { r
                 {dados.tokens.map((l, i) => (
                   <li key={`${l.chain}-${l.symbol}-${i}`} className="flex items-center gap-3 py-2.5">
                     {l.logo
-                      ? <img src={l.logo} alt="" className="h-7 w-7 shrink-0 rounded-full bg-slate-800 object-cover" loading="lazy" />
+                      ? <img src={l.logo} alt="" referrerPolicy="no-referrer" className="h-7 w-7 shrink-0 rounded-full bg-slate-800 object-cover" loading="lazy" />
                       : <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-slate-800 text-[11px] font-bold text-slate-300">{l.symbol.slice(0, 3)}</span>}
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-semibold text-white">{l.symbol}</span>
