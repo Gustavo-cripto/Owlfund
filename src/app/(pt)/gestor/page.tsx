@@ -398,7 +398,7 @@ export default function GestorPage() {
         {/* Header */}
         <div className="border-b border-slate-800 bg-slate-950 px-6 py-4 flex items-center gap-4">
           <div className="w-10 h-10 rounded-full overflow-hidden border border-violet-500/30 flex-shrink-0">
-            <img src="/chainfolioai-icon.png" alt={t("gz_assistant_name")} className="w-full h-full object-cover" />
+            <img src="/chainfolioai-icon-128.webp" alt={t("gz_assistant_name")} className="w-full h-full object-cover" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
@@ -521,7 +521,7 @@ export default function GestorPage() {
                       : "bg-slate-800 border border-slate-700 text-xs text-slate-400"
                   }`}>
                     {msg.role === "assistant"
-                      ? <img src="/chainfolioai-icon.png" alt={t("gz_assistant_name")} className="w-full h-full object-cover" />
+                      ? <img src="/chainfolioai-icon-128.webp" alt={t("gz_assistant_name")} className="w-full h-full object-cover" />
                       : userAvatar
                         ? <img src={userAvatar} alt="" className="w-full h-full object-cover" />
                         : "👤"}
@@ -573,7 +573,7 @@ export default function GestorPage() {
               {/* Typing indicator */}
               {loading && (
                 <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden border border-violet-500/30"><img src="/chainfolioai-icon.png" alt={t("gz_assistant_name")} className="w-full h-full object-cover" /></div>
+                  <div className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden border border-violet-500/30"><img src="/chainfolioai-icon-128.webp" alt={t("gz_assistant_name")} className="w-full h-full object-cover" /></div>
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-sm px-4 py-3">
                     <div className="flex gap-1 items-center h-5">
                       {[0, 0.2, 0.4].map(d => (

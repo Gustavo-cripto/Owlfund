@@ -340,7 +340,7 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
         </Link>
 
         <div className="flex flex-col items-center gap-3 text-center">
-          <img src="/chainfolioai-icon.png" alt="ChainFolioAI" className="h-16 w-16 rounded-2xl border border-white/10 object-cover shadow-lg shadow-black/40" />
+          <img src="/chainfolioai-icon-128.webp" alt="ChainFolioAI" className="h-16 w-16 rounded-2xl border border-white/10 object-cover shadow-lg shadow-black/40" />
           <div>
             <h1 className="text-2xl font-bold text-white">
               {showMfa ? t("lg_mfa_title") : jaEntrou !== null ? t("lg_already_title") : mode === "signup" ? t("lg_signup_title") : t("lg_login_title")}

@@ -13,7 +13,7 @@ export default function ErrorPage({ error, reset }: { error: Error & { digest?: 
   useEffect(() => { console.error("[page-error]", error); }, [error]);
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-slate-950 px-6 text-center text-slate-100">
-      <img src="/chainfolioai-icon.png" alt="" className="mb-6 h-16 w-16 rounded-2xl object-cover" />
+      <img src="/chainfolioai-icon-128.webp" alt="" className="mb-6 h-16 w-16 rounded-2xl object-cover" />
       <p className="text-xs font-semibold uppercase tracking-[0.3em] text-rose-300/80">{t("err_tag")}</p>
       <h1 className="mt-3 text-3xl font-bold text-white md:text-4xl">{t("err_title")}</h1>
       <p className="mt-3 max-w-md text-slate-400">{t("err_desc")}</p>
