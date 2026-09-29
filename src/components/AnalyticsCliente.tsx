@@ -24,7 +24,16 @@ export default function AnalyticsCliente() {
     <>
       {/* useSearchParams obriga a Suspense para nao tornar a pagina toda dinamica. */}
       <Suspense fallback={null}><MarcaInterna /></Suspense>
-      <Analytics beforeSend={(e) => (eInterno(document.cookie) ? null : e)} />
+      <Analytics beforeSend={(e) => {
+        if (eInterno(document.cookie)) return null;
+        // Ligações partilhadas da demonstração (?address=…): o endereço não vai
+        // para as estatísticas.
+        try {
+          const u = new URL(e.url);
+          if (u.searchParams.has("address")) { u.searchParams.delete("address"); return { ...e, url: u.toString() }; }
+        } catch { /* URL ilegível: segue como está */ }
+        return e;
+      }} />
     </>
   );
 }

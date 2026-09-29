@@ -2,6 +2,7 @@ import { LANGS, PAGE_SLUG, pageUrl, type PublicPage } from "@/lib/i18n/routes";
 import { COMPETITORS, COMPARE_DATE_MODIFIED, compareUrl } from "@/lib/compare/competitors";
 import { COUNTRIES, TAX_GUIDE_DATE_MODIFIED, guideUrl } from "@/lib/tax/countries";
 import { DEVELOPERS_LAST_UPDATED, LEGAL_LAST_UPDATED } from "@/lib/seo/site";
+import { REDES_SALDO, SALDO_DATE_MODIFIED, saldoUrl } from "@/lib/tools/saldo";
 import type { MetadataRoute } from "next";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://chainfolioai.com";
@@ -67,5 +68,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.7,
     })),
   ]);
-  return [...traduzidas, ...fixed, ...guias, ...comparacoes];
+  // Ferramenta "ver saldo sem conta": pagina geral + uma por rede, nas 4 linguas.
+  const saldo = LANGS.flatMap((lang) => REDES_SALDO.map((rede) => ({
+    url: `${SITE_URL}${saldoUrl(lang, rede)}`,
+    lastModified: SALDO_DATE_MODIFIED,
+    changeFrequency: "monthly" as const,
+    priority: rede === "todas" ? 0.8 : 0.7,
+  })));
+  return [...traduzidas, ...fixed, ...guias, ...comparacoes, ...saldo];
 }

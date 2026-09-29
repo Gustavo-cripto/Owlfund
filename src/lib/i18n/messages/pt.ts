@@ -2528,6 +2528,12 @@ export const pt = {
     lg_reset_desc: "Escreve o email da tua conta. Enviamos uma ligação para escolheres uma palavra-passe nova — podes abri-la aqui ou no telemóvel.",
     lg_reset_send: "Enviar email de recuperação",
     lg_reset_sent_short: "Email enviado ✓",
+    // ── Demonstração: ligação partilhável e páginas próprias (29 set 2026) ──
+    lp_try_ph_sol: "Endereço Solana",
+    lp_try_nfts_sol: "NFTs na Solana",
+    lp_try_link_copy: "Copiar ligação para este resultado",
+    lp_try_link_copied: "Ligação copiada ✓",
+    lp_try_own_page: "Abrir a ferramenta numa página própria →",
 };
 
 export type TranslationKey = keyof typeof pt;

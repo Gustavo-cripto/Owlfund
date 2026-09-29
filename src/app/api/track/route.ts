@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { SALDO_SLUGS } from "@/lib/tools/saldo";
 import { createHash } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
@@ -43,6 +44,8 @@ const ALLOWED = new Set([
   "how-it-works", "precios", "tarifs", "comment-ca-marche", "feedback",
   // Comparacoes, nas quatro linguas.
   "comparacoes", "comparisons", "comparativas", "comparatifs",
+  // Ferramenta "ver saldo sem conta" (src/lib/tools/saldo.ts), nas quatro linguas.
+  ...SALDO_SLUGS,
 ]);
 
 // Prefixos de idioma: /fr/tarifs conta como uma visita a "tarifs", nao a "fr".

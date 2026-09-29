@@ -4,6 +4,7 @@ import AppShell from "@/components/AppShell";
 import { COUNTRIES, guideUrl, TAX_DATA_VERIFIED, TAX_GUIDE_DATE_MODIFIED, type Country, type GuideLang } from "@/lib/tax/countries";
 import { countryText } from "@/lib/tax/countryText";
 import { GUIDE_COPY } from "@/lib/tax/guideCopy";
+import { SALDO_COPY, saldoUrl } from "@/lib/tools/saldo";
 
 // Página de um país, partilhada pelas duas línguas. Os textos das regras vêm
 // das traduções (fc_<code>_*); os rótulos vêm de guideCopy.
@@ -143,6 +144,10 @@ export default function TaxGuideCountry({ lang, country }: { lang: GuideLang; co
               </Link>
               <Link href={base} className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white">
                 {c.ctaCompare}
+              </Link>
+              {/* Quem le o guia fiscal quer saber quanto tem: a ferramenta sem conta. */}
+              <Link href={saldoUrl(lang, "todas")} className="rounded-full border border-slate-700 px-5 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-slate-500 hover:text-white">
+                {SALDO_COPY[lang].redes.todas.nome} →
               </Link>
             </div>
           </section>
