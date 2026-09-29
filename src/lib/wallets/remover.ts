@@ -25,12 +25,20 @@ export type Remocao = {
 
 /** Ethereum/EVM: a mesma morada pode estar em varias redes; a chave dos saldos
  *  e "<endereco>-<rede>" e so a da mainnet conta como a ligada. */
-export const remocaoEth = (ethWallets: StoredWalletEntry[], item: StoredWalletEntry, ethAddress: string | undefined): Remocao => ({
+export const remocaoEth = (
+  ethWallets: StoredWalletEntry[],
+  item: StoredWalletEntry,
+  ethAddress: string | undefined,
+  /** Rede em que a extensao esta ligada (MetaMask numa L2, p. ex.). */
+  redeLigada: string | undefined = "Ethereum",
+): Remocao => ({
   nextWallets: removeWallet(
     ethWallets,
     (entry) => entry.address === item.address && entry.network === item.network
   ),
-  eraLigada: item.address === ethAddress && item.network === "Ethereum",
+  // Antes so contava a mainnet: remover a entrada da L2 em que a MetaMask
+  // estava ligada deixava o saldo a contar no total e o cartao "ligado".
+  eraLigada: !!item.address && !!item.network && item.address === ethAddress && item.network === (redeLigada ?? "Ethereum"),
   chave: ethBalanceKey(item.address ?? "", item.network ?? ""),
 });
 

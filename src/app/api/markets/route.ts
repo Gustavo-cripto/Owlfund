@@ -183,6 +183,8 @@ export async function GET(request: Request) {
   const parametros = new URL(request.url).searchParams;
   const soAFita = parametros.get("ticker") === "1";
   const semSparkline = parametros.get("nospark") === "1";
+  // Precos da CoinEx desta chamada, para a reserva do catch (ver la em baixo).
+  let tickersDaCoinEx: ReturnType<typeof extractCoinExTickers> | null = null;
   try {
     // Duas chamadas ao CoinGecko, nao quatro: o "top 50" para o sentimento e
     // um subconjunto das 250 por capitalizacao — vem da mesma resposta — e o
@@ -213,6 +215,7 @@ export async function GET(request: Request) {
     if (!coinexPayload) throw new Error("Falha ao consultar CoinEx.");
 
     const tickers = extractCoinExTickers(coinexPayload);
+    tickersDaCoinEx = tickers;
 
     // Sem o CoinGecko nao ha tabela (era 200 com data:[] — e o ISR guardava
     // esse vazio 60 s). Agora e falha: serve-se o ultimo bom, ver o catch.
@@ -342,6 +345,44 @@ export async function GET(request: Request) {
       const corpo = { ...base, stale: true, staleAgeSec: stale.ageSec };
       return NextResponse.json(corpo,
         { headers: { "Cache-Control": "public, s-maxage=15, stale-while-revalidate=60" } });
+    }
+    // Arranque a frio sem ultimo bom, mas a CoinEx respondeu: serve-se o que
+    // ha (preco, variacao 24 h e volume), marcado `partial`. Sem isto a pagina
+    // de Carteiras ficava sem precos e todos os valores em moeda a 0 enquanto
+    // o CoinGecko estivesse em 429 (auditoria 28 set 2026).
+    if (tickersDaCoinEx) {
+      const linhas = Object.entries(tickersDaCoinEx)
+        .filter(([market]) => market.endsWith("USDT"))
+        .map(([market, tk]) => {
+          const symbol = market.slice(0, -4);
+          const last = Number(tk.last);
+          const open = Number(tk.open);
+          const volume = Number(tk.value);
+          return {
+            market, symbol, name: symbol, id: null,
+            priceUsd: Number.isFinite(last) ? last : 0,
+            change1h: null,
+            change24h: open ? ((last - open) / open) * 100 : 0,
+            change7d: null, change30d: null, marketCapUsd: null,
+            volume24hUsd: Number.isFinite(volume) ? volume : 0,
+            sparkline: [] as number[],
+          };
+        })
+        .filter((l) => l.priceUsd > 0 && !STABLE_SYMBOLS.has(l.symbol))
+        .sort((a, b) => b.volume24hUsd - a.volume24hUsd)
+        .slice(0, 150);
+      if (linhas.length >= 5) {
+        console.warn(`[markets] ${msg}; sem ultimo bom — a servir so CoinEx (${linhas.length} linhas)`);
+        const parcial = {
+          data: linhas,
+          sentimentTop10: [],
+          selectList: linhas.map((l) => ({ symbol: l.symbol, name: l.name, priceUsd: l.priceUsd, marketCapUsd: null })),
+          global: null,
+        };
+        const base = soAFita ? paraFita(parcial) : parcial;
+        return NextResponse.json({ ...base, partial: true },
+          { headers: { "Cache-Control": "public, s-maxage=15, stale-while-revalidate=60" } });
+      }
     }
     // Sem nada em memoria, deixa-se o erro sair: com `revalidate`, o Next
     // continua a servir a ultima resposta boa que tinha em cache em vez de a

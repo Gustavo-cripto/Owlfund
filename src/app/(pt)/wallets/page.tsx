@@ -18,6 +18,7 @@ import WalletCard from "@/components/wallets/WalletCard";
 import { propsCartaoAda, propsCartaoBtc, propsCartaoEth, propsCartaoSol } from "@/lib/wallets/cartoes";
 import { criarMoneyField, criarQtyField } from "@/components/wallets/camposNumero";
 import { remocaoEth, remocaoPorEndereco, remocaoSol, semChave } from "@/lib/wallets/remover";
+import { aposFalha, leituraRecente, valorDoSaldo } from "@/lib/wallets/saldos";
 // Blocos de apresentacao da pagina (fase 1 da divisao): recebem tudo por props.
 import CabecalhoCarteiras from "@/components/wallets/CabecalhoCarteiras";
 import ConfirmacaoModal from "@/components/wallets/ConfirmacaoModal";
@@ -196,6 +197,9 @@ export default function WalletsPage() {
   const traditionalHydratedRef = useRef(false);
   const cryptoHydratedRef = useRef(false);
   const walletsHydratedRef = useRef(false);
+  // O mesmo que a ref, mas como estado: os efeitos que gravam totais no
+  // snapshot tem de voltar a correr quando a hidratacao (pull da nuvem) acaba.
+  const [hidratado, setHidratado] = useState(false);
   const [availability, setAvailability] = useState({
     metamask: false,
     phantom: false,
@@ -522,13 +526,15 @@ export default function WalletsPage() {
         setBtcWallets((d.btc ?? []) as typeof btcWallets);
         setAdaWallets((d.ada ?? []) as typeof adaWallets);
         setOtherWallets((d.other ?? []) as typeof otherWallets);
-        if (restored) {
-          // Ativos manuais também podem ter vindo da nuvem — re-ler.
-          setTraditionalHoldings(loadTraditionalHoldings());
-          setCryptoHoldings(loadCryptoHoldings());
-          setStablecoinEntries(loadStablecoinEntries());
-        }
+        // Re-ler SEMPRE (e nao so quando veio algo da nuvem): o pull tambem
+        // limpa dados de outra pessoa neste browser e pode trocar a conta
+        // ativa; o que se leu no arranque pode ja nao ser desta conta.
+        void restored;
+        setTraditionalHoldings(loadTraditionalHoldings());
+        setCryptoHoldings(loadCryptoHoldings());
+        setStablecoinEntries(loadStablecoinEntries());
         walletsHydratedRef.current = true;
+        setHidratado(true);
         // Após o merge, envia o estado local para a nuvem — garante que a app
         // mobile (e outros dispositivos) veem os dados mesmo sem edições novas.
         pushWalletCloud();
@@ -605,9 +611,13 @@ export default function WalletsPage() {
   }, []);
 
   useEffect(() => {
+    // So depois da hidratacao: ao abrir, o estado ainda e a lista vazia inicial
+    // e grava-la apagava (por instantes) as stablecoins guardadas e renovava o
+    // carimbo, impedindo que a versao da nuvem fosse adotada.
+    if (!hidratado) return;
     saveStablecoinEntries(stablecoinEntries);
-    if (walletsHydratedRef.current) pushWalletCloud();
-  }, [stablecoinEntries]);
+    pushWalletCloud();
+  }, [hidratado, stablecoinEntries]);
 
   useEffect(() => {
     if (!traditionalHydratedRef.current) return;
@@ -956,9 +966,11 @@ export default function WalletsPage() {
       (payload.data ?? []).forEach((row) => {
         map[row.symbol] = row;
       });
-      setWeb3Prices(map);
+      // Resposta vazia conta como falha: não se trocam preços bons por nada.
+      if (Object.keys(map).length > 0) setWeb3Prices(map);
     } catch {
-      setWeb3Prices({});
+      // Falha isolada (429, rede): ficam os preços anteriores. Antes apagava-os
+      // todos e cada valor em moeda da página passava a 0 durante 2 minutos.
     } finally {
       setWeb3PricesLoading(false);
     }
@@ -1007,8 +1019,10 @@ export default function WalletsPage() {
       const connNet = ethConnectedNetwork ?? "Ethereum";
       const k = ethBalanceKey(ethAddress, connNet);
       seen.add(k);
-      const b = ethBalancesByKey[k] ?? ethBalance;
-      sum += typeof b === "string" && b !== "—" ? parseFloat(b) || 0 : 0;
+      // Leitura falhada ("—") ou ainda por chegar: cai no saldo guardado desta
+      // mesma carteira em vez de contar 0 (src/lib/wallets/saldos.ts).
+      const guardada = ethWallets.find((w) => w.address === ethAddress && (w.network ?? "Ethereum") === connNet);
+      sum += valorDoSaldo(ethBalancesByKey[k], ethBalance, guardada?.balance);
     }
     // Add manually-added wallets, skip if same address+network already counted
     ethWallets.forEach((w) => {
@@ -1017,30 +1031,25 @@ export default function WalletsPage() {
       const k = ethBalanceKey(w.address, net);
       if (seen.has(k)) return;
       seen.add(k);
-      const b = ethBalancesByKey[k] ?? w.balance;
-      sum += typeof b === "string" && b !== "—" ? parseFloat(b) || 0 : 0;
+      sum += valorDoSaldo(ethBalancesByKey[k], w.balance);
     });
     return sum.toFixed(4);
   }, [ethWallets, ethBalancesByKey, ethAddress, ethConnectedNetwork, ethBalance]);
 
   const totalSolBalance = useMemo(() => {
-    let sum = parseFloat(solBalance ?? "") || 0;
+    const ligada = solAddress ? solWallets.find((w) => w.address === solAddress) : undefined;
+    let sum = valorDoSaldo(solBalance, solAddress ? solBalancesByAddress[solAddress] : undefined, ligada?.balance);
     solWallets.forEach((w) => {
-      if (w.address && w.address !== solAddress) {
-        const b = solBalancesByAddress[w.address] ?? w.balance;
-        sum += typeof b === "string" && b !== "—" ? parseFloat(b) || 0 : 0;
-      }
+      if (w.address && w.address !== solAddress) sum += valorDoSaldo(solBalancesByAddress[w.address], w.balance);
     });
     return sum.toFixed(4);
   }, [solBalance, solWallets, solAddress, solBalancesByAddress]);
 
   const totalBtcBalance = useMemo(() => {
-    let sum = btcBalance ?? 0;
+    const ligada = btcAddress ? btcWallets.find((w) => w.address === btcAddress) : undefined;
+    let sum = valorDoSaldo(btcBalance, btcAddress ? btcBalancesByAddress[btcAddress] : undefined, ligada?.balance);
     btcWallets.forEach((w) => {
-      if (w.address && w.address !== btcAddress) {
-        const b = btcBalancesByAddress[w.address] ?? w.balance;
-        sum += typeof b === "string" && b !== "—" ? parseFloat(b) || 0 : 0;
-      }
+      if (w.address && w.address !== btcAddress) sum += valorDoSaldo(btcBalancesByAddress[w.address], w.balance);
     });
     return sum.toFixed(8);
   }, [btcBalance, btcWallets, btcAddress, btcBalancesByAddress]);
@@ -1077,12 +1086,10 @@ export default function WalletsPage() {
   const formatRuneAmount = (amount: number | string) => formatRuneAmountIn(amount, numberFormat);
 
   const totalAdaBalance = useMemo(() => {
-    let sum = parseFloat(adaBalance ?? "") || 0;
+    const ligada = adaAddress ? adaWallets.find((w) => w.address === adaAddress) : undefined;
+    let sum = valorDoSaldo(adaBalance, adaAddress ? adaBalancesByAddress[adaAddress] : undefined, ligada?.balance);
     adaWallets.forEach((w) => {
-      if (w.address && w.address !== adaAddress) {
-        const b = adaBalancesByAddress[w.address] ?? w.balance;
-        sum += typeof b === "string" && b !== "—" ? parseFloat(b) || 0 : 0;
-      }
+      if (w.address && w.address !== adaAddress) sum += valorDoSaldo(adaBalancesByAddress[w.address], w.balance);
     });
     return sum.toFixed(6);
   }, [adaBalance, adaWallets, adaAddress, adaBalancesByAddress]);
@@ -1228,8 +1235,8 @@ export default function WalletsPage() {
       const k = ethBalanceKey(addr, net);
       if (seen.has(k)) return;
       seen.add(k);
-      const b = ethBalancesByKey[k] ?? fallback;
-      const amount = typeof b === "string" && b !== "—" ? parseFloat(b) || 0 : 0;
+      const guardada = ethWallets.find((w) => w.address === addr && (w.network ?? "Ethereum") === net);
+      const amount = valorDoSaldo(ethBalancesByKey[k], fallback, guardada?.balance);
       if (!amount) return;
       const sym = nativeSymbolOf(net);
       // xDAI e uma stablecoin (1 $); o resto vem do /api/markets (ETH, POL, BNB, AVAX, CRO, MNT).
@@ -1286,29 +1293,43 @@ export default function WalletsPage() {
   // só "este aparelho não tem as chaves" e não pode apagar o que o outro
   // aparelho calculou.
   const cexJaTeveValor = useRef(false);
+  // DeFi: so se grava um total quando as leituras acabaram sem erro. Ao abrir a
+  // pagina o total e 0 (ainda nada foi lido) — gravar esse 0 apagava o valor
+  // bom no snapshot, com carimbo novo, e o 0 ia para a nuvem e para os outros
+  // aparelhos (auditoria 28 set 2026).
+  const defiPronto = useMemo(() => {
+    if (Object.values(defiLoading).some(Boolean)) return false;
+    if (Object.values(defiErrors).some(Boolean)) return false;
+    const temCarteiras = ethWallets.length + solWallets.length + btcWallets.length + adaWallets.length > 0 || !!ethAddress || !!solAddress;
+    return !temCarteiras || Object.keys(defiTotals).length > 0;
+  }, [defiLoading, defiErrors, defiTotals, ethWallets, solWallets, btcWallets, adaWallets, ethAddress, solAddress]);
   useEffect(() => {
+    if (!hidratado) return;
+    const defi = defiPronto ? { defiUsd: totalDefiUsd } : {};
     // Store as USD; portfolio page converts to EUR via usdToEur from /api/prices.
     if (cexHlTotalUsd > 0) {
       cexJaTeveValor.current = true;
-      updateWalletSnapshot({ cexUsd: cexHlTotalUsd, defiUsd: totalDefiUsd });
+      updateWalletSnapshot({ cexUsd: cexHlTotalUsd, ...defi });
     } else if (cexJaTeveValor.current) {
-      updateWalletSnapshot({ cexUsd: 0, defiUsd: totalDefiUsd });
-    } else {
-      updateWalletSnapshot({ defiUsd: totalDefiUsd });
+      updateWalletSnapshot({ cexUsd: 0, ...defi });
+    } else if (defiPronto) {
+      updateWalletSnapshot(defi);
     }
-  }, [cexHlTotalUsd, totalDefiUsd]);
+  }, [hidratado, defiPronto, cexHlTotalUsd, totalDefiUsd]);
 
   useEffect(() => {
+    if (!hidratado) return;
     // Persistir os ativos manuais (em EUR) no snapshot, para contarem no
     // dashboard, nos snapshots da Supabase e noutros dispositivos.
     updateWalletSnapshot({ manualEur: cryptoManualTotal });
-  }, [cryptoManualTotal]);
+  }, [hidratado, cryptoManualTotal]);
 
   useEffect(() => {
+    if (!hidratado) return;
     // O mesmo para os tradicionais: so esta pagina tem as cotacoes, por isso e
     // aqui que se calcula o valor de mercado que o Dashboard e o Portefolio leem.
     updateWalletSnapshot({ traditionalEur: traditionalMarketTotal });
-  }, [traditionalMarketTotal]);
+  }, [hidratado, traditionalMarketTotal]);
 
   const sortedCryptoSymbols = useMemo(() => {
     const dir = cryptoSortDir === "asc" ? 1 : -1;
@@ -1434,10 +1455,12 @@ export default function WalletsPage() {
         await switchEvmNetwork(selectedProvider, selectedEthConnectNetwork);
       }
       const address = await connectEvmProvider(selectedProvider);
-      setEthAddress(address);
-      setEthConnectedNetwork(selectedEthConnectNetwork);
+      // Primeiro o saldo, so depois "ligada" (como o SOL e o BTC): se a leitura
+      // falhar, a carteira guardada continua a contar com o ultimo saldo.
       const balance = await fetchEvmBalanceServerSide(address, selectedEthConnectNetwork);
       const formatted = Number(balance).toFixed(4);
+      setEthAddress(address);
+      setEthConnectedNetwork(selectedEthConnectNetwork);
       setEthBalance(formatted);
       const label = getEvmProviderLabel(selectedEvmProvider);
       const nextWallets = upsertWallet(
@@ -1468,9 +1491,12 @@ export default function WalletsPage() {
       setEthLoading(true);
       setEthError(null);
       const address = await connectWalletConnect();
-      setEthAddress(address);
       const balance = await fetchEvmBalanceServerSide(address, "Ethereum");
       const formatted = Number(balance).toFixed(4);
+      setEthAddress(address);
+      // O WalletConnect le sempre a mainnet: sem repor a rede, um saldo de
+      // mainnet ficava com a chave da L2 ligada antes e contava duas vezes.
+      setEthConnectedNetwork("Ethereum");
       setEthBalance(formatted);
       const nextWallets = upsertWallet(
         ethWallets,
@@ -1758,10 +1784,13 @@ export default function WalletsPage() {
       );
       // Capture the taproot/ordinals address too — that's where Ordinals & Runes live.
       if (ordinals && ordinals !== address) {
-        const ordBalance = await getBtcBalanceFromAddress(ordinals).catch(() => 0);
+        // Leitura falhada = "nao sei", nao "0": fica o saldo que a entrada ja
+        // tinha (ou nenhum) e o efeito dos saldos tenta outra vez.
+        const ordBalance = await getBtcBalanceFromAddress(ordinals).catch(() => null);
+        const anterior = nextWallets.find((w) => w.address === ordinals)?.balance;
         nextWallets = upsertWallet(
           nextWallets,
-          { address: ordinals, balance: ordBalance.toFixed(8), network: "Bitcoin", label: `${providerLabel} (Ordinals)` },
+          { address: ordinals, ...(ordBalance != null ? { balance: ordBalance.toFixed(8) } : anterior ? { balance: anterior } : {}), network: "Bitcoin", label: `${providerLabel} (Ordinals)` },
           (item) => item.address === ordinals
         );
         void fetchRunesForAddress(ordinals);
@@ -1933,9 +1962,9 @@ export default function WalletsPage() {
       ]);
       clearTimeout(msgTimer);
       setAdaLoadingMsg(undefined);
+      const balance = await getAdaBalance(api);
       setAdaApi(api);
       setAdaAddress(address);
-      const balance = await getAdaBalance(api);
       setAdaBalance(balance);
       const nextWallets = upsertWallet(
         adaWallets,
@@ -2346,10 +2375,18 @@ export default function WalletsPage() {
   }, [coldTokensByAddr, ethWallets]);
 
   useEffect(() => {
+    if (!hidratado) return;
+    // So com TODAS as leituras de tokens acabadas e sem erro: um 503/429 de um
+    // fornecedor (ou a pagina acabada de abrir) nao pode gravar tokensUsd = 0.
+    if (Object.values(coldTokensLoading).some(Boolean)) return;
+    if (Object.values(coldTokensError).some(Boolean)) return;
+    const temCarteiras = ethWallets.length + solWallets.length > 0;
+    if (temCarteiras && Object.keys(coldTokensByAddr).length === 0) return;
     // Estes tokens entram no total desta página; sem os gravar no snapshot o
     // Portefólio ficava aquém do que as Carteiras mostram.
     updateWalletSnapshot({ tokensUsd: coldTokensExtraUsd });
-  }, [coldTokensExtraUsd]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hidratado, coldTokensExtraUsd, coldTokensLoading, coldTokensError]);
 
   /** Remove um endereço adicionado manualmente, da lista certa e do snapshot. */
   const removeManualAddress = (address: string, kind: "eth" | "sol" | "btc" | "ada" | "other", networkLabel: string) => {
@@ -2497,8 +2534,21 @@ export default function WalletsPage() {
     };
   }, [walletMode, ethAddress, solAddress, btcAddress, adaApi]);
 
-  const fetchAdaBalanceForAddress = useCallback(async (address: string) => {
+  // Ligar uma carteira disparava ~4N+2 leituras em segundos (efeitos em cadeia)
+  // e batia no limite das rotas -> 429 -> "saldo a 0". As leituras pedidas pelos
+  // EFEITOS saltam-se se a mesma chave foi lida ha menos de 20 s; as pedidas
+  // pela pessoa (atualizar, adicionar) passam sempre.
+  const ultimasLeituras = useRef<Map<string, number>>(new Map());
+  const saltarLeitura = (chave: string, soSeAntiga: boolean) => {
+    const agora = Date.now();
+    if (soSeAntiga && leituraRecente(ultimasLeituras.current, chave, agora)) return true;
+    ultimasLeituras.current.set(chave, agora);
+    return false;
+  };
+
+  const fetchAdaBalanceForAddress = useCallback(async (address: string, soSeAntiga = false) => {
     if (!address || address === adaAddress) return;
+    if (saltarLeitura(`ada:${address}`, soSeAntiga)) return;
     setAdaBalancesLoading((prev) => ({ ...prev, [address]: true }));
     setAdaBalanceErrors((prev) => ({ ...prev, [address]: null }));
     try {
@@ -2511,7 +2561,7 @@ export default function WalletsPage() {
       const message = userError(err, t("wl_err_balance"));
       startTransition(() => {
         setAdaBalanceErrors((prev) => ({ ...prev, [address]: message }));
-        setAdaBalancesByAddress((prev) => ({ ...prev, [address]: "—" }));
+        setAdaBalancesByAddress((prev) => aposFalha(prev, address));
       });
     } finally {
       startTransition(() => {
@@ -2530,7 +2580,7 @@ export default function WalletsPage() {
             w.address !== adaAddress &&
             !["Hydra", "Midnight"].includes(w.network ?? "")
         )
-        .forEach((w) => void fetchAdaBalanceForAddress(w.address!));
+        .forEach((w) => void fetchAdaBalanceForAddress(w.address!, true));
     }, 0);
     return () => window.clearTimeout(id);
   }, [walletMode, adaWallets, adaAddress, fetchAdaBalanceForAddress]);
@@ -2554,8 +2604,9 @@ export default function WalletsPage() {
   };
 
   const fetchEthBalanceForEntry = useCallback(
-    async (address: string, network: string) => {
+    async (address: string, network: string, soSeAntiga = false) => {
       const key = ethBalanceKey(address, network);
+      if (saltarLeitura(`eth:${key}`, soSeAntiga)) return;
       setEthBalancesLoading((prev) => ({ ...prev, [key]: true }));
       setEthBalanceErrors((prev) => ({ ...prev, [key]: null }));
       try {
@@ -2568,7 +2619,7 @@ export default function WalletsPage() {
         const msg = userError(err, t("wl_err_balance"));
         startTransition(() => {
           setEthBalanceErrors((prev) => ({ ...prev, [key]: msg }));
-          setEthBalancesByKey((prev) => ({ ...prev, [key]: "—" }));
+          setEthBalancesByKey((prev) => aposFalha(prev, key));
         });
       } finally {
         startTransition(() => {
@@ -2584,13 +2635,14 @@ export default function WalletsPage() {
     const id = window.setTimeout(() => {
       ethWallets
         .filter((w) => w.address && w.network)
-        .forEach((w) => void fetchEthBalanceForEntry(w.address!, w.network!));
+        .forEach((w) => void fetchEthBalanceForEntry(w.address!, w.network!, true));
     }, 0);
     return () => window.clearTimeout(id);
   }, [walletMode, ethWallets, ethAddress, fetchEthBalanceForEntry]);
 
-  const fetchSolBalanceForAddress = useCallback(async (address: string) => {
+  const fetchSolBalanceForAddress = useCallback(async (address: string, soSeAntiga = false) => {
     if (!address || address === solAddress) return;
+    if (saltarLeitura(`sol:${address}`, soSeAntiga)) return;
     setSolBalancesLoading((prev) => ({ ...prev, [address]: true }));
     setSolBalanceErrors((prev) => ({ ...prev, [address]: null }));
     try {
@@ -2603,7 +2655,7 @@ export default function WalletsPage() {
       const msg = userError(err, t("wl_err_balance"));
       startTransition(() => {
         setSolBalanceErrors((prev) => ({ ...prev, [address]: msg }));
-        setSolBalancesByAddress((prev) => ({ ...prev, [address]: "—" }));
+        setSolBalancesByAddress((prev) => aposFalha(prev, address));
       });
     } finally {
       startTransition(() => {
@@ -2617,13 +2669,14 @@ export default function WalletsPage() {
     const id = window.setTimeout(() => {
       solWallets
         .filter((w) => w.address && w.address !== solAddress)
-        .forEach((w) => void fetchSolBalanceForAddress(w.address!));
+        .forEach((w) => void fetchSolBalanceForAddress(w.address!, true));
     }, 0);
     return () => window.clearTimeout(id);
   }, [walletMode, solWallets, solAddress, fetchSolBalanceForAddress]);
 
-  const fetchBtcBalanceForAddress = useCallback(async (address: string) => {
+  const fetchBtcBalanceForAddress = useCallback(async (address: string, soSeAntiga = false) => {
     if (!address || address === btcAddress) return;
+    if (saltarLeitura(`btc:${address}`, soSeAntiga)) return;
     setBtcBalancesLoading((prev) => ({ ...prev, [address]: true }));
     setBtcBalanceErrors((prev) => ({ ...prev, [address]: null }));
     try {
@@ -2636,7 +2689,7 @@ export default function WalletsPage() {
       const msg = userError(err, t("wl_err_balance"));
       startTransition(() => {
         setBtcBalanceErrors((prev) => ({ ...prev, [address]: msg }));
-        setBtcBalancesByAddress((prev) => ({ ...prev, [address]: "—" }));
+        setBtcBalancesByAddress((prev) => aposFalha(prev, address));
       });
     } finally {
       startTransition(() => {
@@ -2667,7 +2720,7 @@ export default function WalletsPage() {
     const id = window.setTimeout(() => {
       btcWallets.forEach((w) => {
         if (!w.address) return;
-        if (w.address !== btcAddress) void fetchBtcBalanceForAddress(w.address!);
+        if (w.address !== btcAddress) void fetchBtcBalanceForAddress(w.address!, true);
         void fetchRunesForAddress(w.address!);
       });
     }, 0);
@@ -2845,11 +2898,12 @@ export default function WalletsPage() {
                 getFiatValue={getFiatValue}
                 usdToEurRate={usdToEurRate}
                 onRemove={(item) => {
-                  const r = remocaoEth(ethWallets, item, ethAddress);
+                  const r = remocaoEth(ethWallets, item, ethAddress, ethConnectedNetwork);
                   setEthWallets(r.nextWallets);
                   if (r.eraLigada) {
                     setEthAddress(undefined);
                     setEthBalance(undefined);
+                    setEthConnectedNetwork("Ethereum");
                     setEthError(null);
                   }
                   setEthBalancesByKey((prev) => semChave(prev, r.chave));

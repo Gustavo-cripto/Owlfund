@@ -218,8 +218,17 @@ export default function SmartMoneyPage() {
 
   // Sincroniza a watchlist para o servidor (só Premium) para os webhooks a
   // poderem varrer com a app fechada.
+  // Um POST com a lista vazia APAGA a lista no servidor. Num aparelho novo (ou
+  // depois de o browser ser limpo) a lista local comeca vazia: so se envia
+  // depois de a leitura inicial do servidor acabar, e uma lista vazia so se
+  // envia se a pessoa chegou a ter itens nesta sessao (logo, esvaziou-a ela).
+  const [servidorLido, setServidorLido] = useState(false);
+  const teveItens = useRef(false);
+  useEffect(() => { if (watchlist.length > 0) teveItens.current = true; }, [watchlist]);
+
   useEffect(() => {
-    if (!hydratedRef.current || !isPremium) return;
+    if (!hydratedRef.current || !isPremium || !servidorLido) return;
+    if (watchlist.length === 0 && !teveItens.current) return;
     const timer = setTimeout(() => {
       void fetch("/api/smart-money/watchlist", {
         method: "POST",
@@ -228,7 +237,7 @@ export default function SmartMoneyPage() {
       }).catch(() => {});
     }, 1500);
     return () => clearTimeout(timer);
-  }, [watchlist, isPremium]);
+  }, [watchlist, isPremium, servidorLido]);
 
   // Verificar subscrição via API server-side (evita dependência de NEXT_PUBLIC env var no cliente)
   useEffect(() => {
@@ -248,10 +257,14 @@ export default function SmartMoneyPage() {
 
   // Premium noutro dispositivo: se a lista local estiver vazia, puxar do servidor
   useEffect(() => {
-    if (!isPremium || watchlist.length > 0) return;
+    if (!isPremium) return;
+    if (watchlist.length > 0) { setServidorLido(true); return; }
     void fetch("/api/smart-money/watchlist").then((r) => (r.ok ? r.json() : null)).then((j: { watchlist?: { address: string; chain: "eth" | "sol" | "btc"; label: string }[] } | null) => {
       const rows = j?.watchlist ?? [];
       if (rows.length) setWatchlist(rows.map((r) => ({ address: r.address, chain: r.chain, label: r.label || shortAddr(r.address), addedAt: Date.now() })));
+      // So conta como lido com resposta valida: se a leitura falhou, nao se
+      // arrisca apagar a lista do servidor com a vazia deste aparelho.
+      if (j) setServidorLido(true);
     }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPremium]);
