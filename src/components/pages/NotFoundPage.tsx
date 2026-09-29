@@ -8,7 +8,7 @@ export default function NotFoundPage() {
   const { t } = useLanguage();
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-slate-950 px-6 text-center text-slate-100">
-      <img src="/chainfolioai-icon.png" alt="" className="mb-6 h-16 w-16 rounded-2xl object-cover" />
+      <img src="/chainfolioai-icon-128.webp" alt="" className="mb-6 h-16 w-16 rounded-2xl object-cover" />
       <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">404</p>
       <h1 className="mt-3 text-3xl font-bold text-white md:text-4xl">{t("nf_title")}</h1>
       <p className="mt-3 max-w-md text-slate-400">{t("nf_desc")}</p>

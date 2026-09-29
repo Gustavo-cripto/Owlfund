@@ -109,7 +109,7 @@ export default function ResetPasswordPage() {
 
       <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-6 px-6 py-12">
         <div className="flex flex-col items-center gap-3 text-center">
-          <img src="/chainfolioai-icon.png" alt="ChainFolioAI" className="h-16 w-16 rounded-2xl border border-white/10 object-cover shadow-lg shadow-black/40" />
+          <img src="/chainfolioai-icon-128.webp" alt="ChainFolioAI" className="h-16 w-16 rounded-2xl border border-white/10 object-cover shadow-lg shadow-black/40" />
           <div>
             <h1 className="text-2xl font-bold text-white">{t("rp_title")}</h1>
             <p className="mt-1 text-sm text-slate-400">{t("rp_sub")}</p>

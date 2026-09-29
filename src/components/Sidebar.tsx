@@ -259,7 +259,7 @@ export default function Sidebar() {
       <header className="flex items-center justify-between px-4 py-3">
         <a href={homeHref} className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0">
-            <img src="/chainfolioai-icon.png" alt="ChainFolioAI" className="w-10 h-10 object-cover " />
+            <img src="/chainfolioai-icon-128.webp" alt="ChainFolioAI" className="w-10 h-10 object-cover " />
           </div>
           <div>
             <p className="text-sm font-bold text-white tracking-widest leading-none">CHAINFOLIOAI</p>
@@ -360,7 +360,7 @@ export default function Sidebar() {
         <div className={`flex items-center border-b border-white/[0.06] overflow-hidden ${expanded ? "px-5 pt-8 pb-7 gap-4" : "justify-center px-0 py-5"}`}>
           <a href={homeHref} className="shrink-0">
             <div className={`overflow-hidden border border-white/[0.08] transition-[width,height,border-radius] duration-300 ${expanded ? "w-16 h-16 rounded-2xl" : "w-10 h-10 rounded-xl"}`}>
-              <img src="/chainfolioai-icon.png" alt="ChainFolioAI" className="w-full h-full object-cover " />
+              <img src="/chainfolioai-icon-128.webp" alt="ChainFolioAI" className="w-full h-full object-cover " />
             </div>
           </a>
           <div className={`transition-opacity duration-200 overflow-hidden ${expanded ? "opacity-100 w-auto" : "opacity-0 w-0"}`}>

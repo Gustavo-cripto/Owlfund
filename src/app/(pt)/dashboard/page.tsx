@@ -577,7 +577,7 @@ export default function DashboardPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {[
-                { icon: "/chainfolioai-icon.png", title: t("dash_how_1_title"), desc: t("dash_how_1_desc") },
+                { icon: "/chainfolioai-icon-128.webp", title: t("dash_how_1_title"), desc: t("dash_how_1_desc") },
                 { icon: "🔗", title: t("dash_how_2_title"), desc: t("dash_how_2_desc") },
                 { icon: "📡", title: t("dash_how_3_title"), desc: t("dash_how_3_desc") },
                 { icon: "🤖", title: t("dash_how_4_title"), desc: t("dash_how_4_desc") },

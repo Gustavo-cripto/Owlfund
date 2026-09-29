@@ -17,7 +17,7 @@ export default function GlobalNotFound() {
     <html lang="pt-PT">
       <body className="antialiased">
         <div className="flex min-h-screen flex-col items-center justify-center bg-slate-950 px-6 text-center text-slate-100">
-          <img src="/chainfolioai-icon.png" alt="" className="mb-6 h-16 w-16 rounded-2xl object-cover" />
+          <img src="/chainfolioai-icon-128.webp" alt="" className="mb-6 h-16 w-16 rounded-2xl object-cover" />
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">404</p>
           <h1 className="mt-3 text-3xl font-bold text-white md:text-4xl">Página não encontrada</h1>
           <p className="mt-2 text-slate-400">Page not found · Página no encontrada · Page introuvable</p>

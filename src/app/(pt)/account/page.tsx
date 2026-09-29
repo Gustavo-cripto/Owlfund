@@ -1213,7 +1213,7 @@ export default function AccountPage() {
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
                         <div className="flex items-center gap-2">
-                          <p className="flex items-center gap-1.5 text-sm font-semibold text-white"><img src="/chainfolioai-icon.png" alt="" className="h-4 w-4 rounded-full object-cover" /> {t("ac_p_briefing")}</p>
+                          <p className="flex items-center gap-1.5 text-sm font-semibold text-white"><img src="/chainfolioai-icon-128.webp" alt="" className="h-4 w-4 rounded-full object-cover" /> {t("ac_p_briefing")}</p>
                           {!isPro && !isPremium && <span className="text-[11px] border border-orange-500/40 text-orange-400 rounded-full px-2 py-0.5">Pro</span>}
                         </div>
                         <p className="text-xs text-slate-400 mt-0.5">{t("ac_briefing_desc")}</p>

@@ -197,7 +197,7 @@ export default function Landing() {
               {/* Welcome header */}
               <header className="space-y-3">
                 <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-orange-300">
-                  <img src="/chainfolioai-icon.png" alt="" className="h-4 w-4 rounded-full object-cover" />
+                  <img src="/chainfolioai-icon-128.webp" alt="" className="h-4 w-4 rounded-full object-cover" />
                   {t("lp_logged_area")}
                 </div>
                 <h1 className="text-3xl font-bold text-white md:text-4xl">{t("lp_logged_title")}</h1>
@@ -277,7 +277,7 @@ export default function Landing() {
         <section className="mx-auto flex w-full max-w-6xl flex-col items-center gap-12 px-6 pb-16 pt-16 md:flex-row md:pt-24">
           <div className="flex-1 space-y-7">
             <div className="animate-rise inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-4 py-1.5 text-xs font-bold text-orange-300 uppercase tracking-widest">
-              <img src="/chainfolioai-icon.png" alt="" className="h-4 w-4 rounded-full object-cover" /> {t("lp_hero_badge")}
+              <img src="/chainfolioai-icon-128.webp" alt="" className="h-4 w-4 rounded-full object-cover" /> {t("lp_hero_badge")}
             </div>
             <h1 className="animate-rise delay-100 text-4xl font-bold leading-tight text-white md:text-5xl lg:text-6xl">
               {t("lp_hero_title_1")}<br />
@@ -447,7 +447,7 @@ export default function Landing() {
                   <th scope="col" className="px-4 py-4 text-center font-semibold text-slate-400">{t("lp_cmp_col_generic")}</th>
                   <th scope="col" className="px-4 py-4 text-center font-bold text-orange-300">
                     <span className="inline-flex items-center gap-2">
-                      <img src="/chainfolioai-icon.png" alt="" className="h-5 w-5 rounded object-cover" />
+                      <img src="/chainfolioai-icon-128.webp" alt="" className="h-5 w-5 rounded object-cover" />
                       ChainFolioAI
                     </span>
                   </th>
@@ -667,7 +667,7 @@ export default function Landing() {
             {/* glow decorativo */}
             <div className="animate-glow-pulse pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-orange-500/10 blur-[80px]" aria-hidden />
             <div className="relative">
-              <img src="/chainfolioai-icon.png" alt="" className="mb-5 mx-auto h-16 w-16 rounded-2xl object-cover" />
+              <img src="/chainfolioai-icon-128.webp" alt="" className="mb-5 mx-auto h-16 w-16 rounded-2xl object-cover" />
               <h2 className="text-3xl font-bold text-white md:text-4xl">{t("lp_ready")}</h2>
               <p className="mt-4 text-slate-400 max-w-sm mx-auto">{t("lp_final_sub")}</p>
               <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
@@ -687,7 +687,7 @@ export default function Landing() {
         <footer className="keep-dark border-t border-slate-900 bg-slate-950/80 py-10">
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-6 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-3">
-              <img src="/chainfolioai-icon.png" alt="" className="h-8 w-8 rounded-lg object-cover" />
+              <img src="/chainfolioai-icon-128.webp" alt="" className="h-8 w-8 rounded-lg object-cover" />
               <div>
                 <p className="font-bold text-white">ChainFolioAI</p>
                 <p className="text-xs text-slate-500">{t("lp_tagline")}</p>
