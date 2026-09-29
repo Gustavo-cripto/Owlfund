@@ -9,6 +9,8 @@
 // mudarem. A migração dos dados antigos (não-prefixados) para a "Conta 1" é feita
 // COPIANDO — nunca apaga as chaves legadas.
 
+import { contasRedundantes, identidades, NOME_AUTOMATICO, type Conteudo, type ContaParaDedupe } from "@/lib/portfolios/duplicados";
+
 export type Account = { id: string; name: string };
 
 /** Id especial da vista combinada ("Todas as contas"). Agregação em etapa posterior. */
@@ -289,22 +291,20 @@ export function contaVazia(accountId: string, daNuvem?: Record<string, string>):
   return true;
 }
 
-/** Nome que o ensureAccounts dá à conta criada sozinha num aparelho novo. */
-const NOME_AUTOMATICO = "Conta 1";
-
 /**
- * Junta o registo da nuvem com o local, SEM contas-fantasma.
+ * Junta o registo da nuvem com o local, SEM contas-fantasma nem duplicadas.
  *
- * Porquê (auditoria 28 set 2026): num aparelho/browser novo o ensureAccounts
+ * Porquê (auditoria 28–29 set 2026): num aparelho/browser novo o ensureAccounts
  * cria uma "Conta 1" vazia e ativa-a ANTES de a nuvem responder. O merge por
- * união mantinha-a ativa — a pessoa via "saldo a 0" com as carteiras dela
- * noutra conta — e o push seguinte mandava a conta vazia para a nuvem, de onde
- * passava a todos os aparelhos.
+ * união mantinha-a ativa — a pessoa via "saldo a 0", voltava a juntar as mesmas
+ * carteiras, e o push mandava mais uma "Conta 1" para a nuvem. Havia contas com
+ * 11 portefólios, quase todos iguais.
  *
- * Regras:
- * - união como antes (nunca se perdem contas com dados; o nome local ganha);
- * - uma conta chamada "Conta 1" e vazia aqui E na nuvem é fantasma e sai —
- *   a não ser que seja a única (quem ainda não tem nada fica com uma);
+ * Regras (ver src/lib/portfolios/duplicados.ts):
+ * - união como antes: contas com nome dado pela pessoa, ou com algo que mais
+ *   nenhuma tem, nunca saem; o nome local ganha;
+ * - uma "Conta 1" sai quando tudo o que tem já existe noutra "Conta 1" que fica
+ *   (uma vazia está sempre coberta);
  * - a conta ativa local mantém-se se sobreviver; senão a da nuvem; senão a 1.ª.
  * Devolve os ids removidos (para não se escreverem dados neles).
  */
@@ -324,15 +324,37 @@ export function juntarRegistoDaNuvem(
   const naNuvem = new Set(cloud.accounts.map((a) => a?.id));
   todas.sort((x, y) => Number(naNuvem.has(y.id)) - Number(naNuvem.has(x.id)));
 
-  const fantasma = (a: Account) => a.name === NOME_AUTOMATICO && contaVazia(a.id, dadosNuvem[a.id]);
-  const fantasmas = todas.filter(fantasma);
-  let finais = todas.filter((a) => !fantasma(a));
-  if (finais.length === 0) {
-    const fica = fantasmas.find((a) => a.id === cloud.activeId) ?? fantasmas.find((a) => naNuvem.has(a.id)) ?? fantasmas[0];
-    finais = [fica];
-  }
-  const ficam = new Set(finais.map((a) => a.id));
-  const removidos = todas.filter((a) => !ficam.has(a.id)).map((a) => a.id);
+  const ativaLocal = local?.activeId;
+  const ativaRef = ativaLocal && porId.has(ativaLocal) ? ativaLocal : cloud.activeId;
+  const carimbosDaNuvem = (id: string): Record<string, number> => {
+    try { const r = dadosNuvem[id]?.[SYNC_TS_BASE]; return r ? (JSON.parse(r) as Record<string, number>) : {}; } catch { return {}; }
+  };
+  const paraDedupe: ContaParaDedupe[] = todas.map((a) => {
+    const possivel: Conteudo = {};
+    const final: Conteudo = {};
+    const tsLocal = lerCarimbos(a.id);
+    const tsNuvem = carimbosDaNuvem(a.id);
+    for (const base of NAMESPACED_BASE_KEYS) {
+      if (base === SYNC_TS_BASE) continue;
+      const doLocal = readNamespaced(a.id, base);
+      const daNuvem = dadosNuvem[a.id]?.[base] ?? null;
+      const iLocal = identidades(base, doLocal);
+      const iNuvem = identidades(base, daNuvem);
+      possivel[base] = new Set([...iLocal, ...iNuvem]);
+      // O que fica depois do merge por chave (a mesma decisão do pullWalletCloud):
+      // os trades fundem-se; no resto manda a gravação mais recente.
+      final[base] = base === "trade-history-v1" ? possivel[base]
+        : daNuvem == null ? iLocal
+        : adotarNuvem(doLocal != null, tsLocal[base], tsNuvem[base]) ? iNuvem : iLocal;
+    }
+    return { id: a.id, name: a.name, ativa: a.id === ativaRef, naNuvem: naNuvem.has(a.id), possivel, final };
+  });
+
+  let removidos = contasRedundantes(paraDedupe);
+  // Nunca se fica sem contas.
+  if (removidos.length >= todas.length) removidos = removidos.filter((id) => id !== (ativaRef && porId.has(ativaRef) ? ativaRef : todas[0].id));
+  const fora = new Set(removidos);
+  const finais = todas.filter((a) => !fora.has(a.id));
 
   if (hasWindow()) {
     for (const id of removidos) {
@@ -342,11 +364,12 @@ export function juntarRegistoDaNuvem(
     }
   }
 
-  const ativaLocal = local?.activeId;
+  const ficam = new Set(finais.map((a) => a.id));
   const activeId =
     ativaLocal && (ativaLocal === ALL_ACCOUNTS_ID || ficam.has(ativaLocal)) ? ativaLocal
     : cloud.activeId && ficam.has(cloud.activeId) ? cloud.activeId
-    : finais[0].id;
+    // A ativa era uma duplicada: passa para a "Conta 1" que ficou (a que a cobria).
+    : (finais.find((a) => a.name === NOME_AUTOMATICO) ?? finais[0]).id;
 
   const antes = JSON.stringify(local);
   const depois: Registry = { accounts: finais, activeId };
