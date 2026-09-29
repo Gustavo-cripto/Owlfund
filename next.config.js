@@ -114,6 +114,13 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
+  async redirects() {
+    return [
+      // A demonstracao chamava-se "experimentar" (ancora /#experimentar); quem
+      // escrever o endereco a mao chega a pagina propria da ferramenta.
+      { source: "/experimentar", destination: "/ver-saldo-carteira", permanent: true },
+    ];
+  },
   async headers() {
     return [
       {

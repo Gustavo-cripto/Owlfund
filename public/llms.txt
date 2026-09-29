@@ -36,6 +36,7 @@
 ## Key pages
 - [Home](https://chainfolioai.com/): product overview.
 - [How it works](https://chainfolioai.com/como-funciona): tool-by-tool walkthrough.
+- [Wallet balance checker](https://chainfolioai.com/en/wallet-balance-checker): free tool, no account. Paste a public Ethereum (read on Ethereum, Base, Arbitrum, Optimism and Polygon at once), Bitcoin or Solana address and see the balance and value. Read-only; the address is not stored on our servers. Per-network pages: [Bitcoin](https://chainfolioai.com/en/bitcoin-balance-checker), [Ethereum](https://chainfolioai.com/en/ethereum-balance-checker), [Solana](https://chainfolioai.com/en/solana-balance-checker). Portuguese: https://chainfolioai.com/ver-saldo-carteira. A result can be linked with `?address=<public address>`. It does not show DeFi positions or Cardano.
 - [Crypto tax guides](https://chainfolioai.com/guias/impostos-cripto): 21 countries, rates, holding periods and reference law.
 - [Pricing](https://chainfolioai.com/pricing): Free (€0), Pro (€14.99/mo), Premium (€39/mo). Card (Stripe). Crypto stablecoin payments (EURC/USDC via Helio) are planned and not yet enabled.
 - [Beta](https://chainfolioai.com/beta): open until 15 January 2027 — testers get Premium free for 60 days; payments are off during the beta.

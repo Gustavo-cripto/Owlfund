@@ -2513,4 +2513,10 @@ export const en: Record<TranslationKey, string> = {
     lg_reset_desc: "Type your account email. We send you a link to choose a new password — you can open it here or on your phone.",
     lg_reset_send: "Send recovery email",
     lg_reset_sent_short: "Email sent ✓",
+    // ── Demonstração: ligação partilhável e páginas próprias (29 set 2026) ──
+    lp_try_ph_sol: "Solana address",
+    lp_try_nfts_sol: "NFTs on Solana",
+    lp_try_link_copy: "Copy a link to this result",
+    lp_try_link_copied: "Link copied ✓",
+    lp_try_own_page: "Open the tool on its own page →",
 };
