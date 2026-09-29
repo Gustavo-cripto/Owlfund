@@ -44,7 +44,7 @@ const API_ERR: Record<string, { auth: string; premium: string; internal: string;
   pt: { auth: "Não autenticado.", premium: "Requer Plano Premium.", internal: "Erro interno.", empty: "Sem mensagens.", daily: "Atingiste o limite de 150 mensagens por dia do Gestor IA. Volta amanhã.", plan: "Não foi possível verificar o teu plano agora. Tenta de novo dentro de instantes." },
   en: { auth: "Not authenticated.", premium: "Premium plan required.", internal: "Internal error.", empty: "No messages.", daily: "You reached the AI Manager limit of 150 messages per day. Come back tomorrow.", plan: "We could not verify your plan right now. Please try again in a moment." },
   es: { auth: "No autenticado.", premium: "Requiere Plan Premium.", internal: "Error interno.", empty: "Sin mensajes.", daily: "Alcanzaste el límite de 150 mensajes por día del Gestor IA. Vuelve mañana.", plan: "No se pudo verificar tu plan ahora. Inténtalo de nuevo en unos instantes." },
-  fr: { auth: "Non authentifié.", premium: "Plan Premium requis.", internal: "Erreur interne.", empty: "Aucun message.", daily: "Tu as atteint la limite de 150 messages par jour du Gestionnaire IA. Reviens demain.", plan: "Impossible de vérifier ton plan pour le moment. Réessaie dans un instant." },
+  fr: { auth: "Non authentifié.", premium: "Plan Premium requis.", internal: "Erreur interne.", empty: "Aucun message.", daily: "Vous avez atteint la limite de 150 messages par jour du Gestionnaire IA. Revenez demain.", plan: "Impossible de vérifier votre plan pour le moment. Réessayez dans un instant." },
 };
 const apiErr = (lang: string, k: keyof (typeof API_ERR)["pt"]) => (API_ERR[lang] ?? API_ERR.pt)[k];
 
