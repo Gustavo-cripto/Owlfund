@@ -35,6 +35,16 @@ const CACHE = "public, s-maxage=300, stale-while-revalidate=600";
 const responder = (body: Resposta | { error: string }, status = 200) =>
   NextResponse.json(body, { status, headers: { "Cache-Control": status === 200 ? CACHE : "no-store" } });
 
+// Simbolo, nome e logotipo vem dos metadados do token, que qualquer pessoa
+// escreve ao criar um. O React ja escapa o texto; aqui corta-se o tamanho e so
+// passam logotipos por https (nada de data:, http: ou outros esquemas).
+const texto = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, max) : "");
+function logoSeguro(v: unknown): string | undefined {
+  if (typeof v !== "string" || v.length > 300) return undefined;
+  try { return new URL(v).protocol === "https:" ? v : undefined; } catch { return undefined; }
+}
+const limpar = (l: Linha): Linha => ({ ...l, symbol: texto(l.symbol, 16) || "?", name: texto(l.name, 60), logo: logoSeguro(l.logo) });
+
 function resumir(kind: Resposta["kind"], networks: string[], linhas: Linha[], nftCount: number | null): Resposta {
   const nativo = new Set(["ETH", "POL", "MATIC", "SOL", "BTC"]);
   const validas = linhas
@@ -44,7 +54,7 @@ function resumir(kind: Resposta["kind"], networks: string[], linhas: Linha[], nf
     kind,
     networks,
     totalUsd: validas.reduce((s, l) => s + l.usdValue, 0),
-    tokens: validas.slice(0, TOP),
+    tokens: validas.slice(0, TOP).map(limpar),
     others: Math.max(0, validas.length - TOP),
     nftCount,
   };
