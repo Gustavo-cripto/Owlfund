@@ -107,10 +107,10 @@ export const COST_METHOD_CAVEAT: Partial<Record<CostMethod, Record<Lang, string>
     fr: "La loi autrichienne calcule le coût moyen par portefeuille ; la calculatrice le calcule par actif, tous portefeuilles confondus.",
   },
   acb: {
-    pt: "A calculadora aplica o custo médio ajustado, mas não a regra da perda superficial (recompra em 30 dias).",
-    en: "The calculator applies the adjusted cost base but not the superficial loss rule (repurchase within 30 days).",
-    es: "La calculadora aplica el coste medio ajustado, pero no la regla de pérdida superficial (recompra en 30 días).",
-    fr: "La calculatrice applique le prix de base rajusté, mais pas la règle de la perte apparente (rachat sous 30 jours).",
+    pt: "A calculadora não inclui a regra da perda superficial (recompra em 30 dias).",
+    en: "The calculator does not include the superficial loss rule (repurchase within 30 days).",
+    es: "La calculadora no incluye la regla de pérdida superficial (recompra en 30 días).",
+    fr: "La calculatrice n'inclut pas la règle de la perte apparente (rachat sous 30 jours).",
   },
   fifo_wallet: {
     pt: "A lei manda aplicar o FIFO por corretora ou carteira; a calculadora aplica-o ao conjunto, porque as transferências entre carteiras não ficam registadas como operações.",
@@ -128,10 +128,10 @@ export const COUNTRY_CAVEAT: Partial<Record<string, Record<Lang, string>>> = {
     fr: "Pour les actifs achetés avant 2026, la loi belge retient comme coût la valeur au 31/12/2025 (seul le gain depuis compte) ; la calculatrice utilise le prix d'achat réel et surestime donc le gain sur ces actifs.",
   },
   IE: {
-    pt: "A calculadora aplica a regra das 4 semanas nas compras anteriores à venda, mas não a restrição da perda quando se recompra nas 4 semanas seguintes (essa perda só abate a ganhos dessa recompra).",
-    en: "The calculator applies the 4-week rule to purchases before the sale, but not the loss restriction when you buy back within the following 4 weeks (that loss only offsets gains on that repurchase).",
-    es: "La calculadora aplica la regla de 4 semanas a las compras anteriores a la venta, pero no la restricción de la pérdida cuando se recompra en las 4 semanas siguientes (esa pérdida solo compensa ganancias de esa recompra).",
-    fr: "La calculatrice applique la règle des 4 semaines aux achats antérieurs à la vente, mais pas la restriction de la perte en cas de rachat dans les 4 semaines suivantes (cette perte ne s'impute que sur les gains de ce rachat).",
+    pt: "Falta a segunda parte da regra: quando se recompra nas 4 semanas a seguir a uma venda com perda, essa perda só abate a ganhos dessa recompra, e a calculadora abate-a normalmente.",
+    en: "The second part of the rule is missing: when you buy back within 4 weeks after a sale at a loss, that loss only offsets gains on the repurchase, and the calculator offsets it normally.",
+    es: "Falta la segunda parte de la regla: si se recompra en las 4 semanas siguientes a una venta con pérdida, esa pérdida solo compensa ganancias de esa recompra, y la calculadora la compensa normalmente.",
+    fr: "Il manque la seconde partie de la règle : en cas de rachat dans les 4 semaines suivant une vente à perte, cette perte ne s'impute que sur les gains de ce rachat, et la calculatrice l'impute normalement.",
   },
   US: {
     pt: "Desde 2025 a base de custo é por carteira ou conta; a calculadora aplica o FIFO ao conjunto, porque as transferências entre carteiras não ficam registadas como operações.",
