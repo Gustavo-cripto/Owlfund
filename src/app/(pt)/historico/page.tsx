@@ -65,8 +65,12 @@ const EXCHANGE_LABEL: Record<string, string> = {
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
 // feeAsset: "" = taxa na moeda do preco; um simbolo = taxa paga nesse token (gas).
-type FormState = { type: TradeType; asset: string; customAsset: string; quantity: string; priceEur: string; fee: string; feeAsset: string; date: string; exchange: string; notes: string };
-const emptyForm = (): FormState => ({ type: "compra", asset: "BTC", customAsset: "", quantity: "", priceEur: "", fee: "", feeAsset: "", date: todayIso(), exchange: "Kraken", notes: "" });
+// "troca": cripto por cripto, sem passar por dinheiro. Grava DUAS linhas
+// ligadas por swapId (venda da moeda dada, compra da recebida); em PT, AT e PL
+// o motor fiscal trata-a como neutra (src/lib/tax/metodos.ts).
+type FormTipo = TradeType | "troca";
+type FormState = { type: FormTipo; asset: string; customAsset: string; quantity: string; priceEur: string; fee: string; feeAsset: string; date: string; exchange: string; notes: string; toAsset: string; toCustom: string; toQuantity: string };
+const emptyForm = (): FormState => ({ type: "compra", asset: "BTC", customAsset: "", quantity: "", priceEur: "", fee: "", feeAsset: "", date: todayIso(), exchange: "Kraken", notes: "", toAsset: "ETH", toCustom: "", toQuantity: "" });
 // Tokens de gas mais comuns, para a taxa paga em token.
 const FEE_TOKENS = ["ETH", "SOL", "BNB", "POL", "AVAX", "BTC", "TRX"] as const;
 
@@ -158,6 +162,8 @@ export default function HistoricoPage() {
     const bruto = (parseDecimal(form.quantity) || 0) * (parseDecimal(form.priceEur) || 0);
     // Taxa em token nao se soma aqui (outra unidade): mostra-se ao lado.
     const taxa = form.type === "taxa" || form.feeAsset ? 0 : parseDecimal(form.fee) || 0;
+    // Na troca o campo do preco e o VALOR total da troca.
+    if (form.type === "troca") return parseDecimal(form.priceEur) || 0;
     return form.type === "compra" ? bruto + taxa : form.type === "venda" ? bruto - taxa : bruto;
   }, [form.quantity, form.priceEur, form.fee, form.feeAsset, form.type]);
 
@@ -190,10 +196,73 @@ export default function HistoricoPage() {
     return ASSET_LIST.find((a) => a.symbol === form.asset) ?? { symbol: form.asset, name: form.asset };
   };
 
+  const registarTroca = async () => {
+    const qtyDada = parseDecimal(form.quantity);
+    const qtyRecebida = parseDecimal(form.toQuantity);
+    let valor = parseDecimal(form.priceEur);
+    if (!Number.isFinite(qtyDada) || qtyDada <= 0 || !Number.isFinite(qtyRecebida) || qtyRecebida <= 0) { setFormError(t("hx_qty_invalid")); return; }
+    if (!form.date) { setFormError(t("hx_date_required")); return; }
+    if (form.date > todayIso()) { setFormError(t("hx_date_future")); return; }
+    const dada = resolveAsset();
+    const recebida = form.toAsset === OTHER_ASSET
+      ? (() => { const s = form.toCustom.toUpperCase().replace(/[^A-Z0-9.]/g, "").slice(0, 12); return s ? { symbol: s, name: s } : null; })()
+      : ASSET_LIST.find((a) => a.symbol === form.toAsset) ?? { symbol: form.toAsset, name: form.toAsset };
+    if (!dada || !recebida) { setFormError(t("hx_asset_required")); return; }
+    if (dada.symbol === recebida.symbol) { setFormError(t("hx_swap_same_asset")); return; }
+    // Valor em branco: preco do dia da moeda dada × quantidade dada.
+    if (form.priceEur.trim() === "") {
+      const p = await tokenPriceOn(dada.symbol, form.date, inputCurrency);
+      if (p == null) { setFormError(t("hx_token_price_missing")); return; }
+      valor = p * qtyDada;
+    }
+    if (!Number.isFinite(valor) || valor <= 0) { setFormError(t("hx_price_invalid")); return; }
+    const fee = form.fee.trim() === "" ? 0 : parseDecimal(form.fee);
+    if (!Number.isFinite(fee) || fee < 0) { setFormError(t("hx_fee_invalid")); return; }
+    let valorEur = valor;
+    let feeEur = fee;
+    const feeAsset = fee > 0 && form.feeAsset ? form.feeAsset : "";
+    if (feeAsset) {
+      const unit = await tokenPriceOn(feeAsset, form.date, "EUR");
+      if (unit == null) { setFormError(t("hx_token_price_missing")); return; }
+      feeEur = fee * unit;
+    }
+    if (inputCurrency !== "EUR") {
+      const tabela = await loadFxTable([form.date], [inputCurrency]);
+      const v = tabela.convert(valor, inputCurrency, "EUR", form.date);
+      if (v == null) { setFormError(t("fisc_fx_missing")); return; }
+      valorEur = v;
+      if (fee > 0 && !feeAsset) {
+        const fc = tabela.convert(fee, inputCurrency, "EUR", form.date);
+        if (fc == null) { setFormError(t("fisc_fx_missing")); return; }
+        feeEur = fc;
+      }
+    }
+    const swapId = tradeId();
+    const comum = { date: form.date, exchange: form.exchange, notes: form.notes.trim().slice(0, 200), currency: inputCurrency, swapId };
+    const venda: Trade = {
+      id: tradeId(), type: "venda", asset: dada.symbol, assetName: dada.name, quantity: qtyDada,
+      priceEur: valorEur / qtyDada, totalEur: valorEur, priceInput: valor / qtyDada, ...comum,
+      ...(fee > 0 ? { feeEur, feeInput: fee, ...(feeAsset ? { feeAsset } : {}) } : {}),
+    };
+    const compra: Trade = {
+      id: tradeId(), type: "compra", asset: recebida.symbol, assetName: recebida.name, quantity: qtyRecebida,
+      priceEur: valorEur / qtyRecebida, totalEur: valorEur, priceInput: valor / qtyRecebida, ...comum,
+    };
+    upsertTrade(venda);
+    setTxs(upsertTrade(compra));
+    pushWalletCloud();
+    setForm((f) => ({ ...emptyForm(), type: "troca", exchange: f.exchange }));
+    setFlashId(compra.id);
+    setTimeout(() => setFlashId(null), 2500);
+    showToast(t("hx_saved_swap"));
+  };
+
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     setFormError(null);
     if (readOnly) { setFormError(t("hx_readonly_all")); return; }
+    if (form.type === "troca") { await registarTroca(); return; }
+    const tipo: TradeType = form.type;
     const qty = parseDecimal(form.quantity);
     let price = parseDecimal(form.priceEur);
     if (!Number.isFinite(qty) || qty <= 0) { setFormError(t("hx_qty_invalid")); return; }
@@ -212,7 +281,7 @@ export default function HistoricoPage() {
     const fee = form.type === "taxa" || form.fee.trim() === "" ? 0 : parseDecimal(form.fee);
     if (!Number.isFinite(fee) || fee < 0) { setFormError(t("hx_fee_invalid")); return; }
     if (!editId) {
-      const dup = txs.find((x) => x.asset === assetInfo.symbol && x.date === form.date && x.type === form.type && x.quantity === qty && x.priceEur === price);
+      const dup = txs.find((x) => x.asset === assetInfo.symbol && x.date === form.date && x.type === tipo && x.quantity === qty && x.priceEur === price);
       if (dup && !(await askConfirm({ message: t("hx_dup_confirm"), okLabel: t("hx_reg_buy") }))) return;
     }
     let priceEur = price;
@@ -238,9 +307,11 @@ export default function HistoricoPage() {
         feeEur = feeConv;
       }
     }
+    // Editar uma perna de uma troca mantem a ligacao (swapId).
+    const original = editId ? txs.find((x) => x.id === editId) : undefined;
     const tx: Trade = {
       id: editId ?? tradeId(),
-      type: form.type,
+      type: tipo,
       asset: assetInfo.symbol,
       assetName: assetInfo.name,
       quantity: qty,
@@ -252,6 +323,7 @@ export default function HistoricoPage() {
       currency: inputCurrency,
       priceInput: price,
       ...(fee > 0 ? { feeEur, feeInput: fee, ...(feeAsset ? { feeAsset } : {}) } : {}),
+      ...(original?.swapId ? { swapId: original.swapId } : {}),
     };
     setTxs(upsertTrade(tx));
     pushWalletCloud();
@@ -270,6 +342,7 @@ export default function HistoricoPage() {
     setEditId(tx.id);
     const known = ASSET_LIST.some((a) => a.symbol === tx.asset);
     setForm({
+      ...emptyForm(),
       type: tx.type,
       asset: known ? tx.asset : OTHER_ASSET,
       customAsset: known ? "" : tx.asset,
@@ -286,10 +359,15 @@ export default function HistoricoPage() {
 
   const handleDelete = (tx: Trade) => {
     if (readOnly) return;
+    // Uma troca sao duas linhas: apagar uma sem a outra deixava moeda a
+    // desaparecer (ou a aparecer) sem custo. Apagam-se juntas.
+    const par = tx.swapId ? txs.find((x) => x.swapId === tx.swapId && x.id !== tx.id) : undefined;
+    if (par) deleteTrade(par.id);
     setTxs(deleteTrade(tx.id));
     pushWalletCloud();
-    if (editId === tx.id) { setEditId(null); setForm(emptyForm()); }
-    showToast(t("hx_deleted"), () => {
+    if (editId === tx.id || (par && editId === par.id)) { setEditId(null); setForm(emptyForm()); }
+    showToast(par ? t("hx_swap_deleted") : t("hx_deleted"), () => {
+      if (par) restoreTrade(par);
       setTxs(restoreTrade(tx));
       pushWalletCloud();
       setToast(null);
@@ -337,7 +415,8 @@ export default function HistoricoPage() {
 
   if (isLoading) return null;
 
-  const typeLabel = (ty: TradeType) => (ty === "compra" ? `▲ ${t("hx_buy_one")}` : ty === "venda" ? `▼ ${t("hx_sell_one")}` : `⛽ ${t("hx_fee_one")}`);
+  const typeLabel = (ty: FormTipo) => (ty === "troca" ? `⇄ ${t("hx_swap_one")}` : ty === "compra" ? `▲ ${t("hx_buy_one")}` : ty === "venda" ? `▼ ${t("hx_sell_one")}` : `⛽ ${t("hx_fee_one")}`);
+  const rotuloLinha = (tx: Trade): string => `${typeLabel(tx.type)}${tx.swapId ? ` · ⇄` : ""}`;
   const typePill = (ty: TradeType) => ty === "compra" ? "bg-emerald-500/15 text-emerald-400" : ty === "venda" ? "bg-rose-500/15 text-rose-400" : "bg-amber-500/15 text-amber-300";
   const isEmpty = txs.length === 0;
 
@@ -441,7 +520,7 @@ export default function HistoricoPage() {
 
             {/* Type toggle */}
             <div className="flex gap-2 mb-5" role="radiogroup" aria-label={t("hx_col_type")}>
-              {(["compra", "venda", "taxa"] as TradeType[]).map((ty) => (
+              {((editId ? ["compra", "venda", "taxa"] : ["compra", "venda", "taxa", "troca"]) as FormTipo[]).map((ty) => (
                 <button
                   key={ty}
                   type="button"
@@ -454,7 +533,9 @@ export default function HistoricoPage() {
                         ? "bg-emerald-500/20 border border-emerald-500/50 text-emerald-300"
                         : ty === "venda"
                           ? "bg-rose-500/20 border border-rose-500/50 text-rose-300"
-                          : "bg-amber-500/20 border border-amber-500/50 text-amber-200"
+                          : ty === "troca"
+                            ? "bg-sky-500/20 border border-sky-500/50 text-sky-200"
+                            : "bg-amber-500/20 border border-amber-500/50 text-amber-200"
                       : "bg-slate-800/60 border border-slate-700 text-slate-400 hover:text-white"
                   }`}
                 >
@@ -466,11 +547,14 @@ export default function HistoricoPage() {
             {form.type === "taxa" && (
               <p className="-mt-2 mb-4 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] px-3 py-2 text-xs text-amber-100/80">{t("hx_fee_only_help")}</p>
             )}
+            {form.type === "troca" && (
+              <p className="-mt-2 mb-4 rounded-xl border border-sky-500/30 bg-sky-500/[0.06] px-3 py-2 text-xs text-sky-100/80">{t("hx_swap_help")}</p>
+            )}
 
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {/* Asset */}
               <div>
-                <label htmlFor="hx-asset" className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_asset")}</label>
+                <label htmlFor="hx-asset" className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1">{form.type === "troca" ? t("hx_swap_given") : t("hx_asset")}</label>
                 <select
                   id="hx-asset"
                   value={form.asset}
@@ -497,7 +581,7 @@ export default function HistoricoPage() {
 
               {/* Quantity */}
               <div>
-                <label htmlFor="hx-qty" className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_quantity")} ({form.asset === OTHER_ASSET ? (form.customAsset || "—") : form.asset})</label>
+                <label htmlFor="hx-qty" className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1">{form.type === "troca" ? t("hx_swap_qty_given") : t("hx_quantity")} ({form.asset === OTHER_ASSET ? (form.customAsset || "—") : form.asset})</label>
                 <input
                   id="hx-qty"
                   ref={qtyRef}
@@ -511,11 +595,53 @@ export default function HistoricoPage() {
                 />
               </div>
 
+              {form.type === "troca" && (
+                <>
+                  <div>
+                    <label htmlFor="hx-to-asset" className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_swap_received")}</label>
+                    <select
+                      id="hx-to-asset"
+                      value={form.toAsset}
+                      onChange={(e) => setForm((f) => ({ ...f, toAsset: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-200 outline-none focus:border-orange-400"
+                    >
+                      {ASSET_LIST.map((a) => (
+                        <option key={a.symbol} value={a.symbol}>{a.symbol} — {a.name}</option>
+                      ))}
+                      <option value={OTHER_ASSET}>{t("hx_other_asset")}</option>
+                    </select>
+                    {form.toAsset === OTHER_ASSET && (
+                      <input
+                        type="text"
+                        placeholder={t("hx_other_asset_ph")}
+                        value={form.toCustom}
+                        maxLength={12}
+                        onChange={(e) => setForm((f) => ({ ...f, toCustom: e.target.value.toUpperCase() }))}
+                        className="mt-2 w-full rounded-xl border border-orange-500/40 bg-slate-950/60 px-3 py-2 text-sm text-slate-200 outline-none focus:border-orange-400"
+                      />
+                    )}
+                  </div>
+                  <div>
+                    <label htmlFor="hx-to-qty" className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_swap_qty_received")} ({form.toAsset === OTHER_ASSET ? (form.toCustom || "—") : form.toAsset})</label>
+                    <input
+                      id="hx-to-qty"
+                      type="text"
+                      inputMode="decimal"
+                      autoComplete="off"
+                      placeholder="0.00"
+                      value={form.toQuantity}
+                      onChange={(e) => setForm((f) => ({ ...f, toQuantity: cleanDecimalInput(e.target.value) }))}
+                      className="w-full rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-200 outline-none focus:border-orange-400"
+                    />
+                  </div>
+                </>
+              )}
+
               {/* Price */}
               <div>
                 <label htmlFor="hx-price" className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1">
-                  {t("hx_unit_price")} ({inputSymbol})
-                  {form.type === "taxa" && <span className="normal-case tracking-normal text-slate-600"> · {t("hx_price_auto")}</span>}
+                  {form.type === "troca" ? t("hx_swap_value") : t("hx_unit_price")} ({inputSymbol})
+                  {(form.type === "taxa" || form.type === "troca") && <span className="normal-case tracking-normal text-slate-600"> · {t("hx_price_auto")}</span>}
                 </label>
                 <input
                   id="hx-price"
@@ -597,8 +723,8 @@ export default function HistoricoPage() {
               <div>
                 <label className="block text-[11px] uppercase tracking-wider text-slate-500 mb-1">{t("hx_total")}</label>
                 <div className="flex items-center rounded-xl border border-slate-700 bg-slate-950/30 px-3 py-2 text-sm">
-                  <span className={`font-bold ${form.type === "compra" ? "text-emerald-400" : form.type === "venda" ? "text-rose-400" : "text-amber-300"}`}>
-                    {form.type === "venda" ? "+" : "−"} {fmtCur(formTotal)}
+                  <span className={`font-bold ${form.type === "compra" ? "text-emerald-400" : form.type === "venda" ? "text-rose-400" : form.type === "troca" ? "text-sky-300" : "text-amber-300"}`}>
+                    {form.type === "troca" ? "⇄" : form.type === "venda" ? "+" : "−"} {fmtCur(formTotal)}
                   </span>
                   {form.type !== "taxa" && form.feeAsset && parseDecimal(form.fee) > 0 && (
                     <span className="ml-2 text-xs text-slate-500">+ {form.fee} {form.feeAsset}</span>
@@ -631,10 +757,12 @@ export default function HistoricoPage() {
                     ? "bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30"
                     : form.type === "venda"
                       ? "bg-rose-500/20 border border-rose-500/40 text-rose-300 hover:bg-rose-500/30"
-                      : "bg-amber-500/20 border border-amber-500/40 text-amber-200 hover:bg-amber-500/30"
+                      : form.type === "troca"
+                        ? "bg-sky-500/20 border border-sky-500/40 text-sky-200 hover:bg-sky-500/30"
+                        : "bg-amber-500/20 border border-amber-500/40 text-amber-200 hover:bg-amber-500/30"
                 }`}
               >
-                {editId ? t("hx_save") : form.type === "compra" ? t("hx_reg_buy") : form.type === "venda" ? t("hx_reg_sell") : t("hx_reg_fee")}
+                {editId ? t("hx_save") : form.type === "compra" ? t("hx_reg_buy") : form.type === "venda" ? t("hx_reg_sell") : form.type === "troca" ? t("hx_reg_swap") : t("hx_reg_fee")}
               </button>
               {editId && (
                 <button type="button" onClick={cancelEdit} className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-400 hover:text-white transition">
@@ -707,7 +835,7 @@ export default function HistoricoPage() {
                         </td>
                         <td className="py-2.5 pr-3">
                           <span className={`rounded-full px-2 py-0.5 font-semibold text-[11px] ${typePill(tx.type)}`}>
-                            {typeLabel(tx.type)}
+                            {rotuloLinha(tx)}
                           </span>
                         </td>
                         <td className="py-2.5 pr-3">
@@ -746,7 +874,7 @@ export default function HistoricoPage() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${typePill(tx.type)}`}>
-                          {typeLabel(tx.type)}
+                          {rotuloLinha(tx)}
                         </span>
                         <span className="font-bold text-white text-sm">{tx.asset}</span>
                       </div>
@@ -884,7 +1012,7 @@ export default function HistoricoPage() {
                         {importPreview.trades.slice(0, 50).map((x) => (
                           <tr key={x.id}>
                             <td className="p-2 text-slate-400">{x.date}</td>
-                            <td className={`p-2 ${x.type === "compra" ? "text-emerald-400" : x.type === "venda" ? "text-rose-400" : "text-amber-300"}`}>{typeLabel(x.type)}</td>
+                            <td className={`p-2 ${x.type === "compra" ? "text-emerald-400" : x.type === "venda" ? "text-rose-400" : "text-amber-300"}`}>{rotuloLinha(x)}</td>
                             <td className="p-2 font-semibold text-white">{x.asset}</td>
                             <td className="p-2 text-right tabular-nums">{x.quantity}</td>
                             <td className="p-2 text-right tabular-nums">{x.priceEur}</td>

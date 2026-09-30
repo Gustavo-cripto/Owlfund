@@ -95,10 +95,13 @@ export function realizar(ops: readonly Operacao[], metodo: CostMethod, opcoes: O
   // ordem cronológica põe as compras primeiro no mesmo dia): é ela que diz
   // que custo passa para a moeda recebida. Índices originais preservados.
   const ordem = ops.map((op, idx) => ({ op, idx }));
+  // Só é troca com as duas pernas: se uma foi apagada, a outra conta como
+  // venda/compra normal (senão a moeda desaparecia sem custo nem imposto).
+  const completas = trocasCompletas(ops);
   if (opcoes.permutaNeutra) {
     for (let i = 0; i < ordem.length; i++) {
       const o = ordem[i].op;
-      if (o.type !== "compra" || !o.swapId) continue;
+      if (o.type !== "compra" || !o.swapId || !completas.has(o.swapId)) continue;
       const j = ordem.findIndex((x, k) => k > i && x.op.swapId === o.swapId && x.op.type === "venda");
       if (j > i) { const [v] = ordem.splice(j, 1); ordem.splice(i, 0, v); i++; }
     }
@@ -150,7 +153,7 @@ export function realizar(ops: readonly Operacao[], metodo: CostMethod, opcoes: O
       // Moeda recebida numa troca neutra: herda o custo da entregue. A data de
       // aquisição conta a partir da troca (a lei portuguesa só diz que passa
       // o VALOR; é a leitura prudente — ressalvada no ecrã).
-      const herdado = opcoes.permutaNeutra && op.swapId ? custoTroca.get(op.swapId) : undefined;
+      const herdado = opcoes.permutaNeutra && op.swapId && completas.has(op.swapId) ? custoTroca.get(op.swapId) : undefined;
       const preco = herdado != null && op.amount > 0 ? herdado / op.amount : op.price;
       if (livre > EPS) {
         (pool[op.asset] ??= []).push({ amount: livre, price: preco, feePerUnit, date: op.date });
@@ -164,7 +167,7 @@ export function realizar(ops: readonly Operacao[], metodo: CostMethod, opcoes: O
 
     // venda
     let resto = op.amount;
-    const neutra = !!(opcoes.permutaNeutra && op.swapId);
+    const neutra = !!(opcoes.permutaNeutra && op.swapId && completas.has(op.swapId));
     const registar = (usa: number, buyPrice: number, buyFeePerUnit: number, buyDate: string, feesNoPreco = 0) => {
       const buyFees = usa * buyFeePerUnit;
       const sellFees = usa * feePerUnit;
@@ -303,12 +306,25 @@ export type AnoPolaco = {
  * de swaps falhados, etc.) ficam de fora, como nos outros países: a página
  * mostra-os à parte, por deduzir à mão.
  */
+/** Ids de troca com as duas pernas (uma venda e uma compra). */
+export function trocasCompletas(ops: readonly Operacao[]): Set<string> {
+  const vendas = new Set<string>();
+  const compras = new Set<string>();
+  for (const o of ops) {
+    if (!o.swapId) continue;
+    if (o.type === "venda") vendas.add(o.swapId);
+    else if (o.type === "compra") compras.add(o.swapId);
+  }
+  return new Set([...vendas].filter((id) => compras.has(id)));
+}
+
 export function resumoAnualPolaco(ops: readonly Operacao[]): AnoPolaco[] {
+  const completas = trocasCompletas(ops);
   const porAno = new Map<number, { receitas: number; custos: number; taxas: number }>();
   for (const op of ops) {
     if (op.type === "taxa") continue;
     // Troca cripto↔cripto: não é receita nem custo (art. 17 ust. 1 pkt 11 PIT).
-    if (op.swapId) continue;
+    if (op.swapId && completas.has(op.swapId)) continue;
     const ano = new Date(op.date).getUTCFullYear();
     const a = porAno.get(ano) ?? { receitas: 0, custos: 0, taxas: 0 };
     if (op.type === "compra") a.custos += op.amount * op.price + op.fee;

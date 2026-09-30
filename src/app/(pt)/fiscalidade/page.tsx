@@ -24,6 +24,7 @@ import { pushWalletCloud } from "@/lib/portfolios/cloudSync";
 import { chronoCompare, deleteTrade, loadTrades, tradeId, upsertTrade } from "@/lib/portfolios/trades";
 import { resumirImposto } from "@/lib/api/taxMath";
 import { anoFiscalDe, classificarLote, comTaxaPessoal, fimDoAnoFiscal, regimeNaData, resumirPais, rotuloAnoFiscal, type TaxaPessoal } from "@/lib/tax/regras";
+import { protegerTextoPdf } from "@/lib/export/pdfTexto";
 
 const LOCALE_BY_LANG: Record<string, string> = { pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" };
 // Durante o beta os CTAs de upgrade apontam para o convite /beta.
@@ -555,6 +556,28 @@ export default function FiscalidadePage() {
     setExportError(`${rotulo}: ${e instanceof Error ? e.message : String(e)}`);
   };
 
+  // O que o cartao do regime mostra, e o que o PDF e o Excel repetem.
+  const regimeDoCartao = historicoAplicado
+    ? t("fisc_rules_of_year").replace("{y}", rotuloAno(anoAtivo))
+    : alternativa && altId ? t(altK("b_regime")) : regime.longDays > 0 ? regime.longLabel[lang] : regimeSemTaxa;
+  // Ano fiscal no titulo e no nome do ficheiro: "2025/26" no Reino Unido e na
+  // Australia (o "/" nao pode ir para o nome do ficheiro).
+  const anoRotulo = rotuloAno(anoAtivo);
+  const anoFicheiro = anoRotulo.replace("/", "-");
+  // Escolhas que mudam o imposto: vao para o PDF e para o Excel, para quem
+  // receber o ficheiro (um contabilista) saber com que pressupostos foi feito.
+  const escolhasDoCalculo = (): [string, string][] => {
+    const linhas: [string, string][] = [[t("fisc_pdf_fiscal_year"), anoRotulo]];
+    if (regrasPais?.taxaMarginal && !regimeAno.semImposto) {
+      const taxas = regimeAno.longDays > 0 && regimeAno.long !== regimeAno.short && regimeAno.long > 0
+        ? `${pct(regimeAno.short)} / ${pct(regimeAno.long)}` : pct(regimeAno.short);
+      linhas.push([t("fisc_pdf_rate_used"), `${taxas} (${usaTaxaMaxima ? t("fisc_pdf_rate_max") : t("fisc_pdf_rate_own")})`]);
+    }
+    if (altId) linhas.push([t(altK("where")), alternativa ? t(altK("b")) : t(altK("a"))]);
+    if (ressalvaMetodo) linhas.push([t("fisc_pdf_method_caveat"), ressalvaMetodo]);
+    return linhas;
+  };
+
   // Excel (.xlsx) formatado com logótipo — mesmo formato dos exports do portefólio.
   const exportXLSX = async () => {
     setExportError(null);
@@ -587,7 +610,7 @@ export default function FiscalidadePage() {
     };
     const boldRow = (r: import("exceljs").Row) => { r.eachCell((c) => { c.font = { bold: true }; }); return r; };
 
-    const titleRow = bandRow(`ChainFolioAI — ${t("fisc_pdf_title")} ${anoAtivo}`, DARK, 14);
+    const titleRow = bandRow(`ChainFolioAI — ${t("fisc_pdf_title")} ${anoRotulo}`, DARK, 14);
     if (logoImgId != null) {
       titleRow.height = 46;
       titleRow.getCell(1).alignment = { vertical: "middle", indent: 8 };
@@ -596,12 +619,14 @@ export default function FiscalidadePage() {
       titleRow.height = 24;
     }
     ([
-      [t("fisc_pdf_country"), `${country} (${taxaCartao} / ${regime.longLabel[lang]})`],
+      [t("fisc_pdf_country"), `${country} (${taxaCartao} / ${regimeDoCartao})`],
       [t("hx_date"), new Date().toLocaleString(uiLocale, { dateStyle: "short", timeStyle: "short" })],
       [t("fisc_pdf_method_label"), `${metodoCurto} / ${reportCurrency}`],
+      ...escolhasDoCalculo(),
     ] as [string, string][]).forEach(([k, v]) => {
       const r = ws.addRow([k, v]);
       r.getCell(1).font = { bold: true, color: { argb: "FF64748B" } };
+      if (v.length > 60) { ws.mergeCells(r.number, 2, r.number, NCOL); r.getCell(2).alignment = { wrapText: true, vertical: "top" }; r.height = 15 * Math.ceil(v.length / 110); }
     });
     ws.addRow([]);
 
@@ -665,7 +690,7 @@ export default function FiscalidadePage() {
 
     const buf = await wb.xlsx.writeBuffer();
     const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-    await downloadBlob(blob, `chainfolioai-tax-report-${country}-${anoAtivo}.xlsx`);
+    await downloadBlob(blob, `chainfolioai-tax-report-${country}-${anoFicheiro}.xlsx`);
     } catch (e) {
       falhaExport("Excel", e);
     }
@@ -704,6 +729,7 @@ export default function FiscalidadePage() {
     const eur = (v: number) => `${reportCurrency} ${Math.abs(v).toLocaleString(uiLocale, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
     const eurN = (v: number) => Math.abs(v).toLocaleString(uiLocale, { maximumFractionDigits: 0 });
     const doc = new JsPDF({ unit: "mm", format: "a4" });
+    protegerTextoPdf(doc);  // ≥, ≈ e o espaço fino dos milhares em francês estragavam linhas
     const W = doc.internal.pageSize.getWidth();
     const cx = W / 2;
     const M = 14;
@@ -733,12 +759,12 @@ export default function FiscalidadePage() {
     y += 7;
     doc.setFontSize(13);
     doc.setTextColor(17, 24, 39);
-    doc.text(t("fisc_pdf_title"), cx, y, { align: "center" });
+    doc.text(`${t("fisc_pdf_title")} ${anoRotulo}`, cx, y, { align: "center" });
     y += 6;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     doc.setTextColor(107, 114, 128);
-    doc.text(`${t("fisc_pdf_generated")}: ${new Date().toLocaleDateString(uiLocale, { day: "numeric", month: "long", year: "numeric" })}  ·  ${t("fisc_pdf_country")}: ${country} (${taxaCartao} / ${regime.longLabel[lang]})`, cx, y, { align: "center" });
+    doc.text(`${t("fisc_pdf_generated")}: ${new Date().toLocaleDateString(uiLocale, { day: "numeric", month: "long", year: "numeric" })}  ·  ${t("fisc_pdf_country")}: ${country} (${taxaCartao} / ${regimeDoCartao})`, cx, y, { align: "center", maxWidth: W - 28 });
     y += 8;
 
     // Summary box (compact)
@@ -886,6 +912,16 @@ export default function FiscalidadePage() {
     doc.setFontSize(8);
     doc.setTextColor(107, 114, 128);
     doc.text(t("fisc_pdf_notes_text"), M, y, { maxWidth: W - M * 2, lineHeightFactor: 1.4 });
+    y += doc.splitTextToSize(t("fisc_pdf_notes_text"), W - M * 2).length * 8 * 0.3528 * 1.4 + 3;
+    // Escolhas usadas (taxa, onde estao as moedas, limitacao do metodo).
+    const pe = doc.internal.pageSize.getHeight() - 16;
+    for (const [k, v] of escolhasDoCalculo()) {
+      const linhas = doc.splitTextToSize(`${k}: ${v}`, W - M * 2) as string[];
+      const alt = linhas.length * 8 * 0.3528 * 1.4;
+      if (y + alt > pe) { doc.addPage(); y = 16; }
+      doc.text(linhas, M, y, { lineHeightFactor: 1.4 });
+      y += alt + 1.5;
+    }
 
     // Footer
     const fy = doc.internal.pageSize.getHeight() - 10;
@@ -897,7 +933,7 @@ export default function FiscalidadePage() {
     doc.text(t("fisc_pdf_footer"), W / 2, fy, { align: "center", maxWidth: W - M * 2 });
 
     const pdfBlob = doc.output("blob");
-    await downloadBlob(pdfBlob, `chainfolioai-report-${country}-${anoAtivo}.pdf`);
+    await downloadBlob(pdfBlob, `chainfolioai-report-${country}-${anoFicheiro}.pdf`);
     } catch (e) {
       falhaExport("PDF", e);
     }
@@ -962,7 +998,7 @@ export default function FiscalidadePage() {
               // Sem prazo de detencao (FR, IE, IT…) nao ha "curto" nem "longo":
               // uma taxa e o regime. 31,4% nao pode aparecer como 31%.
               { label: regime.longDays > 0 ? rotuloCurto : t("fc_rate_flat"), value: taxaCartao, color: "text-rose-400" },
-              { label: regime.longDays > 0 ? t("fc_long_term") : t("fc_regime"), value: historicoAplicado ? t("fisc_rules_of_year").replace("{y}", rotuloAno(anoAtivo)) : alternativa && altId ? t(altK("b_regime")) : regime.longDays > 0 ? regime.longLabel[lang] : regimeSemTaxa, color: regime.longDays > 0 ? "text-emerald-400" : "text-slate-200" },
+              { label: regime.longDays > 0 ? t("fc_long_term") : t("fc_regime"), value: regimeDoCartao, color: regime.longDays > 0 ? "text-emerald-400" : "text-slate-200" },
               { label: t("fc_method"), value: ressalvaMetodo ? `${metodoCurto} ≈` : metodoCurto, color: ressalvaMetodo ? "text-amber-300" : "text-orange-300" },
               { label: t("fc_base_currency"), value: reportCurrency, color: "text-slate-300" },
             ].map(item => (

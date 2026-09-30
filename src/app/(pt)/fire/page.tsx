@@ -9,6 +9,7 @@ import type { jsPDF } from "jspdf";  // so o tipo: a biblioteca (~300 kB) carreg
 import { AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, ReferenceLine } from "recharts";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useTheme, useCurrencyFormat } from "@/lib/theme/ThemeContext";
+import { protegerTextoPdf } from "@/lib/export/pdfTexto";
 
 // Regra dos 4% (Trinity Study): património necessário = despesas anuais × 25.
 // Lean=20× (levantamento 5%), Regular=25× (4%), Fat=33× (3%) — selecionável.
@@ -240,6 +241,7 @@ export default function FirePage() {
     // bundle inicial da pagina para toda a gente, incluindo quem nunca exporta.
     const { jsPDF: JsPDF } = await import("jspdf");
     const doc = new JsPDF({ unit: "mm", format: "a4" });
+    protegerTextoPdf(doc);  // ≥, ≈ e o espaço fino dos milhares em francês estragavam linhas
     const W = doc.internal.pageSize.getWidth();
     const cx = W / 2;
     const M = 16;

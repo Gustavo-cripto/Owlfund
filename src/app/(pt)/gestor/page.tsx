@@ -19,6 +19,7 @@ import ChatMarkdown from "@/components/ChatMarkdown";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import type { TranslationKey } from "@/lib/i18n/translations";
+import { protegerTextoPdf } from "@/lib/export/pdfTexto";
 
 type WatchEntry = { address: string; label: string; chain: "eth" | "sol" | "btc" };
 
@@ -294,6 +295,7 @@ export default function GestorPage() {
     if (!convo.length) return;
     const { default: jsPDF } = await import("jspdf");
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    protegerTextoPdf(doc);  // ≥, ≈ e o espaço fino dos milhares em francês estragavam linhas
     const pageW = doc.internal.pageSize.getWidth();
     const pageH = doc.internal.pageSize.getHeight();
     const margin = 15;
