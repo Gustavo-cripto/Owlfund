@@ -263,6 +263,7 @@ export async function getTaxEstimate(userId: string, countryCode: string, year?:
     costMethodLabel: COST_METHOD_LABEL[pais.costMethod].en,
     ...(metodoRessalva(pais.costMethod, "en", pais.code) ? { costMethodNote: metodoRessalva(pais.costMethod, "en", pais.code) } : {}),
     ...(pais.regras?.taxaMarginal ? { rateNote: "The rate depends on income; the estimate uses the top rate (with surcharges). Your tax is likely lower." } : {}),
+    ...(pais.regras?.alternativa && !pais.regras.brMensal ? { assumptionNote: { PT: "Assumes the counterparty (exchange) is resident in the EU/EEA or a treaty country; otherwise the 365-day exclusion and swap neutrality do not apply (CIRS art. 10(24)).", AR: "Assumes sales in foreign currency or on a foreign platform (15%); sales in pesos without an adjustment clause are taxed at 5%.", AT: "On Austrian platforms the 27.5% KESt is already withheld at source; this estimate is then what was withheld, not an additional amount." }[pais.code] } : {}),
     ...(pais.regras?.brMensal ? { regimeNote: "Estimated as crypto held on Brazilian exchanges: monthly assessment, months with sales ≤ R$35,000 exempt, 15–22.5% by gain. Crypto on foreign exchanges follows Law 14.754/2023 (15%, annual, no exemption)." } : {}),
     ...(pais.regime.allowance?.disputada ? { allowanceNote: "The annual exemption shown in the guide is not applied: its application to crypto is not confirmed by the tax authority." } : {}),
     rates: { short: pais.regime.short, long: pais.regime.long, longTermAfterDays: pais.regime.longDays },

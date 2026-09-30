@@ -364,8 +364,15 @@ export default function FiscalidadePage() {
     setTaxaPessoal(vazio ? undefined : novo);
     if (chaveTaxa) { try { if (vazio) localStorage.removeItem(chaveTaxa); else localStorage.setItem(chaveTaxa, JSON.stringify(novo)); } catch { /* modo privado */ } }
   };
-  // Brasil: moedas em exchange estrangeira seguem outro regime (Lei 14.754/2023).
-  const [brExterior, setBrExterior] = useState(false);
+  // Onde estao as moedas (ou em que moeda se vendeu) muda o imposto em BR,
+  // PT, AR e AT (RegrasPais.alternativa). false = a opcao habitual.
+  const [alternativa, setAlternativa] = useState(false);
+  useEffect(() => { setAlternativa(false); }, [country]);
+  const altId = regrasPais?.alternativa?.id;
+  const altK = (parte: "where" | "a" | "b" | "a_note" | "b_note" | "b_regime") => {
+    const br = { where: "fisc_br_where", a: "fisc_br_local", b: "fisc_br_foreign", a_note: "fisc_br_local_note", b_note: "fisc_br_foreign_note", b_regime: "fisc_br_foreign_regime" } as const;
+    return (altId === "br" ? br[parte] : `fisc_alt_${altId}_${parte}`) as Parameters<typeof t>[0];
+  };
   const semParenteseFinal = (s: string) => s.replace(/\s*\([^()]*\)\s*$/, "");
   const { currency: reportCurrency, fallback: moedaEmFalta } =
     paisDoRelatorio ? moedaDoRelatorio(paisDoRelatorio) : { currency: "EUR", fallback: false };
@@ -417,14 +424,15 @@ export default function FiscalidadePage() {
       if (preco == null || taxa == null) { faltou = true; continue; }
       ops.push({ type: tr.type, asset: tr.asset, amount: tr.amount, price: preco, fee: taxa, date: tr.date, ...(tr.swapId ? { swapId: tr.swapId } : {}), ...(tr.feeAsset && (tr.feeQty ?? 0) > 0 ? { feeAsset: tr.feeAsset, feeQty: tr.feeQty } : {}) });
     }
-    const r = realizar(ops, costMethod, { permutaNeutra: regrasPais?.permutaNeutra });
+    // PT com contraparte sem convencao: as trocas deixam de ser neutras.
+    const r = realizar(ops, costMethod, { permutaNeutra: regrasPais?.permutaNeutra && !(alternativa && regrasPais?.alternativa?.trocasTributadas) });
     // Nos metodos de custo medio a taxa de compra ja esta no preco: `fees` do
     // lote so tem a de venda, e a parte que entrou na media vem em feesNoPreco
     // (so para o total "taxas deduzidas" nao ficar por baixo).
     // Classificacao pelo pais (regras.ts): prazo por calendario, regras do
     // ano da venda, Altbestand, taxas por ativo, taxa pessoal.
     const events: TaxEvent[] = r.lotes.map((l) => {
-      const c = paisDoRelatorio ? classificarLote(paisDoRelatorio, l, taxaPessoal) : { longo: false, taxa: regime.short };
+      const c = paisDoRelatorio ? classificarLote(paisDoRelatorio, l, taxaPessoal, alternativa) : { longo: false, taxa: regime.short };
       return {
         asset: l.asset, buyDate: l.buyDate, sellDate: l.sellDate, buyPrice: l.buyPrice, sellPrice: l.sellPrice,
         amount: l.amount, fees: l.fees + l.feesNoPreco, gain: l.gain, holding: c.longo ? "longo" : "curto", taxRate: c.taxa,
@@ -435,7 +443,7 @@ export default function FiscalidadePage() {
     const feesNoPreco = r.lotes.reduce((acc, l) => acc + l.feesNoPreco, 0);
     return { events, soTaxa, ops, unmatched: r.unmatched, feesNoPreco };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trades, regime, toReport, costMethod, paisDoRelatorio, taxaPessoal]);
+  }, [trades, regime, toReport, costMethod, paisDoRelatorio, taxaPessoal, alternativa]);
 
   const taxEvents = fifoFiscal.events;
   // Registos "so taxa" (swap falhado, gas de outra carteira): nao deduzidos
@@ -487,14 +495,14 @@ export default function FiscalidadePage() {
     const r = anual
       ? resumirImposto([{ gain: anual.base > 0 ? anual.base : anual.receitas - anual.custos - anual.custosTransitados, taxRate: regime.short }], regime)
       : paisDoRelatorio
-        ? resumirPais(paisDoRelatorio, eventosDoAno.map((e) => ({ gain: e.gain, taxRate: e.taxRate, longTerm: e.holding === "longo", sellDate: e.sellDate, saleValue: e.saleValue })), { brExterior, taxaPessoal })
+        ? resumirPais(paisDoRelatorio, eventosDoAno.map((e) => ({ gain: e.gain, taxRate: e.taxRate, longTerm: e.holding === "longo", sellDate: e.sellDate, saleValue: e.saleValue })), { alternativa, taxaPessoal })
         : resumirImposto(eventosDoAno, regime);
     // Polonia: as taxas deduzidas sao as de TODAS as compras e vendas do ano
     // (estao dentro da base anual), nao as dos lotes FIFO.
     const fees = anual ? anual.taxas : eventosDoAno.reduce((s, e) => s + e.fees, 0);
     const standalone = taxasDoAno.reduce((s, f) => s + f.value, 0);
     return { ...r, fees, standalone, anual };
-  }, [eventosDoAno, taxasDoAno, regime, costMethod, fifoFiscal.ops, anoAtivo, paisDoRelatorio, brExterior, taxaPessoal]);
+  }, [eventosDoAno, taxasDoAno, regime, costMethod, fifoFiscal.ops, anoAtivo, paisDoRelatorio, alternativa, taxaPessoal]);
 
   // Regras do ANO escolhido (IT 26% em 2025, FR 30% ate 2024, BE sem imposto
   // antes de 2026…), com a taxa pessoal: e o que o cartao e o PDF mostram.
@@ -508,11 +516,13 @@ export default function FiscalidadePage() {
   const taxaMaxima = paisDoRelatorio ? regimeNaData(paisDoRelatorio, fimDoAnoFiscal(paisDoRelatorio, anoAtivo)) : regimeAno;
   const historicoAplicado = !!paisDoRelatorio && JSON.stringify(taxaMaxima) !== JSON.stringify(regimeNaData(paisDoRelatorio, "9999-12-31"));
   const rotuloCurto = prazoPais?.tipo === "meses" ? (prazoPais.n === 6 ? t("fc_short_6m") : t("fc_short_1y")) : t("fc_short_365");
-  const escalaAno = regrasPais?.brMensal && !brExterior ? regrasPais.brMensal.escaloes : regimeAno.escaloes;
+  const escalaAno = regrasPais?.brMensal && !alternativa ? regrasPais.brMensal.escaloes : regimeAno.escaloes;
   const taxaCartao = regimeAno.semImposto
     ? "0%"
-    : regrasPais?.brMensal && brExterior
+    : regrasPais?.brMensal && alternativa
       ? pct(regrasPais.brMensal.taxaExterior)
+      : alternativa && regrasPais?.alternativa?.taxa != null
+        ? pct(regrasPais.alternativa.taxa)
       : escalaAno
         ? `${pct(escalaAno[0][1]).replace("%", "")}–${pct(escalaAno[escalaAno.length - 1][1])}`
         : `${usaTaxaMaxima ? `${t("fisc_up_to")} ` : ""}${pct(regimeAno.short)}`;
@@ -947,7 +957,7 @@ export default function FiscalidadePage() {
               // Sem prazo de detencao (FR, IE, IT…) nao ha "curto" nem "longo":
               // uma taxa e o regime. 31,4% nao pode aparecer como 31%.
               { label: regime.longDays > 0 ? rotuloCurto : t("fc_rate_flat"), value: taxaCartao, color: "text-rose-400" },
-              { label: regime.longDays > 0 ? t("fc_long_term") : t("fc_regime"), value: historicoAplicado ? t("fisc_rules_of_year").replace("{y}", rotuloAno(anoAtivo)) : regime.longDays > 0 ? regime.longLabel[lang] : regrasPais?.brMensal && brExterior ? t("fisc_br_foreign_regime") : regimeSemTaxa, color: regime.longDays > 0 ? "text-emerald-400" : "text-slate-200" },
+              { label: regime.longDays > 0 ? t("fc_long_term") : t("fc_regime"), value: historicoAplicado ? t("fisc_rules_of_year").replace("{y}", rotuloAno(anoAtivo)) : alternativa && altId ? t(altK("b_regime")) : regime.longDays > 0 ? regime.longLabel[lang] : regimeSemTaxa, color: regime.longDays > 0 ? "text-emerald-400" : "text-slate-200" },
               { label: t("fc_method"), value: ressalvaMetodo ? `${metodoCurto} ≈` : metodoCurto, color: ressalvaMetodo ? "text-amber-300" : "text-orange-300" },
               { label: t("fc_base_currency"), value: reportCurrency, color: "text-slate-300" },
             ].map(item => (
@@ -982,12 +992,17 @@ export default function FiscalidadePage() {
               <span className="basis-full text-[11px] text-slate-500">{usaTaxaMaxima ? t("fisc_rate_max_note") : t("fisc_rate_own_note")}</span>
             </div>
           )}
-          {regrasPais?.brMensal && (
+          {altId && (
+            // Onde estao as moedas (ou em que moeda se vendeu) muda o imposto.
             <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-xs text-slate-300">
-              <Segmentos tamanho="sm" wrap valor={brExterior ? "ext" : "br"} aoMudar={(v) => setBrExterior(v === "ext")} label={t("fisc_br_where")}
-                opcoes={[{ id: "br", label: t("fisc_br_local") }, { id: "ext", label: t("fisc_br_foreign") }]} />
-              <span className="basis-full text-[11px] text-slate-500">{brExterior ? t("fisc_br_foreign_note") : t("fisc_br_local_note")}</span>
+              <span className="basis-full text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-500">{t(altK("where"))}</span>
+              <Segmentos tamanho="sm" wrap valor={alternativa ? "b" : "a"} aoMudar={(v) => setAlternativa(v === "b")} label={t(altK("where"))}
+                opcoes={[{ id: "a", label: t(altK("a")) }, { id: "b", label: t(altK("b")) }]} />
+              <span className="basis-full text-[11px] leading-relaxed text-slate-500">{alternativa ? t(altK("b_note")) : t(altK("a_note"))}</span>
             </div>
+          )}
+          {regrasPais?.notaExterior && (
+            <p className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-[11px] leading-relaxed text-slate-400">🌍 {t(`fisc_ext_${country.toLowerCase()}` as Parameters<typeof t>[0])}</p>
           )}
           {regime.allowance?.disputada && (
             <p className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs leading-relaxed text-amber-100/80">{t("fisc_alw_disputed").replace("{a}", regime.allowance.label[lang])}</p>
@@ -1153,7 +1168,7 @@ export default function FiscalidadePage() {
                   { icon: "📈", label: t("fc_total_gains"), value: summary.totalGain, color: summary.totalGain >= 0 ? "text-emerald-400" : "text-rose-400", highlight: false },
                   { icon: "✅", label: rotuloIsentas, value: summary.exempt, color: "text-emerald-300", highlight: false },
                   { icon: "📉", label: t("fc_realized_losses"), value: summary.losses, color: "text-rose-400", highlight: false },
-                  { icon: "🧾", label: t("fc_estimated_tax"), value: summary.tax, color: "text-orange-400", highlight: true },
+                  { icon: "🧾", label: altId === "at" && alternativa ? t("fisc_tax_withheld") : t("fc_estimated_tax"), value: summary.tax, color: "text-orange-400", highlight: true },
                 ].map(c => (
                   <div key={c.label} className={`rounded-2xl border p-4 text-center ${c.highlight ? "border-orange-500/40 bg-orange-500/10" : "border-slate-800 bg-slate-900/60"}`}>
                     <p className="text-base mb-1">{c.icon}</p>
