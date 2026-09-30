@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import Segmentos from "@/components/ui/Segmentos";
+import MeusAtivos from "@/components/mercado/MeusAtivos";
 import { userError } from "@/lib/ui/userError";
 import ErrorNote from "@/components/ErrorNote";
 import { btnPrimary } from "@/lib/ui/buttons";
@@ -849,7 +850,7 @@ export default function MercadoPage() {
   }, []);
   // Durante o beta (pagamentos congelados) os CTAs de upgrade viram convite ao beta.
   const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
-  const [marketMode, setMarketMode] = useState<"crypto" | "tradicional" | "noticias">("crypto");
+  const [marketMode, setMarketMode] = useState<"crypto" | "tradicional" | "portefolio" | "noticias">("crypto");
   const [newsContent, setNewsContent] = useState<string | null>(null);
   const [newsMode, setNewsMode] = useState<"crypto" | "tradicional" | "diarias">("crypto");
   const [newsLoading, setNewsLoading] = useState(false);
@@ -1428,18 +1429,41 @@ export default function MercadoPage() {
           <p className="max-w-2xl text-sm text-slate-400">
             {marketMode === "crypto"
               ? t("mc_coinex_desc")
-              : t("mc_trad_desc")}
+              : marketMode === "portefolio"
+                ? t("mc_pf_desc")
+                : t("mc_trad_desc")}
           </p>
+          {/* wrap: com quatro abas a calha não cabe num telemóvel. */}
           <Segmentos
+            wrap
             valor={marketMode}
             aoMudar={setMarketMode}
             opcoes={[
               { id: "crypto", label: t("mc_crypto_market") },
               { id: "tradicional", label: t("mc_trad_market") },
+              { id: "portefolio", label: t("mc_tab_portfolio") },
               { id: "noticias", label: t("mc_news_ai") },
             ]}
           />
         </div>
+
+        {marketMode === "portefolio" && (
+          <MeusAtivos
+            rows={rows}
+            cotacoes={traditionalQuotes}
+            precoEurDaCotacao={quotePriceEur}
+            pedirCotacoes={refreshTraditionalQuotesBatch}
+            grafico={(simbolo) => (
+              <TradingViewWidget
+                key={`pf-${simbolo}-${tvLocale}-${indicadores}`}
+                symbol={simbolo}
+                interval="D"
+                locale={tvLocale}
+                indicadores={indicadores}
+              />
+            )}
+          />
+        )}
 
         {marketMode === "crypto" && chartSource === "coinglass" && (
           <div className="mx-auto w-full max-w-6xl">
