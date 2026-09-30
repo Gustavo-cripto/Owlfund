@@ -1986,7 +1986,7 @@ export const es: Record<TranslationKey, string> = {
     fisc_pdf_notes_text: "Plusvalías calculadas con el método de coste del país indicado, en la moneda del informe. Las posiciones mantenidas más de 1 año pueden beneficiarse de exención o tasa reducida según el país. Valores redondeados.",
     fisc_pdf_footer: "Documento indicativo generado por ChainFolioAI. No sustituye el asesoramiento fiscal profesional.",
     fisc_disclaimer: "Información de carácter general. Consulta siempre a un asesor fiscal para tu declaración oficial. ChainFolioAI no comunica tus datos a ninguna autoridad fiscal: no es un exchange ni un proveedor de servicios de criptoactivos, y los informes que exportas son solo tuyos.",
-    fisc_method_note: "La calculadora aplica el método de este país ({m}). {c} Confirma el importe a declarar con un asesor.",
+    fisc_method_note: "Método de este país: {m}. {c} Confirma el importe a declarar con un asesor.",
     fisc_annual_note: "Base anual polaca: ingresos {r} menos costes del año y trasladados {c}; exceso que pasa al año siguiente: {t}. La tabla muestra lotes FIFO solo para ver de dónde viene cada venta.",
 
     fire_title: "Calculadora FIRE",
@@ -2123,6 +2123,9 @@ export const es: Record<TranslationKey, string> = {
     fc_col_buyp: "P.Compra",
     fc_col_sellp: "P.Venta",
     fc_method: "Método",
+    fc_rate_flat: "Tipo (sin plazo de tenencia)",
+    fc_regime: "Régimen",
+    fc_short_6m: "Corto plazo (≤6 meses)",
     fc_base_currency: "Moneda base",
     fc_total_gains: "Plusvalías totales",
     fc_exempt_long: "Exentas (largo plazo)",

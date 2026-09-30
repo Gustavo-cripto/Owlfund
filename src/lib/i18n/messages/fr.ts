@@ -1986,7 +1986,7 @@ export const fr: Record<TranslationKey, string> = {
     fisc_pdf_notes_text: "Plus-values calculées selon la méthode de coût du pays indiqué, dans la devise du rapport. Les positions détenues plus d'un an peuvent bénéficier d'une exonération ou d'un taux réduit selon le pays. Valeurs arrondies.",
     fisc_pdf_footer: "Document indicatif généré par ChainFolioAI. Ne remplace pas un conseil fiscal professionnel.",
     fisc_disclaimer: "Information à caractère général. Consultez toujours un spécialiste fiscal pour votre déclaration officielle. ChainFolioAI ne communique vos données à aucune autorité fiscale : ce n'est ni une plateforme d'échange ni un prestataire de services sur crypto-actifs, et les rapports que vous exportez n'appartiennent qu'à vous.",
-    fisc_method_note: "La calculatrice applique la méthode de ce pays ({m}). {c} Confirmez le montant à déclarer avec un comptable.",
+    fisc_method_note: "Méthode de ce pays : {m}. {c} Confirmez le montant à déclarer avec un comptable.",
     fisc_annual_note: "Base annuelle polonaise : recettes {r} moins coûts de l'année et reportés {c} ; excédent reporté sur l'année suivante : {t}. Le tableau montre des lots FIFO seulement pour tracer chaque vente.",
 
     fire_title: "Calculateur FIRE",
@@ -2123,6 +2123,9 @@ export const fr: Record<TranslationKey, string> = {
     fc_col_buyp: "P.Achat",
     fc_col_sellp: "P.Vente",
     fc_method: "Méthode",
+    fc_rate_flat: "Taux (sans durée de détention)",
+    fc_regime: "Régime",
+    fc_short_6m: "Court terme (≤6 mois)",
     fc_base_currency: "Devise de base",
     fc_total_gains: "Plus-values totales",
     fc_exempt_long: "Exonérées (long terme)",

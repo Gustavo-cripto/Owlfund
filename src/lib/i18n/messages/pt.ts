@@ -1997,7 +1997,7 @@ export const pt = {
     fisc_pdf_notes_text: "Mais-valias calculadas pelo método de custo do país indicado, na moeda do relatório. Posições detidas mais de 1 ano podem beneficiar de isenção ou taxa reduzida consoante o país. Valores arredondados.",
     fisc_pdf_footer: "Documento indicativo gerado por ChainFolioAI. Não substitui aconselhamento fiscal profissional.",
     fisc_disclaimer: "Informação de caráter geral. Consulta sempre um especialista fiscal para a tua declaração oficial. O ChainFolioAI não comunica os teus dados a nenhuma autoridade fiscal: não é corretora nem prestador de serviços de criptoativos, e os relatórios que exportas são só teus.",
-    fisc_method_note: "A calculadora aplica o método deste país ({m}). {c} Confirma o valor a declarar com um contabilista.",
+    fisc_method_note: "Método deste país: {m}. {c} Confirma o valor a declarar com um contabilista.",
     fisc_annual_note: "Base anual polaca: receitas {r} menos custos do ano e transitados {c}; excedente que transita para o ano seguinte: {t}. A tabela mostra lotes FIFO só para se ver de onde vem cada venda.",
 
     // ── FIRE ──
@@ -2135,6 +2135,9 @@ export const pt = {
     fc_col_buyp: "P.Compra",
     fc_col_sellp: "P.Venda",
     fc_method: "Método",
+    fc_rate_flat: "Taxa (sem prazo de detenção)",
+    fc_regime: "Regime",
+    fc_short_6m: "Curto prazo (≤6 meses)",
     fc_base_currency: "Moeda base",
     fc_total_gains: "Mais-valias totais",
     fc_exempt_long: "Isentas (longo prazo)",

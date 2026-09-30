@@ -340,6 +340,8 @@ export default function FiscalidadePage() {
   const metodoDoPais = COST_METHOD_LABEL[costMethod][lang];
   const metodoCurto = COST_METHOD_SHORT[costMethod];
   const ressalvaMetodo = metodoRessalva(costMethod, lang, paisDoRelatorio?.code);
+  const pct = (r: number) => `${(r * 100).toLocaleString(uiLocale, { maximumFractionDigits: 1 })}%`;
+  const semParenteseFinal = (s: string) => s.replace(/\s*\([^()]*\)\s*$/, "");
   const { currency: reportCurrency, fallback: moedaEmFalta } =
     paisDoRelatorio ? moedaDoRelatorio(paisDoRelatorio) : { currency: "EUR", fallback: false };
   const reportSymbol = CURRENCY_SIGN[reportCurrency] ?? reportCurrency;
@@ -518,7 +520,7 @@ export default function FiscalidadePage() {
       titleRow.height = 24;
     }
     ([
-      [t("fisc_pdf_country"), `${country} (${(regime.short * 100).toFixed(0)}% / ${regime.longLabel[lang]})`],
+      [t("fisc_pdf_country"), `${country} (${pct(regime.short)} / ${regime.longLabel[lang]})`],
       [t("hx_date"), new Date().toLocaleString(uiLocale, { dateStyle: "short", timeStyle: "short" })],
       [t("fisc_pdf_method_label"), `${metodoCurto} / ${reportCurrency}`],
     ] as [string, string][]).forEach(([k, v]) => {
@@ -660,7 +662,7 @@ export default function FiscalidadePage() {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     doc.setTextColor(107, 114, 128);
-    doc.text(`${t("fisc_pdf_generated")}: ${new Date().toLocaleDateString(uiLocale, { day: "numeric", month: "long", year: "numeric" })}  ·  ${t("fisc_pdf_country")}: ${country} (${(regime.short * 100).toFixed(0)}% / ${regime.longLabel[lang]})`, cx, y, { align: "center" });
+    doc.text(`${t("fisc_pdf_generated")}: ${new Date().toLocaleDateString(uiLocale, { day: "numeric", month: "long", year: "numeric" })}  ·  ${t("fisc_pdf_country")}: ${country} (${pct(regime.short)} / ${regime.longLabel[lang]})`, cx, y, { align: "center" });
     y += 8;
 
     // Summary box (compact)
@@ -721,7 +723,7 @@ export default function FiscalidadePage() {
         eurN(e.buyPrice), eurN(e.sellPrice),
         `${e.gain >= 0 ? "+" : "-"}${eurN(e.gain)}`,
         e.holding === "longo" ? t("fc_long") : t("fc_short"),
-        `${(e.taxRate * 100).toFixed(0)}%`, taxVal,
+        pct(e.taxRate), taxVal,
       ];
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7.5);
@@ -839,8 +841,8 @@ export default function FiscalidadePage() {
         <div className="mx-auto w-full max-w-5xl px-6 pb-24 pt-6 space-y-8">
 
           {/* Header */}
-          <div className="flex items-start justify-between">
-            <div>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">{t("nav_fiscalidade")}</p>
               <h1 className="mt-2 text-2xl font-bold text-white">{t("fisc_title")}</h1>
               <p className="mt-1 text-sm text-slate-400">{t("fisc_subtitle")}</p>
@@ -881,8 +883,12 @@ export default function FiscalidadePage() {
           {/* Regras do país */}
           <div className="rounded-2xl border border-orange-500/20 bg-orange-500/5 p-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
-              { label: t("fc_short_1y"), value: `${(regime.short * 100).toFixed(0)}%`, color: "text-rose-400" },
-              { label: t("fc_long_term"), value: regime.longLabel[lang], color: "text-emerald-400" },
+              // Sem prazo de detencao (FR, IE, IT…) nao ha "curto" nem "longo":
+              // uma taxa e o regime. 31,4% nao pode aparecer como 31%.
+              regime.longDays > 0
+                ? { label: regime.longDays < 365 ? t("fc_short_6m") : t("fc_short_1y"), value: pct(regime.short), color: "text-rose-400" }
+                : { label: t("fc_rate_flat"), value: pct(regime.short), color: "text-rose-400" },
+              { label: regime.longDays > 0 ? t("fc_long_term") : t("fc_regime"), value: regime.longLabel[lang], color: regime.longDays > 0 ? "text-emerald-400" : "text-slate-200" },
               { label: t("fc_method"), value: ressalvaMetodo ? `${metodoCurto} ≈` : metodoCurto, color: ressalvaMetodo ? "text-amber-300" : "text-orange-300" },
               { label: t("fc_base_currency"), value: reportCurrency, color: "text-slate-300" },
             ].map(item => (
@@ -894,7 +900,7 @@ export default function FiscalidadePage() {
           </div>
           {(ressalvaMetodo || summary.anual) && (
             <p className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs leading-relaxed text-amber-100/80">
-              {ressalvaMetodo ? t("fisc_method_note").replace("{m}", metodoDoPais).replace("{c}", ressalvaMetodo) : null}
+              {ressalvaMetodo ? t("fisc_method_note").replace("{m}", semParenteseFinal(metodoDoPais)).replace("{c}", ressalvaMetodo) : null}
               {summary.anual ? ` ${t("fisc_annual_note").replace("{r}", fmtEur(summary.anual.receitas)).replace("{c}", fmtEur(summary.anual.custos + summary.anual.custosTransitados)).replace("{t}", fmtEur(summary.anual.transita))}` : null}
             </p>
           )}
@@ -1166,7 +1172,7 @@ export default function FiscalidadePage() {
                               {e.holding === "longo" ? t("fc_long") : t("fc_short")}
                             </span>
                           </td>
-                          <td className="py-2 pr-4 text-slate-400">{(e.taxRate * 100).toFixed(0)}%</td>
+                          <td className="py-2 pr-4 text-slate-400">{pct(e.taxRate)}</td>
                           <td className={`py-2 font-semibold ${e.gain > 0 && e.taxRate > 0 ? "text-orange-400" : "text-emerald-400"}`}>
                             {e.gain > 0 && e.taxRate > 0 ? `${reportSymbol} ${(e.gain * e.taxRate).toLocaleString(uiLocale, { maximumFractionDigits: 0 })}` : t("fc_exempt")}
                           </td>
