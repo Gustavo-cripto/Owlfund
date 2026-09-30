@@ -1,7 +1,7 @@
 // Regras por país (auditoria de cálculos de 30 set 2026). Cada caso é um
 // cenário do relatório, com o número que a calculadora dava e o certo.
 import { COUNTRIES } from "@/lib/tax/countries";
-import { realizar, type LoteRealizado, type Operacao } from "@/lib/tax/metodos";
+import { realizar, resumoAnualPolaco, type LoteRealizado, type Operacao } from "@/lib/tax/metodos";
 import { anoFiscalDe, estimarImpostoPais, rotuloAnoFiscal, somarMeses } from "@/lib/tax/regras";
 
 let fails = 0;
@@ -64,6 +64,13 @@ eq("PT troca: só a venda em dinheiro realiza (1 lote)", neutra.lotes.length, 1)
 eq("PT troca: o ETH herda o custo do BTC (ganho 35k − 20k)", neutra.lotes[0].gain, 15000);
 eq("PT troca: imposto 28% (menos de 365 dias desde a troca)", estimarImpostoPais(neutra.lotes, P("PT"), 2026).tax, 4200);
 eq("DE troca é tributável: 2 lotes", realizar(ops, "fifo").lotes.length, 2);
+// 7. Troca com uma perna apagada: a que sobra conta como venda normal (senão o
+// BTC desaparecia sem custo nem ganho).
+const soVenda = ops.filter((o) => !(o.swapId === "s1" && o.type === "compra"));
+const incompleta = realizar(soVenda, "fifo", { permutaNeutra: true });
+eq("PT troca incompleta: a venda do BTC realiza", incompleta.lotes.some((l) => l.asset === "BTC" && l.gain === 10000), true);
+eq("PL troca completa fora do resumo anual (só a compra de 2025)", resumoAnualPolaco(ops).find((a) => a.ano === 2025)?.custos ?? -1, 20000);
+eq("PL troca incompleta: a venda entra como receita", resumoAnualPolaco(soVenda).find((a) => a.ano === 2025)?.receitas ?? -1, 30000);
 
 // 8. Prazo por calendário e estrito.
 eq("DE venda no dia do aniversário → tributada", imposto("DE", [lote("2025-03-10", "2026-03-10", 20000, 30000)], 2026), 10000 * 0.47475);
