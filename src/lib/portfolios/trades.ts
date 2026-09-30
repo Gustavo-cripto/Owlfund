@@ -13,6 +13,9 @@ import { ALL_ACCOUNTS_ID, accKey, allAccountIds, getActiveAccountId, readNamespa
 // FIFO, mas NAO gera mais/menos-valia nem e deduzida automaticamente: o
 // tratamento fiscal destas despesas varia por pais, e fica visivel a parte
 // para a pessoa (ou o contabilista) decidir.
+import type { CostMethod } from "@/lib/tax/countries";
+import { realizar, type Operacao } from "@/lib/tax/metodos";
+
 export type TradeType = "compra" | "venda" | "taxa";
 
 export type Trade = {
@@ -227,71 +230,52 @@ export type FifoResult = {
   cumulative: Array<{ date: string; pnl: number }>; // PNL realizado acumulado por venda
 };
 
-export function computeFifo(trades: Trade[]): FifoResult {
-  // feePerUnit: a taxa da compra repartida pelas unidades do lote, para que uma
-  // venda parcial leve so a parte que lhe cabe.
-  const pool: Record<string, Array<{ qty: number; price: number; feePerUnit: number; date: string }>> = {};
+/**
+ * Emparelha vendas com compras pelo metodo do pais (FIFO por omissao: o
+ * Historico mostra PNL, nao imposto). O motor esta em src/lib/tax/metodos.ts;
+ * aqui so se agregam os totais por ativo.
+ */
+export function computeFifo(trades: Trade[], metodo: CostMethod = "fifo"): FifoResult {
   const byAsset: FifoResult["byAsset"] = {};
-  const unmatched: Record<string, number> = {};
-  const lots: RealizedLot[] = [];
-  const cumulative: FifoResult["cumulative"] = [];
-  let running = 0;
   let standaloneFees = 0;
   const entry = (asset: string, name?: string) =>
     (byAsset[asset] ??= { realizedPnl: 0, qtyNet: 0, costOpen: 0, buys: 0, sells: 0, fees: 0, name: name || asset });
-  // Tira `qty` do ativo pelos lotes mais antigos, sem ganho (a taxa paga em
-  // token sai do saldo; o seu valor ja conta como taxa onde deve).
-  const consume = (asset: string, qty: number) => {
-    entry(asset).qtyNet -= qty;
-    let remaining = qty;
-    while (remaining > 1e-12 && pool[asset]?.length) {
-      const lot = pool[asset][0];
-      const used = Math.min(remaining, lot.qty);
-      lot.qty -= used; remaining -= used;
-      if (lot.qty <= 1e-12) pool[asset].shift();
-    }
-  };
   const sorted = [...trades].filter(t => !t.deleted).sort(chronoCompare);
+  const ops: Operacao[] = [];
   for (const t of sorted) {
     const ba = entry(t.asset, t.assetName);
     if (t.type === "taxa") {
-      consume(t.asset, t.quantity);
+      entry(t.asset).qtyNet -= t.quantity;
       ba.fees += t.totalEur;
       standaloneFees += t.totalEur;
+      ops.push({ type: "taxa", asset: t.asset, amount: t.quantity, price: t.priceEur, fee: 0, date: t.date });
       continue;
     }
     const fee = t.feeEur ?? 0;
     ba.fees += fee;
-    if (t.feeAsset && (t.feeInput ?? 0) > 0) consume(t.feeAsset, t.feeInput ?? 0);
-    if (t.type === "compra") {
-      (pool[t.asset] ??= []).push({ qty: t.quantity, price: t.priceEur, feePerUnit: t.quantity > 0 ? fee / t.quantity : 0, date: t.date });
-      ba.qtyNet += t.quantity; ba.buys += t.totalEur + fee;
-    } else {
-      ba.qtyNet -= t.quantity; ba.sells += t.totalEur - fee;
-      const sellFeePerUnit = t.quantity > 0 ? fee / t.quantity : 0;
-      let remaining = t.quantity;
-      while (remaining > 1e-12 && pool[t.asset]?.length) {
-        const lot = pool[t.asset][0];
-        const used = Math.min(remaining, lot.qty);
-        const buyFees = used * lot.feePerUnit;
-        const sellFees = used * sellFeePerUnit;
-        const lotFees = buyFees + sellFees;
-        const gain = used * (t.priceEur - lot.price) - lotFees;
-        ba.realizedPnl += gain; running += gain;
-        lots.push({ asset: t.asset, buyDate: lot.date, sellDate: t.date, buyPrice: lot.price, sellPrice: t.priceEur, amount: used, fees: lotFees, buyFees, sellFees, gain });
-        lot.qty -= used; remaining -= used;
-        if (lot.qty <= 1e-12) pool[t.asset].shift();
-      }
-      if (remaining > 1e-9) unmatched[t.asset] = (unmatched[t.asset] ?? 0) + remaining;
-      cumulative.push({ date: t.date, pnl: running });
-    }
+    if (t.feeAsset && (t.feeInput ?? 0) > 0) entry(t.feeAsset).qtyNet -= t.feeInput ?? 0;
+    if (t.type === "compra") { ba.qtyNet += t.quantity; ba.buys += t.totalEur + fee; }
+    else { ba.qtyNet -= t.quantity; ba.sells += t.totalEur - fee; }
+    ops.push({ type: t.type, asset: t.asset, amount: t.quantity, price: t.priceEur, fee, date: t.date, ...(t.feeAsset ? { feeAsset: t.feeAsset, feeQty: t.feeInput ?? 0 } : {}) });
   }
-  for (const [asset, lotsLeft] of Object.entries(pool)) {
-    byAsset[asset].costOpen = lotsLeft.reduce((s, l) => s + l.qty * (l.price + l.feePerUnit), 0);
+  const r = realizar(ops, metodo);
+  const lots: RealizedLot[] = r.lotes.map((l) => ({ ...l }));
+  const cumulative: FifoResult["cumulative"] = [];
+  let running = 0;
+  // Um ponto por venda (data), como antes: os lotes vem por ordem de venda.
+  for (const l of lots) {
+    entry(l.asset).realizedPnl += l.gain;
+    running += l.gain;
+    const ultimo = cumulative[cumulative.length - 1];
+    if (ultimo && ultimo.date === l.sellDate) ultimo.pnl = running;
+    else cumulative.push({ date: l.sellDate, pnl: running });
+  }
+  for (const [asset, lotsLeft] of Object.entries(r.abertos)) {
+    entry(asset).costOpen = lotsLeft.reduce((s, l) => s + l.amount * (l.price + l.feePerUnit), 0);
   }
   const realizedPnl = Object.values(byAsset).reduce((s, v) => s + v.realizedPnl, 0);
   const fees = Object.values(byAsset).reduce((s, v) => s + v.fees, 0) - standaloneFees;
-  return { realizedPnl, byAsset, unmatched, lots, cumulative, fees, standaloneFees };
+  return { realizedPnl, byAsset, unmatched: r.unmatched, lots, cumulative, fees, standaloneFees };
 }
 
 // ── CSV ────────────────────────────────────────────────────────────────────────

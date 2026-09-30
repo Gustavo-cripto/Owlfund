@@ -201,7 +201,10 @@ export async function getTaxEstimate(userId: string, countryCode: string, year?:
   }
 
   const trades = await tradesDoUtilizador(userId);
-  const fifo = computeFifo(trades);
+  // Metodo de custo do pais (FIFO, LIFO, preco medio, pool…): o mesmo motor
+  // que a pagina de Fiscalidade. Polonia (soma anual) fica por lotes FIFO na
+  // API — a base anual so existe na pagina.
+  const fifo = computeFifo(trades, pais.costMethod);
   const lots = year != null
     ? fifo.lots.filter((l) => new Date(l.sellDate).getUTCFullYear() === year)
     : fifo.lots;

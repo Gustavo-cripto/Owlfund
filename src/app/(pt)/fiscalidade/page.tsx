@@ -3,7 +3,8 @@
 import Link from "next/link";
 import Segmentos from "@/components/ui/Segmentos";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { COST_METHOD_LABEL, COUNTRIES, TAX_REGIMES, fifoExato, guideUrl, moedaDoRelatorio } from "@/lib/tax/countries";
+import { COST_METHOD_LABEL, COST_METHOD_SHORT, COUNTRIES, TAX_REGIMES, guideUrl, metodoRessalva, moedaDoRelatorio } from "@/lib/tax/countries";
+import { realizar, resumoAnualPolaco, type Operacao } from "@/lib/tax/metodos";
 import { loadFxTable, type FxTable } from "@/lib/fx/historical";
 import { CURRENCY_SIGN } from "@/lib/currency/symbols";
 import { btnPrimary } from "@/lib/ui/buttons";
@@ -333,10 +334,12 @@ export default function FiscalidadePage() {
   // Ha paises cuja moeda o BCE nao publica (AED, ARS): nesses o relatorio sai
   // em euros COM AVISO, em vez de descartar tudo e mostrar zero.
   const paisDoRelatorio = COUNTRIES.find((c) => c.code === country);
-  // Metodo de custo que o pais exige (verificado set 2026). A calculadora e
-  // FIFO; onde o pais manda outro metodo, o cartao diz "aproximação".
-  const metodoDoPais = paisDoRelatorio ? COST_METHOD_LABEL[paisDoRelatorio.costMethod][lang] : "FIFO";
-  const fifoAproximado = paisDoRelatorio ? !fifoExato(paisDoRelatorio.costMethod) : false;
+  // Metodo de custo que o pais exige (verificado set 2026), aplicado pelo motor
+  // em src/lib/tax/metodos.ts. A ressalva diz onde ainda se simplifica.
+  const costMethod = paisDoRelatorio?.costMethod ?? "fifo";
+  const metodoDoPais = COST_METHOD_LABEL[costMethod][lang];
+  const metodoCurto = COST_METHOD_SHORT[costMethod];
+  const ressalvaMetodo = metodoRessalva(costMethod, lang);
   const { currency: reportCurrency, fallback: moedaEmFalta } =
     paisDoRelatorio ? moedaDoRelatorio(paisDoRelatorio) : { currency: "EUR", fallback: false };
   const reportSymbol = CURRENCY_SIGN[reportCurrency] ?? reportCurrency;
@@ -367,79 +370,38 @@ export default function FiscalidadePage() {
   /** True quando faltou alguma taxa e os numeros nao podem ser mostrados. */
   const [fxIncomplete, setFxIncomplete] = useState(false);
 
-  // FIFO: calcular eventos de mais-valias
-  const fifoFiscal = useMemo<{ events: TaxEvent[]; soTaxa: StandaloneFee[] }>(() => {
-    const events: TaxEvent[] = [];
+  // Eventos de mais-valias pelo metodo do pais (motor em src/lib/tax/metodos.ts).
+  const fifoFiscal = useMemo<{ events: TaxEvent[]; soTaxa: StandaloneFee[]; ops: Operacao[] }>(() => {
     let faltou = false;
-    // feePerUnit: taxa da compra repartida pelas unidades, para uma venda
-    // parcial levar so a parte que lhe cabe (mesma regra que computeFifo).
-    const pool: Record<string, Array<{ amount: number; price: number; feePerUnit: number; date: string }>> = {};
-
     const sorted = trades;   // ja vem em ordem canonica de loadTrades().sort(chronoCompare)
     const soTaxa: StandaloneFee[] = [];
-    // Tira quantidade pelos lotes mais antigos, sem ganho (mesma regra que computeFifo).
-    const consumir = (asset: string, qty: number) => {
-      let rest = qty;
-      while (rest > 1e-12 && pool[asset]?.length) {
-        const lot = pool[asset][0];
-        const used = Math.min(rest, lot.amount);
-        lot.amount -= used; rest -= used;
-        if (lot.amount <= 1e-12) pool[asset].shift();
-      }
-    };
-
+    const ops: Operacao[] = [];
     for (const tr of sorted) {
       if (tr.type === "taxa") {
         const valor = toReport(tr.price * tr.amount, tr.date);
         if (valor == null) { faltou = true; continue; }
-        consumir(tr.asset, tr.amount);
         soTaxa.push({ asset: tr.asset, date: tr.date, amount: tr.amount, value: valor });
+        ops.push({ type: "taxa", asset: tr.asset, amount: tr.amount, price: tr.amount > 0 ? valor / tr.amount : 0, fee: 0, date: tr.date });
         continue;
       }
-      if (tr.feeAsset && (tr.feeQty ?? 0) > 0) consumir(tr.feeAsset, tr.feeQty ?? 0);
-      // Preco convertido a taxa da data desta transacao.
+      // Preco e taxa convertidos a taxa da data desta transacao.
       const preco = toReport(tr.price, tr.date);
-      // Taxa convertida a mesma taxa de cambio do dia; sem taxa nao ha nada a converter.
       const taxa = tr.fee > 0 ? toReport(tr.fee, tr.date) : 0;
       if (preco == null || taxa == null) { faltou = true; continue; }
-      const taxaPorUnidade = tr.amount > 0 ? taxa / tr.amount : 0;
-      if (tr.type === "compra") {
-        if (!pool[tr.asset]) pool[tr.asset] = [];
-        pool[tr.asset].push({ amount: tr.amount, price: preco, feePerUnit: taxaPorUnidade, date: tr.date });
-      } else {
-        // venda — FIFO. Taxa da compra soma ao custo; a da venda desce ao produto.
-        let remaining = tr.amount;
-        while (remaining > 0 && pool[tr.asset]?.length) {
-          const lot = pool[tr.asset][0];
-          const used = Math.min(lot.amount, remaining);
-          const days = calcDays(lot.date, tr.date);
-          const isLong = days >= regime.longDays && regime.longDays > 0;
-          const rate = isLong ? regime.long : regime.short;
-          // A compra ja esta a taxa do dia da compra; a venda, a do dia da venda.
-          const fees = used * (lot.feePerUnit + taxaPorUnidade);
-          const gain = (preco - lot.price) * used - fees;
-          events.push({
-            asset: tr.asset,
-            buyDate: lot.date,
-            sellDate: tr.date,
-            buyPrice: lot.price,
-            sellPrice: preco,
-            amount: used,
-            fees,
-            gain,
-            holding: isLong ? "longo" : "curto",
-            taxRate: rate,
-          });
-          lot.amount -= used;
-          remaining -= used;
-          if (lot.amount <= 0) pool[tr.asset].shift();
-        }
-      }
+      ops.push({ type: tr.type, asset: tr.asset, amount: tr.amount, price: preco, fee: taxa, date: tr.date, ...(tr.feeAsset && (tr.feeQty ?? 0) > 0 ? { feeAsset: tr.feeAsset, feeQty: tr.feeQty } : {}) });
     }
+    const events: TaxEvent[] = realizar(ops, costMethod).lotes.map((l) => {
+      const days = calcDays(l.buyDate, l.sellDate);
+      const isLong = days >= regime.longDays && regime.longDays > 0;
+      return {
+        asset: l.asset, buyDate: l.buyDate, sellDate: l.sellDate, buyPrice: l.buyPrice, sellPrice: l.sellPrice,
+        amount: l.amount, fees: l.fees, gain: l.gain, holding: isLong ? "longo" : "curto", taxRate: isLong ? regime.long : regime.short,
+      };
+    });
     if (faltou !== fxIncomplete) setFxIncomplete(faltou);
-    return { events, soTaxa };
+    return { events, soTaxa, ops };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trades, regime, toReport]);
+  }, [trades, regime, toReport, costMethod]);
 
   const taxEvents = fifoFiscal.events;
   // Registos "so taxa" (swap falhado, gas de outra carteira): nao deduzidos
@@ -497,11 +459,17 @@ export default function FiscalidadePage() {
   const summary = useMemo(() => {
     // A MESMA funcao que a API e o MCP usam. Havia aqui uma copia da conta, e
     // as duas copias erravam igual: as menos-valias nunca abatiam aos ganhos.
-    const r = resumirImposto(eventosDoAno, regime);
+    // Polonia (art. 30b ust. 1a PIT): a base do ano e receitas menos TODOS os
+    // custos do ano (vendidos ou nao), com o excedente a transitar. Os lotes
+    // FIFO ficam na tabela so para se ver de onde vem cada venda.
+    const anual = costMethod === "annual" ? resumoAnualPolaco(fifoFiscal.ops).find((a) => a.ano === anoAtivo) : null;
+    const r = anual
+      ? resumirImposto([{ gain: anual.base > 0 ? anual.base : anual.receitas - anual.custos - anual.custosTransitados, taxRate: regime.short }], regime)
+      : resumirImposto(eventosDoAno, regime);
     const fees = eventosDoAno.reduce((s, e) => s + e.fees, 0);
     const standalone = taxasDoAno.reduce((s, f) => s + f.value, 0);
-    return { ...r, fees, standalone };
-  }, [eventosDoAno, taxasDoAno, regime]);
+    return { ...r, fees, standalone, anual };
+  }, [eventosDoAno, taxasDoAno, regime, costMethod, fifoFiscal.ops, anoAtivo]);
 
   // Falha de export: se for um chunk antigo (pagina aberta antes de um deploy),
   // diz-se ao utilizador e recarrega-se — e o unico remedio; senao mostra-se o erro.
@@ -558,7 +526,7 @@ export default function FiscalidadePage() {
     ([
       [t("fisc_pdf_country"), `${country} (${(regime.short * 100).toFixed(0)}% / ${regime.longLabel[lang]})`],
       [t("hx_date"), new Date().toLocaleString(uiLocale, { dateStyle: "short", timeStyle: "short" })],
-      [t("fisc_pdf_method_label"), `FIFO / ${reportCurrency}`],
+      [t("fisc_pdf_method_label"), `${metodoCurto} / ${reportCurrency}`],
     ] as [string, string][]).forEach(([k, v]) => {
       const r = ws.addRow([k, v]);
       r.getCell(1).font = { bold: true, color: { argb: "FF64748B" } };
@@ -813,7 +781,7 @@ export default function FiscalidadePage() {
       ...(summary.standalone > 0 ? [[t("fisc_standalone_total"), eur(summary.standalone)] as [string, string]] : []),
       [t("fisc_pdf_eff_rate"), `${effRate.toFixed(1)}%`],
       [t("fisc_pdf_num_events"), String(eventosDoAno.length)],
-      [t("fisc_pdf_method_label"), `FIFO / ${reportCurrency}`],
+      [t("fisc_pdf_method_label"), `${metodoCurto} / ${reportCurrency}`],
     ];
     const bx = M, bw = W - M * 2;
     const rowsN = Math.ceil(stats.length / 2);
@@ -921,7 +889,7 @@ export default function FiscalidadePage() {
             {[
               { label: t("fc_short_1y"), value: `${(regime.short * 100).toFixed(0)}%`, color: "text-rose-400" },
               { label: t("fc_long_term"), value: regime.longLabel[lang], color: "text-emerald-400" },
-              { label: t("fc_method"), value: fifoAproximado ? `FIFO ≈` : "FIFO", color: fifoAproximado ? "text-amber-300" : "text-orange-300" },
+              { label: t("fc_method"), value: ressalvaMetodo ? `${metodoCurto} ≈` : metodoCurto, color: ressalvaMetodo ? "text-amber-300" : "text-orange-300" },
               { label: t("fc_base_currency"), value: reportCurrency, color: "text-slate-300" },
             ].map(item => (
               <div key={item.label} className="text-center">
@@ -930,9 +898,10 @@ export default function FiscalidadePage() {
               </div>
             ))}
           </div>
-          {fifoAproximado && (
+          {(ressalvaMetodo || summary.anual) && (
             <p className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs leading-relaxed text-amber-100/80">
-              {t("fisc_method_note").replace("{m}", metodoDoPais)}
+              {ressalvaMetodo ? t("fisc_method_note").replace("{m}", metodoDoPais).replace("{c}", ressalvaMetodo) : null}
+              {summary.anual ? ` ${t("fisc_annual_note").replace("{r}", fmtEur(summary.anual.receitas)).replace("{c}", fmtEur(summary.anual.custos + summary.anual.custosTransitados)).replace("{t}", fmtEur(summary.anual.transita))}` : null}
             </p>
           )}
 

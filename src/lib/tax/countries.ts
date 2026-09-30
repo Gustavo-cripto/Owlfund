@@ -61,20 +61,22 @@ export type Country = {
   plan: Plan;
   regime: TaxRegime;
   /**
-   * Método de custo de aquisição que a lei do país exige. A calculadora aplica
-   * SEMPRE FIFO; onde o método é outro, o guia e a página dizem que o resultado
-   * é uma aproximação. Verificado em fontes de 2026 (30 set 2026).
+   * Método de custo de aquisição que a lei do país exige. O motor em
+   * src/lib/tax/metodos.ts aplica-o (FIFO, LIFO, preço médio, pool britânico,
+   * soma anual); COST_METHOD_CAVEAT diz onde ainda é aproximação. Verificado
+   * em fontes de 2026 (30 set 2026).
    */
   costMethod: CostMethod;
 };
 
-export type CostMethod = "fifo" | "fifo_wallet" | "fifo_4w" | "wavg" | "avg_moving" | "acb" | "lifo" | "pool" | "annual" | "spec_id" | "none";
+export type CostMethod = "fifo" | "fifo_wallet" | "fifo_4w" | "wavg" | "wavg_global" | "avg_moving" | "acb" | "lifo" | "pool" | "annual" | "spec_id" | "none";
 /** Rótulos do método, nas 4 línguas. */
 export const COST_METHOD_LABEL: Record<CostMethod, Record<Lang, string>> = {
   fifo:        { pt: "FIFO", en: "FIFO", es: "FIFO", fr: "FIFO" },
   fifo_wallet: { pt: "FIFO, por carteira/corretora", en: "FIFO, per wallet/exchange", es: "FIFO, por monedero/exchange", fr: "FIFO, par portefeuille/plateforme" },
   fifo_4w:     { pt: "FIFO com regra das 4 semanas", en: "FIFO with the 4-week rule", es: "FIFO con la regla de 4 semanas", fr: "FIFO avec la règle des 4 semaines" },
   wavg:        { pt: "Preço médio ponderado (FIFO não aceite)", en: "Weighted average cost (FIFO not accepted)", es: "Precio medio ponderado (FIFO no aceptado)", fr: "Prix moyen pondéré (FIFO non accepté)" },
+  wavg_global: { pt: "Preço médio ponderado do portefólio global (FIFO não aceite)", en: "Weighted average cost of the whole portfolio (FIFO not accepted)", es: "Precio medio ponderado de la cartera global (FIFO no aceptado)", fr: "Prix moyen pondéré du portefeuille global (FIFO non accepté)" },
   avg_moving:  { pt: "Custo médio móvel, por carteira (FIFO não aceite)", en: "Moving average cost, per wallet (FIFO not accepted)", es: "Coste medio móvil, por monedero (FIFO no aceptado)", fr: "Coût moyen mobile, par portefeuille (FIFO non accepté)" },
   acb:         { pt: "Custo médio ajustado (ACB); FIFO não aceite", en: "Adjusted cost base (ACB); FIFO not accepted", es: "Coste medio ajustado (ACB); FIFO no aceptado", fr: "Prix de base rajusté (PBR) ; FIFO non accepté" },
   lifo:        { pt: "LIFO (obrigatório)", en: "LIFO (mandatory)", es: "LIFO (obligatorio)", fr: "LIFO (obligatoire)" },
@@ -83,8 +85,42 @@ export const COST_METHOD_LABEL: Record<CostMethod, Record<Lang, string>> = {
   spec_id:     { pt: "FIFO ou identificação específica (com registos)", en: "FIFO or specific identification (with records)", es: "FIFO o identificación específica (con registros)", fr: "FIFO ou identification spécifique (avec justificatifs)" },
   none:        { pt: "Não aplicável (sem imposto sobre mais-valias)", en: "Not applicable (no capital gains tax)", es: "No aplicable (sin impuesto sobre plusvalías)", fr: "Sans objet (pas d'impôt sur les plus-values)" },
 };
-/** A calculadora (FIFO) dá o resultado exato neste país? */
-export const fifoExato = (m: CostMethod): boolean => m === "fifo" || m === "fifo_wallet" || m === "spec_id" || m === "none";
+/** Nome curto do método, para o cartão da calculadora e o PDF. */
+export const COST_METHOD_SHORT: Record<CostMethod, string> = {
+  fifo: "FIFO", fifo_wallet: "FIFO", fifo_4w: "FIFO +4 sem.", wavg: "PMP", wavg_global: "PMP", avg_moving: "PMP", acb: "ACB", lifo: "LIFO", pool: "Pool S104", annual: "Anual", spec_id: "FIFO", none: "—",
+};
+/**
+ * Onde o motor ainda simplifica face à lei. Sem entrada = o cálculo segue o
+ * método do país tal como está descrito.
+ */
+export const COST_METHOD_CAVEAT: Partial<Record<CostMethod, Record<Lang, string>>> = {
+  wavg_global: {
+    pt: "A lei francesa calcula o preço médio sobre o portefólio inteiro e o seu valor global no dia de cada venda; a calculadora usa o preço médio por ativo, por isso o resultado é uma aproximação.",
+    en: "French law computes the average price over the whole portfolio and its total value on the day of each sale; the calculator uses the average price per asset, so the result is an approximation.",
+    es: "La ley francesa calcula el precio medio sobre toda la cartera y su valor global el día de cada venta; la calculadora usa el precio medio por activo, así que el resultado es una aproximación.",
+    fr: "La loi française calcule le prix moyen sur l'ensemble du portefeuille et sa valeur globale au jour de chaque cession ; la calculatrice utilise le prix moyen par actif, le résultat est donc une approximation.",
+  },
+  avg_moving: {
+    pt: "A lei austríaca calcula o custo médio por carteira; a calculadora calcula-o por ativo, juntando todas as carteiras.",
+    en: "Austrian law computes the average cost per wallet; the calculator computes it per asset, across all wallets.",
+    es: "La ley austriaca calcula el coste medio por monedero; la calculadora lo calcula por activo, juntando todos los monederos.",
+    fr: "La loi autrichienne calcule le coût moyen par portefeuille ; la calculatrice le calcule par actif, tous portefeuilles confondus.",
+  },
+  acb: {
+    pt: "A calculadora aplica o custo médio ajustado, mas não a regra da perda superficial (recompra em 30 dias).",
+    en: "The calculator applies the adjusted cost base but not the superficial loss rule (repurchase within 30 days).",
+    es: "La calculadora aplica el coste medio ajustado, pero no la regla de pérdida superficial (recompra en 30 días).",
+    fr: "La calculatrice applique le prix de base rajusté, mais pas la règle de la perte apparente (rachat sous 30 jours).",
+  },
+  fifo_wallet: {
+    pt: "A lei manda aplicar o FIFO por corretora ou carteira; a calculadora aplica-o ao conjunto, porque as transferências entre carteiras não ficam registadas como operações.",
+    en: "The law applies FIFO per exchange or wallet; the calculator applies it to the whole, because transfers between wallets are not recorded as trades.",
+    es: "La ley aplica el FIFO por exchange o monedero; la calculadora lo aplica al conjunto, porque las transferencias entre monederos no quedan registradas como operaciones.",
+    fr: "La loi applique le FIFO par plateforme ou portefeuille ; la calculatrice l'applique à l'ensemble, car les transferts entre portefeuilles ne sont pas enregistrés comme opérations.",
+  },
+};
+/** Ressalva do método para a língua pedida (null = cálculo exato face à lei). */
+export const metodoRessalva = (m: CostMethod, lang: Lang): string | null => COST_METHOD_CAVEAT[m]?.[lang] ?? null;
 
 // Os rótulos vivem aqui e não nas traduções porque andam sempre colados à taxa
 // que está nesta mesma linha: separá-los seria convidar a que um mudasse sem o
@@ -128,7 +164,7 @@ const ALLOWANCE_LABEL: Record<string, Record<Lang, string>> = {
 export const COUNTRIES: readonly Country[] = [
   { code: "PT", currency: "EUR", slug: { pt: "portugal", en: "portugal" }, flag: "🇵🇹", plan: "free",    law: "CIRS art. 10.º n.º 19, 43.º n.º 6 g) e 72.º (Lei n.º 24-D/2022, art. 218.º)",                      regime: { short: 0.28,  long: 0.0,   longDays: 365, longLabel: LONG_LABEL.PT }, costMethod: "fifo_wallet" },
   { code: "ES", currency: "EUR", slug: { pt: "espanha", en: "spain" }, flag: "🇪🇸", plan: "free",    law: "LIRPF art. 33–37 e 66/76 (Ley 7/2024, desde 2025); DGT V0999-18",                          regime: { short: 0.19,  long: 0.19,  longDays: 0,   longLabel: LONG_LABEL.ES }, costMethod: "fifo" },
-  { code: "FR", currency: "EUR", slug: { pt: "franca", en: "france" }, flag: "🇫🇷", plan: "free",    law: "CGI art. 150 VH bis; LFSS 2026 (CSG 10,6% desde 1 jan 2026)",                              regime: { short: 0.314, long: 0.314,  longDays: 0,   longLabel: LONG_LABEL.FR }, costMethod: "wavg" },
+  { code: "FR", currency: "EUR", slug: { pt: "franca", en: "france" }, flag: "🇫🇷", plan: "free",    law: "CGI art. 150 VH bis; LFSS 2026 (CSG 10,6% desde 1 jan 2026)",                              regime: { short: 0.314, long: 0.314,  longDays: 0,   longLabel: LONG_LABEL.FR }, costMethod: "wavg_global" },
   { code: "DE", currency: "EUR", slug: { pt: "alemanha", en: "germany" }, flag: "🇩🇪", plan: "free",    law: "EStG § 23 Abs. 1 Nr. 2; BMF-Schreiben Kryptowerte (2022, atual. 2025)",                                        regime: { short: 0.45,  long: 0.0,   longDays: 365, longLabel: LONG_LABEL.DE, allowance: { amount: 1000, kind: "threshold", label: ALLOWANCE_LABEL.DE } }, costMethod: "fifo_wallet" },
   { code: "GB", currency: "GBP", slug: { pt: "reino-unido", en: "united-kingdom" }, flag: "🇬🇧", plan: "pro",     law: "TCGA 1992 / HMRC Cryptoassets Manual (taxas desde 30 out 2024)",            regime: { short: 0.24,  long: 0.24,  longDays: 0,   longLabel: LONG_LABEL.GB, allowance: { amount: 3000, kind: "deduct", label: ALLOWANCE_LABEL.GB } }, costMethod: "pool" },
   { code: "NL", currency: "EUR", slug: { pt: "paises-baixos", en: "netherlands" }, flag: "🇳🇱", plan: "pro",     law: "Wet IB 2001, hoofdstuk 5 (Box 3); Wet tegenbewijs box 3",                               regime: { short: 0.0,   long: 0.0,   longDays: 0,   longLabel: LONG_LABEL.NL }, costMethod: "none" },

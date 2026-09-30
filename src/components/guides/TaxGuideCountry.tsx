@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import AppShell from "@/components/AppShell";
-import { COST_METHOD_LABEL, COUNTRIES, fifoExato, guideDateModified, guideUrl, TAX_DATA_VERIFIED, type Country, type GuideLang } from "@/lib/tax/countries";
+import { COST_METHOD_LABEL, COUNTRIES, guideDateModified, guideUrl, metodoRessalva, TAX_DATA_VERIFIED, type Country, type GuideLang } from "@/lib/tax/countries";
 import { countryText } from "@/lib/tax/countryText";
 import { GUIDE_COPY } from "@/lib/tax/guideCopy";
 import { provaDetencao } from "@/lib/tax/prova";
@@ -29,8 +29,10 @@ export default function TaxGuideCountry({ lang, country }: { lang: GuideLang; co
     { label: c.factMethod, value: COST_METHOD_LABEL[country.costMethod][lang] },
     { label: c.factLaw, value: country.law },
   ];
-  // Verificado em fontes de 2026: em 8 dos 21 paises o metodo nao e FIFO.
-  const notaMetodo = fifoExato(country.costMethod) ? null : c.methodNote(COST_METHOD_LABEL[country.costMethod][lang]);
+  // A calculadora aplica o metodo do pais (src/lib/tax/metodos.ts); onde ainda
+  // simplifica, a ressalva diz exatamente o que.
+  const ressalva = metodoRessalva(country.costMethod, lang);
+  const notaMetodo = ressalva ? c.methodNote(COST_METHOD_LABEL[country.costMethod][lang], ressalva) : null;
 
   // As perguntas sao escritas UMA vez e servem os dois: o bloco visivel na
   // pagina e o FAQPage para o Google. Declarar perguntas que a pagina nao
