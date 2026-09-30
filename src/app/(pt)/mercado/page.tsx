@@ -44,6 +44,8 @@ type MarketRow = {
   marketCapUsd: number | null;
   volume24hUsd: number;
   sparkline?: number[];
+  /** Sem par USDT em exchange: sem gráfico da Binance (ex.: créditos tokenizados). */
+  semPar?: boolean;
 };
 
 type Candle = { t: number; o: number; h: number; l: number; c: number; vol: number };
@@ -1258,6 +1260,7 @@ export default function MercadoPage() {
     // não tem par contra si próprio: mostra-se contra o dólar na Kraken.
     if (!selected) return "BINANCE:BTCUSDT";
     if (selected.symbol === "USDT") return "KRAKEN:USDTUSD";
+    if (selected.semPar) return null;
     return `BINANCE:${selected.market}`;
   }, [selected]);
   const tvLocale = TV_LOCALE[lang] ?? "en";
@@ -1463,7 +1466,7 @@ export default function MercadoPage() {
               <p className="text-sm text-slate-400">
                 {selected ? `${selected.name} · ${selected.symbol}` : t("mc_select_asset")}
               </p>
-              {chartSource === "tradingview" && (
+              {chartSource === "tradingview" && tradingViewSymbol && (
                 <p className="mt-0.5 text-xs text-slate-500">
                   {t("mc_chart_quote").replace("{par}", tradingViewSymbol.split(":")[1] ?? "").replace("{bolsa}", tradingViewSymbol.split(":")[0] === "KRAKEN" ? "Kraken" : "Binance").replace("{moeda}", curCode)}
                 </p>
@@ -1521,7 +1524,18 @@ export default function MercadoPage() {
                 {t("mc_exit_fs")}
               </button>
             )}
-            {chartSource === "tradingview" ? (
+            {chartSource === "tradingview" && !tradingViewSymbol ? (
+              <div className="flex h-full flex-col items-center justify-center gap-3 rounded-xl border border-slate-800 bg-slate-950/50 p-6 text-center text-sm text-slate-400">
+                <p>{t("mc_no_pair_chart").replace("{s}", selected?.symbol ?? "")}</p>
+                {selected?.id && (
+                  <a href={`https://www.coingecko.com/en/coins/${encodeURIComponent(selected.id)}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="rounded-xl border border-orange-400/40 px-4 py-2 text-xs font-semibold text-orange-200 hover:bg-orange-500/10">
+                    {t("mc_open_coingecko")} ↗
+                  </a>
+                )}
+              </div>
+            ) : chartSource === "tradingview" && tradingViewSymbol ? (
               <TradingViewWidget
                 key={`tv-${tradingViewSymbol}-${tradingViewInterval}-${tvLocale}-${indicadores}`}
                 symbol={tradingViewSymbol}

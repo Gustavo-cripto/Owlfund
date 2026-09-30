@@ -330,6 +330,8 @@ export async function GET(request: Request) {
           marketCapUsd: Number.isFinite(marketCap ?? 0) ? marketCap : null,
           volume24hUsd: Number.isFinite(volume) ? volume : 0,
           sparkline: row.sparkline_in_7d?.price ?? [],
+          // Sem par USDT na OKX/CoinEx: o grafico da Binance tambem nao existe.
+          ...(ticker ? {} : { semPar: true }),
         };
       })
       .filter((row): row is NonNullable<typeof row> => !!row)
