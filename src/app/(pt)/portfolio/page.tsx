@@ -37,6 +37,7 @@ import { loadNickname } from "@/lib/user/nickname";
 import { metricas, type Ponto } from "@/lib/api/pnlMath";
 import ChartModal from "@/components/ChartModal";
 import { SkeletonLines } from "@/components/PageSkeleton";
+import { protegerTextoPdf } from "@/lib/export/pdfTexto";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ""
@@ -1844,6 +1845,7 @@ export default function PortfolioPage() {
                 try {
                 const { default: jsPDF } = await import("jspdf");
                 const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+                protegerTextoPdf(doc);  // ≥, ≈ e o espaço fino dos milhares em francês estragavam linhas
                 // Com a hora: dois relatorios do mesmo dia eram indistinguiveis, e ficamos
                 // sem saber se estavamos a olhar para a exportacao nova ou para a antiga.
                 const now = new Date().toLocaleString(locale, { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
