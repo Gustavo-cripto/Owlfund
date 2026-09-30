@@ -2014,6 +2014,7 @@ export const pt = {
     fisc_br_foreign: "Exchange estrangeira",
     fisc_br_local_note: "Apuração mensal: um mês com vendas até R$35.000 fica isento; acima disso, 15% a 22,5% sobre o ganho do mês. Perdas de um mês não passam para outro.",
     fisc_br_foreign_note: "Lei 14.754/2023: 15% sobre o ganho do ano, sem a isenção mensal de R$35.000.",
+    fisc_br_foreign_regime: "Anual, sem isenção (Lei 14.754/2023)",
     fisc_alw_disputed: "{a}: não entra na conta. A aplicação desta isenção a cripto não está confirmada pela autoridade fiscal; se se aplicar ao teu caso, o imposto real é menor.",
     fisc_year_hint_carry: "A calculadora só compensa perdas dentro do mesmo ano; neste país as perdas que sobram passam para anos seguintes, por isso, se as tiveres, o imposto real é menor.",
     fisc_year_starts: "O ano fiscal começa a {d}.",
