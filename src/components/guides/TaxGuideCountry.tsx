@@ -1,9 +1,10 @@
 import Link from "next/link";
 
 import AppShell from "@/components/AppShell";
-import { COUNTRIES, guideUrl, TAX_DATA_VERIFIED, TAX_GUIDE_DATE_MODIFIED, type Country, type GuideLang } from "@/lib/tax/countries";
+import { COUNTRIES, guideDateModified, guideUrl, TAX_DATA_VERIFIED, type Country, type GuideLang } from "@/lib/tax/countries";
 import { countryText } from "@/lib/tax/countryText";
 import { GUIDE_COPY } from "@/lib/tax/guideCopy";
+import { provaDetencao } from "@/lib/tax/prova";
 import { SALDO_COPY, saldoUrl } from "@/lib/tools/saldo";
 
 // Página de um país, partilhada pelas duas línguas. Os textos das regras vêm
@@ -17,6 +18,8 @@ export default function TaxGuideCountry({ lang, country }: { lang: GuideLang; co
   const base = guideUrl(lang);
   const here = `${SITE}${guideUrl(lang, country)}`;
   const others = COUNTRIES.filter((o) => o.code !== country.code);
+  // So nos paises em que o prazo de detencao muda o imposto (ver prova.ts).
+  const prova = provaDetencao(country.code, lang);
 
   const facts = [
     { label: c.factShort, value: text.taxShort },
@@ -42,6 +45,7 @@ export default function TaxGuideCountry({ lang, country }: { lang: GuideLang; co
         : c.faqAllowanceNo(text.name),
     },
     { q: c.faqMethod, a: c.faqMethodAnswer },
+    ...(prova?.faqs ?? []),
   ];
 
   const jsonLd = {
@@ -54,7 +58,7 @@ export default function TaxGuideCountry({ lang, country }: { lang: GuideLang; co
         inLanguage: c.locale,
         datePublished: "2026-09-11",
         // Ultima mudanca real dos regimes — a mesma constante do indice e do sitemap.
-        dateModified: TAX_GUIDE_DATE_MODIFIED,
+        dateModified: guideDateModified(country.code),
         image: `${SITE}/opengraph-image`,
         author: { "@type": "Organization", name: "ChainFolioAI", url: SITE },
         publisher: { "@type": "Organization", name: "ChainFolioAI", url: SITE, logo: { "@type": "ImageObject", url: `${SITE}/chainfolioai-icon.png` } },
@@ -120,6 +124,22 @@ export default function TaxGuideCountry({ lang, country }: { lang: GuideLang; co
               <ul className="mt-3 list-disc space-y-2 pl-5 text-slate-300 marker:text-orange-400/70">
                 {text.keyPoints.map((p) => <li key={p}>{p}</li>)}
               </ul>
+            </section>
+          )}
+
+          {prova && (
+            <section className="mt-10">
+              <h2 className="text-xl font-semibold text-white">{prova.titulo}</h2>
+              <p className="mt-3 leading-relaxed text-slate-300">{prova.intro}</p>
+              <div className="mt-5 space-y-5">
+                {prova.blocos.map((b) => (
+                  <div key={b.titulo}>
+                    <h3 className="font-semibold text-white">{b.titulo}</h3>
+                    <p className="mt-1.5 leading-relaxed text-slate-300">{b.texto}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-5 rounded-xl border border-slate-800 bg-slate-900/40 px-4 py-3 text-sm leading-relaxed text-slate-400">{prova.nota}</p>
             </section>
           )}
 

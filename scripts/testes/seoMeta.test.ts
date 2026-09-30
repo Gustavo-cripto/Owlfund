@@ -4,7 +4,7 @@
 // `openGraph` sem `images` substitui o bloco herdado do layout raiz.
 import { countryMetadata, indexMetadata } from "@/lib/tax/guideMeta";
 import { compareIndexMetadata, compareMetadata } from "@/lib/compare/compareMeta";
-import { COUNTRIES, TAX_GUIDE_DATE_MODIFIED } from "@/lib/tax/countries";
+import { COUNTRIES, TAX_GUIDE_DATE_MODIFIED, guideDateModified } from "@/lib/tax/countries";
 import { COMPETITORS, COMPARE_DATE_MODIFIED } from "@/lib/compare/competitors";
 import { LIMITE_DESCRICAO, MINIMO_DESCRICAO_GUIAS } from "@/lib/seo/descricao";
 import sitemap from "@/app/sitemap";
@@ -55,7 +55,9 @@ for (const lang of ["pt", "en", "es", "fr"] as const) {
 // ── sitemap ──
 const entradas = sitemap();
 const porUrl = new Map(entradas.map((e) => [e.url.replace(/^https?:\/\/[^/]+/, ""), e]));
-ok("sitemap: guia com lastmod real", porUrl.get("/guias/impostos-cripto/portugal")?.lastModified === TAX_GUIDE_DATE_MODIFIED);
+ok("sitemap: guia com lastmod real", porUrl.get("/guias/impostos-cripto/espanha")?.lastModified === TAX_GUIDE_DATE_MODIFIED);
+// Portugal ganhou a seccao da prova de detencao a 30 set: so ele leva a data nova.
+ok("sitemap: guia alterado depois leva a data propria", porUrl.get("/guias/impostos-cripto/portugal")?.lastModified === guideDateModified("PT") && guideDateModified("PT") > TAX_GUIDE_DATE_MODIFIED);
 ok("sitemap: indice dos guias com a mesma data", porUrl.get("/guides/crypto-tax")?.lastModified === TAX_GUIDE_DATE_MODIFIED);
 ok("sitemap: comparacao com a data revista", porUrl.get("/en/comparisons/koinly")?.lastModified === COMPARE_DATE_MODIFIED);
 ok("sitemap: termos/privacidade/developers com data", ["/termos", "/privacidade", "/developers"].every((p) => typeof porUrl.get(p)?.lastModified === "string"));
