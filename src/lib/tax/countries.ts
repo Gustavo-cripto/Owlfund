@@ -187,3 +187,7 @@ export const TAX_DATA_VERIFIED: Record<GuideLang, string> = {
 // num sitio so — antes o sitemap dizia "hoje" a cada deploy e contradizia o
 // Article. Atualizar quando as taxas ou prazos mudarem — nunca "hoje" automatico.
 export const TAX_GUIDE_DATE_MODIFIED = "2026-09-19";
+// Paises cujo guia mudou depois dessa data (texto novo, nao taxas). So esses
+// levam a data mais recente; os outros nao fingem ter mudado.
+const GUIDE_DATE_OVERRIDES: Record<string, string> = { PT: "2026-09-30" };
+export const guideDateModified = (code: string): string => GUIDE_DATE_OVERRIDES[code] ?? TAX_GUIDE_DATE_MODIFIED;

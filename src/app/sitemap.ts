@@ -1,6 +1,6 @@
 import { LANGS, PAGE_SLUG, pageUrl, type PublicPage } from "@/lib/i18n/routes";
 import { COMPETITORS, COMPARE_DATE_MODIFIED, compareUrl } from "@/lib/compare/competitors";
-import { COUNTRIES, TAX_GUIDE_DATE_MODIFIED, guideUrl } from "@/lib/tax/countries";
+import { COUNTRIES, TAX_GUIDE_DATE_MODIFIED, guideDateModified, guideUrl } from "@/lib/tax/countries";
 import { DEVELOPERS_LAST_UPDATED, LEGAL_LAST_UPDATED } from "@/lib/seo/site";
 import { REDES_SALDO, SALDO_DATE_MODIFIED, saldoUrl } from "@/lib/tools/saldo";
 import type { MetadataRoute } from "next";
@@ -41,7 +41,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const guias = COUNTRIES.flatMap((c) =>
     (["pt", "en"] as const).map((lang) => ({
       url: `${SITE_URL}${guideUrl(lang, c)}`,
-      lastModified: TAX_GUIDE_DATE_MODIFIED,
+      lastModified: guideDateModified(c.code),
       changeFrequency: "monthly" as const,
       priority: 0.7,
     })),
