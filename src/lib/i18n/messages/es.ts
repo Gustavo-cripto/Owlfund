@@ -1670,6 +1670,8 @@ export const es: Record<TranslationKey, string> = {
     mc_chart_quote: "Gráfico del par {par} en {bolsa}. La tabla muestra los precios en {moeda}.",
     mc_indicators: "RSI · MACD",
     mc_of: "de",
+    mc_no_pair_chart: "{s} no tiene par en USDT en los exchanges que usamos (OKX y CoinEx), así que no mostramos gráfico. Precio y capitalización vienen de CoinGecko.",
+    mc_open_coingecko: "Ver en CoinGecko",
     mc_top200: "Top 200 criptoactivos",
     mc_total_cap: "Cap. total",
     mc_btc_dom: "Dominancia BTC",
