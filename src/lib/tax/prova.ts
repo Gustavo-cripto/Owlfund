@@ -36,7 +36,7 @@ export const PROVA_DETENCAO: Partial<Record<string, Record<GuideLang, ProvaDeten
         {
           titulo: "O que a lei diz",
           texto:
-            "Quem invoca um facto a seu favor tem de o provar (Lei Geral Tributária, art. 74.º). Se declaras um ganho como excluído por teres a cripto há mais de 365 dias, és tu que tens de mostrar a data de aquisição. O Código do IRS obriga também a guardar os documentos que sustentam a declaração durante quatro anos, que é o prazo em que as Finanças a podem rever. Os ganhos excluídos declaram-se na mesma, no anexo G1 do IRS; os tributados vão ao anexo G.",
+            "Quem invoca um facto a seu favor tem de o provar (Lei Geral Tributária, art. 74.º). Se declaras um ganho como excluído por teres a cripto há 365 dias ou mais, és tu que tens de mostrar a data de aquisição. O Código do IRS obriga também a guardar os documentos que sustentam a declaração durante quatro anos, que é o prazo em que as Finanças a podem rever. Os ganhos excluídos declaram-se na mesma, no anexo G1 do IRS; os tributados vão ao anexo G.",
         },
         {
           titulo: "O que convém guardar, por cada compra",
@@ -46,7 +46,7 @@ export const PROVA_DETENCAO: Partial<Record<string, Record<GuideLang, ProvaDeten
         {
           titulo: "DCA: compras todas as semanas e está tudo misturado",
           texto:
-            "O Código do IRS manda usar o método FIFO (art. 43.º n.º 8 g)): quando vendes, considera-se que vendes primeiro as unidades compradas há mais tempo. A ordem conta-se dentro de cada corretora ou carteira, não no conjunto (art. 43.º n.º 9). Por isso não precisas de escolher lotes; precisas da lista completa das compras com datas, corretora a corretora. Se vendes 0,1 BTC e as tuas compras mais antigas somam 0,1 BTC com mais de 365 dias, esse ganho está excluído. Se a venda for maior do que o que já passou os 365 dias, a parte que sobra vem dos lotes seguintes e é tributada a 28%. A mesma venda pode ter uma parte excluída e outra tributada.",
+            "O Código do IRS manda usar o método FIFO (art. 43.º n.º 8 g)): quando vendes, considera-se que vendes primeiro as unidades compradas há mais tempo. A ordem conta-se dentro de cada corretora ou carteira, não no conjunto (art. 43.º n.º 9). Por isso não precisas de escolher lotes; precisas da lista completa das compras com datas, corretora a corretora. Se vendes 0,1 BTC e as tuas compras mais antigas somam 0,1 BTC com 365 dias ou mais, esse ganho está excluído. Se a venda for maior do que o que já passou os 365 dias, a parte que sobra vem dos lotes seguintes e é tributada a 28%. A mesma venda pode ter uma parte excluída e outra tributada.",
         },
         {
           titulo: "A corretora fechou ou não dá o histórico",
@@ -61,7 +61,7 @@ export const PROVA_DETENCAO: Partial<Record<string, Record<GuideLang, ProvaDeten
         {
           titulo: "O que o ChainFolioAI faz",
           texto:
-            "Cada compra fica registada com data, quantidade e preço, seja por importação do CSV da corretora ou à mão. O cálculo aplica FIFO e, para cada venda, mostra de que lotes saiu, quantos dias cada lote esteve detido e se ficou abaixo ou acima dos 365 dias. Exportas o resultado em PDF ou Excel para levar ao contabilista. O registo é teu; a corretora pode fechar que ele fica.",
+            "Cada compra fica registada com data, quantidade e preço, seja por importação do CSV da corretora ou à mão. O cálculo aplica FIFO (ao conjunto das carteiras; ver a nota abaixo) e, para cada venda, mostra de que compras saiu, com as datas de compra e de venda, e se ficou abaixo ou acima dos 365 dias. Exportas o resultado em PDF ou Excel para levar ao contabilista. O registo é teu; a corretora pode fechar que ele fica.",
         },
       ],
       faqs: [
@@ -93,7 +93,7 @@ export const PROVA_DETENCAO: Partial<Record<string, Record<GuideLang, ProvaDeten
         {
           titulo: "What the law says",
           texto:
-            "Whoever relies on a fact has to prove it (General Tax Law, article 74). If you declare a gain as excluded because you held the crypto for more than 365 days, you are the one who has to show the acquisition date. The Personal Income Tax Code also requires you to keep the documents behind your return for four years, the period in which the tax authority can review it. Excluded gains are still declared, in annex G1 of the IRS return; taxed gains go in annex G.",
+            "Whoever relies on a fact has to prove it (General Tax Law, article 74). If you declare a gain as excluded because you held the crypto for 365 days or more, you are the one who has to show the acquisition date. The Personal Income Tax Code also requires you to keep the documents behind your return for four years, the period in which the tax authority can review it. Excluded gains are still declared, in annex G1 of the IRS return; taxed gains go in annex G.",
         },
         {
           titulo: "What to keep, for every purchase",
@@ -103,7 +103,7 @@ export const PROVA_DETENCAO: Partial<Record<string, Record<GuideLang, ProvaDeten
         {
           titulo: "DCA: weekly buys and everything is mixed up",
           texto:
-            "The Income Tax Code requires FIFO (art. 43(8)(g)): when you sell, the units bought longest ago are treated as sold first. The order is counted within each exchange or wallet, not across all of them (art. 43(9)). So you do not choose lots; you need the full list of purchases with dates, exchange by exchange. If you sell 0.1 BTC and your oldest purchases add up to 0.1 BTC held for more than 365 days, that gain is excluded. If the sale is larger than what has passed 365 days, the remainder comes from the next lots and is taxed at 28%. One sale can have an excluded part and a taxed part.",
+            "The Income Tax Code requires FIFO (art. 43(8)(g)): when you sell, the units bought longest ago are treated as sold first. The order is counted within each exchange or wallet, not across all of them (art. 43(9)). So you do not choose lots; you need the full list of purchases with dates, exchange by exchange. If you sell 0.1 BTC and your oldest purchases add up to 0.1 BTC held for 365 days or more, that gain is excluded. If the sale is larger than what has passed 365 days, the remainder comes from the next lots and is taxed at 28%. One sale can have an excluded part and a taxed part.",
         },
         {
           titulo: "The exchange closed or will not give you the history",
@@ -118,7 +118,7 @@ export const PROVA_DETENCAO: Partial<Record<string, Record<GuideLang, ProvaDeten
         {
           titulo: "What ChainFolioAI does",
           texto:
-            "Every purchase is recorded with date, amount and price, either from the exchange CSV or entered by hand. The calculation applies FIFO and, for each sale, shows which lots it came from, how many days each lot was held and whether it fell under or over 365 days. You export the result as PDF or Excel for your accountant. The record is yours; the exchange can close and it stays.",
+            "Every purchase is recorded with date, amount and price, either from the exchange CSV or entered by hand. The calculation applies FIFO (across all wallets; see the note below) and, for each sale, shows which purchases it came from, with buy and sell dates, and whether it fell under or over 365 days. You export the result as PDF or Excel for your accountant. The record is yours; the exchange can close and it stays.",
         },
       ],
       faqs: [
@@ -177,7 +177,7 @@ export const PROVA_DETENCAO: Partial<Record<string, Record<GuideLang, ProvaDeten
         {
           titulo: "O que o ChainFolioAI faz",
           texto:
-            "Regista cada compra com data, quantidade e preço, a partir do CSV da plataforma ou à mão, aplica FIFO e mostra, por cada venda, de que lotes saiu e quantos dias cada lote esteve detido. Exportas em PDF ou Excel para a Anlage SO ou para o Steuerberater.",
+            "Regista cada compra com data, quantidade e preço, a partir do CSV da plataforma ou à mão, aplica FIFO ao conjunto das carteiras (ver a nota abaixo) e mostra, por cada venda, de que compras saiu, com as datas, e se passou o ano. Exportas em PDF ou Excel para a Anlage SO ou para o Steuerberater.",
         },
       ],
       faqs: [
@@ -230,7 +230,7 @@ export const PROVA_DETENCAO: Partial<Record<string, Record<GuideLang, ProvaDeten
         {
           titulo: "What ChainFolioAI does",
           texto:
-            "It records every purchase with date, amount and price, from the platform CSV or by hand, applies FIFO and shows, for each sale, which lots it came from and how many days each lot was held. You export to PDF or Excel for Anlage SO or for your Steuerberater.",
+            "It records every purchase with date, amount and price, from the platform CSV or by hand, applies FIFO across all wallets (see the note below) and shows, for each sale, which purchases it came from, with dates, and whether it passed the year. You export to PDF or Excel for Anlage SO or for your Steuerberater.",
         },
       ],
       faqs: [
@@ -285,7 +285,7 @@ export const PROVA_DETENCAO: Partial<Record<string, Record<GuideLang, ProvaDeten
         {
           titulo: "O que o ChainFolioAI faz",
           texto:
-            "Regista cada compra e cada troca com data, quantidade e valor e mostra, por cada venda, quantos dias cada lote esteve detido e se ficou dentro ou fora dos seis meses. O ganho calcula-se pelo preço médio ponderado, como a circular exige, com a ordem das compras a decidir o que já passou os seis meses; exportas em PDF ou Excel para o contabilista fechar o valor a declarar no modelo 100.",
+            "Regista cada compra e cada troca com data, quantidade e valor e mostra, por cada venda, as datas de compra e de venda de cada lote e se ficou dentro ou fora dos seis meses. O ganho calcula-se pelo preço médio ponderado, como a circular exige, com a ordem das compras a decidir o que já passou os seis meses; exportas em PDF ou Excel para o contabilista fechar o valor a declarar no modelo 100.",
         },
       ],
       faqs: [
@@ -338,7 +338,7 @@ export const PROVA_DETENCAO: Partial<Record<string, Record<GuideLang, ProvaDeten
         {
           titulo: "What ChainFolioAI does",
           texto:
-            "It records every purchase and swap with date, amount and value and shows, for each sale, how many days each lot was held and whether it fell inside or outside six months. The gain is computed at the weighted average price, as the circular requires, with the order of purchases deciding what has passed six months; you export to PDF or Excel so your accountant can settle the figure to declare on form 100.",
+            "It records every purchase and swap with date, amount and value and shows, for each sale, each lot's purchase and sale dates and whether it fell inside or outside six months. The gain is computed at the weighted average price, as the circular requires, with the order of purchases deciding what has passed six months; you export to PDF or Excel so your accountant can settle the figure to declare on form 100.",
         },
       ],
       faqs: [

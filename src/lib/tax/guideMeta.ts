@@ -52,7 +52,10 @@ export function countryMetadata(lang: GuideLang, slug: string): Metadata {
   // "Pais: taxa" + as primeiras frases do resumo que caibam em ~155 caracteres,
   // cortado em fim de frase. Antes ia o resumo inteiro (ate 300): o Google
   // cortava a meio e a taxa — o gancho — ficava de fora do snippet.
-  const description = descricaoMeta(`${text.name}: ${text.taxShort}`, text.summary);
+  // Com prazo de detenção, as duas taxas ("28% · isento"); sem ele, uma.
+  const min = (s: string) => `${s.charAt(0).toLowerCase()}${s.slice(1)}`;
+  const taxas = country.regime.longDays > 0 ? `${min(text.taxShort)} · ${min(text.taxLong)}` : min(text.taxShort);
+  const description = descricaoMeta(`${text.name}: ${taxas}`, text.summary);
   const canonical = `${SITE}${guideUrl(lang, country)}`;
   return {
     title: tituloAbsoluto(title, titleCurto),

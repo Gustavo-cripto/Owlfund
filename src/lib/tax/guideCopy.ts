@@ -87,7 +87,7 @@ export const GUIDE_COPY: Record<GuideLang, Copy> = {
     verifiedOn: (v) => `Regras verificadas em ${v}.`,
     factShort: "Curto prazo",
     factLong: "Longo prazo",
-    factThreshold: "Limiar de detenção",
+    factThreshold: "Limiar",
     factAllowance: "Isenção anual",
     factLaw: "Legislação",
     factMethod: "Método de custo",
@@ -98,7 +98,7 @@ export const GUIDE_COPY: Record<GuideLang, Copy> = {
     keyPointsTitle: "Pontos a reter",
     calcTitle: "Calcular sobre o teu histórico",
     calcBody:
-      "A taxa é só metade do problema. Para declarar, precisas de emparelhar cada venda com a compra certa pelo método do país (FIFO, preço médio, LIFO…), converter para euros à data de cada operação e separar o curto do longo prazo. O ChainFolioAI faz isso a partir das tuas transações — ligas as carteiras em modo só-leitura ou importas um CSV da exchange — e exporta em PDF ou Excel.",
+      "A taxa é só metade do problema. Para declarar, precisas de emparelhar cada venda com a compra certa pelo método do país (FIFO, preço médio, LIFO…), converter para a moeda do país à data de cada operação e separar o curto do longo prazo. O ChainFolioAI faz isso a partir das tuas transações — ligas as carteiras em modo só-leitura ou importas um CSV da exchange — e exporta em PDF ou Excel.",
     otherCountries: "Outros países",
     disclaimerIndex:
       "⚠️ Este guia é informativo e não constitui aconselhamento fiscal. As regras mudam e a tua situação concreta pode ter particularidades — confirma sempre com um contabilista ou com a autoridade fiscal do teu país antes de declarar.",
@@ -113,11 +113,11 @@ export const GUIDE_COPY: Record<GuideLang, Copy> = {
     countryMetaTitleShort: (n) => `Impostos sobre cripto ${n} (2026)`,
     faqHowMuch: (n) => `Quanto se paga de imposto sobre cripto ${n}?`,
     faqAllowance: (n) => `Há isenção anual sobre mais-valias de cripto ${n}?`,
-    faqAllowanceYes: (l) => `Sim: ${l}.`,
+    faqAllowanceYes: (l) => `Sim: ${l.charAt(0).toLowerCase()}${l.slice(1)}.`,
     faqAllowanceNo: (n) => `Não existe uma isenção anual específica para mais-valias de criptomoedas ${n}.`,
     faqMethod: "Que método de cálculo se usa para emparelhar compras e vendas?",
     faqMethodAnswer:
-      "Depende do país: FIFO (a primeira unidade comprada é a primeira vendida) em Portugal, Espanha, Alemanha ou Bélgica; preço médio ponderado em França, no Luxemburgo ou no Brasil; LIFO em Itália; pool britânico no Reino Unido. O ChainFolioAI aplica o método do país escolhido ao teu histórico e exporta o resultado.",
+      "Depende do país: FIFO (a primeira unidade comprada é a primeira vendida) em Portugal, em Espanha, na Alemanha ou na Bélgica; preço médio ponderado em França, no Luxemburgo ou no Brasil; LIFO em Itália; pool britânico no Reino Unido. O ChainFolioAI aplica o método do país escolhido ao teu histórico (nalguns países com uma simplificação, indicada nesta página) e exporta o resultado.",
   },
   en: {
     locale: "en-GB",
@@ -133,7 +133,7 @@ export const GUIDE_COPY: Record<GuideLang, Copy> = {
     colCountry: "Country",
     colShort: "Short term",
     colLong: "Long term",
-    colThreshold: "Holding period",
+    colThreshold: "Threshold",
     colAllowance: "Annual allowance",
     none: "—",
     howToTitle: "How to work out what you owe",
@@ -145,7 +145,7 @@ export const GUIDE_COPY: Record<GuideLang, Copy> = {
     verifiedOn: (v) => `Rules verified in ${v}.`,
     factShort: "Short term",
     factLong: "Long term",
-    factThreshold: "Holding period",
+    factThreshold: "Threshold",
     factAllowance: "Annual allowance",
     factLaw: "Legislation",
     factMethod: "Cost method",
@@ -168,10 +168,10 @@ export const GUIDE_COPY: Record<GuideLang, Copy> = {
     countryMetaTitleShort: (n) => `Crypto tax ${n} (2026)`,
     faqHowMuch: (n) => `How much tax do you pay on crypto ${n}?`,
     faqAllowance: (n) => `Is there an annual allowance on crypto gains ${n}?`,
-    faqAllowanceYes: (l) => `Yes: ${l}.`,
+    faqAllowanceYes: (l) => `Yes: ${l.charAt(0).toLowerCase()}${l.slice(1)}.`,
     faqAllowanceNo: (n) => `There is no crypto-specific annual allowance on capital gains ${n}.`,
     faqMethod: "Which method is used to match buys and sells?",
     faqMethodAnswer:
-      "It depends on the country: FIFO (the first unit bought is the first sold) in Portugal, Spain, Germany or Belgium; weighted average cost in France, Luxembourg or Brazil; LIFO in Italy; the Section 104 pool in the UK. ChainFolioAI applies the chosen country's method to your history and exports the result.",
+      "It depends on the country: FIFO (the first unit bought is the first sold) in Portugal, Spain, Germany or Belgium; weighted average cost in France, Luxembourg or Brazil; LIFO in Italy; the Section 104 pool in the UK. ChainFolioAI applies the chosen country's method to your history (in some countries with a simplification, stated on this page) and exports the result.",
   },
 };
