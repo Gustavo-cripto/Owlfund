@@ -2003,6 +2003,7 @@ export const fr: Record<TranslationKey, string> = {
     fisc_br_foreign: "Plateforme étrangère",
     fisc_br_local_note: "Calcul mensuel : un mois avec des ventes jusqu'à 35 000 R$ est exonéré ; au-delà, 15 % à 22,5 % sur le gain du mois. Les pertes d'un mois ne passent pas à un autre.",
     fisc_br_foreign_note: "Loi 14.754/2023 : 15 % sur le gain de l'année, sans l'exonération mensuelle de 35 000 R$.",
+    fisc_br_foreign_regime: "Annuel, sans exonération (loi 14.754/2023)",
     fisc_alw_disputed: "{a} : non incluse dans le calcul. L'administration fiscale n'a pas confirmé que cette exonération s'applique aux cryptos ; si elle s'applique à votre cas, l'impôt réel est plus bas.",
     fisc_year_hint_carry: "La calculatrice ne compense les pertes que dans la même année ; dans ce pays les pertes restantes sont reportables, donc si vous en avez, l'impôt réel est plus bas.",
     fisc_year_starts: "L'année fiscale commence le {d}.",

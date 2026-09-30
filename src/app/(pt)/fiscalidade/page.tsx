@@ -514,8 +514,17 @@ export default function FiscalidadePage() {
     : regrasPais?.brMensal && brExterior
       ? pct(regrasPais.brMensal.taxaExterior)
       : escalaAno
-        ? `${pct(escalaAno[0][1])}–${pct(escalaAno[escalaAno.length - 1][1])}`
+        ? `${pct(escalaAno[0][1]).replace("%", "")}–${pct(escalaAno[escalaAno.length - 1][1])}`
         : `${usaTaxaMaxima ? `${t("fisc_up_to")} ` : ""}${pct(regimeAno.short)}`;
+  // Sem prazo de detencao, o cartao ja mostra a taxa a esquerda: a direita
+  // fica so o regime ("isencao se vendas ≤ R$35k/mes", "flat tax / PFU"),
+  // sem repetir a taxa. So se tira quando o que vem antes do parentese e
+  // mesmo uma taxa ("15–22,5%", "até ~27%"); "15% cedular (…)" fica inteiro.
+  const regimeSemTaxa = (() => {
+    const m = regime.longLabel[lang].match(/^([^()]*)\(([^()]*)\)\s*$/);
+    if (!m || !/^[\s~≈\d.,–%/-]*(até|up to|hasta|jusqu'à)?[\s~≈\d.,–%/-]*$/i.test(m[1])) return regime.longLabel[lang];
+    return `${m[2].charAt(0).toUpperCase()}${m[2].slice(1)}`;
+  })();
   const semImpostoNoPais = regime.short === 0 && regime.long === 0;
   const rotuloIsentas = semImpostoNoPais ? t("fisc_exempt_no_tax") : regime.longDays > 0 || regrasPais?.altbestand ? t("fc_exempt_long") : t("fisc_exempt_generic");
 
@@ -938,7 +947,7 @@ export default function FiscalidadePage() {
               // Sem prazo de detencao (FR, IE, IT…) nao ha "curto" nem "longo":
               // uma taxa e o regime. 31,4% nao pode aparecer como 31%.
               { label: regime.longDays > 0 ? rotuloCurto : t("fc_rate_flat"), value: taxaCartao, color: "text-rose-400" },
-              { label: regime.longDays > 0 ? t("fc_long_term") : t("fc_regime"), value: historicoAplicado ? t("fisc_rules_of_year").replace("{y}", rotuloAno(anoAtivo)) : regime.longLabel[lang], color: regime.longDays > 0 ? "text-emerald-400" : "text-slate-200" },
+              { label: regime.longDays > 0 ? t("fc_long_term") : t("fc_regime"), value: historicoAplicado ? t("fisc_rules_of_year").replace("{y}", rotuloAno(anoAtivo)) : regime.longDays > 0 ? regime.longLabel[lang] : regrasPais?.brMensal && brExterior ? t("fisc_br_foreign_regime") : regimeSemTaxa, color: regime.longDays > 0 ? "text-emerald-400" : "text-slate-200" },
               { label: t("fc_method"), value: ressalvaMetodo ? `${metodoCurto} ≈` : metodoCurto, color: ressalvaMetodo ? "text-amber-300" : "text-orange-300" },
               { label: t("fc_base_currency"), value: reportCurrency, color: "text-slate-300" },
             ].map(item => (

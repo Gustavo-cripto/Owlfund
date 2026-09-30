@@ -2003,6 +2003,7 @@ export const en: Record<TranslationKey, string> = {
     fisc_br_foreign: "Foreign exchange",
     fisc_br_local_note: "Monthly assessment: a month with sales up to R$35,000 is exempt; above that, 15% to 22.5% on the month's gain. Losses do not carry from one month to another.",
     fisc_br_foreign_note: "Law 14.754/2023: 15% on the year's gain, without the monthly R$35,000 exemption.",
+    fisc_br_foreign_regime: "Annual, no exemption (Law 14.754/2023)",
     fisc_alw_disputed: "{a}: not included in the calculation. Whether this exemption applies to crypto is not confirmed by the tax authority; if it applies to you, your real tax is lower.",
     fisc_year_hint_carry: "The calculator only offsets losses within the same year; in this country leftover losses carry forward, so if you have any, your real tax is lower.",
     fisc_year_starts: "The tax year starts on {d}.",

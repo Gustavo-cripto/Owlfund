@@ -2003,6 +2003,7 @@ export const es: Record<TranslationKey, string> = {
     fisc_br_foreign: "Exchange extranjero",
     fisc_br_local_note: "Cálculo mensual: un mes con ventas hasta R$35.000 queda exento; por encima, del 15% al 22,5% sobre la ganancia del mes. Las pérdidas de un mes no pasan a otro.",
     fisc_br_foreign_note: "Ley 14.754/2023: 15% sobre la ganancia del año, sin la exención mensual de R$35.000.",
+    fisc_br_foreign_regime: "Anual, sin exención (Ley 14.754/2023)",
     fisc_alw_disputed: "{a}: no entra en el cálculo. La autoridad fiscal no ha confirmado que esta exención se aplique a cripto; si se aplica a tu caso, el impuesto real es menor.",
     fisc_year_hint_carry: "La calculadora solo compensa pérdidas dentro del mismo año; en este país las pérdidas que sobran pasan a años siguientes, así que, si las tienes, el impuesto real es menor.",
     fisc_year_starts: "El año fiscal empieza el {d}.",
