@@ -31,7 +31,7 @@ export default function TaxGuideCountry({ lang, country }: { lang: GuideLang; co
   ];
   // A calculadora aplica o metodo do pais (src/lib/tax/metodos.ts); onde ainda
   // simplifica, a ressalva diz exatamente o que.
-  const ressalva = metodoRessalva(country.costMethod, lang);
+  const ressalva = metodoRessalva(country.costMethod, lang, country.code);
   const notaMetodo = ressalva ? c.methodNote(COST_METHOD_LABEL[country.costMethod][lang], ressalva) : null;
 
   // As perguntas sao escritas UMA vez e servem os dois: o bloco visivel na

@@ -119,8 +119,30 @@ export const COST_METHOD_CAVEAT: Partial<Record<CostMethod, Record<Lang, string>
     fr: "La loi applique le FIFO par plateforme ou portefeuille ; la calculatrice l'applique à l'ensemble, car les transferts entre portefeuilles ne sont pas enregistrés comme opérations.",
   },
 };
-/** Ressalva do método para a língua pedida (null = cálculo exato face à lei). */
-export const metodoRessalva = (m: CostMethod, lang: Lang): string | null => COST_METHOD_CAVEAT[m]?.[lang] ?? null;
+/** Ressalvas que dependem do país e não só do método. */
+export const COUNTRY_CAVEAT: Partial<Record<string, Record<Lang, string>>> = {
+  BE: {
+    pt: "Para ativos comprados antes de 2026 a lei belga usa como custo o valor a 31/12/2025 (só o ganho desde então conta); a calculadora usa o preço real de compra, por isso sobrestima o ganho desses ativos.",
+    en: "For assets bought before 2026, Belgian law uses the value on 31/12/2025 as cost (only the gain since then counts); the calculator uses the real purchase price, so it overstates the gain on those assets.",
+    es: "Para activos comprados antes de 2026 la ley belga usa como coste el valor a 31/12/2025 (solo cuenta la ganancia desde entonces); la calculadora usa el precio real de compra, así que sobreestima la ganancia de esos activos.",
+    fr: "Pour les actifs achetés avant 2026, la loi belge retient comme coût la valeur au 31/12/2025 (seul le gain depuis compte) ; la calculatrice utilise le prix d'achat réel et surestime donc le gain sur ces actifs.",
+  },
+  IE: {
+    pt: "A calculadora aplica a regra das 4 semanas nas compras anteriores à venda, mas não a restrição da perda quando se recompra nas 4 semanas seguintes (essa perda só abate a ganhos dessa recompra).",
+    en: "The calculator applies the 4-week rule to purchases before the sale, but not the loss restriction when you buy back within the following 4 weeks (that loss only offsets gains on that repurchase).",
+    es: "La calculadora aplica la regla de 4 semanas a las compras anteriores a la venta, pero no la restricción de la pérdida cuando se recompra en las 4 semanas siguientes (esa pérdida solo compensa ganancias de esa recompra).",
+    fr: "La calculatrice applique la règle des 4 semaines aux achats antérieurs à la vente, mais pas la restriction de la perte en cas de rachat dans les 4 semaines suivantes (cette perte ne s'impute que sur les gains de ce rachat).",
+  },
+  US: {
+    pt: "Desde 2025 a base de custo é por carteira ou conta; a calculadora aplica o FIFO ao conjunto, porque as transferências entre carteiras não ficam registadas como operações.",
+    en: "Since 2025 cost basis is per wallet or account; the calculator applies FIFO to the whole, because transfers between wallets are not recorded as trades.",
+    es: "Desde 2025 la base de coste es por monedero o cuenta; la calculadora aplica el FIFO al conjunto, porque las transferencias entre monederos no quedan registradas como operaciones.",
+    fr: "Depuis 2025 le prix de revient se calcule par portefeuille ou compte ; la calculatrice applique le FIFO à l'ensemble, car les transferts entre portefeuilles ne sont pas enregistrés comme opérations.",
+  },
+};
+/** Ressalva do método para o país e a língua pedidos (null = cálculo exato face à lei). */
+export const metodoRessalva = (m: CostMethod, lang: Lang, code?: string): string | null =>
+  [COST_METHOD_CAVEAT[m]?.[lang], code ? COUNTRY_CAVEAT[code]?.[lang] : null].filter(Boolean).join(" ") || null;
 
 // Os rótulos vivem aqui e não nas traduções porque andam sempre colados à taxa
 // que está nesta mesma linha: separá-los seria convidar a que um mudasse sem o

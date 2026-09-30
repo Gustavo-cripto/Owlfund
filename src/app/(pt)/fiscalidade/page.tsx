@@ -339,7 +339,7 @@ export default function FiscalidadePage() {
   const costMethod = paisDoRelatorio?.costMethod ?? "fifo";
   const metodoDoPais = COST_METHOD_LABEL[costMethod][lang];
   const metodoCurto = COST_METHOD_SHORT[costMethod];
-  const ressalvaMetodo = metodoRessalva(costMethod, lang);
+  const ressalvaMetodo = metodoRessalva(costMethod, lang, paisDoRelatorio?.code);
   const { currency: reportCurrency, fallback: moedaEmFalta } =
     paisDoRelatorio ? moedaDoRelatorio(paisDoRelatorio) : { currency: "EUR", fallback: false };
   const reportSymbol = CURRENCY_SIGN[reportCurrency] ?? reportCurrency;
@@ -371,7 +371,7 @@ export default function FiscalidadePage() {
   const [fxIncomplete, setFxIncomplete] = useState(false);
 
   // Eventos de mais-valias pelo metodo do pais (motor em src/lib/tax/metodos.ts).
-  const fifoFiscal = useMemo<{ events: TaxEvent[]; soTaxa: StandaloneFee[]; ops: Operacao[] }>(() => {
+  const fifoFiscal = useMemo<{ events: TaxEvent[]; soTaxa: StandaloneFee[]; ops: Operacao[]; unmatched: Record<string, number>; feesNoPreco: number }>(() => {
     let faltou = false;
     const sorted = trades;   // ja vem em ordem canonica de loadTrades().sort(chronoCompare)
     const soTaxa: StandaloneFee[] = [];
@@ -390,16 +390,21 @@ export default function FiscalidadePage() {
       if (preco == null || taxa == null) { faltou = true; continue; }
       ops.push({ type: tr.type, asset: tr.asset, amount: tr.amount, price: preco, fee: taxa, date: tr.date, ...(tr.feeAsset && (tr.feeQty ?? 0) > 0 ? { feeAsset: tr.feeAsset, feeQty: tr.feeQty } : {}) });
     }
-    const events: TaxEvent[] = realizar(ops, costMethod).lotes.map((l) => {
+    const r = realizar(ops, costMethod);
+    // Nos metodos de custo medio a taxa de compra ja esta no preco: `fees` do
+    // lote so tem a de venda, e a parte que entrou na media vem em feesNoPreco
+    // (so para o total "taxas deduzidas" nao ficar por baixo).
+    const events: TaxEvent[] = r.lotes.map((l) => {
       const days = calcDays(l.buyDate, l.sellDate);
       const isLong = days >= regime.longDays && regime.longDays > 0;
       return {
         asset: l.asset, buyDate: l.buyDate, sellDate: l.sellDate, buyPrice: l.buyPrice, sellPrice: l.sellPrice,
-        amount: l.amount, fees: l.fees, gain: l.gain, holding: isLong ? "longo" : "curto", taxRate: isLong ? regime.long : regime.short,
+        amount: l.amount, fees: l.fees + l.feesNoPreco, gain: l.gain, holding: isLong ? "longo" : "curto", taxRate: isLong ? regime.long : regime.short,
       };
     });
     if (faltou !== fxIncomplete) setFxIncomplete(faltou);
-    return { events, soTaxa, ops };
+    const feesNoPreco = r.lotes.reduce((acc, l) => acc + l.feesNoPreco, 0);
+    return { events, soTaxa, ops, unmatched: r.unmatched, feesNoPreco };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trades, regime, toReport, costMethod]);
 
@@ -408,25 +413,10 @@ export default function FiscalidadePage() {
   // automaticamente — o tratamento fiscal varia; mostram-se a parte.
   const standaloneFees = fifoFiscal.soTaxa;
 
-  // Vendas sem lote de compra correspondente — excluídas do FIFO, mas o
-  // utilizador tem de saber (custo de aquisição em falta).
-  const unmatched = useMemo<Record<string, number>>(() => {
-    const um: Record<string, number> = {};
-    const bought: Record<string, number> = {};
-    const sorted = trades;   // ja vem em ordem canonica de loadTrades().sort(chronoCompare)
-    for (const tr of sorted) {
-      if (tr.feeAsset && (tr.feeQty ?? 0) > 0) bought[tr.feeAsset] = Math.max(0, (bought[tr.feeAsset] ?? 0) - (tr.feeQty ?? 0));
-      if (tr.type === "taxa") { bought[tr.asset] = Math.max(0, (bought[tr.asset] ?? 0) - tr.amount); continue; }
-      if (tr.type === "compra") bought[tr.asset] = (bought[tr.asset] ?? 0) + tr.amount;
-      else {
-        const avail = bought[tr.asset] ?? 0;
-        const used = Math.min(avail, tr.amount);
-        bought[tr.asset] = avail - used;
-        if (tr.amount > used) um[tr.asset] = (um[tr.asset] ?? 0) + (tr.amount - used);
-      }
-    }
-    return um;
-  }, [trades]);
+  // Vendas sem lote de compra correspondente (custo de aquisicao em falta):
+  // vem do motor, que sabe do mesmo dia/30 dias do pool britanico. Um calculo
+  // paralelo por saldo contradizia a tabela nesses casos.
+  const unmatched = fifoFiscal.unmatched;
 
   // ── Ano fiscal ────────────────────────────────────────────────────────────
   // Nao se declara "a vida toda": declara-se um ano. E a isencao anual e, como
@@ -437,9 +427,11 @@ export default function FiscalidadePage() {
   // se filtrassem as transacoes, perdiam-se os lotes de compra de anos
   // anteriores e o custo de aquisicao desaparecia.
   const anosDisponiveis = useMemo(() => {
-    const anos = [...new Set(taxEvents.map(anoDoEvento))].sort((a, b) => b - a);
+    // Polonia: um ano so com vendas sem lote continua a ter receitas na base anual.
+    const doAnual = costMethod === "annual" ? resumoAnualPolaco(fifoFiscal.ops).map((a) => a.ano) : [];
+    const anos = [...new Set([...taxEvents.map(anoDoEvento), ...doAnual])].sort((a, b) => b - a);
     return anos;
-  }, [taxEvents]);
+  }, [taxEvents, costMethod, fifoFiscal.ops]);
   const [anoFiscal, setAnoFiscal] = useState<number | null>(null);
   const anoAtivo = anoFiscal ?? anosDisponiveis[0] ?? new Date().getFullYear();
   useEffect(() => {
@@ -466,7 +458,9 @@ export default function FiscalidadePage() {
     const r = anual
       ? resumirImposto([{ gain: anual.base > 0 ? anual.base : anual.receitas - anual.custos - anual.custosTransitados, taxRate: regime.short }], regime)
       : resumirImposto(eventosDoAno, regime);
-    const fees = eventosDoAno.reduce((s, e) => s + e.fees, 0);
+    // Polonia: as taxas deduzidas sao as de TODAS as compras e vendas do ano
+    // (estao dentro da base anual), nao as dos lotes FIFO.
+    const fees = anual ? anual.taxas : eventosDoAno.reduce((s, e) => s + e.fees, 0);
     const standalone = taxasDoAno.reduce((s, f) => s + f.value, 0);
     return { ...r, fees, standalone, anual };
   }, [eventosDoAno, taxasDoAno, regime, costMethod, fifoFiscal.ops, anoAtivo]);

@@ -39,6 +39,23 @@ eq("Pool: 30 dias a seguir (290)", uk.lotes[1].buyPrice, 290);
 eq("Pool: resto ao pool (100)", uk.lotes[2].buyPrice, 100);
 eq("Pool: 1 unid. do pool + 1 de 2026-07 ficam abertas", Object.values(uk.abertos.BTC).reduce((s, l) => s + l.amount, 0), 2);
 
+// Pool com DOIS lotes a precos diferentes: a parte do pool e ao custo MEDIO, nao FIFO (auditoria 30 set).
+const ukMedia = realizar([c("2026-01-01", 1, 100), c("2026-02-01", 1, 300), v("2026-06-01", 1, 400)], "pool");
+eq("Pool: custo medio 200 (nao o lote FIFO a 100)", ukMedia.lotes[0].buyPrice, 200);
+eq("Pool: ganho 200", ukMedia.lotes[0].gain, 200);
+eq("Pool: lote aberto ao custo medio", ukMedia.abertos.BTC[0].price, 200);
+
+// Taxas nos metodos de media: a de compra entra no preco, nao em buyFees, e a
+// parte que entrou vem em feesNoPreco (so para exibicao).
+const pmpFees = realizar([c("2026-01-01", 1, 100, 0), c("2026-02-01", 1, 300, 20), v("2026-06-01", 1, 400, 10)], "wavg");
+eq("PMP taxas: preco medio 210", pmpFees.lotes[0].buyPrice, 210);
+eq("PMP taxas: ganho 400 − 210 − 10", pmpFees.lotes[0].gain, 180);
+eq("PMP taxas: buyFees 0 (ja no preco)", pmpFees.lotes[0].buyFees, 0);
+eq("PMP taxas: feesNoPreco = metade da taxa de compra", pmpFees.lotes[0].feesNoPreco, 10);
+
+// Indice da venda em cada lote (para o grafico por venda).
+eq("FIFO: lotes da venda apontam para a op 3", fifo.lotes.every((l) => l.venda === 3), true);
+
 // Irlanda: compra nos 28 dias antes da venda sai primeiro.
 const ie = realizar([c("2026-01-01", 1, 100), c("2026-05-20", 1, 500), v("2026-06-01", 1, 400)], "fifo_4w");
 eq("4 semanas: lote recente primeiro (500)", ie.lotes[0].buyPrice, 500);
@@ -61,5 +78,9 @@ eq("PL 2025: custos 2000 (as duas compras)", pl[0].custos, 2000);
 eq("PL 2025: base 0", pl[0].base, 0);
 eq("PL 2025: transita 500", pl[0].transita, 500);
 eq("PL 2026: base 1800 − 500", pl[1].base, 1300);
+eq("PL 2025: taxas do ano 0", pl[0].taxas, 0);
+const plTaxa = resumoAnualPolaco([c("2025-03-01", 1, 1000, 5), { type: "taxa", asset: "BTC", amount: 0.1, price: 1000, fee: 0, date: "2025-04-01" }, v("2025-10-01", 1, 1500, 7)]);
+eq("PL: registo so-taxa fica de fora dos custos", plTaxa[0].custos, 1005);
+eq("PL: taxas de compra e venda do ano", plTaxa[0].taxas, 12);
 
 if (fails) { console.log(`\n${fails} FALHA(S)`); process.exit(1); } else console.log("\nTODOS OK");

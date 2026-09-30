@@ -39,6 +39,14 @@ export type LoteRealizado = {
   sellFees: number;
   fees: number;
   gain: number;
+  /**
+   * Nos métodos de custo médio a taxa de compra já está dentro de `buyPrice`
+   * (e `buyFees` é 0, para não contar duas vezes). Fica aqui a parte
+   * proporcional que entrou na média, só para o total "taxas deduzidas".
+   */
+  feesNoPreco: number;
+  /** Índice da operação de venda em `ops` (para agrupar por venda). */
+  venda: number;
 };
 
 export type LoteAberto = { amount: number; price: number; feePerUnit: number; date: string };
@@ -82,9 +90,11 @@ export function realizar(ops: readonly Operacao[], metodo: CostMethod): Resultad
   // compra fica para essas vendas, para não entrar no pool.
   const reservas = fam === "pool" ? reservarPool(ops) : null;
 
-  // Custo médio por ativo (métodos de média): quantidade e custo total (com
-  // taxas). As datas de compra ficam numa fila FIFO só para o prazo de detenção.
-  const media: Record<string, { qty: number; custo: number }> = {};
+  // Custo médio por ativo (métodos de média e a parte "pool" do Reino Unido):
+  // quantidade, custo total (com taxas) e taxas incluídas. As datas de compra
+  // ficam numa fila FIFO só para o prazo de detenção.
+  const usaMedia = fam === "media" || fam === "pool";
+  const media: Record<string, { qty: number; custo: number; taxas: number }> = {};
 
   const consumirSemGanho = (asset: string, qty: number) => {
     let resto = qty;
@@ -94,11 +104,12 @@ export function realizar(ops: readonly Operacao[], metodo: CostMethod): Resultad
       const l = fila[i];
       const usa = Math.min(resto, l.amount);
       l.amount -= usa; resto -= usa;
-      if (fam === "media" && media[asset]) {
+      if (usaMedia && media[asset]) {
         // Sai ao custo médio, para o custo total acompanhar a quantidade.
         const m = media[asset];
         const unit = m.qty > EPS ? m.custo / m.qty : 0;
-        m.qty = Math.max(0, m.qty - usa); m.custo = Math.max(0, m.custo - unit * usa);
+        const tx = m.qty > EPS ? m.taxas / m.qty : 0;
+        m.qty = Math.max(0, m.qty - usa); m.custo = Math.max(0, m.custo - unit * usa); m.taxas = Math.max(0, m.taxas - tx * usa);
       }
       if (l.amount <= EPS) fila.splice(i, 1);
     }
@@ -114,9 +125,9 @@ export function realizar(ops: readonly Operacao[], metodo: CostMethod): Resultad
       const livre = op.amount - reservado;
       if (livre > EPS) {
         (pool[op.asset] ??= []).push({ amount: livre, price: op.price, feePerUnit, date: op.date });
-        if (fam === "media") {
-          const m = (media[op.asset] ??= { qty: 0, custo: 0 });
-          m.qty += livre; m.custo += livre * (op.price + feePerUnit);
+        if (usaMedia) {
+          const m = (media[op.asset] ??= { qty: 0, custo: 0, taxas: 0 });
+          m.qty += livre; m.custo += livre * (op.price + feePerUnit); m.taxas += livre * feePerUnit;
         }
       }
       return;
@@ -124,11 +135,11 @@ export function realizar(ops: readonly Operacao[], metodo: CostMethod): Resultad
 
     // venda
     let resto = op.amount;
-    const registar = (usa: number, buyPrice: number, buyFeePerUnit: number, buyDate: string) => {
+    const registar = (usa: number, buyPrice: number, buyFeePerUnit: number, buyDate: string, feesNoPreco = 0) => {
       const buyFees = usa * buyFeePerUnit;
       const sellFees = usa * feePerUnit;
       const gain = usa * (op.price - buyPrice) - buyFees - sellFees;
-      lotes.push({ asset: op.asset, buyDate, sellDate: op.date, buyPrice, sellPrice: op.price, amount: usa, buyFees, sellFees, fees: buyFees + sellFees, gain });
+      lotes.push({ asset: op.asset, buyDate, sellDate: op.date, buyPrice, sellPrice: op.price, amount: usa, buyFees, sellFees, fees: buyFees + sellFees, gain, feesNoPreco, venda: idx });
     };
 
     if (fam === "pool" && reservas) {
@@ -142,20 +153,21 @@ export function realizar(ops: readonly Operacao[], metodo: CostMethod): Resultad
     }
 
     const fila = pool[op.asset] ?? [];
-    if (fam === "media") {
+    if (usaMedia) {
       const m = media[op.asset];
       const unit = m && m.qty > EPS ? m.custo / m.qty : null;
+      const tx = m && m.qty > EPS ? m.taxas / m.qty : 0;
       // O preço é o médio (taxas de compra já dentro), a data vem da fila FIFO.
       while (resto > EPS && fila.length && unit != null) {
         const l = fila[0];
         const usa = Math.min(resto, l.amount);
-        registar(usa, unit, 0, l.date);
+        registar(usa, unit, 0, l.date, usa * tx);
         l.amount -= usa; resto -= usa;
         if (l.amount <= EPS) fila.shift();
-        m.qty = Math.max(0, m.qty - usa); m.custo = Math.max(0, m.custo - unit * usa);
+        m.qty = Math.max(0, m.qty - usa); m.custo = Math.max(0, m.custo - unit * usa); m.taxas = Math.max(0, m.taxas - tx * usa);
       }
     } else {
-      // FIFO, LIFO, pool (parte média) e FIFO com regra das 4 semanas.
+      // FIFO, LIFO e FIFO com regra das 4 semanas.
       while (resto > EPS && fila.length) {
         const i = escolherLote(fila, fam, op.date);
         const l = fila[i];
@@ -168,8 +180,8 @@ export function realizar(ops: readonly Operacao[], metodo: CostMethod): Resultad
     if (resto > 1e-9) tira(op.asset, resto);
   });
 
-  // Nos métodos de média, os lotes abertos saem ao custo médio corrente.
-  if (fam === "media") {
+  // Nos métodos de média (e no pool), os lotes abertos saem ao custo médio corrente.
+  if (usaMedia) {
     for (const [asset, fila] of Object.entries(pool)) {
       const m = media[asset];
       const unit = m && m.qty > EPS ? m.custo / m.qty : 0;
@@ -245,29 +257,34 @@ export type AnoPolaco = {
   base: number;
   /** Excedente que transita para o ano seguinte. */
   transita: number;
+  /** Taxas de compra e de venda do ano, já dentro de `custos`/`receitas` (só para exibição). */
+  taxas: number;
 };
 
 /**
  * Art. 30b ust. 1a PIT: receitas do ano menos custos documentados do ano; o
  * excedente de custos transita. Não há lotes: uma compra conta no ano em que
- * é paga, mesmo que ainda não tenha sido vendida.
+ * é paga, mesmo que ainda não tenha sido vendida. Os registos "só taxa" (gás
+ * de swaps falhados, etc.) ficam de fora, como nos outros países: a página
+ * mostra-os à parte, por deduzir à mão.
  */
 export function resumoAnualPolaco(ops: readonly Operacao[]): AnoPolaco[] {
-  const porAno = new Map<number, { receitas: number; custos: number }>();
+  const porAno = new Map<number, { receitas: number; custos: number; taxas: number }>();
   for (const op of ops) {
+    if (op.type === "taxa") continue;
     const ano = new Date(op.date).getUTCFullYear();
-    const a = porAno.get(ano) ?? { receitas: 0, custos: 0 };
+    const a = porAno.get(ano) ?? { receitas: 0, custos: 0, taxas: 0 };
     if (op.type === "compra") a.custos += op.amount * op.price + op.fee;
-    else if (op.type === "venda") a.receitas += op.amount * op.price - op.fee;
-    else a.custos += op.amount * op.price; // taxa avulsa: custo do ano
+    else a.receitas += op.amount * op.price - op.fee;
+    a.taxas += op.fee;
     porAno.set(ano, a);
   }
   const anos = [...porAno.keys()].sort((x, y) => x - y);
   let transita = 0;
   return anos.map((ano) => {
-    const { receitas, custos } = porAno.get(ano)!;
+    const { receitas, custos, taxas } = porAno.get(ano)!;
     const saldo = receitas - custos - transita;
-    const linha: AnoPolaco = { ano, receitas, custos, custosTransitados: transita, base: Math.max(0, saldo), transita: Math.max(0, -saldo) };
+    const linha: AnoPolaco = { ano, receitas, custos, custosTransitados: transita, base: Math.max(0, saldo), transita: Math.max(0, -saldo), taxas };
     transita = linha.transita;
     return linha;
   });
