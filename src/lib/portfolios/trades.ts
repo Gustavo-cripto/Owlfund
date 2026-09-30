@@ -260,16 +260,18 @@ export function computeFifo(trades: Trade[], metodo: CostMethod = "fifo"): FifoR
   }
   const r = realizar(ops, metodo);
   const lots: RealizedLot[] = r.lotes.map((l) => ({ ...l }));
+  for (const l of lots) entry(l.asset).realizedPnl += l.gain;
+  // Um ponto por venda (mesmo sem lote emparelhado), como sempre foi: o
+  // grafico do Historico conta com isso.
+  const ganhoPorVenda = new Map<number, number>();
+  for (const l of r.lotes) ganhoPorVenda.set(l.venda, (ganhoPorVenda.get(l.venda) ?? 0) + l.gain);
   const cumulative: FifoResult["cumulative"] = [];
   let running = 0;
-  // Um ponto por venda (data), como antes: os lotes vem por ordem de venda.
-  for (const l of lots) {
-    entry(l.asset).realizedPnl += l.gain;
-    running += l.gain;
-    const ultimo = cumulative[cumulative.length - 1];
-    if (ultimo && ultimo.date === l.sellDate) ultimo.pnl = running;
-    else cumulative.push({ date: l.sellDate, pnl: running });
-  }
+  ops.forEach((op, idx) => {
+    if (op.type !== "venda") return;
+    running += ganhoPorVenda.get(idx) ?? 0;
+    cumulative.push({ date: op.date, pnl: running });
+  });
   for (const [asset, lotsLeft] of Object.entries(r.abertos)) {
     entry(asset).costOpen = lotsLeft.reduce((s, l) => s + l.amount * (l.price + l.feePerUnit), 0);
   }

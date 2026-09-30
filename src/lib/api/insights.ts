@@ -1,9 +1,10 @@
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { computeFifo, parseTrades, type Trade } from "@/lib/portfolios/trades";
+import { chronoCompare, computeFifo, parseTrades, type Trade } from "@/lib/portfolios/trades";
 import { metricas, seriePontos, variacoes, type PnlChange, type SnapRow } from "@/lib/api/pnlMath";
-import { estimarImposto } from "@/lib/api/taxMath";
+import { estimarImposto, resumirImposto } from "@/lib/api/taxMath";
+import { realizar, resumoAnualPolaco, type Operacao } from "@/lib/tax/metodos";
 import { loadFxServer } from "@/lib/api/fxServer";
-import { moedaDoRelatorio, COUNTRIES } from "@/lib/tax/countries";
+import { COST_METHOD_LABEL, COST_METHOD_SHORT, metodoRessalva, moedaDoRelatorio, COUNTRIES } from "@/lib/tax/countries";
 
 // Dois numeros que a app mostra e a API nao dava: a evolucao do portefolio
 // (PNL) e as mais-valias realizadas pelo metodo FIFO.
@@ -201,26 +202,56 @@ export async function getTaxEstimate(userId: string, countryCode: string, year?:
   }
 
   const trades = await tradesDoUtilizador(userId);
-  // Metodo de custo do pais (FIFO, LIFO, preco medio, pool…): o mesmo motor
-  // que a pagina de Fiscalidade. Polonia (soma anual) fica por lotes FIFO na
-  // API — a base anual so existe na pagina.
-  const fifo = computeFifo(trades, pais.costMethod);
-  const lots = year != null
-    ? fifo.lots.filter((l) => new Date(l.sellDate).getUTCFullYear() === year)
-    : fifo.lots;
-
-  // Uma só chamada de câmbios para todas as datas envolvidas.
-  const datas = [...new Set(lots.flatMap((l) => [l.buyDate, l.sellDate]))];
   // Moeda em que o relatório pode mesmo sair: há países cuja moeda o BCE não
   // publica, e nesses o relatório cai para euros COM AVISO, em vez de devolver
   // zero por ter descartado tudo.
   const { currency: moeda, fallback: moedaEmFalta } = moedaDoRelatorio(pais);
-  const fx = await loadFxServer(datas, moeda);
-  const est = estimarImposto(lots, pais.regime, (eur, data) => fx.fromEur(eur, data), year);
+  const ordenadas = trades.filter((t) => !t.deleted).sort(chronoCompare);
+  // Uma só chamada de câmbios para todas as datas envolvidas.
+  const fx = await loadFxServer([...new Set(ordenadas.map((t) => t.date))], moeda);
+
+  // Converter CADA operacao a moeda do relatorio a taxa da SUA data ANTES do
+  // motor (auditoria 30 set 2026): nos metodos de custo medio o preco do lote
+  // e uma mistura de compras em datas diferentes, e convertê-lo depois, a taxa
+  // da primeira data, dava um numero diferente do da pagina. Operacoes sem
+  // cambio ficam de fora e contam-se — nunca um total feito de um pedaco.
+  const ops: Operacao[] = [];
+  let droppedOps = 0;
+  for (const t of ordenadas) {
+    if (t.type === "taxa") {
+      const valor = fx.fromEur(t.totalEur, t.date);
+      if (valor == null) { droppedOps++; continue; }
+      ops.push({ type: "taxa", asset: t.asset, amount: t.quantity, price: t.quantity > 0 ? valor / t.quantity : 0, fee: 0, date: t.date });
+      continue;
+    }
+    const preco = fx.fromEur(t.priceEur, t.date);
+    const taxa = (t.feeEur ?? 0) > 0 ? fx.fromEur(t.feeEur ?? 0, t.date) : 0;
+    if (preco == null || taxa == null) { droppedOps++; continue; }
+    ops.push({ type: t.type, asset: t.asset, amount: t.quantity, price: preco, fee: taxa, date: t.date, ...(t.feeAsset && (t.feeInput ?? 0) > 0 ? { feeAsset: t.feeAsset, feeQty: t.feeInput ?? 0 } : {}) });
+  }
+  const todos = realizar(ops, pais.costMethod).lotes;
+  const lots = year != null ? todos.filter((l) => new Date(l.sellDate).getUTCFullYear() === year) : todos;
+  // Ja esta tudo na moeda do relatorio: o conversor e a identidade.
+  let est = estimarImposto(lots, pais.regime, (v) => v, year);
+  // Polonia: a base do ano e receitas menos TODOS os custos do ano, com o
+  // excedente a transitar (art. 30b ust. 1a PIT) — o mesmo que a pagina faz.
+  const anual = pais.costMethod === "annual" ? resumoAnualPolaco(ops) : null;
+  if (anual) {
+    const anos = year != null ? anual.filter((a) => a.ano === year) : anual;
+    const eventos = anos.map((a) => ({ gain: a.base > 0 ? a.base : a.receitas - a.custos - a.custosTransitados, taxRate: pais.regime.short }));
+    const parciais = eventos.map((e) => resumirImposto([e], pais.regime));
+    const soma = (f: (r: typeof parciais[number]) => number) => Math.round(parciais.reduce((acc, r) => acc + f(r), 0) * 100) / 100;
+    est = { ...est, totalGain: soma((r) => r.totalGain), taxable: soma((r) => r.taxable), exempt: soma((r) => r.exempt), losses: soma((r) => r.losses), deductibleLosses: soma((r) => r.deductibleLosses), lossesApplied: soma((r) => r.lossesApplied), allowanceUsed: soma((r) => r.allowanceUsed), tax: soma((r) => r.tax), fees: Math.round(anos.reduce((acc, a) => acc + a.taxas, 0) * 100) / 100 };
+  } else {
+    // Metodos de custo medio: a taxa de compra ja esta no preco medio; soma-se
+    // a parte que entrou na media para o total "taxas deduzidas" ficar certo.
+    est = { ...est, fees: Math.round((est.fees + lots.reduce((acc, l) => acc + l.feesNoPreco, 0)) * 100) / 100 };
+  }
+  const droppedLots = est.droppedLots + droppedOps;
 
   // Um total calculado sobre um subconjunto é pior do que um erro: se algum
   // lote ficou de fora por falta de câmbio, o imposto vai a null.
-  const parcial = est.droppedLots > 0;
+  const parcial = droppedLots > 0;
 
   return {
     country: pais.code,
@@ -228,6 +259,9 @@ export async function getTaxEstimate(userId: string, countryCode: string, year?:
     ...(moedaEmFalta ? { currencyNote: `Não há taxa de câmbio oficial publicada para ${pais.currency}; os valores saem em EUR.` } : {}),
     year: year ?? null,
     law: pais.law,
+    costMethod: pais.costMethod,
+    costMethodLabel: COST_METHOD_LABEL[pais.costMethod].en,
+    ...(metodoRessalva(pais.costMethod, "en", pais.code) ? { costMethodNote: metodoRessalva(pais.costMethod, "en", pais.code) } : {}),
     rates: { short: pais.regime.short, long: pais.regime.long, longTermAfterDays: pais.regime.longDays },
     allowance: pais.regime.allowance
       ? { amount: pais.regime.allowance.amount, kind: pais.regime.allowance.kind, used: est.allowanceUsed }
@@ -242,9 +276,9 @@ export async function getTaxEstimate(userId: string, countryCode: string, year?:
     feesDeducted: est.fees,
     estimatedTax: parcial ? null : est.tax,
     incompleteFx: fx.incomplete,
-    droppedLots: est.droppedLots,
-    ...(parcial ? { warning: `${est.droppedLots} de ${lots.length} operações ficaram sem taxa de câmbio; o imposto não é calculado sobre parte dos dados.` } : {}),
-    note: "ESTIMATIVA, não uma declaração. Método FIFO; cada compra e cada venda convertida à taxa do BCE da sua data; taxa de longo prazo aplicada conforme os dias de detenção; menos-valias abatidas às mais-valias do MESMO ano e do mesmo escalão de taxa (uma perda num ativo isento não é dedutível); isenção anual do país aplicada por fim, ao saldo já compensado. Não cobre situações pessoais (residência parcial, englobamento, deduções próprias). Confirme com um contabilista.",
+    droppedLots,
+    ...(parcial ? { warning: `${droppedLots} de ${ops.length + droppedOps} operações ficaram sem taxa de câmbio; o imposto não é calculado sobre parte dos dados.` } : {}),
+    note: `ESTIMATIVA, não uma declaração. Método de custo do país: ${COST_METHOD_SHORT[pais.costMethod]} (${COST_METHOD_LABEL[pais.costMethod].en}); cada compra e cada venda convertida à taxa do BCE da sua data; taxa de longo prazo aplicada conforme os dias de detenção; menos-valias abatidas às mais-valias do MESMO ano e do mesmo escalão de taxa (uma perda num ativo isento não é dedutível); isenção anual do país aplicada por fim, ao saldo já compensado. Não cobre situações pessoais (residência parcial, englobamento, deduções próprias). Confirme com um contabilista.`,
   };
 }
 
