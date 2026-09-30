@@ -101,10 +101,15 @@ export function classificarLote(
   pais: Pick<Country, "regime" | "regras">,
   lote: { asset: string; buyDate: string; sellDate: string },
   tp?: TaxaPessoal,
+  /** A escolha "onde estão as moedas" está na opção alternativa (ver RegrasPais.alternativa). */
+  alternativa?: boolean,
 ): { longo: boolean; taxa: number } {
   const r = comTaxaPessoal(pais, regimeNaData(pais, lote.sellDate), tp);
   const longo = eLongoPrazo(pais, lote.buyDate, lote.sellDate);
   if (r.semImposto) return { longo, taxa: 0 };
+  const a = alternativa ? pais.regras?.alternativa : undefined;
+  if (a?.taxa != null) return { longo, taxa: a.taxa };
+  if (a?.semIsencaoPrazo) return { longo, taxa: r.short };
   const alt = pais.regras?.altbestand;
   if (alt && lote.buyDate < alt.antes && lote.sellDate > somarMeses(lote.buyDate, 12)) return { longo: true, taxa: 0 };
   const ta = pais.regras?.taxaAtivos;
@@ -155,8 +160,11 @@ export type EventoFiscal = {
 };
 
 export type OpcoesResumo = {
-  /** Brasil: moedas em exchanges estrangeiras (Lei 14.754/2023: 15%, anual, sem isenção). */
-  brExterior?: boolean;
+  /**
+   * A opção alternativa de "onde estão as moedas" (RegrasPais.alternativa):
+   * BR exchange estrangeira, PT contraparte sem convenção, AR venda em pesos.
+   */
+  alternativa?: boolean;
   /** Taxa marginal escrita pela pessoa (onde a lei a faz depender do rendimento). */
   taxaPessoal?: TaxaPessoal;
 };
@@ -177,7 +185,7 @@ export function resumirPais(pais: Pick<Country, "code" | "regime" | "regras">, e
   // Brasil: apuração MENSAL; isento o mês cujas vendas não passem de R$35.000;
   // perdas não passam de um mês para outro. No exterior, 15% anual sem isenção.
   if (regras?.brMensal) {
-    if (opcoes.brExterior) {
+    if (opcoes.alternativa) {
       return resumirImposto(eventos.map((e) => ({ gain: e.gain, taxRate: regras.brMensal!.taxaExterior })), { short: regras.brMensal.taxaExterior, long: regras.brMensal.taxaExterior, longDays: 0 });
     }
     const porMes = new Map<string, EventoFiscal[]>();
@@ -242,7 +250,7 @@ export function estimarImpostoPais(
   opcoes: OpcoesResumo = {},
 ): TaxEstimate & { anos: number[] } {
   const eventos = lotes.map((l) => {
-    const c = classificarLote(pais, l, opcoes.taxaPessoal);
+    const c = classificarLote(pais, l, opcoes.taxaPessoal, opcoes.alternativa);
     return {
       asset: l.asset, buyDate: l.buyDate, sellDate: l.sellDate, amount: l.amount,
       gain: l.gain, holdingDays: diasEntre(l.buyDate, l.sellDate), longTerm: c.longo, taxRate: c.taxa,

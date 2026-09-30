@@ -84,6 +84,16 @@ export type RegrasPais = {
   altbestand?: { antes: string };
   /** Taxa própria para alguns ativos (IT: e-money tokens em euro a 26%). */
   taxaAtivos?: { simbolos: string[]; taxa: number; desde?: string };
+  /**
+   * Onde estão as moedas (ou em que moeda se vendeu) muda o imposto: a página
+   * mostra uma escolha. BR: exchange estrangeira (Lei 14.754, via brMensal);
+   * PT: contraparte fora da UE/EEE e sem convenção (art. 10.º n.º 24: sem
+   * isenção dos 365 dias e trocas tributadas); AR: venda em pesos sem cláusula
+   * de ajuste (5%); AT: plataforma austríaca (imposto já retido; só texto).
+   */
+  alternativa?: { id: "br" | "pt" | "ar" | "at"; taxa?: number; semIsencaoPrazo?: boolean; trocasTributadas?: boolean };
+  /** Corretora no estrangeiro obriga a uma declaração extra, sem mudar o imposto (ES, FR, US, IT). */
+  notaExterior?: boolean;
   /** Regras de anos anteriores: aplicam-se a vendas ANTES de `ate`. */
   historico?: Array<{ ate: string; short?: number; long?: number; allowance?: Allowance | null; escaloes?: Escalao[]; semImposto?: boolean }>;
 };
@@ -248,17 +258,17 @@ const alwHist = (amount: number, kind: Allowance["kind"], pt: string, en: string
 const INF = Number.POSITIVE_INFINITY;
 
 const REGRAS: Record<string, RegrasPais> = {
-  PT: { prazo: { tipo: "dias", n: 365 }, permutaNeutra: true, historico: [{ ate: "2023-01-01", semImposto: true }] },
+  PT: { prazo: { tipo: "dias", n: 365 }, permutaNeutra: true, alternativa: { id: "pt", semIsencaoPrazo: true, trocasTributadas: true }, historico: [{ ate: "2023-01-01", semImposto: true }] },
   ES: {
     escaloes: [[6000, 0.19], [50000, 0.21], [200000, 0.23], [300000, 0.27], [INF, 0.30]],
-    perdasTransitam: true,
+    perdasTransitam: true, notaExterior: true,
     historico: [
       { ate: "2025-01-01", escaloes: [[6000, 0.19], [50000, 0.21], [200000, 0.23], [300000, 0.27], [INF, 0.28]] },
       { ate: "2023-01-01", escaloes: [[6000, 0.19], [50000, 0.21], [200000, 0.23], [INF, 0.26]] },
     ],
   },
   // A subida da CSG (LFSS 2026) já se aplica aos ganhos de 2025 (revenus du patrimoine).
-  FR: { isencaoVendas: 305, historico: [{ ate: "2025-01-01", short: 0.30, long: 0.30 }] },
+  FR: { isencaoVendas: 305, notaExterior: true, historico: [{ ate: "2025-01-01", short: 0.30, long: 0.30 }] },
   DE: {
     prazo: { tipo: "meses", n: 12 }, taxaMarginal: { longo: "fixo" }, perdasTransitam: true,
     historico: [{ ate: "2024-01-01", allowance: alwHist(600, "threshold", "Freigrenze €600/ano (até 2023)", "Freigrenze €600/year (until 2023)", "Freigrenze 600 €/año (hasta 2023)", "Freigrenze 600 €/an (jusqu'en 2023)") }],
@@ -272,22 +282,24 @@ const REGRAS: Record<string, RegrasPais> = {
     ],
   },
   IT: {
+    notaExterior: true,
     taxaAtivos: { simbolos: ["EURC", "EURCV", "EURI", "EURQ", "EURR", "EURE", "EURAU"], taxa: 0.26, desde: "2026-01-01" },
     historico: [
       { ate: "2026-01-01", short: 0.26, long: 0.26 },
       { ate: "2025-01-01", allowance: alwHist(2000, "threshold", "Limiar €2.000/ano (até 2024)", "€2,000/year threshold (until 2024)", "Umbral 2.000 €/año (hasta 2024)", "Seuil 2 000 €/an (jusqu'en 2024)") },
     ],
   },
-  BR: { brMensal: { isencaoVendasMes: 35000, escaloes: [[5_000_000, 0.15], [10_000_000, 0.175], [30_000_000, 0.20], [INF, 0.225]], taxaExterior: 0.15 } },
+  BR: { alternativa: { id: "br" }, brMensal: { isencaoVendasMes: 35000, escaloes: [[5_000_000, 0.15], [10_000_000, 0.175], [30_000_000, 0.20], [INF, 0.225]], taxaExterior: 0.15 } },
   BE: { historico: [{ ate: "2026-01-01", semImposto: true }] },
   IE: { perdasTransitam: true },
-  AT: { permutaNeutra: true, altbestand: { antes: "2021-03-01" } },
+  AT: { permutaNeutra: true, alternativa: { id: "at" }, altbestand: { antes: "2021-03-01" } },
   PL: { permutaNeutra: true },
   LU: { prazo: { tipo: "meses", n: 6 }, taxaMarginal: { longo: "fixo" } },
-  US: { prazo: { tipo: "meses", n: 12 }, ordemPerdasUS: true, taxaMarginal: { longo: "separado" }, perdasTransitam: true },
+  US: { prazo: { tipo: "meses", n: 12 }, ordemPerdasUS: true, notaExterior: true, taxaMarginal: { longo: "separado" }, perdasTransitam: true },
   CA: { taxaMarginal: { longo: "igual" }, perdasTransitam: true },
   AU: { prazo: { tipo: "meses", n: 12 }, anoFiscalInicio: "07-01", taxaMarginal: { longo: "metade" }, perdasTransitam: true },
   MX: { taxaMarginal: { longo: "igual" } },
+  AR: { alternativa: { id: "ar", taxa: 0.05 } },
 };
 
 // Ordem: os 4 do plano gratuito primeiro, depois Pro, depois Premium — a mesma

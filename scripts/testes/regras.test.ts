@@ -26,7 +26,7 @@ eq("ES 2024 (escalão de topo 28%): 400.000 → 99.880", imposto("ES", [lote("20
 eq("BR venda R$34.000, ganho 4.000 → 0", imposto("BR", [lote("2025-01-10", "2026-03-10", 30000, 34000)], 2026), 0);
 eq("BR duas vendas de R$30.000 em meses diferentes → 0", imposto("BR", [lote("2025-01-10", "2026-03-10", 25000, 30000), lote("2025-01-10", "2026-05-10", 25000, 30000)], 2026), 0);
 eq("BR +10k em março e −10k em novembro → 1.500", imposto("BR", [lote("2025-01-10", "2026-03-10", 40000, 50000), lote("2025-01-10", "2026-11-10", 50000, 40000)], 2026), 1500);
-eq("BR exterior: 15% anual sem isenção (venda de 34.000, ganho 4.000) → 600", imposto("BR", [lote("2025-01-10", "2026-03-10", 30000, 34000)], 2026, { brExterior: true }), 600);
+eq("BR exterior: 15% anual sem isenção (venda de 34.000, ganho 4.000) → 600", imposto("BR", [lote("2025-01-10", "2026-03-10", 30000, 34000)], 2026, { alternativa: true }), 600);
 
 // 3. Ano fiscal britânico e australiano.
 eq("GB 10 fev 2026 é do ano fiscal 2025/26", rotuloAnoFiscal(P("GB"), anoFiscalDe(P("GB"), "2026-02-10")), "2025/26");
@@ -84,6 +84,12 @@ eq("FR vendas de €400 com ganho 100 → 31,40", imposto("FR", [lote("2026-01-1
 // 12. EUA: perdas compensam dentro da categoria primeiro.
 const us = [lote("2026-01-10", "2026-06-10", 0, 10000), lote("2024-01-10", "2026-06-10", 0, 10000), lote("2024-01-10", "2026-06-10", 10000, 5000)];
 eq("US curto +10k, longo +10k, longo −5k (37%/20%) → 4.700", imposto("US", us, 2026, { taxaPessoal: { curto: 0.37, longo: 0.20 } }), 4700);
+
+// Onde estão as moedas: Portugal sem convenção e Argentina em pesos.
+eq("PT detido 400 dias, corretora na UE → isento", imposto("PT", [lote("2025-01-10", "2026-02-14", 20000, 30000)], 2026), 0);
+eq("PT detido 400 dias, contraparte sem convenção → 28%", imposto("PT", [lote("2025-01-10", "2026-02-14", 20000, 30000)], 2026, { alternativa: true }), 2800);
+eq("AR em moeda estrangeira → 15%", imposto("AR", [lote("2025-01-10", "2026-03-10", 20000, 30000)], 2026), 1500);
+eq("AR em pesos sem ajuste → 5%", imposto("AR", [lote("2025-01-10", "2026-03-10", 20000, 30000)], 2026, { alternativa: true }), 500);
 
 // 13. México: isenção disputada não entra na conta.
 eq("MX ganho MX$100k → 35% (sem a isenção disputada)", imposto("MX", [lote("2025-01-10", "2026-03-10", 0, 100000)], 2026), 35000);
