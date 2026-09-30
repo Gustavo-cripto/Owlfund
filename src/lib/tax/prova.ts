@@ -270,7 +270,7 @@ export const PROVA_DETENCAO: Partial<Record<string, Record<GuideLang, ProvaDeten
         {
           titulo: "Compras regulares e está tudo misturado",
           texto:
-            "Com compras espaçadas, cada lote tem a sua própria data e a linha dos seis meses corta a posição ao meio. Ordena as compras por data: o que tiver mais de seis meses no dia da venda fica fora do imposto; o que tiver seis meses ou menos é especulativo. A mesma venda pode ter as duas partes. Atenção ao custo de aquisição: a circular de 2018 manda usar o preço médio ponderado quando as unidades não são identificáveis, e exclui FIFO e LIFO. O ChainFolioAI calcula por FIFO: usa-o para saber que quantidade já passou os seis meses, e confirma o custo a declarar com o contabilista.",
+            "Com compras espaçadas, cada lote tem a sua própria data e a linha dos seis meses corta a posição ao meio. Ordena as compras por data: o que tiver mais de seis meses no dia da venda fica fora do imposto; o que tiver seis meses ou menos é especulativo. A mesma venda pode ter as duas partes. Atenção ao custo de aquisição: a circular de 2018 manda usar o preço médio ponderado quando as unidades não são identificáveis, e exclui FIFO e LIFO. O ChainFolioAI aplica o preço médio ao custo e usa a ordem das compras só para saber que quantidade já passou os seis meses; confirma o valor a declarar com o contabilista.",
         },
         {
           titulo: "A plataforma fechou ou não dá o histórico",
@@ -285,7 +285,7 @@ export const PROVA_DETENCAO: Partial<Record<string, Record<GuideLang, ProvaDeten
         {
           titulo: "O que o ChainFolioAI faz",
           texto:
-            "Regista cada compra e cada troca com data, quantidade e valor e mostra, por cada venda, quantos dias cada lote esteve detido e se ficou dentro ou fora dos seis meses. O cálculo do ganho é por FIFO, uma aproximação ao preço médio ponderado que a circular exige; exportas em PDF ou Excel para o contabilista fechar o valor a declarar no modelo 100.",
+            "Regista cada compra e cada troca com data, quantidade e valor e mostra, por cada venda, quantos dias cada lote esteve detido e se ficou dentro ou fora dos seis meses. O ganho calcula-se pelo preço médio ponderado, como a circular exige, com a ordem das compras a decidir o que já passou os seis meses; exportas em PDF ou Excel para o contabilista fechar o valor a declarar no modelo 100.",
         },
       ],
       faqs: [
@@ -323,7 +323,7 @@ export const PROVA_DETENCAO: Partial<Record<string, Record<GuideLang, ProvaDeten
         {
           titulo: "Regular buys and everything is mixed up",
           texto:
-            "With spaced-out purchases, each lot has its own date and the six-month line cuts the position in two. Sort purchases by date: whatever is more than six months old on the day of sale falls outside the tax; whatever is six months or less is speculative. One sale can have both parts. Mind the acquisition cost: the 2018 circular requires the weighted average price when units cannot be identified, and excludes FIFO and LIFO. ChainFolioAI computes by FIFO: use it to see how much has passed six months, and confirm the cost to declare with your accountant.",
+            "With spaced-out purchases, each lot has its own date and the six-month line cuts the position in two. Sort purchases by date: whatever is more than six months old on the day of sale falls outside the tax; whatever is six months or less is speculative. One sale can have both parts. Mind the acquisition cost: the 2018 circular requires the weighted average price when units cannot be identified, and excludes FIFO and LIFO. ChainFolioAI applies the average price to the cost and uses the order of purchases only to tell how much has passed six months; confirm the figure to declare with your accountant.",
         },
         {
           titulo: "The platform closed or will not give you the history",
@@ -338,7 +338,7 @@ export const PROVA_DETENCAO: Partial<Record<string, Record<GuideLang, ProvaDeten
         {
           titulo: "What ChainFolioAI does",
           texto:
-            "It records every purchase and swap with date, amount and value and shows, for each sale, how many days each lot was held and whether it fell inside or outside six months. The gain is computed by FIFO, an approximation to the weighted average the circular requires; you export to PDF or Excel so your accountant can settle the figure to declare on form 100.",
+            "It records every purchase and swap with date, amount and value and shows, for each sale, how many days each lot was held and whether it fell inside or outside six months. The gain is computed at the weighted average price, as the circular requires, with the order of purchases deciding what has passed six months; you export to PDF or Excel so your accountant can settle the figure to declare on form 100.",
         },
       ],
       faqs: [

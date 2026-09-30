@@ -36,8 +36,8 @@ type Copy = {
   factAllowance: string;
   factLaw: string;
   factMethod: string;
-  /** Mostrado quando a calculadora (FIFO) nao coincide com o metodo do pais. */
-  methodNote: (method: string) => string;
+  /** Mostrado quando o motor ainda simplifica face ao metodo do pais. */
+  methodNote: (method: string, caveat: string) => string;
   notApplicable: string;
   summaryTitle: string;
   faqTitle: string;
@@ -79,7 +79,7 @@ export const GUIDE_COPY: Record<GuideLang, Copy> = {
     none: "—",
     howToTitle: "Como calcular o que deves",
     howToBody:
-      "Saber a taxa é a parte fácil. O trabalho está em emparelhar cada venda com a compra correspondente pelo método FIFO, converter tudo para a tua moeda à data de cada operação e separar o que caiu no curto prazo do que já passou o limiar. O ChainFolioAI faz esse cálculo a partir do teu histórico e exporta o resultado em PDF ou Excel para levares ao contabilista.",
+      "Saber a taxa é a parte fácil. O trabalho está em emparelhar cada venda com a compra correspondente pelo método que o país exige (FIFO na maioria, preço médio ou LIFO noutros), converter tudo para a tua moeda à data de cada operação e separar o que caiu no curto prazo do que já passou o limiar. O ChainFolioAI faz esse cálculo a partir do teu histórico e exporta o resultado em PDF ou Excel para levares ao contabilista.",
     ctaBeta: "Entrar no beta — Premium grátis 60 dias",
     ctaHow: "Ver como funciona",
     ctaCompare: "Comparar os 21 países",
@@ -90,14 +90,14 @@ export const GUIDE_COPY: Record<GuideLang, Copy> = {
     factAllowance: "Isenção anual",
     factLaw: "Legislação",
     factMethod: "Método de custo",
-    methodNote: (m) => `Neste país o custo de aquisição calcula-se por ${m}. A calculadora do ChainFolioAI aplica FIFO, por isso o resultado é uma aproximação: serve para organizar o histórico e estimar, e o valor a declarar deve ser confirmado com um contabilista.`,
+    methodNote: (m, caveat) => `A calculadora do ChainFolioAI aplica o método deste país (${m}). ${caveat} Confirma o valor a declarar com um contabilista.`,
     notApplicable: "Não aplicável",
     summaryTitle: "Em resumo",
     faqTitle: "Perguntas frequentes",
     keyPointsTitle: "Pontos a reter",
     calcTitle: "Calcular sobre o teu histórico",
     calcBody:
-      "A taxa é só metade do problema. Para declarar, precisas de emparelhar cada venda com a compra certa por FIFO, converter para euros à data de cada operação e separar o curto do longo prazo. O ChainFolioAI faz isso a partir das tuas transações — ligas as carteiras em modo só-leitura ou importas um CSV da exchange — e exporta em PDF ou Excel.",
+      "A taxa é só metade do problema. Para declarar, precisas de emparelhar cada venda com a compra certa pelo método do país (FIFO, preço médio, LIFO…), converter para euros à data de cada operação e separar o curto do longo prazo. O ChainFolioAI faz isso a partir das tuas transações — ligas as carteiras em modo só-leitura ou importas um CSV da exchange — e exporta em PDF ou Excel.",
     otherCountries: "Outros países",
     disclaimerIndex:
       "⚠️ Este guia é informativo e não constitui aconselhamento fiscal. As regras mudam e a tua situação concreta pode ter particularidades — confirma sempre com um contabilista ou com a autoridade fiscal do teu país antes de declarar.",
@@ -116,7 +116,7 @@ export const GUIDE_COPY: Record<GuideLang, Copy> = {
     faqAllowanceNo: (n) => `Não existe uma isenção anual específica para mais-valias de criptomoedas em ${n}.`,
     faqMethod: "Que método de cálculo se usa para emparelhar compras e vendas?",
     faqMethodAnswer:
-      "FIFO (first in, first out) é o método por defeito na generalidade das jurisdições: a primeira unidade comprada é a primeira a ser considerada vendida. O ChainFolioAI aplica FIFO ao teu histórico e exporta o resultado.",
+      "Depende do país: FIFO (a primeira unidade comprada é a primeira vendida) em Portugal, Espanha, Alemanha ou Bélgica; preço médio ponderado em França, no Luxemburgo ou no Brasil; LIFO em Itália; pool britânico no Reino Unido. O ChainFolioAI aplica o método do país escolhido ao teu histórico e exporta o resultado.",
   },
   en: {
     locale: "en-GB",
@@ -137,7 +137,7 @@ export const GUIDE_COPY: Record<GuideLang, Copy> = {
     none: "—",
     howToTitle: "How to work out what you owe",
     howToBody:
-      "Knowing the rate is the easy part. The work is matching each disposal to the right acquisition under FIFO, converting everything to your currency at the date of each transaction, and separating short-term gains from those past the holding threshold. ChainFolioAI does that from your transaction history and exports the result as PDF or Excel for your accountant.",
+      "Knowing the rate is the easy part. The work is matching each disposal to the right acquisition under the method the country requires (FIFO in most, average cost or LIFO in others), converting everything to your currency at the date of each transaction, and separating short-term gains from those past the holding threshold. ChainFolioAI does that from your transaction history and exports the result as PDF or Excel for your accountant.",
     ctaBeta: "Join the beta — Premium free for 60 days",
     ctaHow: "See how it works",
     ctaCompare: "Compare all 21 countries",
@@ -148,14 +148,14 @@ export const GUIDE_COPY: Record<GuideLang, Copy> = {
     factAllowance: "Annual allowance",
     factLaw: "Legislation",
     factMethod: "Cost method",
-    methodNote: (m) => `In this country the acquisition cost is computed by ${m}. The ChainFolioAI calculator applies FIFO, so the result is an approximation: it helps organise the history and estimate, and the figure to declare should be confirmed with an accountant.`,
+    methodNote: (m, caveat) => `The ChainFolioAI calculator applies this country's method (${m}). ${caveat} Confirm the figure to declare with an accountant.`,
     notApplicable: "Not applicable",
     summaryTitle: "In short",
     faqTitle: "Frequently asked questions",
     keyPointsTitle: "Key points",
     calcTitle: "Calculate on your own history",
     calcBody:
-      "The rate is only half the problem. To file, you need to match each disposal to the right acquisition under FIFO, convert to your currency at the date of each transaction, and separate short-term from long-term. ChainFolioAI does this from your transactions — connect wallets read-only or import a CSV from your exchange — and exports to PDF or Excel.",
+      "The rate is only half the problem. To file, you need to match each disposal to the right acquisition under the country's method (FIFO, average cost, LIFO…), convert to your currency at the date of each transaction, and separate short-term from long-term. ChainFolioAI does this from your transactions — connect wallets read-only or import a CSV from your exchange — and exports to PDF or Excel.",
     otherCountries: "Other countries",
     disclaimerIndex:
       "⚠️ This guide is informational and is not tax advice. Rules change and your situation may have specifics — always confirm with an accountant or your national tax authority before filing.",
@@ -171,6 +171,6 @@ export const GUIDE_COPY: Record<GuideLang, Copy> = {
     faqAllowanceNo: (n) => `There is no crypto-specific annual allowance on capital gains in ${n}.`,
     faqMethod: "Which method is used to match buys and sells?",
     faqMethodAnswer:
-      "FIFO (first in, first out) is the default in most jurisdictions: the first unit bought is the first treated as sold. ChainFolioAI applies FIFO to your history and exports the result.",
+      "It depends on the country: FIFO (the first unit bought is the first sold) in Portugal, Spain, Germany or Belgium; weighted average cost in France, Luxembourg or Brazil; LIFO in Italy; the Section 104 pool in the UK. ChainFolioAI applies the chosen country's method to your history and exports the result.",
   },
 };
