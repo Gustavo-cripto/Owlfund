@@ -35,6 +35,9 @@ type Copy = {
   factThreshold: string;
   factAllowance: string;
   factLaw: string;
+  factMethod: string;
+  /** Mostrado quando a calculadora (FIFO) nao coincide com o metodo do pais. */
+  methodNote: (method: string) => string;
   notApplicable: string;
   summaryTitle: string;
   faqTitle: string;
@@ -86,6 +89,8 @@ export const GUIDE_COPY: Record<GuideLang, Copy> = {
     factThreshold: "Limiar de detenção",
     factAllowance: "Isenção anual",
     factLaw: "Legislação",
+    factMethod: "Método de custo",
+    methodNote: (m) => `Neste país o custo de aquisição calcula-se por ${m}. A calculadora do ChainFolioAI aplica FIFO, por isso o resultado é uma aproximação: serve para organizar o histórico e estimar, e o valor a declarar deve ser confirmado com um contabilista.`,
     notApplicable: "Não aplicável",
     summaryTitle: "Em resumo",
     faqTitle: "Perguntas frequentes",
@@ -142,6 +147,8 @@ export const GUIDE_COPY: Record<GuideLang, Copy> = {
     factThreshold: "Holding period",
     factAllowance: "Annual allowance",
     factLaw: "Legislation",
+    factMethod: "Cost method",
+    methodNote: (m) => `In this country the acquisition cost is computed by ${m}. The ChainFolioAI calculator applies FIFO, so the result is an approximation: it helps organise the history and estimate, and the figure to declare should be confirmed with an accountant.`,
     notApplicable: "Not applicable",
     summaryTitle: "In short",
     faqTitle: "Frequently asked questions",

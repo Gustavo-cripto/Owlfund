@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Segmentos from "@/components/ui/Segmentos";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { COUNTRIES, TAX_REGIMES, guideUrl, moedaDoRelatorio } from "@/lib/tax/countries";
+import { COST_METHOD_LABEL, COUNTRIES, TAX_REGIMES, fifoExato, guideUrl, moedaDoRelatorio } from "@/lib/tax/countries";
 import { loadFxTable, type FxTable } from "@/lib/fx/historical";
 import { CURRENCY_SIGN } from "@/lib/currency/symbols";
 import { btnPrimary } from "@/lib/ui/buttons";
@@ -333,6 +333,10 @@ export default function FiscalidadePage() {
   // Ha paises cuja moeda o BCE nao publica (AED, ARS): nesses o relatorio sai
   // em euros COM AVISO, em vez de descartar tudo e mostrar zero.
   const paisDoRelatorio = COUNTRIES.find((c) => c.code === country);
+  // Metodo de custo que o pais exige (verificado set 2026). A calculadora e
+  // FIFO; onde o pais manda outro metodo, o cartao diz "aproximação".
+  const metodoDoPais = paisDoRelatorio ? COST_METHOD_LABEL[paisDoRelatorio.costMethod][lang] : "FIFO";
+  const fifoAproximado = paisDoRelatorio ? !fifoExato(paisDoRelatorio.costMethod) : false;
   const { currency: reportCurrency, fallback: moedaEmFalta } =
     paisDoRelatorio ? moedaDoRelatorio(paisDoRelatorio) : { currency: "EUR", fallback: false };
   const reportSymbol = CURRENCY_SIGN[reportCurrency] ?? reportCurrency;
@@ -917,7 +921,7 @@ export default function FiscalidadePage() {
             {[
               { label: t("fc_short_1y"), value: `${(regime.short * 100).toFixed(0)}%`, color: "text-rose-400" },
               { label: t("fc_long_term"), value: regime.longLabel[lang], color: "text-emerald-400" },
-              { label: t("fc_method"), value: "FIFO", color: "text-orange-300" },
+              { label: t("fc_method"), value: fifoAproximado ? `FIFO ≈` : "FIFO", color: fifoAproximado ? "text-amber-300" : "text-orange-300" },
               { label: t("fc_base_currency"), value: reportCurrency, color: "text-slate-300" },
             ].map(item => (
               <div key={item.label} className="text-center">
@@ -926,6 +930,11 @@ export default function FiscalidadePage() {
               </div>
             ))}
           </div>
+          {fifoAproximado && (
+            <p className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs leading-relaxed text-amber-100/80">
+              {t("fisc_method_note").replace("{m}", metodoDoPais)}
+            </p>
+          )}
 
           {/* Adicionar transação */}
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6">

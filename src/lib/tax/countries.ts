@@ -60,20 +60,44 @@ export type Country = {
   /** Plano mínimo para ver o país DENTRO da app (os guias públicos são livres). */
   plan: Plan;
   regime: TaxRegime;
+  /**
+   * Método de custo de aquisição que a lei do país exige. A calculadora aplica
+   * SEMPRE FIFO; onde o método é outro, o guia e a página dizem que o resultado
+   * é uma aproximação. Verificado em fontes de 2026 (30 set 2026).
+   */
+  costMethod: CostMethod;
 };
+
+export type CostMethod = "fifo" | "fifo_wallet" | "fifo_4w" | "wavg" | "avg_moving" | "acb" | "lifo" | "pool" | "annual" | "spec_id" | "none";
+/** Rótulos do método, nas 4 línguas. */
+export const COST_METHOD_LABEL: Record<CostMethod, Record<Lang, string>> = {
+  fifo:        { pt: "FIFO", en: "FIFO", es: "FIFO", fr: "FIFO" },
+  fifo_wallet: { pt: "FIFO, por carteira/corretora", en: "FIFO, per wallet/exchange", es: "FIFO, por monedero/exchange", fr: "FIFO, par portefeuille/plateforme" },
+  fifo_4w:     { pt: "FIFO com regra das 4 semanas", en: "FIFO with the 4-week rule", es: "FIFO con la regla de 4 semanas", fr: "FIFO avec la règle des 4 semaines" },
+  wavg:        { pt: "Preço médio ponderado (FIFO não aceite)", en: "Weighted average cost (FIFO not accepted)", es: "Precio medio ponderado (FIFO no aceptado)", fr: "Prix moyen pondéré (FIFO non accepté)" },
+  avg_moving:  { pt: "Custo médio móvel, por carteira (FIFO não aceite)", en: "Moving average cost, per wallet (FIFO not accepted)", es: "Coste medio móvil, por monedero (FIFO no aceptado)", fr: "Coût moyen mobile, par portefeuille (FIFO non accepté)" },
+  acb:         { pt: "Custo médio ajustado (ACB); FIFO não aceite", en: "Adjusted cost base (ACB); FIFO not accepted", es: "Coste medio ajustado (ACB); FIFO no aceptado", fr: "Prix de base rajusté (PBR) ; FIFO non accepté" },
+  lifo:        { pt: "LIFO (obrigatório)", en: "LIFO (mandatory)", es: "LIFO (obligatorio)", fr: "LIFO (obligatoire)" },
+  pool:        { pt: "Section 104 pool (custo médio) + regras same-day e 30 dias", en: "Section 104 pool (average cost) + same-day and 30-day rules", es: "Section 104 pool (coste medio) + reglas same-day y 30 días", fr: "Section 104 pool (coût moyen) + règles same-day et 30 jours" },
+  annual:      { pt: "Receitas e custos somados por ano (sem lotes)", en: "Proceeds and costs totalled per year (no lots)", es: "Ingresos y costes sumados por año (sin lotes)", fr: "Recettes et coûts totalisés par an (sans lots)" },
+  spec_id:     { pt: "FIFO ou identificação específica (com registos)", en: "FIFO or specific identification (with records)", es: "FIFO o identificación específica (con registros)", fr: "FIFO ou identification spécifique (avec justificatifs)" },
+  none:        { pt: "Não aplicável (sem imposto sobre mais-valias)", en: "Not applicable (no capital gains tax)", es: "No aplicable (sin impuesto sobre plusvalías)", fr: "Sans objet (pas d'impôt sur les plus-values)" },
+};
+/** A calculadora (FIFO) dá o resultado exato neste país? */
+export const fifoExato = (m: CostMethod): boolean => m === "fifo" || m === "fifo_wallet" || m === "spec_id" || m === "none";
 
 // Os rótulos vivem aqui e não nas traduções porque andam sempre colados à taxa
 // que está nesta mesma linha: separá-los seria convidar a que um mudasse sem o
 // outro. Uma vez saíram só em português nos PDFs em EN/ES/FR — daí as 4 línguas.
 const LONG_LABEL: Record<string, Record<Lang, string>> = {
-  PT: { pt: "Isento (>1 ano)", en: "Exempt (>1 year)", es: "Exento (>1 año)", fr: "Exonéré (>1 an)" },
+  PT: { pt: "Isento (≥ 365 dias)", en: "Exempt (≥ 365 days)", es: "Exento (≥ 365 días)", fr: "Exonéré (≥ 365 jours)" },
   ES: { pt: "19–30% (escala, sem distinção temporal)", en: "19–30% (progressive, no holding-period distinction)", es: "19–30% (escala, sin distinción temporal)", fr: "19–30 % (barème, sans distinction de durée)" },
-  FR: { pt: "30% (flat tax / PFU)", en: "30% (flat tax / PFU)", es: "30% (flat tax / PFU)", fr: "30 % (flat tax / PFU)" },
+  FR: { pt: "31,4% (flat tax / PFU, desde 2026)", en: "31.4% (flat tax / PFU, from 2026)", es: "31,4% (flat tax / PFU, desde 2026)", fr: "31,4 % (flat tax / PFU, depuis 2026)" },
   DE: { pt: "Isento (>1 ano)", en: "Exempt (>1 year)", es: "Exento (>1 año)", fr: "Exonéré (>1 an)" },
   GB: { pt: "18%/24% (sem distinção temporal)", en: "18%/24% (no holding-period distinction)", es: "18%/24% (sin distinción temporal)", fr: "18/24 % (sans distinction de durée)" },
   NL: { pt: "Box 3 tributa património, não mais-valias", en: "Box 3 taxes wealth, not capital gains", es: "Box 3 grava el patrimonio, no las plusvalías", fr: "Box 3 impose le patrimoine, pas les plus-values" },
   IT: { pt: "33% (flat, desde 2026)", en: "33% (flat, from 2026)", es: "33% (flat, desde 2026)", fr: "33 % (forfaitaire, depuis 2026)" },
-  BR: { pt: "15% (isenção < R$35k/mês)", en: "15% (exempt below R$35k/month)", es: "15% (exención < R$35k/mes)", fr: "15 % (exonéré sous 35 000 R$/mois)" },
+  BR: { pt: "15–22,5% (isenção se vendas < R$35k/mês)", en: "15–22.5% (exempt if sales below R$35k/month)", es: "15–22,5% (exención si ventas < R$35k/mes)", fr: "15–22,5 % (exonéré si ventes < 35 000 R$/mois)" },
   BE: { pt: "10% (gestão privada; especulativo 33%)", en: "10% (private management; speculative 33%)", es: "10% (gestión privada; especulativo 33%)", fr: "10 % (gestion privée ; spéculatif 33 %)" },
   IE: { pt: "33% (CGT, sem distinção temporal)", en: "33% (CGT, no holding-period distinction)", es: "33% (CGT, sin distinción temporal)", fr: "33 % (CGT, sans distinction de durée)" },
   AT: { pt: "27,5% (flat, sem distinção temporal)", en: "27.5% (flat, no holding-period distinction)", es: "27,5% (flat, sin distinción temporal)", fr: "27,5 % (forfaitaire, sans distinction de durée)" },
@@ -86,43 +110,43 @@ const LONG_LABEL: Record<string, Record<Lang, string>> = {
   AE: { pt: "0% (sem imposto sobre mais-valias)", en: "0% (no capital gains tax)", es: "0% (sin impuesto sobre plusvalías)", fr: "0 % (pas d'impôt sur les plus-values)" },
   SG: { pt: "0% (investidor privado)", en: "0% (private investor)", es: "0% (inversor privado)", fr: "0 % (investisseur privé)" },
   MX: { pt: "1,92–35% (ISR progressivo)", en: "1.92–35% (progressive ISR)", es: "1,92–35% (ISR progresivo)", fr: "1,92–35 % (ISR progressif)" },
-  AR: { pt: "15% (imposto cedular, flat)", en: "15% (cedular tax, flat)", es: "15% (impuesto cedular, flat)", fr: "15 % (impôt cédulaire, forfaitaire)" },
+  AR: { pt: "15% cedular (5% se em pesos sem ajuste)", en: "15% cedular (5% if in pesos without adjustment)", es: "15% cedular (5% si en pesos sin ajuste)", fr: "15 % cédulaire (5 % si en pesos sans ajustement)" },
 };
 
 // Isenções/abatimentos anuais, no formato como cada país lhes chama.
 const ALLOWANCE_LABEL: Record<string, Record<Lang, string>> = {
   DE: { pt: "Freigrenze €1.000/ano", en: "Freigrenze €1,000/year", es: "Freigrenze 1.000 €/año", fr: "Freigrenze 1 000 €/an" },
-  GB: { pt: "Isenção anual £3.000 (≈€3.500)", en: "Annual exemption £3,000 (≈€3,500)", es: "Exención anual £3.000 (≈3.500 €)", fr: "Abattement annuel 3 000 £ (≈3 500 €)" },
-  BE: { pt: "Isenção anual €10.000 (regime 2026)", en: "Annual exemption €10,000 (2026 regime)", es: "Exención anual 10.000 € (régimen 2026)", fr: "Abattement annuel 10 000 € (régime 2026)" },
+  GB: { pt: "Isenção anual £3.000 (congelada até 2026/27)", en: "Annual exemption £3,000 (frozen through 2026/27)", es: "Exención anual £3.000 (congelada hasta 2026/27)", fr: "Abattement annuel 3 000 £ (gelé jusqu'en 2026/27)" },
+  BE: { pt: "Isenção anual €10.000 (indexada desde 2027; até €15.000 se não usada)", en: "Annual exemption €10,000 (indexed from 2027; up to €15,000 if unused)", es: "Exención anual 10.000 € (indexada desde 2027; hasta 15.000 € si no se usa)", fr: "Abattement annuel 10 000 € (indexé dès 2027 ; jusqu'à 15 000 € si non utilisé)" },
   IE: { pt: "Isenção anual €1.270", en: "Annual exemption €1,270", es: "Exención anual 1.270 €", fr: "Abattement annuel 1 270 €" },
   LU: { pt: "Isento se ganhos especulativos < €500/ano", en: "Exempt if speculative gains < €500/year", es: "Exento si las ganancias especulativas < 500 €/año", fr: "Exonéré si les gains spéculatifs < 500 €/an" },
-  MX: { pt: "Isenção anual MX$60.000 (≈€3.000)", en: "Annual exemption MX$60,000 (≈€3,000)", es: "Exención anual MX$60.000 (≈3.000 €)", fr: "Abattement annuel 60 000 MX$ (≈3 000 €)" },
+  MX: { pt: "Isenção de 3 UMA/ano ≈ MX$128.384 (2026), se aplicável a cripto", en: "3× annual UMA exemption ≈ MX$128,384 (2026), if applicable to crypto", es: "Exención de 3 UMA anuales ≈ MX$128.384 (2026), si aplica a cripto", fr: "Abattement de 3 UMA/an ≈ 128 384 MX$ (2026), si applicable aux cryptos" },
 };
 
 // Ordem: os 4 do plano gratuito primeiro, depois Pro, depois Premium — a mesma
 // da app, para quem passa de um lado para o outro reconhecer a lista.
 export const COUNTRIES: readonly Country[] = [
-  { code: "PT", currency: "EUR", slug: { pt: "portugal", en: "portugal" }, flag: "🇵🇹", plan: "free",    law: "Lei n.º 24-D/2022, art. 5.º",                      regime: { short: 0.28,  long: 0.0,   longDays: 365, longLabel: LONG_LABEL.PT } },
-  { code: "ES", currency: "EUR", slug: { pt: "espanha", en: "spain" }, flag: "🇪🇸", plan: "free",    law: "LIRPF art. 33–35 (2025)",                          regime: { short: 0.19,  long: 0.19,  longDays: 0,   longLabel: LONG_LABEL.ES } },
-  { code: "FR", currency: "EUR", slug: { pt: "franca", en: "france" }, flag: "🇫🇷", plan: "free",    law: "CGI art. 150 VH bis",                              regime: { short: 0.30,  long: 0.30,  longDays: 0,   longLabel: LONG_LABEL.FR } },
-  { code: "DE", currency: "EUR", slug: { pt: "alemanha", en: "germany" }, flag: "🇩🇪", plan: "free",    law: "EStG § 23",                                        regime: { short: 0.45,  long: 0.0,   longDays: 365, longLabel: LONG_LABEL.DE, allowance: { amount: 1000, kind: "threshold", label: ALLOWANCE_LABEL.DE } } },
-  { code: "GB", currency: "GBP", slug: { pt: "reino-unido", en: "united-kingdom" }, flag: "🇬🇧", plan: "pro",     law: "TCGA 1992 / HMRC (Autumn Budget 2024)",            regime: { short: 0.24,  long: 0.24,  longDays: 0,   longLabel: LONG_LABEL.GB, allowance: { amount: 3000, kind: "deduct", label: ALLOWANCE_LABEL.GB } } },
-  { code: "NL", currency: "EUR", slug: { pt: "paises-baixos", en: "netherlands" }, flag: "🇳🇱", plan: "pro",     law: "Wet IB 2001, Box 3",                               regime: { short: 0.0,   long: 0.0,   longDays: 0,   longLabel: LONG_LABEL.NL } },
-  { code: "IT", currency: "EUR", slug: { pt: "italia", en: "italy" }, flag: "🇮🇹", plan: "pro",     law: "Legge 197/2022 / Legge 199/2025",                  regime: { short: 0.33,  long: 0.33,  longDays: 0,   longLabel: LONG_LABEL.IT } },
-  { code: "BR", currency: "BRL", slug: { pt: "brasil", en: "brazil" }, flag: "🇧🇷", plan: "pro",     law: "IN RFB 1888/2019 / Lei 14.754/2023",               regime: { short: 0.15,  long: 0.15,  longDays: 0,   longLabel: LONG_LABEL.BR } },
-  { code: "BE", currency: "EUR", slug: { pt: "belgica", en: "belgium" }, flag: "🇧🇪", plan: "pro",     law: "CIR92 art. 90 / regime mais-valias 2026",          regime: { short: 0.10,  long: 0.10,  longDays: 0,   longLabel: LONG_LABEL.BE, allowance: { amount: 10000, kind: "deduct", label: ALLOWANCE_LABEL.BE } } },
-  { code: "IE", currency: "EUR", slug: { pt: "irlanda", en: "ireland" }, flag: "🇮🇪", plan: "pro",     law: "TCA 1997 / Revenue CGT",                           regime: { short: 0.33,  long: 0.33,  longDays: 0,   longLabel: LONG_LABEL.IE, allowance: { amount: 1270, kind: "deduct", label: ALLOWANCE_LABEL.IE } } },
-  { code: "AT", currency: "EUR", slug: { pt: "austria", en: "austria" }, flag: "🇦🇹", plan: "pro",     law: "EStG § 27b (reforma 2022)",                        regime: { short: 0.275, long: 0.275, longDays: 0,   longLabel: LONG_LABEL.AT } },
-  { code: "PL", currency: "PLN", slug: { pt: "polonia", en: "poland" }, flag: "🇵🇱", plan: "pro",     law: "Ustawa PIT art. 30b",                              regime: { short: 0.19,  long: 0.19,  longDays: 0,   longLabel: LONG_LABEL.PL } },
-  { code: "LU", currency: "EUR", slug: { pt: "luxemburgo", en: "luxembourg" }, flag: "🇱🇺", plan: "pro",     law: "LIR art. 99bis",                                   regime: { short: 0.42,  long: 0.0,   longDays: 183, longLabel: LONG_LABEL.LU, allowance: { amount: 500, kind: "threshold", label: ALLOWANCE_LABEL.LU } } },
-  { code: "US", currency: "USD", slug: { pt: "estados-unidos", en: "united-states" }, flag: "🇺🇸", plan: "premium", law: "IRS Notice 2014-21 / Rev. Rul. 2023-14",           regime: { short: 0.37,  long: 0.20,  longDays: 365, longLabel: LONG_LABEL.US } },
-  { code: "CA", currency: "CAD", slug: { pt: "canada", en: "canada" }, flag: "🇨🇦", plan: "premium", law: "ITA s. 38 / CRA IT-218R",                          regime: { short: 0.27,  long: 0.27,  longDays: 0,   longLabel: LONG_LABEL.CA } },
-  { code: "AU", currency: "AUD", slug: { pt: "australia", en: "australia" }, flag: "🇦🇺", plan: "premium", law: "ITAA 1997 s. 108-5 / ATO (2014–2023)",             regime: { short: 0.45,  long: 0.225, longDays: 365, longLabel: LONG_LABEL.AU } },
-  { code: "CH", currency: "CHF", slug: { pt: "suica", en: "switzerland" }, flag: "🇨🇭", plan: "premium", law: "DBG art. 16 / LIFD",                               regime: { short: 0.0,   long: 0.0,   longDays: 0,   longLabel: LONG_LABEL.CH } },
-  { code: "AE", currency: "AED", slug: { pt: "emirados-arabes-unidos", en: "united-arab-emirates" }, flag: "🇦🇪", plan: "premium", law: "Federal Decree-Law No. 47 of 2022",                regime: { short: 0.0,   long: 0.0,   longDays: 0,   longLabel: LONG_LABEL.AE } },
-  { code: "SG", currency: "SGD", slug: { pt: "singapura", en: "singapore" }, flag: "🇸🇬", plan: "premium", law: "Payment Services Act 2019 / IRAS e-Tax Guide",    regime: { short: 0.0,   long: 0.0,   longDays: 0,   longLabel: LONG_LABEL.SG } },
-  { code: "MX", currency: "MXN", slug: { pt: "mexico", en: "mexico" }, flag: "🇲🇽", plan: "premium", law: "LISR (ISR) / SAT",                                 regime: { short: 0.35,  long: 0.35,  longDays: 0,   longLabel: LONG_LABEL.MX, allowance: { amount: 60000, kind: "deduct", label: ALLOWANCE_LABEL.MX } } },
-  { code: "AR", currency: "ARS", slug: { pt: "argentina", en: "argentina" }, flag: "🇦🇷", plan: "premium", law: "Ley 27.430 (imposto cedular)",                     regime: { short: 0.15,  long: 0.15,  longDays: 0,   longLabel: LONG_LABEL.AR } },
+  { code: "PT", currency: "EUR", slug: { pt: "portugal", en: "portugal" }, flag: "🇵🇹", plan: "free",    law: "CIRS art. 10.º n.º 19, 43.º n.º 6 g) e 72.º (Lei n.º 24-D/2022, art. 218.º)",                      regime: { short: 0.28,  long: 0.0,   longDays: 365, longLabel: LONG_LABEL.PT }, costMethod: "fifo_wallet" },
+  { code: "ES", currency: "EUR", slug: { pt: "espanha", en: "spain" }, flag: "🇪🇸", plan: "free",    law: "LIRPF art. 33–37 e 66/76 (Ley 7/2024, desde 2025); DGT V0999-18",                          regime: { short: 0.19,  long: 0.19,  longDays: 0,   longLabel: LONG_LABEL.ES }, costMethod: "fifo" },
+  { code: "FR", currency: "EUR", slug: { pt: "franca", en: "france" }, flag: "🇫🇷", plan: "free",    law: "CGI art. 150 VH bis; LFSS 2026 (CSG 10,6% desde 1 jan 2026)",                              regime: { short: 0.314, long: 0.314,  longDays: 0,   longLabel: LONG_LABEL.FR }, costMethod: "wavg" },
+  { code: "DE", currency: "EUR", slug: { pt: "alemanha", en: "germany" }, flag: "🇩🇪", plan: "free",    law: "EStG § 23 Abs. 1 Nr. 2; BMF-Schreiben Kryptowerte (2022, atual. 2025)",                                        regime: { short: 0.45,  long: 0.0,   longDays: 365, longLabel: LONG_LABEL.DE, allowance: { amount: 1000, kind: "threshold", label: ALLOWANCE_LABEL.DE } }, costMethod: "fifo_wallet" },
+  { code: "GB", currency: "GBP", slug: { pt: "reino-unido", en: "united-kingdom" }, flag: "🇬🇧", plan: "pro",     law: "TCGA 1992 / HMRC Cryptoassets Manual (taxas desde 30 out 2024)",            regime: { short: 0.24,  long: 0.24,  longDays: 0,   longLabel: LONG_LABEL.GB, allowance: { amount: 3000, kind: "deduct", label: ALLOWANCE_LABEL.GB } }, costMethod: "pool" },
+  { code: "NL", currency: "EUR", slug: { pt: "paises-baixos", en: "netherlands" }, flag: "🇳🇱", plan: "pro",     law: "Wet IB 2001, hoofdstuk 5 (Box 3); Wet tegenbewijs box 3",                               regime: { short: 0.0,   long: 0.0,   longDays: 0,   longLabel: LONG_LABEL.NL }, costMethod: "none" },
+  { code: "IT", currency: "EUR", slug: { pt: "italia", en: "italy" }, flag: "🇮🇹", plan: "pro",     law: "Legge 197/2022 / Legge 207/2024 art. 1 c. 24–26 / Legge 199/2025 c. 28; TUIR art. 67 c. 1-bis",                  regime: { short: 0.33,  long: 0.33,  longDays: 0,   longLabel: LONG_LABEL.IT }, costMethod: "lifo" },
+  { code: "BR", currency: "BRL", slug: { pt: "brasil", en: "brazil" }, flag: "🇧🇷", plan: "pro",     law: "Lei 8.981/1995 art. 21 / Lei 9.250/1995 art. 22 / IN RFB 2.291/2025 (DeCripto) / Lei 14.754/2023 (exterior)",               regime: { short: 0.15,  long: 0.15,  longDays: 0,   longLabel: LONG_LABEL.BR }, costMethod: "wavg" },
+  { code: "BE", currency: "EUR", slug: { pt: "belgica", en: "belgium" }, flag: "🇧🇪", plan: "pro",     law: "Loi du 6 avril 2026 (MB 21/04/2026); CIR92 art. 90, 9.º e art. 92",          regime: { short: 0.10,  long: 0.10,  longDays: 0,   longLabel: LONG_LABEL.BE, allowance: { amount: 10000, kind: "deduct", label: ALLOWANCE_LABEL.BE } }, costMethod: "fifo" },
+  { code: "IE", currency: "EUR", slug: { pt: "irlanda", en: "ireland" }, flag: "🇮🇪", plan: "pro",     law: "TCA 1997 / Revenue TDM Part 02-01-03",                           regime: { short: 0.33,  long: 0.33,  longDays: 0,   longLabel: LONG_LABEL.IE, allowance: { amount: 1270, kind: "deduct", label: ALLOWANCE_LABEL.IE } }, costMethod: "fifo_4w" },
+  { code: "AT", currency: "EUR", slug: { pt: "austria", en: "austria" }, flag: "🇦🇹", plan: "pro",     law: "EStG § 27b (ÖkoStRefG 2022)",                        regime: { short: 0.275, long: 0.275, longDays: 0,   longLabel: LONG_LABEL.AT }, costMethod: "avg_moving" },
+  { code: "PL", currency: "PLN", slug: { pt: "polonia", en: "poland" }, flag: "🇵🇱", plan: "pro",     law: "Ustawa o PIT art. 30b ust. 1a / art. 17 ust. 1f / art. 22 ust. 14–16",                              regime: { short: 0.19,  long: 0.19,  longDays: 0,   longLabel: LONG_LABEL.PL }, costMethod: "annual" },
+  { code: "LU", currency: "EUR", slug: { pt: "luxemburgo", en: "luxembourg" }, flag: "🇱🇺", plan: "pro",     law: "LIR art. 99bis; Circulaire L.I.R. n.º 14/5–99/3–99bis/3 (26.07.2018)",                                   regime: { short: 0.42,  long: 0.0,   longDays: 183, longLabel: LONG_LABEL.LU, allowance: { amount: 500, kind: "threshold", label: ALLOWANCE_LABEL.LU } }, costMethod: "wavg" },
+  { code: "US", currency: "USD", slug: { pt: "estados-unidos", en: "united-states" }, flag: "🇺🇸", plan: "premium", law: "IRS Notice 2014-21 / Rev. Rul. 2023-14 / Treas. Reg. §1.1012-1(j) (base por carteira, 2025)",           regime: { short: 0.37,  long: 0.20,  longDays: 365, longLabel: LONG_LABEL.US }, costMethod: "spec_id" },
+  { code: "CA", currency: "CAD", slug: { pt: "canada", en: "canada" }, flag: "🇨🇦", plan: "premium", law: "ITA s. 38(a) e s. 47 (custo médio) / orientação CRA sobre criptoativos",                          regime: { short: 0.27,  long: 0.27,  longDays: 0,   longLabel: LONG_LABEL.CA }, costMethod: "acb" },
+  { code: "AU", currency: "AUD", slug: { pt: "australia", en: "australia" }, flag: "🇦🇺", plan: "premium", law: "ITAA 1997 Div 115 (s. 115-25); Treasury Laws Amendment (Tax Reform No. 1) Act 2026 (desde 1 jul 2027)",             regime: { short: 0.45,  long: 0.225, longDays: 365, longLabel: LONG_LABEL.AU }, costMethod: "spec_id" },
+  { code: "CH", currency: "CHF", slug: { pt: "suica", en: "switzerland" }, flag: "🇨🇭", plan: "premium", law: "DBG art. 16 al. 3 / LIFD art. 16 al. 3; ESTV KS 36",                               regime: { short: 0.0,   long: 0.0,   longDays: 0,   longLabel: LONG_LABEL.CH }, costMethod: "none" },
+  { code: "AE", currency: "AED", slug: { pt: "emirados-arabes-unidos", en: "united-arab-emirates" }, flag: "🇦🇪", plan: "premium", law: "Federal Decree-Law No. 47 of 2022; Cabinet Decision No. 49 of 2023",                regime: { short: 0.0,   long: 0.0,   longDays: 0,   longLabel: LONG_LABEL.AE }, costMethod: "none" },
+  { code: "SG", currency: "SGD", slug: { pt: "singapura", en: "singapore" }, flag: "🇸🇬", plan: "premium", law: "Income Tax Act 1947 / IRAS e-Tax Guide Digital Tokens (3.ª ed., jan 2026)",    regime: { short: 0.0,   long: 0.0,   longDays: 0,   longLabel: LONG_LABEL.SG }, costMethod: "none" },
+  { code: "MX", currency: "MXN", slug: { pt: "mexico", en: "mexico" }, flag: "🇲🇽", plan: "premium", law: "LISR arts. 119–128, 93 XIX b), 126 e 152 / Ley Fintech art. 30",                                 regime: { short: 0.35,  long: 0.35,  longDays: 0,   longLabel: LONG_LABEL.MX, allowance: { amount: 128384, kind: "deduct", label: ALLOWANCE_LABEL.MX } }, costMethod: "fifo" },
+  { code: "AR", currency: "ARS", slug: { pt: "argentina", en: "argentina" }, flag: "🇦🇷", plan: "premium", law: "Ley 27.430 → LIG (t.o. 2019) art. 2 inc. 4 e art. 98 a)/b)",                     regime: { short: 0.15,  long: 0.15,  longDays: 0,   longLabel: LONG_LABEL.AR }, costMethod: "fifo" },
 ] as const;
 
 /** Mapa código → regime, no formato que a calculadora de /fiscalidade espera. */
@@ -186,8 +210,8 @@ export const TAX_DATA_VERIFIED: Record<GuideLang, string> = {
 // dateModified do Article dos guias (indice e paises) E o lastmod do sitemap,
 // num sitio so — antes o sitemap dizia "hoje" a cada deploy e contradizia o
 // Article. Atualizar quando as taxas ou prazos mudarem — nunca "hoje" automatico.
-export const TAX_GUIDE_DATE_MODIFIED = "2026-09-19";
+export const TAX_GUIDE_DATE_MODIFIED = "2026-09-30";
 // Paises cujo guia mudou depois dessa data (texto novo, nao taxas). So esses
 // levam a data mais recente; os outros nao fingem ter mudado.
-const GUIDE_DATE_OVERRIDES: Record<string, string> = { PT: "2026-09-30" };
+const GUIDE_DATE_OVERRIDES: Record<string, string> = {};
 export const guideDateModified = (code: string): string => GUIDE_DATE_OVERRIDES[code] ?? TAX_GUIDE_DATE_MODIFIED;
