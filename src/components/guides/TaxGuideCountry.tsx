@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import AppShell from "@/components/AppShell";
-import { COUNTRIES, guideDateModified, guideUrl, TAX_DATA_VERIFIED, type Country, type GuideLang } from "@/lib/tax/countries";
+import { COST_METHOD_LABEL, COUNTRIES, fifoExato, guideDateModified, guideUrl, TAX_DATA_VERIFIED, type Country, type GuideLang } from "@/lib/tax/countries";
 import { countryText } from "@/lib/tax/countryText";
 import { GUIDE_COPY } from "@/lib/tax/guideCopy";
 import { provaDetencao } from "@/lib/tax/prova";
@@ -26,8 +26,11 @@ export default function TaxGuideCountry({ lang, country }: { lang: GuideLang; co
     { label: c.factLong, value: text.taxLong },
     { label: c.factThreshold, value: text.threshold },
     { label: c.factAllowance, value: country.regime.allowance?.label[lang] ?? c.notApplicable },
+    { label: c.factMethod, value: COST_METHOD_LABEL[country.costMethod][lang] },
     { label: c.factLaw, value: country.law },
   ];
+  // Verificado em fontes de 2026: em 8 dos 21 paises o metodo nao e FIFO.
+  const notaMetodo = fifoExato(country.costMethod) ? null : c.methodNote(COST_METHOD_LABEL[country.costMethod][lang]);
 
   // As perguntas sao escritas UMA vez e servem os dois: o bloco visivel na
   // pagina e o FAQPage para o Google. Declarar perguntas que a pagina nao
@@ -158,6 +161,7 @@ export default function TaxGuideCountry({ lang, country }: { lang: GuideLang; co
           <section className="mt-10 rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
             <h2 className="text-lg font-semibold text-white">{c.calcTitle}</h2>
             <p className="mt-2 text-sm leading-relaxed text-slate-400">{c.calcBody}</p>
+            {notaMetodo && <p className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm leading-relaxed text-amber-200/90">{notaMetodo}</p>}
             <div className="mt-4 flex flex-wrap gap-3">
               <Link href="/beta" className="rounded-full bg-orange-500 px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-orange-400">
                 {c.ctaBeta}

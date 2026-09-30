@@ -6,7 +6,8 @@ import type { GuideLang } from "./countries";
 // comentários de vídeos portugueses sobre IRS e cripto é "como provo às
 // Finanças que tenho isto há mais de um ano?". Os guias explicavam a regra dos
 // 365 dias e nada sobre como a demonstrar. Só entra nos países onde a pergunta
-// faz sentido (prazo de detenção com efeito no imposto).
+// faz sentido (prazo de detenção com efeito no imposto): PT 365 dias, DE 1 ano,
+// LU 6 meses.
 //
 // Regra de honestidade: aqui só entra o que a lei diz e o que é boa prática de
 // registo. NÃO se afirma que a Autoridade Tributária aceita este ou aquele
@@ -140,6 +141,222 @@ export const PROVA_DETENCAO: Partial<Record<string, Record<GuideLang, ProvaDeten
       ],
       nota:
         "The law publishes no list of accepted documents for crypto; the above is what the law requires and what good record-keeping looks like. Acceptance is decided by the tax authority case by case. If part of your purchase history is missing, review the case with an accountant before filing.",
+    },
+  },
+  DE: {
+    pt: {
+      titulo: "Como demonstrar que tens a cripto há mais de um ano",
+      intro:
+        "Na Alemanha, o ganho de uma venda privada de cripto só fica isento se a cripto tiver sido detida durante mais de um ano (§ 23 EStG). Abaixo disso, o ganho é tributado à tua taxa marginal, com a Freigrenze de €1.000 por ano para o conjunto das vendas privadas. Tal como em Portugal, a dificuldade não está na regra, está em demonstrar a data de cada compra.",
+      blocos: [
+        {
+          titulo: "O que a lei diz",
+          texto:
+            "O contribuinte tem o dever de colaborar e de esclarecer os factos que declara (§ 90 AO), e é a ele que cabe demonstrar o que lhe é favorável, como a isenção por prazo. A circular do Ministério das Finanças sobre cripto (BMF-Schreiben de 10 de maio de 2022, atualizada a 6 de março de 2025) descreve os deveres de registo e o que a administração fiscal espera ver: para cada operação, a data, a quantidade, o valor em euros e a carteira ou plataforma envolvida. A circular admite extratos das plataformas e registos da blockchain como documentação.",
+        },
+        {
+          titulo: "O que convém guardar, por cada compra",
+          texto:
+            "Data, quantidade e valor em euros. Na prática: o histórico de ordens da plataforma (exporta-o em CSV enquanto a conta existe), o comprovativo bancário do carregamento e, se moveste a cripto para uma carteira tua, o identificador da transação na blockchain, público e com data. Um extrato bancário sozinho prova que o dinheiro saiu, não que a cripto foi comprada nesse dia.",
+        },
+        {
+          titulo: "Sparplan ou DCA: compras regulares e está tudo misturado",
+          texto:
+            "Aplica-se FIFO, carteira a carteira: dentro de cada carteira ou conta, considera-se vendido primeiro o que foi comprado há mais tempo. Ordena as compras dessa carteira por data e soma a partir da mais antiga até chegar à quantidade vendida. O que tiver mais de um ano está isento; o resto é tributado, e a mesma venda pode ter as duas partes. Como a contagem é por carteira, mover cripto entre carteiras tuas não a torna 'mais antiga' nem 'mais recente'.",
+        },
+        {
+          titulo: "A plataforma fechou ou não dá o histórico",
+          texto:
+            "Reúne o que restar: emails de confirmação, extratos bancários das transferências com data e o registo na blockchain do levantamento para a tua carteira. Se a plataforma ainda existir na União Europeia, pede o histórico completo por escrito ao abrigo do RGPD. Sem nenhum registo, o prazo fica por demonstrar; fala com um Steuerberater antes de declarar.",
+        },
+        {
+          titulo: "A cripto veio de uma carteira minha, sem plataforma",
+          texto:
+            "A blockchain prova a data em que a cripto entrou no endereço, não o preço nem se a compra foi anterior. Junta o registo on-chain ao comprovativo da origem. Nota: se a cripto foi usada em staking ou lending, o prazo de um ano mantém-se; a regra dos dez anos foi afastada pela circular de 2022.",
+        },
+        {
+          titulo: "O que o ChainFolioAI faz",
+          texto:
+            "Regista cada compra com data, quantidade e preço, a partir do CSV da plataforma ou à mão, aplica FIFO e mostra, por cada venda, de que lotes saiu e quantos dias cada lote esteve detido. Exportas em PDF ou Excel para a Anlage SO ou para o Steuerberater.",
+        },
+      ],
+      faqs: [
+        {
+          q: "Como provo ao Finanzamt que tenho a cripto há mais de um ano?",
+          a: "Com o registo de cada compra: data, quantidade e valor em euros. Na prática, o histórico da plataforma, o comprovativo bancário e o identificador da transação na blockchain se a moveste para uma carteira tua. A circular do BMF sobre cripto (2022, atualizada em 2025) descreve os deveres de registo e admite extratos das plataformas e registos da blockchain como documentação; a apreciação final é do Finanzamt.",
+        },
+        {
+          q: "Tenho um Sparplan de cripto e está tudo misturado. Como sei o que já passou o ano?",
+          a: "Por FIFO, dentro de cada carteira: o que foi comprado primeiro conta como vendido primeiro. Ordena as compras por data e soma a partir da mais antiga até à quantidade vendida. O que tiver mais de um ano está isento; o resto é tributado à tua taxa marginal, e a mesma venda pode ter as duas partes.",
+        },
+        {
+          q: "A plataforma fechou e não consigo obter o histórico. E agora?",
+          a: "Reúne emails de confirmação, extratos bancários das transferências e o registo na blockchain do levantamento para a tua carteira. Se a plataforma ainda existir na UE, pede o histórico por escrito ao abrigo do RGPD. Sem registos, fala com um Steuerberater antes de declarar.",
+        },
+      ],
+      nota:
+        "A circular do BMF descreve deveres de registo e exemplos de documentação, mas a apreciação é feita caso a caso pelo Finanzamt. O que está acima é a lei e a boa prática de registo; se te falta histórico de uma parte das compras, vê o caso com um Steuerberater antes de declarar.",
+    },
+    en: {
+      titulo: "How to show you have held the crypto for more than one year",
+      intro:
+        "In Germany, the gain on a private sale of crypto is exempt only if the crypto was held for more than one year (§ 23 EStG). Below that, the gain is taxed at your marginal rate, with the €1,000 Freigrenze per year for all private sales together. As in Portugal, the rule is the easy part; showing the date of each purchase is the hard one.",
+      blocos: [
+        {
+          titulo: "What the law says",
+          texto:
+            "The taxpayer has a duty to cooperate and to clarify the facts declared (§ 90 AO), and it is the taxpayer who has to show what works in their favour, such as the holding-period exemption. The Federal Ministry of Finance's circular on crypto (BMF letter of 10 May 2022, updated on 6 March 2025) describes record-keeping duties and what the tax office expects to see: for each transaction, the date, the amount, the euro value and the wallet or platform involved. The circular accepts platform statements and blockchain records as documentation.",
+        },
+        {
+          titulo: "What to keep, for every purchase",
+          texto:
+            "Date, amount and euro value. In practice: the platform's order history (export it as CSV while the account exists), the bank receipt for the deposit and, if you moved the crypto to your own wallet, the transaction id on the blockchain, public and dated. A bank statement alone proves the money left, not that the crypto was bought that day.",
+        },
+        {
+          titulo: "Savings plan or DCA: regular buys and everything is mixed up",
+          texto:
+            "FIFO applies, wallet by wallet: within each wallet or account, what was bought longest ago is treated as sold first. Sort that wallet's purchases by date and add up from the oldest until you reach the amount sold. Whatever has more than one year is exempt; the rest is taxed, and one sale can have both parts. Because the count is per wallet, moving crypto between your own wallets does not make it 'older' or 'newer'.",
+        },
+        {
+          titulo: "The platform closed or will not give you the history",
+          texto:
+            "Gather what is left: confirmation emails, dated bank statements of the transfers and the blockchain record of the withdrawal to your wallet. If the platform still exists in the European Union, request the full history in writing under the GDPR. With no record at all, the holding period is unproven; talk to a Steuerberater before filing.",
+        },
+        {
+          titulo: "The crypto came from my own wallet, no platform",
+          texto:
+            "The blockchain proves the date the crypto entered the address, not the price or whether the purchase was earlier. Pair the on-chain record with proof of origin. Note: if the crypto was used for staking or lending, the one-year period still applies; the ten-year rule was ruled out by the 2022 circular.",
+        },
+        {
+          titulo: "What ChainFolioAI does",
+          texto:
+            "It records every purchase with date, amount and price, from the platform CSV or by hand, applies FIFO and shows, for each sale, which lots it came from and how many days each lot was held. You export to PDF or Excel for Anlage SO or for your Steuerberater.",
+        },
+      ],
+      faqs: [
+        {
+          q: "How do I prove to the Finanzamt that I have held the crypto for more than a year?",
+          a: "With the record of each purchase: date, amount and euro value. In practice, the platform history, the bank receipt and the blockchain transaction id if you moved it to your own wallet. The BMF circular on crypto (2022, updated 2025) describes record-keeping duties and accepts platform statements and blockchain records as documentation; the final assessment is the Finanzamt's.",
+        },
+        {
+          q: "I have a crypto savings plan and it is all mixed up. How do I know what has passed the year?",
+          a: "Through FIFO, within each wallet: what was bought first counts as sold first. Sort purchases by date and add up from the oldest until you reach the amount sold. Whatever has more than one year is exempt; the rest is taxed at your marginal rate, and one sale can have both parts.",
+        },
+        {
+          q: "The platform closed and I cannot get the history. What now?",
+          a: "Gather confirmation emails, bank statements of the transfers and the blockchain record of the withdrawal to your wallet. If the platform still exists in the EU, request the history in writing under the GDPR. With no records, talk to a Steuerberater before filing.",
+        },
+      ],
+      nota:
+        "The BMF circular describes record-keeping duties and examples of documentation, but the assessment is made case by case by the Finanzamt. The above is the law and good record-keeping practice; if part of your purchase history is missing, review the case with a Steuerberater before filing.",
+    },
+  },
+  LU: {
+    pt: {
+      titulo: "Como demonstrar que tens a cripto há mais de seis meses",
+      intro:
+        "No Luxemburgo, o ganho de um particular só é tributado se a cripto for vendida até seis meses depois da compra: é o ganho 'especulativo' do art. 99bis LIR, tributado às taxas progressivas, com isenção se o total do ano ficar abaixo de €500. Passados os seis meses, o ganho fica fora do imposto. Seis meses passam depressa, e quem compra ao longo do ano tem sempre lotes dos dois lados da linha.",
+      blocos: [
+        {
+          titulo: "O que a lei diz",
+          texto:
+            "O contribuinte tem o dever de colaborar com a administração e de demonstrar os factos que declara (§ 171 da Abgabenordnung, que continua a reger o procedimento fiscal no Luxemburgo). A circular da Administration des contributions directes sobre moedas virtuais (circulaire L.I.R. n.º 14/5 - 99/3 - 99bis/3, de 26 de julho de 2018) confirma que a venda de cripto por um particular é um ganho especulativo se ocorrer até seis meses depois da aquisição, e que o contribuinte deve conseguir documentar as datas e os valores de aquisição e de venda.",
+        },
+        {
+          titulo: "O que convém guardar, por cada compra",
+          texto:
+            "Data, quantidade e valor em euros. Na prática: o histórico da plataforma (exporta-o enquanto a conta existe), o comprovativo bancário do carregamento e, se moveste a cripto para uma carteira tua, o identificador da transação na blockchain. A troca de cripto por cripto conta como alienação: guarda também a data e o valor dessas trocas.",
+        },
+        {
+          titulo: "Compras regulares e está tudo misturado",
+          texto:
+            "Com compras espaçadas, cada lote tem a sua própria data e a linha dos seis meses corta a posição ao meio. Ordena as compras por data: o que tiver mais de seis meses no dia da venda fica fora do imposto; o que tiver seis meses ou menos é especulativo. A mesma venda pode ter as duas partes. Atenção ao custo de aquisição: a circular de 2018 manda usar o preço médio ponderado quando as unidades não são identificáveis, e exclui FIFO e LIFO. O ChainFolioAI calcula por FIFO: usa-o para saber que quantidade já passou os seis meses, e confirma o custo a declarar com o contabilista.",
+        },
+        {
+          titulo: "A plataforma fechou ou não dá o histórico",
+          texto:
+            "Reúne o que restar: emails de confirmação, extratos bancários das transferências com data e o registo na blockchain do levantamento para a tua carteira. Se a plataforma ainda existir na União Europeia, pede o histórico por escrito ao abrigo do RGPD. Sem registos, a data de aquisição fica por demonstrar; fala com um contabilista antes de declarar.",
+        },
+        {
+          titulo: "A cripto veio de uma carteira minha, sem plataforma",
+          texto:
+            "A blockchain prova a data em que a cripto entrou no endereço, não o preço nem se a compra foi anterior. Junta o registo on-chain ao comprovativo da origem. Uma transferência entre carteiras tuas não é uma alienação e não reinicia a contagem dos seis meses.",
+        },
+        {
+          titulo: "O que o ChainFolioAI faz",
+          texto:
+            "Regista cada compra e cada troca com data, quantidade e valor e mostra, por cada venda, quantos dias cada lote esteve detido e se ficou dentro ou fora dos seis meses. O cálculo do ganho é por FIFO, uma aproximação ao preço médio ponderado que a circular exige; exportas em PDF ou Excel para o contabilista fechar o valor a declarar no modelo 100.",
+        },
+      ],
+      faqs: [
+        {
+          q: "Como provo à administração fiscal que tenho a cripto há mais de seis meses?",
+          a: "Com o registo de cada compra: data, quantidade e valor em euros. Na prática, o histórico da plataforma, o comprovativo bancário e o identificador da transação na blockchain se a moveste para uma carteira tua. O dever de demonstrar é do contribuinte (§ 171 AO) e a circular de 2018 sobre moedas virtuais pede que as datas e os valores de aquisição e venda estejam documentados; a apreciação é feita caso a caso.",
+        },
+        {
+          q: "Compro todos os meses e está tudo misturado. Como sei o que já passou os seis meses?",
+          a: "Ordena as compras por data. No dia da venda, o que tiver mais de seis meses fica fora do imposto; o que tiver seis meses ou menos é ganho especulativo, tributado às taxas progressivas se o total do ano passar €500. A mesma venda pode ter as duas partes. O custo de aquisição na declaração é pelo preço médio ponderado (a circular exclui FIFO); confirma o valor com o contabilista.",
+        },
+        {
+          q: "A plataforma fechou e não consigo obter o histórico. E agora?",
+          a: "Reúne emails de confirmação, extratos bancários das transferências e o registo na blockchain do levantamento para a tua carteira. Se a plataforma ainda existir na UE, pede o histórico por escrito ao abrigo do RGPD. Sem registos, fala com um contabilista antes de declarar.",
+        },
+      ],
+      nota:
+        "A circular de 2018 pede documentação das datas e valores, mas não publica uma lista fechada de documentos aceites; a apreciação é da Administration des contributions directes, caso a caso. Se te falta histórico de uma parte das compras, vê o caso com um contabilista antes de declarar.",
+    },
+    en: {
+      titulo: "How to show you have held the crypto for more than six months",
+      intro:
+        "In Luxembourg, a private individual's gain is taxed only if the crypto is sold within six months of purchase: that is the 'speculative' gain of article 99bis LIR, taxed at progressive rates, exempt if the year's total stays below €500. After six months the gain falls outside the tax. Six months pass quickly, and anyone buying through the year always has lots on both sides of the line.",
+      blocos: [
+        {
+          titulo: "What the law says",
+          texto:
+            "The taxpayer has a duty to cooperate with the administration and to substantiate the facts declared (§ 171 of the Abgabenordnung, which still governs tax procedure in Luxembourg). The Administration des contributions directes' circular on virtual currencies (circulaire L.I.R. n° 14/5 - 99/3 - 99bis/3 of 26 July 2018) confirms that a private sale of crypto is a speculative gain if it happens within six months of acquisition, and that the taxpayer must be able to document acquisition and sale dates and values.",
+        },
+        {
+          titulo: "What to keep, for every purchase",
+          texto:
+            "Date, amount and euro value. In practice: the platform history (export it while the account exists), the bank receipt for the deposit and, if you moved the crypto to your own wallet, the transaction id on the blockchain. A crypto-to-crypto swap counts as a disposal: keep the date and value of those swaps too.",
+        },
+        {
+          titulo: "Regular buys and everything is mixed up",
+          texto:
+            "With spaced-out purchases, each lot has its own date and the six-month line cuts the position in two. Sort purchases by date: whatever is more than six months old on the day of sale falls outside the tax; whatever is six months or less is speculative. One sale can have both parts. Mind the acquisition cost: the 2018 circular requires the weighted average price when units cannot be identified, and excludes FIFO and LIFO. ChainFolioAI computes by FIFO: use it to see how much has passed six months, and confirm the cost to declare with your accountant.",
+        },
+        {
+          titulo: "The platform closed or will not give you the history",
+          texto:
+            "Gather what is left: confirmation emails, dated bank statements of the transfers and the blockchain record of the withdrawal to your wallet. If the platform still exists in the European Union, request the full history in writing under the GDPR. With no records, the acquisition date is unproven; talk to an accountant before filing.",
+        },
+        {
+          titulo: "The crypto came from my own wallet, no platform",
+          texto:
+            "The blockchain proves the date the crypto entered the address, not the price or whether the purchase was earlier. Pair the on-chain record with proof of origin. A transfer between your own wallets is not a disposal and does not restart the six-month count.",
+        },
+        {
+          titulo: "What ChainFolioAI does",
+          texto:
+            "It records every purchase and swap with date, amount and value and shows, for each sale, how many days each lot was held and whether it fell inside or outside six months. The gain is computed by FIFO, an approximation to the weighted average the circular requires; you export to PDF or Excel so your accountant can settle the figure to declare on form 100.",
+        },
+      ],
+      faqs: [
+        {
+          q: "How do I prove to the tax administration that I have held the crypto for more than six months?",
+          a: "With the record of each purchase: date, amount and euro value. In practice, the platform history, the bank receipt and the blockchain transaction id if you moved it to your own wallet. The duty to substantiate lies with the taxpayer (§ 171 AO) and the 2018 circular on virtual currencies asks for acquisition and sale dates and values to be documented; the assessment is made case by case.",
+        },
+        {
+          q: "I buy every month and it is all mixed up. How do I know what has passed six months?",
+          a: "Sort purchases by date. On the day of sale, whatever is more than six months old falls outside the tax; whatever is six months or less is a speculative gain, taxed at progressive rates if the year's total exceeds €500. One sale can have both parts. The acquisition cost in the return is the weighted average price (the circular excludes FIFO); confirm the figure with your accountant.",
+        },
+        {
+          q: "The platform closed and I cannot get the history. What now?",
+          a: "Gather confirmation emails, bank statements of the transfers and the blockchain record of the withdrawal to your wallet. If the platform still exists in the EU, request the history in writing under the GDPR. With no records, talk to an accountant before filing.",
+        },
+      ],
+      nota:
+        "The 2018 circular asks for dates and values to be documented but publishes no closed list of accepted documents; the assessment is the Administration des contributions directes', case by case. If part of your purchase history is missing, review the case with an accountant before filing.",
     },
   },
 };
