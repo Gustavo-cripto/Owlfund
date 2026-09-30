@@ -133,7 +133,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* Page content */}
-        <main className="flex-1 min-w-0">
+        {/* pb-20 no telemóvel: o fim da página não fica por baixo do botão do assistente. */}
+        <main className="flex-1 min-w-0 pb-20 sm:pb-0">
           {children}
         </main>
       </div>

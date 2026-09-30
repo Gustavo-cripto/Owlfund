@@ -164,7 +164,7 @@ export default function FloatingChat() {
       <button
         type="button"
         onClick={() => startTransition(() => setIsOpen(prev => !prev))}
-        className="keep-dark pointer-events-auto group relative flex items-center gap-3 rounded-full border border-slate-700 bg-slate-950/90 px-5 py-3 text-sm font-semibold text-slate-100 shadow-2xl shadow-black/40 transition motion-safe:hover:scale-[1.03] hover:border-slate-500 hover:bg-slate-950 active:scale-[0.97]"
+        className="keep-dark pointer-events-auto group relative flex items-center gap-3 rounded-full border border-slate-700 bg-slate-950/90 p-1 text-sm sm:px-5 sm:py-3 font-semibold text-slate-100 shadow-2xl shadow-black/40 transition motion-safe:hover:scale-[1.03] hover:border-slate-500 hover:bg-slate-950 active:scale-[0.97]"
         aria-label={isOpen ? t("fch_minimize") : t("fch_open")}
       >
         {/* Glow hover */}
@@ -172,7 +172,7 @@ export default function FloatingChat() {
 
         {/* Avatar */}
         <span className="relative flex-shrink-0">
-          <img src="/chain-icon.jpg" alt="" className="h-12 w-12 rounded-full object-cover border-2 border-orange-400/70 ring-2 ring-orange-500/15 group-hover:brightness-110 transition" />
+          <img src="/chain-icon.jpg" alt="" className="h-11 w-11 sm:h-12 sm:w-12 rounded-full object-cover border-2 border-orange-400/70 ring-2 ring-orange-500/15 group-hover:brightness-110 transition" />
           {/* Badge de online */}
           <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-400 border-2 border-slate-950" />
         </span>

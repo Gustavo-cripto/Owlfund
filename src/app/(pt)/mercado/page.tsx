@@ -438,12 +438,21 @@ function TrendSparkline({
   );
 }
 
+// O TradingView usa "br" para português; com "pt" caía para inglês
+// ("Date Range", "Sep", "Oct").
+const TV_LOCALE: Record<string, string> = { pt: "br", en: "en", es: "es", fr: "fr" };
+
 function TradingViewWidget({
   symbol,
   interval,
+  locale = "br",
+  indicadores = true,
 }: {
   symbol: string;
   interval: string;
+  locale?: string;
+  /** RSI e MACD em painéis próprios. No telemóvel espremiam as velas. */
+  indicadores?: boolean;
 }) {
   const containerId = useMemo(() => {
     const safe = `${symbol}-${interval}`.replace(/[^a-zA-Z0-9_-]/g, "-");
@@ -478,22 +487,21 @@ function TradingViewWidget({
         timezone: "Etc/UTC",
         theme: "dark",
         style: 1,
-        locale: "pt",
+        locale,
         enable_publishing: false,
         hide_top_toolbar: false,
         withdateranges: true,
         hide_side_toolbar: true,
         save_image: false,
         autosize: true,
-        studies: [
-          "RSI@tv-basicstudies",
-          "MACD@tv-basicstudies",
-          "Volume@tv-basicstudies",
-          "MASimple@tv-basicstudies",
-        ],
+        // O volume já vem por omissão dentro do gráfico: pedir o estudo
+        // "Volume" mostrava-o duas vezes.
+        studies: indicadores
+          ? ["MASimple@tv-basicstudies", "RSI@tv-basicstudies", "MACD@tv-basicstudies"]
+          : ["MASimple@tv-basicstudies"],
       });
     });
-  }, [symbol, interval, containerId]);
+  }, [symbol, interval, containerId, locale, indicadores]);
 
   return <div id={containerId} className="h-full w-full" />;
 }
@@ -1246,10 +1254,18 @@ export default function MercadoPage() {
   };
 
   const tradingViewSymbol = useMemo(() => {
-    // Use BINANCE symbols for better widget compatibility (table is still CoinEx).
+    // Pares USDT da Binance: os que o TradingView tem para quase tudo. O USDT
+    // não tem par contra si próprio: mostra-se contra o dólar na Kraken.
     if (!selected) return "BINANCE:BTCUSDT";
+    if (selected.symbol === "USDT") return "KRAKEN:USDTUSD";
     return `BINANCE:${selected.market}`;
   }, [selected]);
+  const tvLocale = TV_LOCALE[lang] ?? "en";
+  // RSI e MACD: ligados em ecrã largo, desligados no telemóvel (botão para os ver).
+  const [indicadores, setIndicadores] = useState(false);
+  useEffect(() => {
+    try { setIndicadores(window.matchMedia("(min-width: 768px)").matches); } catch { /* fica sem */ }
+  }, []);
 
   const coinglassUrl = useMemo(() => {
     const market = selected?.market ?? "BTCUSDT";
@@ -1447,6 +1463,11 @@ export default function MercadoPage() {
               <p className="text-sm text-slate-400">
                 {selected ? `${selected.name} · ${selected.symbol}` : t("mc_select_asset")}
               </p>
+              {chartSource === "tradingview" && (
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {t("mc_chart_quote").replace("{par}", tradingViewSymbol.split(":")[1] ?? "").replace("{bolsa}", tradingViewSymbol.split(":")[0] === "KRAKEN" ? "Kraken" : "Binance").replace("{moeda}", curCode)}
+                </p>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-3">
               {/* timeframe bar removed (use chart internal controls) */}
@@ -1460,6 +1481,16 @@ export default function MercadoPage() {
                   { id: "coinglass", label: t("mc_tab_sentiment") },
                 ]}
               />
+              {chartSource === "tradingview" && (
+                <button
+                  type="button"
+                  aria-pressed={indicadores}
+                  className={`keep-dark inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${indicadores ? "border-sky-400/50 bg-sky-500/15 text-sky-100" : "border-slate-600 bg-slate-800/60 text-slate-300 hover:border-slate-400"}`}
+                  onClick={() => setIndicadores((v) => !v)}
+                >
+                  {t("mc_indicators")}
+                </button>
+              )}
               {chartSource === "tradingview" && (
                 <button
                   type="button"
@@ -1492,9 +1523,11 @@ export default function MercadoPage() {
             )}
             {chartSource === "tradingview" ? (
               <TradingViewWidget
-                key={`tv-${tradingViewSymbol}-${tradingViewInterval}`}
+                key={`tv-${tradingViewSymbol}-${tradingViewInterval}-${tvLocale}-${indicadores}`}
                 symbol={tradingViewSymbol}
                 interval={tradingViewInterval}
+                locale={tvLocale}
+                indicadores={indicadores}
               />
             ) : (
               <DerivativesPanel
@@ -1539,9 +1572,11 @@ export default function MercadoPage() {
               <div className="mt-4 h-[460px] rounded-xl border border-slate-800 bg-slate-950/50 p-2">
                 {selectedTraditional?.tvSymbol ? (
                   <TradingViewWidget
-                    key={`${selectedTraditional.tvSymbol}-${traditionalTradingViewInterval}`}
+                    key={`${selectedTraditional.tvSymbol}-${traditionalTradingViewInterval}-${tvLocale}-${indicadores}`}
                     symbol={selectedTraditional.tvSymbol}
                     interval={traditionalTradingViewInterval}
+                    locale={tvLocale}
+                    indicadores={indicadores}
                   />
                 ) : (
                   <div className="flex h-full items-center justify-center text-sm text-slate-500">
@@ -1898,7 +1933,7 @@ export default function MercadoPage() {
                         {t("mc_showing")}{" "}
                         <span className="font-semibold text-slate-200">{pageRange.total ? pageRange.start + 1 : 0}</span>
                         {"–"}
-                        <span className="font-semibold text-slate-200">{pageRange.end}</span> de{" "}
+                        <span className="font-semibold text-slate-200">{pageRange.end}</span> {t("mc_of")}{" "}
                         <span className="font-semibold text-slate-200">{pageRange.total}</span>
                       </p>
                     </div>
