@@ -30,6 +30,10 @@ export type RegimeInput = {
    * permissiva é a normal; esta é a exceção, e tem de ser declarada no país.
    */
   noLossOffset?: boolean;
+  /** Perdas de anos anteriores ainda por usar (valor positivo). */
+  perdasAnteriores?: number;
+  /** Como abatem as perdas anteriores: ver RegrasPais.perdasTransitam. */
+  modoTransporte?: "antes" | "ateIsencao" | "depoisLimiar";
 };
 
 export type TaxEvent = {
@@ -58,6 +62,10 @@ export type TaxSummary = {
   lossesApplied: number;
   allowanceUsed: number;
   tax: number;
+  /** Só nos países onde as perdas transitam: perdas de anos anteriores usadas neste ano. */
+  carriedLossesUsed?: number;
+  /** Só nos países onde as perdas transitam: perdas deste ano que ficaram por abater. */
+  unusedLosses?: number;
 };
 
 export type TaxEstimate = TaxSummary & {
@@ -115,19 +123,41 @@ export function resumirImposto(
   }
   const lossesApplied = abatido - porAbater;
 
-  let taxable = bases.reduce((s, b) => s + b.base, 0);
+  // Perdas de anos anteriores (só onde a lei as deixa transitar), também a
+  // começar no escalão mais alto. Onde entram face à isenção depende do país.
+  const alw = regime.allowance;
+  const modo = regime.modoTransporte;
+  const baseAtual = () => bases.reduce((s, b) => s + b.base, 0);
+  let carriedUsed = 0;
+  let limiarVisto = false;
+  const abaterAnteriores = (limite: number) => {
+    let resta = Math.min(Math.max(0, regime.perdasAnteriores ?? 0), Math.max(0, limite));
+    const pedido = resta;
+    for (const b of bases) { const usa = Math.min(resta, b.base); b.base -= usa; resta -= usa; }
+    carriedUsed = pedido - resta;
+  };
+  if (modo && (regime.perdasAnteriores ?? 0) > 0) {
+    if (modo === "antes") abaterAnteriores(Infinity);
+    // GB: as perdas antigas só baixam o ganho até à isenção anual.
+    else if (modo === "ateIsencao") abaterAnteriores(baseAtual() - (alw?.kind === "deduct" ? alw.amount : 0));
+    // DE: abaixo do limiar o ano está isento e a perda antiga fica guardada;
+    // acima, a perda antiga abate e o limiar já não se volta a ver.
+    else if (!(alw?.kind === "threshold" && baseAtual() < alw.amount)) { abaterAnteriores(Infinity); limiarVisto = true; }
+  }
+
+  let taxable = baseAtual();
   let tax = bases.reduce((s, b) => s + b.base * b.taxa, 0);
 
   // A isenção anual entra por último, sobre o saldo já compensado.
   let allowanceUsed = 0;
-  const alw = regime.allowance;
   if (alw && taxable > 0 && tax > 0) {
     if (alw.kind === "threshold") {
       // Tudo-ou-nada: abaixo do limite não há imposto; acima, paga-se sobre tudo.
       // ABAIXO do limite, estritamente: DE "a partir de €1000 tributa tudo",
       // LU "< €500" (auditoria 30 set 2026: com <= um ganho de exatamente
       // €1.000 ficava isento).
-      if (taxable < alw.amount) { allowanceUsed = taxable; tax = 0; }
+      // Se já abateram perdas antigas (DE), o limiar foi visto antes delas.
+      if (!limiarVisto && taxable < alw.amount) { allowanceUsed = taxable; tax = 0; }
     } else {
       allowanceUsed = Math.min(alw.amount, taxable);
       // Consome a isenção a começar no escalão mais alto, pela mesma razão.
@@ -154,6 +184,7 @@ export function resumirImposto(
     lossesApplied: cent(lossesApplied),
     allowanceUsed: cent(allowanceUsed),
     tax: cent(Math.max(0, tax)),
+    ...(modo ? { carriedLossesUsed: cent(carriedUsed), unusedLosses: cent(porAbater) } : {}),
   };
 }
 

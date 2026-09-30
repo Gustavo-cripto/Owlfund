@@ -23,7 +23,7 @@ import { ACCOUNTS_EVENT } from "@/lib/portfolios/accounts";
 import { pushWalletCloud } from "@/lib/portfolios/cloudSync";
 import { chronoCompare, deleteTrade, loadTrades, tradeId, upsertTrade } from "@/lib/portfolios/trades";
 import { resumirImposto } from "@/lib/api/taxMath";
-import { anoFiscalDe, classificarLote, comTaxaPessoal, fimDoAnoFiscal, regimeNaData, resumirPais, rotuloAnoFiscal, type TaxaPessoal } from "@/lib/tax/regras";
+import { anoFiscalDe, classificarLote, comTaxaPessoal, fimDoAnoFiscal, regimeNaData, resumirAnos, rotuloAnoFiscal, type ResumoAno, type TaxaPessoal } from "@/lib/tax/regras";
 import { protegerTextoPdf } from "@/lib/export/pdfTexto";
 
 const LOCALE_BY_LANG: Record<string, string> = { pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" };
@@ -491,6 +491,14 @@ export default function FiscalidadePage() {
     [standaloneFees, anoAtivo, paisDoRelatorio],
   );
 
+  // Todos os anos de uma vez: nos paises onde as perdas transitam, as que
+  // sobram de um ano abatem nos seguintes (resumirAnos).
+  const resumosPorAno = useMemo(
+    () => paisDoRelatorio
+      ? resumirAnos(paisDoRelatorio, taxEvents.map((e) => ({ gain: e.gain, taxRate: e.taxRate, longTerm: e.holding === "longo", sellDate: e.sellDate, saleValue: e.saleValue })), { alternativa, taxaPessoal })
+      : null,
+    [taxEvents, paisDoRelatorio, alternativa, taxaPessoal],
+  );
   const summary = useMemo(() => {
     // A MESMA funcao que a API e o MCP usam. Havia aqui uma copia da conta, e
     // as duas copias erravam igual: as menos-valias nunca abatiam aos ganhos.
@@ -498,17 +506,19 @@ export default function FiscalidadePage() {
     // custos do ano (vendidos ou nao), com o excedente a transitar. Os lotes
     // FIFO ficam na tabela so para se ver de onde vem cada venda.
     const anual = costMethod === "annual" ? resumoAnualPolaco(fifoFiscal.ops).find((a) => a.ano === anoAtivo) : null;
-    const r = anual
+    const r: ResumoAno = anual
       ? resumirImposto([{ gain: anual.base > 0 ? anual.base : anual.receitas - anual.custos - anual.custosTransitados, taxRate: regime.short }], regime)
       : paisDoRelatorio
-        ? resumirPais(paisDoRelatorio, eventosDoAno.map((e) => ({ gain: e.gain, taxRate: e.taxRate, longTerm: e.holding === "longo", sellDate: e.sellDate, saleValue: e.saleValue })), { alternativa, taxaPessoal })
+        ? resumosPorAno?.get(anoAtivo) ?? resumirImposto([], regime)
         : resumirImposto(eventosDoAno, regime);
     // Polonia: as taxas deduzidas sao as de TODAS as compras e vendas do ano
     // (estao dentro da base anual), nao as dos lotes FIFO.
     const fees = anual ? anual.taxas : eventosDoAno.reduce((s, e) => s + e.fees, 0);
     const standalone = taxasDoAno.reduce((s, f) => s + f.value, 0);
-    return { ...r, fees, standalone, anual };
-  }, [eventosDoAno, taxasDoAno, regime, costMethod, fifoFiscal.ops, anoAtivo, paisDoRelatorio, alternativa, taxaPessoal]);
+    // Perdas que passam para o ano seguinte (so nos paises onde a lei deixa).
+    const aTransitar = (r.transitar ?? []).reduce((acc, p) => acc + p.valor, 0);
+    return { ...r, fees, standalone, anual, aTransitar };
+  }, [eventosDoAno, taxasDoAno, regime, costMethod, fifoFiscal.ops, anoAtivo, paisDoRelatorio, resumosPorAno]);
 
   // Regras do ANO escolhido (IT 26% em 2025, FR 30% ate 2024, BE sem imposto
   // antes de 2026…), com a taxa pessoal: e o que o cartao e o PDF mostram.
@@ -641,6 +651,8 @@ export default function FiscalidadePage() {
     metric(t("fisc_x_taxable"), summary.taxable, money);
     metric(rotuloIsentas, summary.exempt, money);
     metric(t("fc_realized_losses"), summary.losses, money);
+    if ((summary.carriedLossesUsed ?? 0) > 0) metric(t("fisc_x_carry_used"), -(summary.carriedLossesUsed ?? 0), money);
+    if (summary.aTransitar > 0) metric(t("fisc_x_carry_out"), summary.aTransitar, money);
     if (summary.allowanceUsed > 0 && (alwAno || regimeAno.isencaoVendas != null)) metric(`${t("fisc_x_allowance")} (${alwAno ? alwAno.label[lang] : t("fisc_fr_305")})`, -summary.allowanceUsed, money);
     metric(t("fc_estimated_tax"), summary.tax, money);
     metric(t("fisc_pdf_num_events"), eventosDoAno.length, "0");
@@ -877,6 +889,8 @@ export default function FiscalidadePage() {
       [t("fisc_pdf_net_gain"), `${summary.totalGain >= 0 ? "+" : "-"}${eur(summary.totalGain)}`],
       ...(summary.fees > 0 ? [[t("fisc_fees_deducted"), eur(summary.fees)] as [string, string]] : []),
       ...(summary.standalone > 0 ? [[t("fisc_standalone_total"), eur(summary.standalone)] as [string, string]] : []),
+      ...((summary.carriedLossesUsed ?? 0) > 0 ? [[t("fisc_x_carry_used"), `-${eur(summary.carriedLossesUsed ?? 0)}`] as [string, string]] : []),
+      ...(summary.aTransitar > 0 ? [[t("fisc_x_carry_out"), eur(summary.aTransitar)] as [string, string]] : []),
       [t("fisc_pdf_eff_rate"), `${effRate.toFixed(1)}%`],
       [t("fisc_pdf_num_events"), String(eventosDoAno.length)],
       [t("fisc_pdf_method_label"), `${metodoCurto} / ${reportCurrency}`],
@@ -1223,6 +1237,22 @@ export default function FiscalidadePage() {
               {summary.lossesApplied > 0 && (
                 <p className="rounded-xl border border-sky-500/20 bg-sky-500/[0.06] px-4 py-2.5 text-xs text-sky-200">
                   ➖ −{fmtEur(summary.lossesApplied)} {t("fisc_losses_applied")}
+                </p>
+              )}
+              {(summary.carriedLossesUsed ?? 0) > 0 && (
+                <p className="rounded-xl border border-sky-500/20 bg-sky-500/[0.06] px-4 py-2.5 text-xs text-sky-200">
+                  ➖ −{fmtEur(summary.carriedLossesUsed ?? 0)} {t("fisc_carry_used")}
+                </p>
+              )}
+              {summary.aTransitar > 0 && (
+                <p className="rounded-xl border border-slate-600/40 bg-slate-800/40 px-4 py-2.5 text-xs text-slate-300">
+                  ↪ {t("fisc_carry_out").replace("{v}", fmtEur(summary.aTransitar)).replace("{y}", rotuloAno(anoAtivo + 1))}
+                  {regrasPais?.perdasTransitam?.anos ? ` ${t("fisc_carry_expiry").replace("{n}", String(regrasPais.perdasTransitam.anos))}` : ""}
+                </p>
+              )}
+              {(summary.ordinaryIncomeDeduction ?? 0) > 0 && (
+                <p className="rounded-xl border border-slate-600/40 bg-slate-800/40 px-4 py-2.5 text-xs text-slate-300">
+                  {t("fisc_carry_us_ordinary").replace("{v}", fmtEur(summary.ordinaryIncomeDeduction ?? 0))}
                 </p>
               )}
               {summary.allowanceUsed > 0 && !alwAno && regimeAno.isencaoVendas != null && (

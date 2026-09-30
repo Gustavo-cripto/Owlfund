@@ -167,7 +167,31 @@ export type OpcoesResumo = {
   alternativa?: boolean;
   /** Taxa marginal escrita pela pessoa (onde a lei a faz depender do rendimento). */
   taxaPessoal?: TaxaPessoal;
+  /** Perdas de anos anteriores ainda por usar (só nos países com perdasTransitam). */
+  perdasAnteriores?: readonly PerdaTransitada[];
 };
+
+/** Perda por usar: de que ano fiscal vem e quanto falta. EUA: guarda se é de longo prazo. */
+export type PerdaTransitada = { ano: number; valor: number; longo?: boolean };
+
+export type ResumoAno = TaxSummary & {
+  /** O que passa para o ano seguinte (antes de caducar). */
+  transitar?: PerdaTransitada[];
+  /** EUA: perda líquida descontada a outros rendimentos neste ano (até $3.000). */
+  ordinaryIncomeDeduction?: number;
+};
+
+/** Gasta `usado` das perdas antigas, das mais antigas para as mais recentes. */
+function consumirPerdas(lista: readonly PerdaTransitada[], usado: number): PerdaTransitada[] {
+  let resta = usado;
+  const fica: PerdaTransitada[] = [];
+  for (const p of [...lista].sort((a, b) => a.ano - b.ano)) {
+    const usa = Math.min(resta, p.valor);
+    resta -= usa;
+    if (p.valor - usa > EPS) fica.push({ ...p, valor: p.valor - usa });
+  }
+  return fica;
+}
 
 const cent = (n: number) => Math.round(n * 100) / 100;
 
@@ -175,10 +199,14 @@ const cent = (n: number) => Math.round(n * 100) / 100;
  * Resumo fiscal de UM ano fiscal de um país. `eventos` já vêm classificados
  * (classificarLote) e são todos do mesmo ano fiscal.
  */
-export function resumirPais(pais: Pick<Country, "code" | "regime" | "regras">, eventos: readonly EventoFiscal[], opcoes: OpcoesResumo = {}): TaxSummary {
+export function resumirPais(pais: Pick<Country, "code" | "regime" | "regras">, eventos: readonly EventoFiscal[], opcoes: OpcoesResumo = {}): ResumoAno {
   if (!eventos.length) return resumirImposto([], { short: 0, long: 0, longDays: 0 });
-  const r = comTaxaPessoal(pais, regimeNaData(pais, eventos.reduce((m, e) => (e.sellDate > m ? e.sellDate : m), eventos[0].sellDate)), opcoes.taxaPessoal);
+  const ultimaVenda = eventos.reduce((m, e) => (e.sellDate > m ? e.sellDate : m), eventos[0].sellDate);
+  const r = comTaxaPessoal(pais, regimeNaData(pais, ultimaVenda), opcoes.taxaPessoal);
   const regras = pais.regras;
+  const anoFiscal = anoFiscalDe(pais, ultimaVenda);
+  const transporte = regras?.perdasTransitam;
+  const anteriores = transporte ? opcoes.perdasAnteriores ?? [] : [];
   const allowance = r.allowance && !r.allowance.disputada ? r.allowance : undefined;
   const base = { short: r.short, long: r.long, longDays: r.longDays, allowance };
 
@@ -223,32 +251,91 @@ export function resumirPais(pais: Pick<Country, "code" | "regime" | "regras">, e
     const cat = (longo: boolean) => eventos.filter((e) => e.longTerm === longo && e.taxRate > 0);
     const soma = (l: EventoFiscal[], f: (e: EventoFiscal) => boolean) => l.filter(f).reduce((s, e) => s + e.gain, 0);
     const curto = cat(false), longo = cat(true);
-    let st = soma(curto, () => true), lt = soma(longo, () => true);
-    if (st < 0 && lt > 0) { lt += st; st = 0; } else if (lt < 0 && st > 0) { st += lt; lt = 0; }
-    st = Math.max(0, st); lt = Math.max(0, lt);
+    const netear = (st: number, lt: number) => {
+      if (st < 0 && lt > 0) { lt += st; st = 0; } else if (lt < 0 && st > 0) { st += lt; lt = 0; }
+      return { st, lt };
+    };
+    const stBruto = soma(curto, () => true), ltBruto = soma(longo, () => true);
+    const semAnteriores = netear(stBruto, ltBruto);
+    // As perdas antigas entram com o seu caráter (Schedule D, linhas 6 e 14).
+    const antCurto = anteriores.filter((p) => !p.longo).reduce((a, p) => a + p.valor, 0);
+    const antLongo = anteriores.filter((p) => p.longo).reduce((a, p) => a + p.valor, 0);
+    const n = netear(stBruto - antCurto, ltBruto - antLongo);
+    const st = Math.max(0, n.st), lt = Math.max(0, n.lt);
     const s = resumirImposto(eventos, base);
     const brutoTributavel = soma([...curto, ...longo], (e) => e.gain > 0);
-    return { ...s, taxable: cent(st + lt), lossesApplied: cent(Math.max(0, brutoTributavel - st - lt)), tax: cent(st * r.short + lt * r.long) };
+    const tributavelSem = Math.max(0, semAnteriores.st) + Math.max(0, semAnteriores.lt);
+    const extra: Partial<ResumoAno> = {};
+    if (transporte?.modo === "us") {
+      // Perda líquida: até ao limite desconta a outros rendimentos (primeiro a
+      // de curto prazo); o resto passa ao ano seguinte com o mesmo caráter.
+      const perdaCurto = Math.max(0, -n.st), perdaLongo = Math.max(0, -n.lt);
+      const outros = Math.min(transporte.limiteOutrosRendimentos ?? 0, perdaCurto + perdaLongo);
+      const doCurto = Math.min(outros, perdaCurto);
+      const transitar: PerdaTransitada[] = [];
+      if (perdaCurto - doCurto > EPS) transitar.push({ ano: anoFiscal, valor: cent(perdaCurto - doCurto), longo: false });
+      if (perdaLongo - (outros - doCurto) > EPS) transitar.push({ ano: anoFiscal, valor: cent(perdaLongo - (outros - doCurto)), longo: true });
+      Object.assign(extra, { transitar, carriedLossesUsed: cent(tributavelSem - st - lt), ordinaryIncomeDeduction: cent(outros), unusedLosses: cent(perdaCurto + perdaLongo) });
+    }
+    return { ...s, taxable: cent(st + lt), lossesApplied: cent(Math.max(0, brutoTributavel - tributavelSem)), tax: cent(st * r.short + lt * r.long), ...extra };
   }
 
-  const s = resumirImposto(eventos, base);
+  const comTransporte = transporte && transporte.modo !== "us";
+  const s: ResumoAno = resumirImposto(eventos, comTransporte
+    ? { ...base, modoTransporte: transporte.modo as "antes" | "ateIsencao" | "depoisLimiar", perdasAnteriores: anteriores.reduce((a, p) => a + p.valor, 0) }
+    : base);
+  if (comTransporte) {
+    s.transitar = [
+      ...consumirPerdas(anteriores, s.carriedLossesUsed ?? 0),
+      ...((s.unusedLosses ?? 0) > EPS ? [{ ano: anoFiscal, valor: s.unusedLosses! }] : []),
+    ];
+  }
   // Espanha: escala da base do aforro sobre o saldo do ano.
   if (r.escaloes && s.taxable > 0) return { ...s, tax: cent(porEscaloes(s.taxable, r.escaloes)) };
   return s;
 }
 
 /**
+ * Resumo de TODOS os anos fiscais, por ordem, com as perdas a passar de um
+ * ano para o seguinte onde a lei o deixa (RegrasPais.perdasTransitam). Só
+ * conhece as perdas registadas aqui: perdas de antes do primeiro registo não
+ * entram. Nos outros países cada ano fica sozinho, como antes.
+ */
+export function resumirAnos(
+  pais: Pick<Country, "code" | "regime" | "regras">,
+  eventos: readonly EventoFiscal[],
+  opcoes: OpcoesResumo = {},
+): Map<number, ResumoAno & { perdasDisponiveis: number }> {
+  const transporte = pais.regras?.perdasTransitam;
+  const porAno = new Map<number, EventoFiscal[]>();
+  for (const e of eventos) {
+    const a = anoFiscalDe(pais, e.sellDate);
+    porAno.set(a, [...(porAno.get(a) ?? []), e]);
+  }
+  const saida = new Map<number, ResumoAno & { perdasDisponiveis: number }>();
+  let perdas: PerdaTransitada[] = [];
+  for (const a of [...porAno.keys()].sort((x, y) => x - y)) {
+    // ES: a perda de um ano só abate nos 4 anos seguintes.
+    if (transporte?.anos) perdas = perdas.filter((p) => a - p.ano <= transporte.anos!);
+    const r = resumirPais(pais, porAno.get(a)!, { ...opcoes, perdasAnteriores: perdas });
+    saida.set(a, { ...r, perdasDisponiveis: cent(perdas.reduce((acc, p) => acc + p.valor, 0)) });
+    perdas = transporte ? r.transitar ?? [] : [];
+  }
+  return saida;
+}
+
+/**
  * Estimativa de um país a partir de lotes JÁ na moeda do relatório (a API
  * converte cada operação antes do motor). `ano` é o ano fiscal (GB/AU: o ano
- * em que começa). Sem ano: um resumo por ano fiscal, somados — nunca netting
- * entre anos.
+ * em que começa). Sem ano: um resumo por ano fiscal, somados. Entre anos só
+ * passam as perdas, e só onde a lei deixa (resumirAnos).
  */
 export function estimarImpostoPais(
   lotes: readonly LoteRealizado[],
   pais: Pick<Country, "code" | "regime" | "regras">,
   ano?: number,
   opcoes: OpcoesResumo = {},
-): TaxEstimate & { anos: number[] } {
+): TaxEstimate & { anos: number[]; carriedLossesUsed: number; lossesCarriedForward: number; ordinaryIncomeDeduction: number } {
   const eventos = lotes.map((l) => {
     const c = classificarLote(pais, l, opcoes.taxaPessoal, opcoes.alternativa);
     return {
@@ -259,13 +346,18 @@ export function estimarImpostoPais(
   });
   const anos = [...new Set(eventos.map((e) => anoFiscalDe(pais, e.sellDate)))].sort((a, b) => a - b);
   const alvo = ano == null ? anos : anos.filter((a) => a === ano);
-  const parciais = alvo.map((a) => resumirPais(pais, eventos.filter((e) => anoFiscalDe(pais, e.sellDate) === a), opcoes));
-  const soma = (f: (r: TaxSummary) => number) => cent(parciais.reduce((acc, r) => acc + f(r), 0));
+  const todosAnos = resumirAnos(pais, eventos, opcoes);
+  const parciais = alvo.map((a) => todosAnos.get(a)!);
+  const ultimo = parciais[parciais.length - 1];
+  const soma = (f: (r: ResumoAno) => number) => cent(parciais.reduce((acc, r) => acc + f(r), 0));
   const doAno = eventos.filter((e) => alvo.includes(anoFiscalDe(pais, e.sellDate)));
   return {
     totalGain: soma((r) => r.totalGain), taxable: soma((r) => r.taxable), exempt: soma((r) => r.exempt),
     losses: soma((r) => r.losses), deductibleLosses: soma((r) => r.deductibleLosses), lossesApplied: soma((r) => r.lossesApplied),
     allowanceUsed: soma((r) => r.allowanceUsed), tax: soma((r) => r.tax),
+    carriedLossesUsed: soma((r) => r.carriedLossesUsed ?? 0),
+    lossesCarriedForward: cent((ultimo?.transitar ?? []).reduce((acc, p) => acc + p.valor, 0)),
+    ordinaryIncomeDeduction: soma((r) => r.ordinaryIncomeDeduction ?? 0),
     events: doAno.map(({ saleValue: _s, fees: _f, ...e }) => e),
     fees: cent(doAno.reduce((acc, e) => acc + e.fees, 0)),
     droppedLots: 0,

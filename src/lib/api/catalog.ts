@@ -84,11 +84,13 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
   "returned": 100,
   "trades": [{ "date": "2026-06-10", "type": "venda", "asset": "BTC", "quantity": 0.25, "priceEur": 58000, "totalEur": 14500, "feeEur": 12.4 }]
 }` },
-  { id: "tax-estimate", method: "GET", path: "/api/v1/tax-estimate", desc: "ESTIMATIVA de imposto sobre mais-valias num país, na moeda desse país (FIFO, câmbio do BCE à data de cada operação). Não é uma declaração.", descKey: "dev_ep_tax_estimate", auth: true,
-    query: { country: "PT", year: "2026" },
+  { id: "tax-estimate", method: "GET", path: "/api/v1/tax-estimate", desc: "ESTIMATIVA de imposto sobre mais-valias num país, na moeda desse país (método de custo do país, câmbio do BCE à data de cada operação, perdas de anos anteriores onde a lei deixa). Opcional: alternative=true (BR, PT, AR, AT) e marginalRate=0.35 onde a taxa depende do rendimento. Não é uma declaração.", descKey: "dev_ep_tax_estimate", auth: true,
+    query: { country: "PT", year: "2026", alternative: "false" },
     response: `{
   "country": "PT",
   "currency": "EUR",
+  "costMethod": "fifo",
+  "assumptions": { "alternative": false, "meaning": "Counterparty (exchange) resident in the EU/EEA or a treaty country: 365-day exclusion and swap neutrality apply." },
   "rates": { "short": 0.28, "long": 0, "longTermAfterDays": 365 },
   "sales": 12,
   "totalGain": 4200.5,
