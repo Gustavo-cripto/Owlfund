@@ -458,16 +458,22 @@ function TradingViewWidget({
   indicadores?: boolean;
 }) {
   const containerId = useMemo(() => {
-    const safe = `${symbol}-${interval}`.replace(/[^a-zA-Z0-9_-]/g, "-");
+    // Um contentor por símbolo, intervalo, língua e indicadores: um widget antigo
+    // ainda a carregar nunca desenha no contentor do novo.
+    const safe = `${symbol}-${interval}-${locale}-${indicadores ? "i" : "s"}`.replace(/[^a-zA-Z0-9_-]/g, "-");
     return `tradingview-widget-${safe}`;
-  }, [symbol, interval]);
+  }, [symbol, interval, locale, indicadores]);
 
   useEffect(() => {
     const scriptId = "tradingview-widget-script";
+    let cancelado = false;
     const ensureScript = () =>
       new Promise<void>((resolve) => {
-        if (document.getElementById(scriptId)) {
-          resolve();
+        if ("TradingView" in window) { resolve(); return; }
+        const existente = document.getElementById(scriptId);
+        if (existente) {
+          // Ainda a carregar (outro gráfico pediu-o): esperar pelo fim.
+          existente.addEventListener("load", () => resolve(), { once: true });
           return;
         }
         const script = document.createElement("script");
@@ -479,6 +485,10 @@ function TradingViewWidget({
       });
 
     ensureScript().then(() => {
+      // A página começa em português e só depois lê a língua guardada: o
+      // widget da primeira passagem acabava de carregar depois do novo e
+      // ficava por cima, na língua errada.
+      if (cancelado) return;
       const container = document.getElementById(containerId);
       if (!container || !("TradingView" in window)) return;
       container.innerHTML = "";
@@ -504,6 +514,7 @@ function TradingViewWidget({
           : ["MASimple@tv-basicstudies"],
       });
     });
+    return () => { cancelado = true; };
   }, [symbol, interval, containerId, locale, indicadores]);
 
   return <div id={containerId} className="h-full w-full" />;
