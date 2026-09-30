@@ -107,4 +107,26 @@ eq("IT EURC em 2026 → 26%", imposto("IT", [lote("2025-01-10", "2026-03-10", 0,
 // Taxa pessoal: Reino Unido na banda básica (18%).
 eq("GB ganho £10k, taxa pessoal 18% → (10k − 3k) × 18% = 1.260", imposto("GB", [lote("2025-05-10", "2026-03-10", 0, 10000)], 2025, { taxaPessoal: { curto: 0.18 } }), 1260);
 
+// 9. Perdas que transitam de ano (só as registadas aqui).
+const estT = (c: string, lotes: LoteRealizado[], ano?: number) => estimarImpostoPais(lotes, P(c), ano);
+const ieT = [lote("2024-01-10", "2025-05-10", 15000, 10000), lote("2025-06-10", "2026-03-10", 20000, 30000)];
+eq("IE perda de 5k em 2025 abate em 2026 antes da isenção: (10k − 5k − 1.270) × 33%", imposto("IE", ieT, 2026), 1230.9);
+eq("IE sem ano: a soma dos anos também transporta", imposto("IE", ieT), 1230.9);
+eq("IE perda antiga usada", estT("IE", ieT, 2026).carriedLossesUsed, 5000);
+const gbT = [lote("2024-01-10", "2024-12-01", 15000, 10000), lote("2025-01-10", "2026-01-10", 20000, 25000)];
+eq("GB 2025/26: ganho 5k, isenção 3k, a perda antiga só gasta 2k → 0", imposto("GB", gbT, 2025), 0);
+eq("GB ficam 3k por transitar", estT("GB", gbT, 2025).lossesCarriedForward, 3000);
+const deT = [lote("2025-01-10", "2025-06-10", 12000, 10000), lote("2026-01-10", "2026-06-10", 10000, 10800), lote("2027-01-10", "2027-06-10", 10000, 15000)];
+eq("DE 2026: ganho 800 abaixo do limiar → 0", imposto("DE", deT, 2026), 0);
+eq("DE 2026: a perda de 2k fica guardada", estT("DE", deT, 2026).lossesCarriedForward, 2000);
+eq("DE 2027: (5k − 2k) × 47,475%", imposto("DE", deT, 2027), 3000 * 0.47475);
+const usT = [lote("2025-01-10", "2025-06-10", 20000, 10000), lote("2024-01-10", "2026-03-10", 10000, 30000)];
+eq("US 2025: perda de 10k desconta 3k a outros rendimentos", estT("US", usT, 2025).ordinaryIncomeDeduction, 3000);
+eq("US 2025: transitam 7k de curto prazo", estT("US", usT, 2025).lossesCarriedForward, 7000);
+eq("US 2026: ganho de longo 20k − 7k de curto → 13k × 23,8%", imposto("US", usT, 2026), 13000 * 0.238);
+eq("ES perda de 2020 caduca em 2025 (mais de 4 anos)", imposto("ES", [lote("2019-01-10", "2020-06-10", 20000, 10000), lote("2024-01-10", "2025-06-10", 20000, 30000)], 2025), 1980);
+eq("ES perda de 2022 ainda abate em 2026", imposto("ES", [lote("2021-01-10", "2022-06-10", 20000, 10000), lote("2025-01-10", "2026-06-10", 20000, 30000)], 2026), 0);
+eq("AU perda de 2024/25 abate ao ganho de curto prazo de 2025/26: 10k × 47%", imposto("AU", [lote("2024-06-10", "2025-03-01", 20000, 10000), lote("2025-01-10", "2025-09-01", 10000, 30000)], 2025), 4700);
+eq("PT não transporta: perda de 2025 não abate em 2026", imposto("PT", [lote("2025-01-10", "2025-06-10", 20000, 10000), lote("2026-01-10", "2026-06-10", 20000, 30000)], 2026), 2800);
+
 if (fails) { console.log(`\n${fails} FALHA(S)`); process.exit(1); } else console.log("\nTODOS OK");

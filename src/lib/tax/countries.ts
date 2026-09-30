@@ -71,8 +71,16 @@ export type RegrasPais = {
   anoFiscalInicio?: string;
   /** Troca cripto↔cripto sem imposto; o custo passa para a moeda recebida. */
   permutaNeutra?: boolean;
-  /** As perdas que sobram passam para anos seguintes (a calculadora não as transita; o ecrã diz). */
-  perdasTransitam?: boolean;
+  /**
+   * As perdas que sobram passam para anos seguintes (só as registadas aqui).
+   * `modo`: "antes" abatem antes da isenção (ES, IE, CA, AU); "ateIsencao" só
+   * até à isenção anual, sem a desperdiçar (GB, TCGA 1992 s.2(2)); "depoisLimiar"
+   * um ano abaixo do limiar fica isento e a perda antiga fica guardada (DE,
+   * § 23 Abs. 3 EStG); "us" mantém curto/longo e desconta até
+   * `limiteOutrosRendimentos` por ano a outros rendimentos (IRC §1211/§1212).
+   * `anos`: prazo (ES: 4 anos, art. 49 LIRPF); sem ele, sem limite.
+   */
+  perdasTransitam?: { modo: "antes" | "ateIsencao" | "depoisLimiar" | "us"; anos?: number; limiteOutrosRendimentos?: number };
   /** EUA: perdas compensam primeiro dentro de curto/longo prazo. */
   ordemPerdasUS?: boolean;
   /**
@@ -261,7 +269,7 @@ const REGRAS: Record<string, RegrasPais> = {
   PT: { prazo: { tipo: "dias", n: 365 }, permutaNeutra: true, alternativa: { id: "pt", semIsencaoPrazo: true, trocasTributadas: true }, historico: [{ ate: "2023-01-01", semImposto: true }] },
   ES: {
     escaloes: [[6000, 0.19], [50000, 0.21], [200000, 0.23], [300000, 0.27], [INF, 0.30]],
-    perdasTransitam: true, notaExterior: true,
+    perdasTransitam: { modo: "antes", anos: 4 }, notaExterior: true,
     historico: [
       { ate: "2025-01-01", escaloes: [[6000, 0.19], [50000, 0.21], [200000, 0.23], [300000, 0.27], [INF, 0.28]] },
       { ate: "2023-01-01", escaloes: [[6000, 0.19], [50000, 0.21], [200000, 0.23], [INF, 0.26]] },
@@ -270,11 +278,11 @@ const REGRAS: Record<string, RegrasPais> = {
   // A subida da CSG (LFSS 2026) já se aplica aos ganhos de 2025 (revenus du patrimoine).
   FR: { isencaoVendas: 305, notaExterior: true, historico: [{ ate: "2025-01-01", short: 0.30, long: 0.30 }] },
   DE: {
-    prazo: { tipo: "meses", n: 12 }, taxaMarginal: { longo: "fixo" }, perdasTransitam: true,
+    prazo: { tipo: "meses", n: 12 }, taxaMarginal: { longo: "fixo" }, perdasTransitam: { modo: "depoisLimiar" },
     historico: [{ ate: "2024-01-01", allowance: alwHist(600, "threshold", "Freigrenze €600/ano (até 2023)", "Freigrenze €600/year (until 2023)", "Freigrenze 600 €/año (hasta 2023)", "Freigrenze 600 €/an (jusqu'en 2023)") }],
   },
   GB: {
-    anoFiscalInicio: "04-06", taxaMarginal: { longo: "igual" }, perdasTransitam: true,
+    anoFiscalInicio: "04-06", taxaMarginal: { longo: "igual" }, perdasTransitam: { modo: "ateIsencao" },
     historico: [
       { ate: "2024-10-30", short: 0.20, long: 0.20 },
       { ate: "2024-04-06", allowance: alwHist(6000, "deduct", "Isenção anual £6.000 (2023/24)", "Annual exemption £6,000 (2023/24)", "Exención anual £6.000 (2023/24)", "Abattement annuel 6 000 £ (2023/24)") },
@@ -291,13 +299,13 @@ const REGRAS: Record<string, RegrasPais> = {
   },
   BR: { alternativa: { id: "br" }, brMensal: { isencaoVendasMes: 35000, escaloes: [[5_000_000, 0.15], [10_000_000, 0.175], [30_000_000, 0.20], [INF, 0.225]], taxaExterior: 0.15 } },
   BE: { historico: [{ ate: "2026-01-01", semImposto: true }] },
-  IE: { perdasTransitam: true },
+  IE: { perdasTransitam: { modo: "antes" } },
   AT: { permutaNeutra: true, alternativa: { id: "at" }, altbestand: { antes: "2021-03-01" } },
   PL: { permutaNeutra: true },
   LU: { prazo: { tipo: "meses", n: 6 }, taxaMarginal: { longo: "fixo" } },
-  US: { prazo: { tipo: "meses", n: 12 }, ordemPerdasUS: true, notaExterior: true, taxaMarginal: { longo: "separado" }, perdasTransitam: true },
-  CA: { taxaMarginal: { longo: "igual" }, perdasTransitam: true },
-  AU: { prazo: { tipo: "meses", n: 12 }, anoFiscalInicio: "07-01", taxaMarginal: { longo: "metade" }, perdasTransitam: true },
+  US: { prazo: { tipo: "meses", n: 12 }, ordemPerdasUS: true, notaExterior: true, taxaMarginal: { longo: "separado" }, perdasTransitam: { modo: "us", limiteOutrosRendimentos: 3000 } },
+  CA: { taxaMarginal: { longo: "igual" }, perdasTransitam: { modo: "antes" } },
+  AU: { prazo: { tipo: "meses", n: 12 }, anoFiscalInicio: "07-01", taxaMarginal: { longo: "metade" }, perdasTransitam: { modo: "antes" } },
   MX: { taxaMarginal: { longo: "igual" } },
   AR: { alternativa: { id: "ar", taxa: 0.05 } },
 };

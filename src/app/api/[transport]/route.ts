@@ -116,15 +116,18 @@ const handler = createMcpHandler(
 
     server.tool(
       "get_tax_estimate",
-      "ESTIMATIVA de imposto sobre mais-valias num país, na moeda desse país: FIFO, cada perna convertida à taxa do BCE da sua data, taxa de longo prazo conforme os dias de detenção e isenção anual aplicada. Não é uma declaração fiscal.",
+      "ESTIMATIVA de imposto sobre mais-valias num país, na moeda desse país: método de custo do país (FIFO, preço médio, LIFO, pool britânico, soma anual), cada operação convertida à taxa do BCE da sua data, regras do ano da venda, prazo de detenção, isenção anual e, onde a lei deixa, perdas de anos anteriores. Não é uma declaração fiscal. As opções de cada país estão em list_tax_countries (campo options).",
       {
         country: z.string().length(2).describe("Código do país em duas letras (ex.: PT, ES, US). Ver list_tax_countries."),
-        year: z.number().int().min(2009).max(2100).optional().describe("Ano civil das vendas (opcional)."),
+        year: z.number().int().min(2009).max(2100).optional().describe("Ano fiscal das vendas (opcional). No Reino Unido e na Austrália é o ano em que o ano fiscal começa (2025 = 2025/26)."),
+        alternative: z.boolean().optional().describe("Só BR, PT, AR e AT: a opção alternativa de onde estão as moedas (BR exchange estrangeira; PT corretora fora da UE/EEE sem convenção; AR venda em pesos; AT plataforma austríaca)."),
+        marginalRate: z.number().min(0).max(0.6).optional().describe("Só onde a taxa depende do rendimento (DE, GB, US, CA, AU, LU, MX): a taxa marginal da pessoa em fração (0.35 = 35%). Sem ela usa-se a taxa máxima."),
+        marginalRateLong: z.number().min(0).max(0.6).optional().describe("Só US: a taxa de longo prazo da pessoa em fração (0, 0.15 ou 0.20, mais 0.038 de NIIT se aplicável)."),
       },
       async (args, extra) => {
         const userId = (extra?.authInfo?.extra?.userId as string | undefined) ?? "";
         if (!userId) return { content: [{ type: "text", text: "Não autenticado." }], isError: true };
-        return { content: [{ type: "text", text: JSON.stringify(await getTaxEstimate(userId, args.country, args.year), null, 2) }] };
+        return { content: [{ type: "text", text: JSON.stringify(await getTaxEstimate(userId, args.country, args.year, { alternative: args.alternative, marginalRate: args.marginalRate, marginalRateLong: args.marginalRateLong }), null, 2) }] };
       },
     );
 

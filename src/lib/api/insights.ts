@@ -4,6 +4,7 @@ import { metricas, seriePontos, variacoes, type PnlChange, type SnapRow } from "
 import { resumirImposto } from "@/lib/api/taxMath";
 import { realizar, resumoAnualPolaco, type Operacao } from "@/lib/tax/metodos";
 import { estimarImpostoPais, rotuloAnoFiscal } from "@/lib/tax/regras";
+import { ALTERNATIVA_EN, opcoesDoPais, validarOpcoes, type OpcoesEstimativa } from "@/lib/api/opcoesImposto";
 import { loadFxServer } from "@/lib/api/fxServer";
 import { COST_METHOD_LABEL, COST_METHOD_SHORT, metodoRessalva, moedaDoRelatorio, COUNTRIES } from "@/lib/tax/countries";
 
@@ -196,11 +197,16 @@ export async function getTrades(userId: string, opts: { asset?: string; year?: n
 
 // ── Estimativa de imposto por país ───────────────────────────────────────────
 
-export async function getTaxEstimate(userId: string, countryCode: string, year?: number) {
+export async function getTaxEstimate(userId: string, countryCode: string, year?: number, opcoes: OpcoesEstimativa = {}) {
   const pais = COUNTRIES.find((c) => c.code === countryCode.toUpperCase());
   if (!pais) {
     return { error: "unknown_country", message: `País desconhecido: ${countryCode}. Use list_tax_countries para ver os códigos disponíveis.` };
   }
+  const alt = pais.regras?.alternativa;
+  const tm = pais.regras?.taxaMarginal;
+  const v = validarOpcoes(pais, opcoes);
+  if ("error" in v) return v;
+  const { alternativa, taxaPessoal } = v;
 
   const trades = await tradesDoUtilizador(userId);
   // Moeda em que o relatório pode mesmo sair: há países cuja moeda o BCE não
@@ -230,11 +236,12 @@ export async function getTaxEstimate(userId: string, countryCode: string, year?:
     if (preco == null || taxa == null) { droppedOps++; continue; }
     ops.push({ type: t.type, asset: t.asset, amount: t.quantity, price: preco, fee: taxa, date: t.date, ...(t.swapId ? { swapId: t.swapId } : {}), ...(t.feeAsset && (t.feeInput ?? 0) > 0 ? { feeAsset: t.feeAsset, feeQty: t.feeInput ?? 0 } : {}) });
   }
-  const todos = realizar(ops, pais.costMethod, { permutaNeutra: pais.regras?.permutaNeutra }).lotes;
+  // PT com contraparte fora da UE/convenção: as trocas deixam de ser neutras (como na página).
+  const todos = realizar(ops, pais.costMethod, { permutaNeutra: pais.regras?.permutaNeutra && !(alternativa && alt?.trocasTributadas) }).lotes;
   // Regras do país (prazo por calendário, regras do ano da venda, escalas,
   // isenções por vendas, ano fiscal GB/AU…): o mesmo módulo que a página.
   // Sem taxa pessoal, usa-se a taxa máxima onde ela depende do rendimento.
-  let est: ReturnType<typeof estimarImpostoPais> = estimarImpostoPais(todos, pais, year);
+  let est: ReturnType<typeof estimarImpostoPais> = estimarImpostoPais(todos, pais, year, { alternativa, taxaPessoal });
   const lots = todos.filter((l) => est.events.some((e) => e.sellDate === l.sellDate && e.buyDate === l.buyDate && e.asset === l.asset));
   // Polonia: a base do ano e receitas menos TODOS os custos do ano, com o
   // excedente a transitar (art. 30b ust. 1a PIT) — o mesmo que a pagina faz.
@@ -262,9 +269,13 @@ export async function getTaxEstimate(userId: string, countryCode: string, year?:
     costMethod: pais.costMethod,
     costMethodLabel: COST_METHOD_LABEL[pais.costMethod].en,
     ...(metodoRessalva(pais.costMethod, "en", pais.code) ? { costMethodNote: metodoRessalva(pais.costMethod, "en", pais.code) } : {}),
-    ...(pais.regras?.taxaMarginal ? { rateNote: "The rate depends on income; the estimate uses the top rate (with surcharges). Your tax is likely lower." } : {}),
-    ...(pais.regras?.alternativa && !pais.regras.brMensal ? { assumptionNote: { PT: "Assumes the counterparty (exchange) is resident in the EU/EEA or a treaty country; otherwise the 365-day exclusion and swap neutrality do not apply (CIRS art. 10(24)).", AR: "Assumes sales in foreign currency or on a foreign platform (15%); sales in pesos without an adjustment clause are taxed at 5%.", AT: "On Austrian platforms the 27.5% KESt is already withheld at source; this estimate is then what was withheld, not an additional amount." }[pais.code] } : {}),
-    ...(pais.regras?.brMensal ? { regimeNote: "Estimated as crypto held on Brazilian exchanges: monthly assessment, months with sales ≤ R$35,000 exempt, 15–22.5% by gain. Crypto on foreign exchanges follows Law 14.754/2023 (15%, annual, no exemption)." } : {}),
+    // Escolhas usadas: quem chama sabe com que pressupostos saiu o número.
+    assumptions: {
+      ...(alt ? { alternative: alternativa, meaning: alternativa ? ALTERNATIVA_EN[alt.id].alternative : ALTERNATIVA_EN[alt.id].default } : {}),
+      ...(tm ? { marginalRate: taxaPessoal?.curto ?? null, ...(tm.longo === "separado" ? { marginalRateLong: taxaPessoal?.longo ?? null } : {}) } : {}),
+    },
+    ...(tm ? { rateNote: taxaPessoal?.curto != null ? "Uses the marginal rate you provided." : "The rate depends on income; without marginalRate the estimate uses the top rate (with surcharges). Your tax is likely lower." } : {}),
+    ...(alt ? { assumptionNote: `${ALTERNATIVA_EN[alt.id][alternativa ? "alternative" : "default"]} Pass alternative=${alternativa ? "false" : "true"} for the other case.` } : {}),
     ...(pais.regime.allowance?.disputada ? { allowanceNote: "The annual exemption shown in the guide is not applied: its application to crypto is not confirmed by the tax authority." } : {}),
     rates: { short: pais.regime.short, long: pais.regime.long, longTermAfterDays: pais.regime.longDays },
     allowance: pais.regime.allowance
@@ -278,11 +289,17 @@ export async function getTaxEstimate(userId: string, countryCode: string, year?:
     deductibleLosses: est.deductibleLosses,
     lossesOffset: est.lossesApplied,
     feesDeducted: est.fees,
+    ...(pais.regras?.perdasTransitam ? {
+      carriedLossesUsed: est.carriedLossesUsed,
+      lossesCarriedForward: est.lossesCarriedForward,
+      ...(pais.regras.perdasTransitam.modo === "us" ? { ordinaryIncomeDeduction: est.ordinaryIncomeDeduction } : {}),
+      carryForwardNote: "Unused losses carry forward to later years" + (pais.regras.perdasTransitam.anos ? ` (up to ${pais.regras.perdasTransitam.anos} years)` : "") + ". Only losses recorded in ChainFolioAI are known; losses from before the first record are not included." + (pais.regras.perdasTransitam.modo === "us" ? " Up to $3,000 of net loss per year is deducted from other income (not in estimatedTax)." : ""),
+    } : {}),
     estimatedTax: parcial ? null : est.tax,
     incompleteFx: fx.incomplete,
     droppedLots,
     ...(parcial ? { warning: `${droppedLots} de ${ops.length + droppedOps} operações ficaram sem taxa de câmbio; o imposto não é calculado sobre parte dos dados.` } : {}),
-    note: `ESTIMATIVA, não uma declaração. Método de custo do país: ${COST_METHOD_SHORT[pais.costMethod]} (${COST_METHOD_LABEL[pais.costMethod].en}); cada compra e cada venda convertida à taxa do BCE da sua data; taxa de longo prazo aplicada conforme os dias de detenção; menos-valias abatidas às mais-valias do MESMO ano e do mesmo escalão de taxa (uma perda num ativo isento não é dedutível); isenção anual do país aplicada por fim, ao saldo já compensado. Não cobre situações pessoais (residência parcial, englobamento, deduções próprias). Confirme com um contabilista.`,
+    note: `ESTIMATIVA, não uma declaração. Método de custo do país: ${COST_METHOD_SHORT[pais.costMethod]} (${COST_METHOD_LABEL[pais.costMethod].en}); cada compra e cada venda convertida à taxa do BCE da sua data; taxa de longo prazo aplicada conforme os dias de detenção; menos-valias abatidas às mais-valias do MESMO ano (e, onde a lei deixa, as que sobram passam aos anos seguintes; uma perda num ativo isento não é dedutível); isenção anual do país aplicada por fim, ao saldo já compensado. Não cobre situações pessoais (residência parcial, englobamento, deduções próprias). Confirme com um contabilista.`,
   };
 }
 
@@ -299,6 +316,8 @@ export function listTaxCountries() {
       longTermRate: c.regime.long,
       longTermAfterDays: c.regime.longDays,
       annualAllowance: c.regime.allowance ? { amount: c.regime.allowance.amount, kind: c.regime.allowance.kind } : null,
+      costMethod: c.costMethod,
+      options: opcoesDoPais(c),
       guide: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://chainfolioai.com"}/guides/crypto-tax/${c.slug.en}`,
     })),
     note: "Regras gerais publicadas nos guias do ChainFolioAI, verificadas para 2026. Taxas em fração (0.28 = 28 %). Não é aconselhamento fiscal.",
