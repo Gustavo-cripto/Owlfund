@@ -84,6 +84,24 @@ type SentimentRow = {
   label: string;
 };
 
+// OKX como fonte principal dos precos (30 set 2026): a CoinEx passou a devolver
+// so mercados "_INDEX" no /spot/ticker sem parametros e "ETHUSDT not found" com
+// parametros — nenhum simbolo batia certo, `data` saia vazio e as Carteiras
+// ficavam com "Valor: —". A OKX da os 400+ pares USDT num pedido; a CoinEx
+// fica a completar o que la faltar. Mesmo formato (SYMBOLUSDT → last/open/value).
+const extractOkxTickers = (payload: unknown): Record<string, CoinExTicker> => {
+  const j = payload as { code?: string; data?: Array<{ instId?: string; last?: string; open24h?: string; volCcy24h?: string }> } | null;
+  if (!j || j.code !== "0" || !Array.isArray(j.data)) return {};
+  return j.data.reduce<Record<string, CoinExTicker>>((acc, r) => {
+    const inst = typeof r?.instId === "string" ? r.instId : "";
+    if (!inst.endsWith("-USDT")) return acc;
+    const last = Number(r.last);
+    if (!(last > 0)) return acc;
+    acc[`${inst.slice(0, -5)}USDT`] = { last: String(r.last), open: String(r.open24h ?? ""), vol: "", value: String(r.volCcy24h ?? "") };
+    return acc;
+  }, {});
+};
+
 const extractCoinExTickers = (payload: unknown): Record<string, CoinExTicker> => {
   const data = (payload ?? {}) as Record<string, unknown>;
   const inner = data.data;
@@ -183,15 +201,16 @@ export async function GET(request: Request) {
   const parametros = new URL(request.url).searchParams;
   const soAFita = parametros.get("ticker") === "1";
   const semSparkline = parametros.get("nospark") === "1";
-  // Precos da CoinEx desta chamada, para a reserva do catch (ver la em baixo).
+  // Precos (OKX + CoinEx) desta chamada, para a reserva do catch (ver la em baixo).
   let tickersDaCoinEx: ReturnType<typeof extractCoinExTickers> | null = null;
   try {
     // Duas chamadas ao CoinGecko, nao quatro: o "top 50" para o sentimento e
     // um subconjunto das 250 por capitalizacao — vem da mesma resposta — e o
     // global vem da funcao partilhada com /api/v1/global (cache 30 min e
     // CoinPaprika de reserva). Cada uma com cache propria (lote F).
-    const [coinexResponse, coingeckoResponse, coingeckoExtraResponse, globalMarket] = await Promise.all([
-      fetch("https://api.coinex.com/v2/spot/ticker"),
+    const [okxResponse, coinexResponse, coingeckoResponse, coingeckoExtraResponse, globalMarket] = await Promise.all([
+      fetch("https://www.okx.com/api/v5/market/tickers?instType=SPOT", { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(6000), next: { revalidate: 30 } }).catch(() => null),
+      fetch("https://api.coinex.com/v2/spot/ticker", { signal: AbortSignal.timeout(6000) }).catch(() => null),
       cgFetch(
         "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&sparkline=true&price_change_percentage=1h,24h,7d,30d",
         // 15 min: o preco e a variacao 24 h vem da CoinEx a cada pedido; do
@@ -208,13 +227,12 @@ export async function GET(request: Request) {
       getGlobalMarket(),
     ]);
 
-    const coinexPayload = coinexResponse.ok
-      ? await coinexResponse.json().catch(() => null)
-      : null;
+    const okxPayload = okxResponse?.ok ? await okxResponse.json().catch(() => null) : null;
+    const coinexPayload = coinexResponse?.ok ? await coinexResponse.json().catch(() => null) : null;
 
-    if (!coinexPayload) throw new Error("Falha ao consultar CoinEx.");
-
-    const tickers = extractCoinExTickers(coinexPayload);
+    // OKX primeiro; a CoinEx so acrescenta pares que a OKX nao tem.
+    const tickers = { ...extractCoinExTickers(coinexPayload), ...extractOkxTickers(okxPayload) };
+    if (!tickers.BTCUSDT || !tickers.ETHUSDT) throw new Error(`Sem precos de mercado (OKX ${okxResponse?.status ?? "falhou"}, CoinEx ${coinexResponse?.status ?? "falhou"})`);
     tickersDaCoinEx = tickers;
 
     // Sem o CoinGecko nao ha tabela (era 200 com data:[] — e o ISR guardava
@@ -346,7 +364,7 @@ export async function GET(request: Request) {
       return NextResponse.json(corpo,
         { headers: { "Cache-Control": "public, s-maxage=15, stale-while-revalidate=60" } });
     }
-    // Arranque a frio sem ultimo bom, mas a CoinEx respondeu: serve-se o que
+    // Arranque a frio sem ultimo bom, mas ha precos (OKX/CoinEx): serve-se o que
     // ha (preco, variacao 24 h e volume), marcado `partial`. Sem isto a pagina
     // de Carteiras ficava sem precos e todos os valores em moeda a 0 enquanto
     // o CoinGecko estivesse em 429 (auditoria 28 set 2026).
@@ -372,7 +390,7 @@ export async function GET(request: Request) {
         .sort((a, b) => b.volume24hUsd - a.volume24hUsd)
         .slice(0, 150);
       if (linhas.length >= 5) {
-        console.warn(`[markets] ${msg}; sem ultimo bom — a servir so CoinEx (${linhas.length} linhas)`);
+        console.warn(`[markets] ${msg}; sem ultimo bom — a servir so precos OKX/CoinEx (${linhas.length} linhas)`);
         const parcial = {
           data: linhas,
           sentimentTop10: [],
