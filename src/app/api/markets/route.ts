@@ -89,6 +89,34 @@ type SentimentRow = {
 // parametros — nenhum simbolo batia certo, `data` saia vazio e as Carteiras
 // ficavam com "Valor: —". A OKX da os 400+ pares USDT num pedido; a CoinEx
 // fica a completar o que la faltar. Mesmo formato (SYMBOLUSDT → last/open/value).
+/** Linhas do ultimo bom com preco, variacao 24 h e volume desta chamada. */
+const precosFrescos = (valor: Record<string, unknown>, tickers: Record<string, CoinExTicker>): Record<string, unknown> => {
+  const linhas = Array.isArray(valor.data) ? (valor.data as Array<Record<string, unknown>>) : null;
+  if (!linhas) return valor;
+  const data = linhas.map((l) => {
+    const tk = typeof l.market === "string" ? tickers[l.market] : undefined;
+    if (!tk) return l;
+    const last = Number(tk.last);
+    const open = Number(tk.open);
+    const volume = Number(tk.value);
+    if (!(last > 0)) return l;
+    return {
+      ...l,
+      priceUsd: last,
+      change24h: open ? ((last - open) / open) * 100 : l.change24h,
+      volume24hUsd: Number.isFinite(volume) && volume > 0 ? volume : l.volume24hUsd,
+    };
+  });
+  const selectList = Array.isArray(valor.selectList)
+    ? (valor.selectList as Array<Record<string, unknown>>).map((e) => {
+        const tk = typeof e.symbol === "string" ? tickers[`${e.symbol}USDT`] : undefined;
+        const last = tk ? Number(tk.last) : NaN;
+        return last > 0 ? { ...e, priceUsd: last } : e;
+      })
+    : valor.selectList;
+  return { ...valor, data, selectList };
+};
+
 const extractOkxTickers = (payload: unknown): Record<string, CoinExTicker> => {
   const j = payload as { code?: string; data?: Array<{ instId?: string; last?: string; open24h?: string; volCcy24h?: string }> } | null;
   if (!j || j.code !== "0" || !Array.isArray(j.data)) return {};
@@ -358,8 +386,13 @@ export async function GET(request: Request) {
     const stale = lastGood<Record<string, unknown>>("markets");
     if (stale) {
       console.warn(`[markets] ${msg}; a servir stale de ha ${stale.ageSec}s`);
+      // O que falhou foi o CoinGecko (capitalizacao, 7 dias); os PRECOS desta
+      // chamada (OKX/CoinEx) estao frescos — entram por cima dos do stale, para
+      // as Carteiras nao ficarem a valorizar com precos de ha horas enquanto o
+      // CoinGecko estiver em 429 (30 set 2026).
+      const comPrecosFrescos = tickersDaCoinEx ? precosFrescos(stale.value, tickersDaCoinEx) : stale.value;
       // Janela curta: a seguir a uma falha queremos voltar a tentar depressa.
-      const base = soAFita ? paraFita(stale.value) : semSparkline ? semLinhas(stale.value) : stale.value;
+      const base = soAFita ? paraFita(comPrecosFrescos) : semSparkline ? semLinhas(comPrecosFrescos) : comPrecosFrescos;
       const corpo = { ...base, stale: true, staleAgeSec: stale.ageSec };
       return NextResponse.json(corpo,
         { headers: { "Cache-Control": "public, s-maxage=15, stale-while-revalidate=60" } });
