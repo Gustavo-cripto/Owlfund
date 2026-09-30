@@ -32,11 +32,21 @@ export type Operacao = {
    * PL) a venda não realiza ganho e o custo passa para a moeda recebida.
    */
   swapId?: string;
+  /** Corretora ou carteira onde a operação aconteceu (Trade.exchange). */
+  carteira?: string;
 };
 
 export type OpcoesRealizar = {
   /** Troca cripto↔cripto neutra: sem ganho, custo transita (PT art. 10.º n.º 23; AT; PL). */
   permutaNeutra?: boolean;
+  /**
+   * FIFO por corretora/carteira (PT art. 43.º n.º 9 CIRS; DE BMF 2025 Rn. 61;
+   * US Treas. Reg. §1.1012-1(j) desde 2025). Uma venda usa primeiro as compras
+   * da MESMA carteira; se lá não houver que chegue, as moedas vieram de outra
+   * (transferência que o histórico não regista) e usam-se as mais antigas das
+   * outras carteiras. Só nos métodos FIFO; nos de média é ignorado.
+   */
+  porCarteira?: boolean;
 };
 
 export type LoteRealizado = {
@@ -107,7 +117,8 @@ export function realizar(ops: readonly Operacao[], metodo: CostMethod, opcoes: O
     }
   }
   const custoTroca = new Map<string, number>();
-  const pool: Record<string, LoteAberto[]> = {};
+  // Lotes abertos por ativo e, dentro dele, por carteira ("" = tudo junto).
+  const carteiras: Record<string, Record<string, LoteAberto[]>> = {};
   const lotes: LoteRealizado[] = [];
   const unmatched: Record<string, number> = {};
   const tira = (asset: string, qty: number) => { unmatched[asset] = (unmatched[asset] ?? 0) + qty; };
@@ -122,12 +133,31 @@ export function realizar(ops: readonly Operacao[], metodo: CostMethod, opcoes: O
   // ficam numa fila FIFO só para o prazo de detenção.
   const usaMedia = fam === "media" || fam === "pool";
   const media: Record<string, { qty: number; custo: number; taxas: number }> = {};
+  const porCarteira = !!opcoes.porCarteira && !usaMedia;
+  const chave = (op: Operacao) => (porCarteira ? (op.carteira ?? "").trim().toLowerCase() : "");
+  const filaDe = (asset: string, c: string) => ((carteiras[asset] ??= {})[c] ??= []);
+  // Próximo lote a sair: da carteira da operação; se estiver vazia, o mais
+  // antigo (LIFO: o mais recente) das outras. Sem porCarteira só há uma fila.
+  const proximo = (asset: string, c: string, escolher: (fila: LoteAberto[]) => number) => {
+    const propria = carteiras[asset]?.[c];
+    if (propria?.length) return { fila: propria, i: escolher(propria) };
+    let melhor: { fila: LoteAberto[]; i: number } | null = null;
+    for (const fila of Object.values(carteiras[asset] ?? {})) {
+      if (!fila.length) continue;
+      const i = escolher(fila);
+      const d = fila[i].date, m = melhor ? melhor.fila[melhor.i].date : null;
+      if (m == null || (fam === "lifo" ? d > m : d < m)) melhor = { fila, i };
+    }
+    return melhor;
+  };
 
-  const consumirSemGanho = (asset: string, qty: number) => {
+  const consumirSemGanho = (asset: string, qty: number, c: string) => {
     let resto = qty;
-    const fila = pool[asset] ?? [];
-    while (resto > EPS && fila.length) {
-      const i = fam === "lifo" ? fila.length - 1 : 0;
+    for (;;) {
+      if (resto <= EPS) break;
+      const p = proximo(asset, c, (f) => (fam === "lifo" ? f.length - 1 : 0));
+      if (!p) break;
+      const { fila, i } = p;
       const l = fila[i];
       const usa = Math.min(resto, l.amount);
       l.amount -= usa; resto -= usa;
@@ -143,8 +173,8 @@ export function realizar(ops: readonly Operacao[], metodo: CostMethod, opcoes: O
   };
 
   ordem.forEach(({ op, idx }) => {
-    if (op.type === "taxa") { consumirSemGanho(op.asset, op.amount); return; }
-    if (op.feeAsset && (op.feeQty ?? 0) > 0) consumirSemGanho(op.feeAsset, op.feeQty ?? 0);
+    if (op.type === "taxa") { consumirSemGanho(op.asset, op.amount, chave(op)); return; }
+    if (op.feeAsset && (op.feeQty ?? 0) > 0) consumirSemGanho(op.feeAsset, op.feeQty ?? 0, chave(op));
     const feePerUnit = op.amount > 0 ? op.fee / op.amount : 0;
 
     if (op.type === "compra") {
@@ -156,7 +186,7 @@ export function realizar(ops: readonly Operacao[], metodo: CostMethod, opcoes: O
       const herdado = opcoes.permutaNeutra && op.swapId && completas.has(op.swapId) ? custoTroca.get(op.swapId) : undefined;
       const preco = herdado != null && op.amount > 0 ? herdado / op.amount : op.price;
       if (livre > EPS) {
-        (pool[op.asset] ??= []).push({ amount: livre, price: preco, feePerUnit, date: op.date });
+        filaDe(op.asset, chave(op)).push({ amount: livre, price: preco, feePerUnit, date: op.date });
         if (usaMedia) {
           const m = (media[op.asset] ??= { qty: 0, custo: 0, taxas: 0 });
           m.qty += livre; m.custo += livre * (preco + feePerUnit); m.taxas += livre * feePerUnit;
@@ -190,8 +220,8 @@ export function realizar(ops: readonly Operacao[], metodo: CostMethod, opcoes: O
       }
     }
 
-    const fila = pool[op.asset] ?? [];
     if (usaMedia) {
+      const fila = filaDe(op.asset, "");
       const m = media[op.asset];
       const unit = m && m.qty > EPS ? m.custo / m.qty : null;
       const tx = m && m.qty > EPS ? m.taxas / m.qty : 0;
@@ -205,9 +235,12 @@ export function realizar(ops: readonly Operacao[], metodo: CostMethod, opcoes: O
         m.qty = Math.max(0, m.qty - usa); m.custo = Math.max(0, m.custo - unit * usa); m.taxas = Math.max(0, m.taxas - tx * usa);
       }
     } else {
-      // FIFO, LIFO e FIFO com regra das 4 semanas.
-      while (resto > EPS && fila.length) {
-        const i = escolherLote(fila, fam, op.date);
+      // FIFO, LIFO e FIFO com regra das 4 semanas (por carteira, se pedido).
+      for (;;) {
+        if (resto <= EPS) break;
+        const p = proximo(op.asset, chave(op), (f) => escolherLote(f, fam, op.date));
+        if (!p) break;
+        const { fila, i } = p;
         const l = fila[i];
         const usa = Math.min(resto, l.amount);
         registar(usa, l.price, l.feePerUnit, l.date);
@@ -218,15 +251,20 @@ export function realizar(ops: readonly Operacao[], metodo: CostMethod, opcoes: O
     if (resto > 1e-9) tira(op.asset, resto);
   });
 
+  // Lotes abertos por ativo (todas as carteiras juntas, por data).
+  const abertos: Record<string, LoteAberto[]> = {};
+  for (const [asset, porC] of Object.entries(carteiras)) {
+    abertos[asset] = Object.values(porC).flat().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  }
   // Nos métodos de média (e no pool), os lotes abertos saem ao custo médio corrente.
   if (usaMedia) {
-    for (const [asset, fila] of Object.entries(pool)) {
+    for (const [asset, fila] of Object.entries(abertos)) {
       const m = media[asset];
       const unit = m && m.qty > EPS ? m.custo / m.qty : 0;
       for (const l of fila) { l.price = unit; l.feePerUnit = 0; }
     }
   }
-  return { lotes, unmatched, abertos: pool };
+  return { lotes, unmatched, abertos };
 }
 
 function escolherLote(fila: LoteAberto[], fam: ReturnType<typeof familia>, sellDate: string): number {

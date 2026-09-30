@@ -2,7 +2,7 @@
 // cenário do relatório, com o número que a calculadora dava e o certo.
 import { COUNTRIES } from "@/lib/tax/countries";
 import { realizar, resumoAnualPolaco, type LoteRealizado, type Operacao } from "@/lib/tax/metodos";
-import { anoFiscalDe, estimarImpostoPais, rotuloAnoFiscal, somarMeses } from "@/lib/tax/regras";
+import { anoFiscalDe, estimarImpostoPais, rotuloAnoFiscal, somarMeses, taxaMinima, primeiroDiaLongo } from "@/lib/tax/regras";
 
 let fails = 0;
 const eq = (name: string, got: number | string | boolean, want: number | string | boolean) => {
@@ -128,5 +128,18 @@ eq("ES perda de 2020 caduca em 2025 (mais de 4 anos)", imposto("ES", [lote("2019
 eq("ES perda de 2022 ainda abate em 2026", imposto("ES", [lote("2021-01-10", "2022-06-10", 20000, 10000), lote("2025-01-10", "2026-06-10", 20000, 30000)], 2026), 0);
 eq("AU perda de 2024/25 abate ao ganho de curto prazo de 2025/26: 10k × 47%", imposto("AU", [lote("2024-06-10", "2025-03-01", 20000, 10000), lote("2025-01-10", "2025-09-01", 10000, 30000)], 2025), 4700);
 eq("PT não transporta: perda de 2025 não abate em 2026", imposto("PT", [lote("2025-01-10", "2025-06-10", 20000, 10000), lote("2026-01-10", "2026-06-10", 20000, 30000)], 2026), 2800);
+
+// 10. Intervalo do imposto onde a taxa depende do rendimento.
+const minimo = (c: string, lotes: LoteRealizado[], ano: number) => imposto(c, lotes, ano, { taxaPessoal: taxaMinima(P(c)) });
+eq("DE ganho 10k no escalão mais baixo (14%)", minimo("DE", [lote("2026-01-10", "2026-06-10", 20000, 30000)], 2026), 1400);
+eq("US curto 10k a 10% e longo 10k a 0%", minimo("US", [lote("2026-01-10", "2026-06-10", 0, 10000), lote("2024-01-10", "2026-06-10", 0, 10000)], 2026), 1000);
+eq("AU longo prazo: metade do mínimo (8%)", minimo("AU", [lote("2024-01-10", "2025-09-10", 0, 10000)], 2025), 800);
+eq("PT não tem taxa mínima", taxaMinima(P("PT")) === undefined, true);
+
+// 11. Dia em que uma compra passa o prazo (coerente com eLongoPrazo).
+eq("PT comprado 2026-01-10 → isento a 2027-01-10 (365 dias)", primeiroDiaLongo(P("PT"), "2026-01-10") ?? "", "2027-01-10");
+eq("DE comprado 2025-03-10 → 2026-03-11 (dia seguinte ao aniversário)", primeiroDiaLongo(P("DE"), "2025-03-10") ?? "", "2026-03-11");
+eq("LU comprado 2026-01-15 → 2026-07-16", primeiroDiaLongo(P("LU"), "2026-01-15") ?? "", "2026-07-16");
+eq("FR sem prazo → null", primeiroDiaLongo(P("FR"), "2026-01-15") === null, true);
 
 if (fails) { console.log(`\n${fails} FALHA(S)`); process.exit(1); } else console.log("\nTODOS OK");

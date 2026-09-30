@@ -80,14 +80,18 @@ export type RegrasPais = {
    * `limiteOutrosRendimentos` por ano a outros rendimentos (IRC §1211/§1212).
    * `anos`: prazo (ES: 4 anos, art. 49 LIRPF); sem ele, sem limite.
    */
+  /** EUA: base de custo por carteira ou conta desde 2025 (os fifo_wallet já o são). */
+  fifoPorCarteira?: boolean;
   perdasTransitam?: { modo: "antes" | "ateIsencao" | "depoisLimiar" | "us"; anos?: number; limiteOutrosRendimentos?: number };
   /** EUA: perdas compensam primeiro dentro de curto/longo prazo. */
   ordemPerdasUS?: boolean;
   /**
-   * A taxa depende do rendimento: a calculadora usa a máxima (com sobretaxas)
-   * e deixa a pessoa escrever a sua. `longo` diz o que acontece à taxa longa.
+   * A taxa depende do rendimento: sem a da pessoa, a calculadora mostra o
+   * intervalo entre `minimo` (o escalão mais baixo com imposto) e a máxima
+   * (com sobretaxas). `longo` diz o que acontece à taxa longa; `minimoLongo`
+   * é o mínimo da taxa longa quando é separada (EUA).
    */
-  taxaMarginal?: { longo: "igual" | "metade" | "separado" | "fixo" };
+  taxaMarginal?: { longo: "igual" | "metade" | "separado" | "fixo"; minimo: number; minimoLongo?: number };
   /** Áustria: compras antes desta data (Altbestand) isentas se detidas mais de 1 ano. */
   altbestand?: { antes: string };
   /** Taxa própria para alguns ativos (IT: e-money tokens em euro a 26%). */
@@ -176,10 +180,10 @@ export const COST_METHOD_CAVEAT: Partial<Record<CostMethod, Record<Lang, string>
     fr: "La calculatrice n'inclut pas la règle de la perte apparente (rachat sous 30 jours).",
   },
   fifo_wallet: {
-    pt: "A lei manda aplicar o FIFO por corretora ou carteira; a calculadora aplica-o ao conjunto, porque as transferências entre carteiras não ficam registadas como operações.",
-    en: "The law applies FIFO per exchange or wallet; the calculator applies it to the whole, because transfers between wallets are not recorded as trades.",
-    es: "La ley aplica el FIFO por exchange o monedero; la calculadora lo aplica al conjunto, porque las transferencias entre monederos no quedan registradas como operaciones.",
-    fr: "La loi applique le FIFO par plateforme ou portefeuille ; la calculatrice l'applique à l'ensemble, car les transferts entre portefeuilles ne sont pas enregistrés comme opérations.",
+    pt: "O FIFO é aplicado por corretora ou carteira, pelo nome indicado em cada transação. As transferências entre carteiras não ficam registadas: quando uma venda não tem compras suficientes na mesma carteira, a calculadora usa as mais antigas das outras.",
+    en: "FIFO is applied per exchange or wallet, using the name given on each trade. Transfers between wallets are not recorded: when a sale has too few purchases in the same wallet, the calculator uses the oldest ones from the others.",
+    es: "El FIFO se aplica por exchange o monedero, según el nombre indicado en cada operación. Las transferencias entre monederos no quedan registradas: cuando una venta no tiene compras suficientes en el mismo monedero, la calculadora usa las más antiguas de los demás.",
+    fr: "Le FIFO est appliqué par plateforme ou portefeuille, selon le nom indiqué sur chaque opération. Les transferts entre portefeuilles ne sont pas enregistrés : quand une vente n'a pas assez d'achats dans le même portefeuille, la calculatrice utilise les plus anciens des autres.",
   },
 };
 /** Ressalvas que dependem do país e não só do método. */
@@ -215,10 +219,10 @@ export const COUNTRY_CAVEAT: Partial<Record<string, Record<Lang, string>>> = {
     fr: "La loi mexicaine ne fixe pas de méthode ; la calculatrice utilise le FIFO. Elle n'applique pas l'art. 120 LISR (coût indexé sur l'INPC et gain réparti sur les années de détention), qui réduit l'impôt pour les détentions longues.",
   },
   US: {
-    pt: "Desde 2025 a base de custo é por carteira ou conta; a calculadora aplica o FIFO ao conjunto, porque as transferências entre carteiras não ficam registadas como operações.",
-    en: "Since 2025 cost basis is per wallet or account; the calculator applies FIFO to the whole, because transfers between wallets are not recorded as trades.",
-    es: "Desde 2025 la base de coste es por monedero o cuenta; la calculadora aplica el FIFO al conjunto, porque las transferencias entre monederos no quedan registradas como operaciones.",
-    fr: "Depuis 2025 le prix de revient se calcule par portefeuille ou compte ; la calculatrice applique le FIFO à l'ensemble, car les transferts entre portefeuilles ne sont pas enregistrés comme opérations.",
+    pt: "Desde 2025 a base de custo é por carteira ou conta, e a calculadora aplica o FIFO por corretora, pelo nome indicado em cada transação. As transferências não ficam registadas: quando uma venda não tem compras suficientes na mesma conta, usa as mais antigas das outras. Não faz identificação específica.",
+    en: "Since 2025 cost basis is per wallet or account, and the calculator applies FIFO per exchange, using the name given on each trade. Transfers are not recorded: when a sale has too few purchases in the same account, it uses the oldest ones from the others. It does not do specific identification.",
+    es: "Desde 2025 la base de coste es por monedero o cuenta, y la calculadora aplica el FIFO por exchange, según el nombre indicado en cada operación. Las transferencias no quedan registradas: cuando una venta no tiene compras suficientes en la misma cuenta, usa las más antiguas de las demás. No hace identificación específica.",
+    fr: "Depuis 2025 le prix de revient se calcule par portefeuille ou compte, et la calculatrice applique le FIFO par plateforme, selon le nom indiqué sur chaque opération. Les transferts ne sont pas enregistrés : quand une vente n'a pas assez d'achats dans le même compte, elle utilise les plus anciens des autres. Elle ne fait pas d'identification spécifique.",
   },
 };
 /** Ressalva do método para o país e a língua pedidos (null = cálculo exato face à lei). */
@@ -278,11 +282,11 @@ const REGRAS: Record<string, RegrasPais> = {
   // A subida da CSG (LFSS 2026) já se aplica aos ganhos de 2025 (revenus du patrimoine).
   FR: { isencaoVendas: 305, notaExterior: true, historico: [{ ate: "2025-01-01", short: 0.30, long: 0.30 }] },
   DE: {
-    prazo: { tipo: "meses", n: 12 }, taxaMarginal: { longo: "fixo" }, perdasTransitam: { modo: "depoisLimiar" },
+    prazo: { tipo: "meses", n: 12 }, taxaMarginal: { longo: "fixo", minimo: 0.14 }, perdasTransitam: { modo: "depoisLimiar" },
     historico: [{ ate: "2024-01-01", allowance: alwHist(600, "threshold", "Freigrenze €600/ano (até 2023)", "Freigrenze €600/year (until 2023)", "Freigrenze 600 €/año (hasta 2023)", "Freigrenze 600 €/an (jusqu'en 2023)") }],
   },
   GB: {
-    anoFiscalInicio: "04-06", taxaMarginal: { longo: "igual" }, perdasTransitam: { modo: "ateIsencao" },
+    anoFiscalInicio: "04-06", taxaMarginal: { longo: "igual", minimo: 0.18 }, perdasTransitam: { modo: "ateIsencao" },
     historico: [
       { ate: "2024-10-30", short: 0.20, long: 0.20 },
       { ate: "2024-04-06", allowance: alwHist(6000, "deduct", "Isenção anual £6.000 (2023/24)", "Annual exemption £6,000 (2023/24)", "Exención anual £6.000 (2023/24)", "Abattement annuel 6 000 £ (2023/24)") },
@@ -302,11 +306,14 @@ const REGRAS: Record<string, RegrasPais> = {
   IE: { perdasTransitam: { modo: "antes" } },
   AT: { permutaNeutra: true, alternativa: { id: "at" }, altbestand: { antes: "2021-03-01" } },
   PL: { permutaNeutra: true },
-  LU: { prazo: { tipo: "meses", n: 6 }, taxaMarginal: { longo: "fixo" } },
-  US: { prazo: { tipo: "meses", n: 12 }, ordemPerdasUS: true, notaExterior: true, taxaMarginal: { longo: "separado" }, perdasTransitam: { modo: "us", limiteOutrosRendimentos: 3000 } },
-  CA: { taxaMarginal: { longo: "igual" }, perdasTransitam: { modo: "antes" } },
-  AU: { prazo: { tipo: "meses", n: 12 }, anoFiscalInicio: "07-01", taxaMarginal: { longo: "metade" }, perdasTransitam: { modo: "antes" } },
-  MX: { taxaMarginal: { longo: "igual" } },
+  // Mínimos: LU 8% × 1,07 (sobretaxa de solidariedade); US 10% (curto) e 0%
+  // (longo); CA 50% × (14% federal desde 2026 + 4% Nunavut); AU 16% (2025/26;
+  // 15% a partir de 1/7/2026 — fica o mais prudente); MX 1,92% (art. 152 LISR).
+  LU: { prazo: { tipo: "meses", n: 6 }, taxaMarginal: { longo: "fixo", minimo: 0.0856 } },
+  US: { prazo: { tipo: "meses", n: 12 }, fifoPorCarteira: true, ordemPerdasUS: true, notaExterior: true, taxaMarginal: { longo: "separado", minimo: 0.10, minimoLongo: 0 }, perdasTransitam: { modo: "us", limiteOutrosRendimentos: 3000 } },
+  CA: { taxaMarginal: { longo: "igual", minimo: 0.09 }, perdasTransitam: { modo: "antes" } },
+  AU: { prazo: { tipo: "meses", n: 12 }, anoFiscalInicio: "07-01", taxaMarginal: { longo: "metade", minimo: 0.16 }, perdasTransitam: { modo: "antes" } },
+  MX: { taxaMarginal: { longo: "igual", minimo: 0.0192 } },
   AR: { alternativa: { id: "ar", taxa: 0.05 } },
 };
 
@@ -417,3 +424,7 @@ export const TAX_GUIDE_DATE_MODIFIED = "2026-09-30";
 // levam a data mais recente; os outros nao fingem ter mudado.
 const GUIDE_DATE_OVERRIDES: Record<string, string> = {};
 export const guideDateModified = (code: string): string => GUIDE_DATE_OVERRIDES[code] ?? TAX_GUIDE_DATE_MODIFIED;
+
+/** FIFO separado por corretora/carteira: PT e DE (fifo_wallet) e EUA. */
+export const fifoPorCarteira = (pais: Pick<Country, "costMethod" | "regras"> | null | undefined): boolean =>
+  !!pais && (pais.costMethod === "fifo_wallet" || !!pais.regras?.fifoPorCarteira);

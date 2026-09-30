@@ -3,6 +3,7 @@ import { isBotUserAgent } from "@/lib/analytics/bots";
 import { eEvento, PREFIXO_EVENTO } from "@/lib/analytics/eventos";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { eInterno } from "@/lib/analytics/interno";
+import { limparOrigem, ORIGEM_PADRAO } from "@/lib/origem";
 
 // Beacon dos momentos do funil (ver src/lib/analytics/eventos.ts). Publico, por
 // isso: so nomes da lista, 30 por 10 min por IP, e responde sempre 204.
@@ -18,7 +19,7 @@ export async function POST(req: Request) {
     if (!eEvento(body.e)) return new Response(null, { status: 204 });
     const isBot = isBotUserAgent(req.headers.get("user-agent"));
     // Origem do primeiro toque (cookie cfa-src), para saber que canal traz quem usa a demo.
-    const src = (/(?:^|;\s*)cfa-src=([A-Za-z0-9_-]{1,40})/.exec(req.headers.get("cookie") ?? "")?.[1]) ?? "";
+    const src = limparOrigem(new RegExp(`(?:^|;\\s*)cfa-src=(${ORIGEM_PADRAO})`).exec(req.headers.get("cookie") ?? "")?.[1] ?? "");
     const admin = getSupabaseAdmin();
     const linha = { path: `${PREFIXO_EVENTO}${body.e}`, is_bot: isBot, ...(src ? { src } : {}) };
     const { error } = await admin.from("page_views").insert(linha);

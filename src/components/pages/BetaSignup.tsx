@@ -10,6 +10,7 @@ import type { TranslationKey } from "@/lib/i18n/translations";
 import { comSupabase, getSupabase } from "@/lib/supabase/lazy";
 import { destinoDoEmail } from "@/lib/auth/emailRedirect";
 import { BETA_CUTOFF_ISO, betaAberto } from "@/lib/plans";
+import { origemDoUrl } from "@/lib/origem";
 
 const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
 const ERR_KEY: Record<string, TranslationKey> = { rate_limited: "beta_err_rate", bad_email: "beta_bad_email", send_failed: "beta_err", bad_request: "beta_err" };
@@ -124,7 +125,7 @@ export default function BetaSignup() {
           // Origem do link (?src=twitter etc.) para atribuição por rede.
           src: (() => {
             try {
-              return new URLSearchParams(window.location.search).get("src") ?? "";
+              return origemDoUrl(new URLSearchParams(window.location.search));
             } catch { return ""; }
           })(),
         }),

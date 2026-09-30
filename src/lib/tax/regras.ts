@@ -37,6 +37,23 @@ export function somarMeses(data: string, meses: number): string {
   return `${ano}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
 }
 
+/**
+ * Primeiro dia em que vender algo comprado em `compra` já conta como longo
+ * prazo (isento ou com taxa reduzida). null se o país não tem prazo.
+ */
+export function primeiroDiaLongo(pais: Pick<Country, "regime" | "regras">, compra: string): string | null {
+  const p = pais.regras?.prazo;
+  const dias = p?.tipo === "dias" ? p.n : pais.regime.longDays;
+  if (p?.tipo !== "meses" && !(dias > 0)) return null;
+  const somarDias = (d: string, n: number) => new Date(Date.parse(d) + n * DIA_MS).toISOString().slice(0, 10);
+  const base = p?.tipo === "meses" ? somarMeses(compra, p.n) : somarDias(compra, dias);
+  for (let k = -2; k <= 3; k++) {
+    const d = somarDias(base, k);
+    if (eLongoPrazo(pais, compra, d)) return d;
+  }
+  return null;
+}
+
 /** O lote já conta como "longo prazo" no país? */
 export function eLongoPrazo(pais: Pick<Country, "regime" | "regras">, compra: string, venda: string): boolean {
   const p = pais.regras?.prazo;
@@ -81,6 +98,13 @@ export function regimeNaData(pais: Pick<Country, "regime" | "regras">, data: str
 
 /** Taxa marginal escrita pela pessoa (fração 0–1). */
 export type TaxaPessoal = { curto?: number; longo?: number };
+
+/** A taxa do escalão mais baixo (onde a taxa depende do rendimento), para o intervalo. */
+export function taxaMinima(pais: Pick<Country, "regras"> | null | undefined): TaxaPessoal | undefined {
+  const m = pais?.regras?.taxaMarginal;
+  if (!m) return undefined;
+  return { curto: m.minimo, ...(m.longo === "separado" && m.minimoLongo != null ? { longo: m.minimoLongo } : {}) };
+}
 
 /** Aplica a taxa pessoal ao regime, conforme o país a faça depender do rendimento. */
 export function comTaxaPessoal(pais: Pick<Country, "regras" | "regime">, r: RegimeEfetivo, tp?: TaxaPessoal): RegimeEfetivo {

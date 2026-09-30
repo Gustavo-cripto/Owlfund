@@ -7,6 +7,7 @@ import { loadMessages, type Messages } from "./messages";
 import { pageFromPath, pageUrl } from "./routes";
 import { getSupabase } from "@/lib/supabase/lazy";
 import { langFromMetadata } from "@/lib/user/lang";
+import { ORIGEM_PADRAO } from "@/lib/origem";
 
 type LanguageContextValue = {
   lang: Lang;
@@ -97,7 +98,7 @@ export function LanguageProvider({
         // toque): fica na conta uma unica vez, para o marketing saber de onde
         // vem cada conta e nao so cada visita.
         const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
-        const src = /(?:^|;\s*)cfa-src=([A-Za-z0-9_-]{1,40})/.exec(document.cookie)?.[1];
+        const src = new RegExp(`(?:^|;\\s*)cfa-src=(${ORIGEM_PADRAO})`).exec(document.cookie)?.[1];
         if (src && typeof meta.src !== "string") patch.src = src;
         if (Object.keys(patch).length === 0) return;
         await supabase.auth.updateUser({ data: patch });
