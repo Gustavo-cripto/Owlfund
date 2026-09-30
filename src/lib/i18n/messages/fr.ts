@@ -1985,7 +1985,7 @@ export const fr: Record<TranslationKey, string> = {
     fisc_pdf_notes: "Comment c'est calculé",
     fisc_pdf_notes_text: "Plus-values calculées selon la méthode de coût du pays indiqué, dans la devise du rapport. Les positions détenues plus d'un an peuvent bénéficier d'une exonération ou d'un taux réduit selon le pays. Valeurs arrondies.",
     fisc_pdf_footer: "Document indicatif généré par ChainFolioAI. Ne remplace pas un conseil fiscal professionnel.",
-    fisc_disclaimer: "Information à caractère général. Consultez toujours un spécialiste fiscal pour votre déclaration officielle.",
+    fisc_disclaimer: "Information à caractère général. Consultez toujours un spécialiste fiscal pour votre déclaration officielle. ChainFolioAI ne communique vos données à aucune autorité fiscale : ce n'est ni une plateforme d'échange ni un prestataire de services sur crypto-actifs, et les rapports que vous exportez n'appartiennent qu'à vous.",
     fisc_method_note: "La calculatrice applique la méthode de ce pays ({m}). {c} Confirmez le montant à déclarer avec un comptable.",
     fisc_annual_note: "Base annuelle polonaise : recettes {r} moins coûts de l'année et reportés {c} ; excédent reporté sur l'année suivante : {t}. Le tableau montre des lots FIFO seulement pour tracer chaque vente.",
 
@@ -2463,7 +2463,7 @@ export const fr: Record<TranslationKey, string> = {
     pp_s4_h: "Base légale (RGPD)",
     pp_s4_b: "Nous traitons les données sur la base de l'exécution du contrat (fourniture du service), de votre consentement et de notre intérêt légitime à maintenir et améliorer la plateforme.",
     pp_s5_h: "Partage avec des tiers",
-    pp_s5_b: "Nous utilisons des sous-traitants pour fonctionner : Supabase (authentification et base de données), Stripe (paiements par carte), Helio/MoonPay (paiements en crypto, le cas échéant), Resend (envoi d'e-mails), Vercel (hébergement et statistiques anonymes sans cookies) et des fournisseurs de données de marché et on-chain. Chacun ne traite que ce qui est nécessaire à sa fonction. Certains de ces sous-traitants peuvent traiter des données en dehors de l'Espace économique européen (par exemple aux États-Unis), sous réserve de garanties appropriées telles que les Clauses Contractuelles Types de l'UE.",
+    pp_s5_b: "Nous utilisons des sous-traitants pour fonctionner : Supabase (authentification et base de données), Stripe (paiements par carte), Helio/MoonPay (paiements en crypto, le cas échéant), Resend (envoi d'e-mails), Vercel (hébergement et statistiques anonymes sans cookies) et des fournisseurs de données de marché et on-chain. Chacun ne traite que ce qui est nécessaire à sa fonction. Nous ne communiquons vos données ni aux autorités fiscales ni à d'autres organismes publics, sauf obligation légale : ChainFolioAI n'est ni une plateforme d'échange ni un prestataire de services sur crypto-actifs et n'est pas soumis à leurs obligations déclaratives (DAC8, CARF). Certains de ces sous-traitants peuvent traiter des données en dehors de l'Espace économique européen (par exemple aux États-Unis), sous réserve de garanties appropriées telles que les Clauses Contractuelles Types de l'UE.",
     pp_s6_h: "Sécurité et clés",
     pp_s6_b: "La plateforme est 100% en lecture seule : nous ne conservons pas vos fonds et n'accédons pas aux clés privées. Les données sont transmises via des connexions chiffrées.",
     pp_s7_h: "Vos droits",

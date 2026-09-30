@@ -1985,7 +1985,7 @@ export const es: Record<TranslationKey, string> = {
     fisc_pdf_notes: "Cómo se calcula",
     fisc_pdf_notes_text: "Plusvalías calculadas con el método de coste del país indicado, en la moneda del informe. Las posiciones mantenidas más de 1 año pueden beneficiarse de exención o tasa reducida según el país. Valores redondeados.",
     fisc_pdf_footer: "Documento indicativo generado por ChainFolioAI. No sustituye el asesoramiento fiscal profesional.",
-    fisc_disclaimer: "Información de carácter general. Consulta siempre a un asesor fiscal para tu declaración oficial.",
+    fisc_disclaimer: "Información de carácter general. Consulta siempre a un asesor fiscal para tu declaración oficial. ChainFolioAI no comunica tus datos a ninguna autoridad fiscal: no es un exchange ni un proveedor de servicios de criptoactivos, y los informes que exportas son solo tuyos.",
     fisc_method_note: "La calculadora aplica el método de este país ({m}). {c} Confirma el importe a declarar con un asesor.",
     fisc_annual_note: "Base anual polaca: ingresos {r} menos costes del año y trasladados {c}; exceso que pasa al año siguiente: {t}. La tabla muestra lotes FIFO solo para ver de dónde viene cada venta.",
 
@@ -2463,7 +2463,7 @@ export const es: Record<TranslationKey, string> = {
     pp_s4_h: "Base legal (RGPD)",
     pp_s4_b: "Tratamos los datos sobre la base de la ejecución del contrato (prestación del servicio), tu consentimiento y nuestro interés legítimo en mantener y mejorar la plataforma.",
     pp_s5_h: "Compartir con terceros",
-    pp_s5_b: "Usamos subencargados para funcionar: Supabase (autenticación y base de datos), Stripe (pagos con tarjeta), Helio/MoonPay (pagos en cripto, cuando aplique), Resend (envío de emails), Vercel (alojamiento y estadísticas anónimas sin cookies) y proveedores de datos de mercado y on-chain. Cada uno trata solo lo necesario para su función. Algunos de estos subencargados pueden tratar datos fuera del Espacio Económico Europeo (por ejemplo, en EE. UU.), bajo salvaguardias adecuadas como las Cláusulas Contractuales Tipo de la UE.",
+    pp_s5_b: "Usamos subencargados para funcionar: Supabase (autenticación y base de datos), Stripe (pagos con tarjeta), Helio/MoonPay (pagos en cripto, cuando aplique), Resend (envío de emails), Vercel (alojamiento y estadísticas anónimas sin cookies) y proveedores de datos de mercado y on-chain. Cada uno trata solo lo necesario para su función. No comunicamos tus datos a autoridades fiscales ni a otras entidades públicas, salvo obligación legal: ChainFolioAI no es un exchange ni un proveedor de servicios de criptoactivos y no está sujeto a sus obligaciones de reporte (DAC8, CARF). Algunos de estos subencargados pueden tratar datos fuera del Espacio Económico Europeo (por ejemplo, en EE. UU.), bajo salvaguardias adecuadas como las Cláusulas Contractuales Tipo de la UE.",
     pp_s6_h: "Seguridad y claves",
     pp_s6_b: "La plataforma es 100% de solo lectura: no custodiamos tus fondos ni accedemos a claves privadas. Los datos se transmiten por conexiones cifradas.",
     pp_s7_h: "Tus derechos",

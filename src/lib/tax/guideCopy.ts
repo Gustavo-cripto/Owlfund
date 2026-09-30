@@ -102,7 +102,7 @@ export const GUIDE_COPY: Record<GuideLang, Copy> = {
     disclaimerIndex:
       "⚠️ Este guia é informativo e não constitui aconselhamento fiscal. As regras mudam e a tua situação concreta pode ter particularidades — confirma sempre com um contabilista ou com a autoridade fiscal do teu país antes de declarar.",
     disclaimerCountry:
-      "⚠️ Informação geral, não aconselhamento fiscal. As regras mudam e a tua situação pode ter particularidades (residência, atividade profissional, staking, mineração). Confirma com um contabilista ou com a autoridade fiscal antes de declarar.",
+      "⚠️ Informação geral, não aconselhamento fiscal. As regras mudam e a tua situação pode ter particularidades (residência, atividade profissional, staking, mineração). Confirma com um contabilista ou com a autoridade fiscal antes de declarar. O ChainFolioAI não é corretora nem prestador de serviços de criptoativos e não comunica os teus dados a nenhuma autoridade fiscal: as obrigações de reporte (DAC8, CARF) são das corretoras. Os relatórios que exportas são só teus.",
     countryTitle: (n) => `Impostos sobre cripto em ${n}`,
     // Paises sem distincao de prazo tem a MESMA taxa nos dois campos, e o
     // titulo saia a gaguejar: "18-24% e 18-24%", "0% (investidor privado) e 0%
@@ -160,7 +160,7 @@ export const GUIDE_COPY: Record<GuideLang, Copy> = {
     disclaimerIndex:
       "⚠️ This guide is informational and is not tax advice. Rules change and your situation may have specifics — always confirm with an accountant or your national tax authority before filing.",
     disclaimerCountry:
-      "⚠️ General information, not tax advice. Rules change and your situation may have specifics (residency, professional activity, staking, mining). Confirm with an accountant or your tax authority before filing.",
+      "⚠️ General information, not tax advice. Rules change and your situation may have specifics (residency, professional activity, staking, mining). Confirm with an accountant or your tax authority before filing. ChainFolioAI is not an exchange or a crypto-asset service provider and does not report your data to any tax authority: reporting duties (DAC8, CARF) fall on exchanges. The reports you export are yours alone.",
     countryTitle: (n) => `Crypto tax in ${n}`,
     countryMetaTitle: (n, s, l) =>
       `Crypto tax in ${n} (2026): ${s.trim().toLowerCase() === l.trim().toLowerCase() ? s : `${s} or ${l.toLowerCase()}`}`,

@@ -1996,7 +1996,7 @@ export const pt = {
     fisc_pdf_notes: "Como é calculado",
     fisc_pdf_notes_text: "Mais-valias calculadas pelo método de custo do país indicado, na moeda do relatório. Posições detidas mais de 1 ano podem beneficiar de isenção ou taxa reduzida consoante o país. Valores arredondados.",
     fisc_pdf_footer: "Documento indicativo gerado por ChainFolioAI. Não substitui aconselhamento fiscal profissional.",
-    fisc_disclaimer: "Informação de caráter geral. Consulta sempre um especialista fiscal para a tua declaração oficial.",
+    fisc_disclaimer: "Informação de caráter geral. Consulta sempre um especialista fiscal para a tua declaração oficial. O ChainFolioAI não comunica os teus dados a nenhuma autoridade fiscal: não é corretora nem prestador de serviços de criptoativos, e os relatórios que exportas são só teus.",
     fisc_method_note: "A calculadora aplica o método deste país ({m}). {c} Confirma o valor a declarar com um contabilista.",
     fisc_annual_note: "Base anual polaca: receitas {r} menos custos do ano e transitados {c}; excedente que transita para o ano seguinte: {t}. A tabela mostra lotes FIFO só para se ver de onde vem cada venda.",
 
@@ -2478,7 +2478,7 @@ export const pt = {
     pp_s4_h: "Base legal (RGPD)",
     pp_s4_b: "Tratamos os dados com base na execução do contrato (prestação do serviço), no teu consentimento e no nosso interesse legítimo em manter e melhorar a plataforma.",
     pp_s5_h: "Partilha com terceiros",
-    pp_s5_b: "Usamos subprocessadores para funcionar: Supabase (autenticação e base de dados), Stripe (pagamentos por cartão), Helio/MoonPay (pagamentos em cripto, quando aplicável), Resend (envio de emails), Vercel (alojamento e estatísticas anónimas sem cookies) e fornecedores de dados de mercado e on-chain. Cada um trata apenas o necessário para a sua função. Alguns destes subprocessadores podem tratar dados fora do Espaço Económico Europeu (por exemplo, nos EUA), ao abrigo de salvaguardas adequadas como as Cláusulas Contratuais-Tipo da UE.",
+    pp_s5_b: "Usamos subprocessadores para funcionar: Supabase (autenticação e base de dados), Stripe (pagamentos por cartão), Helio/MoonPay (pagamentos em cripto, quando aplicável), Resend (envio de emails), Vercel (alojamento e estatísticas anónimas sem cookies) e fornecedores de dados de mercado e on-chain. Cada um trata apenas o necessário para a sua função. Não comunicamos os teus dados a autoridades fiscais nem a outras entidades públicas, salvo obrigação legal: o ChainFolioAI não é corretora nem prestador de serviços de criptoativos e não está sujeito às obrigações de reporte dessas entidades (DAC8, CARF). Alguns destes subprocessadores podem tratar dados fora do Espaço Económico Europeu (por exemplo, nos EUA), ao abrigo de salvaguardas adequadas como as Cláusulas Contratuais-Tipo da UE.",
     pp_s6_h: "Segurança e chaves",
     pp_s6_b: "A plataforma é 100% só-leitura: não temos custódia dos teus fundos nem acesso a chaves privadas. Os dados são transmitidos por ligações encriptadas.",
     pp_s7_h: "Os teus direitos",
