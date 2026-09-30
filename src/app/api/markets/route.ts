@@ -70,6 +70,9 @@ type CoinGeckoRow = {
   name: string;
   current_price?: number | null;
   market_cap: number | null;
+  /** Volume 24 h de TODOS os mercados (o da OKX é só uma exchange). */
+  total_volume?: number | null;
+  price_change_percentage_24h?: number | null;
   sparkline_in_7d?: { price?: number[] };
   price_change_percentage_1h_in_currency?: number | null;
   price_change_percentage_7d_in_currency?: number | null;
@@ -98,13 +101,12 @@ const precosFrescos = (valor: Record<string, unknown>, tickers: Record<string, C
     if (!tk) return l;
     const last = Number(tk.last);
     const open = Number(tk.open);
-    const volume = Number(tk.value);
     if (!(last > 0)) return l;
+    // O volume fica o do ultimo bom (global, CoinGecko): o da exchange e so dela.
     return {
       ...l,
       priceUsd: last,
       change24h: open ? ((last - open) / open) * 100 : l.change24h,
-      volume24hUsd: Number.isFinite(volume) && volume > 0 ? volume : l.volume24hUsd,
     };
   });
   const selectList = Array.isArray(valor.selectList)
@@ -302,13 +304,18 @@ export async function GET(request: Request) {
         const symbol = row.symbol.toUpperCase();
         const market = `${symbol}USDT`;
         const ticker = tickers[market];
-        if (!ticker) return null;
-        const last = Number(ticker.last);
-        const open = Number(ticker.open);
-        const change24h = open ? ((last - open) / open) * 100 : 0;
+        // Sem par na OKX/CoinEx (o USDT, 3.º maior, nunca tem par contra si
+        // proprio) usa-se o preco da CoinGecko. Antes a moeda desaparecia da
+        // tabela e o "Top 200" tinha 149 linhas.
+        const last = ticker ? Number(ticker.last) : Number(row.current_price);
+        if (!(last > 0)) return null;
+        const open = ticker ? Number(ticker.open) : NaN;
+        const change24h = open ? ((last - open) / open) * 100 : (row.price_change_percentage_24h ?? 0);
         const marketCap = coingeckoMap.get(symbol)?.market_cap ?? null;
         const name = coingeckoMap.get(symbol)?.name ?? symbol;
-        const volume = Number(ticker.value);
+        // Volume de todos os mercados (CoinGecko). O da OKX era so dela: o BTC
+        // aparecia com ~600 milhoes e o XMR (que a OKX nao negoceia) com 0.
+        const volume = typeof row.total_volume === "number" ? row.total_volume : ticker ? Number(ticker.value) : 0;
 
         return {
           market,
