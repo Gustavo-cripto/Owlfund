@@ -22,6 +22,7 @@ export function countryText(code: string, lang: Lang = "pt"): CountryText {
     threshold: get("thr"),
     summary: get("sum"),
     keyPoints: get("kp").split("\n").filter(Boolean),
+    allowanceAnswer: get("allow") || undefined,
   };
 }
 

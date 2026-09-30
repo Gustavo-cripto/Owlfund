@@ -25,7 +25,8 @@ const PEDACO_MINIMO = 30;
 // Fim de frase: ponto/exclamacao/interrogacao seguido de espaco e de algo que
 // nao e minuscula (maiuscula, digito, aspas, parentese). "€59.357 (2026)" e
 // "~2,2%" nao cortam porque nao ha espaco a seguir ao ponto.
-const FIM_DE_FRASE = /(?<=[.!?])\s+(?=[^a-zà-ÿ])/;
+// Fim de frase — mas não depois de abreviaturas de lei ("art. 93", "n.º 8", "s. 38").
+const FIM_DE_FRASE = /(?<=[.!?])(?<!\b(?:art|arts|al|inc|nr|Nr|Abs|s|n\.º)\.)\s+(?=[^a-zà-ÿ])/;
 
 /**
  * Junta `base` (ex.: "Portugal: 28%") as primeiras frases de `texto` que

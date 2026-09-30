@@ -47,9 +47,10 @@ export default function TaxGuideCountry({ lang, country }: { lang: GuideLang; co
     },
     {
       q: c.faqAllowance(em),
-      a: country.regime.allowance
-        ? c.faqAllowanceYes(country.regime.allowance.label[lang])
-        : c.faqAllowanceNo(em),
+      // FR, NL, BR, MX, DE e LU têm resposta própria (limiar por vendas,
+      // isenção do Box 3, isenção mensal, isenção disputada, limite tudo-ou-nada).
+      a: text.allowanceAnswer
+        ?? (country.regime.allowance ? c.faqAllowanceYes(country.regime.allowance.label[lang]) : c.faqAllowanceNo(em)),
     },
     { q: c.faqMethod, a: c.faqMethodAnswer },
     ...(prova?.faqs ?? []),
@@ -75,7 +76,7 @@ export default function TaxGuideCountry({ lang, country }: { lang: GuideLang; co
         "@type": "BreadcrumbList",
         itemListElement: [
           { "@type": "ListItem", position: 1, name: c.breadcrumbHome, item: SITE },
-          { "@type": "ListItem", position: 2, name: c.indexTitle, item: `${SITE}${base}` },
+          { "@type": "ListItem", position: 2, name: c.breadcrumbGuides, item: `${SITE}${base}` },
           { "@type": "ListItem", position: 3, name: text.name, item: here },
         ],
       },

@@ -42,7 +42,7 @@ ok(`descricao mais longa <= ${LIMITE_DESCRICAO}`, maisLonga <= LIMITE_DESCRICAO,
 // Tolerancia de 115 (MINIMO_DESCRICAO_GUIAS): ver o comentario em src/lib/seo/descricao.ts.
 ok(`descricao mais curta >= ${MINIMO_DESCRICAO_GUIAS}`, maisCurta >= MINIMO_DESCRICAO_GUIAS, `${maisCurta}`);
 const pt = countryMetadata("pt", "portugal") as M;
-ok(`Portugal comeca por "Portugal: 28%."`, (pt.description ?? "").startsWith("Portugal: 28%. "), pt.description);
+ok(`Portugal comeca por "Portugal: 28% · isento."`, (pt.description ?? "").startsWith("Portugal: 28% · isento. "), pt.description);
 ok(`Portugal acaba em fim de frase`, /[.!?…]$/.test(pt.description ?? ""));
 
 // ── comparacoes (3 x 4 linguas) ──
