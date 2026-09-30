@@ -88,8 +88,13 @@ const emptyTrade = (): TradeEntry => ({
 type Country = { code: string; flag: string; name: string; taxShort: string; taxLong: string; threshold: string; color: string; badge: string; summary: string; keyPoints: string[]; law: string; plan: "free" | "pro" | "premium" };
 
 function buildCountryLaw(t: (k: TranslationKey) => string): Country[] {
-  const c = (code: string, flag: string, color: string, badge: string, p: string, law: string, plan: "free" | "pro" | "premium" = "free"): Country => ({
-    code, flag, color, badge, law, plan,
+  // A lei vem de src/lib/tax/countries.ts, a mesma fonte dos guias e da
+  // calculadora. Havia aqui uma copia antiga ("Lei n.º 24-D/2022", "IN RFB
+  // 1888/2019" revogada, "CRA IT-218R" que e sobre imoveis) que as revisoes
+  // de 30 set 2026 nao alcancavam.
+  const c = (code: string, flag: string, color: string, badge: string, p: string, _leiAntiga: string, plan: "free" | "pro" | "premium" = "free"): Country => ({
+    code, flag, color, badge, plan,
+    law: COUNTRIES.find((x) => x.code === code)?.law ?? "",
     name: t(`fc_${p}_name` as TranslationKey),
     taxShort: t(`fc_${p}_short` as TranslationKey),
     taxLong: t(`fc_${p}_long` as TranslationKey),
@@ -98,28 +103,49 @@ function buildCountryLaw(t: (k: TranslationKey) => string): Country[] {
     keyPoints: t(`fc_${p}_kp` as TranslationKey).split("\n"),
   });
   return [
-    c("PT", "🇵🇹", "border-green-500/30 bg-green-500/5", "text-green-400", "pt", "Lei n.º 24-D/2022"),
-    c("ES", "🇪🇸", "border-yellow-500/30 bg-yellow-500/5", "text-yellow-400", "es", "LIRPF art. 33–35 (2025)"),
-    c("FR", "🇫🇷", "border-blue-500/30 bg-blue-500/5", "text-blue-400", "fr", "CGI art. 150 VH bis"),
-    c("DE", "🇩🇪", "border-slate-500/30 bg-slate-500/5", "text-slate-400", "de", "EStG § 23"),
-    c("GB", "🇬🇧", "border-purple-500/30 bg-purple-500/5", "text-purple-400", "uk", "TCGA 1992 / HMRC (Autumn Budget 2024)", "pro"),
-    c("NL", "🇳🇱", "border-orange-500/30 bg-orange-500/5", "text-orange-400", "nl", "Wet IB 2001, Box 3", "pro"),
-    c("IT", "🇮🇹", "border-green-600/30 bg-green-600/5", "text-green-300", "it", "Legge 197/2022 / Legge 199/2025", "pro"),
-    c("BR", "🇧🇷", "border-emerald-500/30 bg-emerald-500/5", "text-emerald-400", "br", "IN RFB 1888/2019 / Lei 14.754/2023", "pro"),
-    c("BE", "🇧🇪", "border-yellow-400/30 bg-yellow-400/5", "text-yellow-300", "be", "CIR92 art. 90 / Lei MV-2026", "pro"),
-    c("IE", "🇮🇪", "border-emerald-400/30 bg-emerald-400/5", "text-emerald-300", "ie", "TCA 1997 / Revenue CGT", "pro"),
-    c("AT", "🇦🇹", "border-red-500/30 bg-red-500/5", "text-red-300", "at", "EStG § 27b (reforma 2022)", "pro"),
-    c("PL", "🇵🇱", "border-rose-400/30 bg-rose-400/5", "text-rose-300", "pl", "Ustawa PIT art. 30b", "pro"),
-    c("LU", "🇱🇺", "border-sky-400/30 bg-sky-400/5", "text-sky-300", "lu", "LIR art. 99bis", "pro"),
-    c("US", "🇺🇸", "border-red-500/30 bg-red-500/5", "text-red-400", "us", "IRS Notice 2014-21 / Rev. Ruling 2023-14", "premium"),
-    c("CA", "🇨🇦", "border-rose-500/30 bg-rose-500/5", "text-rose-400", "ca", "ITA s. 38 / CRA IT-218R", "premium"),
-    c("AU", "🇦🇺", "border-sky-500/30 bg-sky-500/5", "text-sky-400", "au", "ITAA 1997 s. 108-5 / ATO (2014–2023)", "premium"),
-    c("CH", "🇨🇭", "border-red-500/30 bg-red-500/5", "text-red-400", "ch", "DBG art. 16 / LIFD", "premium"),
-    c("AE", "🇦🇪", "border-amber-500/30 bg-amber-500/5", "text-amber-400", "ae", "Federal Decree-Law No. 47 of 2022", "premium"),
-    c("SG", "🇸🇬", "border-red-400/30 bg-red-400/5", "text-red-300", "sg", "Payment Services Act 2019 / IRAS e-Tax Guide", "premium"),
-    c("MX", "🇲🇽", "border-green-500/30 bg-green-500/5", "text-green-300", "mx", "LISR (ISR) / SAT", "premium"),
-    c("AR", "🇦🇷", "border-cyan-400/30 bg-cyan-400/5", "text-cyan-300", "ar", "Ley 27.430 (imposto cedular)", "premium"),
+    c("PT", "🇵🇹", "border-green-500/30 bg-green-500/5", "text-green-400", "pt", ""),
+    c("ES", "🇪🇸", "border-yellow-500/30 bg-yellow-500/5", "text-yellow-400", "es", ""),
+    c("FR", "🇫🇷", "border-blue-500/30 bg-blue-500/5", "text-blue-400", "fr", ""),
+    c("DE", "🇩🇪", "border-slate-500/30 bg-slate-500/5", "text-slate-400", "de", ""),
+    c("GB", "🇬🇧", "border-purple-500/30 bg-purple-500/5", "text-purple-400", "uk", "", "pro"),
+    c("NL", "🇳🇱", "border-orange-500/30 bg-orange-500/5", "text-orange-400", "nl", "", "pro"),
+    c("IT", "🇮🇹", "border-green-600/30 bg-green-600/5", "text-green-300", "it", "", "pro"),
+    c("BR", "🇧🇷", "border-emerald-500/30 bg-emerald-500/5", "text-emerald-400", "br", "", "pro"),
+    c("BE", "🇧🇪", "border-yellow-400/30 bg-yellow-400/5", "text-yellow-300", "be", "", "pro"),
+    c("IE", "🇮🇪", "border-emerald-400/30 bg-emerald-400/5", "text-emerald-300", "ie", "", "pro"),
+    c("AT", "🇦🇹", "border-red-500/30 bg-red-500/5", "text-red-300", "at", "", "pro"),
+    c("PL", "🇵🇱", "border-rose-400/30 bg-rose-400/5", "text-rose-300", "pl", "", "pro"),
+    c("LU", "🇱🇺", "border-sky-400/30 bg-sky-400/5", "text-sky-300", "lu", "", "pro"),
+    c("US", "🇺🇸", "border-red-500/30 bg-red-500/5", "text-red-400", "us", "", "premium"),
+    c("CA", "🇨🇦", "border-rose-500/30 bg-rose-500/5", "text-rose-400", "ca", "", "premium"),
+    c("AU", "🇦🇺", "border-sky-500/30 bg-sky-500/5", "text-sky-400", "au", "", "premium"),
+    c("CH", "🇨🇭", "border-red-500/30 bg-red-500/5", "text-red-400", "ch", "", "premium"),
+    c("AE", "🇦🇪", "border-amber-500/30 bg-amber-500/5", "text-amber-400", "ae", "", "premium"),
+    c("SG", "🇸🇬", "border-red-400/30 bg-red-400/5", "text-red-300", "sg", "", "premium"),
+    c("MX", "🇲🇽", "border-green-500/30 bg-green-500/5", "text-green-300", "mx", "", "premium"),
+    c("AR", "🇦🇷", "border-cyan-400/30 bg-cyan-400/5", "text-cyan-300", "ar", "", "premium"),
   ];
+}
+
+// Linhas de taxa de um cartao. Sem prazo de detencao as duas taxas sao a
+// mesma: uma linha so ("Taxa de imposto"), em vez de "33%" repetido.
+function LinhasTaxa({ c }: { c: Country }) {
+  const { t } = useLanguage();
+  const igual = c.taxShort.trim().toLowerCase() === c.taxLong.trim().toLowerCase();
+  const linha = (rotulo: string, valor: string, cor: string) => (
+    <div className="flex justify-between gap-2 text-[11px]">
+      <span className="shrink-0 text-slate-500">{rotulo}</span>
+      <span className={`text-right font-medium ${cor}`}>{valor}</span>
+    </div>
+  );
+  return (
+    <div className="space-y-1">
+      {igual
+        ? linha(t("fisc_tax_rate"), c.taxShort, "text-rose-400")
+        : (<>{linha(t("fc_short_term"), c.taxShort, "text-rose-400")}{linha(t("fc_long_term"), c.taxLong, "text-emerald-400")}</>)}
+      {linha(t("fc_threshold"), c.threshold, "text-slate-400")}
+    </div>
+  );
 }
 
 function LegislationSection({ isPro, isPremium }: { isPro: boolean; isPremium: boolean }) {
@@ -166,20 +192,7 @@ function LegislationSection({ isPro, isPremium }: { isPro: boolean; isPremium: b
                   <p className={`text-[11px] font-medium ${c.badge}`}>{c.code}</p>
                 </div>
               </div>
-              <div className="space-y-1">
-                <div className="flex justify-between text-[11px]">
-                  <span className="text-slate-500">{t("fc_short_term")}</span>
-                  <span className="text-rose-400 font-medium">{c.taxShort}</span>
-                </div>
-                <div className="flex justify-between text-[11px]">
-                  <span className="text-slate-500">{t("fc_long_term")}</span>
-                  <span className="text-emerald-400 font-medium">{c.taxLong}</span>
-                </div>
-                <div className="flex justify-between text-[11px]">
-                  <span className="text-slate-500">{t("fc_threshold")}</span>
-                  <span className="text-slate-400 font-medium text-right">{c.threshold}</span>
-                </div>
-              </div>
+              <LinhasTaxa c={c} />
             </button>
           ) : (
             <a
@@ -195,20 +208,7 @@ function LegislationSection({ isPro, isPremium }: { isPro: boolean; isPremium: b
                 </div>
                 <span className="text-[11px]">{c.plan === "premium" ? "💎" : "🔒"}</span>
               </div>
-              <div className="space-y-1">
-                <div className="flex justify-between text-[11px]">
-                  <span className="text-slate-500">{t("fc_short_term")}</span>
-                  <span className="text-rose-400 font-medium">{c.taxShort}</span>
-                </div>
-                <div className="flex justify-between text-[11px]">
-                  <span className="text-slate-500">{t("fc_long_term")}</span>
-                  <span className="text-emerald-400 font-medium">{c.taxLong}</span>
-                </div>
-                <div className="flex justify-between text-[11px]">
-                  <span className="text-slate-500">{t("fc_threshold")}</span>
-                  <span className="text-slate-400 font-medium text-right">{c.threshold}</span>
-                </div>
-              </div>
+              <LinhasTaxa c={c} />
             </a>
           );
         })}
@@ -243,7 +243,12 @@ function LegislationSection({ isPro, isPremium }: { isPro: boolean; isPremium: b
   );
 }
 
-const FREE_COUNTRIES = ["PT", "ES", "FR", "DE"] as const;
+const FREE_COUNTRIES = [
+  { code: "PT", flag: "🇵🇹" },
+  { code: "ES", flag: "🇪🇸" },
+  { code: "FR", flag: "🇫🇷" },
+  { code: "DE", flag: "🇩🇪" },
+] as const;
 const PRO_COUNTRIES = [
   { code: "GB", flag: "🇬🇧", labelKey: "fc_uk_name" },
   { code: "NL", flag: "🇳🇱", labelKey: "fc_nl" },
@@ -929,7 +934,7 @@ export default function FiscalidadePage() {
                 aoMudar={setCountry}
                 label={t("fisc_country")}
                 opcoes={[
-                  ...FREE_COUNTRIES.map((c) => ({ id: c as string, label: c as string })),
+                  ...FREE_COUNTRIES.map((c) => ({ id: c.code as string, label: `${c.flag} ${c.code}` })),
                   ...(isPro ? PRO_COUNTRIES.map((c) => ({ id: c.code, label: `${c.flag} ${c.code}`, title: `${c.flag} ${t(c.labelKey)}` })) : []),
                   ...(isPremium ? PREMIUM_COUNTRIES.map((c) => ({ id: c.code, label: `${c.flag} ${c.code}`, title: `${c.flag} ${t(c.labelKey)}` })) : []),
                 ]}
