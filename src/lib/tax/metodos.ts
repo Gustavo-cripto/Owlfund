@@ -26,6 +26,17 @@ export type Operacao = {
   feeAsset?: string;
   feeQty?: number;
   date: string; // YYYY-MM-DD
+  /**
+   * As duas pernas de uma troca cripto↔cripto (venda de uma moeda, compra de
+   * outra) partilham este id. Nos países onde a troca não é tributada (PT, AT,
+   * PL) a venda não realiza ganho e o custo passa para a moeda recebida.
+   */
+  swapId?: string;
+};
+
+export type OpcoesRealizar = {
+  /** Troca cripto↔cripto neutra: sem ganho, custo transita (PT art. 10.º n.º 23; AT; PL). */
+  permutaNeutra?: boolean;
 };
 
 export type LoteRealizado = {
@@ -78,8 +89,21 @@ export function familia(m: CostMethod): "fifo" | "lifo" | "media" | "pool" | "fi
  * Empareilha as vendas com as compras pelo método pedido.
  * As operações têm de vir por ordem cronológica (compra antes de venda no mesmo dia).
  */
-export function realizar(ops: readonly Operacao[], metodo: CostMethod): Resultado {
+export function realizar(ops: readonly Operacao[], metodo: CostMethod, opcoes: OpcoesRealizar = {}): Resultado {
   const fam = familia(metodo);
+  // Nas trocas neutras a venda tem de vir antes da compra da mesma troca (a
+  // ordem cronológica põe as compras primeiro no mesmo dia): é ela que diz
+  // que custo passa para a moeda recebida. Índices originais preservados.
+  const ordem = ops.map((op, idx) => ({ op, idx }));
+  if (opcoes.permutaNeutra) {
+    for (let i = 0; i < ordem.length; i++) {
+      const o = ordem[i].op;
+      if (o.type !== "compra" || !o.swapId) continue;
+      const j = ordem.findIndex((x, k) => k > i && x.op.swapId === o.swapId && x.op.type === "venda");
+      if (j > i) { const [v] = ordem.splice(j, 1); ordem.splice(i, 0, v); i++; }
+    }
+  }
+  const custoTroca = new Map<string, number>();
   const pool: Record<string, LoteAberto[]> = {};
   const lotes: LoteRealizado[] = [];
   const unmatched: Record<string, number> = {};
@@ -115,7 +139,7 @@ export function realizar(ops: readonly Operacao[], metodo: CostMethod): Resultad
     }
   };
 
-  ops.forEach((op, idx) => {
+  ordem.forEach(({ op, idx }) => {
     if (op.type === "taxa") { consumirSemGanho(op.asset, op.amount); return; }
     if (op.feeAsset && (op.feeQty ?? 0) > 0) consumirSemGanho(op.feeAsset, op.feeQty ?? 0);
     const feePerUnit = op.amount > 0 ? op.fee / op.amount : 0;
@@ -123,11 +147,16 @@ export function realizar(ops: readonly Operacao[], metodo: CostMethod): Resultad
     if (op.type === "compra") {
       const reservado = reservas?.get(idx) ?? 0;
       const livre = op.amount - reservado;
+      // Moeda recebida numa troca neutra: herda o custo da entregue. A data de
+      // aquisição conta a partir da troca (a lei portuguesa só diz que passa
+      // o VALOR; é a leitura prudente — ressalvada no ecrã).
+      const herdado = opcoes.permutaNeutra && op.swapId ? custoTroca.get(op.swapId) : undefined;
+      const preco = herdado != null && op.amount > 0 ? herdado / op.amount : op.price;
       if (livre > EPS) {
-        (pool[op.asset] ??= []).push({ amount: livre, price: op.price, feePerUnit, date: op.date });
+        (pool[op.asset] ??= []).push({ amount: livre, price: preco, feePerUnit, date: op.date });
         if (usaMedia) {
           const m = (media[op.asset] ??= { qty: 0, custo: 0, taxas: 0 });
-          m.qty += livre; m.custo += livre * (op.price + feePerUnit); m.taxas += livre * feePerUnit;
+          m.qty += livre; m.custo += livre * (preco + feePerUnit); m.taxas += livre * feePerUnit;
         }
       }
       return;
@@ -135,9 +164,15 @@ export function realizar(ops: readonly Operacao[], metodo: CostMethod): Resultad
 
     // venda
     let resto = op.amount;
+    const neutra = !!(opcoes.permutaNeutra && op.swapId);
     const registar = (usa: number, buyPrice: number, buyFeePerUnit: number, buyDate: string, feesNoPreco = 0) => {
       const buyFees = usa * buyFeePerUnit;
       const sellFees = usa * feePerUnit;
+      if (neutra) {
+        // Sem ganho: o custo (com as taxas das duas pernas) passa para a moeda recebida.
+        custoTroca.set(op.swapId!, (custoTroca.get(op.swapId!) ?? 0) + usa * buyPrice + buyFees + sellFees);
+        return;
+      }
       const gain = usa * (op.price - buyPrice) - buyFees - sellFees;
       lotes.push({ asset: op.asset, buyDate, sellDate: op.date, buyPrice, sellPrice: op.price, amount: usa, buyFees, sellFees, fees: buyFees + sellFees, gain, feesNoPreco, venda: idx });
     };
@@ -272,6 +307,8 @@ export function resumoAnualPolaco(ops: readonly Operacao[]): AnoPolaco[] {
   const porAno = new Map<number, { receitas: number; custos: number; taxas: number }>();
   for (const op of ops) {
     if (op.type === "taxa") continue;
+    // Troca cripto↔cripto: não é receita nem custo (art. 17 ust. 1 pkt 11 PIT).
+    if (op.swapId) continue;
     const ano = new Date(op.date).getUTCFullYear();
     const a = porAno.get(ano) ?? { receitas: 0, custos: 0, taxas: 0 };
     if (op.type === "compra") a.custos += op.amount * op.price + op.fee;

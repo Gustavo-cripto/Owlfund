@@ -124,7 +124,10 @@ export function resumirImposto(
   if (alw && taxable > 0 && tax > 0) {
     if (alw.kind === "threshold") {
       // Tudo-ou-nada: abaixo do limite não há imposto; acima, paga-se sobre tudo.
-      if (taxable <= alw.amount) { allowanceUsed = taxable; tax = 0; }
+      // ABAIXO do limite, estritamente: DE "a partir de €1000 tributa tudo",
+      // LU "< €500" (auditoria 30 set 2026: com <= um ganho de exatamente
+      // €1.000 ficava isento).
+      if (taxable < alw.amount) { allowanceUsed = taxable; tax = 0; }
     } else {
       allowanceUsed = Math.min(alw.amount, taxable);
       // Consome a isenção a começar no escalão mais alto, pela mesma razão.

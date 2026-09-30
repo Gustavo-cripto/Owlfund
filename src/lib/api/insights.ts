@@ -1,8 +1,9 @@
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { chronoCompare, computeFifo, parseTrades, type Trade } from "@/lib/portfolios/trades";
 import { metricas, seriePontos, variacoes, type PnlChange, type SnapRow } from "@/lib/api/pnlMath";
-import { estimarImposto, resumirImposto } from "@/lib/api/taxMath";
+import { resumirImposto } from "@/lib/api/taxMath";
 import { realizar, resumoAnualPolaco, type Operacao } from "@/lib/tax/metodos";
+import { estimarImpostoPais, rotuloAnoFiscal } from "@/lib/tax/regras";
 import { loadFxServer } from "@/lib/api/fxServer";
 import { COST_METHOD_LABEL, COST_METHOD_SHORT, metodoRessalva, moedaDoRelatorio, COUNTRIES } from "@/lib/tax/countries";
 
@@ -227,12 +228,14 @@ export async function getTaxEstimate(userId: string, countryCode: string, year?:
     const preco = fx.fromEur(t.priceEur, t.date);
     const taxa = (t.feeEur ?? 0) > 0 ? fx.fromEur(t.feeEur ?? 0, t.date) : 0;
     if (preco == null || taxa == null) { droppedOps++; continue; }
-    ops.push({ type: t.type, asset: t.asset, amount: t.quantity, price: preco, fee: taxa, date: t.date, ...(t.feeAsset && (t.feeInput ?? 0) > 0 ? { feeAsset: t.feeAsset, feeQty: t.feeInput ?? 0 } : {}) });
+    ops.push({ type: t.type, asset: t.asset, amount: t.quantity, price: preco, fee: taxa, date: t.date, ...(t.swapId ? { swapId: t.swapId } : {}), ...(t.feeAsset && (t.feeInput ?? 0) > 0 ? { feeAsset: t.feeAsset, feeQty: t.feeInput ?? 0 } : {}) });
   }
-  const todos = realizar(ops, pais.costMethod).lotes;
-  const lots = year != null ? todos.filter((l) => new Date(l.sellDate).getUTCFullYear() === year) : todos;
-  // Ja esta tudo na moeda do relatorio: o conversor e a identidade.
-  let est = estimarImposto(lots, pais.regime, (v) => v, year);
+  const todos = realizar(ops, pais.costMethod, { permutaNeutra: pais.regras?.permutaNeutra }).lotes;
+  // Regras do país (prazo por calendário, regras do ano da venda, escalas,
+  // isenções por vendas, ano fiscal GB/AU…): o mesmo módulo que a página.
+  // Sem taxa pessoal, usa-se a taxa máxima onde ela depende do rendimento.
+  let est: ReturnType<typeof estimarImpostoPais> = estimarImpostoPais(todos, pais, year);
+  const lots = todos.filter((l) => est.events.some((e) => e.sellDate === l.sellDate && e.buyDate === l.buyDate && e.asset === l.asset));
   // Polonia: a base do ano e receitas menos TODOS os custos do ano, com o
   // excedente a transitar (art. 30b ust. 1a PIT) — o mesmo que a pagina faz.
   const anual = pais.costMethod === "annual" ? resumoAnualPolaco(ops) : null;
@@ -242,10 +245,6 @@ export async function getTaxEstimate(userId: string, countryCode: string, year?:
     const parciais = eventos.map((e) => resumirImposto([e], pais.regime));
     const soma = (f: (r: typeof parciais[number]) => number) => Math.round(parciais.reduce((acc, r) => acc + f(r), 0) * 100) / 100;
     est = { ...est, totalGain: soma((r) => r.totalGain), taxable: soma((r) => r.taxable), exempt: soma((r) => r.exempt), losses: soma((r) => r.losses), deductibleLosses: soma((r) => r.deductibleLosses), lossesApplied: soma((r) => r.lossesApplied), allowanceUsed: soma((r) => r.allowanceUsed), tax: soma((r) => r.tax), fees: Math.round(anos.reduce((acc, a) => acc + a.taxas, 0) * 100) / 100 };
-  } else {
-    // Metodos de custo medio: a taxa de compra ja esta no preco medio; soma-se
-    // a parte que entrou na media para o total "taxas deduzidas" ficar certo.
-    est = { ...est, fees: Math.round((est.fees + lots.reduce((acc, l) => acc + l.feesNoPreco, 0)) * 100) / 100 };
   }
   const droppedLots = est.droppedLots + droppedOps;
 
@@ -258,10 +257,14 @@ export async function getTaxEstimate(userId: string, countryCode: string, year?:
     currency: moeda,
     ...(moedaEmFalta ? { currencyNote: `Não há taxa de câmbio oficial publicada para ${pais.currency}; os valores saem em EUR.` } : {}),
     year: year ?? null,
+    ...(pais.regras?.anoFiscalInicio ? { taxYear: year != null ? rotuloAnoFiscal(pais, year) : null, taxYearNote: `Tax year starts on ${pais.regras.anoFiscalInicio.split("-").reverse().join("/")}; \`year\` is the year in which the tax year starts.` } : {}),
     law: pais.law,
     costMethod: pais.costMethod,
     costMethodLabel: COST_METHOD_LABEL[pais.costMethod].en,
     ...(metodoRessalva(pais.costMethod, "en", pais.code) ? { costMethodNote: metodoRessalva(pais.costMethod, "en", pais.code) } : {}),
+    ...(pais.regras?.taxaMarginal ? { rateNote: "The rate depends on income; the estimate uses the top rate (with surcharges). Your tax is likely lower." } : {}),
+    ...(pais.regras?.brMensal ? { regimeNote: "Estimated as crypto held on Brazilian exchanges: monthly assessment, months with sales ≤ R$35,000 exempt, 15–22.5% by gain. Crypto on foreign exchanges follows Law 14.754/2023 (15%, annual, no exemption)." } : {}),
+    ...(pais.regime.allowance?.disputada ? { allowanceNote: "The annual exemption shown in the guide is not applied: its application to crypto is not confirmed by the tax authority." } : {}),
     rates: { short: pais.regime.short, long: pais.regime.long, longTermAfterDays: pais.regime.longDays },
     allowance: pais.regime.allowance
       ? { amount: pais.regime.allowance.amount, kind: pais.regime.allowance.kind, used: est.allowanceUsed }

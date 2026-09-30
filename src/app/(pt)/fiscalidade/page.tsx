@@ -22,7 +22,8 @@ import { cleanDecimalInput, parseDecimal } from "@/lib/format/decimal";
 import { ACCOUNTS_EVENT } from "@/lib/portfolios/accounts";
 import { pushWalletCloud } from "@/lib/portfolios/cloudSync";
 import { chronoCompare, deleteTrade, loadTrades, tradeId, upsertTrade } from "@/lib/portfolios/trades";
-import { anoDoEvento, resumirImposto } from "@/lib/api/taxMath";
+import { resumirImposto } from "@/lib/api/taxMath";
+import { anoFiscalDe, classificarLote, comTaxaPessoal, fimDoAnoFiscal, regimeNaData, resumirPais, rotuloAnoFiscal, type TaxaPessoal } from "@/lib/tax/regras";
 
 const LOCALE_BY_LANG: Record<string, string> = { pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" };
 // Durante o beta os CTAs de upgrade apontam para o convite /beta.
@@ -42,6 +43,8 @@ type TradeEntry = {
   feeQty?: number;
   date: string;
   exchange: string;
+  /** Troca cripto↔cripto (as duas pernas partilham o id). */
+  swapId?: string;
 };
 
 type StandaloneFee = { asset: string; date: string; amount: number; value: number };
@@ -57,8 +60,10 @@ type TaxEvent = {
   fees: number;
   /** Liquido de taxas. */
   gain: number;
-  holding: "curto" | "longo"; // <365 dias = curto; >=365 = longo
-  taxRate: number; // PT: 28% curto, 0% longo (>365 dias, desde 2023 lei PT)
+  holding: "curto" | "longo"; // pelo prazo do pais (regras.ts: dias ou meses de calendario)
+  taxRate: number; // taxa do ano da venda (regimeNaData), com a taxa pessoal se houver
+  /** Valor de venda na moeda do relatorio (FR: isencao por vendas; BR: isencao mensal). */
+  saleValue: number;
 };
 
 // Regras PT 2024: cripto com holding >365 dias = isento; <=365 dias = 28%
@@ -286,7 +291,7 @@ export default function FiscalidadePage() {
       // por tipo (compra -> taxa -> venda). Sem isto, uma compra e uma venda no
       // MESMO dia chegavam ao FIFO pela ordem do localStorage, que e a inversa.
       const hist = loadTrades().sort(chronoCompare);
-      setTrades(hist.map(h => ({ id: h.id, asset: h.asset, type: h.type, amount: h.quantity, price: h.priceEur, fee: h.feeEur ?? 0, ...(h.feeAsset ? { feeAsset: h.feeAsset, feeQty: h.feeInput ?? 0 } : {}), date: h.date, exchange: h.exchange })));
+      setTrades(hist.map(h => ({ id: h.id, asset: h.asset, type: h.type, amount: h.quantity, price: h.priceEur, fee: h.feeEur ?? 0, ...(h.feeAsset ? { feeAsset: h.feeAsset, feeQty: h.feeInput ?? 0 } : {}), date: h.date, exchange: h.exchange, ...(h.swapId ? { swapId: h.swapId } : {}) })));
       setFromHistory(hist.length);
     };
     load();
@@ -340,7 +345,27 @@ export default function FiscalidadePage() {
   const metodoDoPais = COST_METHOD_LABEL[costMethod][lang];
   const metodoCurto = COST_METHOD_SHORT[costMethod];
   const ressalvaMetodo = metodoRessalva(costMethod, lang, paisDoRelatorio?.code);
-  const pct = (r: number) => `${(r * 100).toLocaleString(uiLocale, { maximumFractionDigits: 1 })}%`;
+  const pct = (r: number) => `${(r * 100).toLocaleString(uiLocale, { maximumFractionDigits: 2 })}%`;
+  // Taxa marginal escrita pela pessoa, onde a lei a faz depender do rendimento
+  // (DE, LU, US, AU, GB, CA, MX). Sem ela usa-se a maxima, com as sobretaxas.
+  // Guardada por utilizador e pais, so neste browser.
+  const regrasPais = paisDoRelatorio?.regras;
+  const chaveTaxa = userId && regrasPais?.taxaMarginal ? `fisc-taxa-v1:${userId}:${country}` : null;
+  const [taxaPessoal, setTaxaPessoal] = useState<TaxaPessoal | undefined>(undefined);
+  useEffect(() => {
+    if (!chaveTaxa) { setTaxaPessoal(undefined); return; }
+    try { const v = JSON.parse(localStorage.getItem(chaveTaxa) ?? "null"); setTaxaPessoal(v && typeof v === "object" ? v : undefined); } catch { setTaxaPessoal(undefined); }
+  }, [chaveTaxa]);
+  const gravarTaxa = (campo: "curto" | "longo", texto: string) => {
+    const n = parseFloat(texto.replace(",", "."));
+    const novo: TaxaPessoal = { ...(taxaPessoal ?? {}) };
+    if (Number.isFinite(n) && n >= 0 && n <= 60) novo[campo] = n / 100; else delete novo[campo];
+    const vazio = novo.curto == null && novo.longo == null;
+    setTaxaPessoal(vazio ? undefined : novo);
+    if (chaveTaxa) { try { if (vazio) localStorage.removeItem(chaveTaxa); else localStorage.setItem(chaveTaxa, JSON.stringify(novo)); } catch { /* modo privado */ } }
+  };
+  // Brasil: moedas em exchange estrangeira seguem outro regime (Lei 14.754/2023).
+  const [brExterior, setBrExterior] = useState(false);
   const semParenteseFinal = (s: string) => s.replace(/\s*\([^()]*\)\s*$/, "");
   const { currency: reportCurrency, fallback: moedaEmFalta } =
     paisDoRelatorio ? moedaDoRelatorio(paisDoRelatorio) : { currency: "EUR", fallback: false };
@@ -390,25 +415,27 @@ export default function FiscalidadePage() {
       const preco = toReport(tr.price, tr.date);
       const taxa = tr.fee > 0 ? toReport(tr.fee, tr.date) : 0;
       if (preco == null || taxa == null) { faltou = true; continue; }
-      ops.push({ type: tr.type, asset: tr.asset, amount: tr.amount, price: preco, fee: taxa, date: tr.date, ...(tr.feeAsset && (tr.feeQty ?? 0) > 0 ? { feeAsset: tr.feeAsset, feeQty: tr.feeQty } : {}) });
+      ops.push({ type: tr.type, asset: tr.asset, amount: tr.amount, price: preco, fee: taxa, date: tr.date, ...(tr.swapId ? { swapId: tr.swapId } : {}), ...(tr.feeAsset && (tr.feeQty ?? 0) > 0 ? { feeAsset: tr.feeAsset, feeQty: tr.feeQty } : {}) });
     }
-    const r = realizar(ops, costMethod);
+    const r = realizar(ops, costMethod, { permutaNeutra: regrasPais?.permutaNeutra });
     // Nos metodos de custo medio a taxa de compra ja esta no preco: `fees` do
     // lote so tem a de venda, e a parte que entrou na media vem em feesNoPreco
     // (so para o total "taxas deduzidas" nao ficar por baixo).
+    // Classificacao pelo pais (regras.ts): prazo por calendario, regras do
+    // ano da venda, Altbestand, taxas por ativo, taxa pessoal.
     const events: TaxEvent[] = r.lotes.map((l) => {
-      const days = calcDays(l.buyDate, l.sellDate);
-      const isLong = days >= regime.longDays && regime.longDays > 0;
+      const c = paisDoRelatorio ? classificarLote(paisDoRelatorio, l, taxaPessoal) : { longo: false, taxa: regime.short };
       return {
         asset: l.asset, buyDate: l.buyDate, sellDate: l.sellDate, buyPrice: l.buyPrice, sellPrice: l.sellPrice,
-        amount: l.amount, fees: l.fees + l.feesNoPreco, gain: l.gain, holding: isLong ? "longo" : "curto", taxRate: isLong ? regime.long : regime.short,
+        amount: l.amount, fees: l.fees + l.feesNoPreco, gain: l.gain, holding: c.longo ? "longo" : "curto", taxRate: c.taxa,
+        saleValue: l.sellPrice * l.amount,
       };
     });
     if (faltou !== fxIncomplete) setFxIncomplete(faltou);
     const feesNoPreco = r.lotes.reduce((acc, l) => acc + l.feesNoPreco, 0);
     return { events, soTaxa, ops, unmatched: r.unmatched, feesNoPreco };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trades, regime, toReport, costMethod]);
+  }, [trades, regime, toReport, costMethod, paisDoRelatorio, taxaPessoal]);
 
   const taxEvents = fifoFiscal.events;
   // Registos "so taxa" (swap falhado, gas de outra carteira): nao deduzidos
@@ -431,9 +458,9 @@ export default function FiscalidadePage() {
   const anosDisponiveis = useMemo(() => {
     // Polonia: um ano so com vendas sem lote continua a ter receitas na base anual.
     const doAnual = costMethod === "annual" ? resumoAnualPolaco(fifoFiscal.ops).map((a) => a.ano) : [];
-    const anos = [...new Set([...taxEvents.map(anoDoEvento), ...doAnual])].sort((a, b) => b - a);
+    const anos = [...new Set([...taxEvents.map((e) => anoFiscalDe(paisDoRelatorio, e.sellDate)), ...doAnual])].sort((a, b) => b - a);
     return anos;
-  }, [taxEvents, costMethod, fifoFiscal.ops]);
+  }, [taxEvents, costMethod, fifoFiscal.ops, paisDoRelatorio]);
   const [anoFiscal, setAnoFiscal] = useState<number | null>(null);
   const anoAtivo = anoFiscal ?? anosDisponiveis[0] ?? new Date().getFullYear();
   useEffect(() => {
@@ -442,12 +469,12 @@ export default function FiscalidadePage() {
   }, [anoFiscal, anosDisponiveis]);
 
   const eventosDoAno = useMemo(
-    () => taxEvents.filter((e) => anoDoEvento(e) === anoAtivo),
-    [taxEvents, anoAtivo],
+    () => taxEvents.filter((e) => anoFiscalDe(paisDoRelatorio, e.sellDate) === anoAtivo),
+    [taxEvents, anoAtivo, paisDoRelatorio],
   );
   const taxasDoAno = useMemo(
-    () => standaloneFees.filter((f) => new Date(f.date).getUTCFullYear() === anoAtivo),
-    [standaloneFees, anoAtivo],
+    () => standaloneFees.filter((f) => anoFiscalDe(paisDoRelatorio, f.date) === anoAtivo),
+    [standaloneFees, anoAtivo, paisDoRelatorio],
   );
 
   const summary = useMemo(() => {
@@ -459,13 +486,38 @@ export default function FiscalidadePage() {
     const anual = costMethod === "annual" ? resumoAnualPolaco(fifoFiscal.ops).find((a) => a.ano === anoAtivo) : null;
     const r = anual
       ? resumirImposto([{ gain: anual.base > 0 ? anual.base : anual.receitas - anual.custos - anual.custosTransitados, taxRate: regime.short }], regime)
-      : resumirImposto(eventosDoAno, regime);
+      : paisDoRelatorio
+        ? resumirPais(paisDoRelatorio, eventosDoAno.map((e) => ({ gain: e.gain, taxRate: e.taxRate, longTerm: e.holding === "longo", sellDate: e.sellDate, saleValue: e.saleValue })), { brExterior, taxaPessoal })
+        : resumirImposto(eventosDoAno, regime);
     // Polonia: as taxas deduzidas sao as de TODAS as compras e vendas do ano
     // (estao dentro da base anual), nao as dos lotes FIFO.
     const fees = anual ? anual.taxas : eventosDoAno.reduce((s, e) => s + e.fees, 0);
     const standalone = taxasDoAno.reduce((s, f) => s + f.value, 0);
     return { ...r, fees, standalone, anual };
-  }, [eventosDoAno, taxasDoAno, regime, costMethod, fifoFiscal.ops, anoAtivo]);
+  }, [eventosDoAno, taxasDoAno, regime, costMethod, fifoFiscal.ops, anoAtivo, paisDoRelatorio, brExterior, taxaPessoal]);
+
+  // Regras do ANO escolhido (IT 26% em 2025, FR 30% ate 2024, BE sem imposto
+  // antes de 2026…), com a taxa pessoal: e o que o cartao e o PDF mostram.
+  const regimeAno = paisDoRelatorio
+    ? comTaxaPessoal(paisDoRelatorio, regimeNaData(paisDoRelatorio, fimDoAnoFiscal(paisDoRelatorio, anoAtivo)), taxaPessoal)
+    : { short: regime.short, long: regime.long, longDays: regime.longDays, allowance: regime.allowance };
+  const alwAno = regimeAno.allowance && !regimeAno.allowance.disputada ? regimeAno.allowance : undefined;
+  const rotuloAno = (a: number) => rotuloAnoFiscal(paisDoRelatorio, a);
+  const usaTaxaMaxima = !!regrasPais?.taxaMarginal && taxaPessoal?.curto == null;
+  const prazoPais = regrasPais?.prazo;
+  const taxaMaxima = paisDoRelatorio ? regimeNaData(paisDoRelatorio, fimDoAnoFiscal(paisDoRelatorio, anoAtivo)) : regimeAno;
+  const historicoAplicado = !!paisDoRelatorio && JSON.stringify(taxaMaxima) !== JSON.stringify(regimeNaData(paisDoRelatorio, "9999-12-31"));
+  const rotuloCurto = prazoPais?.tipo === "meses" ? (prazoPais.n === 6 ? t("fc_short_6m") : t("fc_short_1y")) : t("fc_short_365");
+  const escalaAno = regrasPais?.brMensal && !brExterior ? regrasPais.brMensal.escaloes : regimeAno.escaloes;
+  const taxaCartao = regimeAno.semImposto
+    ? "0%"
+    : regrasPais?.brMensal && brExterior
+      ? pct(regrasPais.brMensal.taxaExterior)
+      : escalaAno
+        ? `${pct(escalaAno[0][1])}–${pct(escalaAno[escalaAno.length - 1][1])}`
+        : `${usaTaxaMaxima ? `${t("fisc_up_to")} ` : ""}${pct(regimeAno.short)}`;
+  const semImpostoNoPais = regime.short === 0 && regime.long === 0;
+  const rotuloIsentas = semImpostoNoPais ? t("fisc_exempt_no_tax") : regime.longDays > 0 || regrasPais?.altbestand ? t("fc_exempt_long") : t("fisc_exempt_generic");
 
   // Falha de export: se for um chunk antigo (pagina aberta antes de um deploy),
   // diz-se ao utilizador e recarrega-se — e o unico remedio; senao mostra-se o erro.
@@ -520,7 +572,7 @@ export default function FiscalidadePage() {
       titleRow.height = 24;
     }
     ([
-      [t("fisc_pdf_country"), `${country} (${pct(regime.short)} / ${regime.longLabel[lang]})`],
+      [t("fisc_pdf_country"), `${country} (${taxaCartao} / ${regime.longLabel[lang]})`],
       [t("hx_date"), new Date().toLocaleString(uiLocale, { dateStyle: "short", timeStyle: "short" })],
       [t("fisc_pdf_method_label"), `${metodoCurto} / ${reportCurrency}`],
     ] as [string, string][]).forEach(([k, v]) => {
@@ -538,9 +590,9 @@ export default function FiscalidadePage() {
     metric(t("fc_total_gains"), summary.totalGain, money);
     if (summary.fees > 0) metric(t("fisc_fees_deducted"), summary.fees, money);
     metric(t("fisc_x_taxable"), summary.taxable, money);
-    metric(t("fc_exempt_long"), summary.exempt, money);
+    metric(rotuloIsentas, summary.exempt, money);
     metric(t("fc_realized_losses"), summary.losses, money);
-    if (summary.allowanceUsed > 0 && regime.allowance) metric(`${t("fisc_x_allowance")} (${regime.allowance.label[lang]})`, -summary.allowanceUsed, money);
+    if (summary.allowanceUsed > 0 && (alwAno || regimeAno.isencaoVendas != null)) metric(`${t("fisc_x_allowance")} (${alwAno ? alwAno.label[lang] : t("fisc_fr_305")})`, -summary.allowanceUsed, money);
     metric(t("fc_estimated_tax"), summary.tax, money);
     metric(t("fisc_pdf_num_events"), eventosDoAno.length, "0");
     ws.addRow([]);
@@ -662,7 +714,7 @@ export default function FiscalidadePage() {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     doc.setTextColor(107, 114, 128);
-    doc.text(`${t("fisc_pdf_generated")}: ${new Date().toLocaleDateString(uiLocale, { day: "numeric", month: "long", year: "numeric" })}  ·  ${t("fisc_pdf_country")}: ${country} (${pct(regime.short)} / ${regime.longLabel[lang]})`, cx, y, { align: "center" });
+    doc.text(`${t("fisc_pdf_generated")}: ${new Date().toLocaleDateString(uiLocale, { day: "numeric", month: "long", year: "numeric" })}  ·  ${t("fisc_pdf_country")}: ${country} (${taxaCartao} / ${regime.longLabel[lang]})`, cx, y, { align: "center" });
     y += 8;
 
     // Summary box (compact)
@@ -672,7 +724,7 @@ export default function FiscalidadePage() {
     doc.roundedRect(M, y, W - M * 2, sumH, 2, 2, "FD");
     const cards: Array<[string, string, [number, number, number]]> = [
       [t("fc_total_gains"), eur(summary.totalGain), summary.totalGain >= 0 ? [16, 185, 129] : [239, 68, 68]],
-      [t("fc_exempt_long"), eur(summary.exempt), [16, 185, 129]],
+      [rotuloIsentas, eur(summary.exempt), [16, 185, 129]],
       [t("fc_realized_losses"), eur(summary.losses), [239, 68, 68]],
       [t("fc_estimated_tax"), eur(summary.tax), [249, 115, 22]],
     ];
@@ -885,10 +937,8 @@ export default function FiscalidadePage() {
             {[
               // Sem prazo de detencao (FR, IE, IT…) nao ha "curto" nem "longo":
               // uma taxa e o regime. 31,4% nao pode aparecer como 31%.
-              regime.longDays > 0
-                ? { label: regime.longDays < 365 ? t("fc_short_6m") : t("fc_short_1y"), value: pct(regime.short), color: "text-rose-400" }
-                : { label: t("fc_rate_flat"), value: pct(regime.short), color: "text-rose-400" },
-              { label: regime.longDays > 0 ? t("fc_long_term") : t("fc_regime"), value: regime.longLabel[lang], color: regime.longDays > 0 ? "text-emerald-400" : "text-slate-200" },
+              { label: regime.longDays > 0 ? rotuloCurto : t("fc_rate_flat"), value: taxaCartao, color: "text-rose-400" },
+              { label: regime.longDays > 0 ? t("fc_long_term") : t("fc_regime"), value: historicoAplicado ? t("fisc_rules_of_year").replace("{y}", rotuloAno(anoAtivo)) : regime.longLabel[lang], color: regime.longDays > 0 ? "text-emerald-400" : "text-slate-200" },
               { label: t("fc_method"), value: ressalvaMetodo ? `${metodoCurto} ≈` : metodoCurto, color: ressalvaMetodo ? "text-amber-300" : "text-orange-300" },
               { label: t("fc_base_currency"), value: reportCurrency, color: "text-slate-300" },
             ].map(item => (
@@ -898,6 +948,42 @@ export default function FiscalidadePage() {
               </div>
             ))}
           </div>
+          {regrasPais?.taxaMarginal && (
+            // A taxa depende do rendimento: por omissao usa-se a maxima (com
+            // sobretaxas), e a pessoa pode escrever a sua.
+            <div key={chaveTaxa ?? "sem-sessao"} className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-xs text-slate-300">
+              <label className="flex items-center gap-2">
+                <span>{regrasPais.taxaMarginal.longo === "separado" ? t("fisc_my_rate_short") : t("fisc_my_rate")}</span>
+                <input type="text" inputMode="decimal" aria-label={t("fisc_my_rate")} placeholder={pct(taxaMaxima.short).replace("%", "")}
+                  defaultValue={taxaPessoal?.curto != null ? String(Math.round(taxaPessoal.curto * 10000) / 100) : ""}
+                  onBlur={(e) => gravarTaxa("curto", e.target.value)}
+                  className="w-20 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-right text-slate-100" />
+                <span>%</span>
+              </label>
+              {regrasPais.taxaMarginal.longo === "separado" && (
+                <label className="flex items-center gap-2">
+                  <span>{t("fisc_my_rate_long")}</span>
+                  <input type="text" inputMode="decimal" aria-label={t("fisc_my_rate_long")} placeholder={pct(taxaMaxima.long).replace("%", "")}
+                    defaultValue={taxaPessoal?.longo != null ? String(Math.round(taxaPessoal.longo * 10000) / 100) : ""}
+                    onBlur={(e) => gravarTaxa("longo", e.target.value)}
+                    className="w-20 rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-right text-slate-100" />
+                  <span>%</span>
+                </label>
+              )}
+              <span className="basis-full text-[11px] text-slate-500">{usaTaxaMaxima ? t("fisc_rate_max_note") : t("fisc_rate_own_note")}</span>
+            </div>
+          )}
+          {regrasPais?.brMensal && (
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-xs text-slate-300">
+              <Segmentos tamanho="sm" wrap valor={brExterior ? "ext" : "br"} aoMudar={(v) => setBrExterior(v === "ext")} label={t("fisc_br_where")}
+                opcoes={[{ id: "br", label: t("fisc_br_local") }, { id: "ext", label: t("fisc_br_foreign") }]} />
+              <span className="basis-full text-[11px] text-slate-500">{brExterior ? t("fisc_br_foreign_note") : t("fisc_br_local_note")}</span>
+            </div>
+          )}
+          {regime.allowance?.disputada && (
+            <p className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs leading-relaxed text-amber-100/80">{t("fisc_alw_disputed").replace("{a}", regime.allowance.label[lang])}</p>
+          )}
+
           {(ressalvaMetodo || summary.anual) && (
             <p className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs leading-relaxed text-amber-100/80">
               {ressalvaMetodo ? t("fisc_method_note").replace("{m}", semParenteseFinal(metodoDoPais)).replace("{c}", ressalvaMetodo) : null}
@@ -1046,8 +1132,8 @@ export default function FiscalidadePage() {
           {anosDisponiveis.length > 1 && (
             <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3">
               <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t("fisc_year")}</span>
-              <Segmentos tamanho="sm" wrap valor={String(anoAtivo)} aoMudar={(a) => setAnoFiscal(Number(a))} opcoes={anosDisponiveis.map((a) => ({ id: String(a), label: String(a) }))} />
-              <span className="ml-auto text-[11px] text-slate-500">{t("fisc_year_hint")}</span>
+              <Segmentos tamanho="sm" wrap valor={String(anoAtivo)} aoMudar={(a) => setAnoFiscal(Number(a))} opcoes={anosDisponiveis.map((a) => ({ id: String(a), label: rotuloAno(a) }))} />
+              <span className="ml-auto text-[11px] text-slate-500">{t(regrasPais?.perdasTransitam ? "fisc_year_hint_carry" : "fisc_year_hint")}{regrasPais?.anoFiscalInicio ? ` ${t("fisc_year_starts").replace("{d}", regrasPais.anoFiscalInicio.split("-").reverse().join("/"))}` : ""}</span>
             </div>
           )}
           {eventosDoAno.length > 0 && (
@@ -1056,7 +1142,7 @@ export default function FiscalidadePage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {[
                   { icon: "📈", label: t("fc_total_gains"), value: summary.totalGain, color: summary.totalGain >= 0 ? "text-emerald-400" : "text-rose-400", highlight: false },
-                  { icon: "✅", label: t("fc_exempt_long"), value: summary.exempt, color: "text-emerald-300", highlight: false },
+                  { icon: "✅", label: rotuloIsentas, value: summary.exempt, color: "text-emerald-300", highlight: false },
                   { icon: "📉", label: t("fc_realized_losses"), value: summary.losses, color: "text-rose-400", highlight: false },
                   { icon: "🧾", label: t("fc_estimated_tax"), value: summary.tax, color: "text-orange-400", highlight: true },
                 ].map(c => (
@@ -1074,7 +1160,10 @@ export default function FiscalidadePage() {
                   ➖ −{fmtEur(summary.lossesApplied)} {t("fisc_losses_applied")}
                 </p>
               )}
-              {summary.allowanceUsed > 0 && regime.allowance && (
+              {summary.allowanceUsed > 0 && !alwAno && regimeAno.isencaoVendas != null && (
+                <p className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-4 py-2.5 text-xs text-emerald-300">✂️ {t("fisc_fr_305_applied")}</p>
+              )}
+              {summary.allowanceUsed > 0 && alwAno && (
                 // A faixa dizia quanto foi abatido, mas nao o que e uma isencao
                 // anual — e as duas especies comportam-se ao contrario uma da
                 // outra: a "deduct" tira uma fatia, a "threshold" e tudo-ou-nada.
@@ -1082,7 +1171,7 @@ export default function FiscalidadePage() {
                 <details className="group rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-4 py-2.5 text-xs text-emerald-300">
                   <summary className="flex cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
                     <span className="flex-1">
-                      ✂️ {regime.allowance.label[lang]}: −{fmtEur(summary.allowanceUsed)} {t("fisc_allowance_applied")}
+                      ✂️ {alwAno.label[lang]}: −{fmtEur(summary.allowanceUsed)} {t("fisc_allowance_applied")}
                     </span>
                     <span className="shrink-0 rounded-full border border-emerald-500/30 px-2 py-0.5 text-[11px] font-semibold text-emerald-200/80 group-open:hidden">
                       {t("fisc_alw_what")}
@@ -1093,7 +1182,7 @@ export default function FiscalidadePage() {
                     </svg>
                   </summary>
                   <div className="faq-a mt-3 space-y-2 border-t border-emerald-500/15 pt-3 leading-relaxed text-emerald-100/80">
-                    <p>{t(regime.allowance.kind === "threshold" ? "fisc_alw_threshold" : "fisc_alw_deduct")}</p>
+                    <p>{t(alwAno.kind === "threshold" ? "fisc_alw_threshold" : "fisc_alw_deduct")}</p>
                     <p>{t("fisc_alw_applied_long").replace("{v}", fmtEur(summary.allowanceUsed))}</p>
                     <p className="text-emerald-100/60">{t("fisc_alw_shared")}</p>
                     <Link href={guideUrl(lang === "pt" ? "pt" : "en", COUNTRIES.find((c) => c.code === country))}
@@ -1180,6 +1269,7 @@ export default function FiscalidadePage() {
                       ))}
                     </tbody>
                   </table>
+                  <p className="mt-3 text-[11px] leading-relaxed text-slate-500">{t("fisc_col_tax_note")}</p>
                 </div>
               </div>
 
