@@ -126,13 +126,16 @@ export function importarCryptocomApp(texto: string): ImportacaoCryptocom {
       const saiQ = Math.abs(qtd);
       entra(moeda, -saiQ);
       entra(paraMoeda, paraQtd);
+      // Cripto↔cripto: as duas pernas ficam ligadas (em PT, AT e PL a troca
+      // não é tributada e o custo passa para a moeda recebida).
+      const troca = !FIAT.has(moeda) && !FIAT.has(paraMoeda) ? { swapId: tradeId() } : {};
       if (!FIAT.has(moeda)) {
         const p = preco(saiQ);
-        trades.push({ id: tradeId(), type: "venda", asset: moeda, quantity: saiQ, priceEur: p, priceInput: p, totalEur: saiQ * p, ...base });
+        trades.push({ id: tradeId(), type: "venda", asset: moeda, quantity: saiQ, priceEur: p, priceInput: p, totalEur: saiQ * p, ...base, ...troca });
       }
       if (!FIAT.has(paraMoeda)) {
         const p = preco(paraQtd);
-        trades.push({ id: tradeId(), type: "compra", asset: paraMoeda, quantity: paraQtd, priceEur: p, priceInput: p, totalEur: paraQtd * p, ...base });
+        trades.push({ id: tradeId(), type: "compra", asset: paraMoeda, quantity: paraQtd, priceEur: p, priceInput: p, totalEur: paraQtd * p, ...base, ...troca });
       }
       continue;
     }

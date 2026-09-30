@@ -53,6 +53,12 @@ export type Trade = {
    * `feeEur` = o seu valor na data. O FIFO tira essa quantidade ao token.
    */
   feeAsset?: string;
+  /**
+   * Troca cripto↔cripto: a venda de uma moeda e a compra da outra partilham
+   * este id. Em PT, AT e PL a troca não é tributada e o custo passa para a
+   * moeda recebida (src/lib/tax/metodos.ts). Preenchido pelos importadores.
+   */
+  swapId?: string;
   date: string;           // "YYYY-MM-DD"
   exchange: string;
   notes: string;
@@ -94,6 +100,7 @@ export function sanitizeTrade(raw: unknown): Trade | null {
   const feeInput = feeEur !== undefined && num(r.feeInput) >= 0 ? num(r.feeInput) : undefined;
   const feeAsset = feeEur !== undefined && feeInput !== undefined && typeof r.feeAsset === "string" && /^[A-Z0-9.]{2,12}$/.test(r.feeAsset) ? r.feeAsset : undefined;
   const date = typeof r.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : "";
+  const swapId = typeof r.swapId === "string" && /^[A-Za-z0-9_-]{4,64}$/.test(r.swapId) ? r.swapId : undefined;
   const deleted = r.deleted === true;
   const updatedAt = Number.isFinite(num(r.updatedAt)) ? num(r.updatedAt) : undefined;
   if (deleted) return { id, type, asset, assetName: "", quantity: 0, priceEur: 0, totalEur: 0, date, exchange: "", notes: "", updatedAt, deleted: true };
@@ -105,6 +112,7 @@ export function sanitizeTrade(raw: unknown): Trade | null {
     totalEur: quantity * priceEur,
     currency, priceInput,
     ...(feeEur !== undefined ? { feeEur, ...(feeInput !== undefined ? { feeInput } : {}), ...(feeAsset ? { feeAsset } : {}) } : {}),
+    ...(swapId && type !== "taxa" ? { swapId } : {}),
     date,
     exchange: typeof r.exchange === "string" ? r.exchange : "",
     notes: typeof r.notes === "string" ? r.notes : "",
@@ -256,7 +264,7 @@ export function computeFifo(trades: Trade[], metodo: CostMethod = "fifo"): FifoR
     if (t.feeAsset && (t.feeInput ?? 0) > 0) entry(t.feeAsset).qtyNet -= t.feeInput ?? 0;
     if (t.type === "compra") { ba.qtyNet += t.quantity; ba.buys += t.totalEur + fee; }
     else { ba.qtyNet -= t.quantity; ba.sells += t.totalEur - fee; }
-    ops.push({ type: t.type, asset: t.asset, amount: t.quantity, price: t.priceEur, fee, date: t.date, ...(t.feeAsset ? { feeAsset: t.feeAsset, feeQty: t.feeInput ?? 0 } : {}) });
+    ops.push({ type: t.type, asset: t.asset, amount: t.quantity, price: t.priceEur, fee, date: t.date, ...(t.swapId ? { swapId: t.swapId } : {}), ...(t.feeAsset ? { feeAsset: t.feeAsset, feeQty: t.feeInput ?? 0 } : {}) });
   }
   const r = realizar(ops, metodo);
   const lots: RealizedLot[] = r.lotes.map((l) => ({ ...l }));
@@ -288,7 +296,7 @@ export function computeFifo(trades: Trade[], metodo: CostMethod = "fifo"): FifoR
 // fee_eur / fee_original (taxa em EUR e tal como foi escrita) vieram depois, e
 // tambem no fim, pela mesma razao: ficheiros antigos continuam a importar.
 // fee_asset: token em que a taxa foi paga (vazio = na moeda do preco).
-export const CSV_HEADER = ["date", "type", "asset", "quantity", "price_eur", "total_eur", "exchange", "notes", "currency", "price_original", "fee_eur", "fee_original", "fee_asset"] as const;
+export const CSV_HEADER = ["date", "type", "asset", "quantity", "price_eur", "total_eur", "exchange", "notes", "currency", "price_original", "fee_eur", "fee_original", "fee_asset", "swap_id"] as const;
 
 /**
  * Números no CSV: dinheiro com 2 casas, quantidades com as casas que tiverem
@@ -327,6 +335,7 @@ export function tradesToCsv(trades: Trade[]): string {
       csvMoney(t.feeEur ?? 0),
       t.feeAsset ? csvQty(feeOriginal) : csvMoney(feeOriginal),
       t.feeAsset ?? "",
+      t.swapId ?? "",
     ].map(esc).join(",");
   });
   return [CSV_HEADER.join(","), ...rows].join("\n");
@@ -395,6 +404,7 @@ export function parseTradesCsv(text: string): { trades: Trade[]; skipped: number
   const cFee = head.findIndex(h => !FEE_META.has(h) && (["gas", "gasfee", "gasusd", "gaseur"].includes(h) || ["feeeur", "fee", "commission", "comissao", "comisso", "comision", "taxa", "frais"].some(n => h === n || h.startsWith(n))));
   const cFeeOrig = col("feeoriginal");
   const cFeeAsset = col("feeasset", "feecoin", "feetoken", "feecurrency");
+  const cSwap = col("swapid", "swap");
   if (cDate < 0 || cAsset < 0 || cQty < 0 || cPrice < 0) return { trades: [], skipped: 0, error: "columns" };
   const trades: Trade[] = []; let skipped = 0;
   for (const line of lines.slice(1)) {
@@ -417,11 +427,14 @@ export function parseTradesCsv(text: string): { trades: Trade[]; skipped: number
     const feeAsset = /^[A-Z0-9.]{2,12}$/.test(feeAssetRaw) && !/^[A-Z]{3}$/.test(feeAssetRaw) || ["ETH", "SOL", "BNB", "POL", "BTC", "TRX", "ADA", "DOT", "ARB"].includes(feeAssetRaw) ? feeAssetRaw : undefined;
     // fee_original: na moeda (com `currency`) ou, com fee_asset, em unidades do token.
     const feeInput = feeEur !== undefined && cFeeOrig >= 0 && (currency || feeAsset) ? Math.abs(normNum(cells[cFeeOrig] ?? "")) : NaN;
+    const swapRaw = cSwap >= 0 ? (cells[cSwap] ?? "").trim() : "";
+    const swapId = /^[A-Za-z0-9_-]{4,64}$/.test(swapRaw) && type !== "taxa" ? swapRaw : undefined;
     trades.push({
       id: tradeId(), type, asset, assetName: asset, quantity: q, priceEur, totalEur: q * priceEur, date,
       exchange: cEx >= 0 ? (cells[cEx] ?? "") : "", notes: cNotes >= 0 ? (cells[cNotes] ?? "") : "", updatedAt: Date.now(),
       ...(currency && Number.isFinite(priceInput) ? { currency, priceInput } : {}),
       ...(feeEur !== undefined ? { feeEur, ...(Number.isFinite(feeInput) ? { feeInput, ...(feeAsset ? { feeAsset } : {}) } : {}) } : {}),
+      ...(swapId ? { swapId } : {}),
     });
   }
   return { trades, skipped };

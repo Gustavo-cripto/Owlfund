@@ -8,8 +8,13 @@ eq("quantidade inteira", csvQty(2), "2");
 eq("quantidade 8 casas", csvQty(0.000012345678), "0.00001235");
 const t: Trade = { id: "a", type: "compra", asset: "BTC", assetName: "", quantity: 0.1999, priceEur: 64996.96680821562, totalEur: 0, date: "2025-03-01", exchange: "Binance", notes: "", currency: "USD", priceInput: 70000.123456, feeEur: 1.2345, feeInput: 0.00001234, feeAsset: "BTC" };
 const csv = tradesToCsv([t]);
-eq("linha formatada", csv.split("\n")[1], "2025-03-01,buy,BTC,0.1999,64996.97,12992.89,Binance,,USD,70000.12,1.23,0.00001234,BTC");
+eq("linha formatada (swap_id vazio no fim)", csv.split("\n")[1], "2025-03-01,buy,BTC,0.1999,64996.97,12992.89,Binance,,USD,70000.12,1.23,0.00001234,BTC,");
 const back = parseTradesCsv(csv);
 eq("reimporta a mesma quantidade", String(back.trades[0]?.quantity), "0.1999");
 eq("reimporta o preco com 2 casas", String(back.trades[0]?.priceEur), "64996.97");
+// Troca cripto↔cripto: o swapId faz a ida e volta pelo CSV e pelo sanitize.
+const troca: Trade = { ...t, id: "x2", type: "venda", swapId: "0b1e2c3d-aaaa-bbbb-cccc-123456789abc" };
+const volta = parseTradesCsv(tradesToCsv([troca])).trades[0];
+eq("swapId ida e volta pelo CSV", volta?.swapId ?? "", "0b1e2c3d-aaaa-bbbb-cccc-123456789abc");
+
 console.log(fails === 0 ? "\nTODOS OK" : `\n${fails} FALHA(S)`); process.exit(fails ? 1 : 0);
