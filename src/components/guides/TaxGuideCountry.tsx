@@ -42,7 +42,8 @@ export default function TaxGuideCountry({ lang, country }: { lang: GuideLang; co
   const faqs = [
     {
       q: c.faqHowMuch(em),
-      a: `${text.taxShort} · ${text.taxLong}. ${text.summary}`,
+      // Sem prazo de detencao as duas taxas sao a mesma: nao repetir ("33% · 33%").
+      a: `${text.taxShort.trim().toLowerCase() === text.taxLong.trim().toLowerCase() ? text.taxShort : `${text.taxShort} · ${text.taxLong}`}. ${text.summary}`,
     },
     {
       q: c.faqAllowance(em),
