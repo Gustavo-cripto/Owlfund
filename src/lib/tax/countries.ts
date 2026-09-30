@@ -184,7 +184,7 @@ const ALLOWANCE_LABEL: Record<string, Record<Lang, string>> = {
 // Ordem: os 4 do plano gratuito primeiro, depois Pro, depois Premium — a mesma
 // da app, para quem passa de um lado para o outro reconhecer a lista.
 export const COUNTRIES: readonly Country[] = [
-  { code: "PT", currency: "EUR", slug: { pt: "portugal", en: "portugal" }, flag: "🇵🇹", plan: "free",    law: "CIRS art. 10.º n.º 19, 43.º n.º 6 g) e 72.º (Lei n.º 24-D/2022, art. 218.º)",                      regime: { short: 0.28,  long: 0.0,   longDays: 365, longLabel: LONG_LABEL.PT }, costMethod: "fifo_wallet" },
+  { code: "PT", currency: "EUR", slug: { pt: "portugal", en: "portugal" }, flag: "🇵🇹", plan: "free",    law: "CIRS art. 10.º n.º 22 e 24, 43.º n.º 8 g) e n.º 9, 72.º (Lei n.º 24-D/2022, art. 218.º)",                      regime: { short: 0.28,  long: 0.0,   longDays: 365, longLabel: LONG_LABEL.PT }, costMethod: "fifo_wallet" },
   { code: "ES", currency: "EUR", slug: { pt: "espanha", en: "spain" }, flag: "🇪🇸", plan: "free",    law: "LIRPF art. 33–37 e 66/76 (Ley 7/2024, desde 2025); DGT V0999-18",                          regime: { short: 0.19,  long: 0.19,  longDays: 0,   longLabel: LONG_LABEL.ES }, costMethod: "fifo" },
   { code: "FR", currency: "EUR", slug: { pt: "franca", en: "france" }, flag: "🇫🇷", plan: "free",    law: "CGI art. 150 VH bis; LFSS 2026 (CSG 10,6% desde 1 jan 2026)",                              regime: { short: 0.314, long: 0.314,  longDays: 0,   longLabel: LONG_LABEL.FR }, costMethod: "wavg_global" },
   { code: "DE", currency: "EUR", slug: { pt: "alemanha", en: "germany" }, flag: "🇩🇪", plan: "free",    law: "EStG § 23 Abs. 1 Nr. 2; BMF-Schreiben Kryptowerte (2022, atual. 2025)",                                        regime: { short: 0.45,  long: 0.0,   longDays: 365, longLabel: LONG_LABEL.DE, allowance: { amount: 1000, kind: "threshold", label: ALLOWANCE_LABEL.DE } }, costMethod: "fifo_wallet" },
@@ -259,6 +259,18 @@ export type CountryText = {
 };
 
 /** Data da última verificação do conteúdo — mostrada nos guias. */
+/**
+ * "em Portugal", "no Brasil", "nos Países Baixos": a preposição com artigo que
+ * cada país leva em português; em inglês só os que levam "the". Usado nos
+ * títulos e perguntas dos guias (antes saía "em Luxemburgo", "em Brasil").
+ */
+const EM_PT: Record<string, string> = { PT: "em Portugal", ES: "em Espanha", FR: "em França", DE: "na Alemanha", GB: "no Reino Unido", NL: "nos Países Baixos", IT: "em Itália", BR: "no Brasil", BE: "na Bélgica", IE: "na Irlanda", AT: "na Áustria", PL: "na Polónia", LU: "no Luxemburgo", US: "nos Estados Unidos", CA: "no Canadá", AU: "na Austrália", CH: "na Suíça", AE: "nos Emirados Árabes Unidos", SG: "em Singapura", MX: "no México", AR: "na Argentina" };
+const THE_EN = new Set(["GB", "NL", "US", "AE"]);
+export function emPais(code: string, lang: GuideLang, name: string): string {
+  if (lang === "pt") return EM_PT[code] ?? `em ${name}`;
+  return THE_EN.has(code) ? `in the ${name.replace(/^(The |Dubai \/ )/, "")}` : `in ${name}`;
+}
+
 export const TAX_DATA_VERIFIED: Record<GuideLang, string> = {
   pt: "setembro de 2026",
   en: "September 2026",

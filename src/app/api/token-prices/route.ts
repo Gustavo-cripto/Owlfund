@@ -38,15 +38,18 @@ export async function GET(request: Request) {
         }
       }
       // CoinEx so para o que a OKX nao tiver.
-      const markets = emFalta.filter((s) => !prices[s]).map((s) => `${s}USDT`).join(",");
+      // So simbolos "limpos" vao para a URL; com um par desconhecido a CoinEx
+      // responde {"code":3639,"data":{}} (objeto, nao lista) — tratado abaixo.
+      const markets = emFalta.filter((s) => !prices[s] && /^[A-Z0-9]{1,15}$/.test(s)).map((s) => `${s}USDT`).join(",");
       if (markets) {
-        const res = await fetch(`https://api.coinex.com/v2/spot/ticker?market=${markets}`, { signal: AbortSignal.timeout(6000) }).catch(() => null);
+        const res = await fetch(`https://api.coinex.com/v2/spot/ticker?market=${encodeURIComponent(markets)}`, { signal: AbortSignal.timeout(6000) }).catch(() => null);
         if (res?.ok) {
-          const data = (await res.json().catch(() => null)) as { data?: Array<{ market: string; last: string }> } | null;
-          (data?.data ?? []).forEach((t) => {
-            const sym = t.market.replace(/USDT$/, "");
-            const price = parseFloat(t.last);
-            if (Number.isFinite(price) && price > 0) prices[sym] = price;
+          const data = (await res.json().catch(() => null)) as { data?: unknown } | null;
+          const lista = Array.isArray(data?.data) ? (data.data as Array<{ market?: string; last?: string }>) : [];
+          lista.forEach((t) => {
+            const sym = (t.market ?? "").replace(/_INDEX$/, "").replace(/USDT$/, "");
+            const price = parseFloat(t.last ?? "");
+            if (sym && Number.isFinite(price) && price > 0) prices[sym] = price;
           });
         }
       }

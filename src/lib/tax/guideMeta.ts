@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { countryBySlug, guideUrl, type GuideLang } from "./countries";
+import { countryBySlug, guideUrl, type GuideLang, emPais } from "./countries";
 import { countryText } from "./countryText";
 import { GUIDE_COPY } from "./guideCopy";
 import { descricaoMeta } from "@/lib/seo/descricao";
@@ -46,8 +46,9 @@ export function countryMetadata(lang: GuideLang, slug: string): Metadata {
   if (!country) return {};
   const c = GUIDE_COPY[lang];
   const text = countryText(country.code, lang);
-  const title = c.countryMetaTitle(text.name, text.taxShort, text.taxLong);
-  const titleCurto = c.countryMetaTitleShort(text.name);
+  const em = emPais(country.code, lang, text.name);
+  const title = c.countryMetaTitle(em, text.taxShort, text.taxLong);
+  const titleCurto = c.countryMetaTitleShort(em);
   // "Pais: taxa" + as primeiras frases do resumo que caibam em ~155 caracteres,
   // cortado em fim de frase. Antes ia o resumo inteiro (ate 300): o Google
   // cortava a meio e a taxa — o gancho — ficava de fora do snippet.

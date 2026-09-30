@@ -47,14 +47,15 @@ type Copy = {
   otherCountries: string;
   disclaimerIndex: string;
   disclaimerCountry: string;
-  countryTitle: (name: string) => string;
-  countryMetaTitle: (name: string, short: string, long: string) => string;
+  /** Recebem a frase "em Portugal" / "no Brasil" (emPais), nao o nome solto. */
+  countryTitle: (em: string) => string;
+  countryMetaTitle: (em: string, short: string, long: string) => string;
   /** Versao sem taxas, para quando o titulo completo ficaria cortado no Google. */
-  countryMetaTitleShort: (name: string) => string;
-  faqHowMuch: (name: string) => string;
-  faqAllowance: (name: string) => string;
+  countryMetaTitleShort: (em: string) => string;
+  faqHowMuch: (em: string) => string;
+  faqAllowance: (em: string) => string;
   faqAllowanceYes: (label: string) => string;
-  faqAllowanceNo: (name: string) => string;
+  faqAllowanceNo: (em: string) => string;
   faqMethod: string;
   faqMethodAnswer: string;
 };
@@ -103,17 +104,17 @@ export const GUIDE_COPY: Record<GuideLang, Copy> = {
       "⚠️ Este guia é informativo e não constitui aconselhamento fiscal. As regras mudam e a tua situação concreta pode ter particularidades — confirma sempre com um contabilista ou com a autoridade fiscal do teu país antes de declarar.",
     disclaimerCountry:
       "⚠️ Informação geral, não aconselhamento fiscal. As regras mudam e a tua situação pode ter particularidades (residência, atividade profissional, staking, mineração). Confirma com um contabilista ou com a autoridade fiscal antes de declarar. O ChainFolioAI não é corretora nem prestador de serviços de criptoativos e não comunica os teus dados a nenhuma autoridade fiscal: as obrigações de reporte (DAC8, CARF) são das corretoras. Os relatórios que exportas são só teus.",
-    countryTitle: (n) => `Impostos sobre cripto em ${n}`,
+    countryTitle: (n) => `Impostos sobre cripto ${n}`,
     // Paises sem distincao de prazo tem a MESMA taxa nos dois campos, e o
     // titulo saia a gaguejar: "18-24% e 18-24%", "0% (investidor privado) e 0%
     // (investidor privado)". E o que aparecia no Google.
     countryMetaTitle: (n, s, l) =>
-      `Impostos sobre cripto em ${n} (2026): ${s.trim().toLowerCase() === l.trim().toLowerCase() ? s : `${s} ou ${l.toLowerCase()}`}`,
-    countryMetaTitleShort: (n) => `Impostos sobre cripto em ${n} (2026)`,
-    faqHowMuch: (n) => `Quanto se paga de imposto sobre cripto em ${n}?`,
-    faqAllowance: (n) => `Há isenção anual sobre mais-valias de cripto em ${n}?`,
+      `Impostos sobre cripto ${n} (2026): ${s.trim().toLowerCase() === l.trim().toLowerCase() ? s : `${s} ou ${l.toLowerCase()}`}`,
+    countryMetaTitleShort: (n) => `Impostos sobre cripto ${n} (2026)`,
+    faqHowMuch: (n) => `Quanto se paga de imposto sobre cripto ${n}?`,
+    faqAllowance: (n) => `Há isenção anual sobre mais-valias de cripto ${n}?`,
     faqAllowanceYes: (l) => `Sim: ${l}.`,
-    faqAllowanceNo: (n) => `Não existe uma isenção anual específica para mais-valias de criptomoedas em ${n}.`,
+    faqAllowanceNo: (n) => `Não existe uma isenção anual específica para mais-valias de criptomoedas ${n}.`,
     faqMethod: "Que método de cálculo se usa para emparelhar compras e vendas?",
     faqMethodAnswer:
       "Depende do país: FIFO (a primeira unidade comprada é a primeira vendida) em Portugal, Espanha, Alemanha ou Bélgica; preço médio ponderado em França, no Luxemburgo ou no Brasil; LIFO em Itália; pool britânico no Reino Unido. O ChainFolioAI aplica o método do país escolhido ao teu histórico e exporta o resultado.",
@@ -161,14 +162,14 @@ export const GUIDE_COPY: Record<GuideLang, Copy> = {
       "⚠️ This guide is informational and is not tax advice. Rules change and your situation may have specifics — always confirm with an accountant or your national tax authority before filing.",
     disclaimerCountry:
       "⚠️ General information, not tax advice. Rules change and your situation may have specifics (residency, professional activity, staking, mining). Confirm with an accountant or your tax authority before filing. ChainFolioAI is not an exchange or a crypto-asset service provider and does not report your data to any tax authority: reporting duties (DAC8, CARF) fall on exchanges. The reports you export are yours alone.",
-    countryTitle: (n) => `Crypto tax in ${n}`,
+    countryTitle: (n) => `Crypto tax ${n}`,
     countryMetaTitle: (n, s, l) =>
-      `Crypto tax in ${n} (2026): ${s.trim().toLowerCase() === l.trim().toLowerCase() ? s : `${s} or ${l.toLowerCase()}`}`,
-    countryMetaTitleShort: (n) => `Crypto tax in ${n} (2026)`,
-    faqHowMuch: (n) => `How much tax do you pay on crypto in ${n}?`,
-    faqAllowance: (n) => `Is there an annual allowance on crypto gains in ${n}?`,
+      `Crypto tax ${n} (2026): ${s.trim().toLowerCase() === l.trim().toLowerCase() ? s : `${s} or ${l.toLowerCase()}`}`,
+    countryMetaTitleShort: (n) => `Crypto tax ${n} (2026)`,
+    faqHowMuch: (n) => `How much tax do you pay on crypto ${n}?`,
+    faqAllowance: (n) => `Is there an annual allowance on crypto gains ${n}?`,
     faqAllowanceYes: (l) => `Yes: ${l}.`,
-    faqAllowanceNo: (n) => `There is no crypto-specific annual allowance on capital gains in ${n}.`,
+    faqAllowanceNo: (n) => `There is no crypto-specific annual allowance on capital gains ${n}.`,
     faqMethod: "Which method is used to match buys and sells?",
     faqMethodAnswer:
       "It depends on the country: FIFO (the first unit bought is the first sold) in Portugal, Spain, Germany or Belgium; weighted average cost in France, Luxembourg or Brazil; LIFO in Italy; the Section 104 pool in the UK. ChainFolioAI applies the chosen country's method to your history and exports the result.",

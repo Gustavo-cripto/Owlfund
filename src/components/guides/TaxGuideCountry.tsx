@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import AppShell from "@/components/AppShell";
-import { COST_METHOD_LABEL, COUNTRIES, guideDateModified, guideUrl, metodoRessalva, TAX_DATA_VERIFIED, type Country, type GuideLang } from "@/lib/tax/countries";
+import { COST_METHOD_LABEL, COUNTRIES, emPais, guideDateModified, guideUrl, metodoRessalva, TAX_DATA_VERIFIED, type Country, type GuideLang } from "@/lib/tax/countries";
 import { countryText } from "@/lib/tax/countryText";
 import { GUIDE_COPY } from "@/lib/tax/guideCopy";
 import { provaDetencao } from "@/lib/tax/prova";
@@ -18,6 +18,7 @@ export default function TaxGuideCountry({ lang, country }: { lang: GuideLang; co
   const base = guideUrl(lang);
   const here = `${SITE}${guideUrl(lang, country)}`;
   const others = COUNTRIES.filter((o) => o.code !== country.code);
+  const em = emPais(country.code, lang, text.name);
   // So nos paises em que o prazo de detencao muda o imposto (ver prova.ts).
   const prova = provaDetencao(country.code, lang);
 
@@ -40,14 +41,14 @@ export default function TaxGuideCountry({ lang, country }: { lang: GuideLang; co
   // acontecia aqui.
   const faqs = [
     {
-      q: c.faqHowMuch(text.name),
+      q: c.faqHowMuch(em),
       a: `${text.taxShort} · ${text.taxLong}. ${text.summary}`,
     },
     {
-      q: c.faqAllowance(text.name),
+      q: c.faqAllowance(em),
       a: country.regime.allowance
         ? c.faqAllowanceYes(country.regime.allowance.label[lang])
-        : c.faqAllowanceNo(text.name),
+        : c.faqAllowanceNo(em),
     },
     { q: c.faqMethod, a: c.faqMethodAnswer },
     ...(prova?.faqs ?? []),
@@ -58,7 +59,7 @@ export default function TaxGuideCountry({ lang, country }: { lang: GuideLang; co
     "@graph": [
       {
         "@type": "Article",
-        headline: c.countryTitle(text.name),
+        headline: c.countryTitle(em),
         description: text.summary,
         inLanguage: c.locale,
         datePublished: "2026-09-11",
@@ -105,7 +106,7 @@ export default function TaxGuideCountry({ lang, country }: { lang: GuideLang; co
 
           <h1 className="mt-4 flex items-center gap-3 text-3xl font-bold text-white sm:text-4xl">
             <span aria-hidden>{country.flag}</span>
-            {c.countryTitle(text.name)}
+            {c.countryTitle(em)}
           </h1>
           <p className="mt-2 text-sm text-slate-500">{c.verifiedOn(TAX_DATA_VERIFIED[lang])}</p>
 

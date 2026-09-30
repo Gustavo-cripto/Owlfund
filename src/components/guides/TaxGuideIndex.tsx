@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import AppShell from "@/components/AppShell";
-import { COUNTRIES, guideUrl, TAX_DATA_VERIFIED, TAX_GUIDE_DATE_MODIFIED, type GuideLang } from "@/lib/tax/countries";
+import { COUNTRIES, emPais, guideUrl, TAX_DATA_VERIFIED, TAX_GUIDE_DATE_MODIFIED, type GuideLang } from "@/lib/tax/countries";
 import { countryText } from "@/lib/tax/countryText";
 import { GUIDE_COPY } from "@/lib/tax/guideCopy";
 
@@ -38,7 +38,7 @@ export default function TaxGuideIndex({ lang }: { lang: GuideLang }) {
         itemListElement: rows.map(({ country, text }, i) => ({
           "@type": "ListItem",
           position: i + 1,
-          name: c.countryTitle(text.name),
+          name: c.countryTitle(emPais(country.code, lang, text.name)),
           url: `${SITE}${guideUrl(lang, country)}`,
         })),
       },
