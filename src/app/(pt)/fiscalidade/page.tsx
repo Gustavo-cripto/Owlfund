@@ -3,8 +3,8 @@
 import Link from "next/link";
 import Segmentos from "@/components/ui/Segmentos";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { COST_METHOD_LABEL, COST_METHOD_SHORT, COUNTRIES, TAX_REGIMES, guideUrl, metodoRessalva, moedaDoRelatorio } from "@/lib/tax/countries";
-import { realizar, resumoAnualPolaco, type Operacao } from "@/lib/tax/metodos";
+import { COST_METHOD_LABEL, COST_METHOD_SHORT, COUNTRIES, TAX_REGIMES, fifoPorCarteira, guideUrl, metodoRessalva, moedaDoRelatorio } from "@/lib/tax/countries";
+import { realizar, resumoAnualPolaco, type LoteAberto, type Operacao } from "@/lib/tax/metodos";
 import { loadFxTable, type FxTable } from "@/lib/fx/historical";
 import { CURRENCY_SIGN } from "@/lib/currency/symbols";
 import { btnPrimary } from "@/lib/ui/buttons";
@@ -23,7 +23,7 @@ import { ACCOUNTS_EVENT } from "@/lib/portfolios/accounts";
 import { pushWalletCloud } from "@/lib/portfolios/cloudSync";
 import { chronoCompare, deleteTrade, loadTrades, tradeId, upsertTrade } from "@/lib/portfolios/trades";
 import { resumirImposto } from "@/lib/api/taxMath";
-import { anoFiscalDe, classificarLote, comTaxaPessoal, fimDoAnoFiscal, regimeNaData, resumirAnos, rotuloAnoFiscal, type ResumoAno, type TaxaPessoal } from "@/lib/tax/regras";
+import { anoFiscalDe, classificarLote, comTaxaPessoal, fimDoAnoFiscal, regimeNaData, resumirAnos, rotuloAnoFiscal, primeiroDiaLongo, taxaMinima, type ResumoAno, type TaxaPessoal } from "@/lib/tax/regras";
 import { protegerTextoPdf } from "@/lib/export/pdfTexto";
 
 const LOCALE_BY_LANG: Record<string, string> = { pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" };
@@ -411,7 +411,7 @@ export default function FiscalidadePage() {
   const [fxIncomplete, setFxIncomplete] = useState(false);
 
   // Eventos de mais-valias pelo metodo do pais (motor em src/lib/tax/metodos.ts).
-  const fifoFiscal = useMemo<{ events: TaxEvent[]; soTaxa: StandaloneFee[]; ops: Operacao[]; unmatched: Record<string, number>; feesNoPreco: number }>(() => {
+  const fifoFiscal = useMemo<{ events: TaxEvent[]; soTaxa: StandaloneFee[]; ops: Operacao[]; unmatched: Record<string, number>; feesNoPreco: number; abertos: Record<string, LoteAberto[]> }>(() => {
     let faltou = false;
     const sorted = trades;   // ja vem em ordem canonica de loadTrades().sort(chronoCompare)
     const soTaxa: StandaloneFee[] = [];
@@ -421,17 +421,17 @@ export default function FiscalidadePage() {
         const valor = toReport(tr.price * tr.amount, tr.date);
         if (valor == null) { faltou = true; continue; }
         soTaxa.push({ asset: tr.asset, date: tr.date, amount: tr.amount, value: valor });
-        ops.push({ type: "taxa", asset: tr.asset, amount: tr.amount, price: tr.amount > 0 ? valor / tr.amount : 0, fee: 0, date: tr.date });
+        ops.push({ type: "taxa", asset: tr.asset, amount: tr.amount, price: tr.amount > 0 ? valor / tr.amount : 0, fee: 0, date: tr.date, carteira: tr.exchange });
         continue;
       }
       // Preco e taxa convertidos a taxa da data desta transacao.
       const preco = toReport(tr.price, tr.date);
       const taxa = tr.fee > 0 ? toReport(tr.fee, tr.date) : 0;
       if (preco == null || taxa == null) { faltou = true; continue; }
-      ops.push({ type: tr.type, asset: tr.asset, amount: tr.amount, price: preco, fee: taxa, date: tr.date, ...(tr.swapId ? { swapId: tr.swapId } : {}), ...(tr.feeAsset && (tr.feeQty ?? 0) > 0 ? { feeAsset: tr.feeAsset, feeQty: tr.feeQty } : {}) });
+      ops.push({ type: tr.type, asset: tr.asset, amount: tr.amount, price: preco, fee: taxa, date: tr.date, carteira: tr.exchange, ...(tr.swapId ? { swapId: tr.swapId } : {}), ...(tr.feeAsset && (tr.feeQty ?? 0) > 0 ? { feeAsset: tr.feeAsset, feeQty: tr.feeQty } : {}) });
     }
     // PT com contraparte sem convencao: as trocas deixam de ser neutras.
-    const r = realizar(ops, costMethod, { permutaNeutra: regrasPais?.permutaNeutra && !(alternativa && regrasPais?.alternativa?.trocasTributadas) });
+    const r = realizar(ops, costMethod, { permutaNeutra: regrasPais?.permutaNeutra && !(alternativa && regrasPais?.alternativa?.trocasTributadas), porCarteira: fifoPorCarteira(paisDoRelatorio) });
     // Nos metodos de custo medio a taxa de compra ja esta no preco: `fees` do
     // lote so tem a de venda, e a parte que entrou na media vem em feesNoPreco
     // (so para o total "taxas deduzidas" nao ficar por baixo).
@@ -447,11 +447,33 @@ export default function FiscalidadePage() {
     });
     if (faltou !== fxIncomplete) setFxIncomplete(faltou);
     const feesNoPreco = r.lotes.reduce((acc, l) => acc + l.feesNoPreco, 0);
-    return { events, soTaxa, ops, unmatched: r.unmatched, feesNoPreco };
+    return { events, soTaxa, ops, unmatched: r.unmatched, feesNoPreco, abertos: r.abertos };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trades, regime, toReport, costMethod, paisDoRelatorio, taxaPessoal, alternativa]);
 
   const taxEvents = fifoFiscal.events;
+
+  // Moedas por vender e o dia em que cada compra passa o prazo do pais
+  // (isencao ou taxa de longo prazo). E aritmetica sobre os registos da pessoa
+  // com a regra da lei: nao depende de rendimento nem de escolhas.
+  const prazosAbertos = useMemo(() => {
+    if (!paisDoRelatorio) return null;
+    if (alternativa && regrasPais?.alternativa?.semIsencaoPrazo) return null;
+    const hoje = new Date().toISOString().slice(0, 10);
+    const futuros: Array<{ asset: string; amount: number; date: string; desde: string; faltam: number }> = [];
+    let passados = 0;
+    for (const [asset, lotes] of Object.entries(fifoFiscal.abertos)) {
+      for (const l of lotes) {
+        if (l.amount <= 1e-9) continue;
+        const desde = primeiroDiaLongo(paisDoRelatorio, l.date);
+        if (!desde) return null;
+        if (desde <= hoje) { passados++; continue; }
+        futuros.push({ asset, amount: l.amount, date: l.date, desde, faltam: Math.round((Date.parse(desde) - Date.parse(hoje)) / 86_400_000) });
+      }
+    }
+    futuros.sort((a, b) => (a.desde < b.desde ? -1 : a.desde > b.desde ? 1 : 0));
+    return futuros.length || passados ? { futuros, passados } : null;
+  }, [fifoFiscal.abertos, paisDoRelatorio, alternativa, regrasPais]);
   // Registos "so taxa" (swap falhado, gas de outra carteira): nao deduzidos
   // automaticamente — o tratamento fiscal varia; mostram-se a parte.
   const standaloneFees = fifoFiscal.soTaxa;
@@ -499,6 +521,24 @@ export default function FiscalidadePage() {
       : null,
     [taxEvents, paisDoRelatorio, alternativa, taxaPessoal],
   );
+  // Sem a taxa da pessoa (onde depende do rendimento), o imposto mostra-se
+  // como intervalo: do escalao mais baixo ao mais alto. So a maxima assustava
+  // quem tem rendimento normal, com um numero que podia ser o dobro do seu.
+  const tpMinima = useMemo<TaxaPessoal | undefined>(() => {
+    const m = taxaMinima(paisDoRelatorio);
+    if (!m || taxaPessoal?.curto != null) return undefined;
+    return { ...m, ...(taxaPessoal?.longo != null ? { longo: taxaPessoal.longo } : {}) };
+  }, [paisDoRelatorio, taxaPessoal]);
+  const resumosMinimos = useMemo(
+    () => paisDoRelatorio && tpMinima
+      // Cada venda reclassificada com a taxa minima (a dos eventos e a maxima).
+      ? resumirAnos(paisDoRelatorio, taxEvents.map((e) => {
+          const c = classificarLote(paisDoRelatorio, e, tpMinima, alternativa);
+          return { gain: e.gain, taxRate: c.taxa, longTerm: c.longo, sellDate: e.sellDate, saleValue: e.saleValue };
+        }), { alternativa, taxaPessoal: tpMinima })
+      : null,
+    [taxEvents, paisDoRelatorio, alternativa, tpMinima],
+  );
   const summary = useMemo(() => {
     // A MESMA funcao que a API e o MCP usam. Havia aqui uma copia da conta, e
     // as duas copias erravam igual: as menos-valias nunca abatiam aos ganhos.
@@ -517,8 +557,11 @@ export default function FiscalidadePage() {
     const standalone = taxasDoAno.reduce((s, f) => s + f.value, 0);
     // Perdas que passam para o ano seguinte (so nos paises onde a lei deixa).
     const aTransitar = (r.transitar ?? []).reduce((acc, p) => acc + p.valor, 0);
-    return { ...r, fees, standalone, anual, aTransitar };
-  }, [eventosDoAno, taxasDoAno, regime, costMethod, fifoFiscal.ops, anoAtivo, paisDoRelatorio, resumosPorAno]);
+    // Intervalo: o imposto com o escalao mais baixo (so se for mesmo menor).
+    const taxMin = resumosMinimos?.get(anoAtivo)?.tax;
+    const intervalo = taxMin != null && taxMin < r.tax - 0.005 ? { min: taxMin, max: r.tax } : null;
+    return { ...r, fees, standalone, anual, aTransitar, intervalo };
+  }, [eventosDoAno, taxasDoAno, regime, costMethod, fifoFiscal.ops, anoAtivo, paisDoRelatorio, resumosPorAno, resumosMinimos]);
 
   // Regras do ANO escolhido (IT 26% em 2025, FR 30% ate 2024, BE sem imposto
   // antes de 2026…), com a taxa pessoal: e o que o cartao e o PDF mostram.
@@ -541,7 +584,9 @@ export default function FiscalidadePage() {
         ? pct(regrasPais.alternativa.taxa)
       : escalaAno
         ? `${pct(escalaAno[0][1]).replace("%", "")}–${pct(escalaAno[escalaAno.length - 1][1])}`
-        : `${usaTaxaMaxima ? `${t("fisc_up_to")} ` : ""}${pct(regimeAno.short)}`;
+        : usaTaxaMaxima && tpMinima?.curto != null
+          ? `${pct(tpMinima.curto).replace("%", "")}–${pct(regimeAno.short)}`
+          : pct(regimeAno.short);
   // Sem prazo de detencao, o cartao ja mostra a taxa a esquerda: a direita
   // fica so o regime ("isencao se vendas ≤ R$35k/mes", "flat tax / PFU"),
   // sem repetir a taxa. So se tira quando o que vem antes do parentese e
@@ -581,7 +626,9 @@ export default function FiscalidadePage() {
     if (regrasPais?.taxaMarginal && !regimeAno.semImposto) {
       const taxas = regimeAno.longDays > 0 && regimeAno.long !== regimeAno.short && regimeAno.long > 0
         ? `${pct(regimeAno.short)} / ${pct(regimeAno.long)}` : pct(regimeAno.short);
-      linhas.push([t("fisc_pdf_rate_used"), `${taxas} (${usaTaxaMaxima ? t("fisc_pdf_rate_max") : t("fisc_pdf_rate_own")})`]);
+      linhas.push([t("fisc_pdf_rate_used"), usaTaxaMaxima && tpMinima?.curto != null
+        ? `${pct(tpMinima.curto)}–${pct(regimeAno.short)} (${t("fisc_pdf_rate_range")})`
+        : `${taxas} (${usaTaxaMaxima ? t("fisc_pdf_rate_max") : t("fisc_pdf_rate_own")})`]);
     }
     if (altId) linhas.push([t(altK("where")), alternativa ? t(altK("b")) : t(altK("a"))]);
     if (ressalvaMetodo) linhas.push([t("fisc_pdf_method_caveat"), ressalvaMetodo]);
@@ -654,7 +701,8 @@ export default function FiscalidadePage() {
     if ((summary.carriedLossesUsed ?? 0) > 0) metric(t("fisc_x_carry_used"), -(summary.carriedLossesUsed ?? 0), money);
     if (summary.aTransitar > 0) metric(t("fisc_x_carry_out"), summary.aTransitar, money);
     if (summary.allowanceUsed > 0 && (alwAno || regimeAno.isencaoVendas != null)) metric(`${t("fisc_x_allowance")} (${alwAno ? alwAno.label[lang] : t("fisc_fr_305")})`, -summary.allowanceUsed, money);
-    metric(t("fc_estimated_tax"), summary.tax, money);
+    if (summary.intervalo) metric(t("fisc_x_tax_low"), summary.intervalo.min, money);
+    metric(summary.intervalo ? t("fisc_x_tax_high") : t("fc_estimated_tax"), summary.tax, money);
     metric(t("fisc_pdf_num_events"), eventosDoAno.length, "0");
     ws.addRow([]);
 
@@ -788,7 +836,7 @@ export default function FiscalidadePage() {
       [t("fc_total_gains"), eur(summary.totalGain), summary.totalGain >= 0 ? [16, 185, 129] : [239, 68, 68]],
       [rotuloIsentas, eur(summary.exempt), [16, 185, 129]],
       [t("fc_realized_losses"), eur(summary.losses), [239, 68, 68]],
-      [t("fc_estimated_tax"), eur(summary.tax), [249, 115, 22]],
+      [t("fc_estimated_tax"), summary.intervalo ? `${eurN(summary.intervalo.min)}–${eur(summary.tax)}` : eur(summary.tax), [249, 115, 22]],
     ];
     const colW = (W - M * 2) / 4;
     cards.forEach((c, i) => {
@@ -866,7 +914,7 @@ export default function FiscalidadePage() {
     doc.setTextColor(17, 24, 39);
     doc.text(`${t("fisc_pdf_net_taxable")}:`, M, y);
     doc.setTextColor(249, 115, 22);
-    doc.text(eur(summary.tax), W - M, y, { align: "right" });
+    doc.text(summary.intervalo ? `${eurN(summary.intervalo.min)}–${eur(summary.tax)}` : eur(summary.tax), W - M, y, { align: "right" });
     y += 10 + gap;
 
     if (y > 250) { doc.addPage(); y = 18; }
@@ -1223,15 +1271,20 @@ export default function FiscalidadePage() {
                   { icon: "📈", label: t("fc_total_gains"), value: summary.totalGain, color: summary.totalGain >= 0 ? "text-emerald-400" : "text-rose-400", highlight: false },
                   { icon: "✅", label: rotuloIsentas, value: summary.exempt, color: "text-emerald-300", highlight: false },
                   { icon: "📉", label: t("fc_realized_losses"), value: summary.losses, color: "text-rose-400", highlight: false },
-                  { icon: "🧾", label: altId === "at" && alternativa ? t("fisc_tax_withheld") : t("fc_estimated_tax"), value: summary.tax, color: "text-orange-400", highlight: true },
-                ].map(c => (
+                  { icon: "🧾", label: altId === "at" && alternativa ? t("fisc_tax_withheld") : t("fc_estimated_tax"), value: summary.tax, color: "text-orange-400", highlight: true, intervalo: summary.intervalo },
+                ].map((c: { icon: string; label: string; value: number; color: string; highlight: boolean; intervalo?: { min: number; max: number } | null }) => (
                   <div key={c.label} className={`rounded-2xl border p-4 text-center ${c.highlight ? "border-orange-500/40 bg-orange-500/10" : "border-slate-800 bg-slate-900/60"}`}>
                     <p className="text-base mb-1">{c.icon}</p>
-                    <p className={`text-xl font-bold ${c.color}`}>{hideBalances ? "••••" : fmtEur(c.value)}</p>
+                    <p className={`${c.intervalo ? "text-base" : "text-xl"} font-bold ${c.color}`}>{hideBalances ? "••••" : c.intervalo ? `${fmtEur(c.intervalo.min)} – ${fmtEur(c.intervalo.max)}` : fmtEur(c.value)}</p>
                     <p className="text-xs text-slate-500 mt-1">{c.label}</p>
                   </div>
                 ))}
               </div>
+              {summary.intervalo && tpMinima?.curto != null && (
+                <p className="rounded-xl border border-orange-500/20 bg-orange-500/[0.06] px-4 py-2.5 text-xs text-orange-100/90">
+                  {t("fisc_tax_range_note").replace("{min}", pct(tpMinima.curto)).replace("{max}", pct(regimeAno.short))}
+                </p>
+              )}
               {/* Mostrar a compensacao: e a diferenca entre o que se paga e o
                   que se pagaria sobre os ganhos brutos. Antes nao acontecia. */}
               {summary.lossesApplied > 0 && (
@@ -1292,6 +1345,46 @@ export default function FiscalidadePage() {
                 <div className="rounded-2xl border border-amber-500/30 bg-amber-500/[0.06] p-4 text-xs text-amber-100/90">
                   <p className="font-semibold text-amber-200">{t("fisc_standalone_title")}: {reportSymbol} {summary.standalone.toLocaleString(uiLocale, { maximumFractionDigits: 2 })} ({standaloneFees.length})</p>
                   <p className="mt-1 text-amber-100/70">{t("fisc_standalone_note")}</p>
+                </div>
+              )}
+
+              {/* Quando as moedas por vender passam o prazo */}
+              {prazosAbertos && (
+                <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-6">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300/80">{t("fisc_hold_title")}</p>
+                  <p className="mt-1 text-xs text-slate-400">{t("fisc_hold_note")}</p>
+                  {prazosAbertos.futuros.length > 0 ? (
+                    <div className="mt-4 overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="text-left text-slate-500">
+                            <th className="pb-2 pr-3">{t("fc_col_asset")}</th>
+                            <th className="pb-2 pr-3 text-right">{t("fc_col_qtd")}</th>
+                            <th className="pb-2 pr-3">{t("fc_col_buy")}</th>
+                            <th className="pb-2 pr-3">{regime.long === 0 ? t("fisc_hold_exempt_from") : t("fisc_hold_long_from")}</th>
+                            <th className="pb-2 text-right">{t("fisc_hold_days_left")}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {prazosAbertos.futuros.slice(0, 12).map((f, i) => (
+                            <tr key={`${f.asset}-${f.date}-${i}`} className="border-t border-slate-800/80 text-slate-300">
+                              <td className="py-1.5 pr-3 font-semibold text-white">{f.asset}</td>
+                              <td className="py-1.5 pr-3 text-right tabular-nums">{hideBalances ? "••••" : f.amount.toLocaleString(uiLocale, { maximumFractionDigits: 8 })}</td>
+                              <td className="py-1.5 pr-3 tabular-nums">{f.date}</td>
+                              <td className="py-1.5 pr-3 tabular-nums text-emerald-300">{f.desde}</td>
+                              <td className="py-1.5 text-right tabular-nums">{f.faltam}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {prazosAbertos.futuros.length > 12 && (
+                        <p className="mt-2 text-[11px] text-slate-500">{t("fisc_hold_more").replace("{n}", String(prazosAbertos.futuros.length - 12))}</p>
+                      )}
+                    </div>
+                  ) : null}
+                  {prazosAbertos.passados > 0 && (
+                    <p className="mt-3 text-xs text-emerald-200/80">{t(regime.long === 0 ? "fisc_hold_passed_exempt" : "fisc_hold_passed_long").replace("{n}", String(prazosAbertos.passados))}</p>
+                  )}
                 </div>
               )}
 

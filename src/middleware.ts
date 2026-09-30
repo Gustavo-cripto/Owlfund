@@ -6,6 +6,7 @@ import { isProtectedPath } from "@/lib/auth/redirects";
 import { isBotUserAgent } from "@/lib/analytics/bots";
 import { pageFromPath, pageUrl } from "@/lib/i18n/routes";
 import type { Lang } from "@/lib/i18n/translations";
+import { origemDoUrl } from "@/lib/origem";
 
 // Regista uma visualizacao de pagina (fire-and-forget via waitUntil, sem atrasar
 // a resposta). So conta navegacoes reais: GET, sem prefetch, fora de /api e das
@@ -57,10 +58,10 @@ function trackPageView(request: NextRequest, event: NextFetchEvent): void {
   );
 }
 
-// ?src=… ou ?utm_source=…, saneado: so letras/numeros/tracos, ate 40 caracteres.
+// ?src=… (ou utm_source) e, opcional, ?campanha=… (ou utm_campaign), saneados:
+// "rede" ou "rede.campanha", ate 40 caracteres (src/lib/origem.ts).
 function srcFromUrl(request: NextRequest): string {
-  return (request.nextUrl.searchParams.get("src") ?? request.nextUrl.searchParams.get("utm_source") ?? "")
-    .replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 40);
+  return origemDoUrl(request.nextUrl.searchParams);
 }
 
 // Idioma pedido pelo browser, entre os que o site tem.

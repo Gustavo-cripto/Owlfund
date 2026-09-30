@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { SALDO_SLUGS } from "@/lib/tools/saldo";
 import { createHash } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { limparOrigem } from "@/lib/origem";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -94,7 +95,7 @@ export async function POST(req: NextRequest) {
       if (!error && data === false) return new Response(null, { status: 204 });
     } catch { /* função ainda não migrada → não perder tracking legítimo */ }
 
-    const src = typeof body.src === "string" ? body.src.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 40) : "";
+    const src = limparOrigem(body.src);
     if (src) {
       // A coluna `src` e nova (supabase-page-views-src.sql). Se ainda nao
       // existir, a visita conta na mesma — so sem origem.

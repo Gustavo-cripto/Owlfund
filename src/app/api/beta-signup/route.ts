@@ -7,6 +7,7 @@ import { Resend } from "resend";
 import { sendTelegram, tgEsc } from "@/lib/notify/telegram";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { betaAberto } from "@/lib/plans";
+import { limparOrigem } from "@/lib/origem";
 
 const TO = process.env.BETA_SIGNUP_TO ?? "suporte@chainfolioai.com";
 const FROM = "ChainFolioAI <noreply@chainfolioai.com>";
@@ -180,8 +181,8 @@ export async function POST(req: NextRequest) {
   // cookie de primeiro toque `cfa-src`, posto pelo middleware (30 dias, o
   // primeiro canal manda) — o mesmo que já alimenta o user_metadata.src das
   // contas. Sem isto o betaSignups.bySource30d nunca bate certo com o de contas.
-  const src = str(body.src, 40).replace(/[^a-zA-Z0-9_-]/g, "")
-    || (req.cookies.get("cfa-src")?.value ?? "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 40);
+  const src = limparOrigem(str(body.src, 40))
+    || limparOrigem(req.cookies.get("cfa-src")?.value ?? "");
   if (!isEmail(email)) return NextResponse.json({ error: "bad_email" }, { status: 400 });
 
   // Deduplicação: o mesmo email inscrito de novo não gera outra notificação nem

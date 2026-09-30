@@ -83,4 +83,17 @@ const plTaxa = resumoAnualPolaco([c("2025-03-01", 1, 1000, 5), { type: "taxa", a
 eq("PL: registo so-taxa fica de fora dos custos", plTaxa[0].custos, 1005);
 eq("PL: taxas de compra e venda do ano", plTaxa[0].taxas, 12);
 
+// FIFO por corretora/carteira (PT, DE, US).
+const k = (date: string, amount: number, price: number, carteira: string, type: "compra" | "venda" = "compra"): Operacao =>
+  ({ type, asset: "BTC", amount, price, fee: 0, date, carteira });
+const duas = [k("2025-01-10", 1, 100, "Kraken"), k("2025-06-10", 1, 300, "Binance"), k("2026-02-01", 1, 400, "Binance", "venda")];
+eq("por carteira: a venda na Binance usa a compra da Binance (300)", realizar(duas, "fifo_wallet", { porCarteira: true }).lotes[0].buyPrice, 300);
+eq("global: a mesma venda usaria a mais antiga (100)", realizar(duas, "fifo_wallet").lotes[0].buyPrice, 100);
+const transf = [k("2025-01-10", 1, 100, "Kraken"), k("2025-06-10", 1, 300, "Kraken"), k("2026-02-01", 1, 400, "Ledger", "venda")];
+const t1 = realizar(transf, "fifo_wallet", { porCarteira: true });
+eq("sem compras na Ledger: usa a mais antiga das outras (transferência)", t1.lotes[0].buyPrice, 100);
+eq("e não fica venda sem compra", Object.keys(t1.unmatched).length, 0);
+eq("nome da carteira sem distinguir maiúsculas", realizar([k("2025-01-10", 1, 100, "kraken"), k("2025-06-10", 1, 300, "Binance"), k("2026-02-01", 1, 400, "KRAKEN ", "venda")], "fifo", { porCarteira: true }).lotes[0].buyPrice, 100);
+eq("abertos juntam as carteiras", realizar(duas, "fifo_wallet", { porCarteira: true }).abertos.BTC.map((l) => l.price).join(","), "100");
+
 if (fails) { console.log(`\n${fails} FALHA(S)`); process.exit(1); } else console.log("\nTODOS OK");

@@ -3,10 +3,10 @@ import { chronoCompare, computeFifo, parseTrades, type Trade } from "@/lib/portf
 import { metricas, seriePontos, variacoes, type PnlChange, type SnapRow } from "@/lib/api/pnlMath";
 import { resumirImposto } from "@/lib/api/taxMath";
 import { realizar, resumoAnualPolaco, type Operacao } from "@/lib/tax/metodos";
-import { estimarImpostoPais, rotuloAnoFiscal } from "@/lib/tax/regras";
+import { estimarImpostoPais, rotuloAnoFiscal, taxaMinima } from "@/lib/tax/regras";
 import { ALTERNATIVA_EN, opcoesDoPais, validarOpcoes, type OpcoesEstimativa } from "@/lib/api/opcoesImposto";
 import { loadFxServer } from "@/lib/api/fxServer";
-import { COST_METHOD_LABEL, COST_METHOD_SHORT, metodoRessalva, moedaDoRelatorio, COUNTRIES } from "@/lib/tax/countries";
+import { COST_METHOD_LABEL, COST_METHOD_SHORT, fifoPorCarteira, metodoRessalva, moedaDoRelatorio, COUNTRIES } from "@/lib/tax/countries";
 
 // Dois numeros que a app mostra e a API nao dava: a evolucao do portefolio
 // (PNL) e as mais-valias realizadas pelo metodo FIFO.
@@ -228,16 +228,16 @@ export async function getTaxEstimate(userId: string, countryCode: string, year?:
     if (t.type === "taxa") {
       const valor = fx.fromEur(t.totalEur, t.date);
       if (valor == null) { droppedOps++; continue; }
-      ops.push({ type: "taxa", asset: t.asset, amount: t.quantity, price: t.quantity > 0 ? valor / t.quantity : 0, fee: 0, date: t.date });
+      ops.push({ type: "taxa", asset: t.asset, amount: t.quantity, price: t.quantity > 0 ? valor / t.quantity : 0, fee: 0, date: t.date, carteira: t.exchange });
       continue;
     }
     const preco = fx.fromEur(t.priceEur, t.date);
     const taxa = (t.feeEur ?? 0) > 0 ? fx.fromEur(t.feeEur ?? 0, t.date) : 0;
     if (preco == null || taxa == null) { droppedOps++; continue; }
-    ops.push({ type: t.type, asset: t.asset, amount: t.quantity, price: preco, fee: taxa, date: t.date, ...(t.swapId ? { swapId: t.swapId } : {}), ...(t.feeAsset && (t.feeInput ?? 0) > 0 ? { feeAsset: t.feeAsset, feeQty: t.feeInput ?? 0 } : {}) });
+    ops.push({ type: t.type, asset: t.asset, amount: t.quantity, price: preco, fee: taxa, date: t.date, carteira: t.exchange, ...(t.swapId ? { swapId: t.swapId } : {}), ...(t.feeAsset && (t.feeInput ?? 0) > 0 ? { feeAsset: t.feeAsset, feeQty: t.feeInput ?? 0 } : {}) });
   }
   // PT com contraparte fora da UE/convenção: as trocas deixam de ser neutras (como na página).
-  const todos = realizar(ops, pais.costMethod, { permutaNeutra: pais.regras?.permutaNeutra && !(alternativa && alt?.trocasTributadas) }).lotes;
+  const todos = realizar(ops, pais.costMethod, { permutaNeutra: pais.regras?.permutaNeutra && !(alternativa && alt?.trocasTributadas), porCarteira: fifoPorCarteira(pais) }).lotes;
   // Regras do país (prazo por calendário, regras do ano da venda, escalas,
   // isenções por vendas, ano fiscal GB/AU…): o mesmo módulo que a página.
   // Sem taxa pessoal, usa-se a taxa máxima onde ela depende do rendimento.
@@ -254,6 +254,11 @@ export async function getTaxEstimate(userId: string, countryCode: string, year?:
     est = { ...est, totalGain: soma((r) => r.totalGain), taxable: soma((r) => r.taxable), exempt: soma((r) => r.exempt), losses: soma((r) => r.losses), deductibleLosses: soma((r) => r.deductibleLosses), lossesApplied: soma((r) => r.lossesApplied), allowanceUsed: soma((r) => r.allowanceUsed), tax: soma((r) => r.tax), fees: Math.round(anos.reduce((acc, a) => acc + a.taxas, 0) * 100) / 100 };
   }
   const droppedLots = est.droppedLots + droppedOps;
+  // Sem a taxa da pessoa: o imposto também com o escalão mais baixo (intervalo).
+  const minima = tm && taxaPessoal?.curto == null && !anual ? taxaMinima(pais) : undefined;
+  const estMin = minima
+    ? estimarImpostoPais(todos, pais, year, { alternativa, taxaPessoal: { ...minima, ...(taxaPessoal?.longo != null ? { longo: taxaPessoal.longo } : {}) } })
+    : null;
 
   // Um total calculado sobre um subconjunto é pior do que um erro: se algum
   // lote ficou de fora por falta de câmbio, o imposto vai a null.
@@ -274,7 +279,7 @@ export async function getTaxEstimate(userId: string, countryCode: string, year?:
       ...(alt ? { alternative: alternativa, meaning: alternativa ? ALTERNATIVA_EN[alt.id].alternative : ALTERNATIVA_EN[alt.id].default } : {}),
       ...(tm ? { marginalRate: taxaPessoal?.curto ?? null, ...(tm.longo === "separado" ? { marginalRateLong: taxaPessoal?.longo ?? null } : {}) } : {}),
     },
-    ...(tm ? { rateNote: taxaPessoal?.curto != null ? "Uses the marginal rate you provided." : "The rate depends on income; without marginalRate the estimate uses the top rate (with surcharges). Your tax is likely lower." } : {}),
+    ...(tm ? { rateNote: taxaPessoal?.curto != null ? "Uses the marginal rate you provided." : "The rate depends on income; without marginalRate, estimatedTax uses the top rate (with surcharges) and estimatedTaxRange goes from the lowest to the highest bracket." } : {}),
     ...(alt ? { assumptionNote: `${ALTERNATIVA_EN[alt.id][alternativa ? "alternative" : "default"]} Pass alternative=${alternativa ? "false" : "true"} for the other case.` } : {}),
     ...(pais.regime.allowance?.disputada ? { allowanceNote: "The annual exemption shown in the guide is not applied: its application to crypto is not confirmed by the tax authority." } : {}),
     rates: { short: pais.regime.short, long: pais.regime.long, longTermAfterDays: pais.regime.longDays },
@@ -296,6 +301,7 @@ export async function getTaxEstimate(userId: string, countryCode: string, year?:
       carryForwardNote: "Unused losses carry forward to later years" + (pais.regras.perdasTransitam.anos ? ` (up to ${pais.regras.perdasTransitam.anos} years)` : "") + ". Only losses recorded in ChainFolioAI are known; losses from before the first record are not included." + (pais.regras.perdasTransitam.modo === "us" ? " Up to $3,000 of net loss per year is deducted from other income (not in estimatedTax)." : ""),
     } : {}),
     estimatedTax: parcial ? null : est.tax,
+    ...(estMin ? { estimatedTaxRange: parcial ? null : { min: estMin.tax, max: est.tax } } : {}),
     incompleteFx: fx.incomplete,
     droppedLots,
     ...(parcial ? { warning: `${droppedLots} de ${ops.length + droppedOps} operações ficaram sem taxa de câmbio; o imposto não é calculado sobre parte dos dados.` } : {}),

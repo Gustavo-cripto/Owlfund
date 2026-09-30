@@ -4,6 +4,15 @@ import { apiJson } from "@/lib/api/response";
 import { verifyAdminAuth } from "@/lib/api/admin-auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { isPremiumPriceId, launchReadiness, priceLabel } from "@/lib/payments/priceIds";
+import { ORIGEM_PADRAO, redeDe } from "@/lib/origem";
+
+// Contagens por origem → por rede (somando as campanhas) e só as com campanha.
+function agruparOrigens(contagem: Record<string, number>) {
+  const porRede: Record<string, number> = {};
+  for (const [src, n] of Object.entries(contagem)) porRede[redeDe(src)] = (porRede[redeDe(src)] ?? 0) + n;
+  const lista = (m: Record<string, number>) => Object.entries(m).map(([src, count]) => ({ src, count })).sort((a, b) => b.count - a.count);
+  return { porRede: lista(porRede), porCampanha: lista(Object.fromEntries(Object.entries(contagem).filter(([src]) => src.includes(".")))) };
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -64,7 +73,7 @@ export async function GET(req: NextRequest) {
   // admin do GoTrue e conta o total + novos por janela. Devolve tudo a null se
   // a listagem falhar (fail-open).
   async function countAccounts() {
-    const w: { total: number; new24h: number; new7d: number; new30d: number; bySource30d: Array<{ src: string; count: number }> } = { total: 0, new24h: 0, new7d: 0, new30d: 0, bySource30d: [] };
+    const w: { total: number; new24h: number; new7d: number; new30d: number; bySource30d: Array<{ src: string; count: number }>; byCampaign30d: Array<{ src: string; count: number }> } = { total: 0, new24h: 0, new7d: 0, new30d: 0, bySource30d: [], byCampaign30d: [] };
     const porCanal: Record<string, number> = {};
     const t1 = daysAgo(1).getTime();
     const t7 = daysAgo(7).getTime();
@@ -90,7 +99,7 @@ export async function GET(req: NextRequest) {
         }
         if (users.length < 1000) break;
       }
-      w.bySource30d = Object.entries(porCanal).map(([src, count]) => ({ src, count })).sort((a, b) => b.count - a.count);
+      ({ porRede: w.bySource30d, porCampanha: w.byCampaign30d } = agruparOrigens(porCanal));
       return w;
     } catch {
       return null;
@@ -193,6 +202,8 @@ export async function GET(req: NextRequest) {
      * funcionar. E por `humans` que se decide onde vale a pena divulgar.
      */
     bySource: Array<{ src: string; humans: number; bots: number; count: number }>;
+    /** "rede.campanha" (?src=bluesky&campanha=isencao), só as que têm campanha. */
+    byCampaign: Array<{ src: string; humans: number; bots: number; count: number }>;
   } = {
     last24h: await countOf(head(admin, "page_views").eq("is_bot", false).not("path", "like", "/_ev/%").gte("created_at", ISO(daysAgo(1)))),
     last7d: await countOf(head(admin, "page_views").eq("is_bot", false).not("path", "like", "/_ev/%").gte("created_at", ISO(daysAgo(7)))),
@@ -206,6 +217,7 @@ export async function GET(req: NextRequest) {
     bottomPaths: [],
     byDay: [],
     bySource: [],
+    byCampaign: [],
   };
   try {
     // Le TODAS as visitas dos ultimos 14 dias (serve o top de paginas 7d e a serie diaria 14d).
@@ -260,9 +272,17 @@ export async function GET(req: NextRequest) {
       .map(([path, count]) => ({ path, count }))
       .sort((a, b) => b.count - a.count);
     // Ordenado por PESSOAS, nao pelo total: e o numero que decide.
-    views.bySource = Object.entries(srcCounts)
+    // Por rede ("bluesky.isencao" conta em "bluesky"); campanhas à parte.
+    const porRede: Record<string, { humans: number; bots: number }> = {};
+    for (const [src, c] of Object.entries(srcCounts)) {
+      const r = (porRede[redeDe(src)] ??= { humans: 0, bots: 0 });
+      r.humans += c.humans; r.bots += c.bots;
+    }
+    const linhas = (m: Record<string, { humans: number; bots: number }>) => Object.entries(m)
       .map(([src, c]) => ({ src, humans: c.humans, bots: c.bots, count: c.humans + c.bots }))
       .sort((a, b) => b.humans - a.humans || b.count - a.count);
+    views.bySource = linhas(porRede);
+    views.byCampaign = linhas(Object.fromEntries(Object.entries(srcCounts).filter(([src]) => src.includes("."))));
     views.topPaths = ranked.slice(0, 5);
     // Menos vistas: as com menos visitas (asc), excluindo as que ja estao no top.
     const inTop = new Set(views.topPaths.map((p) => p.path));
@@ -328,8 +348,8 @@ export async function GET(req: NextRequest) {
   // lancamento; contar a partir dai nao exige coluna nova. E a outra metade
   // do que o marketing precisa: nao so que canal traz visitas, mas qual traz
   // inscricoes.
-  const betaSignups: { last7d: number; last30d: number; bySource30d: Array<{ src: string; count: number }> } = {
-    last7d: 0, last30d: 0, bySource30d: [],
+  const betaSignups: { last7d: number; last30d: number; bySource30d: Array<{ src: string; count: number }>; byCampaign30d: Array<{ src: string; count: number }> } = {
+    last7d: 0, last30d: 0, bySource30d: [], byCampaign30d: [],
   };
   try {
     const { data: rows } = await admin
@@ -341,11 +361,11 @@ export async function GET(req: NextRequest) {
     for (const r of (rows ?? []) as Array<{ note: string | null; created_at: string }>) {
       betaSignups.last30d++;
       if (new Date(r.created_at).getTime() >= sevenAgo) betaSignups.last7d++;
-      const via = /^\[via ([a-zA-Z0-9_-]+)\]/.exec(r.note ?? "");
+      const via = new RegExp(`^\\[via (${ORIGEM_PADRAO})\\]`).exec(r.note ?? "");
       const src = via ? via[1] : "(direto)";
       porOrigem[src] = (porOrigem[src] ?? 0) + 1;
     }
-    betaSignups.bySource30d = Object.entries(porOrigem).map(([src, count]) => ({ src, count })).sort((a, b) => b.count - a.count);
+    ({ porRede: betaSignups.bySource30d, porCampanha: betaSignups.byCampaign30d } = agruparOrigens(porOrigem));
   } catch { /* bloco vazio em caso de erro */ }
 
   return apiJson({
