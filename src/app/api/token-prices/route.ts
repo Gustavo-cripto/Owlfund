@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/api/requireUser";
 
 export const dynamic = "force-dynamic";
 
-// Returns USD prices for a list of symbols via CoinEx public ticker (no auth needed)
+// Precos USD para uma lista de simbolos: OKX (principal) e CoinEx (reserva), sem chaves.
 export async function GET(request: Request) {
   // Proxy com custo/quota nossa: so com sessao, e com limite por utilizador.
   const auth = await requireUser(request, { route: "token-prices", limit: 60 });
@@ -22,23 +22,33 @@ export async function GET(request: Request) {
   const prices: Record<string, number> = { USDT: 1, USDC: 1, BUSD: 1, DAI: 1 };
 
   try {
-    const markets = symbols
-      .filter((s) => !prices[s])
-      .map((s) => `${s}USDT`)
-      .join(",");
-
-    if (markets) {
-      const res = await fetch(
-        `https://api.coinex.com/v2/spot/ticker?market=${markets}`,
-        { signal: AbortSignal.timeout(6000) }
-      );
-      if (res.ok) {
-        const data = (await res.json()) as { data?: Array<{ market: string; last: string }> };
-        (data.data ?? []).forEach((t) => {
-          const sym = t.market.replace(/USDT$/, "");
-          const price = parseFloat(t.last);
-          if (Number.isFinite(price) && price > 0) prices[sym] = price;
-        });
+    const emFalta = symbols.filter((s) => !prices[s]);
+    if (emFalta.length) {
+      // OKX primeiro (30 set 2026): a CoinEx deixou de reconhecer os mercados
+      // "SYMBOLUSDT" no ticker por parametro. Um pedido com todos os pares SPOT.
+      const okx = await fetch("https://www.okx.com/api/v5/market/tickers?instType=SPOT", {
+        headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(6000), next: { revalidate: 30 },
+      }).catch(() => null);
+      if (okx?.ok) {
+        const j = (await okx.json().catch(() => null)) as { code?: string; data?: Array<{ instId?: string; last?: string }> } | null;
+        const porPar = new Map((j?.code === "0" ? j.data ?? [] : []).map((r) => [r.instId ?? "", r.last ?? ""]));
+        for (const s of emFalta) {
+          const price = parseFloat(porPar.get(`${s}-USDT`) ?? "");
+          if (Number.isFinite(price) && price > 0) prices[s] = price;
+        }
+      }
+      // CoinEx so para o que a OKX nao tiver.
+      const markets = emFalta.filter((s) => !prices[s]).map((s) => `${s}USDT`).join(",");
+      if (markets) {
+        const res = await fetch(`https://api.coinex.com/v2/spot/ticker?market=${markets}`, { signal: AbortSignal.timeout(6000) }).catch(() => null);
+        if (res?.ok) {
+          const data = (await res.json().catch(() => null)) as { data?: Array<{ market: string; last: string }> } | null;
+          (data?.data ?? []).forEach((t) => {
+            const sym = t.market.replace(/USDT$/, "");
+            const price = parseFloat(t.last);
+            if (Number.isFinite(price) && price > 0) prices[sym] = price;
+          });
+        }
       }
     }
   } catch {
