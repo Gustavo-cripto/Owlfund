@@ -29,7 +29,7 @@ export type ProvaDetencao = {
 export const PROVA_DETENCAO: Partial<Record<string, Record<GuideLang, ProvaDetencao>>> = {
   PT: {
     pt: {
-      titulo: "Como demonstrar que tens a cripto há mais de 365 dias",
+      titulo: "Como demonstrar que tens a cripto há 365 dias ou mais",
       intro:
         "A regra é simples: o ganho de uma venda só está excluído de tributação se a cripto vendida tiver sido detida durante 365 dias ou mais. A dificuldade está em demonstrar a data em que compraste cada unidade. A lei não traz uma lista de documentos aceites, mas diz duas coisas que ajudam a preparar o dossier.",
       blocos: [
@@ -46,12 +46,12 @@ export const PROVA_DETENCAO: Partial<Record<string, Record<GuideLang, ProvaDeten
         {
           titulo: "DCA: compras todas as semanas e está tudo misturado",
           texto:
-            "O Código do IRS manda usar o método FIFO: quando vendes, considera-se que vendes primeiro as unidades compradas há mais tempo. Por isso não precisas de escolher lotes; precisas da lista completa das compras com datas. Se vendes 0,1 BTC e as tuas compras mais antigas somam 0,1 BTC com mais de 365 dias, esse ganho está excluído. Se a venda for maior do que o que já passou os 365 dias, a parte que sobra vem dos lotes seguintes e é tributada a 28%. A mesma venda pode ter uma parte excluída e outra tributada.",
+            "O Código do IRS manda usar o método FIFO (art. 43.º n.º 8 g)): quando vendes, considera-se que vendes primeiro as unidades compradas há mais tempo. A ordem conta-se dentro de cada corretora ou carteira, não no conjunto (art. 43.º n.º 9). Por isso não precisas de escolher lotes; precisas da lista completa das compras com datas, corretora a corretora. Se vendes 0,1 BTC e as tuas compras mais antigas somam 0,1 BTC com mais de 365 dias, esse ganho está excluído. Se a venda for maior do que o que já passou os 365 dias, a parte que sobra vem dos lotes seguintes e é tributada a 28%. A mesma venda pode ter uma parte excluída e outra tributada.",
         },
         {
           titulo: "A corretora fechou ou não dá o histórico",
           texto:
-            "Reúne o que restar: emails de confirmação de ordens, extratos bancários das transferências para a corretora com as datas, e o registo na blockchain do levantamento para a tua carteira. Se a corretora ainda responde a pedidos de dados pessoais, pede o histórico completo por escrito; na União Europeia tens esse direito ao abrigo do RGPD. Se nada disto existir, a data de aquisição fica sem prova, e o caminho seguro é falar com um contabilista antes de declarar.",
+            "Reúne o que restar: emails de confirmação de ordens, extratos bancários das transferências para a corretora com as datas, e o registo na blockchain do levantamento para a tua carteira. Se a corretora ainda responde a pedidos de dados pessoais, pede o histórico completo por escrito; na União Europeia tens esse direito ao abrigo do RGPD. O Código do IRS prevê que, se os documentos se extraviaram por motivo que não te é imputável, possas usar outros elementos de prova (art. 128.º n.º 4). Se nada disto existir, a data de aquisição fica sem prova, e o caminho seguro é falar com um contabilista antes de declarar.",
         },
         {
           titulo: "A cripto veio de uma carteira minha, sem corretora",
@@ -71,7 +71,7 @@ export const PROVA_DETENCAO: Partial<Record<string, Record<GuideLang, ProvaDeten
         },
         {
           q: "Fiz DCA todas as semanas durante um ano e está tudo misturado. Como sei o que já passou os 365 dias?",
-          a: "Pelo método FIFO, que o Código do IRS impõe: vende-se primeiro o que se comprou há mais tempo. Ordena as compras por data e soma a partir da mais antiga até chegar à quantidade vendida. O que tiver 365 dias ou mais está excluído; o resto é tributado a 28%. A mesma venda pode ter as duas partes.",
+          a: "Pelo método FIFO, que o Código do IRS impõe (art. 43.º n.º 8 g)), contado dentro de cada corretora ou carteira (n.º 9): vende-se primeiro o que se comprou há mais tempo. Ordena as compras de cada corretora por data e soma a partir da mais antiga até chegar à quantidade vendida. O que tiver 365 dias ou mais está excluído; o resto é tributado a 28%. A mesma venda pode ter as duas partes.",
         },
         {
           q: "A corretora fechou e não consigo obter o histórico. E agora?",
@@ -86,7 +86,7 @@ export const PROVA_DETENCAO: Partial<Record<string, Record<GuideLang, ProvaDeten
         "A lei não publica uma lista de documentos aceites para cripto; o que está acima é o que a lei exige e o que é boa prática de registo. A aceitação é decidida pelas Finanças caso a caso. Se não tens histórico de uma parte das compras, vê o caso com um contabilista antes de declarar.",
     },
     en: {
-      titulo: "How to show you have held the crypto for more than 365 days",
+      titulo: "How to show you have held the crypto for 365 days or more",
       intro:
         "The rule is simple: the gain on a sale is excluded from tax only if the crypto sold was held for 365 days or more. The hard part is showing the date you bought each unit. The law does not list accepted documents, but it says two things that help you build the file.",
       blocos: [
@@ -103,12 +103,12 @@ export const PROVA_DETENCAO: Partial<Record<string, Record<GuideLang, ProvaDeten
         {
           titulo: "DCA: weekly buys and everything is mixed up",
           texto:
-            "The Income Tax Code requires FIFO: when you sell, the units bought longest ago are treated as sold first. So you do not choose lots; you need the full list of purchases with dates. If you sell 0.1 BTC and your oldest purchases add up to 0.1 BTC held for more than 365 days, that gain is excluded. If the sale is larger than what has passed 365 days, the remainder comes from the next lots and is taxed at 28%. One sale can have an excluded part and a taxed part.",
+            "The Income Tax Code requires FIFO (art. 43(8)(g)): when you sell, the units bought longest ago are treated as sold first. The order is counted within each exchange or wallet, not across all of them (art. 43(9)). So you do not choose lots; you need the full list of purchases with dates, exchange by exchange. If you sell 0.1 BTC and your oldest purchases add up to 0.1 BTC held for more than 365 days, that gain is excluded. If the sale is larger than what has passed 365 days, the remainder comes from the next lots and is taxed at 28%. One sale can have an excluded part and a taxed part.",
         },
         {
           titulo: "The exchange closed or will not give you the history",
           texto:
-            "Gather what is left: order confirmation emails, bank statements of the transfers to the exchange with their dates, and the blockchain record of the withdrawal to your wallet. If the exchange still answers personal data requests, ask for the full history in writing; in the European Union you have that right under the GDPR. If none of this exists, the acquisition date is unproven, and the safe route is to talk to an accountant before filing.",
+            "Gather what is left: order confirmation emails, bank statements of the transfers to the exchange with their dates, and the blockchain record of the withdrawal to your wallet. If the exchange still answers personal data requests, ask for the full history in writing; in the European Union you have that right under the GDPR. The Income Tax Code provides that, if the documents were lost for reasons not attributable to you, other evidence may be used (art. 128(4)). If none of this exists, the acquisition date is unproven, and the safe route is to talk to an accountant before filing.",
         },
         {
           titulo: "The crypto came from my own wallet, no exchange",
@@ -128,7 +128,7 @@ export const PROVA_DETENCAO: Partial<Record<string, Record<GuideLang, ProvaDeten
         },
         {
           q: "I bought every week for a year and it is all mixed up. How do I know what has passed 365 days?",
-          a: "Through FIFO, which the Income Tax Code requires: what was bought first is sold first. Sort purchases by date and add up from the oldest until you reach the amount sold. Whatever has 365 days or more is excluded; the rest is taxed at 28%. One sale can have both parts.",
+          a: "Through FIFO, which the Income Tax Code requires (art. 43(8)(g)), counted within each exchange or wallet (43(9)): what was bought first is sold first. Sort each exchange's purchases by date and add up from the oldest until you reach the amount sold. Whatever has 365 days or more is excluded; the rest is taxed at 28%. One sale can have both parts.",
         },
         {
           q: "The exchange closed and I cannot get the history. What now?",
@@ -152,7 +152,7 @@ export const PROVA_DETENCAO: Partial<Record<string, Record<GuideLang, ProvaDeten
         {
           titulo: "O que a lei diz",
           texto:
-            "O contribuinte tem o dever de colaborar e de esclarecer os factos que declara (§ 90 AO), e é a ele que cabe demonstrar o que lhe é favorável, como a isenção por prazo. A circular do Ministério das Finanças sobre cripto (BMF-Schreiben de 10 de maio de 2022, atualizada a 6 de março de 2025) descreve os deveres de registo e o que a administração fiscal espera ver: para cada operação, a data, a quantidade, o valor em euros e a carteira ou plataforma envolvida. A circular admite extratos das plataformas e registos da blockchain como documentação.",
+            "O contribuinte tem o dever de colaborar e de esclarecer os factos que declara (§ 90 AO), e é a ele que cabe demonstrar o que lhe é favorável, como a isenção por prazo. A circular do Ministério das Finanças sobre cripto (BMF-Schreiben de 10 de maio de 2022, atualizada a 6 de março de 2025) descreve os deveres de registo e o que a administração fiscal espera ver: para cada operação, a data, a quantidade, o valor em euros e a carteira ou plataforma envolvida. A circular admite relatórios e extratos das plataformas e registos da blockchain como documentação, se forem plausíveis e completos (n.º 90), e diz expressamente que a falta de registos, por exemplo por insolvência da plataforma, corre por conta do contribuinte (n.º 89).",
         },
         {
           titulo: "O que convém guardar, por cada compra",
@@ -162,7 +162,7 @@ export const PROVA_DETENCAO: Partial<Record<string, Record<GuideLang, ProvaDeten
         {
           titulo: "Sparplan ou DCA: compras regulares e está tudo misturado",
           texto:
-            "Aplica-se FIFO, carteira a carteira: dentro de cada carteira ou conta, considera-se vendido primeiro o que foi comprado há mais tempo. Ordena as compras dessa carteira por data e soma a partir da mais antiga até chegar à quantidade vendida. O que tiver mais de um ano está isento; o resto é tributado, e a mesma venda pode ter as duas partes. Como a contagem é por carteira, mover cripto entre carteiras tuas não a torna 'mais antiga' nem 'mais recente'.",
+            "Para o prazo aplica-se FIFO, carteira a carteira: dentro de cada carteira ou conta, considera-se vendido primeiro o que foi comprado há mais tempo (n.º 61 da circular). Para o custo, a circular prevê por defeito o custo médio, com o FIFO admitido por simplificação; a escolha fica fixa por carteira até a esvaziares (n.º 62). Ordena as compras dessa carteira por data e soma a partir da mais antiga até chegar à quantidade vendida. O que tiver mais de um ano está isento; o resto é tributado, e a mesma venda pode ter as duas partes. Como a contagem é por carteira, mover cripto entre carteiras tuas não a torna 'mais antiga' nem 'mais recente'.",
         },
         {
           titulo: "A plataforma fechou ou não dá o histórico",
@@ -205,7 +205,7 @@ export const PROVA_DETENCAO: Partial<Record<string, Record<GuideLang, ProvaDeten
         {
           titulo: "What the law says",
           texto:
-            "The taxpayer has a duty to cooperate and to clarify the facts declared (§ 90 AO), and it is the taxpayer who has to show what works in their favour, such as the holding-period exemption. The Federal Ministry of Finance's circular on crypto (BMF letter of 10 May 2022, updated on 6 March 2025) describes record-keeping duties and what the tax office expects to see: for each transaction, the date, the amount, the euro value and the wallet or platform involved. The circular accepts platform statements and blockchain records as documentation.",
+            "The taxpayer has a duty to cooperate and to clarify the facts declared (§ 90 AO), and it is the taxpayer who has to show what works in their favour, such as the holding-period exemption. The Federal Ministry of Finance's circular on crypto (BMF letter of 10 May 2022, updated on 6 March 2025) describes record-keeping duties and what the tax office expects to see: for each transaction, the date, the amount, the euro value and the wallet or platform involved. The circular accepts platform reports and statements and blockchain records as documentation, provided they are plausible and complete (para. 90), and states expressly that missing records, for example after a platform's insolvency, are at the taxpayer's expense (para. 89).",
         },
         {
           titulo: "What to keep, for every purchase",
@@ -215,7 +215,7 @@ export const PROVA_DETENCAO: Partial<Record<string, Record<GuideLang, ProvaDeten
         {
           titulo: "Savings plan or DCA: regular buys and everything is mixed up",
           texto:
-            "FIFO applies, wallet by wallet: within each wallet or account, what was bought longest ago is treated as sold first. Sort that wallet's purchases by date and add up from the oldest until you reach the amount sold. Whatever has more than one year is exempt; the rest is taxed, and one sale can have both parts. Because the count is per wallet, moving crypto between your own wallets does not make it 'older' or 'newer'.",
+            "For the holding period FIFO applies, wallet by wallet: within each wallet or account, what was bought longest ago is treated as sold first (para. 61 of the circular). For the cost, the circular provides for the average cost by default, with FIFO allowed as a simplification; the choice is fixed per wallet until it is emptied (para. 62). Sort that wallet's purchases by date and add up from the oldest until you reach the amount sold. Whatever has more than one year is exempt; the rest is taxed, and one sale can have both parts. Because the count is per wallet, moving crypto between your own wallets does not make it 'older' or 'newer'.",
         },
         {
           titulo: "The platform closed or will not give you the history",
@@ -295,7 +295,7 @@ export const PROVA_DETENCAO: Partial<Record<string, Record<GuideLang, ProvaDeten
         },
         {
           q: "Compro todos os meses e está tudo misturado. Como sei o que já passou os seis meses?",
-          a: "Ordena as compras por data. No dia da venda, o que tiver mais de seis meses fica fora do imposto; o que tiver seis meses ou menos é ganho especulativo, tributado às taxas progressivas se o total do ano passar €500. A mesma venda pode ter as duas partes. O custo de aquisição na declaração é pelo preço médio ponderado (a circular exclui FIFO); confirma o valor com o contabilista.",
+          a: "A circular não diz como atribuir as unidades vendidas ao prazo: diz que é especulativo o ganho das unidades em relação às quais não consigas demonstrar que estiveram mais de seis meses na tua posse. Por isso a prova é por unidade: ordena as compras por data e guarda os registos; o que conseguires demonstrar com mais de seis meses no dia da venda fica fora do imposto, o resto é ganho especulativo, tributado às taxas progressivas se o total do ano passar €500. O custo de aquisição na declaração é pelo preço médio ponderado (a circular exclui FIFO); confirma o valor com o contabilista.",
         },
         {
           q: "A plataforma fechou e não consigo obter o histórico. E agora?",
@@ -348,7 +348,7 @@ export const PROVA_DETENCAO: Partial<Record<string, Record<GuideLang, ProvaDeten
         },
         {
           q: "I buy every month and it is all mixed up. How do I know what has passed six months?",
-          a: "Sort purchases by date. On the day of sale, whatever is more than six months old falls outside the tax; whatever is six months or less is a speculative gain, taxed at progressive rates if the year's total exceeds €500. One sale can have both parts. The acquisition cost in the return is the weighted average price (the circular excludes FIFO); confirm the figure with your accountant.",
+          a: "The circular does not say how to assign the units sold to the holding period: it says the gain is speculative for the units you cannot show were held for more than six months. So the proof is per unit: sort purchases by date and keep the records; whatever you can show was held more than six months on the day of sale falls outside the tax, the rest is a speculative gain, taxed at progressive rates if the year's total exceeds €500. The acquisition cost in the return is the weighted average price (the circular excludes FIFO); confirm the figure with your accountant.",
         },
         {
           q: "The platform closed and I cannot get the history. What now?",

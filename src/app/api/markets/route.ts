@@ -137,8 +137,13 @@ const extractCoinExTickers = (payload: unknown): Record<string, CoinExTicker> =>
     return inner.reduce<Record<string, CoinExTicker>>((acc, item) => {
       if (!item || typeof item !== "object") return acc;
       const row = item as Record<string, unknown>;
-      const market = typeof row.market === "string" ? row.market : "";
-      if (!market) return acc;
+      const bruto = typeof row.market === "string" ? row.market : "";
+      if (!bruto) return acc;
+      // Desde 30 set 2026 a CoinEx so devolve mercados "XUSDT_INDEX" (preco
+      // indice, composto de varias bolsas). Serve para valorizar; entra sob a
+      // chave normal se nao houver o par a serio.
+      const market = bruto.endsWith("_INDEX") ? bruto.slice(0, -6) : bruto;
+      if (acc[market] && bruto.endsWith("_INDEX")) return acc;
       acc[market] = {
         last: String(row.last ?? row.close ?? ""),
         open: String(row.open ?? ""),
@@ -260,14 +265,25 @@ export async function GET(request: Request) {
 
     // OKX primeiro; a CoinEx so acrescenta pares que a OKX nao tem.
     const tickers = { ...extractCoinExTickers(coinexPayload), ...extractOkxTickers(okxPayload) };
-    if (!tickers.BTCUSDT || !tickers.ETHUSDT) throw new Error(`Sem precos de mercado (OKX ${okxResponse?.status ?? "falhou"}, CoinEx ${coinexResponse?.status ?? "falhou"})`);
-    tickersDaCoinEx = tickers;
 
     // Sem o CoinGecko nao ha tabela (era 200 com data:[] — e o ISR guardava
     // esse vazio 60 s). Agora e falha: serve-se o ultimo bom, ver o catch.
-    if (!coingeckoResponse.ok) throw new Error(`CoinGecko ${coingeckoResponse.status}`);
-    const coingeckoPayload = (await coingeckoResponse.json()) as CoinGeckoRow[];
-    if (!Array.isArray(coingeckoPayload) || coingeckoPayload.length < 5) throw new Error("CoinGecko sem dados");
+    const coingeckoPayload = coingeckoResponse.ok ? ((await coingeckoResponse.json().catch(() => null)) as CoinGeckoRow[] | null) : null;
+    const coingeckoOk = Array.isArray(coingeckoPayload) && coingeckoPayload.length >= 5;
+
+    // Terceira reserva de PRECOS: se a OKX e a CoinEx falharem as duas mas o
+    // CoinGecko responder, o current_price dele vale mais do que o stale.
+    if ((!tickers.BTCUSDT || !tickers.ETHUSDT) && coingeckoOk) {
+      for (const row of coingeckoPayload) {
+        const k = `${row.symbol.toUpperCase()}USDT`;
+        if (!tickers[k] && typeof row.current_price === "number" && row.current_price > 0) {
+          tickers[k] = { last: String(row.current_price), open: "", vol: "", value: "" };
+        }
+      }
+    }
+    if (!tickers.BTCUSDT || !tickers.ETHUSDT) throw new Error(`Sem precos de mercado (OKX ${okxResponse?.status ?? "falhou"}, CoinEx ${coinexResponse?.status ?? "falhou"})`);
+    tickersDaCoinEx = tickers;
+    if (!coingeckoOk) throw new Error(coingeckoResponse.ok ? "CoinGecko sem dados" : `CoinGecko ${coingeckoResponse.status}`);
 
     const coingeckoTopPayload = coingeckoPayload.slice(0, 50);
 
