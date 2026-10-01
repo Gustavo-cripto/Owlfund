@@ -21,7 +21,7 @@ const chamadas: string[] = [];
 let mostrar = false;
 const setShow = (f: boolean | ((p: boolean) => boolean)) => { mostrar = typeof f === "function" ? f(mostrar) : f; };
 
-const DEFI_NFT = ["defiBalanceUsd", "defiPartial", "defiLoading", "defiError", "nftCount", "nftLoading", "nftError", "nfts"];
+const DEFI_NFT = ["defiBalanceUsd", "defiPartial", "defiLoading", "defiError", "nftCount", "nftLoading", "nftError", "nfts", "defiPosicoes"];
 const FIM = ["usdToEur"];
 
 // ── Ethereum

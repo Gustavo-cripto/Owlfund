@@ -49,11 +49,11 @@ const maps: DefiNftMaps = {
 };
 eq("cartao com endereco", propsDefiNftCartao(maps, "0xa", "eth"), {
   defiBalanceUsd: 12, defiPartial: false, defiLoading: true, defiError: "x",
-  nftCount: 3, nftLoading: false, nftError: null, nfts: [{ id: "1", name: "n" }],
+  nftCount: 3, nftLoading: false, nftError: null, nfts: [{ id: "1", name: "n" }], defiPosicoes: [],
 });
 eq("cartao sem endereco", propsDefiNftCartao(maps, undefined, "eth"), {
   defiBalanceUsd: null, defiPartial: false, defiLoading: false, defiError: null,
-  nftCount: null, nftLoading: false, nftError: null, nfts: [],
+  nftCount: null, nftLoading: false, nftError: null, nfts: [], defiPosicoes: [],
 });
 eq("cartao outra cadeia", propsDefiNftCartao(maps, "0xa", "sol").defiBalanceUsd, null);
 console.log(fails === 0 ? "\nTODOS OK" : `\n${fails} FALHA(S)`); process.exit(fails ? 1 : 0);

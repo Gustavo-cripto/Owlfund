@@ -6,6 +6,7 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import { defiKey, ethBalanceKey, type DefiNftMaps } from "@/lib/wallets/formatar";
 import type { StoredWalletEntry } from "@/lib/wallets/storage";
+import PosicoesDefi from "@/components/defi/PosicoesDefi";
 
 // Lista das carteiras EVM no cartao Ethereum (uma linha por endereco+rede).
 // Extraido de src/app/(pt)/wallets/page.tsx (fase 1): o estado e as leituras
@@ -36,7 +37,7 @@ export default function EthCarteirasLista({
 }: Props) {
   const { t } = useLanguage();
   const { format: fmtCur, hideBalances } = useCurrencyFormat();
-  const { defiTotals, defiLoading, defiPartial, nftCounts, nftLoading, nftsByKey, nftPartial } = defiNft;
+  const { defiTotals, defiLoading, defiPartial, nftCounts, nftLoading, nftsByKey, nftPartial, defiPosicoes } = defiNft;
   return (
     <div className="space-y-2">
       {ethWallets.map((item) => {
@@ -126,6 +127,7 @@ export default function EthCarteirasLista({
                   </span>
                 )}
               </p>
+              {dk && defiPosicoes?.[dk]?.length ? <PosicoesDefi posicoes={defiPosicoes[dk]} /> : null}
               <p className="text-slate-500">
                 NFT:{" "}
                 {hideBalances
