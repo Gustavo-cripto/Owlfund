@@ -73,6 +73,12 @@ type CoinGeckoRow = {
   /** Volume 24 h de TODOS os mercados (o da OKX é só uma exchange). */
   total_volume?: number | null;
   price_change_percentage_24h?: number | null;
+  market_cap_rank?: number | null;
+  ath?: number | null;
+  ath_change_percentage?: number | null;
+  ath_date?: string | null;
+  circulating_supply?: number | null;
+  max_supply?: number | null;
   sparkline_in_7d?: { price?: number[] };
   price_change_percentage_1h_in_currency?: number | null;
   price_change_percentage_7d_in_currency?: number | null;
@@ -330,6 +336,12 @@ export async function GET(request: Request) {
           marketCapUsd: Number.isFinite(marketCap ?? 0) ? marketCap : null,
           volume24hUsd: Number.isFinite(volume) ? volume : 0,
           sparkline: row.sparkline_in_7d?.price ?? [],
+          // Ficha rápida por baixo do gráfico (vem na mesma resposta da CoinGecko).
+          rank: row.market_cap_rank ?? null,
+          ath: row.ath ?? null,
+          athDate: row.ath_date ?? null,
+          circulating: row.circulating_supply ?? null,
+          maxSupply: row.max_supply ?? null,
           // Sem par USDT na OKX/CoinEx: o grafico da Binance tambem nao existe.
           ...(ticker ? {} : { semPar: true }),
         };
