@@ -141,6 +141,7 @@ import {
 } from "@/lib/wallets/formatar";
 import { quotePriceEurFrom } from "@/lib/wallets/totais";
 import type { MarketRow, TraditionalQuote } from "@/lib/wallets/tipos";
+import type { PosicaoDefi } from "@/lib/defi/posicoes";
 
 type SubscriptionStatus = {
   status: string;
@@ -288,6 +289,8 @@ export default function WalletsPage() {
   const [adaBalanceErrors, setAdaBalanceErrors] = useState<Record<string, string | null>>({});
   const [otherWallets, setOtherWallets] = useState<StoredWalletEntry[]>([]);
   const [defiTotals, setDefiTotals] = useState<Record<string, number | null>>({});
+  // Posições DeFi de cada carteira (protocolo, par, intervalo, abertas e fechadas).
+  const [defiPosicoes, setDefiPosicoes] = useState<Record<string, PosicaoDefi[]>>({});
   // Marca os totais que só cobrem os protocolos lidos na cadeia (a Moralis está
   // parada): um €0 com esta marca quer dizer "não vimos nada no que conseguimos ler".
   const [defiPartial, setDefiPartial] = useState<Record<string, boolean>>({});
@@ -653,7 +656,7 @@ export default function WalletsPage() {
         ? `${base}/api/defi-balance?address=${encodeURIComponent(address)}&chain=eth`
         : `${base}/api/defi-balance?address=${encodeURIComponent(address)}&chain=eth&evmChain=${moralisChain}`;
       const response = await fetch(url);
-      const data = (await response.json()) as { total?: number; error?: string; partial?: boolean };
+      const data = (await response.json()) as { total?: number; error?: string; partial?: boolean; positions?: PosicaoDefi[] };
       // Um 503 com erro em JSON aparecia como "€ 0,00": lia-se o total e mais nada.
       if (!response.ok || (data?.error && typeof data.total !== "number")) {
         setDefiTotals((prev) => ({ ...prev, [key]: null }));
@@ -664,6 +667,7 @@ export default function WalletsPage() {
       setDefiTotals((prev) => ({ ...prev, [key]: total }));
       setDefiPartial((prev) => ({ ...prev, [key]: !!data?.partial }));
       setDefiErrors((prev) => ({ ...prev, [key]: null }));
+      setDefiPosicoes((prev) => ({ ...prev, [key]: Array.isArray(data?.positions) ? data.positions : [] }));
     } catch (error) {
       setDefiErrors((prev) => ({ ...prev, [key]: userError(error, t("wl_err_defi")) }));
       setDefiTotals((prev) => ({ ...prev, [key]: null }));
@@ -712,7 +716,7 @@ export default function WalletsPage() {
       const response = await fetch(
         `${base}/api/defi-balance?address=${encodeURIComponent(address)}&chain=${chain}`
       );
-      const data = (await response.json()) as { total?: number; error?: string; partial?: boolean };
+      const data = (await response.json()) as { total?: number; error?: string; partial?: boolean; positions?: PosicaoDefi[] };
       if (!response.ok) {
         const msg = data?.error ?? t("wl_err_defi");
         setDefiTotals((prev) => ({ ...prev, [key]: null }));
@@ -723,6 +727,7 @@ export default function WalletsPage() {
       setDefiTotals((prev) => ({ ...prev, [key]: total }));
       setDefiPartial((prev) => ({ ...prev, [key]: !!data?.partial }));
       setDefiErrors((prev) => ({ ...prev, [key]: null }));
+      setDefiPosicoes((prev) => ({ ...prev, [key]: Array.isArray(data?.positions) ? data.positions : [] }));
     } catch (error) {
       setDefiErrors((prev) => ({
         ...prev,
@@ -1303,6 +1308,16 @@ export default function WalletsPage() {
     const temCarteiras = ethWallets.length + solWallets.length + btcWallets.length + adaWallets.length > 0 || !!ethAddress || !!solAddress;
     return !temCarteiras || Object.keys(defiTotals).length > 0;
   }, [defiLoading, defiErrors, defiTotals, ethWallets, solWallets, btcWallets, adaWallets, ethAddress, solAddress]);
+  // Posições DeFi para o Portefólio: só com as leituras acabadas sem erro e só
+  // quando mudaram (gravar a mesma lista com carimbo novo baralhava o merge
+  // entre aparelhos).
+  useEffect(() => {
+    if (!hidratado || !defiPronto) return;
+    const atual = loadWalletSnapshot().defiPosicoes ?? {};
+    if (JSON.stringify(atual) === JSON.stringify(defiPosicoes)) return;
+    updateWalletSnapshot({ defiPosicoes, defiPosicoesEm: Date.now() });
+  }, [hidratado, defiPronto, defiPosicoes]);
+
   useEffect(() => {
     if (!hidratado) return;
     const defi = defiPronto ? { defiUsd: totalDefiUsd } : {};
@@ -2788,7 +2803,7 @@ export default function WalletsPage() {
   };
 
   // Mapas de DeFi/NFT so de leitura, agrupados para os componentes dos cartoes.
-  const defiNftMaps = { defiTotals, defiLoading, defiPartial, defiErrors, nftCounts, nftLoading, nftErrors, nftsByKey, nftPartial };
+  const defiNftMaps = { defiTotals, defiLoading, defiPartial, defiErrors, nftCounts, nftLoading, nftErrors, nftsByKey, nftPartial, defiPosicoes };
 
   return (
     <AppShell>

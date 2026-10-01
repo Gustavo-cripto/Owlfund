@@ -7,6 +7,7 @@ import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import { defiKey, type DefiChain, type DefiNftMaps } from "@/lib/wallets/formatar";
 import { solWalletOptions } from "@/lib/wallets/opcoes";
 import type { StoredWalletEntry } from "@/lib/wallets/storage";
+import PosicoesDefi from "@/components/defi/PosicoesDefi";
 
 // Lista das carteiras Solana (saldo, DeFi e NFTs por endereco).
 // Extraido de src/app/(pt)/wallets/page.tsx (fase 1): o estado continua na pagina.
@@ -36,7 +37,7 @@ export default function SolCarteirasLista({
 }: Props) {
   const { t } = useLanguage();
   const { format: fmtCur, hideBalances } = useCurrencyFormat();
-  const { defiTotals, defiLoading, defiPartial, nftCounts, nftLoading, nftsByKey } = defiNft;
+  const { defiTotals, defiLoading, defiPartial, nftCounts, nftLoading, nftsByKey, defiPosicoes } = defiNft;
   return (
     <div className="space-y-2">
       {solWallets.map((item) => {
@@ -118,6 +119,7 @@ export default function SolCarteirasLista({
                     </span>
                   )}
                 </p>
+                {dk && defiPosicoes?.[dk]?.length ? <PosicoesDefi posicoes={defiPosicoes[dk]} /> : null}
                 {/* NFT */}
                 <p className="text-slate-500">
                   NFT:{" "}

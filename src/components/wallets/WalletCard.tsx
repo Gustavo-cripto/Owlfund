@@ -6,6 +6,8 @@ import { btnPrimary } from "@/lib/ui/buttons";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import NftImage from "@/components/NftImage";
+import PosicoesDefi from "@/components/defi/PosicoesDefi";
+import type { PosicaoDefi } from "@/lib/defi/posicoes";
 
 export type NftPreview = {
   id: string;
@@ -28,6 +30,8 @@ type WalletCardProps = {
   defiError?: string | null;
   /** O total só cobre os protocolos lidos na cadeia; outros podem faltar. */
   defiPartial?: boolean;
+  /** Posições DeFi do endereço principal (lista por baixo da linha "DeFi"). */
+  defiPosicoes?: PosicaoDefi[];
   /** Esconde a linha "DeFi:" (ex.: BTC, que não tem DeFi de lending na L1). */
   hideDefi?: boolean;
   usdToEur?: number;
@@ -75,6 +79,7 @@ export default function WalletCard({
   defiLoading,
   defiError,
   defiPartial,
+  defiPosicoes,
   hideDefi,
   usdToEur = 0.92,
   onRefreshDefi,
@@ -187,6 +192,7 @@ export default function WalletCard({
             </span>
           )}
         </div>
+        {defiPosicoes && defiPosicoes.length > 0 && <PosicoesDefi posicoes={defiPosicoes} />}
         <div>
           <span className="text-slate-500">{t("wc_nft")}</span>{" "}
           {hideBalances ? (

@@ -38,6 +38,7 @@ import { metricas, type Ponto } from "@/lib/api/pnlMath";
 import ChartModal from "@/components/ChartModal";
 import { SkeletonLines } from "@/components/PageSkeleton";
 import { protegerTextoPdf } from "@/lib/export/pdfTexto";
+import PosicoesDefiPortefolio from "@/components/defi/PosicoesDefiPortefolio";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ""
@@ -1698,6 +1699,9 @@ export default function PortfolioPage() {
             <p className="mt-2 text-[11px] text-slate-600">{t("pfb_note")}</p>
           </section>
         )}
+
+        {/* ── POSIÇÕES DEFI ── */}
+        <PosicoesDefiPortefolio />
 
         {/* ── SCORE + BENCHMARK ── */}
         <section className="grid gap-6 md:grid-cols-[1fr_1.6fr]">

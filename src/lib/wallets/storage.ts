@@ -1,4 +1,5 @@
 import { accKey, gravarSeMudou, allAccountIds, isAllAccountsActive, readNamespaced } from "@/lib/portfolios/accounts";
+import type { PosicaoDefi } from "@/lib/defi/posicoes";
 
 export type StoredWalletEntry = {
   address?: string;
@@ -24,6 +25,10 @@ export type WalletSnapshot = {
   /** Total dos ativos tradicionais a valor de MERCADO (ja em EUR).
    *  So a pagina de Carteiras tem as cotacoes; as outras leem daqui. */
   traditionalEur?: number;
+  /** Posições DeFi por carteira (chave "endereco:rede"), lidas nas Carteiras; o Portefólio mostra-as. */
+  defiPosicoes?: Record<string, PosicaoDefi[]>;
+  /** Quando foram lidas (ms). */
+  defiPosicoesEm?: number;
 };
 
 const walletsKey = () => accKey("portfolio-wallets");
@@ -50,6 +55,9 @@ const normalizeSnapshot = (value: unknown): WalletSnapshot => {
     // Sem isto o valor de mercado dos tradicionais nunca chegava ao localStorage
     // nem a nuvem: Painel, Portefolio e IA caiam sempre no valor investido.
     traditionalEur: typeof raw.traditionalEur === "number" ? raw.traditionalEur : undefined,
+    defiPosicoes: raw.defiPosicoes && typeof raw.defiPosicoes === "object" && !Array.isArray(raw.defiPosicoes)
+      ? (raw.defiPosicoes as Record<string, PosicaoDefi[]>) : undefined,
+    defiPosicoesEm: typeof raw.defiPosicoesEm === "number" ? raw.defiPosicoesEm : undefined,
   };
 };
 
@@ -72,6 +80,9 @@ export const loadWalletSnapshot = (): WalletSnapshot => {
         if (typeof snap.manualEur === "number") merged.manualEur = (merged.manualEur ?? 0) + snap.manualEur;
         if (typeof snap.tokensUsd === "number") merged.tokensUsd = (merged.tokensUsd ?? 0) + snap.tokensUsd;
         if (typeof snap.traditionalEur === "number") merged.traditionalEur = (merged.traditionalEur ?? 0) + snap.traditionalEur;
+        // A mesma carteira em duas contas tem a mesma chave: fica uma vez.
+        if (snap.defiPosicoes) merged.defiPosicoes = { ...(merged.defiPosicoes ?? {}), ...snap.defiPosicoes };
+        if (snap.defiPosicoesEm) merged.defiPosicoesEm = Math.max(merged.defiPosicoesEm ?? 0, snap.defiPosicoesEm);
       }
       return merged;
     }
@@ -106,6 +117,8 @@ export const updateWalletSnapshot = (patch: WalletSnapshot) => {
   if (typeof patch.manualEur === "number") next.manualEur = patch.manualEur;
   if (typeof patch.tokensUsd === "number") next.tokensUsd = patch.tokensUsd;
   if (typeof patch.traditionalEur === "number") next.traditionalEur = patch.traditionalEur;
+  if (patch.defiPosicoes) next.defiPosicoes = patch.defiPosicoes;
+  if (typeof patch.defiPosicoesEm === "number") next.defiPosicoesEm = patch.defiPosicoesEm;
   // Nada mudou? Nao se grava nem se carimba. O carimbo diz "este aparelho tem a
   // versao mais recente" — renova-lo sem mudanca fazia este aparelho ganhar a
   // gravacoes reais feitas noutro (auditoria 28 set 2026).

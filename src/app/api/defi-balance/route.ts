@@ -8,6 +8,7 @@ import { precoOkx } from "@/lib/market/okxSpot";
 import { getLendingPositions, isOnchainLendingProtocol, LENDING_CHAINS, type LendingChain, type LendingPosition } from "@/lib/defi/lending";
 import { getEigenLayerPositions, getMorphoPositions } from "@/lib/defi/morphoEigen";
 import { alchemyNftTokenIds, hasAlchemy, type EvmChainKey } from "@/lib/providers/alchemy";
+import { completarPosicao, lerSimboloAbi, precoDoTick, precoPorSimbolo, precosOkxUsd, tickDoSlot0, type PosicaoDefi } from "@/lib/defi/posicoes";
 
 // Tudo o que se le sem intermediario: Aave/Spark/Compound (contratos), Morpho
 // (API publica) e EigenLayer (contratos). Nunca lanca.
@@ -952,7 +953,7 @@ async function fetchUniV4PositionTokenIds(
 
 async function fetchUniswapV4ViaPositionManager(
   address: string, chain: string, ethPrice: number, moralisKey: string | undefined
-): Promise<{ total: number; positions: { name: string; usd: number }[] }> {
+): Promise<{ total: number; positions: PosicaoDefi[] }> {
   const posm = UNI_V4_NPM[chain];
   const stateView = UNI_V4_STATE_VIEW[chain];
   const rpc = EVM_RPC[chain];
@@ -990,7 +991,24 @@ async function fetchUniswapV4ViaPositionManager(
   };
 
   let total = 0;
-  const positions: { name: string; usd: number }[] = [];
+  const positions: PosicaoDefi[] = [];
+  const simbolosCache = new Map<string, string>();
+  const simboloDe = async (addr: string): Promise<string> => {
+    const a = addr.toLowerCase();
+    if (a === "0x0000000000000000000000000000000000000000") return "ETH";
+    if (TOKEN_SYMBOLS[a]) return TOKEN_SYMBOLS[a];
+    if (simbolosCache.has(a)) return simbolosCache.get(a)!;
+    const sym = lerSimboloAbi(await ethCallRpc(rpc, a, "0x95d89b41")) ?? a.slice(0, 8) + "…";
+    simbolosCache.set(a, sym);
+    return sym;
+  };
+  let okx: Map<string, number> | null = null;
+  const precoCompleto = async (addr: string, sym: string): Promise<number> => {
+    const base = priceFor(addr);
+    if (base > 0) return base;
+    okx ??= await precosOkxUsd();
+    return precoPorSimbolo(okx, sym);
+  };
 
   for (const tid of tokenIds.slice(0, 20)) {
     try {
@@ -1001,7 +1019,6 @@ async function fetchUniswapV4ViaPositionManager(
       ]);
       if (liqHex === "0x" || infoHex === "0x") continue;
       const liquidity = BigInt(liqHex);
-      if (liquidity === BigInt(0)) continue; // closed position
 
       // getPoolAndPositionInfo returns (PoolKey, PositionInfo): 6 words.
       const d = infoHex.slice(2);
@@ -1014,11 +1031,14 @@ async function fetchUniswapV4ViaPositionManager(
       const infoWord = d.slice(320, 384);
       const tickUpper = decodeInt24FromWord(infoWord.slice(50, 56));
       const tickLower = decodeInt24FromWord(infoWord.slice(56, 62));
+      const sym0 = await simboloDe(currency0);
+      const sym1 = await simboloDe(currency1);
 
-      const price0 = priceFor(currency0);
-      const price1 = priceFor(currency1);
-      if (price0 === 0 && price1 === 0) continue; // can't value either side
-      if (price1 > 0 && btcPrice === 0 && currency1 === wbtcAddr) { /* set below */ }
+      // Fechada: o NFT fica na carteira com liquidez a zero.
+      if (liquidity === BigInt(0)) {
+        positions.push({ name: `Uniswap V4 ${sym0}/${sym1}`, usd: 0, protocolo: "Uniswap V4", rede: chain, tipo: "liquidez", estado: "fechada", par: [sym0, sym1], ...(fee & 0x800000 ? {} : { taxaPool: fee / 10_000 }), tokenId: String(tid) });
+        continue;
+      }
       if ((currency0 === wbtcAddr || currency1 === wbtcAddr) && btcPrice === 0) {
         const f = CHAINLINK_BTC_USD[chain];
         if (f) btcPrice = await chainlinkPrice(rpc, f).catch(() => 0);
@@ -1034,23 +1054,28 @@ async function fetchUniswapV4ViaPositionManager(
       const slot0 = await ethCallRpc(rpc, stateView, `${V4_SEL_GET_SLOT0}${poolId.slice(2)}`);
       if (slot0 === "0x") continue;
       const sqrtHex = slot0.slice(2, 66);
+      const tickAtual = tickDoSlot0(slot0);
 
       const dec0 = await decimalsFor(currency0);
       const dec1 = await decimalsFor(currency1);
       const { amount0, amount1 } = calcUniV3Amounts(liquidity.toString(), "0x" + sqrtHex, tickLower, tickUpper, dec0, dec1);
 
-      const p0 = priceFor(currency0);
-      const p1 = priceFor(currency1);
+      const p0 = await precoCompleto(currency0, sym0);
+      const p1 = await precoCompleto(currency1, sym1);
       let usd = amount0 * p0 + amount1 * p1;
       // If only one side priced, approximate full value by doubling the priced side
       if (p0 > 0 && p1 === 0) usd = amount0 * p0 * 2;
       else if (p1 > 0 && p0 === 0) usd = amount1 * p1 * 2;
-      if (usd < 0.01) continue;
 
-      const sym0 = currency0 === "0x0000000000000000000000000000000000000000" ? "ETH" : (TOKEN_SYMBOLS[currency0] ?? currency0.slice(0, 6) + "…");
-      const sym1 = TOKEN_SYMBOLS[currency1] ?? currency1.slice(0, 6) + "…";
       total += usd;
-      positions.push({ name: `Uniswap V4 ${sym0}/${sym1}`, usd });
+      positions.push({
+        name: `Uniswap V4 ${sym0}/${sym1}`, usd, protocolo: "Uniswap V4", rede: chain, tipo: "liquidez", estado: "aberta",
+        par: [sym0, sym1], ...(fee & 0x800000 ? {} : { taxaPool: fee / 10_000 }), tokenId: String(tid),
+        noIntervalo: tickAtual != null ? tickAtual >= tickLower && tickAtual < tickUpper : null,
+        intervalo: { min: precoDoTick(tickLower, dec0, dec1), max: precoDoTick(tickUpper, dec0, dec1), atual: tickAtual != null ? precoDoTick(tickAtual, dec0, dec1) : null },
+        quantidades: [{ simbolo: sym0, qtd: amount0 }, { simbolo: sym1, qtd: amount1 }],
+        ...((p0 > 0) !== (p1 > 0) ? { valorEstimado: true } : {}),
+      });
     } catch { continue; }
   }
 
@@ -1131,7 +1156,7 @@ async function fetchUniswapV2ViaContracts(
 async function fetchUniswapV3ViaContracts(
   address: string,
   chain: string
-): Promise<{ total: number; positions: { name: string; usd: number }[] }> {
+): Promise<{ total: number; positions: PosicaoDefi[] }> {
   const primaryRpc = EVM_RPC[chain];
   if (!primaryRpc) return { total: 0, positions: [] };
 
@@ -1170,12 +1195,16 @@ async function fetchUniswapV3ViaContracts(
   );
 
   // 4. Decode positions, collect unique tokens and pool keys
-  type Decoded = { token0: string; token1: string; fee: number; tickLower: number; tickUpper: number; liquidity: bigint; owed0: bigint; owed1: bigint };
+  type Decoded = { tokenId: string; token0: string; token1: string; fee: number; tickLower: number; tickUpper: number; liquidity: bigint; owed0: bigint; owed1: bigint };
   const decoded: Decoded[] = [];
+  // Fechadas: o NFT continua na carteira com liquidez a zero (sem taxas por reclamar).
+  const fechadas: { tokenId: string; token0: string; token1: string; fee: number }[] = [];
   const uniqueTokens = new Set<string>();
   const uniquePools  = new Set<string>();
 
-  for (const raw of posData) {
+  for (let k = 0; k < posData.length; k++) {
+    const raw = posData[k];
+    const tokenId = tokenIds[k].toString();
     if (raw === "0x" || raw.length < 2 + 12 * 64) continue;
     const d = raw.slice(2);
     // ABI fields (32 bytes = 64 hex chars each):
@@ -1190,18 +1219,24 @@ async function fetchUniswapV3ViaContracts(
     const liquidity = BigInt("0x" + d.slice(448, 512));
     const owed0     = d.length >= 768 ? BigInt("0x" + d.slice(640, 704)) : BigInt(0);
     const owed1     = d.length >= 768 ? BigInt("0x" + d.slice(704, 768)) : BigInt(0);
-    // Skip only if truly empty (no liquidity AND no unclaimed fees)
-    if (liquidity === BigInt(0) && owed0 === BigInt(0) && owed1 === BigInt(0)) continue;
-    decoded.push({ token0, token1, fee, tickLower, tickUpper, liquidity, owed0, owed1 });
+    // Sem liquidez nem taxas por reclamar: posição fechada (fica listada, sem valor).
+    if (liquidity === BigInt(0) && owed0 === BigInt(0) && owed1 === BigInt(0)) {
+      fechadas.push({ tokenId, token0, token1, fee });
+      continue;
+    }
+    decoded.push({ tokenId, token0, token1, fee, tickLower, tickUpper, liquidity, owed0, owed1 });
     uniqueTokens.add(token0);
     uniqueTokens.add(token1);
     if (liquidity > BigInt(0)) uniquePools.add(`${token0}:${token1}:${fee}`);
   }
-  if (decoded.length === 0) return { total: 0, positions: [] };
+  if (decoded.length === 0 && fechadas.length === 0) return { total: 0, positions: [] };
 
   // 5. All decimals + all pool sqrtPrices — fully parallel
   const decimalsMap = new Map<string, number>();
   const sqrtMap     = new Map<string, string>();
+  const tickMap     = new Map<string, number>();
+  const simbolos    = new Map<string, string>();
+  for (const f of fechadas) { uniqueTokens.add(f.token0); uniqueTokens.add(f.token1); }
 
   const needsBtc = decoded.some(p => p.token0 === (WBTC_ADDR[chain] ?? "x").toLowerCase() || p.token1 === (WBTC_ADDR[chain] ?? "x").toLowerCase());
 
@@ -1216,7 +1251,18 @@ async function fetchUniswapV3ViaContracts(
         `0x1698ee82${t0.slice(2).padStart(64,"0")}${t1.slice(2).padStart(64,"0")}${parseInt(fs).toString(16).padStart(64,"0")}`);
       if (poolHex === "0x") return;
       const slot0 = await ethCallRpc(rpc, "0x" + poolHex.slice(26), "0x3850c7bd");
-      if (slot0 !== "0x") sqrtMap.set(pk, slot0.slice(2, 66));
+      if (slot0 !== "0x") {
+        sqrtMap.set(pk, slot0.slice(2, 66));
+        const tk = tickDoSlot0(slot0);
+        if (tk != null) tickMap.set(pk, tk);
+      }
+    }),
+    // Símbolos: os conhecidos do mapa; os outros pelo symbol() do contrato.
+    ...[...uniqueTokens].map(async (tok) => {
+      const conhecido = TOKEN_SYMBOLS[tok];
+      if (conhecido) { simbolos.set(tok, conhecido); return; }
+      const r = await ethCallRpc(rpc, tok, "0x95d89b41");
+      simbolos.set(tok, lerSimboloAbi(r) ?? tok.slice(0, 8) + "…");
     }),
     needsBtc
       ? (async () => { const f = CHAINLINK_BTC_USD[chain]; if (f) { /* fetched later */ } })()
@@ -1233,21 +1279,34 @@ async function fetchUniswapV3ViaContracts(
   const wethAddr = (WETH_ADDR[chain] ?? "").toLowerCase();
   const wbtcAddr = (WBTC_ADDR[chain] ?? "").toLowerCase();
   let total = 0;
-  const positions: { name: string; usd: number }[] = [];
+  const positions: PosicaoDefi[] = [];
+  const simb = (tok: string) => simbolos.get(tok) ?? TOKEN_SYMBOLS[tok] ?? tok.slice(0, 8) + "…";
+  // Tokens fora de estáveis/ETH/BTC: preço da OKX pelo símbolo (antes ficavam a 0
+  // e um par ARB/WETH valia só a metade em ETH).
+  const precoBase = (tok: string) => STABLECOINS.has(tok) ? 1 : tok === wethAddr ? ethPrice : tok === wbtcAddr ? btcPrice : 0;
+  const okx = decoded.some((p) => precoBase(p.token0) === 0 || precoBase(p.token1) === 0) ? await precosOkxUsd() : new Map<string, number>();
 
   for (const p of decoded) {
     const dec0 = decimalsMap.get(p.token0) ?? 18;
     const dec1 = decimalsMap.get(p.token1) ?? 18;
-    const price0 = STABLECOINS.has(p.token0) ? 1 : p.token0 === wethAddr ? ethPrice : p.token0 === wbtcAddr ? btcPrice : 0;
-    const price1 = STABLECOINS.has(p.token1) ? 1 : p.token1 === wethAddr ? ethPrice : p.token1 === wbtcAddr ? btcPrice : 0;
+    const sym0 = simb(p.token0);
+    const sym1 = simb(p.token1);
+    const price0 = precoBase(p.token0) || precoPorSimbolo(okx, sym0);
+    const price1 = precoBase(p.token1) || precoPorSimbolo(okx, sym1);
+    const chavePool = `${p.token0}:${p.token1}:${p.fee}`;
+    const tickAtual = tickMap.get(chavePool) ?? null;
+    let quantidades: { simbolo: string; qtd: number }[] | undefined;
 
     // Active liquidity value
     let usd = 0;
-    const sqrtHex = sqrtMap.get(`${p.token0}:${p.token1}:${p.fee}`);
+    let estimado = false;
+    const sqrtHex = sqrtMap.get(chavePool);
     if (sqrtHex && p.liquidity > BigInt(0)) {
       const { amount0, amount1 } = calcUniV3Amounts(
         p.liquidity.toString(), "0x" + sqrtHex, p.tickLower, p.tickUpper, dec0, dec1
       );
+      quantidades = [{ simbolo: sym0, qtd: amount0 }, { simbolo: sym1, qtd: amount1 }];
+      estimado = (price0 > 0) !== (price1 > 0);
       const liqUsd = amount0 * price0 + amount1 * price1;
       const liqUsdAdj = price0 > 0 && price1 === 0 && amount1 < 0.001 ? amount0 * price0 * 2
         : price1 > 0 && price0 === 0 && amount0 < 0.001 ? amount1 * price1 * 2
@@ -1256,17 +1315,35 @@ async function fetchUniswapV3ViaContracts(
     }
 
     // Unclaimed fees (tokensOwed) — value even on closed positions
+    let taxasPorReclamar: { simbolo: string; qtd: number }[] | undefined;
+    let taxasUsd = 0;
     if (p.owed0 > BigInt(0) || p.owed1 > BigInt(0)) {
       const fee0 = Number(p.owed0) / Math.pow(10, dec0);
       const fee1 = Number(p.owed1) / Math.pow(10, dec1);
-      usd += fee0 * price0 + fee1 * price1;
+      taxasPorReclamar = [{ simbolo: sym0, qtd: fee0 }, { simbolo: sym1, qtd: fee1 }];
+      taxasUsd = fee0 * price0 + fee1 * price1;
+      usd += taxasUsd;
     }
 
-    if (usd < 0.01) continue;
-    const sym0 = TOKEN_SYMBOLS[p.token0] ?? p.token0.slice(0, 8) + "…";
-    const sym1 = TOKEN_SYMBOLS[p.token1] ?? p.token1.slice(0, 8) + "…";
+    const aberta = p.liquidity > BigInt(0);
     total += usd;
-    positions.push({ name: `Uniswap V3 ${sym0}/${sym1}`, usd });
+    positions.push({
+      name: `Uniswap V3 ${sym0}/${sym1}`, usd,
+      protocolo: "Uniswap V3", rede: chain, tipo: "liquidez", estado: aberta ? "aberta" : "fechada",
+      par: [sym0, sym1], taxaPool: p.fee / 10_000, tokenId: p.tokenId,
+      noIntervalo: aberta && tickAtual != null ? tickAtual >= p.tickLower && tickAtual < p.tickUpper : null,
+      intervalo: { min: precoDoTick(p.tickLower, dec0, dec1), max: precoDoTick(p.tickUpper, dec0, dec1), atual: tickAtual != null ? precoDoTick(tickAtual, dec0, dec1) : null },
+      ...(quantidades ? { quantidades } : {}),
+      ...(taxasPorReclamar ? { taxasPorReclamar, taxasUsd } : {}),
+      ...(estimado ? { valorEstimado: true } : {}),
+    });
+  }
+  for (const f of fechadas) {
+    const sym0 = simb(f.token0), sym1 = simb(f.token1);
+    positions.push({
+      name: `Uniswap V3 ${sym0}/${sym1}`, usd: 0, protocolo: "Uniswap V3", rede: chain, tipo: "liquidez",
+      estado: "fechada", par: [sym0, sym1], taxaPool: f.fee / 10_000, tokenId: f.tokenId,
+    });
   }
 
   return { total, positions };
@@ -1414,7 +1491,20 @@ async function fetchCardanoDeFi(
   return { total, positions };
 }
 
+// Todas as respostas passam por aqui: cada posição sai com protocolo, par,
+// estado e tipo (as que já os trazem ficam como estão).
 export async function GET(request: Request) {
+  const r = await obterDefi(request);
+  if (r.status !== 200) return r;
+  const j = (await r.clone().json().catch(() => null)) as { positions?: unknown } | null;
+  if (!j || !Array.isArray(j.positions)) return r;
+  const cabecalhos = new Headers(r.headers);
+  cabecalhos.delete("content-length");
+  cabecalhos.delete("content-type");
+  return NextResponse.json({ ...j, positions: (j.positions as Parameters<typeof completarPosicao>[0][]).map(completarPosicao) }, { status: 200, headers: cabecalhos });
+}
+
+async function obterDefi(request: Request): Promise<Response> {
   // Moralis é pago por chamada: só com sessão e limite por utilizador.
   const auth = await requireUser(request, { route: "defi-balance", limit: 60 });
   if (!auth.ok) return auth.response;

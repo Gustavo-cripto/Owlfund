@@ -2,6 +2,7 @@
 // Extraidos de src/app/(pt)/wallets/page.tsx sem alteracoes de comportamento;
 // testes em scripts/testes/formatarCarteiras.test.ts.
 import type { StoredWalletEntry } from "@/lib/wallets/storage";
+import type { PosicaoDefi } from "@/lib/defi/posicoes";
 
 export type DefiChain = "eth" | "sol" | "btc" | "ada";
 
@@ -85,6 +86,8 @@ export type DefiNftMaps = {
   nftErrors: Record<string, string | null>;
   nftsByKey: Record<string, NftItem[]>;
   nftPartial: Record<string, boolean>;
+  /** Posições DeFi por carteira (lista detalhada por baixo da linha "DeFi"). */
+  defiPosicoes?: Record<string, PosicaoDefi[]>;
 };
 
 /** As 8 props de DeFi/NFT do WalletCard para o endereco principal de uma cadeia
@@ -98,4 +101,5 @@ export const propsDefiNftCartao = (maps: DefiNftMaps, mainAddress: string | unde
   nftLoading: mainAddress ? !!maps.nftLoading[defiKey(mainAddress, chain)] : false,
   nftError: mainAddress ? maps.nftErrors[defiKey(mainAddress, chain)] ?? null : null,
   nfts: mainAddress ? maps.nftsByKey[defiKey(mainAddress, chain)] ?? [] : [],
+  defiPosicoes: mainAddress ? maps.defiPosicoes?.[defiKey(mainAddress, chain)] ?? [] : [],
 });
