@@ -114,6 +114,9 @@ import {
   saveCryptoHoldings,
   saveStablecoinEntries,
   cryptoHoldingValueEur,
+  linhasManuais,
+  registoDeLinhas,
+  type CarteiraManual,
   type CryptoHoldings,
   type StablecoinEntry,
 } from "@/lib/crypto/storage";
@@ -361,6 +364,7 @@ export default function WalletsPage() {
   const [manualCryptoAssetAmountUsd, setManualCryptoAssetAmountUsd] = useState("");
   const [manualCryptoAssetQty, setManualCryptoAssetQty] = useState("");
   const [manualCryptoAssetError, setManualCryptoAssetError] = useState<string | null>(null);
+  const [manualCryptoAssetWallet, setManualCryptoAssetWallet] = useState("");
   const [manualCryptoSelectOpen, setManualCryptoSelectOpen] = useState(false);
   const [manualCryptoFilter, setManualCryptoFilter] = useState("");
   const manualCryptoSelectRef = useRef<HTMLDivElement>(null);
@@ -1140,32 +1144,28 @@ export default function WalletsPage() {
     return { label: range.toUpperCase(), value: null };
   };
 
-  const toggleCryptoHolding = (symbol: string) => {
+  // Registos manuais: cada ativo pode estar em várias carteiras com nome.
+  // Os totais do registo recalculam-se sempre (registoDeLinhas).
+  const novaLinhaId = () => `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  const adicionarCarteiraManual = (symbol: string, linha: Omit<CarteiraManual, "id"> = {}) => {
+    setCryptoHoldings((prev) => ({ ...prev, [symbol]: registoDeLinhas([...linhasManuais(prev[symbol]), { id: novaLinhaId(), ...linha }]) }));
+  };
+  const atualizarCarteiraManual = (symbol: string, id: string, patch: Partial<Omit<CarteiraManual, "id">>) => {
+    setCryptoHoldings((prev) => ({
+      ...prev,
+      [symbol]: registoDeLinhas(linhasManuais(prev[symbol]).map((l) => (l.id === id ? { ...l, ...patch } : l))),
+    }));
+  };
+  const removerCarteiraManual = (symbol: string, id: string) => {
     setCryptoHoldings((prev) => {
+      const resto = linhasManuais(prev[symbol]).filter((l) => l.id !== id);
       const next = { ...prev };
-      if (next[symbol]) {
-        delete next[symbol];
-      } else {
-        next[symbol] = {};
-      }
+      if (resto.length) next[symbol] = registoDeLinhas(resto); else delete next[symbol];
       return next;
     });
   };
-
-  const updateCryptoHolding = (
-    symbol: string,
-    next: { buyValue?: number; buyDate?: string; quantity?: number }
-  ) => {
-    setCryptoHoldings((prev) => {
-      const nextHoldings = {
-        ...prev,
-        [symbol]: {
-          ...prev[symbol],
-          ...next,
-        },
-      };
-      return nextHoldings;
-    });
+  const removerAtivoManual = (symbol: string) => {
+    setCryptoHoldings((prev) => { const next = { ...prev }; delete next[symbol]; return next; });
   };
 
   const allTraditionalAssets = useMemo(
@@ -1372,7 +1372,9 @@ export default function WalletsPage() {
         corretoras[`venue:${v.id}`] = { nome: `${VENUES.find((x) => x.id === v.venue)?.label ?? v.venue}${v.label ? ` · ${v.label}` : ""}`, saldos: m };
       }
       const manuais: Foto["manuais"] = {};
-      for (const [sym, h] of Object.entries(cryptoHoldings)) manuais[sym] = { qtd: num(h?.quantity), investido: num(h?.buyValue) };
+      for (const [sym, h] of Object.entries(cryptoHoldings)) {
+        for (const l of linhasManuais(h)) manuais[`${sym}|${l.id}`] = { nome: l.nome ? `${sym} · ${l.nome}` : sym, qtd: num(l.quantity), investido: num(l.buyValue) };
+      }
       const tradicionais: Foto["tradicionais"] = {};
       for (const [idA, h] of Object.entries(traditionalHoldings)) {
         const nome = [...traditionalAssets, ...customAssets].find((a) => a.id === idA)?.label ?? idA;
@@ -2532,7 +2534,7 @@ export default function WalletsPage() {
   // Campos de dinheiro e de quantidade das listas: funcoes de render (nao
   // componentes) em src/components/wallets/camposNumero.tsx.
   const moneyField = criarMoneyField({ curRate, curCode, hideBalances, numberFormat });
-  const qtyField = criarQtyField({ hideBalances });
+  const qtyField = criarQtyField({ hideBalances, numberFormat });
 
   const handleManualAddCryptoAsset = () => {
     setManualCryptoAssetError(null);
@@ -2549,18 +2551,29 @@ export default function WalletsPage() {
     }
     const qtyRaw = manualCryptoAssetQty.trim();
     const qty = qtyRaw === "" ? undefined : parseDecimal(qtyRaw);
-    updateCryptoHolding(symbol, {
+    if (qty !== undefined && !(Number.isFinite(qty) && qty > 0)) {
+      setManualCryptoAssetError(t("wl_invalid_qty"));
+      return;
+    }
+    if (manualCryptoAssetDate && manualCryptoAssetDate > new Date().toISOString().slice(0, 10)) {
+      setManualCryptoAssetError(t("wl_future_date"));
+      return;
+    }
+    // Uma nova carteira deste ativo: antes, registar o mesmo ativo outra vez
+    // SUBSTITUÍA o registo anterior (perdia-se o que lá estava).
+    adicionarCarteiraManual(symbol, {
+      nome: manualCryptoAssetWallet.trim().slice(0, 40) || undefined,
       buyDate: manualCryptoAssetDate || undefined,
-      // Store invested value in EUR (totals are in EUR); convert from the
-      // selected display currency the user typed in.
+      // Invested value in EUR (totals are in EUR), converted from the display currency.
       buyValue: amount / (curRate || 1),
       // Optional: number of coins → lets the value track the current market price.
-      quantity: qty != null && Number.isFinite(qty) && qty > 0 ? qty : undefined,
+      quantity: qty,
     });
     setManualCryptoAssetSymbol("");
     setManualCryptoAssetDate("");
     setManualCryptoAssetAmountUsd("");
     setManualCryptoAssetQty("");
+    setManualCryptoAssetWallet("");
   };
 
   const stablecoinSymbolOptions = useMemo(() => Object.keys(STABLECOIN_TOKEN_ADDRESSES), []);
@@ -3323,14 +3336,15 @@ export default function WalletsPage() {
             <AtivosManuaisLista
               marketRows={marketRows}
               cryptoHoldings={cryptoHoldings}
-              toggleCryptoHolding={toggleCryptoHolding}
+              adicionarCarteira={adicionarCarteiraManual}
+              atualizarCarteira={atualizarCarteiraManual}
+              removerCarteira={removerCarteiraManual}
+              removerAtivo={removerAtivoManual}
               semAtivos={sortedCryptoSymbols.length === 0 && !(ethWallets.length > 0 || ethAddress || solWallets.length > 0 || solAddress || btcWallets.length > 0 || btcAddress || adaWallets.length > 0 || adaAddress) && stablecoinEntries.length === 0 && otherWallets.length === 0}
               sortedCryptoSymbols={sortedCryptoSymbols}
               cryptoPrices={cryptoPrices}
-              usdToEurRate={usdToEurRate}
               moneyField={moneyField}
               qtyField={qtyField}
-              updateCryptoHolding={updateCryptoHolding}
             />
           </div>
           {cryptoPricesLoading ? (
@@ -3460,6 +3474,8 @@ export default function WalletsPage() {
           setManualCryptoAssetAmountUsd={setManualCryptoAssetAmountUsd}
           manualCryptoAssetQty={manualCryptoAssetQty}
           setManualCryptoAssetQty={setManualCryptoAssetQty}
+          manualCryptoAssetWallet={manualCryptoAssetWallet}
+          setManualCryptoAssetWallet={setManualCryptoAssetWallet}
           handleManualAddCryptoAsset={handleManualAddCryptoAsset}
           manualCryptoAssetError={manualCryptoAssetError}
         />

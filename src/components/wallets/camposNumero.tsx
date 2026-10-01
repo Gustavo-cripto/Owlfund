@@ -40,7 +40,7 @@ export const criarMoneyField = ({ curRate, curCode, hideBalances, numberFormat }
 };
 // Quantidades (moedas/acoes): so o numero, aceita virgula.
 // eslint-disable-next-line react/display-name
-export const criarQtyField = ({ hideBalances }: Pick<ContextoCampos, "hideBalances">): QtyFieldFn => (opts) => (
+export const criarQtyField = ({ hideBalances, numberFormat }: Pick<ContextoCampos, "hideBalances"> & { numberFormat?: string }): QtyFieldFn => (opts) => (
   <input
     key={`q:${opts.value ?? ""}`}
     type={hideBalances ? "password" : "text"}
@@ -49,7 +49,8 @@ export const criarQtyField = ({ hideBalances }: Pick<ContextoCampos, "hideBalanc
     placeholder={opts.placeholder}
     title={opts.title}
     aria-label={opts.ariaLabel}
-    defaultValue={opts.value != null ? String(opts.value) : ""}
+    // No formato escolhido (0,131402 em pt; antes saía sempre 0.131402).
+    defaultValue={opts.value != null ? (numberFormat ? opts.value.toLocaleString(numberFormat, { maximumFractionDigits: 12, useGrouping: false }) : String(opts.value)) : ""}
     onBlur={(event) => {
       const text = cleanDecimalInput(event.target.value);
       if (text === "") { opts.onValue(undefined); return; }

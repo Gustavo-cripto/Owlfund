@@ -18,7 +18,8 @@ export type Foto = {
   estaveis: Record<string, { nome: string; simbolo: string; saldo: number | null }>;
   exchanges: Record<string, { nome: string; saldos: Saldos | null }> | null;
   corretoras: Record<string, { nome: string; saldos: Saldos }>;
-  manuais: Record<string, { qtd: number | null; investido: number | null }>;
+  /** Cripto manual, por carteira ("SIMBOLO|id"); `nome` = "ETH · Ledger". */
+  manuais: Record<string, { nome?: string; qtd: number | null; investido: number | null }>;
   tradicionais: Record<string, { nome: string; qtd: number | null; investido: number | null }>;
   /** Por carteira: posições (chave → par/estado). null = DeFi ainda não lido. */
   defi: Record<string, { nome: string; posicoes: Record<string, { nome: string; estado: "aberta" | "fechada" }> | null }> | null;
@@ -120,14 +121,15 @@ export function diferencas(antes: Foto, depois: Foto, em: number): Evento[] {
   const manuais = (av: Foto["manuais"], dv: Foto["manuais"], nome: (k: string) => string) => {
     for (const [k, d] of Object.entries(dv)) {
       const a = av[k];
-      if (!a) { add({ grupo: "manual", tipo: "manual_adicionado", alvo: nome(k), simbolo: k, depois: d.qtd ?? d.investido }); continue; }
+      const sym = k.split("|")[0];
+      if (!a) { add({ grupo: "manual", tipo: "manual_adicionado", alvo: nome(k), simbolo: sym, depois: d.qtd ?? d.investido }); continue; }
       const q = a.qtd != null && d.qtd != null && mudou(a.qtd, d.qtd);
       const i = a.investido != null && d.investido != null && mudou(a.investido, d.investido);
-      if (q || i || (a.qtd == null) !== (d.qtd == null)) add({ grupo: "manual", tipo: "manual_alterado", alvo: nome(k), simbolo: k, antes: a.qtd ?? a.investido, depois: d.qtd ?? d.investido });
+      if (q || i || (a.qtd == null) !== (d.qtd == null)) add({ grupo: "manual", tipo: "manual_alterado", alvo: nome(k), simbolo: sym, antes: a.qtd ?? a.investido, depois: d.qtd ?? d.investido });
     }
-    for (const k of Object.keys(av)) if (!dv[k]) add({ grupo: "manual", tipo: "manual_removido", alvo: nome(k), simbolo: k, antes: av[k].qtd ?? av[k].investido });
+    for (const k of Object.keys(av)) if (!dv[k]) add({ grupo: "manual", tipo: "manual_removido", alvo: nome(k), simbolo: k.split("|")[0], antes: av[k].qtd ?? av[k].investido });
   };
-  manuais(antes.manuais, depois.manuais, (k) => k);
+  manuais(antes.manuais, depois.manuais, (k) => depois.manuais[k]?.nome ?? antes.manuais[k]?.nome ?? k);
   manuais(antes.tradicionais, depois.tradicionais, (k) => depois.tradicionais[k]?.nome ?? antes.tradicionais[k]?.nome ?? k);
 
   // DeFi: posições novas, fechadas ou desaparecidas (o valor muda com o preço e não conta).
@@ -208,6 +210,18 @@ export function completarFoto(antes: Foto | null, depois: Foto): Foto {
 
 type Guardado = { foto: Foto | null; eventos: Evento[] };
 
+/**
+ * Fotografias antigas guardavam a cripto manual por símbolo ("ETH"); agora é
+ * por carteira ("ETH|principal"). Sem isto, a 1.ª leitura depois da mudança
+ * registava "ETH removido" e "ETH adicionado" que não aconteceram.
+ */
+export function migrarFoto(f: Foto | null): Foto | null {
+  if (!f?.manuais) return f;
+  const manuais: Foto["manuais"] = {};
+  for (const [k, v] of Object.entries(f.manuais)) manuais[k.includes("|") ? k : `${k}|principal`] = v;
+  return { ...f, manuais };
+}
+
 const ler = (raw: string | null): Guardado => {
   try {
     const j = raw ? (JSON.parse(raw) as Partial<Guardado>) : null;
@@ -221,6 +235,7 @@ export function registarFoto(foto: Foto, em = Date.now()): Evento[] {
   const chave = accKey(CHAVE);
   let g: Guardado;
   try { g = ler(window.localStorage.getItem(chave)); } catch { return []; }
+  g.foto = migrarFoto(g.foto);
   const novos = g.foto ? diferencas(g.foto, foto, em) : [{ id: novoId(em), em, grupo: "carteira" as const, tipo: "inicio" as const, alvo: "" }];
   const proxima = completarFoto(g.foto, foto);
   const mesmaFoto = JSON.stringify(proxima) === JSON.stringify(g.foto);

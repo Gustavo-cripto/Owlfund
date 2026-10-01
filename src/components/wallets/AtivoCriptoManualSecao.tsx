@@ -25,6 +25,9 @@ type Props = {
   setManualCryptoAssetAmountUsd: (value: string) => void;
   manualCryptoAssetQty: string;
   setManualCryptoAssetQty: (value: string) => void;
+  /** Nome da carteira onde está (opcional): "Ledger", "Binance"… */
+  manualCryptoAssetWallet: string;
+  setManualCryptoAssetWallet: (value: string) => void;
   handleManualAddCryptoAsset: () => void;
   manualCryptoAssetError: string | null;
 };
@@ -34,7 +37,7 @@ export default function AtivoCriptoManualSecao({
   manualCryptoAssetSymbol, setManualCryptoAssetSymbol, manualCryptoFilter, setManualCryptoFilter,
   cryptoSelectList, marketRows, cryptoPricesLoading, manualCryptoAssetDate,
   setManualCryptoAssetDate, manualCryptoAssetAmountUsd, setManualCryptoAssetAmountUsd,
-  manualCryptoAssetQty, setManualCryptoAssetQty, handleManualAddCryptoAsset,
+  manualCryptoAssetQty, setManualCryptoAssetQty, manualCryptoAssetWallet, setManualCryptoAssetWallet, handleManualAddCryptoAsset,
   manualCryptoAssetError,
 }: Props) {
   const { t } = useLanguage();
@@ -112,7 +115,19 @@ export default function AtivoCriptoManualSecao({
           ) : null}
         </div>
         <input
+          type="text"
+          maxLength={40}
+          autoComplete="off"
+          aria-label={t("wl_wallet_name")}
+          className="w-40 rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none placeholder:text-slate-500 transition focus:border-orange-400"
+          placeholder={t("wl_wallet_name_ph")}
+          value={manualCryptoAssetWallet}
+          onChange={(e) => setManualCryptoAssetWallet(e.target.value)}
+        />
+        <input
           type="date"
+          max={new Date().toISOString().slice(0, 10)}
+          aria-label={t("wl_buy_date")}
           className="rounded-full border border-slate-800 bg-slate-950/60 px-4 py-2 text-xs text-slate-200 outline-none transition focus:border-orange-400"
           value={manualCryptoAssetDate}
           onChange={(e) => setManualCryptoAssetDate(e.target.value)}

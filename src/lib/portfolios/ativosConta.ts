@@ -1,6 +1,7 @@
 import { ALL_ACCOUNTS_ID, allAccountIds, readNamespaced } from "@/lib/portfolios/accounts";
 import { computeFifo, parseTrades, TRADE_HISTORY_KEY, type Trade } from "@/lib/portfolios/trades";
 import { networkKey } from "@/lib/wallets/networkKey";
+import { linhasManuais, type CryptoHolding } from "@/lib/crypto/storage";
 
 // Ativos de uma conta (ou de todas), moeda a moeda, para a aba "O meu
 // portefólio" do Mercado. Só leitura. Usa as mesmas fontes que o Portefólio:
@@ -112,11 +113,14 @@ export function juntarAtivos(contas: readonly DadosConta[]): AtivosConta {
       if (e.address) vistas.add(chave);
       if (typeof e.symbol === "string") somar(e.symbol, num(e.balance), "estavel");
     }
-    const manuais = ler<Record<string, { quantity?: unknown; buyValue?: unknown }>>(c["owlfund.crypto.holdings.v1"]) ?? {};
+    const manuais = ler<Record<string, CryptoHolding>>(c["owlfund.crypto.holdings.v1"]) ?? {};
     for (const [simbolo, h] of Object.entries(manuais)) {
-      const q = num(h?.quantity);
-      somar(simbolo, q, "manual", q > 0 ? 0 : num(h?.buyValue));
-      juntarCusto(simbolo, q, num(h?.buyValue));
+      // Carteira a carteira: umas podem ter quantidade e outras só o investido.
+      for (const l of linhasManuais(h)) {
+        const q = num(l.quantity);
+        somar(simbolo, q, "manual", q > 0 ? 0 : num(l.buyValue));
+        juntarCusto(simbolo, q, num(l.buyValue));
+      }
     }
     historico.push(...parseTrades(c[TRADE_HISTORY_KEY] ?? null).filter((t) => !t.deleted));
     for (const v of lista(ler(c["owlfund.venue.holdings.v1"]))) {

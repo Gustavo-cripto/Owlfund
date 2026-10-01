@@ -1,24 +1,71 @@
 import { gravarSeMudou, accKey, allAccountIds, isAllAccountsActive, readNamespaced } from "@/lib/portfolios/accounts";
 
-export type CryptoHolding = {
-  /** Valor investido (custo) em EUR. */
+/** Uma carteira (ou corretora) onde está parte de um ativo registado à mão. */
+export type CarteiraManual = {
+  id: string;
+  /** Nome escolhido pela pessoa (ex.: "Ledger", "Binance"). */
+  nome?: string;
+  quantity?: number;
+  /** Valor investido em EUR. */
   buyValue?: number;
   buyDate?: string;
+};
+
+export type CryptoHolding = {
+  /** Valor investido (custo) em EUR. Com `carteiras`, é a soma delas. */
+  buyValue?: number;
+  /** Com `carteiras`, a data mais antiga. */
+  buyDate?: string;
   /** Quantidade de moedas detidas. Se preenchido, o valor atual passa a ser
-   *  calculado por quantidade × preço de mercado (em vez do valor investido). */
+   *  calculado por quantidade × preço de mercado (em vez do valor investido).
+   *  Com `carteiras`, é a soma das quantidades delas. */
   quantity?: number;
+  /**
+   * O mesmo ativo em várias carteiras, cada uma com nome. Os totais de cima
+   * mantêm-se sempre (é o que o Portefólio, o Painel e a IA leem).
+   */
+  carteiras?: CarteiraManual[];
 };
 
 export type CryptoHoldings = Record<string, CryptoHolding>;
 
+/** As carteiras de um registo; um registo antigo (sem carteiras) é uma só, sem nome. */
+export const linhasManuais = (h: CryptoHolding | undefined): CarteiraManual[] => {
+  if (!h) return [];
+  if (Array.isArray(h.carteiras) && h.carteiras.length) return h.carteiras;
+  if (h.quantity == null && h.buyValue == null && !h.buyDate) return [];
+  return [{ id: "principal", quantity: h.quantity, buyValue: h.buyValue, buyDate: h.buyDate }];
+};
+
+const positivo = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? v : 0);
+
+/** Registo a partir das carteiras, com os totais recalculados. */
+export const registoDeLinhas = (linhas: CarteiraManual[]): CryptoHolding => {
+  // Arredondada a 12 casas: 0,1 + 0,05 dava 0,15000000000000002.
+  const qtd = Math.round(linhas.reduce((s, l) => s + positivo(l.quantity), 0) * 1e12) / 1e12;
+  const inv = linhas.reduce((s, l) => s + positivo(l.buyValue), 0);
+  const datas = linhas.map((l) => l.buyDate).filter((d): d is string => !!d).sort();
+  return {
+    carteiras: linhas,
+    ...(qtd > 0 ? { quantity: qtd } : {}),
+    ...(inv > 0 ? { buyValue: inv } : {}),
+    ...(datas.length ? { buyDate: datas[0] } : {}),
+  };
+};
+
 /**
  * Valor de mercado atual (em EUR) de um registo manual.
  * Usa quantidade × preço quando ambos existem; caso contrário cai no valor investido.
+ * Com várias carteiras, soma carteira a carteira (umas podem ter quantidade e
+ * outras só o valor investido).
  */
 export const cryptoHoldingValueEur = (
   holding: CryptoHolding,
   priceEur?: number
 ): number => {
+  if (Array.isArray(holding.carteiras) && holding.carteiras.length) {
+    return holding.carteiras.reduce((s, l) => s + cryptoHoldingValueEur({ quantity: l.quantity, buyValue: l.buyValue }, priceEur), 0);
+  }
   const qty = Number(holding.quantity ?? 0);
   if (qty > 0 && priceEur && priceEur > 0) return qty * priceEur;
   const invested = Number(holding.buyValue ?? 0);
@@ -39,12 +86,9 @@ export const loadCryptoHoldings = (): CryptoHoldings => {
         try { obj = JSON.parse(raw) as CryptoHoldings; } catch { continue; }
         if (!obj || typeof obj !== "object") continue;
         for (const [sym, h] of Object.entries(obj)) {
-          const cur = merged[sym] ?? {};
-          merged[sym] = {
-            buyValue: (cur.buyValue ?? 0) + (h.buyValue ?? 0),
-            quantity: (cur.quantity ?? 0) + (h.quantity ?? 0),
-            buyDate: cur.buyDate ?? h.buyDate,
-          };
+          // As carteiras de cada conta juntam-se (ids prefixados pela conta).
+          const linhas = linhasManuais(h).map((l) => ({ ...l, id: `${id}:${l.id}` }));
+          merged[sym] = registoDeLinhas([...linhasManuais(merged[sym]), ...linhas]);
         }
       }
       return merged;

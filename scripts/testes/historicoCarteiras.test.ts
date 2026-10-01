@@ -1,4 +1,4 @@
-import { completarFoto, diferencas, type Foto } from "@/lib/wallets/historico";
+import { completarFoto, diferencas, migrarFoto, type Foto } from "@/lib/wallets/historico";
 let fails = 0;
 const eq = (name: string, got: unknown, want: unknown) => {
   const ok = JSON.stringify(got) === JSON.stringify(want);
@@ -51,4 +51,9 @@ o.corretoras = { v1: { nome: "Bitpanda", saldos: { BTC: 0.1 } } };
 eq("manuais e corretoras", tipos(o, p), ["exchange_removida:Bitpanda", "manual_alterado:DOT:DOT", "manual_adicionado:ADA:ADA"]);
 eq("rebase pequeno de token não conta", diferencas({ ...vazia(), tokens: { t: { nome: "L", saldos: { STETH: 1 } } } }, { ...vazia(), tokens: { t: { nome: "L", saldos: { STETH: 1.0001 } } } }, 1).length, 0);
 eq("igual → nada", tipos(b, b), []);
+const antiga = { ...vazia(), manuais: { ETH: { qtd: 0.13, investido: 300 } } };
+const nova = { ...vazia(), manuais: { "ETH|principal": { nome: "ETH", qtd: 0.13, investido: 300 } } };
+eq("fotografia antiga convertida: sem movimentos falsos", tipos(migrarFoto(antiga)!, nova), []);
+const outra = { ...vazia(), manuais: { "ETH|principal": { nome: "ETH", qtd: 0.13, investido: 300 }, "ETH|c1": { nome: "ETH · Binance", qtd: 0.05, investido: 100 } } };
+eq("nova carteira de um ativo manual", tipos(nova, outra), ["manual_adicionado:ETH · Binance:ETH"]);
 if (fails) { console.error(`${fails} falha(s)`); process.exit(1); }
