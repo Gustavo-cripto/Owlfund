@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import Segmentos from "@/components/ui/Segmentos";
 import MeusAtivos from "@/components/mercado/MeusAtivos";
+import PainelAtivo from "@/components/mercado/PainelAtivo";
+import { capEstaveis, epocaAltcoins, resumoFng } from "@/lib/market/indicadoresGerais";
 import { lerAtivosConta } from "@/lib/portfolios/ativosConta";
 import { getActiveAccountId } from "@/lib/portfolios/accounts";
 import { userError } from "@/lib/ui/userError";
@@ -43,7 +45,12 @@ type MarketRow = {
   volume24hUsd: number;
   sparkline?: number[];
   /** Sem par USDT em exchange: sem gráfico da Binance (ex.: créditos tokenizados). */
-  semPar?: boolean;
+  semPar?: boolean;  rank?: number | null;
+  /** Máximo histórico em USD e data. */
+  ath?: number | null;
+  athDate?: string | null;
+  circulating?: number | null;
+  maxSupply?: number | null;
 };
 
 type Candle = { t: number; o: number; h: number; l: number; c: number; vol: number };
@@ -987,9 +994,10 @@ export default function MercadoPage() {
     return () => { cancelled = true; };
   }, [selected?.id]);
 
-  // Derivados nativos (Bybit + OKX) do ativo selecionado, quando a aba Coinglass está ativa.
+  // Derivados (OKX) do ativo selecionado: o painel completo e o resumo por
+  // baixo do gráfico do TradingView usam os mesmos dados.
   useEffect(() => {
-    if (chartSource !== "coinglass") return;
+    if (marketMode !== "crypto") return;
     const base = selected?.symbol ?? "BTC";
     const cached = derivativesCacheRef.current[base];
     const FRESH_MS = 5 * 60_000;
@@ -1016,7 +1024,7 @@ export default function MercadoPage() {
       .finally(() => { if (!cancelled) setDerivativesLoading(false); });
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chartSource, selected?.symbol, derivativesTick]);
+  }, [marketMode, selected?.symbol, derivativesTick]);
 
   const refreshTraditionalQuote = async (symbol?: string) => {
     if (!symbol) return;
@@ -1504,6 +1512,15 @@ export default function MercadoPage() {
               />
             )}
           </div>
+          {chartSource === "tradingview" && (
+            <PainelAtivo
+              linha={selected ?? rows.find((r) => r.symbol === "BTC") ?? null}
+              rows={rows}
+              derivados={derivatives}
+              derivadosACarregar={derivativesLoading}
+              verDerivados={() => { setChartSource("coinglass"); chartRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+            />
+          )}
         </section>
         ) : null}
 
@@ -1824,6 +1841,34 @@ export default function MercadoPage() {
               {marketGlobal.ethDominance != null && (
                 <span className="text-slate-300">ETH: <b className="text-indigo-300">{marketGlobal.ethDominance.toFixed(1)}%</b></span>
               )}
+              {(() => {
+                const est = capEstaveis(rows, marketGlobal.totalMarketCapUsd ?? null);
+                return est.usd > 0 ? (
+                  <span className="text-slate-300" title={t("mc_g_stables_hint")}>
+                    {t("mc_g_stables")}: <b className="text-white">{fmtMkt(est.usd, { compact: true })}</b>
+                    {est.parte != null && <span className="ml-1 text-slate-500">({est.parte.toFixed(1)}%)</span>}
+                  </span>
+                ) : null;
+              })()}
+              {(() => {
+                const alt = epocaAltcoins(rows);
+                return alt ? (
+                  <span className="text-slate-300" title={t("mc_g_alts_hint")}>
+                    {t("mc_g_alts")}: <b className="text-white">{alt.acima}/{alt.total}</b>
+                  </span>
+                ) : null;
+              })()}
+              {(() => {
+                const fg = resumoFng(fearGreedPoints);
+                if (!fg) return null;
+                const corFg = fg.valor <= 44 ? "text-rose-400" : fg.valor <= 55 ? "text-slate-200" : "text-emerald-400";
+                return (
+                  <span className="text-slate-300" title={t("mc_g_fng_hint")}>
+                    {t("mc_g_fng")}: <b className={corFg}>{fg.valor}</b> <span className={corFg}>{t(`mc_g_fng_${fg.classe}` as Parameters<typeof t>[0])}</span>
+                    {fg.var7 != null && <span className="ml-1 text-slate-500">({fg.var7 >= 0 ? "+" : ""}{fg.var7} {t("mc_g_vs_week")})</span>}
+                  </span>
+                );
+              })()}
             </div>
           </div>
         )}
