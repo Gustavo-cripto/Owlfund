@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import Segmentos from "@/components/ui/Segmentos";
 import MeusAtivos from "@/components/mercado/MeusAtivos";
+import { lerAtivosConta } from "@/lib/portfolios/ativosConta";
+import { getActiveAccountId } from "@/lib/portfolios/accounts";
 import { userError } from "@/lib/ui/userError";
 import ErrorNote from "@/components/ErrorNote";
 import { btnPrimary } from "@/lib/ui/buttons";
@@ -26,11 +28,6 @@ import {
   traditionalHoldingValueEur,
   type TraditionalHoldings,
 } from "@/lib/traditional/storage";
-import {
-  loadCryptoHoldings,
-  saveCryptoHoldings,
-  type CryptoHoldings,
-} from "@/lib/crypto/storage";
 
 type MarketRow = {
   market: string;
@@ -457,6 +454,10 @@ function TradingViewWidget({
   /** RSI e MACD em painéis próprios. No telemóvel espremiam as velas. */
   indicadores?: boolean;
 }) {
+  // O id depende da língua, que no servidor pode não ser a do navegador: com o
+  // id no HTML do servidor, a hidratação deixava um contentor órfão na página.
+  const [montado, setMontado] = useState(false);
+  useEffect(() => { setMontado(true); }, []);
   const containerId = useMemo(() => {
     // Um contentor por símbolo, intervalo, língua e indicadores: um widget antigo
     // ainda a carregar nunca desenha no contentor do novo.
@@ -465,6 +466,7 @@ function TradingViewWidget({
   }, [symbol, interval, locale, indicadores]);
 
   useEffect(() => {
+    if (!montado) return;
     const scriptId = "tradingview-widget-script";
     let cancelado = false;
     const ensureScript = () =>
@@ -515,9 +517,9 @@ function TradingViewWidget({
       });
     });
     return () => { cancelado = true; };
-  }, [symbol, interval, containerId, locale, indicadores]);
+  }, [symbol, interval, containerId, locale, indicadores, montado]);
 
-  return <div id={containerId} className="h-full w-full" />;
+  return <div id={montado ? containerId : undefined} className="h-full w-full" />;
 }
 
 function CandleChart({ candles, showVolume = true, heightClass = "h-48" }: { candles: Candle[]; showVolume?: boolean; heightClass?: string }) {
@@ -915,6 +917,10 @@ export default function MercadoPage() {
   const [sortKey, setSortKey] = useState<SortKey>("marketCapUsd");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [showFavorites, setShowFavorites] = useState(false);
+  // Esconde as moedas sem par em exchange (créditos tokenizados, fundos…).
+  const [soNegociaveis, setSoNegociaveis] = useState(false);
+  // Moedas que a conta ativa tem: marcadas na tabela geral.
+  const [meusSimbolos, setMeusSimbolos] = useState<Set<string>>(new Set());
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [traditionalCategory, setTraditionalCategory] = useState("Todos");
   const [traditionalQuotes, setTraditionalQuotes] = useState<Record<string, TraditionalQuote>>({});
@@ -924,33 +930,14 @@ export default function MercadoPage() {
   );
   const [selectedTraditional, setSelectedTraditional] = useState<TraditionalAsset | null>(null);
   const [traditionalHoldings, setTraditionalHoldings] = useState<TraditionalHoldings>({});
-  const [cryptoHoldings, setCryptoHoldings] = useState<CryptoHoldings>({});
-  const [cryptoPnlRange, setCryptoPnlRange] = useState<
-    Record<string, "1d" | "30d" | "60d" | "1y">
-  >({});
   const [traditionalPnlRange, setTraditionalPnlRange] = useState<
     Record<string, "1d" | "30d" | "60d" | "1y">
   >({});
-  const [cryptoSortKey, setCryptoSortKey] = useState<"date" | "marketCap">("date");
-  const [cryptoSortDir, setCryptoSortDir] = useState<"asc" | "desc">("desc");
   const [traditionalSortKey, setTraditionalSortKey] = useState<"date" | "marketCap">("date");
   const [traditionalSortDir, setTraditionalSortDir] = useState<"asc" | "desc">("desc");
   const favoritesHydratedRef = useRef(false);
   const traditionalHydratedRef = useRef(false);
-  const cryptoHydratedRef = useRef(false);
 
-  const closeTradingViewOverlay = () => {
-    // Best-effort: closes TradingView popovers/panels (e.g., Markets/Favorites/Trending).
-    document.dispatchEvent(
-      new KeyboardEvent("keydown", {
-        key: "Escape",
-        code: "Escape",
-        keyCode: 27,
-        which: 27,
-        bubbles: true,
-      })
-    );
-  };
 
   useEffect(() => {
     const load = async () => {
@@ -1103,34 +1090,6 @@ export default function MercadoPage() {
     });
   };
 
-  const toggleCryptoHolding = (symbol: string) => {
-    setCryptoHoldings((prev) => {
-      const next = { ...prev };
-      if (next[symbol]) {
-        delete next[symbol];
-      } else {
-        next[symbol] = {};
-      }
-      return next;
-    });
-  };
-
-  const updateCryptoHolding = (
-    symbol: string,
-    next: { buyValue?: number; buyDate?: string }
-  ) => {
-    setCryptoHoldings((prev) => {
-      const nextHoldings = {
-        ...prev,
-        [symbol]: {
-          ...prev[symbol],
-          ...next,
-        },
-      };
-      return nextHoldings;
-    });
-  };
-
   const selectedTraditionalAssets = useMemo(
     () => traditionalAssets.filter((asset) => !!traditionalHoldings[asset.id]),
     [traditionalHoldings]
@@ -1176,8 +1135,7 @@ export default function MercadoPage() {
 
   useEffect(() => {
     if (!userId) return;
-    setCryptoHoldings(loadCryptoHoldings());
-    cryptoHydratedRef.current = true;
+    try { setMeusSimbolos(new Set(lerAtivosConta(getActiveAccountId()).cripto.map((a) => a.symbol))); } catch { /* sem dados locais */ }
   }, [userId]);
 
   useEffect(() => {
@@ -1219,12 +1177,6 @@ export default function MercadoPage() {
     const id = window.setTimeout(() => saveTraditionalHoldings(traditionalHoldings), 120);
     return () => window.clearTimeout(id);
   }, [traditionalHoldings]);
-
-  useEffect(() => {
-    if (!cryptoHydratedRef.current) return;
-    const id = window.setTimeout(() => saveCryptoHoldings(cryptoHoldings), 120);
-    return () => window.clearTimeout(id);
-  }, [cryptoHoldings]);
 
   useEffect(() => {
     const updateTheme = () =>
@@ -1282,11 +1234,6 @@ export default function MercadoPage() {
     try { setIndicadores(window.matchMedia("(min-width: 768px)").matches); } catch { /* fica sem */ }
   }, []);
 
-  const coinglassUrl = useMemo(() => {
-    const market = selected?.market ?? "BTCUSDT";
-    return `https://www.coinglass.com/tv/Binance_${market}`;
-  }, [selected]);
-
   const tradingViewInterval = "D";
   const traditionalTradingViewInterval = "D";
 
@@ -1301,7 +1248,7 @@ export default function MercadoPage() {
 
   const filteredSortedRows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const base = showFavorites ? rows.filter((r) => favorites.has(r.symbol)) : rows;
+    const base = (showFavorites ? rows.filter((r) => favorites.has(r.symbol)) : rows).filter((r) => !soNegociaveis || !r.semPar);
     const filtered = q
       ? base.filter((r) => r.symbol.toLowerCase().includes(q) || r.name.toLowerCase().includes(q))
       : base;
@@ -1325,7 +1272,7 @@ export default function MercadoPage() {
     });
     // keep selected visible feel: favorites already filter; otherwise no
     return sorted;
-  }, [rows, query, sortKey, sortDir, showFavorites, favorites]);
+  }, [rows, query, sortKey, sortDir, showFavorites, favorites, soNegociaveis]);
 
   const visibleTraditionalAssets = useMemo(() => {
     if (traditionalCategory === "Todos") return traditionalAssets;
@@ -1352,30 +1299,6 @@ export default function MercadoPage() {
     }, 0);
   }, [selectedTraditionalAssets, traditionalHoldings, traditionalQuotes, quotePriceEur]);
 
-  const selectedCryptoAssets = useMemo(() => {
-    const symbols = Object.keys(cryptoHoldings);
-    return rows.filter((row) => symbols.includes(row.symbol));
-  }, [rows, cryptoHoldings]);
-
-  const cryptoManualTotal = useMemo(() => {
-    return Object.values(cryptoHoldings).reduce((sum, holding) => {
-      const value = Number(holding.buyValue ?? 0);
-      return Number.isFinite(value) ? sum + value : sum;
-    }, 0);
-  }, [cryptoHoldings]);
-
-  const sortedSelectedCrypto = useMemo(() => {
-    const dir = cryptoSortDir === "asc" ? 1 : -1;
-    return [...selectedCryptoAssets].sort((a, b) => {
-      if (cryptoSortKey === "date") {
-        const ad = cryptoHoldings[a.symbol]?.buyDate ?? "";
-        const bd = cryptoHoldings[b.symbol]?.buyDate ?? "";
-        return ad.localeCompare(bd) * dir;
-      }
-      return ((a.marketCapUsd ?? 0) - (b.marketCapUsd ?? 0)) * dir;
-    });
-  }, [selectedCryptoAssets, cryptoSortDir, cryptoSortKey, cryptoHoldings]);
-
   const sortedSelectedTraditional = useMemo(() => {
     const dir = traditionalSortDir === "asc" ? 1 : -1;
     return [...selectedTraditionalAssets].sort((a, b) => {
@@ -1397,14 +1320,6 @@ export default function MercadoPage() {
     traditionalHoldings,
     traditionalQuotes,
   ]);
-
-  const getCryptoPnl = (symbol: string, change24h: number) => {
-    const range = cryptoPnlRange[symbol] ?? "1d";
-    if (range === "1d") {
-      return { label: "1D", value: change24h };
-    }
-    return { label: range.toUpperCase(), value: null };
-  };
 
   const getTraditionalPnl = (symbol: string, changePercent?: number | null) => {
     const range = traditionalPnlRange[symbol] ?? "1d";
@@ -1959,6 +1874,22 @@ export default function MercadoPage() {
                         >
                           {showFavorites ? t("mc_show_fav_on") : t("mc_show_fav")}
                         </button>
+                        <button
+                          type="button"
+                          aria-pressed={soNegociaveis}
+                          title={t("mc_tradable_hint")}
+                          className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                            soNegociaveis
+                              ? "border-slate-600 bg-slate-800 text-white"
+                              : "border-slate-700 bg-slate-950/80 text-slate-200 hover:border-slate-500 hover:text-white"
+                          }`}
+                          onClick={() => {
+                            setSoNegociaveis((v) => !v);
+                            setPage(0);
+                          }}
+                        >
+                          {t("mc_tradable_only")}
+                        </button>
                         <select
                           value={sortKey}
                           onChange={(e) => setSortKey(e.target.value as SortKey)}
@@ -2067,13 +1998,18 @@ export default function MercadoPage() {
                                   e.stopPropagation();
                                   toggleFavorite(row.symbol);
                                 }}
-                                aria-label={`Favorito ${row.symbol}`}
+                                aria-label={`${favorites.has(row.symbol) ? t("mc_rm_fav") : t("mc_add_fav")}: ${row.symbol}`}
                                 title={favorites.has(row.symbol) ? t("mc_rm_fav") : t("mc_add_fav")}
                               >
                                 {favorites.has(row.symbol) ? "★" : "☆"}
                               </button>
                               <div>
-                                <p className="font-semibold text-white">{row.symbol}</p>
+                                <p className="font-semibold text-white">
+                                  {row.symbol}
+                                  {meusSimbolos.has(row.symbol) && (
+                                    <span title={t("mc_held_title")} className="ml-1.5 rounded bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-sky-300">{t("mc_held_tag")}</span>
+                                  )}
+                                </p>
                                 <p className="text-xs text-slate-500">{row.name}</p>
                               </div>
                             </div>
