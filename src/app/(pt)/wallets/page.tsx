@@ -142,6 +142,9 @@ import {
 import { quotePriceEurFrom } from "@/lib/wallets/totais";
 import type { MarketRow, TraditionalQuote } from "@/lib/wallets/tipos";
 import type { PosicaoDefi } from "@/lib/defi/posicoes";
+import HistoricoCarteiras from "@/components/wallets/HistoricoCarteiras";
+import { registarFoto, type Foto } from "@/lib/wallets/historico";
+import { loadVenueHoldings, VENUES } from "@/lib/venues/manualVenues";
 
 type SubscriptionStatus = {
   status: string;
@@ -1308,6 +1311,104 @@ export default function WalletsPage() {
     const temCarteiras = ethWallets.length + solWallets.length + btcWallets.length + adaWallets.length > 0 || !!ethAddress || !!solAddress;
     return !temCarteiras || Object.keys(defiTotals).length > 0;
   }, [defiLoading, defiErrors, defiTotals, ethWallets, solWallets, btcWallets, adaWallets, ethAddress, solAddress]);
+  // ── Histórico de movimentações ──────────────────────────────────────────
+  // Quando as leituras acalmam (4 s sem mudanças), monta-se a fotografia do
+  // que as Carteiras sabem e regista-se cada diferença face à anterior.
+  // Desconhecido (a carregar ou com erro) vai como null e não conta.
+  const [saldosExchanges, setSaldosExchanges] = useState<Foto["exchanges"]>(null);
+  useEffect(() => {
+    if (!hidratado) return;
+    const aCarregar = [ethBalancesLoading, solBalancesLoading, btcBalancesLoading, adaBalancesLoading, coldTokensLoading, stablecoinBalancesLoading]
+      .some((m) => Object.values(m).some(Boolean));
+    if (aCarregar) return;
+    const id = window.setTimeout(() => {
+      const num = (v: unknown): number | null => {
+        if (v == null) return null;
+        const n = Number(String(v).trim());
+        return Number.isFinite(n) && n >= 0 ? n : null;
+      };
+      const curto = (a: string) => (a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a);
+      const nomeDe = (w: StoredWalletEntry, rede: string) => `${w.label || curto(w.address ?? "")} · ${rede}`;
+      const carteiras: Foto["carteiras"] = {};
+      for (const w of ethWallets) {
+        if (!w.address) continue;
+        const net = w.network ?? "Ethereum";
+        const k = ethBalanceKey(w.address, net);
+        carteiras[`eth:${w.address.toLowerCase()}:${net}`] = { nome: nomeDe(w, net), simbolo: nativeSymbolOf(net), saldo: ethBalanceErrors[k] ? null : num(ethBalancesByKey[k]) };
+      }
+      const nativas: Array<[StoredWalletEntry[], Record<string, string>, Record<string, string | null>, string, string]> = [
+        [solWallets, solBalancesByAddress, solBalanceErrors, "sol", "SOL"],
+        [btcWallets, btcBalancesByAddress, btcBalanceErrors, "btc", "BTC"],
+        [adaWallets, adaBalancesByAddress, adaBalanceErrors, "ada", "ADA"],
+      ];
+      for (const [lista, saldos, erros, tipo, simbolo] of nativas) {
+        for (const w of lista) {
+          if (!w.address) continue;
+          const net = w.network ?? simbolo;
+          carteiras[`${tipo}:${w.address}:${net}`] = { nome: nomeDe(w, net), simbolo, saldo: erros[w.address] ? null : num(saldos[w.address]) };
+        }
+      }
+      const etiqueta = (addr: string) => {
+        const w = [...ethWallets, ...solWallets, ...btcWallets, ...adaWallets].find((x) => x.address?.toLowerCase() === addr.toLowerCase());
+        return w?.label || curto(addr);
+      };
+      const tokens: Foto["tokens"] = {};
+      for (const [k, lista] of Object.entries(coldTokensByAddr)) {
+        const addr = k.slice(k.indexOf(":") + 1);
+        if (coldTokensError[k]) { tokens[k] = { nome: etiqueta(addr), saldos: null }; continue; }
+        const m: Record<string, number> = {};
+        for (const tk of lista) { const v = num(tk.balance); if (v && v > 0) m[tk.symbol.toUpperCase()] = (m[tk.symbol.toUpperCase()] ?? 0) + v; }
+        tokens[k] = { nome: etiqueta(addr), saldos: m };
+      }
+      const estaveis: Foto["estaveis"] = {};
+      for (const e of stablecoinEntries) {
+        const v = stablecoinBalances[e.id];
+        estaveis[e.id] = { nome: `${e.symbol} · ${curto(e.address)}`, simbolo: e.symbol, saldo: v === "—" ? null : num(v) };
+      }
+      const corretoras: Foto["corretoras"] = {};
+      for (const v of loadVenueHoldings()) {
+        const m: Record<string, number> = {};
+        for (const a of v.assets) if (a.qty > 0) m[a.asset.toUpperCase()] = (m[a.asset.toUpperCase()] ?? 0) + a.qty;
+        corretoras[`venue:${v.id}`] = { nome: `${VENUES.find((x) => x.id === v.venue)?.label ?? v.venue}${v.label ? ` · ${v.label}` : ""}`, saldos: m };
+      }
+      const manuais: Foto["manuais"] = {};
+      for (const [sym, h] of Object.entries(cryptoHoldings)) manuais[sym] = { qtd: num(h?.quantity), investido: num(h?.buyValue) };
+      const tradicionais: Foto["tradicionais"] = {};
+      for (const [idA, h] of Object.entries(traditionalHoldings)) {
+        const nome = [...traditionalAssets, ...customAssets].find((a) => a.id === idA)?.label ?? idA;
+        tradicionais[idA] = { nome, qtd: num(h?.quantity), investido: num(h?.buyValue) };
+      }
+      const defi: NonNullable<Foto["defi"]> = {};
+      const nfts: NonNullable<Foto["nfts"]> = {};
+      const chaves = new Set([...Object.keys(defiTotals), ...Object.keys(defiLoading), ...Object.keys(nftCounts), ...Object.keys(nftLoading)]);
+      for (const k of chaves) {
+        const addr = k.slice(0, k.indexOf(":"));
+        const nome = etiqueta(addr);
+        const okDefi = !defiLoading[k] && !defiErrors[k] && k in defiPosicoes;
+        defi[k] = {
+          nome,
+          posicoes: okDefi
+            ? Object.fromEntries((defiPosicoes[k] ?? []).map((p) => [`${p.protocolo ?? p.name}|${p.rede ?? ""}|${p.tokenId ?? p.name}`, { nome: `${p.protocolo ?? ""} ${p.par?.join("/") ?? p.name}`.trim(), estado: p.estado ?? "aberta" }]))
+            : null,
+        };
+        const okNft = !nftLoading[k] && !nftErrors[k] && typeof nftCounts[k] === "number";
+        const lista = nftsByKey[k] ?? [];
+        nfts[k] = {
+          nome,
+          total: okNft ? nftCounts[k] : null,
+          ids: okNft && lista.length === nftCounts[k] ? Object.fromEntries(lista.map((x) => [x.id, x.name || x.id])) : null,
+        };
+      }
+      registarFoto({ carteiras, tokens, estaveis, exchanges: saldosExchanges, corretoras, manuais, tradicionais, defi, nfts });
+    }, 4000);
+    return () => window.clearTimeout(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hidratado, ethWallets, solWallets, btcWallets, adaWallets, ethBalancesByKey, solBalancesByAddress, btcBalancesByAddress, adaBalancesByAddress,
+      ethBalancesLoading, solBalancesLoading, btcBalancesLoading, adaBalancesLoading, coldTokensByAddr, coldTokensLoading, stablecoinEntries,
+      stablecoinBalances, stablecoinBalancesLoading, cryptoHoldings, traditionalHoldings, defiPosicoes, defiLoading, nftCounts, nftLoading, saldosExchanges,
+      // Corretoras à mão (VenueSection) não têm estado aqui: o total muda quando elas mudam.
+      cexHlTotalUsd]);
+
   // Posições DeFi para o Portefólio: só com as leituras acabadas sem erro e só
   // quando mudaram (gravar a mesma lista com carimbo novo baralhava o merge
   // entre aparelhos).
@@ -3385,6 +3486,7 @@ export default function WalletsPage() {
         {isPro ? (
           <CexSection
             onTotalChange={setCexHlTotalUsd}
+            onSaldosChange={setSaldosExchanges}
             usdToEur={usdToEurRate}
             onAddColdWalletAddress={(addr, net, label) => addManualAddress(addr, net, label, "cold")}
             coldWalletNetworks={MANUAL_ADD_NETWORKS}
@@ -3398,6 +3500,9 @@ export default function WalletsPage() {
           <CexHardwareProAviso paymentsFrozen={paymentsFrozen} />
         )}
         </>)}
+        <div className="mt-8">
+          <HistoricoCarteiras />
+        </div>
       </div>
     </div>
     </AppShell>

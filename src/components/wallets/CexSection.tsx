@@ -99,6 +99,7 @@ function saveStored<T>(key: string, data: T[]) {
 
 export default function CexSection({
   onTotalChange,
+  onSaldosChange,
   usdToEur = 0.92,
   onAddColdWalletAddress,
   coldWalletNetworks = [],
@@ -109,6 +110,12 @@ export default function CexSection({
   onRetryTokens,
 }: {
   onTotalChange?: (usd: number) => void;
+  /**
+   * Saldos de cada conta (moeda → quantidade), para o histórico de
+   * movimentações. null enquanto alguma conta está a carregar ou a lista do
+   * servidor não chegou; uma conta com erro vai com saldos null.
+   */
+  onSaldosChange?: (contas: Record<string, { nome: string; saldos: Record<string, number> | null }> | null) => void;
   usdToEur?: number;
   onAddColdWalletAddress?: (address: string, networkId: string, label?: string) => string | null;
   coldWalletNetworks?: Array<{ id: string; label: string; group?: string }>;
@@ -145,6 +152,8 @@ export default function CexSection({
   const [newKey, setNewKey] = useState("");
   // Saldos manuais / importados (corretoras sem API). Entram no mesmo total.
   const [venueUsd, setVenueUsd] = useState(0);
+  // A lista do servidor já chegou? Sem ela não se sabe que contas existem.
+  const [servidorLido, setServidorLido] = useState(false);
   // Contas com as chaves no servidor (opcao da pessoa): lidas de /api/cex-keys.
   const [serverCex, setServerCex] = useState<ServerCex[]>([]);
   const [serverEnabled, setServerEnabled] = useState(false);
@@ -209,15 +218,37 @@ export default function CexSection({
   // Contas guardadas no servidor: lista + saldos em cache (o cron actualiza-os).
   const carregarServidor = () => {
     fetch("/api/cex-keys")
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => {
+        // Sem acesso (401/403/404) = não há contas no servidor; erro 5xx = não se sabe.
+        if (!r.ok) { if (r.status < 500) { setServerCex([]); setServidorLido(true); } return null; }
+        return r.json();
+      })
       .then((d: { enabled?: boolean; accounts?: ServerCex[] } | null) => {
         if (!d) return;
         setServerEnabled(!!d.enabled);
         setServerCex(d.accounts ?? []);
+        setServidorLido(true);
       })
       .catch(() => {});
   };
   useEffect(() => { carregarServidor(); }, []);
+
+  useEffect(() => {
+    if (!onSaldosChange) return;
+    if (!servidorLido || cexAccounts.some((a) => a.loading) || hlAccounts.some((a) => a.loading)) { onSaldosChange(null); return; }
+    const nomeEx = (id: string) => EXCHANGES.find((c) => c.id === id)?.label ?? id;
+    const soma = (lista: Array<{ asset: string; total: number }>) => {
+      const m: Record<string, number> = {};
+      for (const b of lista) if (b.total > 0) m[b.asset.toUpperCase()] = (m[b.asset.toUpperCase()] ?? 0) + b.total;
+      return m;
+    };
+    const out: Record<string, { nome: string; saldos: Record<string, number> | null }> = {};
+    for (const a of cexAccounts) out[`api:${a.id}`] = { nome: `${nomeEx(a.exchange)}${a.label ? ` · ${a.label}` : ""}`, saldos: a.error ? null : soma(a.balances) };
+    for (const a of serverCex) out[`srv:${a.id}`] = { nome: `${nomeEx(a.exchange)}${a.label ? ` · ${a.label}` : ""}`, saldos: a.balances ? soma(a.balances) : null };
+    for (const h of hlAccounts) out[`hl:${h.address.toLowerCase()}`] = { nome: `Hyperliquid · ${h.address.slice(0, 6)}…${h.address.slice(-4)}`, saldos: h.error ? null : soma(h.spotBalances.map((b) => ({ asset: b.coin, total: b.total }))) };
+    onSaldosChange(out);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [servidorLido, cexAccounts, hlAccounts, serverCex]);
 
   // "Saldo actualizado enquanto a app esta aberta": de 5 em 5 minutos e sempre
   // que a pessoa volta ao separador. As contas do servidor releem a cache (que
