@@ -173,8 +173,12 @@ export async function generateAiChat(
         const r = await callProvider("gemini", GEMINI_URL, geminiKey, model, messages, folga, opts.temperature, 30000, extra);
         if (r.ok && r.content) return r.content;
         if (!r.ok) lastStatus = r.status;
-        if (!r.ok && r.status === 404) { console.error(`[ai:gemini] modelo "${model}" indisponível — a tentar o próximo candidato`); break; }
-        if (!r.ok && r.status !== 400) { desistir = true; break; } // 401/403/429/5xx: não insistir, cair para o fornecedor seguinte
+        // 401/403: chave inválida, não vale a pena insistir. 400: repetir sem
+        // reasoning_effort. Tudo o resto (404 reformado, 429 quota, 503 "high
+        // demand" do escalão gratuito…): passar ao modelo seguinte.
+        if (!r.ok && (r.status === 401 || r.status === 403)) { desistir = true; break; }
+        if (!r.ok && r.status !== 400) { console.error(`[ai:gemini] modelo "${model}" falhou (${r.status}) — a tentar o próximo candidato`); break; }
+        if (r.ok) break; // respondeu vazio duas vezes: próximo modelo
       }
     }
   }

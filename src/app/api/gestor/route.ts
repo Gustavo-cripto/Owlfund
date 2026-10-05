@@ -356,28 +356,41 @@ export async function POST(req: NextRequest) {
     // secções de dados escolhidas pela pergunta → conhecimento da plataforma
     // só quando a pergunta é sobre o site.
     // Com orçamento largo (Gemini) o conhecimento do site vai sempre; no Groq só quando a pergunta é sobre o site.
-    const plataforma = temas.has("plataforma") || tetoTokensPedido() > 10_000 ? PLATFORM_KNOWLEDGE.slice(0, 6000) : "";
-    const base = getGestorSystem(locale, plataforma);
-    const fixo = `${base}\n\n${watchlistCtx}${nameDirective}${accountDirective}${langDirective}`;
-    const teto = tetoTokensPedido();
-    const orcamentoChars = (teto - MAX_TOKENS_RESPOSTA - 400) * 2.6;
-    const sobra = Math.max(2000, orcamentoChars - fixo.length);
-    const conversa = cortarHistorico(messages, Math.min(teto > 10_000 ? 14_000 : 5000, Math.floor(sobra / 3)), teto > 10_000 ? 3000 : 1500);
-    const usadoConversa = conversa.reduce((n, m) => n + m.content.length, 0);
-    const paraDados = Math.max(1500, sobra - usadoConversa);
     const seccoes = partirSeccoes(`${portfolioCtx}${historicoCtx}`);
-    const largo = teto > 10_000;
-    const dados = seccoes.length
-      ? selecionarSeccoes(seccoes, ultimaPergunta, paraDados, largo ? { maxTema: 9000, maxNucleo: 4000, maxResto: 2500, incluirResto: true } : undefined)
-      : portfolioCtx;
-    const systemPrompt = `${base}\n\n${dados}${watchlistCtx}${nameDirective}${accountDirective}${langDirective}`;
-    const mensagensLlm: ChatMessage[] = [{ role: "system", content: systemPrompt }, ...conversa];
-    const tokensEstimados = mensagensLlm.reduce((n, m) => n + estimarTokens(m.content), 0);
-    if (tokensEstimados + MAX_TOKENS_RESPOSTA > teto) {
-      console.warn(`[gestor] pedido estimado em ${tokensEstimados} tokens de entrada (teto ${teto})`);
-    }
+    const montarPedido = (teto: number): { mensagens: ChatMessage[]; tokens: number } => {
+      const largo = teto > 10_000;
+      const plataforma = temas.has("plataforma") || largo ? PLATFORM_KNOWLEDGE.slice(0, 6000) : "";
+      const base = getGestorSystem(locale, plataforma);
+      const fixo = `${base}\n\n${watchlistCtx}${nameDirective}${accountDirective}${langDirective}`;
+      const orcamentoChars = (teto - MAX_TOKENS_RESPOSTA - 400) * 2.6;
+      const sobra = Math.max(2000, orcamentoChars - fixo.length);
+      const conversa = cortarHistorico(messages, Math.min(largo ? 14_000 : 5000, Math.floor(sobra / 3)), largo ? 3000 : 1500);
+      const usadoConversa = conversa.reduce((n, m) => n + m.content.length, 0);
+      const paraDados = Math.max(1500, sobra - usadoConversa);
+      const dados = seccoes.length
+        ? selecionarSeccoes(seccoes, ultimaPergunta, paraDados, largo ? { maxTema: 9000, maxNucleo: 4000, maxResto: 2500, incluirResto: true } : undefined)
+        : portfolioCtx;
+      const systemPrompt = `${base}\n\n${dados}${watchlistCtx}${nameDirective}${accountDirective}${langDirective}`;
+      const mensagens: ChatMessage[] = [{ role: "system", content: systemPrompt }, ...conversa];
+      const tokens = mensagens.reduce((n, m) => n + estimarTokens(m.content), 0);
+      if (tokens + MAX_TOKENS_RESPOSTA > teto) console.warn(`[gestor] pedido estimado em ${tokens} tokens de entrada (teto ${teto})`);
+      return { mensagens, tokens };
+    };
 
-    const reply = await callLLM(mensagensLlm, tokensEstimados);
+    const teto = tetoTokensPedido();
+    let reply: string;
+    try {
+      const pedido = montarPedido(teto);
+      reply = await callLLM(pedido.mensagens, pedido.tokens);
+    } catch (e) {
+      // O pedido largo só o Gemini aceita; se o Gemini falhar (503 "high demand"
+      // do escalão gratuito, quota…), refaz-se o pedido no tamanho do Groq em
+      // vez de devolver erro ao utilizador.
+      if (teto <= groqTokenLimit() || !(process.env.GROQ_API_KEY ?? "").trim()) throw e;
+      console.warn(`[gestor] pedido largo falhou (${errorStatus(e) ?? "?"}); a repetir no tamanho do Groq`);
+      const pedido = montarPedido(groqTokenLimit());
+      reply = await callLLM(pedido.mensagens, pedido.tokens);
+    }
 
     return NextResponse.json({ reply });
   } catch (err) {
