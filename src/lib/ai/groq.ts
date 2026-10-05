@@ -66,7 +66,17 @@ export class AiError extends Error {
   }
 }
 
-export type ChatMessage = { role: "user" | "system" | "assistant"; content: string };
+export type ToolCall = { id: string; type: "function"; function: { name: string; arguments: string } };
+export type ChatMessage = {
+  role: "user" | "system" | "assistant" | "tool";
+  content: string;
+  /** Pedidos de ferramenta feitos pelo modelo (mensagem assistant). */
+  tool_calls?: ToolCall[];
+  /** Resposta a um pedido de ferramenta (mensagem tool). */
+  tool_call_id?: string;
+};
+/** Definição de ferramenta no formato OpenAI (function calling). */
+export type ToolDef = { type: "function"; function: { name: string; description: string; parameters: Record<string, unknown> } };
 
 type ProviderResult =
   | { ok: true; content: string }
@@ -224,12 +234,12 @@ export async function generateAiChat(
 // ── Streaming ────────────────────────────────────────────────────────────────
 
 /** Abre um pedido em streaming; só devolve ok depois de o fornecedor aceitar (status 2xx). */
-async function abrirStream(t: Tentativa, messages: ChatMessage[], temperature: number): Promise<{ ok: true; body: ReadableStream<Uint8Array> } | { ok: false; status: number }> {
+async function abrirStream(t: Tentativa, messages: ChatMessage[], temperature: number, tools?: ToolDef[]): Promise<{ ok: true; body: ReadableStream<Uint8Array> } | { ok: false; status: number }> {
   try {
     const res = await fetch(t.url, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${t.key}` },
-      body: JSON.stringify({ model: t.model, temperature, max_tokens: t.maxTokens, messages, stream: true, ...t.extra }),
+      body: JSON.stringify({ model: t.model, temperature, max_tokens: t.maxTokens, messages, stream: true, ...(tools?.length ? { tools, tool_choice: "auto" } : {}), ...t.extra }),
       // Cobre a ligação E a leitura do corpo (o maxDuration da rota é 60 s).
       signal: AbortSignal.timeout(Math.max(t.timeoutMs, 55000)),
     });
@@ -269,22 +279,56 @@ export function sseParaTexto(body: ReadableStream<Uint8Array>): ReadableStream<s
   }));
 }
 
+/** Evento de um stream OpenAI: pedaço de texto ou pedaço de um pedido de ferramenta. */
+export type EventoSse =
+  | { tipo: "texto"; texto: string }
+  | { tipo: "tool"; index: number; id?: string; name?: string; args?: string };
+
+/** Como sseParaTexto, mas conserva também os deltas de tool_calls (function calling). */
+export function sseParaEventos(body: ReadableStream<Uint8Array>): ReadableStream<EventoSse> {
+  const decoder = new TextDecoder();
+  let resto = "";
+  type Delta = { content?: string | null; tool_calls?: Array<{ index?: number; id?: string; function?: { name?: string; arguments?: string } }> };
+  return body.pipeThrough(new TransformStream<Uint8Array, EventoSse>({
+    transform(chunk, controller) {
+      resto += decoder.decode(chunk, { stream: true });
+      const linhas = resto.split("\n");
+      resto = linhas.pop() ?? "";
+      for (const linha of linhas) {
+        const l = linha.trim();
+        if (!l.startsWith("data:")) continue;
+        const data = l.slice(5).trim();
+        if (!data || data === "[DONE]") continue;
+        try {
+          const j = JSON.parse(data) as { choices?: Array<{ delta?: Delta }> };
+          const d = j.choices?.[0]?.delta;
+          if (d?.content) controller.enqueue({ tipo: "texto", texto: d.content });
+          for (const tc of d?.tool_calls ?? []) {
+            controller.enqueue({ tipo: "tool", index: tc.index ?? 0, id: tc.id, name: tc.function?.name, args: tc.function?.arguments });
+          }
+        } catch { /* linha incompleta ou keep-alive */ }
+      }
+    },
+  }));
+}
+
 /**
- * Como generateAiChat, mas devolve um stream de texto assim que um fornecedor
+ * Como generateAiChat, mas devolve um stream de eventos assim que um fornecedor
  * aceita o pedido. O fallback entre fornecedores só é possível ANTES do
  * primeiro byte: um stream que comece e morra a meio chega ao chamador como
- * fim de stream (ele deve tratar texto vazio como erro).
+ * fim de stream (ele deve tratar texto vazio como erro). Com `tools`, o modelo
+ * pode responder com pedidos de ferramenta em vez de texto.
  */
 export async function generateAiChatStream(
   messages: ChatMessage[],
-  opts: { maxTokens: number; temperature: number; tokensEntrada?: number },
-): Promise<{ stream: ReadableStream<string>; provider: string; model: string }> {
+  opts: { maxTokens: number; temperature: number; tokensEntrada?: number; tools?: ToolDef[] },
+): Promise<{ eventos: ReadableStream<EventoSse>; provider: string; model: string }> {
   const plano = planoDeTentativas(opts);
   let passo = plano.next();
   while (!passo.done) {
     const t = passo.value;
-    const r = await abrirStream(t, messages, opts.temperature);
-    if (r.ok) return { stream: sseParaTexto(r.body), provider: t.label, model: t.model };
+    const r = await abrirStream(t, messages, opts.temperature, opts.tools);
+    if (r.ok) return { eventos: sseParaEventos(r.body), provider: t.label, model: t.model };
     passo = plano.next({ ok: false, status: r.status });
   }
   throw new AiError(passo.value ?? 502, "Todos os providers de IA falharam");

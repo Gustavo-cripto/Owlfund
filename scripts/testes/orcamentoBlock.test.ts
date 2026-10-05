@@ -59,3 +59,12 @@ ok("ordem cronológica mantida", h.every((m, i) => i === 0 || Number(m.content.s
 ok("estimativa de tokens conservadora", estimarTokens("x".repeat(2600)) === 1000);
 
 if (fails) { console.log(`\n${fails} teste(s) falhados`); process.exit(1); }
+
+// ── Catálogo para as ferramentas ──
+import { catalogoSeccoes, chaveDaSeccao } from "@/lib/ai/orcamentoBlock";
+{
+  const cat = catalogoSeccoes(secs);
+  ok("catálogo: chaves curtas por secção", [...cat.keys()].join(",") === "portefolio,carteiras,defi,nfts,fire,historico,baleias", [...cat.keys()].join(","));
+  ok("catálogo: corpo da secção acessível", cat.get("defi")!.corpo.includes("Uniswap"));
+  ok("chave desconhecida → null", chaveDaSeccao("QUALQUER COISA") === null);
+}

@@ -143,3 +143,24 @@ export function cortarHistorico<T extends { role: string; content: string }>(
   }
   return out;
 }
+
+// ── Catálogo para as ferramentas do Block ───────────────────────────────────
+// Chave curta e estável por secção (o modelo pede "defi", não o título inteiro).
+const CHAVE_DA_SECCAO: Array<[RegExp, string]> = [
+  [/^PORTEF[ÓO]LIO/i, "portefolio"], [/^O QUE SEI/i, "memoria"], [/^CARTEIRAS ON-CHAIN/i, "carteiras"], [/^EXCHANGES/i, "exchanges"],
+  [/^POSI[ÇC][ÕO]ES DEFI/i, "defi"], [/^NFT/i, "nfts"], [/^CRIPTO REGISTADA/i, "cripto_manual"], [/^STABLECOINS/i, "stablecoins"],
+  [/^MERCADO TRADICIONAL/i, "tradicional"], [/^TRANSA/i, "transacoes"], [/^MOVIMENTOS/i, "movimentos"], [/^PLANO FIRE/i, "fire"],
+  [/^HIST[ÓO]RICO DO PORTEF/i, "historico"], [/^PONTUA/i, "pontuacao"], [/^FISCALIDADE/i, "fiscalidade"], [/^BALEIAS/i, "baleias"],
+  [/^MERCADO AGORA/i, "mercado"],
+];
+export const chaveDaSeccao = (titulo: string): string | null => CHAVE_DA_SECCAO.find(([re]) => re.test(titulo))?.[1] ?? null;
+
+/** Secções existentes, por chave (a primeira de cada chave ganha). */
+export function catalogoSeccoes(seccoes: Seccao[]): Map<string, Seccao> {
+  const out = new Map<string, Seccao>();
+  for (const s of seccoes) {
+    const chave = chaveDaSeccao(s.titulo);
+    if (chave && !out.has(chave)) out.set(chave, s);
+  }
+  return out;
+}
