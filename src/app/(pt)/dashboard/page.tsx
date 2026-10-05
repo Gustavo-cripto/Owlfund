@@ -9,6 +9,8 @@ import PageSkeleton from "@/components/PageSkeleton";
 import PlanBadge from "@/components/PlanBadge";
 import PnlSummaryCard from "@/components/PnlSummaryCard";
 import FirstSteps from "@/components/FirstSteps";
+import { ativarExemplo } from "@/lib/demo/exemplo";
+import { marcarEvento } from "@/lib/analytics/eventos";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { loadWalletSnapshot, type WalletSnapshot } from "@/lib/wallets/storage";
 import { loadCryptoHoldings, loadStablecoinEntries } from "@/lib/crypto/storage";
@@ -61,6 +63,7 @@ export default function DashboardPage() {
   const [pnlToday, setPnlToday] = useState(0);
   const [pnl30d, setPnl30d] = useState(0);
   const [pnlDaily7d, setPnlDaily7d] = useState(0);
+  const [exemploACarregar, setExemploACarregar] = useState(false);
   const [hasWallets, setHasWallets] = useState(false);
   const [currentTotal, setCurrentTotal] = useState(0);
   const [isPnlLoading, setIsPnlLoading] = useState(true);
@@ -388,9 +391,16 @@ export default function DashboardPage() {
                     <p className="text-sm font-semibold text-white">{t("dash_no_wallets")}</p>
                     <p className="text-xs text-slate-400 mt-0.5">{t("dash_no_wallets_desc")}</p>
                   </div>
-                  <Link href="/wallets" className={`${btnPrimary} px-4 py-2 text-xs`}>
-                    {t("dash_connect_wallets")}
-                  </Link>
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    <Link href="/wallets" className={`${btnPrimary} px-4 py-2 text-xs`}>
+                      {t("dash_connect_wallets")}
+                    </Link>
+                    <button type="button" disabled={exemploACarregar}
+                      onClick={async () => { setExemploACarregar(true); marcarEvento("exemplo"); if (await ativarExemplo()) window.location.reload(); else setExemploACarregar(false); }}
+                      className="rounded-xl border border-sky-500/40 px-4 py-2 text-xs font-semibold text-sky-200 transition hover:border-sky-400 hover:text-white disabled:opacity-60">
+                      {exemploACarregar ? t("ex_loading") : `🧪 ${t("ex_cta")}`}
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <PnlSummaryCard

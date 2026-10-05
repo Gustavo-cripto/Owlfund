@@ -6,8 +6,8 @@ export type StoredWalletEntry = {
   balance?: string;
   network?: string;
   label?: string;
-  /** Origem da adição. "cold" = adicionado via card Ledger/Trezor. */
-  source?: "cold" | "manual";
+  /** Origem da adição. "cold" = adicionado via card Ledger/Trezor; "demo" = modo de exemplo (src/lib/demo/exemplo.ts). */
+  source?: "cold" | "manual" | "demo";
 };
 
 export type WalletSnapshot = {

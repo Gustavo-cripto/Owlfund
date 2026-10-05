@@ -8,7 +8,7 @@
 export const PREFIXO_EVENTO = "/_ev/";
 
 /** Nomes aceites. Tudo o resto e ignorado (a rota e publica). */
-export const EVENTOS = ["experimentar", "registo"] as const;
+export const EVENTOS = ["experimentar", "registo", "exemplo"] as const;
 export type Evento = (typeof EVENTOS)[number];
 export const eEvento = (x: unknown): x is Evento => typeof x === "string" && (EVENTOS as readonly string[]).includes(x);
 

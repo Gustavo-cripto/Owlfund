@@ -23,6 +23,7 @@ import { loadWalletSnapshot, updateWalletSnapshot, type StoredWalletEntry, type 
 import { pushWalletCloud, pullWalletCloud } from "@/lib/portfolios/cloudSync";
 import { getActiveAccountId, listAccounts } from "@/lib/portfolios/accounts";
 import ChatMarkdown from "@/components/ChatMarkdown";
+import { exemploAtivo } from "@/lib/demo/exemplo";
 import { baseDaPosicao, daConta } from "@/lib/portfolio/posicao";
 import { getEvmBalance } from "@/lib/wallets/evm";
 import { getSolBalance } from "@/lib/wallets/solana";
@@ -611,6 +612,8 @@ export default function PortfolioPage() {
   const handleSaveSnapshot = async (silent = false) => {
     if (!userId) return;
     if (!silent) setSaveMessage(null);
+    // Carteiras de exemplo não são do utilizador: nunca entram no histórico.
+    if (exemploAtivo()) { if (!silent) setSaveMessage({ ok: false, text: t("ex_no_snapshot") }); return; }
 
     const snapshot = loadWalletSnapshot();
     // Guardamos o total EUR e o benchmark do momento dentro de data, para que o
