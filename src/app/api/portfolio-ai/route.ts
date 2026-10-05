@@ -38,6 +38,8 @@ type Body = {
   context: PortfolioContext;
   nickname?: string;
   accountId?: string;
+  /** Conversa anterior (até 8 mensagens): a análise passou a ter memória da sessão. */
+  history?: Array<{ role: "user" | "assistant"; content: string }>;
 };
 
 function buildSystemPrompt(ctx: PortfolioContext, nickname = "", historico: string | null = null): string {
@@ -88,15 +90,16 @@ INSTRUÇÕES:
 - Nunca uses LaTeX (\\[, \\(, \\frac, \\text…): não é renderizado. Fórmulas em texto simples.
 ${NO_ADVICE_RULE}
 - Se faltarem dados, diz o que precisas.
-- Máximo 3 parágrafos curtos por resposta.`;
+- Máximo 3 parágrafos curtos por resposta. Usa markdown simples (negrito, listas; tabelas só para dados).
+- É uma conversa: podes referir-te às perguntas e respostas anteriores sem as repetir.`;
 }
 
 // A mesma cadeia Groq → Gemini → OpenAI → xAI de src/lib/ai/groq.ts (antes
 // tinha aqui uma cópia sem Gemini e sem os candidatos de modelo).
-async function callAI(system: string, question: string): Promise<string> {
+async function callAI(system: string, question: string, history: Array<{ role: "user" | "assistant"; content: string }> = []): Promise<string> {
   return generateAiChat(
-    [{ role: "system", content: system }, { role: "user", content: question }],
-    { maxTokens: 500, temperature: 0.5 },
+    [{ role: "system", content: system }, ...history, { role: "user", content: question }],
+    { maxTokens: 700, temperature: 0.5 },
   );
 }
 
@@ -131,6 +134,11 @@ export async function POST(request: Request) {
   }
 
   const { question, context, nickname, accountId } = body ?? {};
+  // Histórico: papéis forçados (o cliente não injeta "system"), tamanho limitado.
+  const history = (Array.isArray(body?.history) ? body!.history : [])
+    .filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
+    .slice(-8)
+    .map((m) => ({ role: m.role, content: m.content.slice(0, 2500) }));
   if (!question?.trim()) {
     return NextResponse.json({ error: "Pergunta obrigatória." }, { status: 400 });
   }
@@ -146,7 +154,7 @@ export async function POST(request: Request) {
       totalAtual: typeof context.totalEur === "number" ? context.totalEur : null,
     });
     const system = buildSystemPrompt(context, typeof nickname === "string" ? nickname.trim().slice(0, 40) : "", historico);
-    const reply = await callAI(system, question.trim());
+    const reply = await callAI(system, question.trim(), history);
     return NextResponse.json({
       reply,
       usage: quota.free ? { count: quota.count, limit: quota.limit } : undefined,

@@ -354,9 +354,11 @@ export default function PortfolioPage() {
 
   // IA contextual
   const [aiQuestion, setAiQuestion] = useState("");
-  const [aiReply, setAiReply] = useState<string | null>(null);
+  // Conversa da sessão (não persiste): cada pergunta leva as anteriores.
+  const [aiThread, setAiThread] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const aiEndRef = useRef<HTMLDivElement | null>(null);
   const [portfolioNote, setPortfolioNote] = useState("");
   const [snapshotCexUsd, setSnapshotCexUsd] = useState(0);
   const [snapshotDefiUsd, setSnapshotDefiUsd] = useState(0);
@@ -663,10 +665,11 @@ export default function PortfolioPage() {
   const askAi = async (question: string) => {
     const q = question.trim();
     if (!q || aiLoading) return;
-    setAiQuestion(q);
+    setAiQuestion("");
     setAiLoading(true);
-    setAiReply(null);
     setAiError(null);
+    const anteriores = aiThread.slice(-8);
+    setAiThread((prev) => [...prev, { role: "user", content: q }]);
     try {
       const context = {
         totalEur: portfolioTotal,
@@ -684,7 +687,7 @@ export default function PortfolioPage() {
       const res = await fetch("/api/portfolio-ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: q, context, nickname: loadNickname() || undefined, accountId: getActiveAccountId() }),
+        body: JSON.stringify({ question: q, context, nickname: loadNickname() || undefined, accountId: getActiveAccountId(), history: anteriores }),
       });
       const data = (await res.json()) as { reply?: string; error?: string; code?: string; limit?: number };
       if (!res.ok || data.error) {
@@ -695,11 +698,16 @@ export default function PortfolioPage() {
               ? t("pf_ai_unavailable")
               : data.error ?? t("pf_error"),
         );
+        setAiThread((prev) => prev.slice(0, -1)); // a pergunta sem resposta sai da conversa
+        setAiQuestion(q);
         return;
       }
-      setAiReply(data.reply ?? "");
+      setAiThread((prev) => [...prev, { role: "assistant", content: data.reply ?? "" }]);
+      requestAnimationFrame(() => aiEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
     } catch (err) {
       setAiError(userError(err, t("pf_error")));
+      setAiThread((prev) => prev.slice(0, -1));
+      setAiQuestion(q);
     } finally {
       setAiLoading(false);
     }
@@ -2562,17 +2570,27 @@ export default function PortfolioPage() {
             </button>
           </div>
 
-          {aiLoading && (
-            <p className="mt-3 text-xs text-slate-500 dark:text-slate-400 animate-pulse">{t("pf_analyzing")}</p>
+          {aiThread.length > 0 && (
+            <div className="keep-dark mt-4 space-y-3 rounded-xl border border-slate-800 bg-slate-900 p-4 text-slate-200">
+              {aiThread.map((m, i) => m.role === "user"
+                ? <p key={i} className="rounded-xl bg-orange-500/15 px-3 py-2 text-sm text-orange-100">{m.content}</p>
+                : (
+                  <div key={i}>
+                    <p className="flex items-center gap-1.5 text-xs text-orange-300/80 font-semibold mb-1"><img src="/chainfolioai-icon-128.webp" alt="" className="h-4 w-4 rounded-full object-cover" /> ChainFolioAI — {t("pfu_ai_assistant")}</p>
+                    <ChatMarkdown content={m.content} labels={{ copy: t("dev_copy"), copied: t("dev_copied"), downloadCsv: t("gz_download_csv") }} />
+                  </div>
+                ))}
+              {aiLoading && <p className="text-xs text-slate-400 animate-pulse">{t("pf_analyzing")}</p>}
+              <div ref={aiEndRef} />
+              {!aiLoading && (
+                <button type="button" onClick={() => { setAiThread([]); setAiError(null); }} className="text-[11px] text-slate-500 hover:text-slate-300">
+                  {t("gz_clear")}
+                </button>
+              )}
+            </div>
           )}
           {aiError && (
             <ErrorNote className="mt-3">{aiError}</ErrorNote>
-          )}
-          {aiReply && (
-            <div className="keep-dark mt-4 rounded-xl border border-slate-800 bg-slate-900 p-4 text-slate-200">
-              <p className="flex items-center gap-1.5 text-xs text-orange-300/80 font-semibold mb-2"><img src="/chainfolioai-icon-128.webp" alt="" className="h-4 w-4 rounded-full object-cover" /> ChainFolioAI — {t("pfu_ai_assistant")}</p>
-              <div><ChatMarkdown content={aiReply} labels={{ copy: t("dev_copy"), copied: t("dev_copied"), downloadCsv: t("gz_download_csv") }} /></div>
-            </div>
           )}
         </section>
 
