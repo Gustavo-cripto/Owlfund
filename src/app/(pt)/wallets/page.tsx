@@ -2279,7 +2279,8 @@ export default function WalletsPage() {
     // escrito a partir delas (o estado do React só muda no render seguinte).
     const semDemo = (l: StoredWalletEntry[]) => l.filter((w) => w.source !== "demo");
     const ethBase = semDemo(ethWallets), solBase = semDemo(solWallets), btcBase = semDemo(btcWallets), adaBase = semDemo(adaWallets);
-    if (exemploAtivo()) { removerExemplo(); setEthWallets(ethBase); setSolWallets(solBase); setBtcWallets(btcBase); }
+    // Só depois de a validação do ramo passar (um endereço com gralha não pode apagar o exemplo).
+    const limparExemplo = () => { if (exemploAtivo()) { removerExemplo(); setEthWallets(ethBase); setSolWallets(solBase); setBtcWallets(btcBase); } };
     const reais = ethBase.length + solBase.length + btcBase.length + adaBase.length;
     if (!isPro && reais >= FREE_WALLET_LIMIT) {
       return `${t("wl_free_limit_1")} ${FREE_WALLET_LIMIT} ${t("wl_free_limit_2")}`;
@@ -2294,6 +2295,7 @@ export default function WalletsPage() {
     const evmNetwork = MANUAL_ADD_TO_EVM_NETWORK[networkId];
     if (evmNetwork) {
       if (!isEvmAddress(trimmed)) return t("wl_invalid_evm");
+      limparExemplo();
       const nextWallets = upsertWallet(
         ethBase,
         { address: trimmed, network: evmNetwork, label, source },
@@ -2304,6 +2306,7 @@ export default function WalletsPage() {
       void fetchEthBalanceForEntry(trimmed, evmNetwork);
     } else if (MANUAL_ADD_TO_SOL_NETWORK[networkId]) {
       if (!isSolAddress(trimmed)) return t("wl_invalid_sol");
+      limparExemplo();
       const solNetwork = MANUAL_ADD_TO_SOL_NETWORK[networkId];
       const nextWallets = upsertWallet(
         solBase,
@@ -2315,6 +2318,7 @@ export default function WalletsPage() {
       void fetchSolBalanceForAddress(trimmed);
     } else if (networkId === "btc") {
       if (!isBtcAddress(trimmed)) return t("wl_invalid_btc");
+      limparExemplo();
       const nextWallets = upsertWallet(
         btcBase,
         { address: trimmed, network: "Bitcoin", label, source },
@@ -2325,6 +2329,7 @@ export default function WalletsPage() {
       void fetchBtcBalanceForAddress(trimmed);
     } else if (networkId === "ada") {
       if (!isAdaAddress(trimmed)) return t("wl_invalid_ada");
+      limparExemplo();
       const nextWallets = upsertWallet(
         adaBase,
         { address: trimmed, network: "Cardano", label, source },
@@ -2336,6 +2341,7 @@ export default function WalletsPage() {
     } else {
       // Other networks: store address without balance (tracking only)
       if (trimmed.length < 6) return t("wl_addr_short");
+      limparExemplo();
       const networkLabel = MANUAL_ADD_NETWORKS.find((n) => n.id === networkId)?.label ?? networkId.toUpperCase();
       const entry: StoredWalletEntry = { address: trimmed, network: networkLabel, label, source };
       const nextWallets = upsertWallet(

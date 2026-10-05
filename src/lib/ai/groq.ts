@@ -234,14 +234,16 @@ export async function generateAiChat(
 // ── Streaming ────────────────────────────────────────────────────────────────
 
 /** Abre um pedido em streaming; só devolve ok depois de o fornecedor aceitar (status 2xx). */
-async function abrirStream(t: Tentativa, messages: ChatMessage[], temperature: number, tools?: ToolDef[]): Promise<{ ok: true; body: ReadableStream<Uint8Array> } | { ok: false; status: number }> {
+async function abrirStream(t: Tentativa, messages: ChatMessage[], temperature: number, tools?: ToolDef[], prazo?: number): Promise<{ ok: true; body: ReadableStream<Uint8Array> } | { ok: false; status: number }> {
   try {
+    // Cobre a ligação E a leitura do corpo. Com `prazo` (ms absolutos) o
+    // tempo é o que falta até lá — a rota tem 60 s para tudo, rondas incluídas.
+    const restante = prazo ? Math.max(1000, prazo - Date.now()) : 55000;
     const res = await fetch(t.url, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${t.key}` },
       body: JSON.stringify({ model: t.model, temperature, max_tokens: t.maxTokens, messages, stream: true, ...(tools?.length ? { tools, tool_choice: "auto" } : {}), ...t.extra }),
-      // Cobre a ligação E a leitura do corpo (o maxDuration da rota é 60 s).
-      signal: AbortSignal.timeout(Math.max(t.timeoutMs, 55000)),
+      signal: AbortSignal.timeout(Math.min(Math.max(t.timeoutMs, 55000), restante)),
     });
     if (!res.ok || !res.body) {
       const raw = await res.text().catch(() => "");
@@ -321,13 +323,13 @@ export function sseParaEventos(body: ReadableStream<Uint8Array>): ReadableStream
  */
 export async function generateAiChatStream(
   messages: ChatMessage[],
-  opts: { maxTokens: number; temperature: number; tokensEntrada?: number; tools?: ToolDef[] },
+  opts: { maxTokens: number; temperature: number; tokensEntrada?: number; tools?: ToolDef[]; /** Instante (ms) até ao qual tudo tem de estar lido. */ prazo?: number },
 ): Promise<{ eventos: ReadableStream<EventoSse>; provider: string; model: string }> {
   const plano = planoDeTentativas(opts);
   let passo = plano.next();
   while (!passo.done) {
     const t = passo.value;
-    const r = await abrirStream(t, messages, opts.temperature, opts.tools);
+    const r = await abrirStream(t, messages, opts.temperature, opts.tools, opts.prazo);
     if (r.ok) return { eventos: sseParaEventos(r.body), provider: t.label, model: t.model };
     passo = plano.next({ ok: false, status: r.status });
   }

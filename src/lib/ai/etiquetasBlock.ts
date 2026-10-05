@@ -8,12 +8,21 @@ export type Etiquetas = { texto: string; lembrar: string[]; sugestoes: string[] 
 
 const limpar = (s: string) => s.replace(/\s+/g, " ").trim();
 
+// Uma nota é um facto sobre o utilizador, nunca uma instrução. Se o modelo
+// (ou um texto malicioso num nome de token) tentar guardar "ignora as regras",
+// a nota é recusada aqui — no servidor, antes de chegar ao browser.
+const PARECE_INSTRUCAO = /\b(ignor\w*|instru\w*|instruction\w*|regra\w*|rules?|prompt\w*|sistema|system|block|assistente|assistant|recomend\w*|recommend\w*|aconselh\w*|compra\w*|vend\w*|buy|sell)\b/i;
+export function notaAceitavel(texto: string): boolean {
+  const t = limpar(texto);
+  return t.length >= 8 && t.length <= 200 && !PARECE_INSTRUCAO.test(t) && !/[<>{}]/.test(t);
+}
+
 export function extrairEtiquetas(resposta: string): Etiquetas {
   let texto = resposta;
   const lembrar: string[] = [];
   texto = texto.replace(/<lembrar>([\s\S]*?)<\/lembrar>/gi, (_m, f: string) => {
     const t = limpar(f);
-    if (t && t.length <= 200 && lembrar.length < 2) lembrar.push(t);
+    if (notaAceitavel(t) && lembrar.length < 2) lembrar.push(t);
     return "";
   });
   const sugestoes: string[] = [];

@@ -16,16 +16,17 @@ function CartaoFunil({ f }: { f: Funil }) {
   const soma = (xs: Array<number | null>) => (xs.every((x) => x == null) ? null : xs.reduce<number>((n, x) => n + (x ?? 0), 0));
   const linhas: Array<{ k: string; label: string; v: (e: Etapas) => number | null }> = [
     { k: "paginaInicial", label: "Visitas à página inicial", v: (e) => e.paginaInicial },
-    { k: "cta", label: "Clicaram num botão da inicial (hero · planos · final · demo)", v: (e) => soma([e.cta?.hero ?? null, e.cta?.planos ?? null, e.cta?.final ?? null, e.cta?.demo ?? null]) },
+    { k: "cta", label: "Clicaram num botão da inicial (hero · planos · final · demonstração)", v: (e) => soma([e.cta?.hero ?? null, e.cta?.planos ?? null, e.cta?.final ?? null, e.cta?.demonstracaoInicial ?? null]) },
     { k: "experimentar", label: "Usaram «experimentar sem conta»", v: (e) => e.experimentar },
-    { k: "registo", label: "Submeteram registo (conta, ligação ou beta)", v: (e) => e.registo },
+    { k: "registo", label: "Submeteram registo ou entrada (formulário, link mágico, Google/Apple, carteira, beta)", v: (e) => e.registo },
     { k: "emailConfirmado", label: "Confirmaram o email", v: (e) => e.emailConfirmado ?? null },
     { k: "contas", label: "Contas criadas", v: (e) => e.contas },
     { k: "comCarteira", label: "Contas com pelo menos uma carteira", v: (e) => e.comCarteira },
-    { k: "exemplo", label: "Carregaram o modo de exemplo", v: (e) => e.exemplo ?? null },
+    { k: "modoExemploCliques", label: "Cliques em «Ver com dados de exemplo»", v: (e) => e.modoExemploCliques ?? null },
+    { k: "soComExemplo", label: "Contas só com carteiras de exemplo", v: (e) => e.soComExemplo ?? null },
   ];
   const pct = (a: number | null, b: number | null) => (a == null || b == null || b === 0 ? "" : `${Math.round((a / b) * 100)}%`);
-  const detalheCta = (e: Etapas) => e.cta ? `hero ${e.cta.hero ?? "—"} · planos ${e.cta.planos ?? "—"} · final ${e.cta.final ?? "—"} · demo ${e.cta.demo ?? "—"}` : "";
+  const detalheCta = (e: Etapas) => e.cta ? `hero ${e.cta.hero ?? "—"} · planos ${e.cta.planos ?? "—"} · final ${e.cta.final ?? "—"} · demonstração ${e.cta.demonstracaoInicial ?? "—"}` : "";
   return (
     <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
       <p className="text-sm font-semibold text-white">Funil (só pessoas)</p>

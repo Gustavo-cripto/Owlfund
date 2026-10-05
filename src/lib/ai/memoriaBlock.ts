@@ -6,6 +6,7 @@
 // pelo blob de sincronização (NAMESPACED_BASE_KEYS em accounts.ts).
 
 import { ALL_ACCOUNTS_ID, MEMORIA_BLOCK_BASE, getActiveAccountId, gravarSeMudou, readNamespaced } from "@/lib/portfolios/accounts";
+import { notaAceitavel } from "@/lib/ai/etiquetasBlock";
 
 export type NotaBlock = { id: string; texto: string; em: number };
 export type MemoriaBlock = { paisFiscal?: string; idade?: number; objetivos?: string; notas: NotaBlock[] };
@@ -45,7 +46,7 @@ export function adicionarNotas(textos: string[], em = Date.now()): MemoriaBlock 
   const existentes = new Set(m.notas.map((n) => n.texto.toLowerCase()));
   for (const t of textos) {
     const texto = t.trim();
-    if (!texto || existentes.has(texto.toLowerCase())) continue;
+    if (!notaAceitavel(texto) || existentes.has(texto.toLowerCase())) continue;
     m.notas.push({ id: `${em.toString(36)}-${Math.random().toString(36).slice(2, 6)}`, texto, em });
     existentes.add(texto.toLowerCase());
   }

@@ -569,8 +569,9 @@ export default function GestorPage() {
               </div>
             </div>
 
-            {/* Perfil do Block: o que ele deve saber de ti (país fiscal, idade, objetivos) + notas que aprendeu */}
-            <div className="px-3 pt-2 pb-2">
+            {/* Perfil do Block: o que ele deve saber de ti (país fiscal, idade, objetivos) + notas que aprendeu.
+                Na vista "Todas as contas" não há onde guardar: escolhe-se uma conta. */}
+            {acctId !== ALL_ACCOUNTS_ID && <div className="px-3 pt-2 pb-2">
               <button type="button" onClick={() => setPerfilAberto((v) => !v)} className="w-full flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-slate-500 hover:text-slate-300">
                 <span>{t("gz_perfil")}</span><span>{perfilAberto ? "▾" : "▸"}{memoria.notas.length ? ` · ${memoria.notas.length}` : ""}</span>
               </button>
@@ -612,7 +613,7 @@ export default function GestorPage() {
                   </div>
                 </div>
               )}
-            </div>
+            </div>}
 
             <div className="mt-auto p-3 border-t border-slate-800 space-y-1">
               {hasConversation && (
