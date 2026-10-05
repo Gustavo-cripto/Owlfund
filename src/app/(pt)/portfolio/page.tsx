@@ -22,6 +22,7 @@ import { createClient } from "@/lib/supabase/client";
 import { loadWalletSnapshot, updateWalletSnapshot, type StoredWalletEntry, type WalletSnapshot } from "@/lib/wallets/storage";
 import { pushWalletCloud, pullWalletCloud } from "@/lib/portfolios/cloudSync";
 import { getActiveAccountId, listAccounts } from "@/lib/portfolios/accounts";
+import ChatMarkdown from "@/components/ChatMarkdown";
 import { baseDaPosicao, daConta } from "@/lib/portfolio/posicao";
 import { getEvmBalance } from "@/lib/wallets/evm";
 import { getSolBalance } from "@/lib/wallets/solana";
@@ -683,7 +684,7 @@ export default function PortfolioPage() {
       const res = await fetch("/api/portfolio-ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: q, context, nickname: loadNickname() || undefined }),
+        body: JSON.stringify({ question: q, context, nickname: loadNickname() || undefined, accountId: getActiveAccountId() }),
       });
       const data = (await res.json()) as { reply?: string; error?: string; code?: string; limit?: number };
       if (!res.ok || data.error) {
@@ -2568,9 +2569,9 @@ export default function PortfolioPage() {
             <ErrorNote className="mt-3">{aiError}</ErrorNote>
           )}
           {aiReply && (
-            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900/80">
-              <p className="flex items-center gap-1.5 text-xs text-orange-500 dark:text-orange-300/80 font-semibold mb-2"><img src="/chainfolioai-icon-128.webp" alt="" className="h-4 w-4 rounded-full object-cover" /> ChainFolioAI — {t("pfu_ai_assistant")}</p>
-              <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">{aiReply}</p>
+            <div className="keep-dark mt-4 rounded-xl border border-slate-800 bg-slate-900 p-4 text-slate-200">
+              <p className="flex items-center gap-1.5 text-xs text-orange-300/80 font-semibold mb-2"><img src="/chainfolioai-icon-128.webp" alt="" className="h-4 w-4 rounded-full object-cover" /> ChainFolioAI — {t("pfu_ai_assistant")}</p>
+              <div><ChatMarkdown content={aiReply} labels={{ copy: t("dev_copy"), copied: t("dev_copied"), downloadCsv: t("gz_download_csv") }} /></div>
             </div>
           )}
         </section>

@@ -7,6 +7,7 @@ import { useConfirm } from "@/components/ConfirmDialog";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { createClient } from "@/lib/supabase/client";
 import { buildPortfolioSummary, type PortfolioCategory } from "@/lib/portfolio/summaryText";
+import { resumoCompletoBlock } from "@/lib/ai/resumoBlock";
 import { loadNickname } from "@/lib/user/nickname";
 import {
   ACCOUNTS_EVENT,
@@ -85,7 +86,7 @@ function getQuickActions(t: (k: TranslationKey) => string, locale: string) {
 
 
 export default function GestorPage() {
-  useRequireAuth();
+  const { userId } = useRequireAuth();
   const { t, lang } = useLanguage();
   const askConfirm = useConfirm();
   const { hideBalances, format: fmtCur } = useCurrencyFormat();
@@ -231,14 +232,16 @@ export default function GestorPage() {
       const history = [...messages, userMsg].slice(-14).map(m => ({ role: m.role, content: m.content }));
       const watchlist = loadWatchlist();
       let portfolioText: string | null = null;
+      let totalEur = 0;
       let accountEmpty = false;
       let portfolioError = false;
       try {
-        const summary = await buildPortfolioSummary();
-        portfolioText = summary.text;
+        const summary = await resumoCompletoBlock(userId ?? "", LOCALE_BY_LANG[lang] ?? "pt-PT");
+        portfolioText = summary.texto;
+        totalEur = summary.totalEur;
         // Conta ativa genuinamente vazia (não um erro de leitura): sem texto e
         // sem valor. O servidor usa isto para não cair no snapshot global.
-        accountEmpty = !summary.text && summary.totalEur <= 0;
+        accountEmpty = summary.vazio;
       } catch {
         portfolioText = null;
         accountEmpty = false;
@@ -247,7 +250,7 @@ export default function GestorPage() {
       const res = await fetch("/api/gestor", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-lang": lang },
-        body: JSON.stringify({ messages: history, watchlist, lang, portfolio: portfolioText ?? undefined, nickname: loadNickname() || undefined, accountName: acctName || undefined, accountCount: acctCount, accountEmpty, portfolioError }),
+        body: JSON.stringify({ messages: history, watchlist, lang, portfolio: portfolioText ?? undefined, nickname: loadNickname() || undefined, accountName: acctName || undefined, accountId: reqAcct || undefined, totalEur: totalEur > 0 ? totalEur : undefined, accountCount: acctCount, accountEmpty, portfolioError }),
       });
 
       if (!res.ok) {

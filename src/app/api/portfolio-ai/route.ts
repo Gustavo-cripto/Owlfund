@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { rateLimit, clientIp } from "@/lib/utils/rateLimit";
 import { quotaErrorResponse, releaseAiUsage, reserveAiUsage } from "@/lib/api/entitlement";
 import { NO_ADVICE_RULE } from "@/lib/ai/disclaimer";
+import { historicoParaIa } from "@/lib/ai/historicoPortefolio";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -36,9 +37,10 @@ type Body = {
   question: string;
   context: PortfolioContext;
   nickname?: string;
+  accountId?: string;
 };
 
-function buildSystemPrompt(ctx: PortfolioContext, nickname = ""): string {
+function buildSystemPrompt(ctx: PortfolioContext, nickname = "", historico: string | null = null): string {
   const fmt = (n: number) =>
     n.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const sign = (n: number) => (n >= 0 ? `+€ ${fmt(n)}` : `-€ ${fmt(Math.abs(n))}`);
@@ -76,12 +78,14 @@ MÉTRICAS AVANÇADAS:
 
 DISTRIBUIÇÃO DE ATIVOS:
 ${allocLines || "  Sem ativos registados"}
-
+${historico ? `\n${historico}\n` : ""}
 INSTRUÇÕES:
 - IDIOMA (regra crítica): Responde SEMPRE no mesmo idioma em que o utilizador escreveu a pergunta (inglês→inglês, espanhol→espanhol, francês→francês, português→PT-PT). Deteta o idioma da pergunta; não assumas português por defeito.
 - Responde de forma clara e objetiva.
 - Usa os dados reais acima para fundamentar as tuas respostas.
 - Quando perguntarem "porque caiu/subiu", analisa os ativos com maior peso.
+- Quando perguntarem QUANTO subiu/desceu num período, usa as variações já calculadas no HISTÓRICO DO PORTEFÓLIO (€ e %); nunca peças valores antigos ao utilizador. Sem fotografia para o período, diz desde quando há histórico e dá o mais próximo.
+- Nunca uses LaTeX (\\[, \\(, \\frac, \\text…): não é renderizado. Fórmulas em texto simples.
 ${NO_ADVICE_RULE}
 - Se faltarem dados, diz o que precisas.
 - Máximo 3 parágrafos curtos por resposta.`;
@@ -175,7 +179,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
   }
 
-  const { question, context, nickname } = body ?? {};
+  const { question, context, nickname, accountId } = body ?? {};
   if (!question?.trim()) {
     return NextResponse.json({ error: "Pergunta obrigatória." }, { status: 400 });
   }
@@ -184,7 +188,13 @@ export async function POST(request: Request) {
   }
 
   try {
-    const system = buildSystemPrompt(context, typeof nickname === "string" ? nickname.trim().slice(0, 40) : "");
+    const historico = await historicoParaIa({
+      userId: user.id,
+      plan: quota.plan,
+      accountId: typeof accountId === "string" ? accountId.trim().slice(0, 80) : "",
+      totalAtual: typeof context.totalEur === "number" ? context.totalEur : null,
+    });
+    const system = buildSystemPrompt(context, typeof nickname === "string" ? nickname.trim().slice(0, 40) : "", historico);
     const reply = await callAI(system, question.trim());
     return NextResponse.json({
       reply,

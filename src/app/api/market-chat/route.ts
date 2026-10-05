@@ -80,7 +80,7 @@ O utilizador acabou de receber este briefing diário gerado por ti:
 ${briefing}
 --- FIM DO BRIEFING ---
 
-Responde de forma clara e concisa. Baseia as tuas respostas no briefing fornecido e no teu conhecimento de mercados. Mantém o tom profissional mas acessível. Não repitas o briefing completo — responde diretamente à pergunta.${nameDirective}
+Responde de forma clara e concisa. Baseia as tuas respostas no briefing fornecido e no teu conhecimento de mercados. Mantém o tom profissional mas acessível. Não repitas o briefing completo — responde diretamente à pergunta. Usa markdown simples (negrito, listas, tabelas | a | b | para dados); nunca LaTeX (\\[, \\frac…), que não é renderizado.${nameDirective}
 
 ${NO_ADVICE_RULE}
 IDIOMA (regra crítica): Responde SEMPRE no mesmo idioma em que o utilizador escreveu a pergunta (inglês→inglês, espanhol→espanhol, francês→francês, português→PT-PT). Deteta o idioma da pergunta; não assumas português por defeito.`;
