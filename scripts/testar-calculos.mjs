@@ -12,6 +12,19 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
+
+// Avaliação ao vivo dos bots (npm run avaliar-bots): as chaves de IA vêm do
+// .env.local (ignorado pelo git), sem as passar na linha de comandos. Só com
+// AVALIAR_AO_VIVO=1 e só as chaves que ainda não estão no ambiente.
+if (process.env.AVALIAR_AO_VIVO === "1") {
+  try {
+    const local = readFileSync(new URL("../.env.local", import.meta.url), "utf8");
+    for (const linha of local.split("\n")) {
+      const m = /^\s*(GROQ_API_KEY|GEMINI_API_KEY|OPENAI_API_KEY|XAI_API_KEY|GROQ_MODEL|GEMINI_MODEL)\s*=\s*"?([^"\n]*)"?\s*$/.exec(linha);
+      if (m && m[2] && !process.env[m[1]]) process.env[m[1]] = m[2];
+    }
+  } catch { /* sem .env.local: a avaliação ao vivo salta sozinha */ }
+}
 const { transform } = require("sucrase");
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const out = mkdtempSync(join(tmpdir(), "cfa-testes-"));

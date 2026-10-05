@@ -11,6 +11,7 @@ import AppShell from "@/components/AppShell";
 import PageSkeleton from "@/components/PageSkeleton";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { useTheme } from "@/lib/theme/ThemeContext";
 
 const STORAGE_KEY = "smart-money-watchlist";
 const ALERTS_KEY = "smart-money-alerts";
@@ -108,7 +109,11 @@ const uiLocale = () => {
   return ({ pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" } as Record<string, string>)[l] ?? "pt-PT";
 };
 
+// "Ocultar saldos" (Conta) promete tapar os valores em todas as páginas; esta
+// formata em USD à parte, por isso lê a opção do tema e devolve •••• quando ligada.
+let saldosOcultos = false;
 function formatUsd(v: number) {
+  if (saldosOcultos) return "••••";
   return new Intl.NumberFormat(uiLocale(), { style: "currency", currency: "USD", notation: v >= 1_000 ? "compact" : "standard", maximumFractionDigits: v >= 1_000 ? 2 : 2 }).format(v);
 }
 
@@ -172,6 +177,8 @@ function TxRow({ tx, whaleName }: { tx: WhaleTx; whaleName?: string }) {
 
 
 export default function SmartMoneyPage() {
+  const { hideBalances } = useTheme();
+  saldosOcultos = hideBalances; // lido por formatUsd (módulo) na mesma renderização
   const { isLoading, userId } = useRequireAuth("/login");
   const { t } = useLanguage();
   const [isPro, setIsPro] = useState(false);
