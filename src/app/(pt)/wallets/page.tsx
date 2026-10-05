@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from "react";
+import { ativarExemplo, exemploAtivo, removerExemplo } from "@/lib/demo/exemplo";
+import { marcarEvento } from "@/lib/analytics/eventos";
 import { repetirVisivel, DOIS_MIN, TRES_MIN } from "@/lib/polling";
 import { userError } from "@/lib/ui/userError";
 import ErrorNote from "@/components/ErrorNote";
@@ -331,6 +333,7 @@ export default function WalletsPage() {
   const [manualAddNetwork, setManualAddNetwork] = useState<string>("eth");
   // Campo rapido do topo (so para quem ainda nao tem carteiras).
   const [quickAddr, setQuickAddr] = useState("");
+  const [exemploACarregar, setExemploACarregar] = useState(false);
   const [quickMsg, setQuickMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [manualAddNetworkOpen, setManualAddNetworkOpen] = useState(false);
   const [manualAddNetworkFilter, setManualAddNetworkFilter] = useState("");
@@ -1979,7 +1982,7 @@ export default function WalletsPage() {
 
   const handleBtcDisconnect = () => {
     // Desligar a extensão NÃO pode apagar endereços colados à mão (manual/cold)
-    const kept = btcWallets.filter((w) => w.source === "manual" || w.source === "cold");
+    const kept = btcWallets.filter((w) => w.source === "manual" || w.source === "cold" || w.source === "demo");
     setBtcWallets(kept);
     setBtcAddress(undefined);
     setBtcBalance(null);
@@ -2233,7 +2236,7 @@ export default function WalletsPage() {
 
   const handleAdaDisconnect = () => {
     // Desligar a extensão NÃO pode apagar endereços colados à mão (manual/cold)
-    const kept = adaWallets.filter((w) => w.source === "manual" || w.source === "cold");
+    const kept = adaWallets.filter((w) => w.source === "manual" || w.source === "cold" || w.source === "demo");
     setAdaWallets(kept);
     setAdaAddress(undefined);
     setAdaBalance(undefined);
@@ -2271,7 +2274,14 @@ export default function WalletsPage() {
   };
 
   const addManualAddress = (addressArg: string, networkId: string, labelArg?: string, source: "cold" | "manual" = "manual"): string | null => {
-    if (!isPro && totalWallets >= FREE_WALLET_LIMIT) {
+    // Uma carteira a sério substitui o exemplo (e liberta o limite do Free):
+    // as listas de partida já vão sem as entradas "demo", e o snapshot é
+    // escrito a partir delas (o estado do React só muda no render seguinte).
+    const semDemo = (l: StoredWalletEntry[]) => l.filter((w) => w.source !== "demo");
+    const ethBase = semDemo(ethWallets), solBase = semDemo(solWallets), btcBase = semDemo(btcWallets), adaBase = semDemo(adaWallets);
+    if (exemploAtivo()) { removerExemplo(); setEthWallets(ethBase); setSolWallets(solBase); setBtcWallets(btcBase); }
+    const reais = ethBase.length + solBase.length + btcBase.length + adaBase.length;
+    if (!isPro && reais >= FREE_WALLET_LIMIT) {
       return `${t("wl_free_limit_1")} ${FREE_WALLET_LIMIT} ${t("wl_free_limit_2")}`;
     }
     const trimmed = addressArg.trim();
@@ -2285,43 +2295,43 @@ export default function WalletsPage() {
     if (evmNetwork) {
       if (!isEvmAddress(trimmed)) return t("wl_invalid_evm");
       const nextWallets = upsertWallet(
-        ethWallets,
+        ethBase,
         { address: trimmed, network: evmNetwork, label, source },
         (item) => item.address === trimmed && item.network === evmNetwork
       );
       setEthWallets(nextWallets);
-      updateWalletSnapshot({ eth: nextWallets, sol: solWallets, btc: btcWallets, ada: adaWallets });
+      updateWalletSnapshot({ eth: nextWallets, sol: solBase, btc: btcBase, ada: adaBase });
       void fetchEthBalanceForEntry(trimmed, evmNetwork);
     } else if (MANUAL_ADD_TO_SOL_NETWORK[networkId]) {
       if (!isSolAddress(trimmed)) return t("wl_invalid_sol");
       const solNetwork = MANUAL_ADD_TO_SOL_NETWORK[networkId];
       const nextWallets = upsertWallet(
-        solWallets,
+        solBase,
         { address: trimmed, network: solNetwork, label, source },
         (item) => item.address === trimmed && (item.network ?? "Solana") === solNetwork
       );
       setSolWallets(nextWallets);
-      updateWalletSnapshot({ eth: ethWallets, sol: nextWallets, btc: btcWallets, ada: adaWallets });
+      updateWalletSnapshot({ eth: ethBase, sol: nextWallets, btc: btcBase, ada: adaBase });
       void fetchSolBalanceForAddress(trimmed);
     } else if (networkId === "btc") {
       if (!isBtcAddress(trimmed)) return t("wl_invalid_btc");
       const nextWallets = upsertWallet(
-        btcWallets,
+        btcBase,
         { address: trimmed, network: "Bitcoin", label, source },
         (item) => item.address === trimmed
       );
       setBtcWallets(nextWallets);
-      updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: nextWallets, ada: adaWallets });
+      updateWalletSnapshot({ eth: ethBase, sol: solBase, btc: nextWallets, ada: adaBase });
       void fetchBtcBalanceForAddress(trimmed);
     } else if (networkId === "ada") {
       if (!isAdaAddress(trimmed)) return t("wl_invalid_ada");
       const nextWallets = upsertWallet(
-        adaWallets,
+        adaBase,
         { address: trimmed, network: "Cardano", label, source },
         (item) => item.address === trimmed && (item.network ?? "Cardano") === "Cardano"
       );
       setAdaWallets(nextWallets);
-      updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: nextWallets });
+      updateWalletSnapshot({ eth: ethBase, sol: solBase, btc: btcBase, ada: nextWallets });
       void fetchAdaBalanceForAddress(trimmed);
     } else {
       // Other networks: store address without balance (tracking only)
@@ -2334,7 +2344,7 @@ export default function WalletsPage() {
         (item) => item.address === trimmed && item.network === networkLabel
       );
       setOtherWallets(nextWallets);
-      updateWalletSnapshot({ eth: ethWallets, sol: solWallets, btc: btcWallets, ada: adaWallets, other: nextWallets });
+      updateWalletSnapshot({ eth: ethBase, sol: solBase, btc: btcBase, ada: adaBase, other: nextWallets });
     }
     return null;
   };
@@ -2936,6 +2946,16 @@ export default function WalletsPage() {
           walletMode={walletMode}
           onWalletModeChange={setWalletMode}
         />
+        {totalWallets === 0 && !isLoadingAuth && (
+          <p className="-mt-6 text-xs text-slate-400">
+            {t("ex_wallets_hint")}{" "}
+            <button type="button" disabled={exemploACarregar}
+              onClick={async () => { setExemploACarregar(true); marcarEvento("exemplo"); if (await ativarExemplo()) window.location.reload(); else setExemploACarregar(false); }}
+              className="font-semibold text-sky-300 underline-offset-2 hover:underline disabled:opacity-60">
+              {exemploACarregar ? t("ex_loading") : `🧪 ${t("ex_cta")}`}
+            </button>
+          </p>
+        )}
 
         {walletMode === "web3" ? (
         <>

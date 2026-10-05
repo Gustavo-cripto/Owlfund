@@ -38,10 +38,26 @@ const naoVazio = (x: unknown): boolean => {
  * para os dois contarem a mesma coisa. Chaves de corretora vivem noutra tabela
  * (cex_keys): quem chama junta-as por fora.
  */
+/** Retira as carteiras do modo de exemplo (`source: "demo"`) — não são do utilizador. */
+export function semExemplo(raiz: unknown): unknown {
+  if (Array.isArray(raiz)) return raiz.filter((x) => !(x && typeof x === "object" && (x as { source?: unknown }).source === "demo")).map(semExemplo);
+  if (raiz && typeof raiz === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(raiz as Record<string, unknown>)) {
+      // Os valores por conta vêm como JSON em texto; abre-se, limpa-se, fecha-se.
+      if (typeof v === "string" && v.startsWith("{")) { try { out[k] = JSON.stringify(semExemplo(JSON.parse(v))); continue; } catch { /* fica como está */ } }
+      out[k] = semExemplo(v);
+    }
+    return out;
+  }
+  return raiz;
+}
+
 export function temDados(blob: unknown): boolean {
   if (blob == null) return false;
   let raiz: unknown = blob;
   if (typeof blob === "string") { try { raiz = JSON.parse(blob); } catch { return TEM_ENDERECO.test(blob); } }
+  raiz = semExemplo(raiz);
   if (TEM_ENDERECO.test(JSON.stringify(raiz))) return true;
   const fila: unknown[] = [raiz];
   let passos = 0;

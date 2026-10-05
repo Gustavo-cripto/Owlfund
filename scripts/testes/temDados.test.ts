@@ -27,4 +27,8 @@ eq("formato antigo (snapshot plano) com endereco", temDados({ eth: [{ address: E
 eq("chave manual ja como objeto (nao string)", temDados({ data: { a1: { "owlfund.crypto.holdings.v1": { SOL: { quantity: 2 } } } } }), true);
 eq("blob como string JSON", temDados(JSON.stringify(v3({ a1: { "owlfund.venue.holdings.v1": "[{\"id\":\"v_2\"}]" } }))), true);
 
+// Modo de exemplo: carteiras com source "demo" NÃO contam como "conta com carteira".
+eq("v3 só com carteiras de exemplo", temDados(v3({ a1: { "portfolio-wallets": JSON.stringify({ eth: [{ address: ETH, network: "Ethereum", source: "demo" }], btc: [{ address: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", source: "demo" }] }) } })), false);
+eq("v3 com exemplo + uma carteira real", temDados(v3({ a1: { "portfolio-wallets": JSON.stringify({ eth: [{ address: ETH, source: "demo" }, { address: ETH, network: "Base", source: "manual" }] }) } })), true)
+
 console.log(fails === 0 ? "\nTODOS OK" : `\n${fails} FALHA(S)`); process.exit(fails ? 1 : 0);

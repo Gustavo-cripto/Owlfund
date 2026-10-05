@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import ExemploBanner from "@/components/ExemploBanner";
 import { repetirVisivel, DOIS_MIN } from "@/lib/polling";
 import Sidebar from "./Sidebar";
 import BtcBlocksBar from "./BtcBlocksBar";
@@ -135,6 +136,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         {/* Page content */}
         {/* pb-20 no telemóvel: o fim da página não fica por baixo do botão do assistente. */}
         <main className="flex-1 min-w-0 pb-20 sm:pb-0">
+          <ExemploBanner />
           {children}
         </main>
       </div>

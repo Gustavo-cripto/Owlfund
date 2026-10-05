@@ -22,12 +22,8 @@ const REDE: Record<string, string> = {
 // Enderecos publicos muito conhecidos, so para quem nao tem um a mao:
 // vitalik.eth, o endereco do bloco genesis do Bitcoin e um endereco de exemplo
 // da documentacao da Solana. Confirmados contra /api/preview a 29 set 2026.
-const EXEMPLOS = {
-  eth: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
-  btc: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
-  sol: "vines1vzrYbzLMRdu58ou5XTby4qAqVRLmqo36NKPTg",
-} as const;
-export type RedeDemo = keyof typeof EXEMPLOS;
+import { EXEMPLOS, type RedeDemo } from "@/lib/demo/exemplo";
+export type { RedeDemo };
 
 /**
  * `rede`: nas paginas por rede (/saldo-bitcoin…) muda o exemplo e o texto do
