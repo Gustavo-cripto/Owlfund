@@ -60,17 +60,19 @@ function baleias(): string {
 
 export async function contextoBlockServidor(opts: {
   userId: string; accountId: string; totalAtual: number | null; locale: string; lang: string;
+  /** Temas da pergunta (orcamentoBlock.temasDaPergunta): fiscalidade e baleias só entram a pedido. */
+  temas: Set<string>;
 }): Promise<string> {
   const [hist, score, fisc] = await Promise.allSettled([
     historicoParaIa({ userId: opts.userId, plan: "premium", accountId: opts.accountId, totalAtual: opts.totalAtual, locale: opts.locale }),
     pontuacao(opts.userId),
-    fiscal(opts.userId, opts.lang),
+    opts.temas.has("fiscal") ? fiscal(opts.userId, opts.lang) : Promise.resolve(null),
   ]);
   const partes = [
     hist.status === "fulfilled" ? hist.value : null,
     score.status === "fulfilled" ? score.value : null,
     fisc.status === "fulfilled" ? fisc.value : null,
-    baleias(),
+    opts.temas.has("baleias") ? baleias() : null,
   ].filter((p): p is string => Boolean(p));
   for (const r of [hist, score, fisc]) if (r.status === "rejected") console.error("[gestor] contexto parcial:", r.reason instanceof Error ? r.reason.message : r.reason);
   return partes.join("\n\n");
