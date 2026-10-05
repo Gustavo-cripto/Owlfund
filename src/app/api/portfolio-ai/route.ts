@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { resolveGroqModel } from "@/lib/ai/groq";
+import { generateAiChat } from "@/lib/ai/groq";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { rateLimit, clientIp } from "@/lib/utils/rateLimit";
@@ -91,62 +91,13 @@ ${NO_ADVICE_RULE}
 - Máximo 3 parágrafos curtos por resposta.`;
 }
 
+// A mesma cadeia Groq → Gemini → OpenAI → xAI de src/lib/ai/groq.ts (antes
+// tinha aqui uma cópia sem Gemini e sem os candidatos de modelo).
 async function callAI(system: string, question: string): Promise<string> {
-  const messages = [
-    { role: "system", content: system },
-    { role: "user", content: question },
-  ];
-
-  // Tenta Groq primeiro (free tier)
-  const groqKey = (process.env.GROQ_API_KEY ?? "").trim();
-  if (groqKey) {
-    const model = resolveGroqModel();
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${groqKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model, temperature: 0.5, max_tokens: 500, messages }),
-      signal: AbortSignal.timeout(12000),
-    });
-    if (res.ok) {
-      const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-      const reply = data.choices?.[0]?.message?.content?.trim();
-      if (reply) return reply;
-    }
-  }
-
-  // Fallback OpenAI
-  const openaiKey = (process.env.OPENAI_API_KEY ?? "").trim();
-  if (openaiKey) {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${openaiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "gpt-4o-mini", temperature: 0.5, max_tokens: 500, messages }),
-      signal: AbortSignal.timeout(15000),
-    });
-    if (res.ok) {
-      const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-      const reply = data.choices?.[0]?.message?.content?.trim();
-      if (reply) return reply;
-    }
-  }
-
-  // Fallback xAI
-  const xaiKey = (process.env.XAI_API_KEY ?? "").trim();
-  if (xaiKey) {
-    const res = await fetch("https://api.x.ai/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${xaiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "grok-4-fast-non-reasoning", temperature: 0.5, max_tokens: 500, messages }),
-      signal: AbortSignal.timeout(15000),
-    });
-    if (res.ok) {
-      const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-      const reply = data.choices?.[0]?.message?.content?.trim();
-      if (reply) return reply;
-    }
-  }
-
-  throw new Error("Nenhum provider de IA disponível. Configura GROQ_API_KEY, OPENAI_API_KEY ou XAI_API_KEY.");
+  return generateAiChat(
+    [{ role: "system", content: system }, { role: "user", content: question }],
+    { maxTokens: 500, temperature: 0.5 },
+  );
 }
 
 // Chamada a fornecedor de IA: pode demorar. Sem isto a funcao usa o tempo por

@@ -77,7 +77,7 @@ export function launchReadiness() {
       moralis: has("MORALIS_API_KEY"),  // alternativa; plano gratuito terminou em set 2026
       helius: has("HELIUS_API_KEY"),
       etherscan: has("ETHERSCAN_API_KEY"), // V2 exige chave; sem ela não há histórico ETH no Smart Money
-      ai: has("GROQ_API_KEY") || has("OPENAI_API_KEY") || has("XAI_API_KEY"),
+      ai: has("GROQ_API_KEY") || has("GEMINI_API_KEY") || has("OPENAI_API_KEY") || has("XAI_API_KEY"),
     },
     crypto: {
       enabled: env("NEXT_PUBLIC_CRYPTO_PAYMENTS_ENABLED") === "true",

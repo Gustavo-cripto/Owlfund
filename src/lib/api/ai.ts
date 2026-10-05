@@ -1,44 +1,14 @@
-// Chamada ao LLM com fallback Groq → OpenAI → xAI, partilhada pela API/MCP.
-// Groq (free tier) primeiro; só cai para os pagos se o Groq falhar.
-import { resolveGroqModel } from "@/lib/ai/groq";
+// Chamada ao LLM partilhada pela API/MCP: a mesma cadeia Groq → Gemini →
+// OpenAI → xAI de src/lib/ai/groq.ts (antes tinha aqui uma cópia sem Gemini).
+import { generateAiChat, type ChatMessage } from "@/lib/ai/groq";
 
-export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
-
-type Choices = { choices?: Array<{ message?: { content?: string } }> };
-
-async function call(url: string, key: string, model: string, messages: ChatMessage[], timeout: number): Promise<string | null> {
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model, temperature: 0.5, max_tokens: 500, messages }),
-      signal: AbortSignal.timeout(timeout),
-    });
-    if (!res.ok) return null;
-    const data = await res.json() as Choices;
-    return data.choices?.[0]?.message?.content?.trim() ?? null;
-  } catch { return null; }
-}
+export type { ChatMessage };
 
 export async function askAI(messages: ChatMessage[]): Promise<string | null> {
-  const groqKey = (process.env.GROQ_API_KEY ?? "").trim();
-  if (groqKey) {
-    const model = resolveGroqModel();
-    const r = await call("https://api.groq.com/openai/v1/chat/completions", groqKey, model, messages, 12000);
-    if (r) return r;
+  try {
+    return await generateAiChat(messages, { maxTokens: 500, temperature: 0.5 });
+  } catch (e) {
+    console.error("[api/ai]", e instanceof Error ? e.message : e);
+    return null;
   }
-
-  const openaiKey = (process.env.OPENAI_API_KEY ?? "").trim();
-  if (openaiKey) {
-    const r = await call("https://api.openai.com/v1/chat/completions", openaiKey, process.env.OPENAI_MODEL ?? "gpt-4o-mini", messages, 15000);
-    if (r) return r;
-  }
-
-  const xaiKey = (process.env.XAI_API_KEY ?? "").trim();
-  if (xaiKey) {
-    const r = await call("https://api.x.ai/v1/chat/completions", xaiKey, "grok-4-fast-non-reasoning", messages, 15000);
-    if (r) return r;
-  }
-
-  return null;
 }
