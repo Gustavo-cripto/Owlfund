@@ -361,6 +361,7 @@ export async function POST(req: NextRequest) {
       let msgs: ChatMessage[] = pedido.mensagens;
       let tokens = pedido.tokens;
       let enviouAlgo = false;
+      let total = ""; // texto de TODAS as rondas (o modelo pode escrever, pedir uma ferramenta e continuar)
       const entregar = (t: string) => { enviouAlgo = true; onDelta(t); };
       for (let ronda = 0; ; ronda++) {
         if (prazo - Date.now() < 8_000) throw new AiError(504, "sem tempo para mais uma ronda");
@@ -379,22 +380,28 @@ export async function POST(req: NextRequest) {
           if (value.args) c.args += value.args;
           calls.set(value.index, c);
         }
-        if (texto.trim()) return texto;
+        total += texto;
+        // Pedidos de ferramenta contam MESMO quando já veio texto: o modelo
+        // escreve "Aqui tens a variação…", pede a secção e só depois continua.
+        // Devolver só o texto deixava a resposta cortada a meio (visto a 5 out).
         const pedidos = usarTools ? [...calls.values()].filter((c) => c.name).slice(0, 3).map((c, k) => ({ ...c, id: c.id || `call_${ronda}_${k}` })) : [];
         if (!pedidos.length) {
+          if (total.trim()) return total;
           // O fornecedor aceitou o pedido mas o stream veio vazio (ex.: o
           // raciocínio do Gemini gastou a saída). Sem nada enviado ainda, a
           // versão sem stream passa ao candidato seguinte — como no caminho JSON.
-          if (enviouAlgo || prazo - Date.now() < 8_000) return texto;
+          if (enviouAlgo || prazo - Date.now() < 8_000) return total;
           console.warn("[gestor] stream vazio — a repetir sem stream pela cadeia de fornecedores");
           const completo = await generateAiChat(msgs, { maxTokens: MAX_TOKENS_RESPOSTA, temperature: 0.65, tokensEntrada: tokens });
           entregar(completo);
           return completo;
         }
-        console.log(`[gestor] ferramentas (ronda ${ronda + 1}): ${pedidos.map((c) => c.name).join(", ")}`);
+        console.log(`[gestor] ferramentas (ronda ${ronda + 1}): ${pedidos.map((c) => c.name).join(", ")}${texto.trim() ? " (com texto antes)" : ""}`);
         const resultados: ChatMessage[] = await Promise.all(pedidos.map(async (c) => ({ role: "tool" as const, tool_call_id: c.id, content: await ferramentas.executar(c.name, c.args) })));
-        const assistant: ChatMessage = { role: "assistant", content: "", tool_calls: pedidos.map((c) => ({ id: c.id, type: "function" as const, function: { name: c.name, arguments: c.args || "{}" } })) };
+        const assistant: ChatMessage = { role: "assistant", content: texto, tool_calls: pedidos.map((c) => ({ id: c.id, type: "function" as const, function: { name: c.name, arguments: c.args || "{}" } })) };
         msgs = [...msgs, assistant, ...resultados];
+        // A continuação começa em parágrafo novo, para não colar ao que já saiu.
+        if (texto.trim() && !/\n$/.test(texto)) { total += "\n\n"; entregar("\n\n"); }
         tokens += estimarTokens(resultados.map((r) => r.content).join("")) + 200;
       }
     };
