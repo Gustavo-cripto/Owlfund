@@ -16,7 +16,9 @@ const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat
 // reforma modelos para contas novas (o 2.5-flash devolvia 404 "no longer
 // available to new users" em out 2026 e mandava usar o 3.8-flash), por isso há
 // candidatos e tenta-se o seguinte em 404/400 ou resposta vazia.
-const GEMINI_FALLBACK_MODELS = ["gemini-3.8-flash", "gemini-3.8-flash-lite", "gemini-2.5-flash-lite", "gemini-2.5-flash"];
+// Nomes confirmados nas respostas da própria API (out 2026): os 2.5 devolvem
+// "no longer available to new users" e apontam para o 3.8-flash e o 3.5-flash-lite.
+const GEMINI_FALLBACK_MODELS = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.5-flash"];
 /** Teto de tokens por pedido no Groq (entrada + saída). Sobe com o Dev Tier: GROQ_TOKEN_LIMIT. */
 export function groqTokenLimit(): number {
   const n = Number(process.env.GROQ_TOKEN_LIMIT);
