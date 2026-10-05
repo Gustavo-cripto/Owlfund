@@ -257,7 +257,7 @@ export async function POST(req: NextRequest) {
       .or(`current_period_end.is.null,current_period_end.gt.${new Date().toISOString()}`)
       .order("current_period_end", { ascending: false, nullsFirst: false })
       .limit(1).maybeSingle();
-    const body = await req.json() as { messages: Message[]; watchlist?: WatchEntry[]; lang?: string; portfolio?: string; nickname?: string; accountName?: string; accountId?: string; accountCount?: number; accountEmpty?: boolean; portfolioError?: boolean; totalEur?: number; memoria?: string; taxCountry?: string; stream?: boolean };
+    const body = await req.json() as { messages: Message[]; watchlist?: WatchEntry[]; lang?: string; portfolio?: string; nickname?: string; accountName?: string; accountId?: string; accountCount?: number; accountEmpty?: boolean; portfolioError?: boolean; totalEur?: number; memoria?: string; taxCountry?: string; stream?: boolean; simbolos?: string[] };
     lang = typeof body.lang === "string" && body.lang in API_ERR ? body.lang : lang;
     const locale = LOCALE_BY_LANG[lang] ?? "pt-PT";
     if (!isPremium) return NextResponse.json({ error: apiErr(lang, "premium") }, { status: 403 });
@@ -293,6 +293,7 @@ export async function POST(req: NextRequest) {
     // Memória do Block (perfil + notas), montada no browser; entra sempre no prompt.
     const memoria = typeof body.memoria === "string" ? body.memoria.slice(0, 3000) : "";
     const taxCountry = typeof body.taxCountry === "string" && /^[A-Z]{2}$/.test(body.taxCountry) ? body.taxCountry : undefined;
+    const simbolos = Array.isArray(body.simbolos) ? body.simbolos.filter((x): x is string => typeof x === "string").slice(0, 30) : [];
     // O cliente sinaliza quando a conta ATIVA está mesmo vazia — nesse caso não
     // caímos no snapshot global da Supabase (que é por-utilizador, não por-conta,
     // e poderia mostrar dados de OUTRA conta).
@@ -328,7 +329,7 @@ export async function POST(req: NextRequest) {
       // Histórico das fotografias, pontuação, fiscalidade e baleias conhecidas:
       // é o que faltava ao Block para responder "quanto subiu o portefólio"
       // sem pedir números ao utilizador.
-      contextoBlockServidor({ userId: user.id, accountId, totalAtual: totalEur, locale, lang, temas, paisFiscal: taxCountry }),
+      contextoBlockServidor({ userId: user.id, accountId, totalAtual: totalEur, locale, lang, temas, paisFiscal: taxCountry, simbolos }),
     ]);
     const historicoCtx = historico.status === "fulfilled" && historico.value ? `\n\n${historico.value}` : "";
 

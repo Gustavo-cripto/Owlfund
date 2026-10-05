@@ -19,7 +19,7 @@ import { lerEventos, lerFoto, type Evento } from "@/lib/wallets/historico";
 import { computeFifo, loadTrades } from "@/lib/portfolios/trades";
 import { ALL_ACCOUNTS_ID, getActiveAccountId, listAccounts } from "@/lib/portfolios/accounts";
 
-export type ResumoBlock = { texto: string | null; totalEur: number; vazio: boolean };
+export type ResumoBlock = { texto: string | null; totalEur: number; vazio: boolean; simbolos: string[] };
 
 const LIMITE = 16_000;
 
@@ -205,9 +205,27 @@ function planoFire(userId: string): string[] {
   } catch { return []; }
 }
 
+/** Símbolos que o utilizador detém (on-chain, exchanges, DeFi, manuais, tradicionais), para o "mercado agora". */
+function simbolosDetidos(): string[] {
+  const out = new Set<string>();
+  try {
+    const snap = loadWalletSnapshot();
+    if (snap.btc?.length) out.add("BTC");
+    if (snap.eth?.length) out.add("ETH");
+    if (snap.sol?.length) out.add("SOL");
+    if (snap.ada?.length) out.add("ADA");
+    for (const posicoes of Object.values(snap.defiPosicoes ?? {})) for (const p of posicoes) for (const s of p.par ?? []) out.add(s);
+    const foto = lerFoto();
+    for (const g of [foto?.exchanges, foto?.corretoras]) for (const x of Object.values(g ?? {})) for (const s of Object.keys(x.saldos ?? {})) out.add(s);
+    for (const t of Object.values(foto?.tokens ?? {})) for (const s of Object.keys(t.saldos ?? {})) out.add(s);
+    for (const s of Object.keys(loadCryptoHoldings())) out.add(s);
+  } catch { /* o que houver */ }
+  return [...out].map((s) => s.toUpperCase()).slice(0, 30);
+}
+
 /** Monta o resumo completo da conta ativa. Nunca lança: cada secção falha sozinha. */
 export async function resumoCompletoBlock(userId: string, locale = "pt-PT"): Promise<ResumoBlock> {
-  if (typeof window === "undefined") return { texto: null, totalEur: 0, vazio: true };
+  if (typeof window === "undefined") return { texto: null, totalEur: 0, vazio: true, simbolos: [] };
   const base = await buildPortfolioSummary();
   const seccao = (titulo: string, f: () => string[]) => {
     try { const l = f(); return l.length ? [`=== ${titulo} ===`, ...l, ""] : []; } catch { return []; }
@@ -232,5 +250,5 @@ export async function resumoCompletoBlock(userId: string, locale = "pt-PT"): Pro
   const vazio = partes.length === 0 && base.totalEur <= 0;
   let texto = partes.join("\n").trim();
   if (texto.length > LIMITE) texto = texto.slice(0, LIMITE) + "\n[… resumo truncado por tamanho]";
-  return { texto: texto || null, totalEur: base.totalEur, vazio };
+  return { texto: texto || null, totalEur: base.totalEur, vazio, simbolos: simbolosDetidos() };
 }

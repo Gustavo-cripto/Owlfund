@@ -8,6 +8,7 @@ import { historicoParaIa } from "@/lib/ai/historicoPortefolio";
 import { getScore, getTaxEstimate, listTaxCountries } from "@/lib/api/insights";
 import { getKnownWhales } from "@/lib/api/known-whales";
 import { COUNTRIES } from "@/lib/tax/countries";
+import { mercadoAgoraTexto } from "@/lib/ai/mercadoAgora";
 
 // Sem país fiscal guardado no perfil, assume-se o do idioma (e diz-se à IA que é
 // uma suposição). Em inglês não se assume nada: GB, US, IE, AU… são diferentes.
@@ -67,18 +68,22 @@ export async function contextoBlockServidor(opts: {
   temas: Set<string>;
   /** País fiscal guardado no perfil do Block (código ISO), se houver. */
   paisFiscal?: string;
+  /** Símbolos que o utilizador detém (para o "mercado agora"). */
+  simbolos?: string[];
 }): Promise<string> {
-  const [hist, score, fisc] = await Promise.allSettled([
+  const [hist, score, fisc, mercado] = await Promise.allSettled([
     historicoParaIa({ userId: opts.userId, plan: "premium", accountId: opts.accountId, totalAtual: opts.totalAtual, locale: opts.locale }),
     pontuacao(opts.userId),
     opts.temas.has("fiscal") ? fiscal(opts.userId, opts.lang, opts.paisFiscal) : Promise.resolve(null),
+    mercadoAgoraTexto(opts.simbolos ?? []),
   ]);
   const partes = [
+    mercado.status === "fulfilled" ? mercado.value : null,
     hist.status === "fulfilled" ? hist.value : null,
     score.status === "fulfilled" ? score.value : null,
     fisc.status === "fulfilled" ? fisc.value : null,
     opts.temas.has("baleias") ? baleias() : null,
   ].filter((p): p is string => Boolean(p));
-  for (const r of [hist, score, fisc]) if (r.status === "rejected") console.error("[gestor] contexto parcial:", r.reason instanceof Error ? r.reason.message : r.reason);
+  for (const r of [hist, score, fisc, mercado]) if (r.status === "rejected") console.error("[gestor] contexto parcial:", r.reason instanceof Error ? r.reason.message : r.reason);
   return partes.join("\n\n");
 }

@@ -51,6 +51,7 @@ const TEMAS: Array<{ chave: string; palavras: string[] }> = [
   { chave: "fiscal", palavras: ["imposto", "fiscal", "irs", "tax", "impot", "impuesto", "declar", "mais-valia", "mais valia", "plusval", "plus-value", "isen", "exempt", "contabil", "accountant", "hacienda", "finanças", "financas"] },
   { chave: "baleias", palavras: ["baleia", "whale", "smart money", "watchlist", "ballena", "baleine", "vitalik", "binance cold", "seguir", "follow"] },
   { chave: "plataforma", palavras: ["onde", "where", "donde", "pagina", "page", "plano", "plan ", "preco", "price", "pricing", "api", "mcp", "webhook", "funcionalidade", "feature", "fonctionnalite", "ajuda", "help", "aide", "ayuda", "upgrade", "premium", "exportar", "export", "pdf", "csv", "ligar", "connect", "conectar", "adicionar", "configur", "chainfolio", "posso fazer", "can i do", "puedo hacer", "puis-je"] },
+  { chave: "mercado", palavras: ["preco", "price", "prix", "precio", "hoje", "today", "aujourd", "hoy", "caiu", "subiu", "dropped", "fell", "rose", "pump", "dump", "mercado", "market", "marche", "bitcoin", "btc", "ethereum", "eth ", "solana", "dominan", "fear", "greed", "medo", "ganancia", "sentiment", "sentimento", "volume", "bull", "bear", "capitaliza", "porque", "why", "pourquoi", "por que"] },
   { chave: "historico", palavras: ["subiu", "desceu", "variac", "variation", "variacion", "change", "up ", "down", "dias", "days", "jours", "ano", "year", "mes", "month", "desde", "since", "evolu", "performance", "desempenho", "rendimento", "return", "roi", "cagr", "sharpe", "drawdown", "queda", "volatil", "benchmark", "pontua", "score", "metric"] },
 ];
 
@@ -66,11 +67,12 @@ const TEMA_DA_SECCAO: Array<[RegExp, string]> = [
   [/^CRIPTO REGISTADA/i, "manual"], [/^STABLECOINS/i, "manual"], [/^MERCADO TRADICIONAL/i, "manual"],
   [/^TRANSA/i, "transacoes"], [/^MOVIMENTOS/i, "movimentos"], [/^PLANO FIRE/i, "fire"],
   [/^HIST[ÓO]RICO DO PORTEF/i, "historico"], [/^PONTUA/i, "historico"], [/^FISCALIDADE/i, "fiscal"], [/^BALEIAS/i, "baleias"],
+  [/^MERCADO AGORA/i, "mercado"],
 ];
 export const temaDaSeccao = (titulo: string): string | null => TEMA_DA_SECCAO.find(([re]) => re.test(titulo))?.[1] ?? null;
 
 // Secções que entram sempre (resumidas) numa pergunta genérica como "analisa o meu portefólio".
-const NUCLEO = new Set(["carteiras", "exchanges", "defi", "manual", "historico"]);
+const NUCLEO = new Set(["carteiras", "exchanges", "defi", "manual", "historico", "mercado"]);
 // Secções só a pedido explícito (longas ou raramente úteis sem a pergunta certa).
 const SO_A_PEDIDO = new Set(["fiscal", "baleias", "nft", "movimentos", "fire", "transacoes"]);
 
