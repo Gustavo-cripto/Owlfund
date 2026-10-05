@@ -7,6 +7,7 @@
 // nós React (sem innerHTML), por isso o texto vem sempre escapado.
 
 import { Fragment, useState, type ReactNode } from "react";
+import { semLatex } from "@/lib/ai/formulas";
 
 export type ChatMarkdownLabels = { copy: string; copied: string; downloadCsv: string };
 const DEFAULT_LABELS: ChatMarkdownLabels = { copy: "Copy", copied: "Copied ✓", downloadCsv: "Download .csv" }  // so usado se um call-site esquecer os labels traduzidos;
@@ -117,7 +118,8 @@ function Table({ rows, keyPrefix }: { rows: string[]; keyPrefix: string }) {
 
 // ── Componente principal ─────────────────────────────────────────────────────
 export default function ChatMarkdown({ content, labels = DEFAULT_LABELS }: { content: string; labels?: ChatMarkdownLabels }) {
-  const lines = content.replace(/\r\n/g, "\n").split("\n");
+  // LaTeX (\[ \frac{a}{b} \]) que o modelo escreva apesar do prompt → texto legível.
+  const lines = semLatex(content).replace(/\r\n/g, "\n").split("\n");
   const blocks: ReactNode[] = [];
   let i = 0;
   let blockIdx = 0;

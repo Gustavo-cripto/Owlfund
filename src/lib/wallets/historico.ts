@@ -248,6 +248,12 @@ export function registarFoto(foto: Foto, em = Date.now()): Evento[] {
 
 export const EVENTO_HISTORICO = "cf-historico-carteiras";
 
+/** Última fotografia completa da conta ativa (null na vista "Todas" ou sem leitura ainda). */
+export function lerFoto(): Foto | null {
+  if (typeof window === "undefined" || isAllAccountsActive()) return null;
+  try { return migrarFoto(ler(window.localStorage.getItem(accKey(CHAVE))).foto); } catch { return null; }
+}
+
 /** Eventos da conta ativa (ou de todas, na vista "Todas"), do mais recente para o mais antigo. */
 export function lerEventos(): Evento[] {
   if (typeof window === "undefined") return [];

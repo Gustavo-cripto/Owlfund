@@ -15,10 +15,19 @@ export type PnlChange = {
 };
 
 const DIA = 86_400_000;
-const PERIODOS: Array<{ period: string; ms: number }> = [
+export type Periodo = { period: string; ms: number };
+const PERIODOS: Periodo[] = [
   { period: "24h", ms: DIA },
   { period: "7d", ms: 7 * DIA },
   { period: "30d", ms: 30 * DIA },
+];
+/** Janelas que os assistentes de IA recebem (o utilizador pergunta "60 dias", "este ano"…). */
+export const PERIODOS_ALARGADOS: Periodo[] = [
+  ...PERIODOS,
+  { period: "60d", ms: 60 * DIA },
+  { period: "90d", ms: 90 * DIA },
+  { period: "180d", ms: 180 * DIA },
+  { period: "1a", ms: 365 * DIA },
 ];
 
 /**
@@ -46,8 +55,8 @@ export function seriePontos(rows: SnapRow[]): Ponto[] {
   return brutos.filter((p) => p.total <= mediana * 4 && p.total >= mediana / 4);
 }
 
-/** Variações de uma série já limpa. */
-export function variacoes(serie: Ponto[], agora = Date.now()): PnlChange[] {
+/** Variações de uma série já limpa (por omissão 24h/7d/30d + "all"). */
+export function variacoes(serie: Ponto[], agora = Date.now(), periodos: Periodo[] = PERIODOS): PnlChange[] {
   const ultimo = serie[serie.length - 1] ?? null;
   const variacao = (desde: Ponto | null): Omit<PnlChange, "period"> => {
     if (!ultimo || !desde) return { eur: null, pct: null, fromAt: null };
@@ -55,7 +64,7 @@ export function variacoes(serie: Ponto[], agora = Date.now()): PnlChange[] {
     return { eur, pct: desde.total > 0 ? (eur / desde.total) * 100 : null, fromAt: desde.iso };
   };
 
-  const changes: PnlChange[] = PERIODOS.map(({ period, ms }) => {
+  const changes: PnlChange[] = periodos.map(({ period, ms }) => {
     const corte = agora - ms;
     // O snapshot mais recente ANTES do corte; sem nenhum, o período fica a null
     // em vez de comparar com o mais antigo que houver (seria um número errado).

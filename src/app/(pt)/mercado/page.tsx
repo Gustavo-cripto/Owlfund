@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import ChatMarkdown from "@/components/ChatMarkdown";
 import Segmentos from "@/components/ui/Segmentos";
 import MeusAtivos from "@/components/mercado/MeusAtivos";
 import PainelAtivo from "@/components/mercado/PainelAtivo";
@@ -2369,7 +2370,9 @@ export default function MercadoPage() {
                               {msg.role === "assistant" && (
                                 <p className="text-[11px] text-orange-400 font-semibold mb-1">🤖 ChainFolioAI</p>
                               )}
-                              <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                              {msg.role === "assistant"
+                                ? <ChatMarkdown content={msg.content} labels={{ copy: t("dev_copy"), copied: t("dev_copied"), downloadCsv: t("gz_download_csv") }} />
+                                : <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>}
                             </div>
                           </div>
                         ))}
