@@ -12,8 +12,11 @@
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
-// Modelos do escalão gratuito do Gemini; o 1.º pode ser trocado por GEMINI_MODEL.
-const GEMINI_FALLBACK_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
+// Modelos do Gemini por ordem; o 1.º pode ser trocado por GEMINI_MODEL. A Google
+// reforma modelos para contas novas (o 2.5-flash devolvia 404 "no longer
+// available to new users" em out 2026 e mandava usar o 3.8-flash), por isso há
+// candidatos e tenta-se o seguinte em 404/400 ou resposta vazia.
+const GEMINI_FALLBACK_MODELS = ["gemini-3.8-flash", "gemini-3.8-flash-lite", "gemini-2.5-flash-lite", "gemini-2.5-flash"];
 /** Teto de tokens por pedido no Groq (entrada + saída). Sobe com o Dev Tier: GROQ_TOKEN_LIMIT. */
 export function groqTokenLimit(): number {
   const n = Number(process.env.GROQ_TOKEN_LIMIT);
@@ -91,8 +94,11 @@ async function callProvider(
       console.error(`[ai:${label}] ${res.status} ${res.statusText}: ${raw.slice(0, 300)}`);
       return { ok: false, status: res.status };
     }
-    const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+    const data = (await res.json()) as { choices?: { message?: { content?: string }; finish_reason?: string }[] };
     const content = data.choices?.[0]?.message?.content?.trim() ?? "";
+    // Resposta vazia (ex.: o "raciocínio" gastou os tokens de saída) fica no
+    // log com o motivo de paragem; quem chama trata-a como falha e segue.
+    if (!content) console.error(`[ai:${label}] resposta vazia (modelo ${model}, finish_reason=${data.choices?.[0]?.finish_reason ?? "?"})`);
     return { ok: true, content };
   } catch (err) {
     console.error(`[ai:${label}] request failed:`, err instanceof Error ? err.message : err);
@@ -155,14 +161,21 @@ export async function generateAiChat(
 
   const geminiKey = (process.env.GEMINI_API_KEY ?? "").trim();
   if (geminiKey) {
-    // reasoning_effort "low": o Gemini 2.5 "pensa" antes de responder e esse
-    // raciocínio gasta max_tokens; sem isto uma resposta longa podia vir vazia.
+    // Os Gemini "pensam" antes de responder e o raciocínio conta para
+    // max_tokens: pede-se esforço baixo e dá-se folga; se mesmo assim a
+    // resposta vier vazia ou o parâmetro for recusado (400), repete-se o
+    // mesmo modelo sem o parâmetro antes de passar ao candidato seguinte.
+    const folga = opts.maxTokens + 1024;
+    let desistir = false;
     for (const model of geminiModelCandidates()) {
-      const r = await callProvider("gemini", GEMINI_URL, geminiKey, model, messages, opts.maxTokens, opts.temperature, 30000, { reasoning_effort: "low" });
-      if (r.ok && r.content) return r.content;
-      if (!r.ok) lastStatus = r.status;
-      if (r.ok || (r.status !== 404 && r.status !== 400)) break;
-      console.error(`[ai:gemini] modelo "${model}" indisponível — a tentar o próximo candidato`);
+      if (desistir) break;
+      for (const extra of [{ reasoning_effort: "low" }, {}]) {
+        const r = await callProvider("gemini", GEMINI_URL, geminiKey, model, messages, folga, opts.temperature, 30000, extra);
+        if (r.ok && r.content) return r.content;
+        if (!r.ok) lastStatus = r.status;
+        if (!r.ok && r.status === 404) { console.error(`[ai:gemini] modelo "${model}" indisponível — a tentar o próximo candidato`); break; }
+        if (!r.ok && r.status !== 400) { desistir = true; break; } // 401/403/429/5xx: não insistir, cair para o fornecedor seguinte
+      }
     }
   }
 
