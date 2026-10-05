@@ -7,7 +7,7 @@ import { cookies } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getPlan } from "@/lib/api/entitlement";
 import { GESTOR_DAILY_LIMIT } from "@/lib/plans";
-import { generateAiChat, friendlyAiError, errorStatus, type ChatMessage } from "@/lib/ai/groq";
+import { generateAiChat, friendlyAiError, errorStatus, groqTokenLimit, hasGemini, type ChatMessage } from "@/lib/ai/groq";
 import { scanWatchlist, type WatchEntry, type Movement } from "@/lib/api/whales";
 import { cgFetch } from "@/lib/market/coingecko";
 import { precoOkx } from "@/lib/market/okxSpot";
@@ -22,13 +22,15 @@ type Message = { role: "user" | "assistant"; content: string };
 
 // ── LLM (Groq → OpenAI → xAI, com fallback e erros tipados) ──────────────────
 // Premium: teto de tokens mais alto para relatórios/análises completas sem corte.
-// O Groq (único fornecedor configurado) conta entrada + saída contra um teto de
-// 8 000 tokens por pedido: a saída fica em 1 800 e a entrada é orçamentada
-// em src/lib/ai/orcamentoBlock.ts.
+// O Groq conta entrada + saída contra um teto de 8 000 tokens por pedido (413
+// acima disso). A entrada é orçamentada em src/lib/ai/orcamentoBlock.ts contra
+// o teto do fornecedor que vai responder: com GEMINI_API_KEY o Gestor pode
+// receber o contexto todo (o Groq é saltado quando o pedido não lhe cabe).
 const MAX_TOKENS_RESPOSTA = 1800;
-const TETO_TOKENS_PEDIDO = 8000;
-const callLLM = (messages: ChatMessage[]) =>
-  generateAiChat(messages, { maxTokens: MAX_TOKENS_RESPOSTA, temperature: 0.65 });
+const TETO_COM_GEMINI = 40_000;
+const tetoTokensPedido = () => (hasGemini() ? TETO_COM_GEMINI : groqTokenLimit());
+const callLLM = (messages: ChatMessage[], tokensEntrada: number) =>
+  generateAiChat(messages, { maxTokens: MAX_TOKENS_RESPOSTA, temperature: 0.65, tokensEntrada });
 
 // ── Portfolio context builder ─────────────────────────────────────────────────
 
@@ -300,6 +302,8 @@ export async function POST(req: NextRequest) {
     // Tema(s) da pergunta: decide que secções de dados entram no prompt.
     const ultimaPergunta = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
     const temas = temasDaPergunta(ultimaPergunta);
+    // Com orçamento largo (Gemini) as baleias conhecidas vão sempre; a fiscalidade continua a pedido (FIFO + lista longa).
+    if (tetoTokensPedido() > 10_000) temas.add("baleias");
     const watchlist: WatchEntry[] = (body.watchlist ?? []).slice(0, 10);
 
     if (!messages.length) return NextResponse.json({ error: apiErr(lang, "empty") }, { status: 400 });
@@ -351,24 +355,29 @@ export async function POST(req: NextRequest) {
     // Base fixa (regras + diretivas) → conversa (até ~1/3 do que sobra) →
     // secções de dados escolhidas pela pergunta → conhecimento da plataforma
     // só quando a pergunta é sobre o site.
-    const plataforma = temas.has("plataforma") ? PLATFORM_KNOWLEDGE.slice(0, 4500) : "";
+    // Com orçamento largo (Gemini) o conhecimento do site vai sempre; no Groq só quando a pergunta é sobre o site.
+    const plataforma = temas.has("plataforma") || tetoTokensPedido() > 10_000 ? PLATFORM_KNOWLEDGE.slice(0, 6000) : "";
     const base = getGestorSystem(locale, plataforma);
     const fixo = `${base}\n\n${watchlistCtx}${nameDirective}${accountDirective}${langDirective}`;
-    const orcamentoChars = (TETO_TOKENS_PEDIDO - MAX_TOKENS_RESPOSTA - 400) * 2.6;
+    const teto = tetoTokensPedido();
+    const orcamentoChars = (teto - MAX_TOKENS_RESPOSTA - 400) * 2.6;
     const sobra = Math.max(2000, orcamentoChars - fixo.length);
-    const conversa = cortarHistorico(messages, Math.min(5000, Math.floor(sobra / 3)));
+    const conversa = cortarHistorico(messages, Math.min(teto > 10_000 ? 14_000 : 5000, Math.floor(sobra / 3)), teto > 10_000 ? 3000 : 1500);
     const usadoConversa = conversa.reduce((n, m) => n + m.content.length, 0);
     const paraDados = Math.max(1500, sobra - usadoConversa);
     const seccoes = partirSeccoes(`${portfolioCtx}${historicoCtx}`);
-    const dados = seccoes.length ? selecionarSeccoes(seccoes, ultimaPergunta, paraDados) : portfolioCtx;
+    const largo = teto > 10_000;
+    const dados = seccoes.length
+      ? selecionarSeccoes(seccoes, ultimaPergunta, paraDados, largo ? { maxTema: 9000, maxNucleo: 4000, maxResto: 2500, incluirResto: true } : undefined)
+      : portfolioCtx;
     const systemPrompt = `${base}\n\n${dados}${watchlistCtx}${nameDirective}${accountDirective}${langDirective}`;
     const mensagensLlm: ChatMessage[] = [{ role: "system", content: systemPrompt }, ...conversa];
     const tokensEstimados = mensagensLlm.reduce((n, m) => n + estimarTokens(m.content), 0);
-    if (tokensEstimados + MAX_TOKENS_RESPOSTA > TETO_TOKENS_PEDIDO) {
-      console.warn(`[gestor] pedido estimado em ${tokensEstimados} tokens de entrada (teto ${TETO_TOKENS_PEDIDO})`);
+    if (tokensEstimados + MAX_TOKENS_RESPOSTA > teto) {
+      console.warn(`[gestor] pedido estimado em ${tokensEstimados} tokens de entrada (teto ${teto})`);
     }
 
-    const reply = await callLLM(mensagensLlm);
+    const reply = await callLLM(mensagensLlm, tokensEstimados);
 
     return NextResponse.json({ reply });
   } catch (err) {

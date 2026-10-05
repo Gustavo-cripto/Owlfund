@@ -1,10 +1,25 @@
 // Geração de texto com IA e fallback automático entre providers:
 //   1. Groq   (free tier)      → GROQ_MODEL ou candidatos (ver abaixo)
-//   2. OpenAI (fallback)       → "gpt-4o-mini"
-//   3. xAI    (fallback)       → "grok-4-fast-non-reasoning"
+//   2. Gemini (free tier)      → GEMINI_MODEL ou candidatos (endpoint compatível OpenAI)
+//   3. OpenAI (fallback)       → "gpt-4o-mini"
+//   4. xAI    (fallback)       → "grok-4-fast-non-reasoning"
 // Cada fallback só é usado se a respetiva API key estiver configurada.
+//
+// O Groq (on_demand) recusa com 413 pedidos acima de GROQ_TOKEN_LIMIT tokens
+// (entrada + saída). Quem souber o tamanho do pedido passa `tokensEntrada` e o
+// Groq é saltado quando não cabe — vai direto ao Gemini, que aceita contextos
+// muito maiores.
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+// Modelos do escalão gratuito do Gemini; o 1.º pode ser trocado por GEMINI_MODEL.
+const GEMINI_FALLBACK_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
+/** Teto de tokens por pedido no Groq (entrada + saída). Sobe com o Dev Tier: GROQ_TOKEN_LIMIT. */
+export function groqTokenLimit(): number {
+  const n = Number(process.env.GROQ_TOKEN_LIMIT);
+  return Number.isFinite(n) && n > 0 ? n : 8000;
+}
+export const hasGemini = () => Boolean((process.env.GEMINI_API_KEY ?? "").trim());
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const XAI_URL = "https://api.x.ai/v1/chat/completions";
 
@@ -28,6 +43,12 @@ export function resolveGroqModel(): string {
 export function groqModelCandidates(): string[] {
   const preferred = resolveGroqModel();
   return [preferred, ...GROQ_FALLBACK_MODELS.filter((m) => m !== preferred)];
+}
+
+/** Ordem de tentativa no Gemini: GEMINI_MODEL (se definido) e depois os candidatos. */
+export function geminiModelCandidates(): string[] {
+  const env = (process.env.GEMINI_MODEL ?? "").trim();
+  return env ? [env, ...GEMINI_FALLBACK_MODELS.filter((m) => m !== env)] : GEMINI_FALLBACK_MODELS;
 }
 
 /** Erro de IA com o status HTTP do último provider que falhou, para tratamento a montante. */
@@ -55,12 +76,13 @@ async function callProvider(
   maxTokens: number,
   temperature: number,
   timeoutMs: number,
+  extra: Record<string, unknown> = {},
 ): Promise<ProviderResult> {
   try {
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model, temperature, max_tokens: maxTokens, messages }),
+      body: JSON.stringify({ model, temperature, max_tokens: maxTokens, messages, ...extra }),
       signal: AbortSignal.timeout(timeoutMs),
     });
     if (!res.ok) {
@@ -82,6 +104,7 @@ async function callProvider(
 export function hasAnyAiProvider(): boolean {
   return Boolean(
     (process.env.GROQ_API_KEY ?? "").trim() ||
+      hasGemini() ||
       (process.env.OPENAI_API_KEY ?? "").trim() ||
       (process.env.XAI_API_KEY ?? "").trim(),
   );
@@ -110,12 +133,14 @@ export async function generateAiText(opts: {
  */
 export async function generateAiChat(
   messages: ChatMessage[],
-  opts: { maxTokens: number; temperature: number },
+  opts: { maxTokens: number; temperature: number; tokensEntrada?: number },
 ): Promise<string> {
   let lastStatus: number | undefined;
 
   const groqKey = (process.env.GROQ_API_KEY ?? "").trim();
-  if (groqKey) {
+  const cabeNoGroq = opts.tokensEntrada == null || opts.tokensEntrada + opts.maxTokens <= groqTokenLimit();
+  if (groqKey && !cabeNoGroq) console.warn(`[ai:groq] saltado: pedido de ~${opts.tokensEntrada} + ${opts.maxTokens} tokens acima do teto ${groqTokenLimit()}`);
+  if (groqKey && cabeNoGroq) {
     // Tenta os candidatos por ordem; 404/400 = modelo reformado → próximo.
     let lastGroq: ProviderResult | null = null;
     for (const model of groqModelCandidates()) {
@@ -126,6 +151,19 @@ export async function generateAiChat(
       console.error(`[ai:groq] modelo "${model}" indisponível — a tentar o próximo candidato`);
     }
     if (lastGroq && !lastGroq.ok) lastStatus = lastGroq.status;
+  }
+
+  const geminiKey = (process.env.GEMINI_API_KEY ?? "").trim();
+  if (geminiKey) {
+    // reasoning_effort "low": o Gemini 2.5 "pensa" antes de responder e esse
+    // raciocínio gasta max_tokens; sem isto uma resposta longa podia vir vazia.
+    for (const model of geminiModelCandidates()) {
+      const r = await callProvider("gemini", GEMINI_URL, geminiKey, model, messages, opts.maxTokens, opts.temperature, 30000, { reasoning_effort: "low" });
+      if (r.ok && r.content) return r.content;
+      if (!r.ok) lastStatus = r.status;
+      if (r.ok || (r.status !== 404 && r.status !== 400)) break;
+      console.error(`[ai:gemini] modelo "${model}" indisponível — a tentar o próximo candidato`);
+    }
   }
 
   const openaiKey = (process.env.OPENAI_API_KEY ?? "").trim();

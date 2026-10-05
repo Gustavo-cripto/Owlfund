@@ -31,6 +31,9 @@ ok("genérico: totais entram", generico.includes("Valor total"));
 ok("genérico: carteiras e DeFi (núcleo) entram", generico.includes("Ledger: 0,13 ETH") && generico.includes("Uniswap"));
 ok("genérico: NFTs, FIRE e baleias ficam de fora", !generico.includes("3 NFTs") && !generico.includes("Despesas mensais") && !generico.includes("Vitalik"));
 
+const largo = selecionarSeccoes(secs, "Analisa o meu portefólio — risco e alocação.", 20_000, { maxTema: 9000, maxNucleo: 4000, maxResto: 2500, incluirResto: true });
+ok("orçamento largo: NFTs, FIRE e baleias entram no fim", largo.includes("3 NFTs") && largo.includes("Despesas mensais") && largo.indexOf("Vitalik") > largo.indexOf("Uniswap"));
+
 const nft = selecionarSeccoes(secs, "Que NFTs tenho?", 10_000);
 ok("pergunta NFT: secção NFT entra", nft.includes("3 NFTs"));
 ok("pergunta NFT: totais primeiro", nft.indexOf("Valor total") < nft.indexOf("3 NFTs"));

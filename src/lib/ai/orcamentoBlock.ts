@@ -85,7 +85,7 @@ export function selecionarSeccoes(
   seccoes: Seccao[],
   pergunta: string,
   orcamentoChars: number,
-  limites = { maxTema: 3500, maxNucleo: 900, maxResto: 400 },
+  limites: { maxTema: number; maxNucleo: number; maxResto: number; incluirResto?: boolean } = { maxTema: 3500, maxNucleo: 900, maxResto: 400 },
 ): string {
   const temas = temasDaPergunta(pergunta);
   const prioridade = (s: Seccao): number => {
@@ -93,7 +93,8 @@ export function selecionarSeccoes(
     const tema = temaDaSeccao(s.titulo);
     if (tema && temas.has(tema)) return 2;
     if (tema && NUCLEO.has(tema)) return 1;
-    if (tema && SO_A_PEDIDO.has(tema)) return 0;
+    // Só a pedido… salvo com orçamento largo (Gemini), em que entram resumidas no fim.
+    if (tema && SO_A_PEDIDO.has(tema)) return limites.incluirResto ? 0.5 : 0;
     return 1;
   };
   const ordenadas = seccoes
@@ -103,7 +104,7 @@ export function selecionarSeccoes(
   const partes: string[] = [];
   let usado = 0;
   for (const { s, p } of ordenadas) {
-    const max = p >= 2 ? limites.maxTema : p === 1 ? limites.maxNucleo : limites.maxResto;
+    const max = p >= 2 ? limites.maxTema : p >= 1 ? limites.maxNucleo : limites.maxResto;
     const corpo = cortar(s.corpo, max);
     const bloco = s.titulo ? `=== ${s.titulo} ===\n${corpo}` : corpo;
     if (usado + bloco.length + 2 > orcamentoChars) {
