@@ -139,10 +139,16 @@ export async function generateAiText(opts: {
  * Como generateAiText, mas aceita um array de mensagens (system + histórico
  * user/assistant) — para chats multi-turno (ex.: /api/gestor, /api/chat).
  */
-export async function generateAiChat(
-  messages: ChatMessage[],
-  opts: { maxTokens: number; temperature: number; tokensEntrada?: number },
-): Promise<string> {
+type Tentativa = { label: string; url: string; key: string; model: string; maxTokens: number; timeoutMs: number; extra: Record<string, unknown> };
+type Resultado = { ok: true; vazio: boolean } | { ok: false; status: number };
+
+/**
+ * Plano de tentativas, UM só para texto e para streaming: Groq (se o pedido
+ * lhe cabe) → Gemini (candidatos; 400 repete sem reasoning_effort; 401/403
+ * desiste; resto passa ao modelo seguinte) → OpenAI → xAI. Quem corre o plano
+ * devolve a cada passo o que aconteceu, e o gerador decide o passo seguinte.
+ */
+function* planoDeTentativas(opts: { maxTokens: number; temperature: number; tokensEntrada?: number }): Generator<Tentativa, number | undefined, Resultado> {
   let lastStatus: number | undefined;
 
   const groqKey = (process.env.GROQ_API_KEY ?? "").trim();
@@ -150,15 +156,12 @@ export async function generateAiChat(
   if (groqKey && !cabeNoGroq) console.warn(`[ai:groq] saltado: pedido de ~${opts.tokensEntrada} + ${opts.maxTokens} tokens acima do teto ${groqTokenLimit()}`);
   if (groqKey && cabeNoGroq) {
     // Tenta os candidatos por ordem; 404/400 = modelo reformado → próximo.
-    let lastGroq: ProviderResult | null = null;
     for (const model of groqModelCandidates()) {
-      const r = await callProvider("groq", GROQ_URL, groqKey, model, messages, opts.maxTokens, opts.temperature, 20000);
-      if (r.ok && r.content) return r.content;
-      lastGroq = r;
+      const r = yield { label: "groq", url: GROQ_URL, key: groqKey, model, maxTokens: opts.maxTokens, timeoutMs: 20000, extra: {} };
+      if (!r.ok) lastStatus = r.status;
       if (r.ok || (r.status !== 404 && r.status !== 400)) break;
       console.error(`[ai:groq] modelo "${model}" indisponível — a tentar o próximo candidato`);
     }
-    if (lastGroq && !lastGroq.ok) lastStatus = lastGroq.status;
   }
 
   const geminiKey = (process.env.GEMINI_API_KEY ?? "").trim();
@@ -172,8 +175,7 @@ export async function generateAiChat(
     for (const model of geminiModelCandidates()) {
       if (desistir) break;
       for (const extra of [{ reasoning_effort: "low" }, {}]) {
-        const r = await callProvider("gemini", GEMINI_URL, geminiKey, model, messages, folga, opts.temperature, 30000, extra);
-        if (r.ok && r.content) return r.content;
+        const r = yield { label: "gemini", url: GEMINI_URL, key: geminiKey, model, maxTokens: folga, timeoutMs: 30000, extra };
         if (!r.ok) lastStatus = r.status;
         // 401/403: chave inválida, não vale a pena insistir. 400: repetir sem
         // reasoning_effort. Tudo o resto (404 reformado, 429 quota, 503 "high
@@ -187,19 +189,105 @@ export async function generateAiChat(
 
   const openaiKey = (process.env.OPENAI_API_KEY ?? "").trim();
   if (openaiKey) {
-    const r = await callProvider("openai", OPENAI_URL, openaiKey, OPENAI_MODEL, messages, opts.maxTokens, opts.temperature, 25000);
-    if (r.ok && r.content) return r.content;
+    const r = yield { label: "openai", url: OPENAI_URL, key: openaiKey, model: OPENAI_MODEL, maxTokens: opts.maxTokens, timeoutMs: 25000, extra: {} };
     if (!r.ok) lastStatus = r.status;
   }
 
   const xaiKey = (process.env.XAI_API_KEY ?? "").trim();
   if (xaiKey) {
-    const r = await callProvider("xai", XAI_URL, xaiKey, XAI_MODEL, messages, opts.maxTokens, opts.temperature, 25000);
-    if (r.ok && r.content) return r.content;
+    const r = yield { label: "xai", url: XAI_URL, key: xaiKey, model: XAI_MODEL, maxTokens: opts.maxTokens, timeoutMs: 25000, extra: {} };
     if (!r.ok) lastStatus = r.status;
   }
 
-  throw new AiError(lastStatus ?? 502, "Todos os providers de IA falharam");
+  return lastStatus;
+}
+
+/**
+ * Como generateAiText, mas aceita um array de mensagens (system + histórico
+ * user/assistant) — para chats multi-turno (ex.: /api/gestor, /api/chat).
+ */
+export async function generateAiChat(
+  messages: ChatMessage[],
+  opts: { maxTokens: number; temperature: number; tokensEntrada?: number },
+): Promise<string> {
+  const plano = planoDeTentativas(opts);
+  let passo = plano.next();
+  while (!passo.done) {
+    const t = passo.value;
+    const r = await callProvider(t.label, t.url, t.key, t.model, messages, t.maxTokens, opts.temperature, t.timeoutMs, t.extra);
+    if (r.ok && r.content) return r.content;
+    passo = plano.next(r.ok ? { ok: true, vazio: true } : { ok: false, status: r.status });
+  }
+  throw new AiError(passo.value ?? 502, "Todos os providers de IA falharam");
+}
+
+// ── Streaming ────────────────────────────────────────────────────────────────
+
+/** Abre um pedido em streaming; só devolve ok depois de o fornecedor aceitar (status 2xx). */
+async function abrirStream(t: Tentativa, messages: ChatMessage[], temperature: number): Promise<{ ok: true; body: ReadableStream<Uint8Array> } | { ok: false; status: number }> {
+  try {
+    const res = await fetch(t.url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${t.key}` },
+      body: JSON.stringify({ model: t.model, temperature, max_tokens: t.maxTokens, messages, stream: true, ...t.extra }),
+      // Cobre a ligação E a leitura do corpo (o maxDuration da rota é 60 s).
+      signal: AbortSignal.timeout(Math.max(t.timeoutMs, 55000)),
+    });
+    if (!res.ok || !res.body) {
+      const raw = await res.text().catch(() => "");
+      console.error(`[ai:${t.label}] ${res.status} ${res.statusText}: ${raw.slice(0, 300)}`);
+      return { ok: false, status: res.status || 502 };
+    }
+    return { ok: true, body: res.body };
+  } catch (err) {
+    console.error(`[ai:${t.label}] request failed:`, err instanceof Error ? err.message : err);
+    return { ok: false, status: 503 };
+  }
+}
+
+/** Converte o SSE "data: {...}" do formato OpenAI num stream de pedaços de texto. */
+export function sseParaTexto(body: ReadableStream<Uint8Array>): ReadableStream<string> {
+  const decoder = new TextDecoder();
+  let resto = "";
+  return body.pipeThrough(new TransformStream<Uint8Array, string>({
+    transform(chunk, controller) {
+      resto += decoder.decode(chunk, { stream: true });
+      const linhas = resto.split("\n");
+      resto = linhas.pop() ?? "";
+      for (const linha of linhas) {
+        const l = linha.trim();
+        if (!l.startsWith("data:")) continue;
+        const data = l.slice(5).trim();
+        if (!data || data === "[DONE]") continue;
+        try {
+          const j = JSON.parse(data) as { choices?: Array<{ delta?: { content?: string | null } }> };
+          const delta = j.choices?.[0]?.delta?.content;
+          if (delta) controller.enqueue(delta);
+        } catch { /* linha incompleta ou keep-alive */ }
+      }
+    },
+  }));
+}
+
+/**
+ * Como generateAiChat, mas devolve um stream de texto assim que um fornecedor
+ * aceita o pedido. O fallback entre fornecedores só é possível ANTES do
+ * primeiro byte: um stream que comece e morra a meio chega ao chamador como
+ * fim de stream (ele deve tratar texto vazio como erro).
+ */
+export async function generateAiChatStream(
+  messages: ChatMessage[],
+  opts: { maxTokens: number; temperature: number; tokensEntrada?: number },
+): Promise<{ stream: ReadableStream<string>; provider: string; model: string }> {
+  const plano = planoDeTentativas(opts);
+  let passo = plano.next();
+  while (!passo.done) {
+    const t = passo.value;
+    const r = await abrirStream(t, messages, opts.temperature);
+    if (r.ok) return { stream: sseParaTexto(r.body), provider: t.label, model: t.model };
+    passo = plano.next({ ok: false, status: r.status });
+  }
+  throw new AiError(passo.value ?? 502, "Todos os providers de IA falharam");
 }
 
 /**

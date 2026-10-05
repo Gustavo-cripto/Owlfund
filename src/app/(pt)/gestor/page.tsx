@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { buildPortfolioSummary, type PortfolioCategory } from "@/lib/portfolio/summaryText";
 import { resumoCompletoBlock } from "@/lib/ai/resumoBlock";
 import { adicionarNotas, guardarMemoria, lerMemoria, removerNota, textoMemoria, type MemoriaBlock } from "@/lib/ai/memoriaBlock";
+import { ocultarEtiquetasParciais } from "@/lib/ai/etiquetasBlock";
 import { COUNTRIES, TEXT_PREFIX } from "@/lib/tax/countries";
 import { loadNickname } from "@/lib/user/nickname";
 import {
@@ -119,6 +120,8 @@ export default function GestorPage() {
   // Memória do Block (perfil + notas) da conta ativa, e sugestões de seguimento da última resposta.
   const [memoria, setMemoria] = useState<MemoriaBlock>({ notas: [] });
   const [sugestoes, setSugestoes] = useState<string[]>([]);
+  // A resposta está a chegar em streaming: esconde os três pontos e segue o texto.
+  const [aChegar, setAChegar] = useState(false);
   const [perfilAberto, setPerfilAberto] = useState(false);
   useEffect(() => { setMemoria(lerMemoria()); setSugestoes([]); }, [acctId]);
   const atualizarMemoria = (patch: Partial<MemoriaBlock>) => {
@@ -236,8 +239,8 @@ export default function GestorPage() {
   useEffect(() => {
     const grew = messages.length > lastCountRef.current;
     lastCountRef.current = messages.length;
-    if (grew || loading) messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [messages, loading]);
+    if (grew || loading || aChegar) messagesEndRef.current?.scrollIntoView({ behavior: aChegar ? "auto" : "smooth", block: "nearest" });
+  }, [messages, loading, aChegar]);
 
   const sendMessage = useCallback(async (text: string) => {
     const trimmed = text.trim();
@@ -274,7 +277,7 @@ export default function GestorPage() {
       const res = await fetch("/api/gestor", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-lang": lang },
-        body: JSON.stringify({ messages: history, watchlist, lang, portfolio: portfolioText ?? undefined, nickname: loadNickname() || undefined, accountName: acctName || undefined, accountId: reqAcct || undefined, totalEur: totalEur > 0 ? totalEur : undefined, accountCount: acctCount, accountEmpty, portfolioError, memoria: textoMemoria(lerMemoria()) ?? undefined, taxCountry: lerMemoria().paisFiscal }),
+        body: JSON.stringify({ messages: history, watchlist, lang, portfolio: portfolioText ?? undefined, nickname: loadNickname() || undefined, accountName: acctName || undefined, accountId: reqAcct || undefined, totalEur: totalEur > 0 ? totalEur : undefined, accountCount: acctCount, accountEmpty, portfolioError, memoria: textoMemoria(lerMemoria()) ?? undefined, taxCountry: lerMemoria().paisFiscal, stream: true }),
       });
 
       if (!res.ok) {
@@ -282,14 +285,63 @@ export default function GestorPage() {
         throw new Error(err.error ?? t("error"));
       }
 
-      const data = await res.json() as { reply: string; lembrar?: string[]; sugestoes?: string[] };
-      if (getActiveAccountId() !== reqAcct) return; // trocou de conta a meio — não misturar threads
-      setMessages(prev => [...prev, {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: data.reply,
-        timestamp: new Date(),
-      }]);
+      type Final = { reply: string; lembrar?: string[]; sugestoes?: string[] };
+      let data: Final | null = null;
+      const streamId = crypto.randomUUID();
+      if (res.headers.get("content-type")?.includes("text/event-stream") && res.body) {
+        // Streaming: o texto aparece à medida que chega numa mensagem provisória;
+        // no fim é substituído pelo texto limpo que vem no evento "done".
+        const reader = res.body.getReader();
+        const dec = new TextDecoder();
+        let buf = "";
+        let acc = "";
+        let mostrada = false;
+        let erro: string | null = null;
+        const mostrar = (texto: string) => {
+          if (getActiveAccountId() !== reqAcct) return;
+          if (!mostrada) {
+            mostrada = true;
+            setAChegar(true);
+            setMessages(prev => [...prev, { id: streamId, role: "assistant", content: texto, timestamp: new Date() }]);
+          } else {
+            setMessages(prev => prev.map(m => (m.id === streamId ? { ...m, content: texto } : m)));
+          }
+        };
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
+          const eventos = buf.split("\n\n");
+          buf = eventos.pop() ?? "";
+          for (const ev of eventos) {
+            const linha = ev.trim();
+            if (!linha.startsWith("data:")) continue;
+            let j: { delta?: string; done?: boolean; error?: string } & Partial<Final>;
+            try { j = JSON.parse(linha.slice(5)); } catch { continue; }
+            if (j.delta) { acc += j.delta; mostrar(ocultarEtiquetasParciais(acc)); }
+            else if (j.done) data = { reply: j.reply ?? acc, lembrar: j.lembrar, sugestoes: j.sugestoes };
+            else if (j.error) erro = j.error;
+          }
+        }
+        setAChegar(false);
+        if (!data) {
+          // Sem "done": se já havia texto, fica o que chegou; senão é erro.
+          if (acc.trim() && !erro) data = { reply: ocultarEtiquetasParciais(acc) };
+          else {
+            setMessages(prev => prev.filter(m => m.id !== streamId));
+            throw new Error(erro ?? t("error"));
+          }
+        }
+        if (getActiveAccountId() !== reqAcct) return;
+        const final = data;
+        setMessages(prev => mostrada
+          ? prev.map(m => (m.id === streamId ? { ...m, id: crypto.randomUUID(), content: final.reply } : m))
+          : [...prev, { id: crypto.randomUUID(), role: "assistant", content: final.reply, timestamp: new Date() }]);
+      } else {
+        data = await res.json() as Final;
+        if (getActiveAccountId() !== reqAcct) return; // trocou de conta a meio — não misturar threads
+        setMessages(prev => [...prev, { id: crypto.randomUUID(), role: "assistant", content: data!.reply, timestamp: new Date() }]);
+      }
       setSugestoes(Array.isArray(data.sugestoes) ? data.sugestoes.slice(0, 3) : []);
       if (Array.isArray(data.lembrar) && data.lembrar.length) setMemoria(adicionarNotas(data.lembrar));
     } catch (err) {
@@ -298,6 +350,7 @@ export default function GestorPage() {
       setMessages(prev => prev.filter(m => m.id !== userMsg.id));
     } finally {
       setLoading(false);
+      setAChegar(false);
     }
   }, [messages, loading, lang, acctName, acctCount, acctId, t]);
 
@@ -646,8 +699,8 @@ export default function GestorPage() {
                   <button type="button" onClick={() => { const q = sendError.lastUser; setSendError(null); void sendMessage(q); }} className="ml-1 font-semibold underline">{t("gz_retry")}</button>
                 </div>
               )}
-              {/* Typing indicator */}
-              {loading && (
+              {/* Typing indicator (só até chegar o primeiro pedaço da resposta) */}
+              {loading && !aChegar && (
                 <div className="flex gap-3">
                   <div className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden border border-violet-500/30"><img src="/chainfolioai-icon-128.webp" alt={t("gz_assistant_name")} className="w-full h-full object-cover" /></div>
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-sm px-4 py-3">

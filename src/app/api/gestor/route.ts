@@ -7,7 +7,7 @@ import { cookies } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getPlan } from "@/lib/api/entitlement";
 import { GESTOR_DAILY_LIMIT } from "@/lib/plans";
-import { generateAiChat, friendlyAiError, errorStatus, groqTokenLimit, hasGemini, type ChatMessage } from "@/lib/ai/groq";
+import { generateAiChat, generateAiChatStream, friendlyAiError, errorStatus, groqTokenLimit, hasGemini, type ChatMessage } from "@/lib/ai/groq";
 import { scanWatchlist, type WatchEntry, type Movement } from "@/lib/api/whales";
 import { cgFetch } from "@/lib/market/coingecko";
 import { precoOkx } from "@/lib/market/okxSpot";
@@ -257,7 +257,7 @@ export async function POST(req: NextRequest) {
       .or(`current_period_end.is.null,current_period_end.gt.${new Date().toISOString()}`)
       .order("current_period_end", { ascending: false, nullsFirst: false })
       .limit(1).maybeSingle();
-    const body = await req.json() as { messages: Message[]; watchlist?: WatchEntry[]; lang?: string; portfolio?: string; nickname?: string; accountName?: string; accountId?: string; accountCount?: number; accountEmpty?: boolean; portfolioError?: boolean; totalEur?: number; memoria?: string; taxCountry?: string };
+    const body = await req.json() as { messages: Message[]; watchlist?: WatchEntry[]; lang?: string; portfolio?: string; nickname?: string; accountName?: string; accountId?: string; accountCount?: number; accountEmpty?: boolean; portfolioError?: boolean; totalEur?: number; memoria?: string; taxCountry?: string; stream?: boolean };
     lang = typeof body.lang === "string" && body.lang in API_ERR ? body.lang : lang;
     const locale = LOCALE_BY_LANG[lang] ?? "pt-PT";
     if (!isPremium) return NextResponse.json({ error: apiErr(lang, "premium") }, { status: 403 });
@@ -384,22 +384,64 @@ export async function POST(req: NextRequest) {
     };
 
     const teto = tetoTokensPedido();
-    let reply: string;
-    try {
-      const pedido = montarPedido(teto);
-      reply = await callLLM(pedido.mensagens, pedido.tokens);
-    } catch (e) {
-      // O pedido largo só o Gemini aceita; se o Gemini falhar (503 "high demand"
-      // do escalão gratuito, quota…), refaz-se o pedido no tamanho do Groq em
-      // vez de devolver erro ao utilizador.
-      if (teto <= groqTokenLimit() || !(process.env.GROQ_API_KEY ?? "").trim()) throw e;
-      console.warn(`[gestor] pedido largo falhou (${errorStatus(e) ?? "?"}); a repetir no tamanho do Groq`);
-      const pedido = montarPedido(groqTokenLimit());
-      reply = await callLLM(pedido.mensagens, pedido.tokens);
+    // O pedido largo só o Gemini aceita; se o Gemini falhar (503 "high demand"
+    // do escalão gratuito, quota…), refaz-se o pedido no tamanho do Groq em
+    // vez de devolver erro ao utilizador. Para o streaming isto só é possível
+    // antes do primeiro byte — é por isso que a decisão está aqui e não dentro.
+    const comReserva = async <T,>(correr: (pedido: { mensagens: ChatMessage[]; tokens: number }) => Promise<T>): Promise<T> => {
+      try {
+        return await correr(montarPedido(teto));
+      } catch (e) {
+        if (teto <= groqTokenLimit() || !(process.env.GROQ_API_KEY ?? "").trim()) throw e;
+        console.warn(`[gestor] pedido largo falhou (${errorStatus(e) ?? "?"}); a repetir no tamanho do Groq`);
+        return await correr(montarPedido(groqTokenLimit()));
+      }
+    };
+
+    // Sem streaming (app móvel e clientes antigos): JSON como sempre.
+    if (body.stream !== true) {
+      const reply = await comReserva((p) => callLLM(p.mensagens, p.tokens));
+      const { texto, lembrar, sugestoes } = extrairEtiquetas(reply);
+      return NextResponse.json({ reply: texto, lembrar, sugestoes });
     }
 
-    const { texto, lembrar, sugestoes } = extrairEtiquetas(reply);
-    return NextResponse.json({ reply: texto, lembrar, sugestoes });
+    // Streaming (página web): eventos SSE `data: {"delta"}` … `data: {"done", reply, lembrar, sugestoes}`
+    // ou `data: {"error"}`. O texto final vai limpo de etiquetas no evento "done".
+    const { stream, provider, model } = await comReserva((p) =>
+      generateAiChatStream(p.mensagens, { maxTokens: MAX_TOKENS_RESPOSTA, temperature: 0.65, tokensEntrada: p.tokens }));
+    const encoder = new TextEncoder();
+    const langFinal = lang;
+    const saida = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        const envia = (obj: Record<string, unknown>) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
+        const reader = stream.getReader();
+        let completo = "";
+        try {
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            completo += value;
+            envia({ delta: value });
+          }
+          if (!completo.trim()) {
+            console.error(`[gestor] stream vazio (${provider}/${model})`);
+            envia({ error: friendlyAiError(502, langFinal) });
+          } else {
+            const { texto, lembrar, sugestoes } = extrairEtiquetas(completo);
+            envia({ done: true, reply: texto, lembrar, sugestoes });
+          }
+        } catch (e) {
+          console.error("[gestor] stream interrompido:", e instanceof Error ? e.message : e);
+          // O que já chegou fica; o cliente mostra o erro só se não tiver texto.
+          envia({ error: friendlyAiError(errorStatus(e) ?? 502, langFinal) });
+        } finally {
+          controller.close();
+        }
+      },
+    });
+    return new Response(saida, {
+      headers: { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no" },
+    });
   } catch (err) {
     console.error("[gestor]", err);
     const status = errorStatus(err);
