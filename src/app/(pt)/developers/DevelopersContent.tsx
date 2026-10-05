@@ -138,6 +138,14 @@ export default function DevelopersContent() {
               </div>
             )}
 
+            {/* Experimentar sem chave: um pedido que funciona já, sem conta */}
+            <section className="mt-8 rounded-2xl border border-orange-500/25 bg-orange-500/[0.05] p-5">
+              <h2 className="text-base font-bold text-white">⚡ {t("dev_try_free_title")}</h2>
+              <p className="mt-1 text-sm text-slate-400">{t("dev_try_free_desc")}</p>
+              <Code copyLabel={copyLabel} copyDone={copyDone}>{`curl -s ${BASE}/api/v1/global`}</Code>
+              <p className="mt-2 text-[11px] text-slate-500"><code className="text-slate-400">/api/v1/global</code> · <code className="text-slate-400">/api/v1/tax-countries</code> · <code className="text-slate-400">/api/v1</code></p>
+            </section>
+
             {/* Autenticação */}
             <section id="auth" className="mt-12 scroll-mt-24">
               <h2 className="text-lg font-bold text-white">{t("dev_sec_auth")}</h2>

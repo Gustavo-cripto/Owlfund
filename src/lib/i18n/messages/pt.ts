@@ -765,6 +765,8 @@ export const pt = {
     dev_banner_premium: "Tens Premium: podes criar chaves e usar a API e o MCP.",
     dev_manage_keys: "Gerir as minhas chaves",
     dev_banner_beta: "A API e o MCP são Premium. Durante o beta podes pedir Premium grátis por 60 dias.",
+    dev_try_free_title: "Experimenta já, sem chave",
+    dev_try_free_desc: "Três endpoints respondem sem conta nem chave. Cola isto num terminal e vês a capitalização global e a dominância do BTC em JSON.",
     dev_banner_premium_needed: "A API e o MCP exigem o plano Premium.",
     dev_toc: "Nesta página",
     dev_sec_auth: "Autenticação",

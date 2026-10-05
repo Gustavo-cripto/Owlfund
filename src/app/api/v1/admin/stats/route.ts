@@ -189,8 +189,9 @@ export async function GET(req: NextRequest) {
     last30d: number | null;
     /** Pedidos de agentes automaticos (crawlers, agentes de IA, monitores), a parte. */
     bots: { last24h: number | null; last7d: number | null; last30d: number | null };
-    topPaths: Array<{ path: string; count: number }>;
-    bottomPaths: Array<{ path: string; count: number }>;
+    topPaths: Array<{ path: string; count: number; bots?: number }>;
+    windowDays?: Record<string, number>;
+    bottomPaths: Array<{ path: string; count: number; bots?: number }>;
     byDay: Array<{ day: string; count: number; bots: number }>;
     /**
      * Visitas dos ultimos 7 dias por origem do link (?src=…), com as PESSOAS
@@ -218,6 +219,8 @@ export async function GET(req: NextRequest) {
     byDay: [],
     bySource: [],
     byCampaign: [],
+    // Janelas de cada bloco, para quem lê o JSON não ter de adivinhar.
+    windowDays: { topPaths: 7, bottomPaths: 7, bySource: 7, byCampaign: 7, byDay: 14 },
   };
   try {
     // Le TODAS as visitas dos ultimos 14 dias (serve o top de paginas 7d e a serie diaria 14d).
@@ -251,6 +254,7 @@ export async function GET(req: NextRequest) {
     }
     const sevenAgo = daysAgo(7).getTime();
     const pathCounts: Record<string, number> = {};
+    const pathBots: Record<string, number> = {};
     const dayCounts: Record<string, number> = {};
     const dayBots: Record<string, number> = {};
     const srcCounts: Record<string, { humans: number; bots: number }> = {};
@@ -259,7 +263,7 @@ export async function GET(req: NextRequest) {
       const iso = String(r.created_at);
       const t = new Date(iso).getTime();
       const day = iso.slice(0, 10);
-      if (r.is_bot) { dayBots[day] = (dayBots[day] ?? 0) + 1; }
+      if (r.is_bot) { dayBots[day] = (dayBots[day] ?? 0) + 1; if (t >= sevenAgo) pathBots[r.path] = (pathBots[r.path] ?? 0) + 1; }
       if (t >= sevenAgo && r.src) {
         const c = (srcCounts[r.src] ??= { humans: 0, bots: 0 });
         if (r.is_bot) c.bots++; else c.humans++;
@@ -268,8 +272,9 @@ export async function GET(req: NextRequest) {
       if (t >= sevenAgo) pathCounts[r.path] = (pathCounts[r.path] ?? 0) + 1;
       dayCounts[day] = (dayCounts[day] ?? 0) + 1;
     }
+    // `count` = pessoas (como sempre); `bots` à parte, por caminho.
     const ranked = Object.entries(pathCounts)
-      .map(([path, count]) => ({ path, count }))
+      .map(([path, count]) => ({ path, count, bots: pathBots[path] ?? 0 }))
       .sort((a, b) => b.count - a.count);
     // Ordenado por PESSOAS, nao pelo total: e o numero que decide.
     // Por rede ("bluesky.isencao" conta em "bluesky"); campanhas à parte.
@@ -283,7 +288,9 @@ export async function GET(req: NextRequest) {
       .sort((a, b) => b.humans - a.humans || b.count - a.count);
     views.bySource = linhas(porRede);
     views.byCampaign = linhas(Object.fromEntries(Object.entries(srcCounts).filter(([src]) => src.includes("."))));
-    views.topPaths = ranked.slice(0, 5);
+    // ?top=N (1–30, por omissão 5): o stats-bot precisava de mais do que 5 para ver onde as pessoas caem.
+    const topN = Math.min(30, Math.max(1, Number(req.nextUrl.searchParams.get("top")) || 5));
+    views.topPaths = ranked.slice(0, topN);
     // Menos vistas: as com menos visitas (asc), excluindo as que ja estao no top.
     const inTop = new Set(views.topPaths.map((p) => p.path));
     views.bottomPaths = ranked

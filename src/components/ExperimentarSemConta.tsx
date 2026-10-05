@@ -200,7 +200,7 @@ export default function ExperimentarSemConta({ rede, semCabecalho = false }: { r
             )}
             {dados.others > 0 && <p className="mt-2 text-xs text-slate-400">{t("lp_try_tokens_more").replace("{n}", String(dados.others))}</p>}
 
-            <a href={`${pageUrl("login", lang)}?mode=signup&next=%2Fwallets`} className={`${btnPrimary} mt-5 w-full px-6 py-3 text-sm sm:w-auto`}>
+            <a href={`${pageUrl("login", lang)}?mode=signup&next=%2Fwallets`} onClick={() => marcarEvento("cta_demo")} className={`${btnPrimary} mt-5 w-full px-6 py-3 text-sm sm:w-auto`}>
               {t("lp_try_cta")}
             </a>
             <button type="button" onClick={() => void copiarLigacao()}

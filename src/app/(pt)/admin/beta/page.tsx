@@ -8,20 +8,24 @@ import { useConfirm } from "@/components/ConfirmDialog";
 
 type Tester = { email: string; plan: "pro" | "premium"; activatedAt?: string | null; expiresAt: string | null; daysLeft: number | null; lastSignInAt?: string | null; inactiveDays?: number | null; founder?: boolean };
 type Pending = { email: string; name: string | null; note: string | null; createdAt: string };
-type Etapas = { paginaInicial: number | null; experimentar: number | null; registo: number | null; contas: number | null; comCarteira: number | null };
-type Funil = { d7: Etapas; d30: Etapas; retencao7d: { coorte: number; voltaram: number } | null; geradoEm: string };
+import type { Etapas, Funil } from "@/lib/analytics/funil";
 
 // Funil de pessoas (sem robos), 7 e 30 dias. Cada linha mostra tambem a
 // passagem da etapa anterior, que e o numero que diz onde a gente se perde.
 function CartaoFunil({ f }: { f: Funil }) {
-  const linhas: Array<{ k: keyof Etapas; label: string }> = [
-    { k: "paginaInicial", label: "Visitas à página inicial" },
-    { k: "experimentar", label: "Usaram «experimentar sem conta»" },
-    { k: "registo", label: "Submeteram registo (conta, ligação ou beta)" },
-    { k: "contas", label: "Contas criadas" },
-    { k: "comCarteira", label: "Contas com pelo menos uma carteira" },
+  const soma = (xs: Array<number | null>) => (xs.every((x) => x == null) ? null : xs.reduce<number>((n, x) => n + (x ?? 0), 0));
+  const linhas: Array<{ k: string; label: string; v: (e: Etapas) => number | null }> = [
+    { k: "paginaInicial", label: "Visitas à página inicial", v: (e) => e.paginaInicial },
+    { k: "cta", label: "Clicaram num botão da inicial (hero · planos · final · demo)", v: (e) => soma([e.cta?.hero ?? null, e.cta?.planos ?? null, e.cta?.final ?? null, e.cta?.demo ?? null]) },
+    { k: "experimentar", label: "Usaram «experimentar sem conta»", v: (e) => e.experimentar },
+    { k: "registo", label: "Submeteram registo (conta, ligação ou beta)", v: (e) => e.registo },
+    { k: "emailConfirmado", label: "Confirmaram o email", v: (e) => e.emailConfirmado ?? null },
+    { k: "contas", label: "Contas criadas", v: (e) => e.contas },
+    { k: "comCarteira", label: "Contas com pelo menos uma carteira", v: (e) => e.comCarteira },
+    { k: "exemplo", label: "Carregaram o modo de exemplo", v: (e) => e.exemplo ?? null },
   ];
   const pct = (a: number | null, b: number | null) => (a == null || b == null || b === 0 ? "" : `${Math.round((a / b) * 100)}%`);
+  const detalheCta = (e: Etapas) => e.cta ? `hero ${e.cta.hero ?? "—"} · planos ${e.cta.planos ?? "—"} · final ${e.cta.final ?? "—"} · demo ${e.cta.demo ?? "—"}` : "";
   return (
     <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
       <p className="text-sm font-semibold text-white">Funil (só pessoas)</p>
@@ -29,12 +33,12 @@ function CartaoFunil({ f }: { f: Funil }) {
         <thead><tr className="text-left text-xs text-slate-400"><th className="py-1 font-medium">Etapa</th><th className="py-1 text-right font-medium">7 dias</th><th className="py-1 text-right font-medium">30 dias</th></tr></thead>
         <tbody>
           {linhas.map((l, i) => {
-            const ant = i > 0 ? linhas[i - 1].k : null;
+            const ant = i > 0 ? linhas[i - 1] : null;
             return (
               <tr key={l.k} className="border-t border-slate-800/70">
-                <td className="py-1.5 text-slate-300">{l.label}</td>
-                <td className="py-1.5 text-right font-semibold text-white">{f.d7[l.k] ?? "—"} <span className="text-xs font-normal text-slate-500">{ant ? pct(f.d7[l.k], f.d7[ant]) : ""}</span></td>
-                <td className="py-1.5 text-right font-semibold text-white">{f.d30[l.k] ?? "—"} <span className="text-xs font-normal text-slate-500">{ant ? pct(f.d30[l.k], f.d30[ant]) : ""}</span></td>
+                <td className="py-1.5 text-slate-300">{l.label}{l.k === "cta" && <span className="block text-[11px] text-slate-500">7d: {detalheCta(f.d7)} · 30d: {detalheCta(f.d30)}</span>}</td>
+                <td className="py-1.5 text-right font-semibold text-white">{l.v(f.d7) ?? "—"} <span className="text-xs font-normal text-slate-500">{ant ? pct(l.v(f.d7), ant.v(f.d7)) : ""}</span></td>
+                <td className="py-1.5 text-right font-semibold text-white">{l.v(f.d30) ?? "—"} <span className="text-xs font-normal text-slate-500">{ant ? pct(l.v(f.d30), ant.v(f.d30)) : ""}</span></td>
               </tr>
             );
           })}
@@ -45,7 +49,7 @@ function CartaoFunil({ f }: { f: Funil }) {
           Voltaram 7+ dias depois de criar conta: <b className="text-white">{f.retencao7d.voltaram}</b> de {f.retencao7d.coorte} (contas criadas há 7–37 dias).
         </p>
       )}
-      <p className="mt-1 text-[11px] text-slate-500">A demonstração e o registo só começaram a ser medidos a 25 set 2026.</p>
+      <p className="mt-1 text-[11px] text-slate-500">A demonstração e o registo medem-se desde 25 set 2026; os botões da inicial, a confirmação do email e o modo de exemplo desde 5 out 2026.</p>
     </div>
   );
 }

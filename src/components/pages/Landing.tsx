@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { marcarEvento } from "@/lib/analytics/eventos";
 import { compareUrl } from "@/lib/compare/competitors";
 import { COUNTRIES, TEXT_PREFIX, guideUrl } from "@/lib/tax/countries";
 import { preencherContagens } from "@/lib/api/catalog";
@@ -289,7 +290,7 @@ export default function Landing() {
             </p>
             <p className="animate-rise delay-200 text-sm font-semibold text-orange-300/90">{t("lp_audience")}</p>
             <div className="animate-fade-in-up delay-300 flex flex-wrap gap-4">
-              <a href={`${pageUrl("login", lang)}?mode=signup`} className={`${btnPrimary} px-8 py-3.5 text-base`}>
+              <a href={`${pageUrl("login", lang)}?mode=signup`} onClick={() => marcarEvento("cta_hero")} className={`${btnPrimary} px-8 py-3.5 text-base`}>
                 {t("lp_plan_cta")} →
               </a>
               {paymentsFrozen ? (
@@ -466,7 +467,7 @@ export default function Landing() {
             </table>
           </div>
           <div className="mt-8 text-center">
-            <a href={`${pageUrl("login", lang)}?mode=signup`} className={`${btnPrimary} px-8 py-3.5 text-base`}>
+            <a href={`${pageUrl("login", lang)}?mode=signup`} onClick={() => marcarEvento("cta_planos")} className={`${btnPrimary} px-8 py-3.5 text-base`}>
               {t("lp_plan_cta")}
             </a>
           </div>
@@ -671,7 +672,7 @@ export default function Landing() {
               <h2 className="text-3xl font-bold text-white md:text-4xl">{t("lp_ready")}</h2>
               <p className="mt-4 text-slate-400 max-w-sm mx-auto">{t("lp_final_sub")}</p>
               <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-                <a href={`${pageUrl("login", lang)}?mode=signup`} className={`${btnPrimary} w-full px-10 py-4 text-base sm:w-auto`}>
+                <a href={`${pageUrl("login", lang)}?mode=signup`} onClick={() => marcarEvento("cta_final")} className={`${btnPrimary} w-full px-10 py-4 text-base sm:w-auto`}>
                   {t("lp_final_cta1")}
                 </a>
                 <a href={paymentsFrozen ? pageUrl("beta", lang) : pageUrl("login", lang)} className={`${btnSecondary} w-full px-10 py-4 text-base sm:w-auto`}>

@@ -1,3 +1,4 @@
+import { BETA_CUTOFF_ISO } from "@/lib/plans";
 // IDs de preço que dão direitos PREMIUM — um só sítio para todo o servidor.
 //
 // Antes, nove rotas comparavam `price_id === STRIPE_PREMIUM_PRICE_ID` (só o
@@ -87,7 +88,8 @@ export function launchReadiness() {
       cronSecret: has("CRON_SECRET"),
       adminEmails: has("ADMIN_EMAILS"),
       telegram: has("TELEGRAM_BOT_TOKEN") && has("TELEGRAM_CHAT_ID"),
-      betaCutoff: env("NEXT_PUBLIC_BETA_CUTOFF") || null,
+      // A data efetiva (env ou a de código, 15 jan 2027) — antes vinha null sem a env e parecia "sem fecho".
+      betaCutoff: BETA_CUTOFF_ISO,
     },
   };
 }
