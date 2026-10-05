@@ -8,22 +8,32 @@ import { PREFIXO_EVENTO } from "@/lib/analytics/eventos";
 // wallet_config. Nada aqui identifica ninguem: so contagens.
 export type Etapas = {
   paginaInicial: number | null;
-  /** Cliques nos botões da página inicial, cada um à parte. */
-  cta: { hero: number | null; planos: number | null; final: number | null; demo: number | null };
+  /** Cliques nos botões da página inicial, cada um à parte. `demonstracaoInicial` = botão "criar conta" dentro da demonstração da inicial. */
+  cta: { hero: number | null; planos: number | null; final: number | null; demonstracaoInicial: number | null };
   experimentar: number | null;
+  /** Submeteu registo/entrada: formulário, link mágico, Google/Apple, carteira ou beta. */
   registo: number | null;
   /** Emails confirmados (passo gravado pelo servidor em /api/auth/confirm). */
   emailConfirmado: number | null;
   contas: number | null;
   comCarteira: number | null;
-  /** Contas que carregaram o modo de exemplo. */
-  exemplo: number | null;
+  /** Cliques em "Ver com dados de exemplo" dentro da app (Painel/Carteiras). */
+  modoExemploCliques: number | null;
+  /** Contas da janela que só têm carteiras de exemplo (nenhuma real, nem corretora). */
+  soComExemplo: number | null;
+};
+/** Desde quando cada métrica é medida: um zero antes desta data é "não medido", não "zero". */
+export const MEDIDO_DESDE: Record<string, string> = {
+  paginaInicial: "2026-09-24", experimentar: "2026-09-25", registo: "2026-09-25", contas: "2026-09-24", comCarteira: "2026-09-24",
+  cta: "2026-10-05", emailConfirmado: "2026-10-05", modoExemploCliques: "2026-10-05", soComExemplo: "2026-10-05",
+  registoGoogleAppleCarteira: "2026-10-05",
 };
 export type Funil = {
   d7: Etapas;
   d30: Etapas;
   /** Coorte: contas criadas ha 7–37 dias; quantas voltaram 7+ dias depois de criar conta. */
   retencao7d: { coorte: number; voltaram: number } | null;
+  measuredSince: Record<string, string>;
   geradoEm: string;
 };
 
@@ -115,13 +125,17 @@ export async function calcularFunil(admin: SupabaseClient): Promise<Funil> {
   // corretora (so contas dos ultimos 30 dias). Mesma regra do cron de emails.
   const recentes = users.filter((u) => u.criada >= agora - 30 * 86_400_000);
   const comCarteira = new Set<string>();
+  const comExemplo = new Set<string>();
   if (recentes.length) {
     try {
       const ids = recentes.map((u) => u.id);
       for (let i = 0; i < ids.length; i += 200) {
         const lote = ids.slice(i, i + 200);
         const { data } = await admin.from("wallet_config").select("user_id, data").in("user_id", lote);
-        for (const r of data ?? []) if (temDados(r.data)) comCarteira.add(r.user_id as string);
+        for (const r of data ?? []) {
+          if (temDados(r.data)) comCarteira.add(r.user_id as string);
+          if (/"source":"demo"/.test(JSON.stringify(r.data ?? "").replace(/\\"/g, '"'))) comExemplo.add(r.user_id as string);
+        }
         const { data: cex } = await admin.from("cex_keys").select("user_id").in("user_id", lote);
         for (const r of cex ?? []) comCarteira.add(r.user_id as string);
       }
@@ -132,14 +146,15 @@ export async function calcularFunil(admin: SupabaseClient): Promise<Funil> {
     const corte = agora - dias * 86_400_000;
     const naJanela = users.filter((u) => u.criada >= corte);
     const ev = (nome: string) => vistas(dias, (q) => q.eq("path", `${PREFIXO_EVENTO}${nome}`));
-    const [paginaInicial, experimentar, registo, emailConfirmado, exemplo, hero, planos, final, demo] = await Promise.all([
+    const [paginaInicial, experimentar, registo, emailConfirmado, modoExemploCliques, hero, planos, final, demonstracaoInicial] = await Promise.all([
       vistas(dias, (q) => q.in("path", INICIAIS)),
       ev("experimentar"), ev("registo"), ev("email_confirmado"), ev("exemplo"), ev("cta_hero"), ev("cta_planos"), ev("cta_final"), ev("cta_demo"),
     ]);
     return {
-      paginaInicial, cta: { hero, planos, final, demo }, experimentar, registo, emailConfirmado, exemplo,
+      paginaInicial, cta: { hero, planos, final, demonstracaoInicial }, experimentar, registo, emailConfirmado, modoExemploCliques,
       contas: listagemOk ? naJanela.length : null,
       comCarteira: listagemOk ? naJanela.filter((u) => comCarteira.has(u.id)).length : null,
+      soComExemplo: listagemOk ? naJanela.filter((u) => comExemplo.has(u.id) && !comCarteira.has(u.id)).length : null,
     };
   };
 
@@ -148,6 +163,7 @@ export async function calcularFunil(admin: SupabaseClient): Promise<Funil> {
   return {
     d7, d30,
     retencao7d: listagemOk ? { coorte: coorte.length, voltaram: coorte.filter((u) => u.ultimo >= u.criada + 7 * 86_400_000).length } : null,
+    measuredSince: MEDIDO_DESDE,
     geradoEm: new Date(agora).toISOString(),
   };
 }

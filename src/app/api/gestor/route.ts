@@ -7,7 +7,7 @@ import { cookies } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getPlan } from "@/lib/api/entitlement";
 import { GESTOR_DAILY_LIMIT } from "@/lib/plans";
-import { AiError, generateAiChatStream, friendlyAiError, errorStatus, groqTokenLimit, hasGemini, type ChatMessage } from "@/lib/ai/groq";
+import { AiError, generateAiChat, generateAiChatStream, friendlyAiError, errorStatus, groqTokenLimit, hasGemini, type ChatMessage } from "@/lib/ai/groq";
 import { scanWatchlist, type WatchEntry, type Movement } from "@/lib/api/whales";
 import { cgFetch } from "@/lib/market/coingecko";
 import { precoOkx } from "@/lib/market/okxSpot";
@@ -31,6 +31,10 @@ type Message = { role: "user" | "assistant"; content: string };
 const MAX_TOKENS_RESPOSTA = 1800;
 // Rondas de ferramentas por mensagem (cada ronda é mais uma chamada ao modelo).
 const MAX_RONDAS_FERRAMENTAS = 2;
+// Orçamento de tempo de TODO o pedido (rondas de ferramentas incluídas): a
+// função morre aos 60 s (maxDuration) e um stream cortado chegava ao cliente
+// sem evento de fim. Guardam-se 50 s para o modelo e 10 s para o resto.
+const PRAZO_TOTAL_MS = 50_000;
 const TETO_COM_GEMINI = 40_000;
 const tetoTokensPedido = () => (hasGemini() ? TETO_COM_GEMINI : groqTokenLimit());
 
@@ -263,8 +267,9 @@ export async function POST(req: NextRequest) {
     const portfolioError = body.portfolioError === true;
     const LANG_NAME: Record<string, string> = { pt: "português europeu (PT-PT)", en: "English", es: "español", fr: "français" };
     const langDirective = `\n\nIDIOMA (REGRA ABSOLUTA, ignora o idioma do contexto/portfolio acima): Responde SEMPRE e EXCLUSIVAMENTE em ${LANG_NAME[lang] ?? "português europeu (PT-PT)"}. Toda a tua resposta — títulos, listas e texto — tem de estar nesse idioma, independentemente do idioma em que o contexto do portfolio ou a watchlist estejam escritos.`;
-    const messages = (body.messages ?? []).slice(-14).map(m => ({
-      role: m.role,
+    // Papéis forçados: o cliente nunca injeta "system" nem "tool" (revisão 5 out 2026).
+    const messages: Message[] = (body.messages ?? []).slice(-14).map(m => ({
+      role: m.role === "assistant" ? "assistant" as const : "user" as const,
       content: String(m.content ?? "").slice(0, 4000),
     }));
     // Tema(s) da pergunta: decide que secções de dados entram no prompt.
@@ -351,28 +356,41 @@ export async function POST(req: NextRequest) {
     // Gera a resposta com até MAX_RONDAS_FERRAMENTAS rondas de ferramentas:
     // se o modelo pedir uma ferramenta em vez de texto, executa-se e volta-se
     // a chamar com o resultado. `onDelta` recebe o texto à medida que chega.
+    const prazo = Date.now() + PRAZO_TOTAL_MS;
     const gerar = async (pedido: { mensagens: ChatMessage[]; tokens: number }, onDelta: (t: string) => void): Promise<string> => {
       let msgs: ChatMessage[] = pedido.mensagens;
       let tokens = pedido.tokens;
+      let enviouAlgo = false;
+      const entregar = (t: string) => { enviouAlgo = true; onDelta(t); };
       for (let ronda = 0; ; ronda++) {
+        if (prazo - Date.now() < 8_000) throw new AiError(504, "sem tempo para mais uma ronda");
         const usarTools = ronda < MAX_RONDAS_FERRAMENTAS && ferramentas.defs.length > 0;
-        const { eventos } = await generateAiChatStream(msgs, { maxTokens: MAX_TOKENS_RESPOSTA, temperature: 0.65, tokensEntrada: tokens, tools: usarTools ? ferramentas.defs : undefined });
+        const { eventos } = await generateAiChatStream(msgs, { maxTokens: MAX_TOKENS_RESPOSTA, temperature: 0.65, tokensEntrada: tokens, tools: usarTools ? ferramentas.defs : undefined, prazo });
         const reader = eventos.getReader();
         let texto = "";
         const calls = new Map<number, { id: string; name: string; args: string }>();
         for (;;) {
           const { done, value } = await reader.read();
           if (done) break;
-          if (value.tipo === "texto") { texto += value.texto; onDelta(value.texto); continue; }
+          if (value.tipo === "texto") { texto += value.texto; entregar(value.texto); continue; }
           const c = calls.get(value.index) ?? { id: "", name: "", args: "" };
           if (value.id) c.id = value.id;
           if (value.name) c.name += value.name;
           if (value.args) c.args += value.args;
           calls.set(value.index, c);
         }
-        if (!calls.size || texto.trim() || !usarTools) return texto;
-        const pedidos = [...calls.values()].filter((c) => c.name).slice(0, 3).map((c, k) => ({ ...c, id: c.id || `call_${ronda}_${k}` }));
-        if (!pedidos.length) return texto;
+        if (texto.trim()) return texto;
+        const pedidos = usarTools ? [...calls.values()].filter((c) => c.name).slice(0, 3).map((c, k) => ({ ...c, id: c.id || `call_${ronda}_${k}` })) : [];
+        if (!pedidos.length) {
+          // O fornecedor aceitou o pedido mas o stream veio vazio (ex.: o
+          // raciocínio do Gemini gastou a saída). Sem nada enviado ainda, a
+          // versão sem stream passa ao candidato seguinte — como no caminho JSON.
+          if (enviouAlgo || prazo - Date.now() < 8_000) return texto;
+          console.warn("[gestor] stream vazio — a repetir sem stream pela cadeia de fornecedores");
+          const completo = await generateAiChat(msgs, { maxTokens: MAX_TOKENS_RESPOSTA, temperature: 0.65, tokensEntrada: tokens });
+          entregar(completo);
+          return completo;
+        }
         console.log(`[gestor] ferramentas (ronda ${ronda + 1}): ${pedidos.map((c) => c.name).join(", ")}`);
         const resultados: ChatMessage[] = await Promise.all(pedidos.map(async (c) => ({ role: "tool" as const, tool_call_id: c.id, content: await ferramentas.executar(c.name, c.args) })));
         const assistant: ChatMessage = { role: "assistant", content: "", tool_calls: pedidos.map((c) => ({ id: c.id, type: "function" as const, function: { name: c.name, arguments: c.args || "{}" } })) };

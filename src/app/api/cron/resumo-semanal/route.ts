@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { verifyCronAuth } from "@/lib/api/cron-auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { activeSubscribers } from "@/lib/api/entitlement";
+import { isPremiumPriceId } from "@/lib/payments/priceIds";
 import { loadOptouts } from "@/lib/emailOptout";
 import { langFromMetadata, resolveLang } from "@/lib/user/lang";
 import { FROM_BRIEFING, markSent, mascararEmail, sendEmail, shell } from "@/lib/email";
@@ -38,27 +38,30 @@ export async function GET(request: Request) {
   const admin = getSupabaseAdmin();
   const semana = semanaIso();
 
-  // Utilizadores (email + idioma), paginados.
-  const users = new Map<string, { email: string; lang: Lang }>();
+  // Premium ativos lidos DIRETAMENTE de `subscriptions` (sem listar todos os
+  // utilizadores nem meter milhares de ids num .in()); o email e o idioma vêm
+  // depois, um a um, só para esses.
+  const premiumIds = new Set<string>();
   try {
-    for (let page = 1; page <= 10; page++) {
-      const { data } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
-      for (const u of data.users) if (u.email) users.set(u.id, { email: u.email, lang: resolveLang(langFromMetadata(u.user_metadata)) });
-      if (data.users.length < 1000) break;
-    }
+    const { data, error } = await admin
+      .from("subscriptions").select("user_id, price_id")
+      .in("status", ["active", "trialing"])
+      .or(`current_period_end.is.null,current_period_end.gt.${new Date().toISOString()}`);
+    if (error) throw new Error(error.message);
+    for (const r of (data ?? []) as Array<{ user_id: string; price_id: string | null }>) if (isPremiumPriceId(r.price_id)) premiumIds.add(r.user_id);
   } catch (e) {
-    console.error("[resumo-semanal] listUsers:", e instanceof Error ? e.message : e);
-    return NextResponse.json({ error: "users unavailable" }, { status: 503 });
-  }
-
-  let planos: Map<string, "free" | "pro" | "premium">;
-  try { planos = await activeSubscribers(admin, [...users.keys()]); }
-  catch (e) {
-    console.error("[resumo-semanal] planos:", e instanceof Error ? e.message : e);
+    console.error("[resumo-semanal] subscriptions:", e instanceof Error ? e.message : e);
     return NextResponse.json({ error: "subscriptions unavailable" }, { status: 503 });
   }
   const optouts = await loadOptouts(admin);
-  const premium = [...users.entries()].filter(([id]) => planos.get(id) === "premium" && !optouts.has(id)).slice(0, MAX_UTILIZADORES);
+  const premium: Array<[string, { email: string; lang: Lang }]> = [];
+  for (const id of [...premiumIds].filter((id) => !optouts.has(id)).slice(0, MAX_UTILIZADORES)) {
+    try {
+      const { data } = await admin.auth.admin.getUserById(id);
+      const u = data.user;
+      if (u?.email) premium.push([id, { email: u.email, lang: resolveLang(langFromMetadata(u.user_metadata)) }]);
+    } catch (e) { console.error("[resumo-semanal] getUserById:", e instanceof Error ? e.message : e); }
+  }
 
   // Preços em EUR uma vez (para a concentração por ativo).
   const precosEur: Record<string, number> = {};
@@ -73,8 +76,15 @@ export async function GET(request: Request) {
         .not("data->_totalEur", "is", null).order("created_at", { ascending: false }).limit(1).maybeSingle();
       const ultima = (ultimaRow?.data ?? null) as Ultima | null;
       if (!ultima) { semDados++; continue; }
-      // Sem fotografia nos últimos 30 dias não há nada de novo a contar.
-      if (ultimaRow && Date.now() - new Date(ultimaRow.created_at).getTime() > 30 * 86_400_000) { semDados++; continue; }
+      // Sem fotografia AO VIVO nos últimos 30 dias não há nada de novo a contar.
+      // O cron diário copia a última fotografia todas as noites (sem `_bench`),
+      // por isso a data da mais recente não diz nada; a que tem `_bench` foi
+      // gravada pela página, com a pessoa lá.
+      const { data: ultimaViva } = await admin
+        .from("portfolio_snapshots").select("created_at").eq("user_id", userId)
+        .not("data->_bench", "is", null).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      const dataViva = ultimaViva?.created_at ?? ultimaRow?.created_at;
+      if (dataViva && Date.now() - new Date(dataViva).getTime() > 30 * 86_400_000) { semDados++; continue; }
 
       const accountId = typeof ultima._account === "string" ? ultima._account : "";
       const [rows, score] = await Promise.all([lerFotografias(userId, "premium"), getScore(userId).catch(() => null)]);
@@ -98,10 +108,16 @@ export async function GET(request: Request) {
       });
       if (!resumo.temConteudo) { semDados++; continue; }
 
-      if (!(await markSent(admin, userId, `resumo-semanal:${semana}`))) { jaEnviados++; continue; }
+      const marca = `resumo-semanal:${semana}`;
+      if (!(await markSent(admin, userId, marca))) { jaEnviados++; continue; }
       const html = shell(markdownSimplesParaHtml(resumo.markdown), { title: resumo.assunto });
       const ok = await sendEmail({ from: FROM_BRIEFING, to: u.email, subject: resumo.assunto, html, tag: "resumo-semanal", userId, lang: u.lang });
-      if (ok) enviados++; else erros.push(mascararEmail(u.email));
+      if (ok) enviados++;
+      else {
+        // Envio falhado: liberta a marca para a execução seguinte voltar a tentar.
+        erros.push(mascararEmail(u.email));
+        try { await admin.from("notification_log").delete().match({ user_id: userId, kind: marca }); } catch { /* fica marcado; melhor um email a menos do que dois */ }
+      }
     } catch (e) {
       console.error("[resumo-semanal]", mascararEmail(u.email), e instanceof Error ? e.message : e);
       erros.push(mascararEmail(u.email));
