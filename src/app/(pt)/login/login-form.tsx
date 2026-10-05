@@ -363,6 +363,16 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
               {showMfa ? t("lg_mfa_sub") : jaEntrou !== null ? t("lg_already_sub") : mode === "signup" ? (toBeta ? t("lg_signup_sub_beta") : t("lg_signup_sub")) : t("lg_login_sub")}
             </p>
           </div>
+          {/* Garantias (dados do funil, 5 out 2026): quase 1 em 3 dos que chegam ao
+              registo vai ler os Termos/Privacidade antes de escrever — está a decidir
+              se confia. Responde-se aqui, antes do formulário. Só frases verdadeiras. */}
+          {!showMfa && jaEntrou === null && (
+            <ul className="mt-1 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-slate-400">
+              <li className="flex items-center gap-1.5"><span aria-hidden>🔒</span>{t("lg_trust_readonly")}</li>
+              <li className="flex items-center gap-1.5"><span aria-hidden>⏱</span>{t("lg_trust_minute")}</li>
+              <li className="flex items-center gap-1.5"><span aria-hidden>🗑</span>{t("lg_trust_delete")}</li>
+            </ul>
+          )}
         </div>
 
         {showMfa && (
