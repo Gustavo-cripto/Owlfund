@@ -7,6 +7,7 @@
 import { historicoParaIa } from "@/lib/ai/historicoPortefolio";
 import { getScore, getTaxEstimate, listTaxCountries } from "@/lib/api/insights";
 import { getKnownWhales } from "@/lib/api/known-whales";
+import { COUNTRIES } from "@/lib/tax/countries";
 
 // Sem país fiscal guardado no perfil, assume-se o do idioma (e diz-se à IA que é
 // uma suposição). Em inglês não se assume nada: GB, US, IE, AU… são diferentes.
@@ -25,11 +26,13 @@ async function pontuacao(userId: string): Promise<string> {
   ].join("\n");
 }
 
-async function fiscal(userId: string, lang: string): Promise<string> {
+async function fiscal(userId: string, lang: string, paisPerfil?: string): Promise<string> {
   const paises = listTaxCountries();
   const lista = "Países com regras publicadas (código: curto/longo, dias para longo): " +
     paises.countries.map((c) => `${c.code}: ${Math.round(c.shortTermRate * 100)} %/${Math.round(c.longTermRate * 100)} %${c.longTermAfterDays ? ` após ${c.longTermAfterDays} d` : ""}`).join(" · ");
-  const pais = PAIS_DO_IDIOMA[lang];
+  // País do perfil do utilizador (memória do Block) primeiro; só sem ele se assume pelo idioma.
+  const doPerfil = paisPerfil && COUNTRIES.some((c) => c.code === paisPerfil) ? paisPerfil : null;
+  const pais = doPerfil ?? PAIS_DO_IDIOMA[lang];
   if (!pais) {
     return `=== FISCALIDADE ===\n${lista}\nPara uma estimativa de imposto, pergunta ao utilizador em que país declara (ou manda-o a /fiscalidade, onde escolhe o país e exporta o relatório).`;
   }
@@ -37,7 +40,7 @@ async function fiscal(userId: string, lang: string): Promise<string> {
   const est = await getTaxEstimate(userId, pais, ano);
   if ("error" in est) return `=== FISCALIDADE ===\n${lista}`;
   const linhas = [
-    `=== FISCALIDADE — estimativa ${ano} para ${pais} (país ASSUMIDO pelo idioma; se o utilizador declarar noutro país, di-lo e manda-o a /fiscalidade) ===`,
+    `=== FISCALIDADE — estimativa ${ano} para ${pais} (${doPerfil ? "país indicado pelo utilizador no perfil" : "país ASSUMIDO pelo idioma; se o utilizador declarar noutro país, di-lo e manda-o a /fiscalidade ou ao perfil do Block"}) ===`,
     `Vendas no ano: ${est.sales} · mais-valias brutas ${eur(est.totalGain)} · tributável ${eur(est.taxableGain)} · isento ${eur(est.exemptGain)} · menos-valias ${eur(est.losses)} (compensadas ${eur(est.lossesOffset)}) · taxas deduzidas ${eur(est.feesDeducted)}.`,
     `Imposto estimado: ${est.estimatedTax == null ? "não calculável (faltam câmbios ou dados)" : eur(est.estimatedTax)}${est.estimatedTaxRange ? ` (intervalo ${eur(est.estimatedTaxRange.min)}–${eur(est.estimatedTaxRange.max)})` : ""}.`,
     `Taxas: curto ${Math.round(est.rates.short * 100)} %, longo ${Math.round(est.rates.long * 100)} %${est.rates.longTermAfterDays ? ` após ${est.rates.longTermAfterDays} dias de detenção` : ""}.`,
@@ -62,11 +65,13 @@ export async function contextoBlockServidor(opts: {
   userId: string; accountId: string; totalAtual: number | null; locale: string; lang: string;
   /** Temas da pergunta (orcamentoBlock.temasDaPergunta): fiscalidade e baleias só entram a pedido. */
   temas: Set<string>;
+  /** País fiscal guardado no perfil do Block (código ISO), se houver. */
+  paisFiscal?: string;
 }): Promise<string> {
   const [hist, score, fisc] = await Promise.allSettled([
     historicoParaIa({ userId: opts.userId, plan: "premium", accountId: opts.accountId, totalAtual: opts.totalAtual, locale: opts.locale }),
     pontuacao(opts.userId),
-    opts.temas.has("fiscal") ? fiscal(opts.userId, opts.lang) : Promise.resolve(null),
+    opts.temas.has("fiscal") ? fiscal(opts.userId, opts.lang, opts.paisFiscal) : Promise.resolve(null),
   ]);
   const partes = [
     hist.status === "fulfilled" ? hist.value : null,

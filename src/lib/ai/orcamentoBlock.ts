@@ -89,7 +89,7 @@ export function selecionarSeccoes(
 ): string {
   const temas = temasDaPergunta(pergunta);
   const prioridade = (s: Seccao): number => {
-    if (/^PORTEF[ÓO]LIO/i.test(s.titulo) || s.titulo === "") return 3;
+    if (/^PORTEF[ÓO]LIO/i.test(s.titulo) || /^O QUE SEI/i.test(s.titulo) || s.titulo === "") return 3;
     const tema = temaDaSeccao(s.titulo);
     if (tema && temas.has(tema)) return 2;
     if (tema && NUCLEO.has(tema)) return 1;

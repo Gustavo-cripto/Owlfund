@@ -8,6 +8,8 @@ import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { createClient } from "@/lib/supabase/client";
 import { buildPortfolioSummary, type PortfolioCategory } from "@/lib/portfolio/summaryText";
 import { resumoCompletoBlock } from "@/lib/ai/resumoBlock";
+import { adicionarNotas, guardarMemoria, lerMemoria, removerNota, textoMemoria, type MemoriaBlock } from "@/lib/ai/memoriaBlock";
+import { COUNTRIES, TEXT_PREFIX } from "@/lib/tax/countries";
 import { loadNickname } from "@/lib/user/nickname";
 import {
   ACCOUNTS_EVENT,
@@ -114,6 +116,17 @@ export default function GestorPage() {
   const [loading, setLoading] = useState(false);
   const [portfolio, setPortfolio] = useState<{ totalEur: number; categories: PortfolioCategory[] } | null>(null);
   const [acctId, setAcctId] = useState<string>("");
+  // Memória do Block (perfil + notas) da conta ativa, e sugestões de seguimento da última resposta.
+  const [memoria, setMemoria] = useState<MemoriaBlock>({ notas: [] });
+  const [sugestoes, setSugestoes] = useState<string[]>([]);
+  const [perfilAberto, setPerfilAberto] = useState(false);
+  useEffect(() => { setMemoria(lerMemoria()); setSugestoes([]); }, [acctId]);
+  const atualizarMemoria = (patch: Partial<MemoriaBlock>) => {
+    setMemoria((prev) => { const m = { ...prev, ...patch }; guardarMemoria(m); return m; });
+  };
+  const paisesPerfil = useMemo(() =>
+    COUNTRIES.map((c) => ({ code: c.code, label: `${c.flag} ${t(`fc_${TEXT_PREFIX[c.code]}_name` as TranslationKey)}` }))
+      .sort((a, b) => a.label.localeCompare(b.label, locale)), [t, locale]);
   const [acctName, setAcctName] = useState<string>("");
   const [acctCount, setAcctCount] = useState(1);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
@@ -235,6 +248,7 @@ export default function GestorPage() {
     setMessages(prev => [...prev, userMsg]);
     setInput("");
     setSendError(null);
+    setSugestoes([]);
     setLoading(true);
     if (textareaRef.current) { textareaRef.current.style.height = ""; }
 
@@ -260,7 +274,7 @@ export default function GestorPage() {
       const res = await fetch("/api/gestor", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-lang": lang },
-        body: JSON.stringify({ messages: history, watchlist, lang, portfolio: portfolioText ?? undefined, nickname: loadNickname() || undefined, accountName: acctName || undefined, accountId: reqAcct || undefined, totalEur: totalEur > 0 ? totalEur : undefined, accountCount: acctCount, accountEmpty, portfolioError }),
+        body: JSON.stringify({ messages: history, watchlist, lang, portfolio: portfolioText ?? undefined, nickname: loadNickname() || undefined, accountName: acctName || undefined, accountId: reqAcct || undefined, totalEur: totalEur > 0 ? totalEur : undefined, accountCount: acctCount, accountEmpty, portfolioError, memoria: textoMemoria(lerMemoria()) ?? undefined, taxCountry: lerMemoria().paisFiscal }),
       });
 
       if (!res.ok) {
@@ -268,7 +282,7 @@ export default function GestorPage() {
         throw new Error(err.error ?? t("error"));
       }
 
-      const data = await res.json() as { reply: string };
+      const data = await res.json() as { reply: string; lembrar?: string[]; sugestoes?: string[] };
       if (getActiveAccountId() !== reqAcct) return; // trocou de conta a meio — não misturar threads
       setMessages(prev => [...prev, {
         id: crypto.randomUUID(),
@@ -276,6 +290,8 @@ export default function GestorPage() {
         content: data.reply,
         timestamp: new Date(),
       }]);
+      setSugestoes(Array.isArray(data.sugestoes) ? data.sugestoes.slice(0, 3) : []);
+      if (Array.isArray(data.lembrar) && data.lembrar.length) setMemoria(adicionarNotas(data.lembrar));
     } catch (err) {
       // Erro fora do histórico (não persistido, não vai para o PDF) com "tentar de novo"
       setSendError({ text: userError(err, t("error")), lastUser: trimmed });
@@ -498,6 +514,51 @@ export default function GestorPage() {
               </div>
             </div>
 
+            {/* Perfil do Block: o que ele deve saber de ti (país fiscal, idade, objetivos) + notas que aprendeu */}
+            <div className="px-3 pt-2 pb-2">
+              <button type="button" onClick={() => setPerfilAberto((v) => !v)} className="w-full flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-slate-500 hover:text-slate-300">
+                <span>{t("gz_perfil")}</span><span>{perfilAberto ? "▾" : "▸"}{memoria.notas.length ? ` · ${memoria.notas.length}` : ""}</span>
+              </button>
+              {perfilAberto && (
+                <div className="mt-2 space-y-2 text-xs">
+                  <p className="text-[11px] text-slate-500">{t("gz_perfil_desc")}</p>
+                  <label className="block">
+                    <span className="text-slate-400">{t("gz_pais_fiscal")}</span>
+                    <select value={memoria.paisFiscal ?? ""} onChange={(e) => atualizarMemoria({ paisFiscal: e.target.value || undefined })}
+                      className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-slate-200">
+                      <option value="">{t("gz_pais_auto")}</option>
+                      {paisesPerfil.map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-slate-400">{t("gz_idade")}</span>
+                    <input type="number" min={1} max={119} value={memoria.idade ?? ""} onChange={(e) => atualizarMemoria({ idade: Number(e.target.value) > 0 ? Number(e.target.value) : undefined })}
+                      className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-slate-200" />
+                  </label>
+                  <label className="block">
+                    <span className="text-slate-400">{t("gz_objetivos")}</span>
+                    <textarea rows={3} maxLength={400} value={memoria.objetivos ?? ""} placeholder={t("gz_objetivos_ph")}
+                      onChange={(e) => setMemoria((prev) => ({ ...prev, objetivos: e.target.value }))}
+                      onBlur={(e) => atualizarMemoria({ objetivos: e.target.value })}
+                      className="mt-1 w-full resize-none rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-slate-200" />
+                  </label>
+                  <div>
+                    <span className="text-slate-400">{t("gz_notas")}</span>
+                    {memoria.notas.length === 0
+                      ? <p className="mt-1 text-[11px] text-slate-600">{t("gz_notas_vazio")}</p>
+                      : <ul className="mt-1 space-y-1">
+                          {memoria.notas.map((n) => (
+                            <li key={n.id} className="flex items-start gap-1.5 rounded-lg bg-slate-900/70 px-2 py-1 text-[11px] text-slate-300">
+                              <span className="flex-1">{n.texto}</span>
+                              <button type="button" onClick={() => setMemoria(removerNota(n.id))} aria-label={t("gz_nota_remover")} className="text-slate-500 hover:text-rose-300">✕</button>
+                            </li>
+                          ))}
+                        </ul>}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="mt-auto p-3 border-t border-slate-800 space-y-1">
               {hasConversation && (
                 <button type="button" onClick={exportPdf} className="w-full flex items-center justify-center gap-1.5 rounded-lg border border-slate-800 py-1.5 text-xs text-slate-400 transition hover:border-violet-500/50 hover:text-violet-300">
@@ -570,10 +631,10 @@ export default function GestorPage() {
               {/* Sugestões de seguimento depois de cada resposta */}
               {!loading && !sendError && messages.length > 1 && messages[messages.length - 1]?.role === "assistant" && (
                 <div className="flex flex-wrap gap-2 pl-10">
-                  {(["gz_fu_1", "gz_fu_2", "gz_fu_3"] as const).map((k) => (
-                    <button key={k} type="button" onClick={() => void sendMessage(t(k))}
+                  {(sugestoes.length ? sugestoes : (["gz_fu_1", "gz_fu_2", "gz_fu_3"] as const).map((k) => t(k))).map((q) => (
+                    <button key={q} type="button" onClick={() => void sendMessage(q)}
                       className="rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1 text-[11px] text-slate-300 transition hover:border-violet-400/50 hover:text-white">
-                      💬 {t(k)}
+                      💬 {q}
                     </button>
                   ))}
                 </div>

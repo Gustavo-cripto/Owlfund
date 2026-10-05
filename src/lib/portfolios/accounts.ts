@@ -24,12 +24,16 @@ export const NAMESPACED_BASE_KEYS = [
   "owlfund.stablecoin.addresses.v1",
   "trade-history-v1",
   "owlfund.venue.holdings.v1",
+  // Memória do Gestor IA (perfil + notas que o Block aprendeu). Viaja entre
+  // aparelhos como o resto; não conta para "conta vazia".
+  "gestor.memoria.v1",
   // Carimbos de "quando foi gravado" por chave, para o merge entre dispositivos
   // (ver marcarAlterado e cloudSync.pullWalletCloud). Viaja no blob como as outras.
   "owlfund.sync.ts.v1",
 ] as const;
 
 export const SYNC_TS_BASE = "owlfund.sync.ts.v1";
+export const MEMORIA_BLOCK_BASE = "gestor.memoria.v1";
 
 /**
  * Chaves PESSOAIS que não são de portefólio e por isso nunca foram prefixadas
@@ -284,7 +288,7 @@ export function temConteudo(raw: string | null | undefined): boolean {
 /** A conta não tem nada — nem neste aparelho, nem (se dados) na nuvem. Os carimbos não contam. */
 export function contaVazia(accountId: string, daNuvem?: Record<string, string>): boolean {
   for (const base of NAMESPACED_BASE_KEYS) {
-    if (base === SYNC_TS_BASE) continue;
+    if (base === SYNC_TS_BASE || base === MEMORIA_BLOCK_BASE) continue;
     if (temConteudo(readNamespaced(accountId, base))) return false;
     if (daNuvem && temConteudo(daNuvem[base])) return false;
   }
