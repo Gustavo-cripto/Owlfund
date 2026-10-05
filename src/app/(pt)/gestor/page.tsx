@@ -260,12 +260,14 @@ export default function GestorPage() {
       const watchlist = loadWatchlist();
       let portfolioText: string | null = null;
       let totalEur = 0;
+      let simbolos: string[] = [];
       let accountEmpty = false;
       let portfolioError = false;
       try {
         const summary = await resumoCompletoBlock(userId ?? "", LOCALE_BY_LANG[lang] ?? "pt-PT");
         portfolioText = summary.texto;
         totalEur = summary.totalEur;
+        simbolos = summary.simbolos;
         // Conta ativa genuinamente vazia (não um erro de leitura): sem texto e
         // sem valor. O servidor usa isto para não cair no snapshot global.
         accountEmpty = summary.vazio;
@@ -277,7 +279,7 @@ export default function GestorPage() {
       const res = await fetch("/api/gestor", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-lang": lang },
-        body: JSON.stringify({ messages: history, watchlist, lang, portfolio: portfolioText ?? undefined, nickname: loadNickname() || undefined, accountName: acctName || undefined, accountId: reqAcct || undefined, totalEur: totalEur > 0 ? totalEur : undefined, accountCount: acctCount, accountEmpty, portfolioError, memoria: textoMemoria(lerMemoria()) ?? undefined, taxCountry: lerMemoria().paisFiscal, stream: true }),
+        body: JSON.stringify({ messages: history, watchlist, lang, portfolio: portfolioText ?? undefined, nickname: loadNickname() || undefined, accountName: acctName || undefined, accountId: reqAcct || undefined, totalEur: totalEur > 0 ? totalEur : undefined, accountCount: acctCount, accountEmpty, portfolioError, memoria: textoMemoria(lerMemoria()) ?? undefined, taxCountry: lerMemoria().paisFiscal, simbolos, stream: true }),
       });
 
       if (!res.ok) {
