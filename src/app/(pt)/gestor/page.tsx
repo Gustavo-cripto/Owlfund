@@ -81,6 +81,16 @@ function getQuickActions(t: (k: TranslationKey) => string, locale: string) {
     { icon: "📄", label: `${t("gz_qa_report_l")} ${year}`, prompt: t("gz_qa_report_p").replace("{y}", String(year)) },
     { icon: "🐋", label: t("gz_qa_onchain_l"), prompt: t("gz_qa_onchain_p") },
     { icon: "📈", label: t("gz_qa_bench_l"), prompt: t("gz_qa_bench_p") },
+    { icon: "📉", label: t("gz_qa_change_l"), prompt: t("gz_qa_change_p") },
+    { icon: "🧩", label: t("gz_qa_defi_l"), prompt: t("gz_qa_defi_p") },
+    { icon: "🖼️", label: t("gz_qa_nft_l"), prompt: t("gz_qa_nft_p") },
+    { icon: "👛", label: t("gz_qa_wallets_l"), prompt: t("gz_qa_wallets_p") },
+    { icon: "🏦", label: t("gz_qa_cex_l"), prompt: t("gz_qa_cex_p") },
+    { icon: "🕒", label: t("gz_qa_moves_l"), prompt: t("gz_qa_moves_p") },
+    { icon: "🧮", label: t("gz_qa_trades_l"), prompt: t("gz_qa_trades_p") },
+    { icon: "🎯", label: t("gz_qa_score_l"), prompt: t("gz_qa_score_p") },
+    { icon: "✍️", label: t("gz_qa_manual_l"), prompt: t("gz_qa_manual_p") },
+    { icon: "❓", label: t("gz_qa_help_l"), prompt: t("gz_qa_help_p") },
   ];
 }
 
@@ -507,7 +517,7 @@ export default function GestorPage() {
           <div className="flex-1 flex flex-col overflow-hidden">
             {/* Mobile quick actions */}
             <div className="lg:hidden flex gap-2 overflow-x-auto px-4 py-2 border-b border-slate-800 no-scrollbar">
-              {quickActions.slice(0, 4).map(a => (
+              {quickActions.map(a => (
                 <button key={a.label} type="button"
                   onClick={() => sendMessage(a.prompt)}
                   className="flex-shrink-0 rounded-full border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:border-violet-500/50 hover:text-violet-300 transition whitespace-nowrap">
