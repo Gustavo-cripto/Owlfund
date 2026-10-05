@@ -22,9 +22,15 @@ export type Etapas = {
   /** Contas da janela que só têm carteiras de exemplo (nenhuma real, nem corretora). */
   soComExemplo: number | null;
 };
-/** Desde quando cada métrica é medida: um zero antes desta data é "não medido", não "zero". */
+/**
+ * Desde quando cada métrica é medida: um zero antes desta data é "não medido",
+ * não "zero". Métrica AUSENTE daqui tem histórico completo (contas e
+ * comCarteira vêm de auth.users e wallet_config, não de page_views). As visitas
+ * contam desde 24 set porque só a partir daí há a marca de robô (is_bot) que
+ * o funil exige; as linhas anteriores ficam de fora.
+ */
 export const MEDIDO_DESDE: Record<string, string> = {
-  paginaInicial: "2026-09-24", experimentar: "2026-09-25", registo: "2026-09-25", contas: "2026-09-24", comCarteira: "2026-09-24",
+  paginaInicial: "2026-09-24", experimentar: "2026-09-25", registo: "2026-09-25",
   cta: "2026-10-05", emailConfirmado: "2026-10-05", modoExemploCliques: "2026-10-05", soComExemplo: "2026-10-05",
   registoGoogleAppleCarteira: "2026-10-05",
 };
