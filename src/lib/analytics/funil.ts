@@ -6,7 +6,19 @@ import { PREFIXO_EVENTO } from "@/lib/analytics/eventos";
 //   contas criadas → contas com carteira → voltaram depois de 7 dias.
 // Os dois primeiros e o terceiro vem de page_views; o resto de auth.users e
 // wallet_config. Nada aqui identifica ninguem: so contagens.
-export type Etapas = { paginaInicial: number | null; experimentar: number | null; registo: number | null; contas: number | null; comCarteira: number | null };
+export type Etapas = {
+  paginaInicial: number | null;
+  /** Cliques nos botões da página inicial, cada um à parte. */
+  cta: { hero: number | null; planos: number | null; final: number | null; demo: number | null };
+  experimentar: number | null;
+  registo: number | null;
+  /** Emails confirmados (passo gravado pelo servidor em /api/auth/confirm). */
+  emailConfirmado: number | null;
+  contas: number | null;
+  comCarteira: number | null;
+  /** Contas que carregaram o modo de exemplo. */
+  exemplo: number | null;
+};
 export type Funil = {
   d7: Etapas;
   d30: Etapas;
@@ -119,13 +131,13 @@ export async function calcularFunil(admin: SupabaseClient): Promise<Funil> {
   const etapas = async (dias: number): Promise<Etapas> => {
     const corte = agora - dias * 86_400_000;
     const naJanela = users.filter((u) => u.criada >= corte);
-    const [paginaInicial, experimentar, registo] = await Promise.all([
+    const ev = (nome: string) => vistas(dias, (q) => q.eq("path", `${PREFIXO_EVENTO}${nome}`));
+    const [paginaInicial, experimentar, registo, emailConfirmado, exemplo, hero, planos, final, demo] = await Promise.all([
       vistas(dias, (q) => q.in("path", INICIAIS)),
-      vistas(dias, (q) => q.eq("path", `${PREFIXO_EVENTO}experimentar`)),
-      vistas(dias, (q) => q.eq("path", `${PREFIXO_EVENTO}registo`)),
+      ev("experimentar"), ev("registo"), ev("email_confirmado"), ev("exemplo"), ev("cta_hero"), ev("cta_planos"), ev("cta_final"), ev("cta_demo"),
     ]);
     return {
-      paginaInicial, experimentar, registo,
+      paginaInicial, cta: { hero, planos, final, demo }, experimentar, registo, emailConfirmado, exemplo,
       contas: listagemOk ? naJanela.length : null,
       comCarteira: listagemOk ? naJanela.filter((u) => comCarteira.has(u.id)).length : null,
     };

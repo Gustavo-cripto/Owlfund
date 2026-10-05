@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { PREFIXO_EVENTO } from "@/lib/analytics/eventos";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -95,6 +96,11 @@ export async function POST(request: Request) {
       return paraLogin(/expired|otp_expired/i.test(`${error.code ?? ""} ${error.message}`) ? "expired" : "confirm");
     }
     uid = sessao?.user?.id ?? "";
+    // Passo do funil que faltava: o email foi confirmado (pagina_inicial →
+    // cta → registo → email_confirmado → conta com carteira). Sem dados pessoais.
+    if (type !== "recovery" && type !== "email_change" && uid) {
+      try { await getSupabaseAdmin().from("page_views").insert({ path: `${PREFIXO_EVENTO}email_confirmado`, is_bot: false }); } catch { /* medir nunca trava a entrada */ }
+    }
     if (type !== "recovery" && !pediuDestino && uid) {
       try { contaNova = await contaSemCarteiras(getSupabaseAdmin(), uid); } catch { /* sem admin: fica o destino normal */ }
     }

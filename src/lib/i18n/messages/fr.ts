@@ -756,6 +756,8 @@ export const fr: Record<TranslationKey, string> = {
     dev_banner_premium: "Vous avez Premium : vous pouvez créer des clés et utiliser l'API et le MCP.",
     dev_manage_keys: "Gérer mes clés",
     dev_banner_beta: "L'API et le MCP sont Premium. Pendant la bêta, vous pouvez demander Premium gratuit 60 jours.",
+    dev_try_free_title: "Essayez tout de suite, sans clé",
+    dev_try_free_desc: "Trois endpoints répondent sans compte ni clé. Collez ceci dans un terminal pour obtenir la capitalisation globale et la dominance du BTC en JSON.",
     dev_banner_premium_needed: "L'API et le MCP nécessitent le plan Premium.",
     dev_toc: "Sur cette page",
     dev_sec_auth: "Authentification",

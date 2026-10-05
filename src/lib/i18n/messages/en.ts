@@ -756,6 +756,8 @@ export const en: Record<TranslationKey, string> = {
     dev_banner_premium: "You have Premium: you can create keys and use the API and MCP.",
     dev_manage_keys: "Manage my keys",
     dev_banner_beta: "API and MCP are Premium. During the beta you can request Premium free for 60 days.",
+    dev_try_free_title: "Try it now, no key needed",
+    dev_try_free_desc: "Three endpoints answer without an account or a key. Paste this in a terminal to get global market cap and BTC dominance as JSON.",
     dev_banner_premium_needed: "API and MCP require the Premium plan.",
     dev_toc: "On this page",
     dev_sec_auth: "Authentication",

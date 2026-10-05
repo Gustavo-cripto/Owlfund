@@ -79,6 +79,7 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
         setLoading(false);
         return;
       }
+      try { localStorage.setItem("cfa-ja-entrou", "1"); } catch { /* ignore */ }
       window.location.href = nextPath;
     } catch {
       window.location.href = nextPath;
@@ -91,6 +92,7 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
       .then(async ({ data }: { data: { session: { user?: { email?: string } } | null } }) => {
         if (!isMounted) return;
         if (!data.session) { setIsCheckingSession(false); return; }
+        try { localStorage.setItem("cfa-ja-entrou", "1"); } catch { /* ignore */ }
         // Sessão a meio do 2FA continua a pedir o código: é uma entrada por
         // terminar, não uma sessão pronta a usar.
         try {
@@ -229,6 +231,15 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
   // Vive num painel proprio, por baixo do "ou", separado do formulario da
   // palavra-passe: tem o seu email (pre-preenchido) e as suas mensagens.
   const [magicOpen, setMagicOpen] = useState(false);
+  // Quem chega a /login sem nunca ter entrado neste browser (e sem ?mode=)
+  // quase sempre ainda não tem conta (o /login está no top 3 das visitas):
+  // mostra-se o registo e o link mágico já abertos. Quem já entrou aqui uma vez
+  // (marca cfa-ja-entrou) continua a ver a entrada.
+  useEffect(() => {
+    if (modeParam) return;
+    try { if (!localStorage.getItem("cfa-ja-entrou")) { setMode("signup"); setMagicOpen(true); } } catch { /* sem localStorage */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [magicEmail, setMagicEmail] = useState("");
   const [magicSent, setMagicSent] = useState(false);
   const [magicMsg, setMagicMsg] = useState<{ text: string; error: boolean } | null>(null);
