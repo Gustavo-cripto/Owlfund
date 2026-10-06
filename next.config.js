@@ -30,7 +30,7 @@ const securityHeaders = [
       // SEMPRE em produção com "Erro ao ligar", mal a extensão aprovava.
       // Descoberto a 21 de setembro de 2026; em `next dev` nunca se via, porque
       // aí o 'unsafe-eval' já cobria o WASM.
-      `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""} https://js.stripe.com https://s3.tradingview.com https://accounts.google.com`,
+      `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""} https://js.stripe.com https://s3.tradingview.com https://accounts.google.com https://challenges.cloudflare.com`,
       // Estilos: self + inline (Tailwind)
       "style-src 'self' 'unsafe-inline'",
       // Imagens: self + data URIs + todas HTTPS (logos de tokens e NFTs são dinâmicos)
@@ -82,7 +82,8 @@ const securityHeaders = [
       // iFrames: apenas TradingView
       // js.stripe.com / hooks.stripe.com: o Stripe.js cria um iframe proprio
       // (antifraude); sem isto o browser recusava-o na pagina do Portefolio.
-      "frame-src https://s.tradingview.com https://widget.tradingview.com https://accounts.google.com https://js.stripe.com https://hooks.stripe.com",
+      // challenges.cloudflare.com: Turnstile (anti-robô nos formulários de autenticação), script + iframe.
+      "frame-src https://s.tradingview.com https://widget.tradingview.com https://accounts.google.com https://js.stripe.com https://hooks.stripe.com https://challenges.cloudflare.com",
       // Workers
       "worker-src 'self' blob:",
       // WebAssembly (Cardano)

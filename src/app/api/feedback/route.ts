@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { rateLimitPublic } from "@/lib/api/requireUser";
+import { rateLimitPublicPartilhado } from "@/lib/api/requireUser";
 import { FROM, REPLY_TO, esc, sendEmail } from "@/lib/email";
 import { sendTelegram } from "@/lib/notify/telegram";
 
@@ -24,7 +24,7 @@ const LABEL: Record<string, string> = {
 export async function POST(request: Request) {
   // Publico e sem sessao (quem desistiu nao vai fazer login para dizer porque),
   // por isso limite por IP apertado + honeypot.
-  const limitado = rateLimitPublic(request, "feedback", 5);
+  const limitado = await rateLimitPublicPartilhado(request, "feedback", 5);
   if (limitado) return limitado;
 
   let b: { email?: unknown; reason?: unknown; text?: unknown; lang?: unknown; website?: unknown } = {};

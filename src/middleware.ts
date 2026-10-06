@@ -7,6 +7,7 @@ import { isBotUserAgent } from "@/lib/analytics/bots";
 import { pageFromPath, pageUrl } from "@/lib/i18n/routes";
 import type { Lang } from "@/lib/i18n/translations";
 import { origemDoUrl } from "@/lib/origem";
+import { assinarSelo, COOKIE_SELO, SELO_VALIDADE_S, seloPrecisaRenovar } from "@/lib/analytics/selo";
 
 // Regista uma visualizacao de pagina (fire-and-forget via waitUntil, sem atrasar
 // a resposta). So conta navegacoes reais: GET, sem prefetch, fora de /api e das
@@ -138,6 +139,14 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
 
   trackPageView(request, event);
 
+  // Selo do funil (cookie cfa-ev, HttpOnly, assinado com TRACK_SECRET): o
+  // /api/evento só aceita beacons de quem o traz — src/lib/analytics/selo.ts.
+  // Só se assina quando falta ou passou meio dia (um HMAC por visitante/dia).
+  const segredoSelo = (process.env.TRACK_SECRET ?? "").trim();
+  const seloNovo = navegacao && segredoSelo && !request.nextUrl.pathname.startsWith("/api") && seloPrecisaRenovar(request.cookies.get(COOKIE_SELO)?.value)
+    ? await assinarSelo(segredoSelo)
+    : null;
+
   // Origem do PRIMEIRO toque (?src=bluesky, ?utm_source=…) fica num cookie de
   // 30 dias: e assim que uma conta criada dias depois, ja sem nada no URL,
   // continua a saber por que canal veio (user_metadata.src, gravado no
@@ -147,6 +156,9 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   const comOrigem = <R extends NextResponse>(res: R): R => {
     if (origem && !request.cookies.get("cfa-src")) {
       res.cookies.set({ name: "cfa-src", value: origem, path: "/", maxAge: 30 * 86400, sameSite: "lax" });
+    }
+    if (seloNovo) {
+      res.cookies.set({ name: COOKIE_SELO, value: seloNovo, path: "/", maxAge: SELO_VALIDADE_S, sameSite: "lax", httpOnly: true, secure: true });
     }
     return res;
   };

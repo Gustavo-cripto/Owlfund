@@ -15,6 +15,7 @@ import GoogleOneTap from "@/components/GoogleOneTap";
 import { isMetaMaskAvailable } from "@/lib/wallets/evm";
 import { isPhantomAvailable } from "@/lib/wallets/solana";
 import { userError } from "@/lib/ui/userError";
+import { useTurnstile } from "@/components/Turnstile";
 
 export type LoginFormProps = {
   nextParam: string | null;
@@ -43,6 +44,8 @@ function mapAuthError(err: { code?: string; message?: string } | null | undefine
 export default function LoginForm({ nextParam, modeParam, emailParam, errorParam }: LoginFormProps) {
   const supabase = createClient();
   const { t, lang } = useLanguage();
+  // Anti-robô opcional (NEXT_PUBLIC_TURNSTILE_SITE_KEY): token de uso único por tentativa.
+  const captcha = useTurnstile(lang);
   const nextPath = sanitizeNext(nextParam);
   const [email, setEmail] = useState(emailParam ?? "");
   const [password, setPassword] = useState("");
@@ -140,8 +143,10 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
     setLoading(true); setMessage(null); setIsError(false); setCanResend(false);
     const creds = validateCredentials();
     if (!creds) { setLoading(false); return; }
+    if (captcha.ativo && !captcha.token) { fail(t("lg_captcha_falta")); setLoading(false); return; }
     try {
-      const { error } = await supabase.auth.signInWithPassword(creds);
+      const { error } = await supabase.auth.signInWithPassword({ ...creds, options: { ...captcha.captcha } });
+      captcha.renovar();
       if (error) {
         const key = mapAuthError(error);
         fail(t(key));
@@ -191,12 +196,14 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
     if (!confirmPassword) { fail(t("lg_err_confirm")); setLoading(false); return; }
     if (creds.password !== confirmPassword) { fail(t("lg_err_mismatch")); setLoading(false); return; }
     if (creds.password.toLowerCase() === creds.email.toLowerCase()) { fail(t("ac_password_weak")); setLoading(false); return; }
+    if (captcha.ativo && !captcha.token) { fail(t("lg_captcha_falta")); setLoading(false); return; }
     try {
       marcarEvento("registo");
       const { data, error } = await supabase.auth.signUp({
         ...creds,
-        options: { emailRedirectTo: destinoDoEmail(lang, nextPath), data: { lang } },
+        options: { emailRedirectTo: destinoDoEmail(lang, nextPath), data: { lang }, ...captcha.captcha },
       });
+      captcha.renovar();
       if (error) { fail(t(mapAuthError(error))); return; }
       // Com "confirm email" ativo, um email já registado devolve sucesso falso com
       // identities vazio (anti-enumeração) — dizer ao utilizador para entrar.
@@ -251,12 +258,14 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
   const handleMagic = async () => {
     const nextEmail = magicEmail.trim();
     if (!nextEmail) { setMagicMsg({ text: t("lg_err_email_first"), error: true }); return; }
+    if (captcha.ativo && !captcha.token) { setMagicMsg({ text: t("lg_captcha_falta"), error: true }); return; }
     setLoading(true); setMagicMsg(null);
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email: nextEmail,
-        options: { shouldCreateUser: true, emailRedirectTo: destinoDoEmail(lang, nextPath), data: { lang } },
+        options: { shouldCreateUser: true, emailRedirectTo: destinoDoEmail(lang, nextPath), data: { lang }, ...captcha.captcha },
       });
+      captcha.renovar();
       if (error) { setMagicMsg({ text: t(mapAuthError(error)), error: true }); return; }
       setMagicSent(true);
       marcarEvento("registo");
@@ -324,9 +333,11 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
   const handleReset = async () => {
     const nextEmail = resetEmail.trim();
     if (!nextEmail) { setResetMsg({ text: t("lg_err_email_first"), error: true }); return; }
+    if (captcha.ativo && !captcha.token) { setResetMsg({ text: t("lg_captcha_falta"), error: true }); return; }
     setLoading(true); setResetMsg(null);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(nextEmail, { redirectTo: destinoDoReset(lang) });
+      const { error } = await supabase.auth.resetPasswordForEmail(nextEmail, { redirectTo: destinoDoReset(lang), ...captcha.captcha });
+      captcha.renovar();
       if (error) { setResetMsg({ text: t(mapAuthError(error)), error: true }); return; }
       setResetSent(true);
       setResetMsg({ text: t("lg_reset_sent"), error: false });
@@ -524,6 +535,7 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
             </Link>
           )}
 
+          {!signedUp && captcha.widget}
           {!signedUp && (
             <button className={`${btnPrimary} mt-5 w-full px-6 py-3 text-sm`} disabled={busy} type="submit">
               {loading ? t("lg_wait") : mode === "login" ? t("lg_tab_login") : t("lg_tab_signup")}

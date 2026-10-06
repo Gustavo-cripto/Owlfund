@@ -497,6 +497,7 @@ export const fr: Record<TranslationKey, string> = {
     lg_err_generic: "Impossible de terminer. Réessaie.",
     lg_err_google: "Connexion avec Google impossible.",
     lg_err_email_first: "Écrivez d'abord votre email.",
+    lg_captcha_falta: "Confirmez d'abord que vous n'êtes pas un robot (la case au-dessus du bouton).",
     lg_err_link_expired: "Le lien a expiré. Demandez un nouvel email de confirmation.",
     lg_err_link_invalid: "Lien invalide ou déjà utilisé — demande un nouveau.",
     lg_signup_ok: "Compte créé ! Vérifiez votre email pour confirmer (spams aussi).",

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { rateLimitPublic } from "@/lib/api/requireUser";
+import { rateLimitPublicPartilhado } from "@/lib/api/requireUser";
 import { lastGood, rememberGood } from "@/lib/market/lastGood";
 import { cgFetch } from "@/lib/market/coingecko";
 import { getGlobalMarket } from "@/lib/api/market";
@@ -237,7 +237,7 @@ const EXTRA_STABLE_IDS = [
 
 export async function GET(request: Request) {
   // Rota publica (alimenta paginas sem sessao): limite por IP, sem sessao.
-  const limitado = rateLimitPublic(request, "markets", 120);
+  const limitado = await rateLimitPublicPartilhado(request, "markets", 120);
   if (limitado) return limitado;
   const parametros = new URL(request.url).searchParams;
   const soAFita = parametros.get("ticker") === "1";

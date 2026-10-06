@@ -12,6 +12,7 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { useTheme, useCurrencyFormat, type Theme, type Currency, type NumberFormat } from "@/lib/theme/ThemeContext";
 import { CRYPTO_PAYMENTS_ENABLED } from "@/lib/payments/config";
+import { useTurnstile } from "@/components/Turnstile";
 import { preencherContagens } from "@/lib/api/catalog";
 import { useConfirm } from "@/components/ConfirmDialog";
 import { NAMESPACED_BASE_KEYS, ACCOUNTS_EVENT, listAccounts, readNamespaced } from "@/lib/portfolios/accounts";
@@ -372,6 +373,9 @@ const SECTIONS: { key: SettingsSection; labelKey: TranslationKey; icon: string }
 export default function AccountPage() {
   const supabase = useMemo(() => createClient(), []);
   const { t, lang, setLang } = useLanguage();
+  // Anti-robô opcional nas reautenticações (o Supabase exige-o em signInWithPassword quando ativo).
+  const captchaPw = useTurnstile(lang);
+  const captchaDel = useTurnstile(lang);
   const askConfirm = useConfirm();
   const locale = LOCALE_BY_LANG[lang] ?? "pt-PT";
   const {
@@ -471,7 +475,9 @@ export default function AccountPage() {
       // Reautenticação: confirma a palavra-passe atual antes de a trocar (sessão roubada não chega).
       if (needsCurrentPassword) {
         if (!currentPassword) { setPwMsg({ type: "err", text: t("ac_current_password_required") }); return; }
-        const { error: reErr } = await supabase.auth.signInWithPassword({ email: email ?? "", password: currentPassword });
+        if (captchaPw.ativo && !captchaPw.token) { setPwMsg({ type: "err", text: t("lg_captcha_falta") }); return; }
+        const { error: reErr } = await supabase.auth.signInWithPassword({ email: email ?? "", password: currentPassword, options: { ...captchaPw.captcha } });
+        captchaPw.renovar();
         if (reErr) { setPwMsg({ type: "err", text: t("ac_current_password_wrong") }); return; }
       }
       const { error } = await supabase.auth.updateUser({ password: newPassword });
@@ -502,7 +508,9 @@ export default function AccountPage() {
     try {
       if (needsCurrentPassword) {
         if (!deletePassword) { setDeleteError(t("ac_current_password_required")); setDeleting(false); return; }
-        const { error: reErr } = await supabase.auth.signInWithPassword({ email: email ?? "", password: deletePassword });
+        if (captchaDel.ativo && !captchaDel.token) { setDeleteError(t("lg_captcha_falta")); setDeleting(false); return; }
+        const { error: reErr } = await supabase.auth.signInWithPassword({ email: email ?? "", password: deletePassword, options: { ...captchaDel.captcha } });
+        captchaDel.renovar();
         if (reErr) { setDeleteError(t("ac_current_password_wrong")); setDeleting(false); return; }
       }
       const res = await fetch("/api/account/delete", { method: "POST" });
@@ -1317,6 +1325,7 @@ export default function AccountPage() {
                       <p className="text-xs text-slate-500 mt-0.5">{t("ac_change_password_desc")}</p>
                     </div>
                     {loginProvider && !needsCurrentPassword && <p className="text-[11px] text-slate-500">{t("ac_oauth_password_note").replace("{p}", loginProvider)}</p>}
+                    {needsCurrentPassword && captchaPw.widget}
                     <div className="flex flex-col gap-2 sm:flex-row">
                       {needsCurrentPassword && (
                         <input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)}
@@ -1372,6 +1381,7 @@ export default function AccountPage() {
                       <ul className="text-[11px] text-slate-500 list-disc pl-4 space-y-0.5">
                         <li>{t("ac_delete_list_1")}</li><li>{t("ac_delete_list_2")}</li><li>{t("ac_delete_list_3")}</li>
                       </ul>
+                      {needsCurrentPassword && captchaDel.widget}
                       <div className="flex flex-col gap-2 pt-1 sm:flex-row">
                         {needsCurrentPassword && (
                           <input type="password" value={deletePassword} onChange={(e) => setDeletePassword(e.target.value)}

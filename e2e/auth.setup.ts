@@ -12,9 +12,11 @@ setup("sessão com a conta de teste", async ({ page }) => {
   expect(PASSWORD, "E2E_PASSWORD em falta").not.toBe("");
 
   await page.goto("/login");
+  // Um browser novo abre em "Criar conta"; escolher a aba "Entrar" primeiro.
+  await page.getByRole("tab", { name: /^Entrar$/ }).click();
   await page.locator("#lg-email").fill(EMAIL);
   await page.locator("#lg-password").fill(PASSWORD);
-  await page.getByRole("button", { name: /^Entrar$/ }).click();
+  await page.getByRole("button", { name: /^Entrar$/ }).first().click();
 
   // O login redireciona para o dashboard; um erro fica no <p role="alert">.
   await Promise.race([

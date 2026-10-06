@@ -506,6 +506,7 @@ export const pt = {
     lg_err_generic: "Não foi possível concluir. Tenta de novo.",
     lg_err_google: "Não foi possível iniciar sessão com Google.",
     lg_err_email_first: "Escreve o teu email primeiro.",
+    lg_captcha_falta: "Confirma primeiro que não és um robô (a caixa por cima do botão).",
     lg_err_link_expired: "O link expirou. Pede um novo email de confirmação.",
     lg_err_link_invalid: "Ligação inválida ou já usada — pede uma nova.",
     lg_signup_ok: "Conta criada! Verifica o teu email para confirmar (vê também o spam).",

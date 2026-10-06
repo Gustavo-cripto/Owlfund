@@ -1,3 +1,5 @@
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { createHash } from "crypto";
 // Guarda para rotas INTERNAS chamadas pela app com sessão (cookie) ou pela app
 // mobile (Bearer JWT do Supabase). Devolve o utilizador ou uma resposta 401.
 // Inclui rate-limit por utilizador (best-effort, em memória) para travar abuso
@@ -71,4 +73,33 @@ export function rateLimitPublic(req: Request, route: string, limit = 120, window
   const res = NextResponse.json({ error: "rate_limited", message: `Demasiados pedidos (${limit}/min).` }, { status: 429 });
   res.headers.set("Retry-After", String(Math.ceil(windowMs / 1000)));
   return res;
+}
+
+/**
+ * Limite por IP PARTILHADO entre instâncias para as rotas públicas que custam
+ * dinheiro ou quota (cotações, câmbios, Fear & Greed, blocos, beacon do funil).
+ * Primeiro o contador em memória (barato, trava o grosso), depois a função
+ * `api_rate_check` na base de dados (supabase-rate-limits.sql), que conta na
+ * mesma janela em todas as instâncias serverless. Se a BD falhar ou a função
+ * não existir, deixa passar (fail-open): nunca derrubar o site por causa do limite.
+ */
+export async function rateLimitPublicPartilhado(req: Request, route: string, limit = 120, windowMs = 60_000): Promise<NextResponse | null> {
+  const local = rateLimitPublic(req, route, limit, windowMs);
+  if (local) return local;
+  const ip = clientIp(req);
+  if (ip === "unknown") return null;
+  try {
+    const hash = createHash("sha256").update(`pub:${route}:${ip}`).digest("hex").slice(0, 32);
+    const { data, error } = await getSupabaseAdmin().rpc("api_rate_check", {
+      p_key_hash: hash,
+      p_limit: limit,
+      p_window_seconds: Math.max(1, Math.round(windowMs / 1000)),
+    });
+    if (!error && data === false) {
+      const res = NextResponse.json({ error: "rate_limited", message: `Demasiados pedidos (${limit}/min).` }, { status: 429 });
+      res.headers.set("Retry-After", String(Math.ceil(windowMs / 1000)));
+      return res;
+    }
+  } catch { /* sem BD ou sem função: o limite em memória já correu */ }
+  return null;
 }

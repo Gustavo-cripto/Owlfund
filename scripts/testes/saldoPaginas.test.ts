@@ -9,7 +9,7 @@ const ok = (n: string, c: boolean, extra = "") => { if (!c) fails++; console.log
 
 // 1) Limites iguais aos da rota
 const rota = readFileSync("src/app/api/preview/route.ts", "utf8");
-ok("consultas por janela = rota", new RegExp(`rateLimitPublic\\(req, "preview", ${DEMO_LIMITES.consultas}, ${DEMO_LIMITES.minutos} \\* 60_000\\)`).test(rota));
+ok("consultas por janela = rota", new RegExp(`rateLimitPublic(?:Partilhado)?\\(req, "preview", ${DEMO_LIMITES.consultas}, ${DEMO_LIMITES.minutos} \\* 60_000\\)`).test(rota));
 ok("ativos mostrados = TOP da rota", new RegExp(`const TOP = ${DEMO_LIMITES.ativos};`).test(rota));
 const evm = /const EVM: EvmChainKey\[\] = \[([^\]]+)\]/.exec(rota)?.[1].split(",").length;
 ok("redes EVM = rota", evm === DEMO_LIMITES.redesEvm, String(evm));
