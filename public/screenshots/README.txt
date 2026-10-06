@@ -20,6 +20,10 @@ FICHEIROS ATUAIS (WebP, 1600px de largura) — atualizados a 2026-09-10
   block-resposta.webp-> /gestor        (pergunta + resposta do Block: pontuacao e metricas em
                                        tabela, valores tapados; para as redes, nao entra em /como-funciona)
   developers.webp    -> /account?section=api (criar chaves API & MCP, webhook)
+  chain.webp         -> widget Chain    (ecra de entrada do Chain aberto sobre /mercado: "Ola!",
+                                       sugestoes; para as redes)
+  chain-resposta.webp-> widget Chain    (pergunta de principiante sobre stablecoins + resposta;
+                                       para as redes)
   assistente-portefolio.webp -> /portfolio (painel "Inteligencia Artificial - Analisa o teu
                                        portefolio", o Assistente IA do Free/Pro, pergunta +
                                        resposta com valores tapados; para as redes)
