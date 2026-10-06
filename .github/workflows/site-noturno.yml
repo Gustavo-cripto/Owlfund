@@ -1,6 +1,8 @@
 # Todas as noites, o site A CORRER em produção: páginas públicas nas 4 línguas,
 # todos os links internos, APIs públicas e fontes externas (scripts/verificar-site.mjs),
-# mais a API pública e o servidor MCP (scripts/verificar-api.mjs).
+# mais a API pública e o servidor MCP (scripts/verificar-api.mjs), e a auditoria
+# das dependências de produção (scripts/auditar-dependencias.mjs), que só lê o
+# package-lock.json e não precisa de instalar nada.
 # Se falhar: o GitHub envia email ao dono do repositório; se existirem os
 # segredos TELEGRAM_BOT_TOKEN e TELEGRAM_CHAT_ID no repositório, avisa também
 # no Telegram (opcional — sem eles o passo é saltado).
@@ -45,3 +47,28 @@ jobs:
           curl -s -X POST "https://api.telegram.org/bot$TOKEN/sendMessage" \
             --data-urlencode "chat_id=$CHAT" \
             --data-urlencode "text=🔴 Verificação noturna do site FALHOU. Ver: $RUN_URL" >/dev/null
+
+  dependencias:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      # Falha com um aviso crítico/alto numa dependência de produção que não
+      # esteja justificado na lista de exceções do script (cada exceção tem
+      # motivo e data de validade).
+      - name: Auditar dependências de produção
+        run: node scripts/auditar-dependencias.mjs
+      - name: Avisar no Telegram (se configurado)
+        if: failure()
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$TOKEN" ] || [ -z "$CHAT" ]; then echo "Sem segredos do Telegram — só email do GitHub."; exit 0; fi
+          curl -s -X POST "https://api.telegram.org/bot$TOKEN/sendMessage" \
+            --data-urlencode "chat_id=$CHAT" \
+            --data-urlencode "text=🔴 Auditoria noturna das dependências FALHOU (aviso crítico/alto novo). Ver: $RUN_URL" >/dev/null
