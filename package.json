@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "verificar": "tsc --noEmit && eslint . --quiet && node scripts/verificar-linguas.mjs && node scripts/testar-calculos.mjs",
+    "auditar": "node scripts/auditar-dependencias.mjs",
     "avaliar-bots": "AVALIAR_AO_VIVO=1 node scripts/testar-calculos.mjs",
     "verificar:site": "node scripts/verificar-site.mjs",
     "verificar:api": "node scripts/verificar-api.mjs",
@@ -71,6 +72,10 @@
     },
     "metro": {
       "image-size": "^2.0.4"
-    }
+    },
+    "braces": "^3.0.3",
+    "micromatch": "^4.0.8",
+    "fast-glob": "^3.3.3",
+    "brace-expansion": "^2.0.2"
   }
 }
