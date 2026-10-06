@@ -12,7 +12,23 @@ import { semLatex } from "@/lib/ai/formulas";
 export type ChatMarkdownLabels = { copy: string; copied: string; downloadCsv: string };
 const DEFAULT_LABELS: ChatMarkdownLabels = { copy: "Copy", copied: "Copied ✓", downloadCsv: "Download .csv" }  // so usado se um call-site esquecer os labels traduzidos;
 
-// ── Inline: `código`, **negrito**, *itálico* ─────────────────────────────────
+// Ligações [texto](url): só caminhos do site ("/portfolio") e http(s). O Block
+// aponta para páginas da app ("Podes ver em [Portefólio](/portfolio)") e isto
+// aparecia à letra. Caminhos internos abrem na mesma janela; externos em nova.
+const LIGACAO = /(\[[^\]\n]+\]\((?:\/[^\s)]*|https?:\/\/[^\s)]+)\))/g;
+function links(text: string, key: string): ReactNode[] {
+  return text.split(LIGACAO).filter(Boolean).map((parte, i) => {
+    const m = /^\[([^\]\n]+)\]\(([^\s)]+)\)$/.exec(parte);
+    if (!m) return <Fragment key={`${key}l${i}`}>{parte}</Fragment>;
+    const externa = /^https?:/i.test(m[2]);
+    return (
+      <a key={`${key}l${i}`} href={m[2]} className="text-orange-300 underline decoration-dotted underline-offset-2 hover:text-orange-200"
+        {...(externa ? { target: "_blank", rel: "noopener noreferrer" } : {})}>{m[1]}</a>
+    );
+  });
+}
+
+// ── Inline: `código`, **negrito**, *itálico*, [ligações](/caminho) ──────────────
 function inline(text: string, key: string): ReactNode[] {
   const out: ReactNode[] = [];
   text.split(/(`[^`\n]+`)/g).forEach((seg, i) => {
@@ -27,7 +43,7 @@ function inline(text: string, key: string): ReactNode[] {
       }
       b.split(/(\*[^*\n]+\*)/g).forEach((s, k) => {
         if (/^\*[^*\n]+\*$/.test(s)) out.push(<em key={`${key}i${i}-${j}-${k}`}>{s.slice(1, -1)}</em>);
-        else if (s) out.push(<Fragment key={`${key}t${i}-${j}-${k}`}>{s}</Fragment>);
+        else if (s) out.push(...links(s, `${key}t${i}-${j}-${k}`));
       });
     });
   });
