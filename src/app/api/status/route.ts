@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { alchemyNftUrl } from "@/lib/providers/alchemy";
-import { rateLimitPublic } from "@/lib/api/requireUser";
+import { rateLimitPublicPartilhado } from "@/lib/api/requireUser";
 import { cgFetch } from "@/lib/market/coingecko";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
@@ -85,7 +85,7 @@ async function verificarSnapshots(): Promise<{ estado: Estado; ms: number | null
 }
 
 export async function GET(req: Request) {
-  const limitado = rateLimitPublic(req, "status", 30);
+  const limitado = await rateLimitPublicPartilhado(req, "status", 30);
   if (limitado) return limitado;
 
   const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/\/$/, "");

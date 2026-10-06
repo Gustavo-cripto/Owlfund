@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { rateLimitPublic } from "@/lib/api/requireUser";
+import { rateLimitPublicPartilhado } from "@/lib/api/requireUser";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -23,7 +23,7 @@ async function fetchJSON(url: string, timeoutMs = 8000) {
 
 export async function GET(request: Request) {
   // Rota publica (alimenta paginas sem sessao): limite por IP, sem sessao.
-  const limitado = rateLimitPublic(request, "btc-blocks", 120);
+  const limitado = await rateLimitPublicPartilhado(request, "btc-blocks", 120);
   if (limitado) return limitado;
   let blocks: unknown[] = [];
   let mempool: unknown[] = [];

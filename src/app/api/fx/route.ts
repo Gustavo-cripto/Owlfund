@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { rateLimitPublic } from "@/lib/api/requireUser";
+import { rateLimitPublicPartilhado } from "@/lib/api/requireUser";
 import { cgFetch } from "@/lib/market/coingecko";
 import { precoOkx } from "@/lib/market/okxSpot";
 
@@ -25,7 +25,7 @@ const FALLBACK: Rates = {
 
 export async function GET(request: Request) {
   // Rota publica (alimenta paginas sem sessao): limite por IP, sem sessao.
-  const limitado = rateLimitPublic(request, "fx", 120);
+  const limitado = await rateLimitPublicPartilhado(request, "fx", 120);
   if (limitado) return limitado;
   const rates: Rates = { ...FALLBACK };
 

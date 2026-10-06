@@ -27,6 +27,13 @@ const n = (v: number, dec = 2) => v.toLocaleString("pt-PT", { minimumFractionDig
 const q = (v: number) => v.toLocaleString("pt-PT", { maximumFractionDigits: 8 });
 const data = (ms: number | string, locale: string) => new Date(ms).toLocaleDateString(locale);
 
+// Nomes dados pelo utilizador ou por terceiros (etiquetas, tokens, NFTs,
+// exchanges) vão ao prompt como DADOS: sem quebras de linha nem caracteres de
+// controlo, sem "==" (a marca de secção é "===") e curtos, para que um nome
+// malicioso não se consiga fazer passar por instrução ou por secção nova.
+export const limpo = (s: unknown, max = 60): string =>
+  String(s ?? "").replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/={2,}/g, "=").replace(/\s+/g, " ").trim().slice(0, max);
+
 // Nome que o modelo pode ver: etiqueta da carteira, senão "Carteira N (rede)".
 const nomeCarteira = (e: StoredWalletEntry, i: number) =>
   (e.label?.trim() || `Carteira ${i + 1}`) + (e.source === "cold" ? " (fria)" : "");
@@ -46,11 +53,11 @@ function carteirasOnChain(locale: string): string[] {
       const nome = nomeCarteira(e, i);
       const saldo = e.balance != null && e.balance !== "" ? `${q(Number(e.balance) || 0)} ${sim || e.network || ""}`.trim() : "saldo não lido";
       const rede = e.network && e.network !== sim.toLowerCase() ? ` · rede ${e.network}` : "";
-      out.push(`  - ${nome}: ${saldo}${rede}`);
+      out.push(`  - ${limpo(nome)}: ${saldo}${rede}`);
       // Tokens da carteira (da última fotografia do histórico), top 12 por nome.
       const tok = foto?.tokens ? Object.values(foto.tokens).find((t) => t.nome === nome || t.nome.startsWith(nome)) : null;
       if (tok?.saldos) {
-        const lista = Object.entries(tok.saldos).filter(([, v]) => v > 0).slice(0, 12).map(([s, v]) => `${q(v)} ${s}`);
+        const lista = Object.entries(tok.saldos).filter(([, v]) => v > 0).slice(0, 12).map(([s, v]) => `${q(v)} ${limpo(s, 16)}`);
         if (lista.length) out.push(`      tokens: ${lista.join(", ")}`);
       }
     });
@@ -68,7 +75,7 @@ function exchangesECorretoras(): string[] {
     if (!g) return;
     for (const x of Object.values(g)) {
       const saldos = x.saldos ? Object.entries(x.saldos).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 15) : [];
-      out.push(`  - ${titulo} ${x.nome}: ${saldos.length ? saldos.map(([s, v]) => `${q(v)} ${s}`).join(", ") : x.saldos ? "sem saldo" : "saldo ainda não lido"}`);
+      out.push(`  - ${titulo} ${limpo(x.nome)}: ${saldos.length ? saldos.map(([s, v]) => `${q(v)} ${limpo(s, 16)}`).join(", ") : x.saldos ? "sem saldo" : "saldo ainda não lido"}`);
     }
   };
   grupo("Exchange", foto?.exchanges);
@@ -86,14 +93,14 @@ function posicoesDefi(locale: string): string[] {
     i++;
     for (const p of posicoes) {
       const partes = [
-        p.protocolo ?? p.name, p.rede ? `rede ${p.rede}` : null, p.tipo ?? null,
-        p.estado ?? null, p.par?.length ? `par ${p.par.join("/")}` : null,
+        limpo(p.protocolo ?? p.name), p.rede ? `rede ${limpo(p.rede, 24)}` : null, p.tipo ?? null,
+        p.estado ?? null, p.par?.length ? `par ${limpo(p.par.join("/"), 40)}` : null,
         `$${n(p.usd)}${p.valorEstimado ? " (estimado)" : ""}`,
         p.taxaPool != null ? `taxa ${p.taxaPool} %` : null,
         p.noIntervalo === true ? "no intervalo" : p.noIntervalo === false ? "FORA do intervalo" : null,
         p.intervalo ? `intervalo ${q(p.intervalo.min)}–${q(p.intervalo.max)}${p.intervalo.atual != null ? ` (atual ${q(p.intervalo.atual)})` : ""}` : null,
-        p.quantidades?.length ? p.quantidades.map((x) => `${q(x.qtd)} ${x.simbolo}`).join(" + ") : null,
-        p.taxasPorReclamar?.length ? `taxas por reclamar ${p.taxasPorReclamar.map((x) => `${q(x.qtd)} ${x.simbolo}`).join(" + ")}` : null,
+        p.quantidades?.length ? p.quantidades.map((x) => `${q(x.qtd)} ${limpo(x.simbolo, 16)}`).join(" + ") : null,
+        p.taxasPorReclamar?.length ? `taxas por reclamar ${p.taxasPorReclamar.map((x) => `${q(x.qtd)} ${limpo(x.simbolo, 16)}`).join(" + ")}` : null,
         p.depositadoUsd != null ? `depositado $${n(p.depositadoUsd)}` : null,
         p.emprestadoUsd != null ? `emprestado $${n(p.emprestadoUsd)}` : null,
         p.fatorSaude != null ? `fator de saúde ${n(p.fatorSaude)}` : null,
@@ -110,8 +117,8 @@ function nfts(): string[] {
   const foto = lerFoto();
   if (!foto?.nfts) return [];
   return Object.values(foto.nfts).map((x) => {
-    const nomes = x.ids ? Object.values(x.ids).slice(0, 8) : [];
-    return `  - ${x.nome}: ${x.total ?? "?"} NFT${x.total === 1 ? "" : "s"}${nomes.length ? ` (${nomes.join(", ")}${(x.total ?? 0) > nomes.length ? ", …" : ""})` : ""}`;
+    const nomes = x.ids ? Object.values(x.ids).slice(0, 8).map((n) => limpo(n, 40)) : [];
+    return `  - ${limpo(x.nome)}: ${x.total ?? "?"} NFT${x.total === 1 ? "" : "s"}${nomes.length ? ` (${nomes.join(", ")}${(x.total ?? 0) > nomes.length ? ", …" : ""})` : ""}`;
   });
 }
 
@@ -120,8 +127,8 @@ function criptoManual(locale: string): string[] {
   for (const [sym, h] of Object.entries(loadCryptoHoldings())) {
     const linhas = linhasManuais(h);
     if (!linhas.length) continue;
-    out.push(`  - ${sym}: ` + linhas.map((l) => [
-      l.nome?.trim() || "carteira sem nome",
+    out.push(`  - ${limpo(sym, 16)}: ` + linhas.map((l) => [
+      limpo(l.nome) || "carteira sem nome",
       l.quantity ? `${q(l.quantity)} moedas` : null,
       l.buyValue ? `investido € ${n(l.buyValue)}` : null,
       l.buyDate ? `comprado em ${data(l.buyDate, locale)}` : null,
@@ -131,7 +138,7 @@ function criptoManual(locale: string): string[] {
 }
 
 function stablecoins(): string[] {
-  return loadStablecoinEntries().map((e) => `  - ${e.symbol} em ${e.network}: ${e.balance ? q(Number(e.balance) || 0) : "saldo não lido"}`);
+  return loadStablecoinEntries().map((e) => `  - ${limpo(e.symbol, 16)} em ${limpo(e.network, 24)}: ${e.balance ? q(Number(e.balance) || 0) : "saldo não lido"}`);
 }
 
 function tradicional(locale: string): string[] {
@@ -179,9 +186,9 @@ function movimentos(locale: string): string[] {
   const eventos = lerEventos().slice(0, 30);
   if (!eventos.length) return [];
   return eventos.map((e) => {
-    const valores = e.antes != null || e.depois != null ? ` ${e.antes == null ? "—" : q(e.antes)} → ${e.depois == null ? "—" : q(e.depois)}${e.simbolo ? ` ${e.simbolo}` : ""}` : e.simbolo ? ` ${e.simbolo}` : "";
-    const nomes = e.nomes?.length ? ` (${e.nomes.join(", ")}${e.quantos && e.quantos > e.nomes.length ? ` +${e.quantos - e.nomes.length}` : ""})` : "";
-    return `  - ${new Date(e.em).toLocaleString(locale)}: ${TIPO_EVENTO[e.tipo] ?? e.tipo}${e.alvo ? ` · ${e.alvo}` : ""}${valores}${nomes}`;
+    const valores = e.antes != null || e.depois != null ? ` ${e.antes == null ? "—" : q(e.antes)} → ${e.depois == null ? "—" : q(e.depois)}${e.simbolo ? ` ${limpo(e.simbolo, 16)}` : ""}` : e.simbolo ? ` ${limpo(e.simbolo, 16)}` : "";
+    const nomes = e.nomes?.length ? ` (${e.nomes.map((n) => limpo(n, 40)).join(", ")}${e.quantos && e.quantos > e.nomes.length ? ` +${e.quantos - e.nomes.length}` : ""})` : "";
+    return `  - ${new Date(e.em).toLocaleString(locale)}: ${TIPO_EVENTO[e.tipo] ?? e.tipo}${e.alvo ? ` · ${limpo(e.alvo)}` : ""}${valores}${nomes}`;
   });
 }
 
@@ -231,7 +238,7 @@ export async function resumoCompletoBlock(userId: string, locale = "pt-PT"): Pro
     try { const l = f(); return l.length ? [`=== ${titulo} ===`, ...l, ""] : []; } catch { return []; }
   };
   const acctId = getActiveAccountId();
-  const nome = acctId === ALL_ACCOUNTS_ID ? "Todas as contas" : listAccounts().find((a) => a.id === acctId)?.name ?? "";
+  const nome = acctId === ALL_ACCOUNTS_ID ? "Todas as contas" : limpo(listAccounts().find((a) => a.id === acctId)?.name ?? "");
   const partes: string[] = [];
   if (base.text) partes.push(`=== PORTEFÓLIO${nome ? ` (conta "${nome}")` : ""} — totais por categoria ===`, base.text, "");
   partes.push(

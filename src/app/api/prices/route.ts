@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { rateLimitPublic } from "@/lib/api/requireUser";
+import { rateLimitPublicPartilhado } from "@/lib/api/requireUser";
 import { lastGood, rememberGood } from "@/lib/market/lastGood";
 import { cgFetch } from "@/lib/market/coingecko";
 import { precosHaDias, variacaoPct, velasDiariasOkx } from "@/lib/market/okxDaily";
@@ -209,7 +209,7 @@ const isValid = (p: Prices) => p.BTC > 0 && p.ETH > 0;
 
 export async function GET(request: Request) {
   // Rota publica (alimenta paginas sem sessao): limite por IP, sem sessao.
-  const limitado = rateLimitPublic(request, "prices", 120);
+  const limitado = await rateLimitPublicPartilhado(request, "prices", 120);
   if (limitado) return limitado;
   // Try each source in order; first valid one wins
   // Nome explicito: `source.name` sai minificado em producao ("C").

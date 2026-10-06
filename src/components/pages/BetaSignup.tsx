@@ -11,6 +11,7 @@ import { comSupabase, getSupabase } from "@/lib/supabase/lazy";
 import { destinoDoEmail } from "@/lib/auth/emailRedirect";
 import { BETA_CUTOFF_ISO, betaAberto } from "@/lib/plans";
 import { origemDoUrl } from "@/lib/origem";
+import { useTurnstile } from "@/components/Turnstile";
 
 const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
 const ERR_KEY: Record<string, TranslationKey> = { rate_limited: "beta_err_rate", bad_email: "beta_bad_email", send_failed: "beta_err", bad_request: "beta_err" };
@@ -62,6 +63,7 @@ function TelegramCard({ t }: { t: (k: TranslationKey) => string }) {
 
 export default function BetaSignup() {
   const { t, lang } = useLanguage();
+  const captcha = useTurnstile(lang);
   const [email, setEmail] = useState("");
   const [website, setWebsite] = useState(""); // honeypot (invisível)
   const [already, setAlready] = useState(false);
@@ -141,11 +143,13 @@ export default function BetaSignup() {
         // A inscricao ja esta segura; a ligacao e o melhor esforco. Se falhar
         // (limite de envios, rede), fica o botao "Criar conta / entrar".
         try {
+          if (captcha.ativo && !captcha.token) throw new Error("captcha");
           const c = await getSupabase();
           const { error } = await c.auth.signInWithOtp({
             email: email.trim(),
-            options: { shouldCreateUser: true, emailRedirectTo: destinoDoEmail(lang, "/dashboard"), data: { lang } },
+            options: { shouldCreateUser: true, emailRedirectTo: destinoDoEmail(lang, "/dashboard"), data: { lang }, ...captcha.captcha },
           });
+          captcha.renovar();
           setLinkEnviado(!error);
         } catch { setLinkEnviado(false); }
       }
@@ -280,6 +284,7 @@ export default function BetaSignup() {
               <p role="alert" className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">{err}</p>
             )}
 
+            {captcha.widget}
             <button type="submit" disabled={state === "sending"} className={`${btnPrimary} w-full px-6 py-3 text-base disabled:opacity-60`}>
               {state === "sending" ? t("beta_sending") : temConta ? t("beta_submit_account") : t("beta_submit")}
             </button>

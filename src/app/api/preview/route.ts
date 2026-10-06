@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { rateLimitPublic } from "@/lib/api/requireUser";
+import { rateLimitPublicPartilhado } from "@/lib/api/requireUser";
 import { alchemyNftsForOwner, alchemyTokensByWallet, hasAlchemy, type EvmChainKey } from "@/lib/providers/alchemy";
 import { hasHelius, heliusAssetsByOwner } from "@/lib/providers/helius";
 import { isValidBtcAddress } from "@/lib/wallets/btcAddress";
@@ -61,7 +61,7 @@ function resumir(kind: Resposta["kind"], networks: string[], linhas: Linha[], nf
 }
 
 export async function GET(req: Request) {
-  const limitado = rateLimitPublic(req, "preview", 8, 10 * 60_000);
+  const limitado = await rateLimitPublicPartilhado(req, "preview", 8, 10 * 60_000);
   if (limitado) return limitado;
 
   const address = (new URL(req.url).searchParams.get("address") ?? "").trim();
