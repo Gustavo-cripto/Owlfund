@@ -15,8 +15,14 @@ FICHEIROS ATUAIS (WebP, 1600px de largura) — atualizados a 2026-09-10
   fiscalidade.webp   -> /fiscalidade   (legislacao dos 21 paises)
   fire.webp          -> /fire          (resultado + cenarios what-if)
   historico.webp     -> /historico     (registo manual + importar CSV)
-  chat.webp          -> /gestor        (Block, o Gestor Dedicado IA)
+  chat.webp          -> /gestor        (Block, o Gestor Dedicado IA; refeita 2026-10-06 sem
+                                       alcunha na saudacao, saldos ocultos)
+  block-resposta.webp-> /gestor        (pergunta + resposta do Block com tabela de variacao,
+                                       valores tapados; para as redes, nao entra em /como-funciona)
   developers.webp    -> /account?section=api (criar chaves API & MCP, webhook)
+  assistente-portefolio.webp -> /portfolio (painel "Inteligencia Artificial - Analisa o teu
+                                       portefolio", o Assistente IA do Free/Pro, pergunta +
+                                       resposta com valores tapados; para as redes)
 
 COMO SUBSTITUIR UMA IMAGEM
 1. Tira a captura com "esconder saldos" LIGADO (Conta -> Privacidade).
