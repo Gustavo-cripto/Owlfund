@@ -7,6 +7,9 @@ FICHEIROS ATUAIS (WebP, 1600px de largura) — atualizados a 2026-09-10
   dashboard.webp     -> /dashboard     (o que cada plano desbloqueia)
   portfolio.webp     -> /portfolio     (grafico com velas, 1 dia; atualizado 2026-09-16)
   wallets.webp       -> /wallets       (ETH+SOL ligados, WalletConnect QR)
+  corretoras.webp    -> /wallets       (seccao Exchanges centralizadas com o formulario
+                                       aberto: 13 exchanges, bandeira MiCA, chave so-leitura;
+                                       sem corretora ligada — capturado 2026-10-06)
   market.webp        -> /mercado       (grafico TradingView + BTC)
   smart-money.webp   -> /smart-money   (Satoshi + Vitalik com saldos reais)
   fiscalidade.webp   -> /fiscalidade   (legislacao dos 21 paises)
