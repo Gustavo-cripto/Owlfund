@@ -16,9 +16,9 @@ FICHEIROS ATUAIS (WebP, 1600px de largura) — atualizados a 2026-09-10
   fire.webp          -> /fire          (resultado + cenarios what-if)
   historico.webp     -> /historico     (registo manual + importar CSV)
   chat.webp          -> /gestor        (Block, o Gestor Dedicado IA; refeita 2026-10-06 sem
-                                       alcunha na saudacao, saldos ocultos)
-  block-resposta.webp-> /gestor        (pergunta + resposta do Block com tabela de variacao,
-                                       valores tapados; para as redes, nao entra em /como-funciona)
+                                       alcunha na saudacao, saldos ocultos, 1600x922)
+  block-resposta.webp-> /gestor        (pergunta + resposta do Block: pontuacao e metricas em
+                                       tabela, valores tapados; para as redes, nao entra em /como-funciona)
   developers.webp    -> /account?section=api (criar chaves API & MCP, webhook)
   assistente-portefolio.webp -> /portfolio (painel "Inteligencia Artificial - Analisa o teu
                                        portefolio", o Assistente IA do Free/Pro, pergunta +
@@ -37,3 +37,9 @@ COMO SUBSTITUIR UMA IMAGEM
 
 Os PNG originais destas capturas estao em:
   "ChainFolioAI - Privado/screenshots-originais/" (fora do repositorio, que e publico)
+
+PROPORCAO (regra do agente social, out 2026): capturas para as redes entre 1,2 e 1,8
+de proporcao (largura/altura), nunca acima de 2,0 — acima disso fica uma tira ilegivel
+no telemovel. Para isso: estreitar o <main> por CSS (max-width ~1060px) antes de
+capturar e enquadrar mais conteudo na vertical; a janela do Chrome nao aceita
+redimensionar.
