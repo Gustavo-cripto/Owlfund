@@ -11,8 +11,11 @@ test("landing abre sem erros e o CTA leva ao registo", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await expect(page.locator(".animate-ticker")).toBeVisible();
   await page.getByRole("link", { name: /Começar grátis/ }).first().click();
-  await expect(page).toHaveURL(/\/login/);
+  await expect(page).toHaveURL(/\/login\?mode=signup/);
+  // Com ?mode=signup a aba "Criar conta" vem selecionada e o submit diz o mesmo.
+  await expect(page.getByRole("tab", { name: /Criar conta/ })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#lg-email")).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Criar conta$/ })).toBeVisible();
   v.verificar();
 });
 
@@ -33,9 +36,14 @@ test("como funciona: a captura abre em grande e fecha com Esc", async ({ page })
 test("login: credenciais erradas dão mensagem clara, não um erro técnico", async ({ page }) => {
   const v = vigiarErros(page);
   await page.goto("/login");
+  // Um browser novo (sem a marca cfa-ja-entrou) abre em "Criar conta" depois da
+  // hidratação; o teste escolhe a aba "Entrar" para testar a entrada.
+  const abaEntrar = page.getByRole("tab", { name: /^Entrar$/ });
+  await abaEntrar.click();
+  await expect(abaEntrar).toHaveAttribute("aria-selected", "true");
   await page.locator("#lg-email").fill("ninguem@example.com");
   await page.locator("#lg-password").fill("palavra-passe-errada");
-  await page.getByRole("button", { name: /^Entrar$/ }).click();
+  await page.getByRole("button", { name: /^Entrar$/ }).first().click();
   const alerta = page.getByRole("alert");
   await expect(alerta).toBeVisible();
   await expect(alerta).not.toContainText(/fetch|undefined|Error:/i);
