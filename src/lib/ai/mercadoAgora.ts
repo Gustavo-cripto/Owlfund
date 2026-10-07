@@ -26,7 +26,7 @@ async function fearGreed(): Promise<{ valor: number; rotulo: string } | null> {
 }
 
 /** Texto da secção (null se nenhuma fonte respondeu). */
-export async function mercadoAgoraTexto(simbolosDoUtilizador: string[]): Promise<string | null> {
+export async function mercadoAgoraTexto(simbolosDoUtilizador: string[], opts: { nota?: string } = {}): Promise<string | null> {
   const simbolos = simbolosParaMercado(simbolosDoUtilizador);
   const [precos, fng, global] = await Promise.all([
     precosOkx24h(Object.fromEntries(simbolos.map((s) => [s, s]))).catch(() => null),
@@ -46,6 +46,6 @@ export async function mercadoAgoraTexto(simbolosDoUtilizador: string[]): Promise
     linhas.push(`Capitalização total: ${cap}${global.marketCapChange24h != null ? ` (${pct(global.marketCapChange24h)} em 24 h)` : ""}${global.btcDominance != null ? ` · dominância BTC ${n(global.btcDominance, 1)} %` : ""}${global.ethDominance != null ? ` · ETH ${n(global.ethDominance, 1)} %` : ""}`);
   }
   if (!linhas.length) return null;
-  linhas.push("Para 'porque subiu/caiu hoje', cruza estas variações com o peso de cada ativo no portefólio. Não há notícias aqui: não inventes causas; se não souberes a causa, diz que o movimento é do mercado em geral ou do ativo, conforme os números.");
+  linhas.push(opts.nota ?? "Para 'porque subiu/caiu hoje', cruza estas variações com o peso de cada ativo no portefólio. Não há notícias aqui: não inventes causas; se não souberes a causa, diz que o movimento é do mercado em geral ou do ativo, conforme os números.");
   return `=== MERCADO AGORA (lido neste momento) ===\n${linhas.join("\n")}`;
 }
