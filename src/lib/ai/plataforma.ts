@@ -14,24 +14,29 @@ PÁGINAS E FUNCIONALIDADES:
 • /smart-money — Watchlist de baleias e traders profissionais. Pré-carregada com 50+ carteiras conhecidas (Binance, Vitalik, Jump Trading, Wintermute, etc.). Monitoriza holdings e movimentos on-chain. Alertas em tempo real (Premium).
 • /gestor — Gestor Dedicado IA (exclusivo Premium). Chat privado com IA especializada no teu portfolio real. Analisa alocação, risco, fiscalidade, FIRE planning com os teus dados reais de carteiras.
 • /mercado — Tabela de mercado em tempo real com preços, variações 1h/24h/7d, volume, sparklines e gráfico TradingView.
-• /fiscalidade — Calculadora de mais-valias cripto por método FIFO. Suporta regras fiscais de PT (isenção >1 ano), ES, FR, DE. Exportação para declaração de IRS.
+• /fiscalidade — Calculadora de mais-valias cripto com as regras e o método de custo de 21 países (FIFO, preço médio, LIFO…), perdas que transitam de ano onde a lei o permite, exportação PDF/Excel com o ano fiscal.
 • /fire — Calculadora FIRE (Financial Independence, Retire Early). Regra dos 4%, projeção de património, CAGR ajustado à inflação.
 • /account — Conta do utilizador, preferências, gestão do plano, API Keys (Premium).
+
+ASSISTENTES IA (três, por plano):
+- Chain — o assistente do site (botão Chat, em baixo à direita, em todas as páginas). Todos os planos (Gratuito: 3 conversas/mês). Dá preços e dados do mercado cripto em tempo real e ajuda a usar o site. NÃO vê o portefólio do utilizador.
+- Assistente IA do Portefólio — painel "Analisa o teu portefólio" na página /portfolio. Plano Pro e Premium. Analisa os números reais (totais, PNL, distribuição, métricas) em conversa.
+- Block — o Gestor Dedicado IA em /gestor. Só Premium. Acesso a tudo o que o utilizador tem na conta.
 
 PLANOS E FUNCIONALIDADES:
 
 Plano Gratuito (€0):
 - Até 3 carteiras on-chain
-- 1 análise IA do portfolio/mês
+- Chain, o assistente IA do site: 3 conversas/mês (mercado em tempo real e ajuda com o site; não vê o portefólio)
 - 30 dias de histórico de portfolio
-- FIFO últimos 30 dias
+- Cálculo fiscal pelo método do país, com todo o histórico (4 países)
 - 3 endereços na watchlist de baleias
-- Calculadora fiscal básica (PT, ES, FR, DE)
 - Calculadora FIRE (3 cenários)
 
 Plano Pro (€14,99/mês):
 - Carteiras ilimitadas
-- Análise IA do portfolio ilimitada
+- Assistente IA do Portefólio ilimitado (página Portefólio: analisa os números reais do utilizador) + Chain ilimitado
+- 13 países fiscais
 - Análise IA de notícias em tempo real
 - Briefing IA diário (cripto & tradicional)
 - FIFO ilimitado + exportação CSV/PDF
@@ -41,7 +46,8 @@ Plano Pro (€14,99/mês):
 - Suporte prioritário
 
 Plano Premium (€39/mês) — inclui tudo do Pro, mais:
-- /gestor — Gestor Dedicado IA com acesso ao teu portfolio real
+- /gestor — Block, o Gestor Dedicado IA, com acesso a todo o portefólio real (carteiras, exchanges, DeFi, NFTs, transações, FIRE)
+- Todos os países fiscais
 - Smart Money em tempo real (movimentos de baleias ao vivo)
 - API REST (chaves em /account > secção Premium)
 - Integração MCP para agentes de IA externos

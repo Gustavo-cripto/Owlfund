@@ -5,7 +5,6 @@ import { userError } from "@/lib/ui/userError";
 import { btnPrimary } from "@/lib/ui/buttons";
 import { usePathname } from "next/navigation";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
-import { buildPortfolioSummaryText } from "@/lib/portfolio/summaryText";
 import { loadNickname } from "@/lib/user/nickname";
 import ChatMarkdown from "@/components/ChatMarkdown";
 import type { TranslationKey } from "@/lib/i18n/translations";
@@ -183,15 +182,8 @@ export default function ChatWidget({
     setIsLoading(true);
 
     try {
-      // Resumo do portfolio completo (on-chain + CEX + DeFi + manuais + stablecoins
-      // + tradicional) para o assistente conhecer os ativos reais do utilizador.
-      let portfolio: string | null = null;
-      try {
-        portfolio = await buildPortfolioSummaryText();
-      } catch {
-        portfolio = null;
-      }
-
+      // O Chain não recebe o portefólio (desde 8 out 2026): é o assistente do site e
+      // do mercado em tempo real; a análise pessoal é Pro/Premium.
       const controller = new AbortController();
       const timeoutId = window.setTimeout(() => controller.abort(), 25000);
       const response = await fetch("/api/chat", {
@@ -200,9 +192,7 @@ export default function ChatWidget({
         body: JSON.stringify({
           messages: nextMessages,
           pageContext: pathname ?? undefined,
-          portfolio: portfolio ?? undefined,
           nickname: loadNickname() || undefined,
-          accountName: acctName || undefined,
         }),
         signal: controller.signal,
       }).finally(() => window.clearTimeout(timeoutId));
@@ -242,7 +232,8 @@ export default function ChatWidget({
   const upgradeHref = paymentsFrozen ? "/beta" : "/pricing";
   // Indicador de conta ativa: só quando há várias contas ou na vista combinada,
   // para não poluir a UI de quem só tem um portefólio.
-  const showAcctChip = Boolean(acctName) && (acctCount > 1 || acctId === ALL_ACCOUNTS_ID);
+  // O Chain não usa o portefólio: o chip da conta ativa deixou de fazer sentido aqui.
+  const showAcctChip = false;
 
   const content = (
     <div className="flex flex-col gap-3">
