@@ -4,7 +4,7 @@
 // Regras:
 //   • o plano vem de `subscriptions` (ativa/trialing e não expirada, linha mais
 //     recente) — igual a /api/subscription, para a UI e o servidor nunca divergirem;
-//   • a quota mensal de IA do Free é UMA (Chain + análise do portefólio partilham
+//   • a quota mensal de IA do Free é do Chain (o Assistente IA do Portefólio exige Pro+; partilhavam
 //     o contador em `chat_usage`);
 //   • falha FECHADO: se a base de dados não responder, não se gasta IA a quem não
 //     conseguimos verificar (antes abria e o custo ficava do nosso lado).
@@ -168,7 +168,7 @@ export function quotaErrorResponse(q: Extract<AiQuota, { ok: false }>): NextResp
   if (q.reason === "limit_reached") {
     return NextResponse.json(
       {
-        error: `Atingiste o limite de ${q.limit} análises IA/mês do plano Gratuito. Faz upgrade para Pro para análises ilimitadas.`,
+        error: `Atingiste o limite de ${q.limit} conversas IA/mês do plano Gratuito. Faz upgrade para Pro para análises ilimitadas.`,
         code: "limit_reached",
         limitReached: true,
         count: q.count,
