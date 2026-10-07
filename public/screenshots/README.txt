@@ -24,6 +24,9 @@ FICHEIROS ATUAIS (WebP, 1600px de largura) — atualizados a 2026-09-10
                                        sugestoes; para as redes)
   chain-resposta.webp-> widget Chain    (pergunta de principiante sobre stablecoins + resposta;
                                        para as redes)
+  defi.webp          -> /portfolio     (seccao Posicoes DeFi: resumo abertas/no intervalo/fora/
+                                       fechadas + lista com par, taxa da pool, "Fora do intervalo",
+                                       intervalo de preco; valores e ids tapados; para as redes)
   assistente-portefolio.webp -> /portfolio (painel "Inteligencia Artificial - Analisa o teu
                                        portefolio", o Assistente IA do Free/Pro, pergunta +
                                        resposta com valores tapados; para as redes)
