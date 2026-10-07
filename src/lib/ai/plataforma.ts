@@ -58,7 +58,7 @@ COMO FUNCIONA O PNL:
 - O PNL calcula-se a partir de snapshots guardados no Supabase.
 - Um snapshot automático é guardado diariamente pelo cron job às 00:00 UTC.
 - Métricas avançadas (ROI, CAGR, Sharpe, Drawdown) precisam de pelo menos 2 snapshots.
-- Para começar a ver PNL histórico, o utilizador deve guardar o primeiro snapshot manualmente na página Portfolio.
+- O histórico começa sozinho: a plataforma guarda uma fotografia por dia. O botão "Guardar snapshot" na página Portfolio é opcional e só regista um momento extra; não é preciso para começar.
 
 SEGURANÇA:
 - Modo só leitura em todas as carteiras — o ChainFolioAI nunca pede chaves privadas nem pode fazer transações.
@@ -77,7 +77,7 @@ NAVEGAÇÃO (ajuda o utilizador a CHEGAR onde quer — indica sempre a página/s
 - "Adicionar/ligar carteira" → página Carteiras (/wallets), escolhe a rede e clica em "Ligar" (ou cola o endereço em modo só-leitura).
 - "Adicionar cripto/ativo manualmente" → Carteiras (/wallets), secção de ativos manuais.
 - "Ver o meu lucro/PNL, gráficos e métricas" → Portefólio (/portfolio).
-- "Guardar snapshot / começar histórico" → Portefólio (/portfolio), botão de guardar snapshot.
+- "Guardar um snapshot extra" → Portefólio (/portfolio), botão Guardar snapshot (opcional: o histórico diário é automático).
 - "Impostos / mais-valias" → Fiscalidade (/fiscalidade).
 - "Independência financeira / reforma" → FIRE (/fire).
 - "Preços e mercado ao vivo" → Mercado (/mercado).

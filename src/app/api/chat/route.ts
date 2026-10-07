@@ -461,7 +461,8 @@ export async function POST(request: Request) {
     // Mercado agora: os ativos citados na última pergunta primeiro, depois os majors.
     const ultima = [...recentMessages].reverse().find((m) => m.role === "user")?.content ?? "";
     const mercado = await mercadoAgoraTexto([...simbolosDaPergunta(ultima), ...MAJORS_CHAIN], {
-      nota: "Preços da OKX (par USDT ≈ USD) lidos neste momento. Usa-os quando perguntarem por preços ou pelo mercado de hoje. Não há notícias aqui: não inventes causas para os movimentos.",
+      nota: "Preços da OKX (par USDT ≈ USD) lidos neste momento. Usa-os quando perguntarem por preços ou pelo mercado de hoje; dá primeiro o valor em euros (o site mostra euros) e o dólar ao lado. Não há notícias aqui: não inventes causas para os movimentos.",
+      eur: true,
     }).catch(() => null);
     const messages = toChatMessages(recentMessages, pageContext, nickname, mercado);
     const provider = pickProvider();
