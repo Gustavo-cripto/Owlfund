@@ -5,6 +5,7 @@ import { repetirVisivel, DOIS_MIN } from "@/lib/polling";
 import Segmentos from "@/components/ui/Segmentos";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { userError } from "@/lib/ui/userError";
+import PlanBadge from "@/components/PlanBadge";
 import ErrorNote from "@/components/ErrorNote";
 import { btnPrimary } from "@/lib/ui/buttons";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -345,6 +346,8 @@ export default function PortfolioPage() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [isPro, setIsPro] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
+  // Até o plano ser lido mostra-se o painel do Assistente IA (o servidor decide na mesma).
+  const [planoConhecido, setPlanoConhecido] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isBillingLoading, setIsBillingLoading] = useState(false);
   const [billingError, setBillingError] = useState<string | null>(null);
@@ -540,6 +543,7 @@ export default function PortfolioPage() {
       }
       setIsPro(pro);
       setIsPremium(premium);
+      setPlanoConhecido(true);
 
       setIsSnapshotsLoading(true);
 
@@ -695,7 +699,9 @@ export default function PortfolioPage() {
       const data = (await res.json()) as { reply?: string; error?: string; code?: string; limit?: number };
       if (!res.ok || data.error) {
         setAiError(
-          data.code === "limit_reached"
+          data.code === "plan_required"
+            ? t("pf_ai_pro")
+            : data.code === "limit_reached"
             ? t("pf_ai_limit").replace("{n}", String(data.limit ?? 3))
             : data.code === "unavailable"
               ? t("pf_ai_unavailable")
@@ -2526,12 +2532,18 @@ export default function PortfolioPage() {
         <section className="rounded-2xl border border-orange-500/20 bg-orange-50 dark:bg-slate-950 dark:bg-gradient-to-br dark:from-orange-500/5 dark:via-slate-900 dark:to-slate-950 p-6">
           <div className="mb-4">
             <p className="text-xs uppercase tracking-[0.2em] text-orange-600 dark:text-orange-300">{t("pf_ai")}</p>
-            <h2 className="mt-1 text-base font-bold text-slate-900 dark:text-white">{t("pf_analyze_portfolio")}</h2>
+            <h2 className="mt-1 flex items-center gap-2 text-base font-bold text-slate-900 dark:text-white">{t("pf_analyze_portfolio")} <PlanBadge plan="pro" size="xs" /></h2>
             <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">
               {t("pfu_ai_access")}
             </p>
           </div>
 
+          {planoConhecido && !isPro && !isPremium ? (
+            <p className="rounded-xl border border-orange-500/30 bg-orange-500/10 px-4 py-3 text-sm text-slate-700 dark:text-slate-200">
+              {t("pf_ai_pro")}{" "}
+              <a href={paymentsFrozen ? "/beta" : "/pricing"} className="font-semibold text-orange-500 underline hover:text-orange-400">{t("pf_ai_pro_cta")}</a>
+            </p>
+          ) : (<>
           {/* Sugestões rápidas */}
           <div className="flex flex-wrap gap-2 mb-4">
             {[
@@ -2572,6 +2584,7 @@ export default function PortfolioPage() {
               {aiLoading ? "…" : t("pf_ask")}
             </button>
           </div>
+          </>)}
 
           {aiThread.length > 0 && (
             <div className="keep-dark mt-4 space-y-3 rounded-xl border border-slate-800 bg-slate-900 p-4 text-slate-200">

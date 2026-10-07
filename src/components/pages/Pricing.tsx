@@ -50,7 +50,8 @@ export default function Pricing() {
       { label: t("pc_r_news_rss"), free: true, pro: true, premium: true },
       { label: t("pc_r_ai_news"), free: false, pro: true, premium: true },
       { label: t("pc_r_ai_briefing"), free: false, pro: true, premium: true },
-      { label: t("pc_r_ai_portfolio"), free: t("pc_1_month"), pro: t("pc_unlimited"), premium: t("pc_unlimited") },
+      { label: t("pc_r_chain"), free: t("pc_1_month"), pro: t("pc_unlimited"), premium: t("pc_unlimited") },
+      { label: t("pc_r_ai_portfolio"), free: false, pro: t("pc_unlimited"), premium: t("pc_unlimited") },
       { label: t("pc_r_ai_chat"), free: false, pro: true, premium: true },
     ]},
     { category: t("pc_cat_tax"), rows: [

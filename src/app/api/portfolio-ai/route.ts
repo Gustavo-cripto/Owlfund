@@ -107,6 +107,11 @@ async function callAI(system: string, question: string, history: Array<{ role: "
 // omissao da plataforma e corta a meio uma resposta que ia chegar.
 export const maxDuration = 60;
 
+const planoProExigido = () => NextResponse.json(
+  { error: "O Assistente IA do Portefólio faz parte do plano Pro. No plano Gratuito tens o Chain.", code: "plan_required", plan: "free" },
+  { status: 403 },
+);
+
 export async function POST(request: Request) {
   // Rate limit por IP (trava abuso/custo de IA)
   if (!rateLimit(`portfolio-ai:${clientIp(request)}`, 20, 60_000)) {
@@ -120,11 +125,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Demasiados pedidos. Tenta novamente em 1 minuto.", code: "rate_limited" }, { status: 429 });
   }
 
-  // Quota mensal do Free (partilhada com o chat "Chain"); Pro/Premium sem limite.
+  // Desde 7 out 2026 o Assistente IA do Portefólio é do plano Pro (e Premium):
+  // o Gratuito fica só com o Chain. A reserva serve para saber o plano; a um
+  // Free devolve-se a reserva e responde-se 403, nunca se chama a IA.
   // RESERVA antes de chamar a IA: verificar agora e so descontar depois deixava
   // uma janela de 15-25 s em que pedidos em paralelo passavam todos.
   const quota = await reserveAiUsage(user.id);
+  if (!quota.ok && quota.reason === "limit_reached") return planoProExigido();
   if (!quota.ok) return quotaErrorResponse(quota);
+  if (quota.free) { await releaseAiUsage(user.id); return planoProExigido(); }
 
   let body: Body | null = null;
   try {
