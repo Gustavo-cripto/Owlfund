@@ -71,6 +71,8 @@ eq("salto de 22 € para 292 € em 10 dias é capital", eFluxo(22, 292, 10 * DI
 eq("292 → 576 num dia é capital", eFluxo(292, 576, DIA), true);
 eq("−25 % num dia ainda é mercado", eFluxo(1000, 750, DIA), false);
 eq("+55 % em 30 dias é mercado", eFluxo(900, 1400, 30 * DIA), false);
+eq("×12 em 57 dias sem fotografias é capital (teto ×3)", eFluxo(23.56, 291.63, 57 * DIA), true);
+eq("×2,5 em 60 dias ainda é mercado", eFluxo(1000, 2500, 60 * DIA), false);
 eq("pico isolado sai", [...indicesAnomalos([1000, 1010, 161546, 1005])], [2]);
 eq("salto que fica não é anomalia", [...indicesAnomalos([22, 24, 25, 292, 576, 531])], []);
 eq("1.ª fotografia absurda sai", [...indicesAnomalos([161546, 1020, 980, 1050])], [0]);
