@@ -25,7 +25,7 @@ import { pushWalletCloud, pullWalletCloud } from "@/lib/portfolios/cloudSync";
 import { getActiveAccountId, listAccounts } from "@/lib/portfolios/accounts";
 import ChatMarkdown from "@/components/ChatMarkdown";
 import { exemploAtivo } from "@/lib/demo/exemplo";
-import { baseDaPosicao, daConta } from "@/lib/portfolio/posicao";
+import { baseDaPosicao, daConta, posicaoAjustada } from "@/lib/portfolio/posicao";
 import { getEvmBalance } from "@/lib/wallets/evm";
 import { getSolBalance } from "@/lib/wallets/solana";
 import { getBtcBalanceFromAddress } from "@/lib/wallets/bitcoin";
@@ -37,7 +37,7 @@ import { loadTraditionalHoldings, type TraditionalHoldings } from "@/lib/traditi
 import { downloadBlob, loadExcelJS } from "@/lib/export/excel";
 import { cryptoHoldingValueEur, loadCryptoHoldings, loadStablecoinEntries, type CryptoHoldings, type StablecoinEntry } from "@/lib/crypto/storage";
 import { loadNickname } from "@/lib/user/nickname";
-import { metricas, type Ponto } from "@/lib/api/pnlMath";
+import { indicesAnomalos, metricas, pctCoerente, type Ponto } from "@/lib/api/pnlMath";
 import ChartModal from "@/components/ChartModal";
 import { SkeletonLines } from "@/components/PageSkeleton";
 import { protegerTextoPdf } from "@/lib/export/pdfTexto";
@@ -683,6 +683,15 @@ export default function PortfolioPage() {
         pnlPosition: pnlSummary.position,
         pnlToday: pnlSummary.today,
         pnl30d: pnlSummary.days30 ?? 0,
+        pnl7d: pnlSummary.days7,
+        pctToday: pnlSummary.base.today > 0 ? (pnlSummary.today / pnlSummary.base.today) * 100 : null,
+        pct7d: pnlSummary.base.days7 > 0 ? (pnlSummary.days7 / pnlSummary.base.days7) * 100 : null,
+        pct30d: pnlSummary.base.days30 > 0 ? ((pnlSummary.days30 ?? 0) / pnlSummary.base.days30) * 100 : null,
+        pctPosition: pnlSummary.posPct,
+        traditionalEur: traditionalTotal,
+        stablecoinEur: stablecoinTotal,
+        score: portfolioScore?.score ?? null,
+        scoreParts: portfolioScore?.reasons.map((r) => ({ id: r.id, points: r.points, max: r.max })),
         ...(advancedMetrics ?? {}),
         allocations: cryptoAllocations.map((a) => ({
           label: a.label,
@@ -854,12 +863,16 @@ export default function PortfolioPage() {
       const storedTotal = (row.data as WalletSnapshot & { _totalEur?: number })._totalEur;
       return { id: row.id, total: storedTotal != null ? storedTotal : snapshotTotal(row.data, tokenPrices) + manualTotals };
     });
-    if (vals.length < 4) return new Set<number>();
-    const sorted = vals.map((v) => v.total).filter((t) => t > 0).sort((a, b) => a - b);
-    if (sorted.length < 4) return new Set<number>();
-    const mediana = sorted[Math.floor(sorted.length / 2)];
-    // 4x acima ou 4x abaixo da mediana: nenhum portefolio real faz isso entre dois snapshots.
-    return new Set(vals.filter((v) => v.total > mediana * 4 || v.total < mediana / 4).map((v) => v.id));
+    // Pico isolado (4x acima ou abaixo dos DOIS vizinhos) = erro de leitura; um
+    // salto que fica (ligar carteiras, depositar) NAO e anomalia — e capital que
+    // entrou, e as metricas tratam-no como tal (pnlMath.eFluxo). Antes era 4x a
+    // mediana, que numa conta que comecou pequena deitava fora os pontos reais.
+    const cron = [...accountSnapshots]
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      .map((row) => vals.find((v) => v.id === row.id)!)
+      .filter(Boolean);
+    const fora = indicesAnomalos(cron.map((v) => v.total));
+    return new Set(cron.filter((_, i) => fora.has(i)).map((v) => v.id));
   }, [accountSnapshots, manualTotals, tokenPrices]);
 
   const snapshotTotals = useMemo(() => {
@@ -916,14 +929,16 @@ export default function PortfolioPage() {
     let activeId = "";
     try { activeId = getActiveAccountId(); } catch { /* ignore */ }
     const oldest = baseDaPosicao(snapshots, activeId);
-    const position = oldest
-      ? currentTotal - oldest.total
-      : days30;
+    // Ganho desde a 1.a fotografia SEM as entradas/saidas de capital (ligar ou
+    // remover carteiras, depositos): a mesma conta do Painel, do Block e da API.
+    const ajustada = posicaoAjustada(snapshots, activeId, currentTotal);
+    const position = ajustada ? ajustada.eur : days30;
+    const posPct = ajustada ? ajustada.pct : (total30d > 0 ? (days30 / total30d) * 100 : null);
 
     // Bases (valor do portefolio no inicio de cada periodo) para dizer "+4,1 %"
     // e nao so "+141 €"; 0 quando nao ha historico para esse periodo.
     return {
-      position, today, days30, daily7d, days7,
+      position, posPct, today, days30, daily7d, days7,
       base: { today: total1d, days7: total7d, days30: total30d, position: oldest ? oldest.total : total30d },
       sinceAt: oldest ? oldest.createdAt : null,
     };
@@ -1399,7 +1414,7 @@ export default function PortfolioPage() {
               { key: "7d", periodo: t("pf_7d"), pnl: pnlSummary.days7, base: pnlSummary.base.days7 },
               { key: "30d", periodo: t("pc_30_days"), pnl: pnlSummary.days30 ?? 0, base: pnlSummary.base.days30 },
               { key: "pos", periodo: t("pf_position"), pnl: pnlSummary.position, base: pnlSummary.base.position },
-            ].map((r) => ({ ...r, pnl: Math.round(r.pnl * 100) / 100, pct: r.base > 0 ? (r.pnl / r.base) * 100 : null }));
+            ].map((r) => ({ ...r, pnl: Math.round(r.pnl * 100) / 100, pct: r.key === "pos" ? (pctCoerente(r.pnl, pnlSummary.posPct) ? pnlSummary.posPct : null) : r.base > 0 ? (r.pnl / r.base) * 100 : null }));
             const pctText = (v: number | null) => (v == null ? "" : `${v >= 0 ? "+" : "−"}${Math.abs(v).toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const renderBarLabel = (props: any) => {
@@ -1433,7 +1448,8 @@ export default function PortfolioPage() {
                     formatter={(v: any, _n: any, item: any) => {
                       const n = typeof v === "number" ? v : 0;
                       const r = rows[item?.payload ? rows.findIndex((x) => x.key === item.payload.key) : -1];
-                      const de = r && r.base > 0 ? ` · ${fmt(r.base)} → ${fmt(r.base + n)}` : "";
+                      // Na "Posicao" o ganho exclui o capital que entrou: "base → base+ganho" seria falso.
+                      const de = r && r.key !== "pos" && r.base > 0 ? ` · ${fmt(r.base)} → ${fmt(r.base + n)}` : "";
                       return [`${fmtSigned(n)} ${r?.pct != null ? `(${pctText(r.pct)})` : ""}${de}`, n >= 0 ? t("pf_profit") : t("pf_loss")];
                     }}
                   />

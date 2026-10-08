@@ -14,7 +14,7 @@
 //   • as fotografias automáticas diárias repetem o último valor conhecido, por
 //     isso variações curtas podem ser 0 — a IA é avisada.
 
-import { PERIODOS_ALARGADOS, metricas, seriePontos, variacoes, type PnlChange, type Ponto, type SnapRow } from "@/lib/api/pnlMath";
+import { PERIODOS_ALARGADOS, metricas, pctCoerente, seriePontos, variacoes, type PnlChange, type Ponto, type SnapRow } from "@/lib/api/pnlMath";
 import { daConta } from "@/lib/portfolio/posicao";
 
 export type OpcoesHistorico = {
@@ -74,7 +74,7 @@ export function textoHistorico(rows: SnapRow[], accountId: string, opts: OpcoesH
   linhas.push(`Valor de referência atual: ${eur(ultimo.total)}${temVivo ? " (ao vivo)" : ` (última fotografia, ${data(ultimo.iso)})`}.`);
   if (opts.diasDoPlano != null) linhas.push(`O plano do utilizador guarda ${opts.diasDoPlano} dias de histórico.`);
 
-  linhas.push("Variação por período (valor atual face ao valor na data base):");
+  linhas.push("Variação por período (ganho ou perda SEM as entradas/saídas de capital, face ao valor na data base):");
   const mudancas: PnlChange[] = variacoes(serie, agora, PERIODOS_ALARGADOS);
   for (const c of mudancas) {
     const rotulo = ROTULO[c.period] ?? c.period;
@@ -83,7 +83,9 @@ export function textoHistorico(rows: SnapRow[], accountId: string, opts: OpcoesH
       continue;
     }
     const base = serie.find((p) => p.iso === c.fromAt);
-    linhas.push(`  - ${rotulo}: ${sinal(c.eur)} (${c.pct == null ? "—" : pct(c.pct)}) face a ${base ? eur(base.total) : "?"} em ${data(c.fromAt)}`);
+    const fluxo = c.fluxos ? ` · excluídos ${c.fluxos} salto(s) de capital (${sinal(c.fluxoEur ?? 0)} por ligar/remover carteiras ou depósitos)` : "";
+    const emPct = c.pct == null ? "—" : pctCoerente(c.eur, c.pct) ? pct(c.pct) : `rentabilidade ponderada no tempo ${pct(c.pct)}: o ganho anterior foi sobre um valor menor e a variação recente sobre o capital que entrou`;
+    linhas.push(`  - ${rotulo}: ${sinal(c.eur)} (${emPct}) face a ${base ? eur(base.total) : "?"} em ${data(c.fromAt)}${fluxo}`);
   }
 
   if (serie.length >= 2) {
@@ -93,7 +95,7 @@ export function textoHistorico(rows: SnapRow[], accountId: string, opts: OpcoesH
     const m = metricas(serie, agora);
     if (m) {
       const n1 = (v: number | null) => (v == null ? "—" : v.toLocaleString("pt-PT", { maximumFractionDigits: 2 }));
-      linhas.push(`Métricas (sobre as fotografias, ${m.snapshotsUsed} pontos, ${Math.round(m.days)} dias): ROI ${n1(m.roi)} % · CAGR ${m.cagr == null ? "só a partir de 90 dias" : n1(m.cagr) + " %"} · Sharpe ${n1(m.sharpe)} · Sortino ${n1(m.sortino)} · queda máxima ${n1(m.maxDrawdown)} % · queda atual ${n1(m.currentDrawdown)} % (${m.daysSincePeak} dias desde o pico) · volatilidade anual ${n1(m.volatility)} % · taxa de acerto diária ${n1(m.winRate)} % · melhor dia ${n1(m.bestReturn)} % · pior dia ${n1(m.worstReturn)} % · VaR 95 % ${n1(m.var95)} %.`);
+      linhas.push(`Métricas (sobre as fotografias, ${m.snapshotsUsed} pontos, ${Math.round(m.days)} dias, sem ${m.fluxos} salto(s) de capital): ROI ${n1(m.roi)} % · CAGR ${m.cagr == null ? "só a partir de 90 dias" : n1(m.cagr) + " %"} · Sharpe ${n1(m.sharpe)} · Sortino ${n1(m.sortino)} · queda máxima ${n1(m.maxDrawdown)} % · queda atual ${n1(m.currentDrawdown)} % (${m.daysSincePeak} dias desde o pico) · volatilidade anual ${n1(m.volatility)} % · taxa de acerto diária ${n1(m.winRate)} % · melhor dia ${n1(m.bestReturn)} % · pior dia ${n1(m.worstReturn)} % · VaR 95 % ${n1(m.var95)} %.`);
     }
     const meses = fimDeMes(serie).slice(-12);
     if (meses.length >= 2) {
@@ -101,7 +103,7 @@ export function textoHistorico(rows: SnapRow[], accountId: string, opts: OpcoesH
     }
   }
 
-  linhas.push("NOTAS: 1) As fotografias automáticas diárias repetem o último valor conhecido quando o utilizador não abre a página do Portefólio — variações curtas podem por isso ser 0 €, e deves dizê-lo se for o caso. 2) Se um período pedido não tem fotografia, explica desde quando há histórico e dá a variação do período mais próximo que exista. 3) NUNCA peças ao utilizador o valor antigo do portefólio nem inventes um: estes são os únicos números válidos. 4) Para percentagens, usa as já calculadas acima.");
+  linhas.push("NOTAS: 1) As fotografias automáticas diárias repetem o último valor conhecido quando o utilizador não abre a página do Portefólio — variações curtas podem por isso ser 0 €, e deves dizê-lo se for o caso. 2) Se um período pedido não tem fotografia, explica desde quando há histórico e dá a variação do período mais próximo que exista. 3) NUNCA peças ao utilizador o valor antigo do portefólio nem inventes um: estes são os únicos números válidos. 4) Para percentagens, usa as já calculadas acima. 5) Saltos grandes entre fotografias (ligar ou remover carteiras, depósitos, levantamentos) são entradas/saídas de capital e NÃO são ganho nem perda: as variações e o ROI acima já os excluem; se o utilizador perguntar porque o valor subiu tanto, explica que foi capital que entrou.");
   return linhas.join("\n");
 }
 

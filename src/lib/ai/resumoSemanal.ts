@@ -4,7 +4,7 @@
 // Puro, para ser testado (scripts/testes/resumoSemanal.test.ts); quem lê a
 // base de dados e envia é src/app/api/cron/resumo-semanal/route.ts.
 
-import { PERIODOS_ALARGADOS, variacoes, type Ponto, type SnapRow } from "@/lib/api/pnlMath";
+import { PERIODOS_ALARGADOS, pctCoerente, variacoes, type Ponto, type SnapRow } from "@/lib/api/pnlMath";
 import { serieDaConta } from "@/lib/ai/historicoTexto";
 
 export type Lang = "pt" | "en" | "es" | "fr";
@@ -128,7 +128,7 @@ export function construirResumoSemanal(e: EntradaResumo): ResumoSemanal {
     const v = variacoes(serie, agora, PERIODOS_ALARGADOS);
     const get = (p: string) => v.find((x) => x.period === p);
     const linha = (rotulo: string, c?: { eur: number | null; pct: number | null }) =>
-      c && c.eur != null ? `- **${rotulo}:** ${sinal(c.eur)}${pct(c.pct)}` : null;
+      c && c.eur != null ? `- **${rotulo}:** ${sinal(c.eur)}${pctCoerente(c.eur, c.pct) ? pct(c.pct) : ""}` : null;
     for (const l of [linha(t.semana, get("7d")), linha(t.mes, get("30d")), linha(t.inicio, get("all"))]) if (l) linhas.push(l);
     const max = serie.reduce((a, b) => (b.total > a.total ? b : a));
     const min = serie.reduce((a, b) => (b.total < a.total ? b : a));

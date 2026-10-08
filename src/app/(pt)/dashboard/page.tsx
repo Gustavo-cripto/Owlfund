@@ -16,7 +16,7 @@ import { loadWalletSnapshot, type WalletSnapshot } from "@/lib/wallets/storage";
 import { loadCryptoHoldings, loadStablecoinEntries } from "@/lib/crypto/storage";
 import { loadTraditionalHoldings } from "@/lib/traditional/storage";
 import { getActiveAccountId } from "@/lib/portfolios/accounts";
-import { baseDaPosicao, inicioDaJanela, limiteDaJanela } from "@/lib/portfolio/posicao";
+import { inicioDaJanela, limiteDaJanela, posicaoAjustada } from "@/lib/portfolio/posicao";
 import { createClient } from "@/lib/supabase/client";
 import { loadNickname, saveNickname, nicknameFromMetadata } from "@/lib/user/nickname";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -212,8 +212,9 @@ export default function DashboardPage() {
           .map((r) => ({ created_at: r.created_at, data: { _totalEur: r.total, _account: r.conta } }));
         let activeId = "";
         try { activeId = getActiveAccountId(); } catch { /* ignore */ }
-        const base = baseDaPosicao(linhas, activeId);
-        if (base && !cancelado && mountedRef.current) setPnlPosition(currentTotal - base.total);
+        // Ganho sem as entradas de capital (a mesma conta do Portefolio e do Block).
+        const pos = posicaoAjustada(linhas, activeId, currentTotal);
+        if (pos && !cancelado && mountedRef.current) setPnlPosition(pos.eur);
       } catch { /* silencioso */ }
     };
     run();

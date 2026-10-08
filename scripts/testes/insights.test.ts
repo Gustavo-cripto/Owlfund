@@ -1,4 +1,4 @@
-import { metricas, seriePontos, variacoes } from "@/lib/api/pnlMath";
+import { desempenho, eFluxo, indicesAnomalos, metricas, seriePontos, variacoes } from "@/lib/api/pnlMath";
 let fails = 0;
 const eq = (name: string, got: unknown, want: unknown) => {
   const ok = typeof got === "number" && typeof want === "number" ? Math.abs(got - want) < 1e-9 : JSON.stringify(got) === JSON.stringify(want);
@@ -64,5 +64,29 @@ eq("nada → sem métricas", metricas([], AGORA), null);
 
 // Duas capturas no mesmo dia contam como uma (senão o retorno de 0 % estragava tudo).
 eq("mesmo dia conta uma vez", metricas(seriePontos([linha(0, 100), linha(0.1, 100)]), AGORA), null);
+
+
+// ── Entradas de capital e picos (out 2026) ──
+eq("salto de 22 € para 292 € em 10 dias é capital", eFluxo(22, 292, 10 * DIA), true);
+eq("292 → 576 num dia é capital", eFluxo(292, 576, DIA), true);
+eq("−25 % num dia ainda é mercado", eFluxo(1000, 750, DIA), false);
+eq("+55 % em 30 dias é mercado", eFluxo(900, 1400, 30 * DIA), false);
+eq("pico isolado sai", [...indicesAnomalos([1000, 1010, 161546, 1005])], [2]);
+eq("salto que fica não é anomalia", [...indicesAnomalos([22, 24, 25, 292, 576, 531])], []);
+eq("1.ª fotografia absurda sai", [...indicesAnomalos([161546, 1020, 980, 1050])], [0]);
+eq("a mais recente nunca é anomalia (pode ser depósito)", [...indicesAnomalos([1000, 1010, 9000])], []);
+{
+  const sF = seriePontos([linha(90, 22), linha(60, 24), linha(30, 25), linha(12, 26), linha(2, 292), linha(1, 576), linha(0, 531)]);
+  const d = desempenho(sF, 0);
+  eq("ganho sem capital: 22→26 (+4) e 576→531 (−45)", Math.round(d.eur), -41);
+  eq("capital excluído: 26→292 e 292→576", Math.round(d.fluxoEur), 550);
+  eq("dois saltos de capital", d.fluxos, 2);
+  const vF = variacoes(sF, AGORA);
+  eq("24 h é a perda real (−45 €), não +2000 %", Math.round(vF.find((x) => x.period === "24h")!.eur!), -45);
+  const mF = metricas(sF, AGORA)!;
+  eq("ROI sem os saltos fica perto de zero", Math.abs(mF.roi) < 20, true);
+  eq("CAGR não explode", mF.cagr == null || Math.abs(mF.cagr) < 100, true);
+  eq("métricas contam os saltos", mF.fluxos, 2);
+}
 
 console.log(fails === 0 ? "\nTODOS OK" : `\n${fails} FALHA(S)`); process.exit(fails ? 1 : 0);

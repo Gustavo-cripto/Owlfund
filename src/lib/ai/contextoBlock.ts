@@ -16,8 +16,8 @@ const PAIS_DO_IDIOMA: Record<string, string> = { pt: "PT", es: "ES", fr: "FR" };
 
 const eur = (v: number | null | undefined) => (v == null ? "—" : `€ ${v.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
 
-async function pontuacao(userId: string): Promise<string> {
-  const s = await getScore(userId);
+async function pontuacao(userId: string, accountId: string): Promise<string> {
+  const s = await getScore(userId, accountId);
   if (s.score == null) return `=== PONTUAÇÃO DO PORTEFÓLIO ===\n${s.note}`;
   return [
     "=== PONTUAÇÃO DO PORTEFÓLIO (0–100, a mesma do ecrã) ===",
@@ -73,7 +73,7 @@ export async function contextoBlockServidor(opts: {
 }): Promise<string> {
   const [hist, score, fisc, mercado] = await Promise.allSettled([
     historicoParaIa({ userId: opts.userId, plan: "premium", accountId: opts.accountId, totalAtual: opts.totalAtual, locale: opts.locale }),
-    pontuacao(opts.userId),
+    pontuacao(opts.userId, opts.accountId),
     opts.temas.has("fiscal") ? fiscal(opts.userId, opts.lang, opts.paisFiscal) : Promise.resolve(null),
     mercadoAgoraTexto(opts.simbolos ?? []),
   ]);

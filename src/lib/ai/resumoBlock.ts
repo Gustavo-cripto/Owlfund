@@ -27,12 +27,8 @@ const n = (v: number, dec = 2) => v.toLocaleString("pt-PT", { minimumFractionDig
 const q = (v: number) => v.toLocaleString("pt-PT", { maximumFractionDigits: 8 });
 const data = (ms: number | string, locale: string) => new Date(ms).toLocaleDateString(locale);
 
-// Nomes dados pelo utilizador ou por terceiros (etiquetas, tokens, NFTs,
-// exchanges) vão ao prompt como DADOS: sem quebras de linha nem caracteres de
-// controlo, sem "==" (a marca de secção é "===") e curtos, para que um nome
-// malicioso não se consiga fazer passar por instrução ou por secção nova.
-export const limpo = (s: unknown, max = 60): string =>
-  String(s ?? "").replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/={2,}/g, "=").replace(/\s+/g, " ").trim().slice(0, max);
+export { limpo } from "@/lib/ai/limpo";
+import { limpo } from "@/lib/ai/limpo";
 
 // Nome que o modelo pode ver: etiqueta da carteira, senão "Carteira N (rede)".
 const nomeCarteira = (e: StoredWalletEntry, i: number) =>
