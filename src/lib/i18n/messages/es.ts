@@ -789,7 +789,7 @@ export const es: Record<TranslationKey, string> = {
     dev_ep_index: "Índice de descubrimiento — lista los endpoints. No requiere clave.",
     dev_ep_portfolio: "Último snapshot de la cartera: saldos por red, CEX, DeFi y activos manuales (direcciones seudonimizadas).",
     dev_ep_wallets: "Wallets y direcciones vinculadas a la cuenta (seudonimizadas).",
-    dev_ep_pnl: "Evolución de la cartera en euros: total actual y variación a 24 h, 7 d, 30 d y desde el inicio.",
+    dev_ep_pnl: "Evolución de la cartera en euros: total actual y variación a 24 h, 7 d, 30 d y desde el inicio, sin el capital que entró o salió (fluxoEur y fluxos dicen cuánto quedó fuera).",
     dev_ep_realized_gains: "Plusvalías realizadas (FIFO) en euros, con comisiones y gas deducidos: total, por activo y por año.",
     dev_ep_metrics: "Métricas de la cartera a partir del histórico: ROI, CAGR, Sharpe, volatilidad, caídas y VaR 95%.",
     dev_ep_trades: "Transacciones registradas (compras, ventas y comisiones), de la más reciente a la más antigua.",

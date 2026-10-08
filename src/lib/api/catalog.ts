@@ -47,7 +47,7 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
   },
   "note": "wallets junta todas as contas; accounts separa-as."
 }` },
-  { id: "pnl", method: "GET", path: "/api/v1/pnl", desc: "Evolução do portefólio em euros: total atual e variação a 24 h, 7 d, 30 d e desde o início.", descKey: "dev_ep_pnl", auth: true,
+  { id: "pnl", method: "GET", path: "/api/v1/pnl", desc: "Evolução do portefólio em euros: total atual e variação a 24 h, 7 d, 30 d e desde o início, sem o capital que entrou ou saiu (fluxoEur e fluxos dizem quanto ficou de fora).", descKey: "dev_ep_pnl", auth: true,
     response: `{
   "currency": "EUR",
   "totalEur": 12450.32,
