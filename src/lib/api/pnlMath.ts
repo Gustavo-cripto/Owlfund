@@ -48,12 +48,15 @@ export const PERIODOS_ALARGADOS: Periodo[] = [
 const DIA_MS = 86_400_000;
 /** Movimento máximo "de mercado" por dia, em logaritmo (×1,49 ou ÷1,49), que cresce com √dias. */
 const LOG_DIARIO_MAX = 0.4;
+/** Teto: ×3 ou ÷3 entre duas fotografias é sempre capital, por maior que seja o intervalo
+ *  (sem isto, 23 € → 292 € com 57 dias sem fotografias passava por "mercado"). */
+const LOG_TETO = Math.log(3);
 
 /** O passo de `a` para `b`, com `gapMs` de intervalo, é entrada/saída de capital (e não mercado)? */
 export function eFluxo(a: number, b: number, gapMs: number): boolean {
   if (!(a > 0) || !(b > 0)) return false;
   const dias = Math.max(1, gapMs / DIA_MS);
-  return Math.abs(Math.log(b / a)) > LOG_DIARIO_MAX * Math.sqrt(dias);
+  return Math.abs(Math.log(b / a)) > Math.min(LOG_TETO, LOG_DIARIO_MAX * Math.sqrt(dias));
 }
 
 /** Índices (na ordem dada, cronológica) de picos isolados que são erros de leitura. */
