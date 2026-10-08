@@ -9,6 +9,12 @@ export const FREE_WALLET_LIMIT = 3;
 export const FREE_WHALE_LIMIT = 3;
 export const API_CHAT_PER_DAY = 50;      // /api/v1/chat + MCP ask_ai (por conta)
 export const GESTOR_DAILY_LIMIT = 150;   // Gestor IA (Premium): uso razoável por conta e por dia
+// Tetos diários de "uso razoável" (auditoria 8 out 2026), muito acima do uso
+// normal: os planos dizem "ilimitado", mas sem teto um script usava a rota como
+// IA genérica à custa do dono. Contados na base de dados (src/lib/api/limiteDiario.ts).
+export const CHAIN_DAILY_LIMIT = 100;        // Chain, Pro e Premium (o Gratuito tem FREE_AI_LIMIT por mês)
+export const PORTFOLIO_AI_DAILY_LIMIT = 150; // Assistente IA do Portefólio (Pro/Premium)
+export const MARKET_CHAT_DAILY_LIMIT = 80;   // Chat de Mercado
 
 // Data-limite do beta — FONTE ÚNICA (estava repetida em 4 sítios de 3 ficheiros;
 // bastava esquecer um para a página dizer "aberto" e a API responder "fechado").
