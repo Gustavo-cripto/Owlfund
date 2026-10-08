@@ -52,7 +52,8 @@ export async function POST(request: Request) {
     subject: `Feedback de tester: ${quem}`,
     html, unsubscribe: false, tag: "feedback",
   });
-  // Telegram: a frase exata, sem resumo.
-  void sendTelegram(`💬 <b>Feedback de tester</b>\n${esc(quem)} · ${esc(lang)}` + (reason ? `\n<b>Motivo:</b> ${esc(LABEL[reason] ?? reason)}` : "") + (text ? `\n<b>Diz:</b> ${esc(text)}` : "")).catch(() => {});
+  // Telegram: a frase exata, sem resumo. Com await — em serverless, sem ele o
+  // envio pode ser abortado quando a função devolve.
+  await sendTelegram(`💬 <b>Feedback de tester</b>\n${esc(quem)} · ${esc(lang)}` + (reason ? `\n<b>Motivo:</b> ${esc(LABEL[reason] ?? reason)}` : "") + (text ? `\n<b>Diz:</b> ${esc(text)}` : "")).catch(() => false);
   return NextResponse.json({ ok });
 }
