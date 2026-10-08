@@ -703,7 +703,7 @@ export default function PortfolioPage() {
       const res = await fetch("/api/portfolio-ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: q, context, nickname: loadNickname() || undefined, accountId: getActiveAccountId(), history: anteriores }),
+        body: JSON.stringify({ question: q.slice(0, 1500), context, nickname: loadNickname() || undefined, accountId: getActiveAccountId(), history: anteriores, lang }),
       });
       const data = (await res.json()) as { reply?: string; error?: string; code?: string; limit?: number };
       if (!res.ok || data.error) {

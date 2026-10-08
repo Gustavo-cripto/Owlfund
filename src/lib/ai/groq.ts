@@ -389,7 +389,7 @@ export function friendlyAiError(status: number | undefined, lang = "pt"): string
       "⏳ Limite da Análise IA atingido por agora. Volta a tentar dentro de alguns minutos.",
       "⏳ AI analysis limit reached for now. Please try again in a few minutes.",
       "⏳ Límite del análisis IA alcanzado por ahora. Inténtalo de nuevo en unos minutos.",
-      "⏳ Limite de l'analyse IA atteinte pour l'instant. Réessaie dans quelques minutes.",
+      "⏳ Limite de l'analyse IA atteinte pour l'instant. Réessayez dans quelques minutes.",
     );
   }
   if (status === 401 || status === 403) {
@@ -397,14 +397,14 @@ export function friendlyAiError(status: number | undefined, lang = "pt"): string
       "Serviço de IA temporariamente indisponível. Tenta novamente mais tarde.",
       "AI service temporarily unavailable. Please try again later.",
       "Servicio de IA temporalmente no disponible. Inténtalo más tarde.",
-      "Service IA temporairement indisponible. Réessaie plus tard.",
+      "Service IA temporairement indisponible. Réessayez plus tard.",
     );
   }
   return pick(
     "Não foi possível gerar a análise agora. Tenta novamente daqui a pouco.",
     "Couldn't generate the analysis right now. Please try again shortly.",
     "No se pudo generar el análisis ahora. Inténtalo de nuevo en breve.",
-    "Impossible de générer l'analyse pour le moment. Réessaie bientôt.",
+    "Impossible de générer l'analyse pour le moment. Réessayez bientôt.",
   );
 }
 

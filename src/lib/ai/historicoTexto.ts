@@ -24,6 +24,10 @@ export type OpcoesHistorico = {
   locale?: string;
   /** Dias de histórico que o plano permite (null = tudo). Só para informar a IA. */
   diasDoPlano?: number | null;
+  /** Períodos a não escrever (ex.: o Assistente já recebe 24h/7d/30d da página: uma só fonte por janela). */
+  omitirPeriodos?: string[];
+  /** Não escrever a linha de métricas (quem chama já tem as do ecrã). */
+  semMetricas?: boolean;
 };
 
 const ROTULO: Record<string, string> = {
@@ -75,7 +79,8 @@ export function textoHistorico(rows: SnapRow[], accountId: string, opts: OpcoesH
   if (opts.diasDoPlano != null) linhas.push(`O plano do utilizador guarda ${opts.diasDoPlano} dias de histórico.`);
 
   linhas.push("Variação por período (ganho ou perda SEM as entradas/saídas de capital, face ao valor na data base):");
-  const mudancas: PnlChange[] = variacoes(serie, agora, PERIODOS_ALARGADOS);
+  const omitir = new Set(opts.omitirPeriodos ?? []);
+  const mudancas: PnlChange[] = variacoes(serie, agora, PERIODOS_ALARGADOS).filter((c) => !omitir.has(c.period));
   for (const c of mudancas) {
     const rotulo = ROTULO[c.period] ?? c.period;
     if (c.eur == null || c.fromAt == null) {
@@ -92,7 +97,7 @@ export function textoHistorico(rows: SnapRow[], accountId: string, opts: OpcoesH
     const max = serie.reduce((a, b) => (b.total > a.total ? b : a));
     const min = serie.reduce((a, b) => (b.total < a.total ? b : a));
     linhas.push(`Máximo: ${eur(max.total)} em ${data(max.iso)} · Mínimo: ${eur(min.total)} em ${data(min.iso)}.`);
-    const m = metricas(serie, agora);
+    const m = opts.semMetricas ? null : metricas(serie, agora);
     if (m) {
       const n1 = (v: number | null) => (v == null ? "—" : v.toLocaleString("pt-PT", { maximumFractionDigits: 2 }));
       linhas.push(`Métricas (sobre as fotografias, ${m.snapshotsUsed} pontos, ${Math.round(m.days)} dias, sem ${m.fluxos} salto(s) de capital): ROI ${n1(m.roi)} % · CAGR ${m.cagr == null ? "só a partir de 90 dias" : n1(m.cagr) + " %"} · Sharpe ${n1(m.sharpe)} · Sortino ${n1(m.sortino)} · queda máxima ${n1(m.maxDrawdown)} % · queda atual ${n1(m.currentDrawdown)} % (${m.daysSincePeak} dias desde o pico) · volatilidade anual ${n1(m.volatility)} % · taxa de acerto diária ${n1(m.winRate)} % · melhor dia ${n1(m.bestReturn)} % · pior dia ${n1(m.worstReturn)} % · VaR 95 % ${n1(m.var95)} %.`);

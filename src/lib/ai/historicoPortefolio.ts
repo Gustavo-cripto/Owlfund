@@ -40,11 +40,13 @@ export async function historicoParaIa(opts: {
   accountId: string;
   totalAtual?: number | null;
   locale?: string;
+  omitirPeriodos?: string[];
+  semMetricas?: boolean;
 }): Promise<string | null> {
   try {
     const rows = await lerFotografias(opts.userId, opts.plan);
     return (
-      textoHistorico(rows, opts.accountId, { totalAtual: opts.totalAtual, locale: opts.locale, diasDoPlano: diasDaJanela(opts.plan) })
+      textoHistorico(rows, opts.accountId, { totalAtual: opts.totalAtual, locale: opts.locale, diasDoPlano: diasDaJanela(opts.plan), omitirPeriodos: opts.omitirPeriodos, semMetricas: opts.semMetricas })
       ?? textoSemHistorico()
     );
   } catch (e) {
