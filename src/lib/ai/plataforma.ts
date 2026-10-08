@@ -19,7 +19,7 @@ PÁGINAS E FUNCIONALIDADES:
 • /account — Conta do utilizador, preferências, gestão do plano, API Keys (Premium).
 
 ASSISTENTES IA (três, por plano):
-- Chain — o assistente do site (botão Chat, em baixo à direita, em todas as páginas). Todos os planos (Gratuito: 3 conversas/mês). Dá preços e dados do mercado cripto em tempo real e ajuda a usar o site. NÃO vê o portefólio do utilizador.
+- Chain — o assistente do site (botão Chat, em baixo à direita, em todas as páginas). Todos os planos (Gratuito: 3 mensagens/mês). Dá preços e dados do mercado cripto em tempo real e ajuda a usar o site. NÃO vê o portefólio do utilizador.
 - Assistente IA do Portefólio — painel "Analisa o teu portefólio" na página /portfolio. Plano Pro e Premium. Analisa os números reais (totais, PNL, distribuição, métricas) em conversa.
 - Block — o Gestor Dedicado IA em /gestor. Só Premium. Acesso a tudo o que o utilizador tem na conta.
 
@@ -27,7 +27,7 @@ PLANOS E FUNCIONALIDADES:
 
 Plano Gratuito (€0):
 - Até 3 carteiras on-chain
-- Chain, o assistente IA do site: 3 conversas/mês (mercado em tempo real e ajuda com o site; não vê o portefólio)
+- Chain, o assistente IA do site: 3 mensagens/mês (mercado em tempo real e ajuda com o site; não vê o portefólio)
 - 30 dias de histórico de portfolio
 - Cálculo fiscal pelo método do país, com todo o histórico (4 países)
 - 3 endereços na watchlist de baleias
@@ -62,14 +62,14 @@ COMO FUNCIONA O PNL:
 
 SEGURANÇA:
 - Modo só leitura em todas as carteiras — o ChainFolioAI nunca pede chaves privadas nem pode fazer transações.
-- Autenticação via Supabase (email + Google).
+- Entrada com email e palavra-passe, link mágico por email, Google ou Apple.
 
 SUPORTE:
 - Problemas com MetaMask: instalar extensão no browser, clicar em "Ligar" no card Ethereum.
 - Problemas com Phantom: instalar extensão, clicar em "Ligar" no card Solana.
-- WalletConnect: precisas de NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID configurado (cloud.walletconnect.com gratuito).
+- WalletConnect: se o QR não abrir, cola o endereço em modo só-leitura na página Carteiras.
 - Saldo a zeros: verificar se o endereço foi adicionado corretamente; clicar "Atualizar saldo".
-- Para DeFi Solana: precisas de SHYFT_API_KEY (shyft.to gratuito).
+- DeFi em Solana: posições lidas por um serviço externo; se não aparecerem, tenta mais tarde ou adiciona-as como ativo manual.
 - DeFi em Ethereum e L2: Aave, Spark, Compound, Morpho, EigenLayer e Uniswap são lidos diretamente da cadeia; outros protocolos podem não aparecer.
 - Plano não atualizado após pagamento: recarregar /account (sincroniza automaticamente ao abrir); se persistir, ir a /pricing e clicar "↻ Sincronizar plano".
 

@@ -9,13 +9,7 @@ import { loadNickname } from "@/lib/user/nickname";
 import ChatMarkdown from "@/components/ChatMarkdown";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { FREE_CHAT_LIMIT } from "@/lib/plans";
-import {
-  ACCOUNTS_EVENT,
-  ALL_ACCOUNTS_ID,
-  accKey,
-  getActiveAccountId,
-  listAccounts,
-} from "@/lib/portfolios/accounts";
+import { accKey, getActiveAccountId } from "@/lib/portfolios/accounts";
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -35,21 +29,18 @@ type ChatWidgetProps = {
   isPro?: boolean;
 };
 
-// Histórico de mensagens: chave POR CONTA (cada portefólio tem a sua conversa
-// separada com o Chain). accKey prefixa por conta ativa → cf.acct.<id>.<base>.
-const MESSAGES_BASE = "owlfund.chat.messages.v2";
-const messagesKeyFor = (accountId: string) => accKey(MESSAGES_BASE, accountId);
-// Nome legível da conta ativa (para o cabeçalho e o contexto enviado à IA).
-function activeAccountName(accountId: string, t: (k: TranslationKey) => string): string {
-  if (accountId === ALL_ACCOUNTS_ID) return t("gz_all_accounts");
-  return listAccounts().find((a) => a.id === accountId)?.name ?? t("gz_account");
-}
+// Histórico: UMA conversa por browser. O Chain deixou de usar o portefólio (8 out
+// 2026), por isso a conversa já não é por conta. A antiga (por conta, v2) migra
+// uma vez para esta chave.
+const MESSAGES_KEY = "owlfund.chat.messages.v3";
+const MESSAGES_BASE_V2 = "owlfund.chat.messages.v2";
 // O limite Free é aplicado pelo SERVIDOR (/api/chat + /api/usage); o cliente só mostra.
 const LOCALE_BY_LANG: Record<string, string> = { pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" };
 const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
 const ERR_KEY: Record<string, TranslationKey> = {
   rate_limited: "cw_err_rate", limit_reached: "cw_err_limit", anon_limit: "cw_err_anon", unavailable: "cw_err_unavailable",
   ai_rate_limited: "cw_err_rate", timeout: "cw_err_timeout", internal: "cw_err_generic", provider_error: "cw_err_generic", bad_json: "cw_err_generic", empty: "cw_err_generic",
+  daily_limit: "cw_err_daily", unauthenticated: "cw_err_generic", bad_request: "cw_err_generic",
 };
 
 function formatTime(ts: number, locale: string): string {
@@ -79,15 +70,11 @@ export default function ChatWidget({
   const [usage, setUsage] = useState<{ count: number; limit: number } | null>(null);
   const [serverLimit, setServerLimit] = useState(false);
   const [nick, setNick] = useState("");
-  const [acctId, setAcctId] = useState<string>("");
-  const [acctName, setAcctName] = useState<string>("");
-  const [acctCount, setAcctCount] = useState(1);
   const hydratedRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setNick(loadNickname() || "");
-    setAcctId(getActiveAccountId());
   }, []);
 
   // Uso do mês (só Free) — a verdade está no servidor.
@@ -106,50 +93,31 @@ export default function ChatWidget({
     return () => { cancelled = true; };
   }, [isPro]);
 
-  // Lê o histórico da conta indicada e substitui o que está no ecrã.
-  const loadMessagesFor = (accountId: string) => {
-    hydratedRef.current = false;
-    try {
-      const raw = localStorage.getItem(messagesKeyFor(accountId));
-      const parsed = raw ? (JSON.parse(raw) as ChatMessage[]) : [];
-      setMessages(
-        Array.isArray(parsed)
-          ? parsed.filter(m => (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
-          : [],
-      );
-    } catch {
-      setMessages([]);
-    }
-    setAcctName(activeAccountName(accountId, t));
-    try { setAcctCount(listAccounts().length); } catch { /* ignore */ }
-    // Permite guardar só depois de hidratar (evita apagar a conversa da conta).
-    requestAnimationFrame(() => { hydratedRef.current = true; });
-  };
-
-  // Carregar a conversa da conta ativa quando ela é conhecida / muda.
+  // Lê a conversa deste browser (com migração única da conversa antiga, por conta).
   useEffect(() => {
-    if (!acctId) return;
-    loadMessagesFor(acctId);
-  }, [acctId]);
-
-  // Reage à troca de conta (o AccountSwitcher recarrega a página, mas isto cobre
-  // trocas sem reload — ex.: contas fundidas da nuvem noutro dispositivo).
-  useEffect(() => {
-    const onAccountsChanged = () => {
-      const next = getActiveAccountId();
-      setAcctId(prev => (prev === next ? prev : next));
-      setAcctName(activeAccountName(next, t));
+    const ler = (chave: string): ChatMessage[] => {
+      try {
+        const raw = localStorage.getItem(chave);
+        const parsed = raw ? (JSON.parse(raw) as ChatMessage[]) : [];
+        return Array.isArray(parsed)
+          ? parsed.filter(m => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
+          : [];
+      } catch { return []; }
     };
-    window.addEventListener(ACCOUNTS_EVENT, onAccountsChanged);
-    return () => window.removeEventListener(ACCOUNTS_EVENT, onAccountsChanged);
+    let atuais = ler(MESSAGES_KEY);
+    if (!atuais.length) {
+      try { atuais = ler(accKey(MESSAGES_BASE_V2, getActiveAccountId())); } catch { /* sem contas */ }
+    }
+    setMessages(atuais);
+    requestAnimationFrame(() => { hydratedRef.current = true; });
   }, []);
 
-  // Guardar histórico na chave da conta ativa (só após hidratar).
+  // Guardar a conversa (só depois de a ler, para não a apagar).
   useEffect(() => {
-    if (!acctId || !hydratedRef.current) return;
-    try { localStorage.setItem(messagesKeyFor(acctId), JSON.stringify(messages.slice(-40))); }
+    if (!hydratedRef.current) return;
+    try { localStorage.setItem(MESSAGES_KEY, JSON.stringify(messages.slice(-40))); }
     catch { /* ignore */ }
-  }, [messages, acctId]);
+  }, [messages]);
 
   // Auto-scroll para a última mensagem
   useEffect(() => {
@@ -174,7 +142,6 @@ export default function ChatWidget({
 
     if (serverLimit) return;
 
-    const reqAcct = acctId; // se a conta mudar a meio, a resposta não vai para a conversa errada
     const nextMessages: ChatMessage[] = [...messages, { role: "user", content: trimmed, ts: Date.now() }];
     setMessages(nextMessages);
     setInput("");
@@ -193,6 +160,7 @@ export default function ChatWidget({
           messages: nextMessages,
           pageContext: pathname ?? undefined,
           nickname: loadNickname() || undefined,
+          lang,
         }),
         signal: controller.signal,
       }).finally(() => window.clearTimeout(timeoutId));
@@ -206,7 +174,6 @@ export default function ChatWidget({
       const data = (await response.json()) as { reply?: string; usage?: { count: number; limit: number } };
       const reply = typeof data.reply === "string" ? data.reply : "";
       if (!reply) throw new Error("provider_error");
-      if (getActiveAccountId() !== reqAcct) return;
 
       setMessages(prev => [...prev, { role: "assistant", content: reply, ts: Date.now() }]);
       if (data.usage) { setUsage(data.usage); setServerLimit(data.usage.count >= data.usage.limit); }
@@ -225,15 +192,11 @@ export default function ChatWidget({
   const clearHistory = () => {
     setMessages([]);
     setError(null);
-    try { if (acctId) localStorage.removeItem(messagesKeyFor(acctId)); } catch { /* ignore */ }
+    try { localStorage.removeItem(MESSAGES_KEY); } catch { /* ignore */ }
   };
 
   const limitReached = !isPro && serverLimit;
   const upgradeHref = paymentsFrozen ? "/beta" : "/pricing";
-  // Indicador de conta ativa: só quando há várias contas ou na vista combinada,
-  // para não poluir a UI de quem só tem um portefólio.
-  // O Chain não usa o portefólio: o chip da conta ativa deixou de fazer sentido aqui.
-  const showAcctChip = false;
 
   const content = (
     <div className="flex flex-col gap-3">
@@ -284,14 +247,6 @@ export default function ChatWidget({
                 {t("cw_greeting_hi")}{nick ? ` ${nick}` : ""}! 👋
               </p>
               <p className="mt-1 text-xs text-slate-400">{t("cw_greeting_intro")}</p>
-              {showAcctChip && (
-                <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-orange-500/25 bg-orange-500/10 px-2.5 py-1 text-[11px] font-medium text-orange-300">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
-                  </svg>
-                  {acctName}
-                </span>
-              )}
             </div>
             <div className="w-full space-y-2 pt-1">
               <p className="text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("cw_suggestions")}</p>
