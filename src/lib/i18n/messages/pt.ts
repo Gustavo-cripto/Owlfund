@@ -798,7 +798,7 @@ export const pt = {
     dev_ep_index: "Índice de descoberta — lista os endpoints. Não exige chave.",
     dev_ep_portfolio: "Último snapshot do portefólio: saldos por rede, CEX, DeFi e ativos manuais (endereços pseudonimizados).",
     dev_ep_wallets: "Carteiras e endereços ligados à conta (pseudonimizados).",
-    dev_ep_pnl: "Evolução do portefólio em euros: total atual e variação a 24 h, 7 d, 30 d e desde o início.",
+    dev_ep_pnl: "Evolução do portefólio em euros: total atual e variação a 24 h, 7 d, 30 d e desde o início, sem o capital que entrou ou saiu (fluxoEur e fluxos dizem quanto ficou de fora).",
     dev_ep_realized_gains: "Mais-valias realizadas (FIFO) em euros, com taxas e gás deduzidos: total, por ativo e por ano.",
     dev_ep_metrics: "Métricas do portefólio a partir do histórico: ROI, CAGR, Sharpe, volatilidade, quedas e VaR 95%.",
     dev_ep_trades: "Transações registadas (compras, vendas e taxas), da mais recente para a mais antiga.",

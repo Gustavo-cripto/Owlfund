@@ -789,7 +789,7 @@ export const en: Record<TranslationKey, string> = {
     dev_ep_index: "Discovery index — lists the endpoints. No key required.",
     dev_ep_portfolio: "Latest portfolio snapshot: balances per network, CEX, DeFi and manual assets (pseudonymised addresses).",
     dev_ep_wallets: "Wallets and addresses linked to the account (pseudonymised).",
-    dev_ep_pnl: "Portfolio change in euros: current total and change over 24 h, 7 d, 30 d and since the start.",
+    dev_ep_pnl: "Portfolio evolution in euros: current total and change over 24 h, 7 d, 30 d and since the start, excluding capital added or removed (fluxoEur and fluxos say how much was left out).",
     dev_ep_realized_gains: "Realised capital gains (FIFO) in euros, fees and gas deducted: total, per asset and per year.",
     dev_ep_metrics: "Portfolio metrics from your history: ROI, CAGR, Sharpe, volatility, drawdowns and 95% VaR.",
     dev_ep_trades: "Recorded transactions (buys, sells and fees), newest first.",
