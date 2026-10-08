@@ -46,5 +46,17 @@ import { sseParaEventos } from "@/lib/ai/groq";
   ok2("3 deltas de ferramenta + 1 de texto", tools.length === 3 && eventos.length === 4);
   ok2("id e nome no primeiro delta", tools[0].id === "call_1" && tools[0].name === "ler_seccao");
   ok2("argumentos juntam-se por ordem", tools.map((t) => t.args ?? "").join("") === '{"seccao":"defi"}');
+
+  // Como acabou: "stop" chega como evento "fim"; sem ele o stream foi cortado.
+  const comFim = new ReadableStream<Uint8Array>({ start(c) {
+    c.enqueue(enc.encode('data: {"choices":[{"delta":{"content":"Olá"}}]}\n\n'));
+    c.enqueue(enc.encode('data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n'));
+    c.close();
+  } });
+  const r2 = sseParaEventos(comFim).getReader();
+  const ev2: Array<{ tipo: string; motivo?: string }> = [];
+  for (;;) { const { done, value } = await r2.read(); if (done) break; ev2.push(value as { tipo: string; motivo?: string }); }
+  ok2("finish_reason=stop vira evento fim", ev2.some((e) => e.tipo === "fim" && e.motivo === "stop"));
+  ok2("stream cortado não tem evento fim", !eventos.some((e) => (e as { tipo: string }).tipo === "fim"));
   if (f2) { console.log(`\n${f2} teste(s) falhados`); process.exit(1); }
 })();

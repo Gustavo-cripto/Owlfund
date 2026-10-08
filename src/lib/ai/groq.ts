@@ -286,7 +286,9 @@ export function sseParaTexto(body: ReadableStream<Uint8Array>): ReadableStream<s
 /** Evento de um stream OpenAI: pedaço de texto ou pedaço de um pedido de ferramenta. */
 export type EventoSse =
   | { tipo: "texto"; texto: string }
-  | { tipo: "tool"; index: number; id?: string; name?: string; args?: string };
+  | { tipo: "tool"; index: number; id?: string; name?: string; args?: string }
+  /** Como o fornecedor fechou a resposta ("stop", "length", "tool_calls"…). Sem este evento o stream foi cortado. */
+  | { tipo: "fim"; motivo: string };
 
 /** Como sseParaTexto, mas conserva também os deltas de tool_calls (function calling). */
 export function sseParaEventos(body: ReadableStream<Uint8Array>): ReadableStream<EventoSse> {
@@ -307,11 +309,13 @@ export function sseParaEventos(body: ReadableStream<Uint8Array>): ReadableStream
           const j = JSON.parse(data) as { choices?: Array<{ delta?: Delta; finish_reason?: string | null }> };
           const d = j.choices?.[0]?.delta;
           // Resposta cortada pelo limite de tokens: fica nos registos para se ver.
-          if (j.choices?.[0]?.finish_reason === "length") console.warn("[ai:stream] resposta cortada por max_tokens (finish_reason=length)");
+          const fr = j.choices?.[0]?.finish_reason;
+          if (fr === "length") console.warn("[ai:stream] resposta cortada por max_tokens (finish_reason=length)");
           if (d?.content) controller.enqueue({ tipo: "texto", texto: d.content });
           for (const tc of d?.tool_calls ?? []) {
             controller.enqueue({ tipo: "tool", index: tc.index ?? 0, id: tc.id, name: tc.function?.name, args: tc.function?.arguments });
           }
+          if (fr) controller.enqueue({ tipo: "fim", motivo: String(fr) });
         } catch { /* linha incompleta ou keep-alive */ }
       }
     },

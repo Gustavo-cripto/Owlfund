@@ -369,11 +369,13 @@ export async function POST(req: NextRequest) {
         const { eventos } = await generateAiChatStream(msgs, { maxTokens: MAX_TOKENS_RESPOSTA, temperature: 0.65, tokensEntrada: tokens, tools: usarTools ? ferramentas.defs : undefined, prazo });
         const reader = eventos.getReader();
         let texto = "";
+        let motivo = "";
         const calls = new Map<number, { id: string; name: string; args: string }>();
         for (;;) {
           const { done, value } = await reader.read();
           if (done) break;
           if (value.tipo === "texto") { texto += value.texto; entregar(value.texto); continue; }
+          if (value.tipo === "fim") { motivo = value.motivo; continue; }
           const c = calls.get(value.index) ?? { id: "", name: "", args: "" };
           if (value.id) c.id = value.id;
           if (value.name) c.name += value.name;
@@ -386,6 +388,16 @@ export async function POST(req: NextRequest) {
         // Devolver só o texto deixava a resposta cortada a meio (visto a 5 out).
         const pedidos = usarTools ? [...calls.values()].filter((c) => c.name).slice(0, 3).map((c, k) => ({ ...c, id: c.id || `call_${ronda}_${k}` })) : [];
         if (!pedidos.length) {
+          // Stream fechado sem "stop" (cortado pelo fornecedor ou pelo limite): o
+          // ecrã ficava com meia frase ("24 horas −€ 47,"). Pede-se a resposta
+          // inteira sem stream; o evento "done" substitui o texto parcial.
+          if (total.trim() && motivo !== "stop" && prazo - Date.now() > 12_000) {
+            console.warn(`[gestor] stream incompleto (finish_reason=${motivo || "nenhum"}, ${total.length} car.) — a pedir a resposta completa sem stream`);
+            try {
+              const completo = await generateAiChat(msgs, { maxTokens: MAX_TOKENS_RESPOSTA, temperature: 0.65, tokensEntrada: tokens });
+              if (completo.trim().length > texto.trim().length) return total.slice(0, total.length - texto.length) + completo;
+            } catch (e) { console.warn("[gestor] repetição sem stream falhou:", errorStatus(e) ?? (e instanceof Error ? e.message : e)); }
+          }
           if (total.trim()) return total;
           // O fornecedor aceitou o pedido mas o stream veio vazio (ex.: o
           // raciocínio do Gemini gastou a saída). Sem nada enviado ainda, a
