@@ -1151,7 +1151,7 @@ export const en: Record<TranslationKey, string> = {
     cw_sm1: "What is Smart Money?",
     cw_sm2: "Who is Vitalik?",
     cw_sm3: "How to interpret whale moves?",
-    cw_m1: "What's moving BTC today?",
+    cw_m1: "How is the crypto market right now?",
     cw_m2: "Explain the RSI",
     cw_m3: "What is market cap?",
     cw_fi1: "How does FIFO work?",

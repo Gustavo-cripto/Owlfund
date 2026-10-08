@@ -1160,7 +1160,7 @@ export const pt = {
     cw_sm1: "O que é Smart Money?",
     cw_sm2: "Quem é o Vitalik?",
     cw_sm3: "Como interpretar movimentos de baleias?",
-    cw_m1: "O que está a mexer com o BTC hoje?",
+    cw_m1: "Como está o mercado cripto agora?",
     cw_m2: "Explica o RSI",
     cw_m3: "O que é market cap?",
     cw_fi1: "Como funciona o FIFO?",

@@ -1151,7 +1151,7 @@ export const es: Record<TranslationKey, string> = {
     cw_sm1: "¿Qué es Smart Money?",
     cw_sm2: "¿Quién es Vitalik?",
     cw_sm3: "¿Cómo interpretar movimientos de ballenas?",
-    cw_m1: "¿Qué está moviendo a BTC hoy?",
+    cw_m1: "¿Cómo está el mercado cripto ahora?",
     cw_m2: "Explica el RSI",
     cw_m3: "¿Qué es market cap?",
     cw_fi1: "¿Cómo funciona FIFO?",
