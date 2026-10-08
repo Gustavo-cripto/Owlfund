@@ -180,7 +180,9 @@ function* planoDeTentativas(opts: { maxTokens: number; temperature: number; toke
     // max_tokens: pede-se esforço baixo e dá-se folga; se mesmo assim a
     // resposta vier vazia ou o parâmetro for recusado (400), repete-se o
     // mesmo modelo sem o parâmetro antes de passar ao candidato seguinte.
-    const folga = opts.maxTokens + 1024;
+    // 1024 de folga não chegava com o contexto largo do Block: o raciocínio
+    // comia o orçamento e a resposta visível parava a meio de uma frase (8 out).
+    const folga = opts.maxTokens + 4096;
     let desistir = false;
     for (const model of geminiModelCandidates()) {
       if (desistir) break;
@@ -302,8 +304,10 @@ export function sseParaEventos(body: ReadableStream<Uint8Array>): ReadableStream
         const data = l.slice(5).trim();
         if (!data || data === "[DONE]") continue;
         try {
-          const j = JSON.parse(data) as { choices?: Array<{ delta?: Delta }> };
+          const j = JSON.parse(data) as { choices?: Array<{ delta?: Delta; finish_reason?: string | null }> };
           const d = j.choices?.[0]?.delta;
+          // Resposta cortada pelo limite de tokens: fica nos registos para se ver.
+          if (j.choices?.[0]?.finish_reason === "length") console.warn("[ai:stream] resposta cortada por max_tokens (finish_reason=length)");
           if (d?.content) controller.enqueue({ tipo: "texto", texto: d.content });
           for (const tc of d?.tool_calls ?? []) {
             controller.enqueue({ tipo: "tool", index: tc.index ?? 0, id: tc.id, name: tc.function?.name, args: tc.function?.arguments });
