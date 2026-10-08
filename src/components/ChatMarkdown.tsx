@@ -7,23 +7,28 @@
 // nós React (sem innerHTML), por isso o texto vem sempre escapado.
 
 import { Fragment, useState, type ReactNode } from "react";
-import { semLatex } from "@/lib/ai/formulas";
+import { semLatexForaDeCodigo } from "@/lib/ai/formulas";
+import { classificarLigacao, csvSeguro, LIGACAO_MD } from "@/lib/ui/ligacoes";
 
 export type ChatMarkdownLabels = { copy: string; copied: string; downloadCsv: string };
 const DEFAULT_LABELS: ChatMarkdownLabels = { copy: "Copy", copied: "Copied ✓", downloadCsv: "Download .csv" }  // so usado se um call-site esquecer os labels traduzidos;
 
-// Ligações [texto](url): só caminhos do site ("/portfolio") e http(s). O Block
-// aponta para páginas da app ("Podes ver em [Portefólio](/portfolio)") e isto
-// aparecia à letra. Caminhos internos abrem na mesma janela; externos em nova.
-const LIGACAO = /(\[[^\]\n]+\]\((?:\/[^\s)]*|https?:\/\/[^\s)]+)\))/g;
+// Ligações [texto](url): páginas do site ("/portfolio") abrem na mesma janela;
+// externas abrem noutra e mostram o domínio ao lado do texto, para o texto não
+// poder disfarçar o destino. "//outro.com" e "/\\outro.com" não são internas
+// (auditoria 8 out 2026) — ver src/lib/ui/ligacoes.ts.
 function links(text: string, key: string): ReactNode[] {
-  return text.split(LIGACAO).filter(Boolean).map((parte, i) => {
+  return text.split(LIGACAO_MD).filter(Boolean).map((parte, i) => {
     const m = /^\[([^\]\n]+)\]\(([^\s)]+)\)$/.exec(parte);
-    if (!m) return <Fragment key={`${key}l${i}`}>{parte}</Fragment>;
-    const externa = /^https?:/i.test(m[2]);
+    const lig = m ? classificarLigacao(m[2]) : null;
+    if (!m || !lig) return <Fragment key={`${key}l${i}`}>{parte}</Fragment>;
+    const cls = "text-orange-300 underline decoration-dotted underline-offset-2 hover:text-orange-200";
+    if (lig.tipo === "interna") return <a key={`${key}l${i}`} href={lig.href} className={cls}>{m[1]}</a>;
     return (
-      <a key={`${key}l${i}`} href={m[2]} className="text-orange-300 underline decoration-dotted underline-offset-2 hover:text-orange-200"
-        {...(externa ? { target: "_blank", rel: "noopener noreferrer" } : {})}>{m[1]}</a>
+      <Fragment key={`${key}l${i}`}>
+        <a href={lig.href} className={cls} target="_blank" rel="noopener noreferrer nofollow">{m[1]}</a>
+        <span className="text-slate-500"> ({lig.dominio})</span>
+      </Fragment>
     );
   });
 }
@@ -60,7 +65,7 @@ function CodeBlock({ code, lang, labels }: { code: string; lang: string; labels:
   };
   const downloadCsv = () => {
     try {
-      const blob = new Blob(["﻿" + code], { type: "text/csv;charset=utf-8" });
+      const blob = new Blob(["﻿" + csvSeguro(code)], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -135,7 +140,8 @@ function Table({ rows, keyPrefix }: { rows: string[]; keyPrefix: string }) {
 // ── Componente principal ─────────────────────────────────────────────────────
 export default function ChatMarkdown({ content, labels = DEFAULT_LABELS }: { content: string; labels?: ChatMarkdownLabels }) {
   // LaTeX (\[ \frac{a}{b} \]) que o modelo escreva apesar do prompt → texto legível.
-  const lines = semLatex(content).replace(/\r\n/g, "\n").split("\n");
+  // Só fora dos blocos ``` — dentro deles (código, CSV) o texto fica intacto.
+  const lines = semLatexForaDeCodigo(content).replace(/\r\n/g, "\n").split("\n");
   const blocks: ReactNode[] = [];
   let i = 0;
   let blockIdx = 0;

@@ -79,8 +79,14 @@ export type ChatMessage = {
 export type ToolDef = { type: "function"; function: { name: string; description: string; parameters: Record<string, unknown> } };
 
 type ProviderResult =
-  | { ok: true; content: string }
-  | { ok: false; status: number };
+  | { ok: true; content: string; cortada: boolean }
+  | { ok: false; status: number; modeloInexistente: boolean };
+
+/** O corpo de erro diz que o MODELO não existe/foi retirado (e não que o pedido é inválido)? */
+export function eModeloInexistente(status: number, corpo: string): boolean {
+  if (status === 404) return true;
+  return status === 400 && /model_not_found|decommission|does not exist|not found|no longer (available|supported)|invalid model/i.test(corpo);
+}
 
 async function callProvider(
   label: string,
@@ -104,17 +110,21 @@ async function callProvider(
       const raw = await res.text().catch(() => "");
       // Fica no log do servidor; nunca vai para o cliente.
       console.error(`[ai:${label}] ${res.status} ${res.statusText}: ${raw.slice(0, 300)}`);
-      return { ok: false, status: res.status };
+      return { ok: false, status: res.status, modeloInexistente: eModeloInexistente(res.status, raw) };
     }
     const data = (await res.json()) as { choices?: { message?: { content?: string }; finish_reason?: string }[] };
     const content = data.choices?.[0]?.message?.content?.trim() ?? "";
+    const motivo = data.choices?.[0]?.finish_reason ?? "?";
     // Resposta vazia (ex.: o "raciocínio" gastou os tokens de saída) fica no
     // log com o motivo de paragem; quem chama trata-a como falha e segue.
-    if (!content) console.error(`[ai:${label}] resposta vazia (modelo ${model}, finish_reason=${data.choices?.[0]?.finish_reason ?? "?"})`);
-    return { ok: true, content };
+    if (!content) console.error(`[ai:${label}] resposta vazia (modelo ${model}, finish_reason=${motivo})`);
+    // Cortada pelo limite: devolve-se, mas marcada — quem chama tenta outro fornecedor primeiro.
+    const cortada = motivo === "length";
+    if (content && cortada) console.warn(`[ai:${label}] resposta cortada por max_tokens (modelo ${model})`);
+    return { ok: true, content, cortada };
   } catch (err) {
     console.error(`[ai:${label}] request failed:`, err instanceof Error ? err.message : err);
-    return { ok: false, status: 503 };
+    return { ok: false, status: 503, modeloInexistente: false };
   }
 }
 
@@ -150,7 +160,7 @@ export async function generateAiText(opts: {
  * user/assistant) — para chats multi-turno (ex.: /api/gestor, /api/chat).
  */
 type Tentativa = { label: string; url: string; key: string; model: string; maxTokens: number; timeoutMs: number; extra: Record<string, unknown> };
-type Resultado = { ok: true; vazio: boolean } | { ok: false; status: number };
+type Resultado = { ok: true; vazio: boolean } | { ok: false; status: number; modeloInexistente?: boolean };
 
 /**
  * Plano de tentativas, UM só para texto e para streaming: Groq (se o pedido
@@ -165,11 +175,13 @@ function* planoDeTentativas(opts: { maxTokens: number; temperature: number; toke
   const cabeNoGroq = opts.tokensEntrada == null || opts.tokensEntrada + opts.maxTokens <= groqTokenLimit();
   if (groqKey && !cabeNoGroq) console.warn(`[ai:groq] saltado: pedido de ~${opts.tokensEntrada} + ${opts.maxTokens} tokens acima do teto ${groqTokenLimit()}`);
   if (groqKey && cabeNoGroq) {
-    // Tenta os candidatos por ordem; 404/400 = modelo reformado → próximo.
+    // Tenta os candidatos por ordem; só "modelo inexistente/retirado" passa ao
+    // próximo modelo Groq. Um 400 de pedido inválido não se corrige trocando de
+    // modelo Groq: passa logo ao fornecedor seguinte (antes gastava 3 chamadas).
     for (const model of groqModelCandidates()) {
       const r = yield { label: "groq", url: GROQ_URL, key: groqKey, model, maxTokens: opts.maxTokens, timeoutMs: 20000, extra: {} };
       if (!r.ok) lastStatus = r.status;
-      if (r.ok || (r.status !== 404 && r.status !== 400)) break;
+      if (r.ok || !r.modeloInexistente) break;
       console.error(`[ai:groq] modelo "${model}" indisponível — a tentar o próximo candidato`);
     }
   }
@@ -194,7 +206,8 @@ function* planoDeTentativas(opts: { maxTokens: number; temperature: number; toke
         // demand" do escalão gratuito…): passar ao modelo seguinte.
         if (!r.ok && (r.status === 401 || r.status === 403)) { desistir = true; break; }
         if (!r.ok && r.status !== 400) { console.error(`[ai:gemini] modelo "${model}" falhou (${r.status}) — a tentar o próximo candidato`); break; }
-        if (r.ok) break; // respondeu vazio duas vezes: próximo modelo
+        // ok aqui = respondeu VAZIO (com conteúdo, quem corre o plano já parou):
+        // repete o mesmo modelo sem reasoning_effort; à 2.ª vez, próximo modelo.
       }
     }
   }
@@ -218,25 +231,45 @@ function* planoDeTentativas(opts: { maxTokens: number; temperature: number; toke
  * Como generateAiText, mas aceita um array de mensagens (system + histórico
  * user/assistant) — para chats multi-turno (ex.: /api/gestor, /api/chat).
  */
+/** Teto de chamadas por pedido: sem isto, Groq ×3 + Gemini ×6 + OpenAI + xAI = 11 chamadas e mais de um minuto. */
+const MAX_TENTATIVAS = 6;
+
 export async function generateAiChat(
   messages: ChatMessage[],
-  opts: { maxTokens: number; temperature: number; tokensEntrada?: number },
+  opts: {
+    maxTokens: number; temperature: number; tokensEntrada?: number;
+    /** Instante (ms) até ao qual tem de haver resposta; cada tentativa encurta o timeout ao que falta. */
+    prazo?: number;
+  },
 ): Promise<string> {
   const plano = planoDeTentativas(opts);
   let passo = plano.next();
+  let cortada: string | null = null;
+  let tentativas = 0;
   while (!passo.done) {
     const t = passo.value;
-    const r = await callProvider(t.label, t.url, t.key, t.model, messages, t.maxTokens, opts.temperature, t.timeoutMs, t.extra);
-    if (r.ok && r.content) return r.content;
-    passo = plano.next(r.ok ? { ok: true, vazio: true } : { ok: false, status: r.status });
+    const resta = opts.prazo != null ? opts.prazo - Date.now() : Infinity;
+    if (resta < 3000 || tentativas >= MAX_TENTATIVAS) break;
+    tentativas++;
+    const r = await callProvider(t.label, t.url, t.key, t.model, messages, t.maxTokens, opts.temperature, Math.min(t.timeoutMs, resta), t.extra);
+    if (r.ok && r.content && !r.cortada) return r.content;
+    if (r.ok && r.content && r.cortada) {
+      // Guarda a cortada e tenta o fornecedor seguinte; se nenhum fizer melhor, devolve-a.
+      cortada ??= r.content;
+      passo = plano.next({ ok: false, status: 502, modeloInexistente: false });
+      continue;
+    }
+    passo = plano.next(r.ok ? { ok: true, vazio: true } : { ok: false, status: r.status, modeloInexistente: r.modeloInexistente });
   }
-  throw new AiError(passo.value ?? 502, "Todos os providers de IA falharam");
+  if (cortada) return cortada;
+  const status = passo.done ? passo.value : undefined;
+  throw new AiError(status ?? (opts.prazo != null && opts.prazo - Date.now() < 3000 ? 504 : 502), "Todos os providers de IA falharam");
 }
 
 // ── Streaming ────────────────────────────────────────────────────────────────
 
 /** Abre um pedido em streaming; só devolve ok depois de o fornecedor aceitar (status 2xx). */
-async function abrirStream(t: Tentativa, messages: ChatMessage[], temperature: number, tools?: ToolDef[], prazo?: number): Promise<{ ok: true; body: ReadableStream<Uint8Array> } | { ok: false; status: number }> {
+async function abrirStream(t: Tentativa, messages: ChatMessage[], temperature: number, tools?: ToolDef[], prazo?: number): Promise<{ ok: true; body: ReadableStream<Uint8Array> } | { ok: false; status: number; modeloInexistente: boolean }> {
   try {
     // Cobre a ligação E a leitura do corpo. Com `prazo` (ms absolutos) o
     // tempo é o que falta até lá — a rota tem 60 s para tudo, rondas incluídas.
@@ -250,12 +283,12 @@ async function abrirStream(t: Tentativa, messages: ChatMessage[], temperature: n
     if (!res.ok || !res.body) {
       const raw = await res.text().catch(() => "");
       console.error(`[ai:${t.label}] ${res.status} ${res.statusText}: ${raw.slice(0, 300)}`);
-      return { ok: false, status: res.status || 502 };
+      return { ok: false, status: res.status || 502, modeloInexistente: eModeloInexistente(res.status, raw) };
     }
     return { ok: true, body: res.body };
   } catch (err) {
     console.error(`[ai:${t.label}] request failed:`, err instanceof Error ? err.message : err);
-    return { ok: false, status: 503 };
+    return { ok: false, status: 503, modeloInexistente: false };
   }
 }
 
@@ -339,7 +372,7 @@ export async function generateAiChatStream(
     const t = passo.value;
     const r = await abrirStream(t, messages, opts.temperature, opts.tools, opts.prazo);
     if (r.ok) return { eventos: sseParaEventos(r.body), provider: t.label, model: t.model };
-    passo = plano.next({ ok: false, status: r.status });
+    passo = plano.next({ ok: false, status: r.status, modeloInexistente: r.modeloInexistente });
   }
   throw new AiError(passo.value ?? 502, "Todos os providers de IA falharam");
 }

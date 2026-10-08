@@ -48,3 +48,10 @@ export function semLatex(texto: string): string {
   s = s.replace(/[{}]/g, "");
   return s.replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n");
 }
+
+
+/** semLatex só nas partes fora de blocos ``` (código e CSV não podem perder \\ nem chavetas). */
+export function semLatexForaDeCodigo(texto: string): string {
+  const partes = String(texto ?? "").split(/(^```[^\n]*\n[\s\S]*?^```[ \t]*$)/m);
+  return partes.map((p, i) => (i % 2 === 1 ? p : semLatex(p))).join("");
+}
