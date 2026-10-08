@@ -7,11 +7,16 @@ export type Ponto = { t: number; total: number; iso: string };
 export type PnlChange = {
   /** "24h" | "7d" | "30d" | "all" */
   period: string;
-  /** Diferença em euros. null = não há snapshot suficientemente antigo. */
+  /** Ganho ou perda em euros SEM as entradas/saídas de capital. null = não há snapshot suficientemente antigo. */
   eur: number | null;
+  /** Rentabilidade do período (encadeada, sem os saltos de capital). */
   pct: number | null;
   /** Data do snapshot usado como ponto de partida. */
   fromAt: string | null;
+  /** Euros que entraram (+) ou saíram (−) no período por ligar/remover carteiras ou depósitos. */
+  fluxoEur?: number;
+  /** Quantos saltos de capital foram excluídos. */
+  fluxos?: number;
 };
 
 const DIA = 86_400_000;
@@ -30,6 +35,70 @@ export const PERIODOS_ALARGADOS: Periodo[] = [
   { period: "1a", ms: 365 * DIA },
 ];
 
+// ── Entradas de capital e picos (out 2026) ───────────────────────────────────
+// Antes: o "início" era a 1.ª fotografia e um filtro global (4× a mediana) tirava
+// pontos. Numa conta que começou com 22 € e ligou carteiras depois, a mediana
+// ficava nos 22 € e o filtro DEITAVA FORA as fotografias reais recentes, o ROI
+// dava +2270 % e o Block dizia +2411 % "nas últimas 24 h". Agora:
+//  • um PICO isolado (4× acima ou abaixo dos dois vizinhos, e volta) é erro de
+//    leitura e sai; a 1.ª fotografia sai se estiver 4× longe das duas seguintes;
+//  • um SALTO que fica (ligar/remover carteiras, depositar) é entrada ou saída
+//    de capital: conta para o valor, não para o ganho nem para a rentabilidade.
+
+const DIA_MS = 86_400_000;
+/** Movimento máximo "de mercado" por dia, em logaritmo (×1,49 ou ÷1,49), que cresce com √dias. */
+const LOG_DIARIO_MAX = 0.4;
+
+/** O passo de `a` para `b`, com `gapMs` de intervalo, é entrada/saída de capital (e não mercado)? */
+export function eFluxo(a: number, b: number, gapMs: number): boolean {
+  if (!(a > 0) || !(b > 0)) return false;
+  const dias = Math.max(1, gapMs / DIA_MS);
+  return Math.abs(Math.log(b / a)) > LOG_DIARIO_MAX * Math.sqrt(dias);
+}
+
+/** Índices (na ordem dada, cronológica) de picos isolados que são erros de leitura. */
+export function indicesAnomalos(totais: number[]): Set<number> {
+  const out = new Set<number>();
+  const longe = (x: number, y: number) => x > y * 4 || x < y / 4;
+  for (let i = 0; i < totais.length; i++) {
+    const v = totais[i];
+    if (!(v > 0)) { out.add(i); continue; }
+    if (i === 0) {
+      const [b, c] = [totais[1], totais[2]];
+      if (b > 0 && c > 0 && longe(v, b) && longe(v, c) && !longe(b, c)) out.add(i);
+      continue;
+    }
+    if (i === totais.length - 1) continue; // a mais recente pode ser um depósito real: conta como fluxo
+    const [a, b] = [totais[i - 1], totais[i + 1]];
+    if (a > 0 && b > 0 && ((v > a * 4 && v > b * 4) || (v < a / 4 && v < b / 4))) out.add(i);
+  }
+  return out;
+}
+
+/**
+ * A percentagem encadeada (rentabilidade ponderada no tempo) pode ter sinal
+ * contrário aos euros quando entrou capital a meio: +18 % sobre 22 € e −8 %
+ * sobre 576 € dão +8,9 % mas −41 €. Lado a lado parece um erro; quem mostra os
+ * dois usa esta função e, se os sinais não batem, explica ou mostra só os euros.
+ */
+export function pctCoerente(eur: number | null, pct: number | null): boolean {
+  if (eur == null || pct == null) return false;
+  if (Math.abs(eur) < 0.005 || Math.abs(pct) < 0.05) return true;
+  return Math.sign(eur) === Math.sign(pct);
+}
+
+/** Ganho sem fluxos entre o ponto `desde` e o último da série. */
+export function desempenho(serie: Ponto[], desde = 0): { eur: number; pct: number | null; fluxoEur: number; fluxos: number } {
+  let eur = 0, fator = 1, fluxoEur = 0, fluxos = 0;
+  for (let i = desde + 1; i < serie.length; i++) {
+    const a = serie[i - 1], b = serie[i];
+    if (eFluxo(a.total, b.total, b.t - a.t)) { fluxoEur += b.total - a.total; fluxos++; continue; }
+    eur += b.total - a.total;
+    if (a.total > 0) fator *= b.total / a.total;
+  }
+  return { eur, pct: serie.length - 1 > desde ? (fator - 1) * 100 : null, fluxoEur, fluxos };
+}
+
 /**
  * Só contam snapshots gravados ao vivo, que trazem o total em euros do momento
  * (`_totalEur`). Recalcular um snapshot antigo com os preços de HOJE daria uma
@@ -46,32 +115,29 @@ export function seriePontos(rows: SnapRow[]): Ponto[] {
     .filter((p): p is Ponto => p !== null)
     .sort((a, b) => a.t - b.t);
 
-  // Filtro de anomalias, igual ao do ecrã: um snapshot 4× acima ou abaixo da
-  // mediana é um erro de leitura (preço de spam, saldo lido como euros), não
-  // uma variação real do portefólio.
-  if (brutos.length < 4) return brutos;
-  const ordenados = brutos.map((p) => p.total).sort((a, b) => a - b);
-  const mediana = ordenados[Math.floor(ordenados.length / 2)];
-  return brutos.filter((p) => p.total <= mediana * 4 && p.total >= mediana / 4);
+  // Picos isolados (preço de spam, saldo lido como euros) saem; saltos que
+  // ficam são fluxos de capital e tratam-se em desempenho()/metricas().
+  const fora = indicesAnomalos(brutos.map((p) => p.total));
+  return brutos.filter((_, i) => !fora.has(i));
 }
 
 /** Variações de uma série já limpa (por omissão 24h/7d/30d + "all"). */
 export function variacoes(serie: Ponto[], agora = Date.now(), periodos: Periodo[] = PERIODOS): PnlChange[] {
-  const ultimo = serie[serie.length - 1] ?? null;
-  const variacao = (desde: Ponto | null): Omit<PnlChange, "period"> => {
-    if (!ultimo || !desde) return { eur: null, pct: null, fromAt: null };
-    const eur = ultimo.total - desde.total;
-    return { eur, pct: desde.total > 0 ? (eur / desde.total) * 100 : null, fromAt: desde.iso };
+  const variacao = (idx: number): Omit<PnlChange, "period"> => {
+    if (idx < 0 || idx >= serie.length - 1) return { eur: null, pct: null, fromAt: null };
+    const d = desempenho(serie, idx);
+    return { eur: d.eur, pct: d.pct, fromAt: serie[idx].iso, fluxoEur: d.fluxoEur, fluxos: d.fluxos };
   };
 
   const changes: PnlChange[] = periodos.map(({ period, ms }) => {
     const corte = agora - ms;
     // O snapshot mais recente ANTES do corte; sem nenhum, o período fica a null
     // em vez de comparar com o mais antigo que houver (seria um número errado).
-    const anterior = [...serie].reverse().find((p) => p.t <= corte) ?? null;
-    return { period, ...variacao(anterior) };
+    let idx = -1;
+    for (let i = serie.length - 1; i >= 0; i--) if (serie[i].t <= corte) { idx = i; break; }
+    return { period, ...variacao(idx) };
   });
-  changes.push({ period: "all", ...variacao(serie.length > 1 ? serie[0] : null) });
+  changes.push({ period: "all", ...variacao(serie.length > 1 ? 0 : -1) });
   return changes;
 }
 
@@ -97,6 +163,9 @@ export type Metrics = {
   worstReturn: number | null;
   var95: number | null;
   snapshotsUsed: number;
+  /** Saltos de capital excluídos e o seu valor (+ entrou, − saiu). */
+  fluxos: number;
+  fluxoEur: number;
 };
 
 export function metricas(serie: Ponto[], agora = Date.now()): Metrics | null {
@@ -109,29 +178,37 @@ export function metricas(serie: Ponto[], agora = Date.now()): Metrics | null {
   const chrono = [...porDia.values()].sort((a, b) => a.t - b.t);
   if (chrono.length < 2) return null;
 
-  // Descartar capturas corrompidas face à mediana: ~0 € (captura parcial) e
-  // picos absurdos (>20×), que faziam a queda máxima disparar para -100 %.
-  const positivos = chrono.map((s) => s.total).filter((v) => v > 0).sort((a, b) => a - b);
-  const mediana = positivos.length ? positivos[Math.floor(positivos.length / 2)] : 0;
-  const bons = chrono.filter((s) => s.total > mediana * 0.05 && s.total < mediana * 20);
+  // Picos isolados (captura parcial ~0 €, saldo lido como euros) saem.
+  const fora = indicesAnomalos(chrono.map((s) => s.total));
+  const bons = chrono.filter((_, i) => !fora.has(i));
   if (bons.length < 2) return null;
-
-  const base = bons[0].total;
-  const atual = bons[bons.length - 1].total;
-  if (base <= 0) return null;
+  if (bons[0].total <= 0) return null;
   const days = (agora - bons[0].t) / 86_400_000;
 
-  const roi = ((atual - base) / base) * 100;
+  // Índice de desempenho: começa em 1 e só se move com o mercado. Os saltos de
+  // capital (ligar/remover carteiras, depósitos) não mexem no índice — senão
+  // ligar uma carteira contava como +2000 % de "rentabilidade".
+  const indice: number[] = [1];
+  const retornosBrutos: number[] = [];
+  let fluxos = 0, fluxoEur = 0;
+  for (let i = 1; i < bons.length; i++) {
+    const a = bons[i - 1], b = bons[i];
+    if (eFluxo(a.total, b.total, b.t - a.t)) {
+      fluxos++; fluxoEur += b.total - a.total;
+      indice.push(indice[i - 1]);
+      continue;
+    }
+    const r = (b.total - a.total) / a.total;
+    retornosBrutos.push(r);
+    indice.push(indice[i - 1] * (1 + r));
+  }
+  const fatorTotal = indice[indice.length - 1];
+
+  const roi = (fatorTotal - 1) * 100;
   // Anualizar períodos curtos não informa, inventa: abaixo de um trimestre o
   // número honesto é o ROI do período.
-  const cagrRaw = days >= 90 ? (Math.pow(atual / base, 365 / days) - 1) * 100 : null;
+  const cagrRaw = days >= 90 ? (Math.pow(fatorTotal, 365 / days) - 1) * 100 : null;
   const cagr = cagrRaw !== null && Number.isFinite(cagrRaw) ? cagrRaw : null;
-
-  const retornosBrutos: number[] = [];
-  for (let i = 1; i < bons.length; i++) {
-    const ant = bons[i - 1].total;
-    if (ant > 0) retornosBrutos.push((bons[i].total - ant) / ant);
-  }
   // Saltos > ±50 % entre capturas são quase sempre depósitos ou levantamentos,
   // não movimento de mercado — inflavam a volatilidade de forma irreal.
   const retornos = retornosBrutos.filter((r) => Math.abs(r) < 0.5);
@@ -152,20 +229,18 @@ export function metricas(serie: Ponto[], agora = Date.now()): Metrics | null {
   const desce = Math.sqrt(desceVar);
   const sortino = retornos.length >= 5 && desce > 0 ? (media / desce) * ann : null;
 
-  let pico = bons[0].total;
+  // Quedas medidas no índice (um levantamento não é uma "queda").
+  let pico = indice[0];
   let maxDd = 0;
-  for (const s of bons) {
-    if (s.total > pico) pico = s.total;
-    const dd = (s.total - pico) / pico;
+  let picoT = bons[0].t;
+  for (let i = 0; i < indice.length; i++) {
+    if (indice[i] > pico) { pico = indice[i]; picoT = bons[i].t; }
+    const dd = (indice[i] - pico) / pico;
     if (dd < maxDd) maxDd = dd;
   }
   const maxDrawdown = maxDd * 100;
   const calmar = cagr !== null && maxDrawdown < 0 ? cagr / Math.abs(maxDrawdown) : null;
-
-  let picoVal = bons[0].total;
-  let picoT = bons[0].t;
-  for (const s of bons) if (s.total > picoVal) { picoVal = s.total; picoT = s.t; }
-  const currentDrawdown = picoVal > 0 ? ((atual - picoVal) / picoVal) * 100 : 0;
+  const currentDrawdown = pico > 0 ? ((fatorTotal - pico) / pico) * 100 : 0;
   const daysSincePeak = Math.max(0, Math.round((agora - picoT) / 86_400_000));
 
   const winRate = retornos.length ? (retornos.filter((r) => r > 0).length / retornos.length) * 100 : null;
@@ -182,5 +257,6 @@ export function metricas(serie: Ponto[], agora = Date.now()): Metrics | null {
     days: Math.round(days), roi, cagr, sharpe, sortino, calmar,
     maxDrawdown, currentDrawdown, daysSincePeak, volatility,
     winRate, bestReturn, worstReturn, var95, snapshotsUsed: bons.length,
+    fluxos, fluxoEur,
   };
 }

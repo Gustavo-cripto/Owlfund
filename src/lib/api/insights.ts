@@ -346,7 +346,7 @@ const PARTE_LABEL: Record<string, string> = {
  * contas separadas para o mesmo número acabam sempre por divergir — e um
  * cliente a ver 72 na app e 68 no assistente não sabe em qual acreditar.
  */
-export async function getScore(userId: string) {
+export async function getScore(userId: string, accountId = "") {
   const admin = getSupabaseAdmin();
   const { data } = await admin
     .from("portfolio_snapshots")
@@ -356,8 +356,18 @@ export async function getScore(userId: string) {
     .limit(30);
 
   type Guardado = { value: number; parts: Array<{ id: string; points: number; max: number }> };
-  const linha = ((data ?? []) as Array<{ created_at: string; data: unknown }>)
-    .find((r) => (r.data as { _score?: Guardado } | null)?._score != null);
+  // Da conta ativa (ou legado sem etiqueta) e, de preferência, de uma fotografia
+  // gravada AO VIVO na página (traz _bench): o cron copia a última fotografia
+  // todas as noites com o _score antigo, e uma conta com várias carteiras via a
+  // pontuação de outra conta (o Block dizia 40 com 62 no ecrã).
+  const linhas = ((data ?? []) as Array<{ created_at: string; data: unknown }>)
+    .filter((r) => {
+      const d = r.data as { _score?: Guardado; _account?: unknown } | null;
+      if (d?._score == null) return false;
+      const acc = d._account;
+      return !accountId || typeof acc !== "string" || acc === "" || acc === accountId;
+    });
+  const linha = linhas.find((r) => (r.data as { _bench?: unknown } | null)?._bench != null) ?? linhas[0];
   const guardado = (linha?.data as { _score?: Guardado } | undefined)?._score;
 
   if (!guardado) {

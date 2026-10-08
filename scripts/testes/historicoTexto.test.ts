@@ -30,7 +30,7 @@ ok("desde o início: face ao legado de 700", /desde a primeira fotografia: \+€
 ok("conta o número de fotografias sem o ponto ao vivo", /Fotografias usadas: 7\./.test(txt));
 ok("máximo e mínimo com datas", /Máximo: € 900,00 em .* · Mínimo: € 700,00 em/.test(txt));
 ok("fim de mês listado", /Valor no fim de cada mês/.test(txt));
-ok("métricas sobre a série (ROI, queda máxima…)", /Métricas \(sobre as fotografias, \d+ pontos, \d+ dias\): ROI .* queda máxima/.test(txt));
+ok("métricas sobre a série (ROI, queda máxima…)", /Métricas \(sobre as fotografias, \d+ pontos, \d+ dias, sem \d+ salto\(s\) de capital\): ROI .* queda máxima/.test(txt));
 ok("nota: não pedir valores ao utilizador", /NUNCA peças ao utilizador/.test(txt));
 
 // Sem accountId → todas as linhas (API/MCP, sem conta); as da conta B (5000)
@@ -40,6 +40,19 @@ ok("sem conta usa tudo (menos anomalias)", serieDaConta(rows, "", { agora: AGORA
 // Conta B sozinha (2 fotografias + legado): sem valor ao vivo, a referência é a última fotografia.
 const txtB = textoHistorico(rows, "B", { agora: AGORA, locale: "pt-PT" })!;
 ok("sem valor ao vivo: referência = última fotografia", /\(última fotografia, /.test(txtB));
+
+// Conta que começou pequena e ligou carteiras depois: o salto é capital, não ganho.
+{
+  const linhasF = [
+    linha(90, 22, "F"), linha(60, 24, "F"), linha(30, 25, "F"), linha(12, 26, "F"),
+    linha(2, 292, "F"), linha(1, 576, "F"),
+  ];
+  const txtF = textoHistorico(linhasF, "F", { agora: AGORA, totalAtual: 531, locale: "pt-PT" })!;
+  ok("24 h: perda real (576 → 531), não +2000 %", /24 horas: −€ 45,00 \(−7,8 %\)/.test(txtF), txtF.split("\n").find((l) => l.includes("24 horas")));
+  ok("desde o início exclui os saltos de capital", /desde a primeira fotografia: .*excluídos 2 salto\(s\) de capital/.test(txtF), txtF.split("\n").find((l) => l.includes("primeira fotografia:")));
+  ok("ROI sem os saltos (não milhares de %)", !/ROI \d{3,}/.test(txtF.replace(/\./g, "")), txtF.split("\n").find((l) => l.startsWith("Métricas")));
+  ok("nota sobre entradas de capital", /entradas\/saídas de capital e NÃO são ganho/.test(txtF));
+}
 
 // Conta sem fotografias → null (o chamador mete a nota de "sem histórico").
 ok("conta sem fotografias → null", textoHistorico([linha(3, 100, "A")], "C", { agora: AGORA }) === null);

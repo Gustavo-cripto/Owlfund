@@ -1,5 +1,5 @@
 // Base do "PNL da posicao" partilhada por Painel e Portefolio (auditoria set 2026, lote A).
-import { baseDaPosicao, daConta, diasDaJanela, inicioDaJanela, limiteDaJanela } from "@/lib/portfolio/posicao";
+import { baseDaPosicao, daConta, diasDaJanela, inicioDaJanela, limiteDaJanela, posicaoAjustada } from "@/lib/portfolio/posicao";
 let fails = 0;
 const eq = (name: string, got: unknown, want: unknown) => {
   const ok = JSON.stringify(got) === JSON.stringify(want);
@@ -51,6 +51,22 @@ const comAnomalia = [
 ];
 eq("anomalia 4x acima da mediana fica de fora", baseDaPosicao(comAnomalia, "x")?.total, 1020);
 eq("com menos de 4 pontos nao ha filtro", baseDaPosicao([linha(0, { _totalEur: 10 }), linha(1, { _totalEur: 1000 })], "x")?.total, 1000);
+
+// Posição ajustada: ligar carteiras não é ganho.
+{
+  const r = [
+    linha(90, { _totalEur: 22 }), linha(60, { _totalEur: 24 }), linha(12, { _totalEur: 26 }),
+    linha(2, { _totalEur: 292 }), linha(1, { _totalEur: 576 }),
+  ];
+  const p = posicaoAjustada(r, "x", 531, AGORA)!;
+  eq("ganho da posição sem o capital que entrou", Math.round(p.eur), -41);
+  eq("capital que entrou", Math.round(p.fluxoEur), 550);
+  eq("desde a 1.ª fotografia", p.desde, AGORA - 90 * DIA);
+  const simples = posicaoAjustada([linha(10, { _totalEur: 1000 }), linha(5, { _totalEur: 1100 })], "x", 1200, AGORA)!;
+  eq("sem saltos = valor de hoje − início", Math.round(simples.eur), 200);
+  eq("e a percentagem encadeada", Math.round(simples.pct!), 20);
+  eq("sem fotografias → null", posicaoAjustada([], "x", 100, AGORA), null);
+}
 
 if (fails) { console.log(`\n${fails} falha(s)`); process.exit(1); }
 console.log("\nTODOS OK");

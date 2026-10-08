@@ -7,6 +7,8 @@
 // (ou legado sem etiqueta), dentro da janela do plano, sem anomalias.
 // Sem ir a base de dados, para poder ser testado (scripts/testes/posicao.test.ts).
 
+import { desempenho, indicesAnomalos, type Ponto } from "@/lib/api/pnlMath";
+
 export type PlanoHistorico = "free" | "pro" | "premium";
 export type LinhaSnapshot = { created_at: string; data: unknown };
 export type BasePosicao = { total: number; createdAt: number };
@@ -37,9 +39,9 @@ export function daConta(data: unknown, activeAccountId: string): boolean {
 
 /**
  * O snapshot mais antigo com total gravado na altura (_totalEur > 0), da conta
- * ativa. Um snapshot 4x acima ou abaixo da mediana e um erro de leitura (preco
- * de spam, saldo lido como euros) e fica de fora — a mesma regra do ecra e da
- * API (pnlMath.seriePontos). null quando nao ha nenhum.
+ * ativa. Um pico isolado (4x acima ou abaixo dos vizinhos: preco de spam, saldo
+ * lido como euros) fica de fora — a mesma regra do ecra e da API
+ * (pnlMath.indicesAnomalos). null quando nao ha nenhum.
  */
 export function baseDaPosicao(rows: LinhaSnapshot[], activeAccountId: string): BasePosicao | null {
   const pontos = rows
@@ -54,8 +56,36 @@ export function baseDaPosicao(rows: LinhaSnapshot[], activeAccountId: string): B
     .filter((p): p is BasePosicao => p !== null)
     .sort((a, b) => a.createdAt - b.createdAt);
   if (pontos.length === 0) return null;
-  if (pontos.length < 4) return pontos[0];
-  const ordenados = pontos.map((p) => p.total).sort((a, b) => a - b);
-  const mediana = ordenados[Math.floor(ordenados.length / 2)];
-  return pontos.find((p) => p.total <= mediana * 4 && p.total >= mediana / 4) ?? null;
+  const fora = indicesAnomalos(pontos.map((p) => p.total));
+  return pontos.find((_, i) => !fora.has(i)) ?? null;
+}
+
+/**
+ * "PNL da posicao" = ganho desde a 1.a fotografia valida SEM as entradas e
+ * saidas de capital (ligar/remover carteiras, depositos). Antes era "valor de
+ * hoje − 1.a fotografia": quem comecou com 22 € e ligou carteiras depois via
+ * +2270 % de "ganho". `totalAtual` (valor ao vivo) entra como ultimo ponto.
+ */
+export function posicaoAjustada(
+  rows: LinhaSnapshot[], activeAccountId: string, totalAtual: number, agora = Date.now(),
+): { eur: number; pct: number | null; desde: number; fluxoEur: number; fluxos: number } | null {
+  const base = baseDaPosicao(rows, activeAccountId);
+  if (!base) return null;
+  const pontos = rows
+    .filter((r) => daConta(r.data, activeAccountId))
+    .map((r) => {
+      const total = (r.data as { _totalEur?: unknown } | null)?._totalEur;
+      const t = new Date(r.created_at).getTime();
+      return typeof total === "number" && Number.isFinite(total) && total > 0 && Number.isFinite(t) && t >= base.createdAt
+        ? { t, total, iso: r.created_at }
+        : null;
+    })
+    .filter((p): p is Ponto => p !== null)
+    .sort((a, b) => a.t - b.t);
+  const fora = indicesAnomalos(pontos.map((p) => p.total));
+  const serie = pontos.filter((_, i) => !fora.has(i));
+  if (Number.isFinite(totalAtual) && totalAtual > 0) serie.push({ t: agora, total: totalAtual, iso: new Date(agora).toISOString() });
+  if (serie.length < 2) return { eur: 0, pct: null, desde: base.createdAt, fluxoEur: 0, fluxos: 0 };
+  const d = desempenho(serie, 0);
+  return { eur: d.eur, pct: d.pct, desde: base.createdAt, fluxoEur: d.fluxoEur, fluxos: d.fluxos };
 }
