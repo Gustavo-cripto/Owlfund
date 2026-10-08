@@ -435,9 +435,9 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { messages?: IncomingMessage[]; pageContext?: string; portfolio?: string; nickname?: string; accountName?: string } | null = null;
+  let body: { messages?: IncomingMessage[]; pageContext?: string; nickname?: string } | null = null;
   try {
-    body = (await request.json()) as { messages?: IncomingMessage[]; pageContext?: string; portfolio?: string; nickname?: string; accountName?: string };
+    body = (await request.json()) as { messages?: IncomingMessage[]; pageContext?: string; nickname?: string };
   } catch {
     return NextResponse.json({ error: "JSON inválido.", code: "bad_json" }, { status: 400 });
   }
