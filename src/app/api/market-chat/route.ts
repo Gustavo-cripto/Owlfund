@@ -2,9 +2,16 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { generateAiChat, friendlyAiError, errorStatus, hasAnyAiProvider, type ChatMessage } from "@/lib/ai/groq";
-import { NO_ADVICE_RULE } from "@/lib/ai/disclaimer";
+import { estimarTokens } from "@/lib/ai/orcamentoBlock";
 import { rateLimit, clientIp } from "@/lib/utils/rateLimit";
 import { getPlanOrNull, planUnavailableResponse, requiresPlanResponse } from "@/lib/api/entitlement";
+import { apiLang, apiMsg } from "@/lib/api/apiMessages";
+import { limiteDiario, respostaLimiteDiario } from "@/lib/api/limiteDiario";
+import { MARKET_CHAT_DAILY_LIMIT } from "@/lib/plans";
+import { generateMarketBriefing } from "@/lib/ai/briefingMercado";
+import { mercadoAgoraTexto } from "@/lib/ai/mercadoAgora";
+import { MAJORS_CHAIN, simbolosDaPergunta } from "@/lib/ai/mercadoSimbolos";
+import { historicoMercado, langMercado, modoMercado, promptChatMercado } from "@/lib/ai/promptsMercado";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -18,85 +25,91 @@ async function getAuthUser() {
   return data.user ?? null;
 }
 
-type ChatMsg = { role: "user" | "assistant"; content: string };
-
 // Chamada a fornecedor de IA: pode demorar. Sem isto a funcao usa o tempo por
 // omissao da plataforma e corta a meio uma resposta que ia chegar.
 export const maxDuration = 60;
 
+// Só mensagens (o briefing já não vem do browser): 8 × 2500 caracteres chegam.
+const MAX_CORPO = 32 * 1024;
+
 export async function POST(request: Request) {
+  const inicio = Date.now();
+  const erro = (status: number, code: Parameters<typeof apiMsg>[1], extra?: string) =>
+    NextResponse.json({ error: apiMsg(request, code), code: extra ?? code }, { status });
+
   // Rate limit por IP (trava abuso/custo de IA)
-  if (!rateLimit(`market-chat:${clientIp(request)}`, 20, 60_000)) {
-    return NextResponse.json({ error: "Demasiados pedidos. Tenta novamente em 1 minuto." }, { status: 429 });
-  }
+  if (!rateLimit(`market-chat:${clientIp(request)}`, 20, 60_000)) return erro(429, "rate_limited");
 
   // Exigir sessão — a página /mercado já exige login (useRequireAuth)
   const user = await getAuthUser();
-  if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+  if (!user) return erro(401, "not_authenticated");
 
   // O chat sobre o briefing é Pro/Premium (a UI já o esconde; o servidor decide).
   const plan = await getPlanOrNull(user.id);
   if (!plan) return planUnavailableResponse();
   if (plan === "free") return requiresPlanResponse("pro");
-  if (!rateLimit(`market-chat:u:${user.id}`, 15, 60_000)) {
-    return NextResponse.json({ error: "Demasiados pedidos. Tenta novamente em 1 minuto.", code: "rate_limited" }, { status: 429 });
-  }
+  if (!rateLimit(`market-chat:u:${user.id}`, 15, 60_000)) return erro(429, "rate_limited");
 
-  if (!hasAnyAiProvider()) return NextResponse.json({ error: "Serviço de IA não configurado." }, { status: 503 });
+  if (!hasAnyAiProvider()) return erro(503, "ai_unconfigured");
 
-  // Tecto de tamanho: o briefing e as mensagens vinham do browser sem limite
-  // nenhum e iam inteiros para o fornecedor de IA, que cobra por token.
-  const MAX_CORPO = 64 * 1024;
   const declarado = Number(request.headers.get("content-length") ?? 0);
-  if (Number.isFinite(declarado) && declarado > MAX_CORPO) {
-    return NextResponse.json({ error: "Pedido demasiado grande." }, { status: 413 });
-  }
+  if (Number.isFinite(declarado) && declarado > MAX_CORPO) return erro(413, "invalid_body", "body_too_large");
   const bruto = await request.text();
-  if (bruto.length > MAX_CORPO) return NextResponse.json({ error: "Pedido demasiado grande." }, { status: 413 });
+  if (bruto.length > MAX_CORPO) return erro(413, "invalid_body", "body_too_large");
 
-  const body = JSON.parse(bruto) as {
-    briefing: string;
-    mode: "crypto" | "tradicional";
-    messages: ChatMsg[];
-    nickname?: string;
-    lang?: string;
-  };
-
-  const { briefing, mode, messages } = body;
-  if (!briefing || !messages?.length) {
-    return NextResponse.json({ error: "Dados inválidos." }, { status: 400 });
+  let body: { mode?: unknown; messages?: unknown; nickname?: unknown; lang?: unknown };
+  try {
+    body = JSON.parse(bruto) as typeof body;
+  } catch {
+    return erro(400, "invalid_body");
   }
-  const nickname = typeof body.nickname === "string" ? body.nickname.trim().slice(0, 40) : "";
-  const lang = typeof body.lang === "string" ? body.lang : "pt";
+  if (!body || typeof body !== "object") return erro(400, "invalid_body");
 
-  const nameDirective = nickname
-    ? `\n\nNOME DO UTILIZADOR: chama-se ${nickname}. Trata-o por esse nome de forma natural. Não inventes outro nome.`
-    : "";
+  // Modo e língua de listas fechadas: são a chave da cache do briefing.
+  const mode = modoMercado(body.mode);
+  if (!mode) return erro(400, "invalid_body", "invalid_mode");
+  const lang = langMercado(body.lang) ?? apiLang(request);
+  // Só user/assistant, texto, as últimas 8 (o papel "system" do cliente é descartado).
+  const historico = historicoMercado(body.messages);
+  const ultima = historico[historico.length - 1];
+  if (!ultima || ultima.role !== "user") return erro(400, "invalid_body");
 
-  const systemPrompt = `És o assistente financeiro da ChainFolioAI, especializado em mercados ${mode === "crypto" ? "cripto" : "tradicionais"}.
-O utilizador acabou de receber este briefing diário gerado por ti:
-
---- BRIEFING ---
-${briefing}
---- FIM DO BRIEFING ---
-
-Responde de forma clara e concisa. Baseia as tuas respostas no briefing fornecido e no teu conhecimento de mercados. Mantém o tom profissional mas acessível. Não repitas o briefing completo — responde diretamente à pergunta. Usa markdown simples (negrito, listas, tabelas | a | b | para dados); nunca LaTeX (\\[, \\frac…), que não é renderizado.${nameDirective}
-
-${NO_ADVICE_RULE}
-IDIOMA (regra crítica): Responde SEMPRE no mesmo idioma em que o utilizador escreveu a pergunta (inglês→inglês, espanhol→espanhol, francês→francês, português→PT-PT). Deteta o idioma da pergunta; não assumas português por defeito.`;
-
-  const chatMessages: ChatMessage[] = [
-    { role: "system", content: systemPrompt },
-    ...messages.map((m) => ({ role: m.role, content: m.content })),
-  ];
+  // Teto diário partilhado entre instâncias (o rateLimit acima vive em memória).
+  const limite = await limiteDiario(`market-chat:${user.id}`, MARKET_CHAT_DAILY_LIMIT);
+  if (limite === "excedido") return respostaLimiteDiario(apiMsg(request, "market_chat_daily_limit"));
+  if (limite === "indisponivel") return erro(503, "daily_limit_unavailable");
 
   try {
-    const reply = await generateAiChat(chatMessages, { maxTokens: 600, temperature: 0.4 });
-    return NextResponse.json({ reply: reply || "Sem resposta." });
+    // O briefing vem da cache do servidor (o mesmo texto que a página mostra),
+    // nunca do browser; e entra no prompt como dados, não como instrução.
+    const [briefing, mercado] = await Promise.all([
+      generateMarketBriefing(mode, lang),
+      mercadoAgoraTexto([...simbolosDaPergunta(ultima.content), ...MAJORS_CHAIN], {
+        eur: true,
+        nota: "Preços da OKX (par USDT ≈ USD) lidos neste momento. Usa-os quando perguntarem por preços ou pelo mercado de hoje; dá primeiro o valor em euros (o site mostra euros) e o dólar ao lado. Não há notícias aqui: não inventes causas para os movimentos.",
+      }).catch(() => null),
+    ]);
+    const systemPrompt = promptChatMercado({
+      modo: mode,
+      lang,
+      briefing: briefing.content,
+      mercado,
+      nickname: typeof body.nickname === "string" ? body.nickname : "",
+    });
+    const chatMessages: ChatMessage[] = [{ role: "system", content: systemPrompt }, ...historico];
+    const tokensEntrada = estimarTokens(chatMessages.map((m) => m.content).join("\n"));
+    const reply = await generateAiChat(chatMessages, {
+      maxTokens: 600,
+      temperature: 0.4,
+      tokensEntrada,
+      prazo: inicio + 55_000,
+    });
+    if (!reply) return erro(502, "ai_failed");
+    return NextResponse.json({ reply });
   } catch (err) {
     const status = errorStatus(err);
     return NextResponse.json(
-      { error: friendlyAiError(status, lang) },
+      { error: friendlyAiError(status, lang), code: "ai_failed" },
       { status: status === 429 ? 429 : 502 },
     );
   }

@@ -1,210 +1,13 @@
 import { NextResponse } from "next/server";
-import { apiMsg } from "@/lib/api/apiMessages";
-import { unstable_cache } from "next/cache";
-import { generateAiText, friendlyAiError, errorStatus, hasAnyAiProvider } from "@/lib/ai/groq";
-import { NO_ADVICE_RULE } from "@/lib/ai/disclaimer";
+import { apiLang, apiMsg } from "@/lib/api/apiMessages";
+import { friendlyAiError, errorStatus, hasAnyAiProvider } from "@/lib/ai/groq";
 import { requireUser } from "@/lib/api/requireUser";
 import { getPlanOrNull, planUnavailableResponse, requiresPlanResponse } from "@/lib/api/entitlement";
-import { cgFetch } from "@/lib/market/coingecko";
-import { getGlobalMarket } from "@/lib/api/market";
-import { precosOkx24h } from "@/lib/market/okxSpot";
+import { generateMarketBriefing } from "@/lib/ai/briefingMercado";
+import { langMercado, modoMercado } from "@/lib/ai/promptsMercado";
 
-const COINGECKO_IDS: Record<string, string> = {
-  BTC: "bitcoin", ETH: "ethereum", SOL: "solana",
-  BNB: "binancecoin", ADA: "cardano", XRP: "ripple",
-  DOGE: "dogecoin", AVAX: "avalanche-2", DOT: "polkadot",
-};
-
-// O CoinGecko vai SEMPRE pelo cgFetch (lote F): chave Demo — sem ela conta no
-// IP partilhado da Vercel —, cache mínima por tipo de pedido e travão após 429.
-async function fetchJson<T>(url: string): Promise<T | null> {
-  try {
-    const f = url.startsWith("https://api.coingecko.com/") ? cgFetch : fetch;
-    const res = await f(url, { next: { revalidate: 300 } });
-    if (!res.ok) return null;
-    return await res.json() as T;
-  } catch { return null; }
-}
-
-// Dentro do unstable_cache o Next ignora a cache de dados dos fetch (trata-os
-// como no-store), e o briefing e gerado por lingua: sem isto eram 3 pedidos ao
-// CoinGecko por lingua. O contexto e o mesmo nas 4 — guarda-se 10 min nesta
-// instancia (lote F). So se guarda com precos: um contexto pobre tenta de novo.
-const CTX_TTL_MS = 10 * 60_000;
-let ctxCripto: { em: number; texto: string } | null = null;
-
-async function buildCryptoContext(): Promise<string> {
-  if (ctxCripto && Date.now() - ctxCripto.em < CTX_TTL_MS) return ctxCripto.texto;
-  const texto = await montarContextoCripto();
-  if (texto.includes("$")) ctxCripto = { em: Date.now(), texto };
-  return texto;
-}
-
-async function montarContextoCripto(): Promise<string> {
-  const lines: string[] = [];
-
-  // 1. Preços + variação 24h
-  const ids = Object.values(COINGECKO_IDS).join(",");
-  type PriceData = Record<string, { usd: number; usd_24h_change: number; usd_market_cap: number; usd_24h_vol: number }>;
-  const prices: PriceData | null = (await fetchJson<PriceData>(
-    `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true&include_market_cap=true&include_24hr_vol=true`
-  // Plano B: OKX (sem capitalização — a linha "Mcap" simplesmente não aparece).
-  )) ?? ((await precosOkx24h(COINGECKO_IDS)) as PriceData | null);
-
-  lines.push("=== PREÇOS EM TEMPO REAL ===");
-  if (prices) {
-    for (const [sym, id] of Object.entries(COINGECKO_IDS)) {
-      const p = prices[id];
-      if (!p) continue;
-      const sign = p.usd_24h_change >= 0 ? "+" : "";
-      const mcap = p.usd_market_cap ? ` | Mcap: $${(p.usd_market_cap / 1e9).toFixed(1)}B` : "";
-      lines.push(`${sym}: $${p.usd.toLocaleString("en-US", { maximumFractionDigits: 2 })} (${sign}${p.usd_24h_change?.toFixed(2) ?? "?"}% 24h${mcap})`);
-    }
-  }
-
-  // 2. Dados globais do mercado — o mesmo do /api/v1/global e do briefing:
-  // cache 30 min e CoinPaprika de reserva quando o CoinGecko falha.
-  const g = await getGlobalMarket();
-  if (g.totalMarketCapUsd != null) {
-    lines.push("\n=== MERCADO GLOBAL ===");
-    lines.push(`Cap total: $${(g.totalMarketCapUsd / 1e12).toFixed(2)}T`);
-    if (g.marketCapChange24h != null) lines.push(`Variação cap 24h: ${g.marketCapChange24h.toFixed(2)}%`);
-    const dom = [g.btcDominance != null ? `BTC: ${g.btcDominance.toFixed(1)}%` : null, g.ethDominance != null ? `ETH: ${g.ethDominance.toFixed(1)}%` : null].filter(Boolean).join(" | ");
-    if (dom) lines.push(`Dominância ${dom}`);
-  }
-
-  // 3. Fear & Greed
-  type FearGreed = { data: { value: string; value_classification: string }[] };
-  const fg = await fetchJson<FearGreed>("https://api.alternative.me/fng/?limit=1");
-  if (fg?.data?.[0]) {
-    lines.push("\n=== FEAR & GREED INDEX ===");
-    lines.push(`${fg.data[0].value}/100 — ${fg.data[0].value_classification}`);
-  }
-
-  // 4. Trending coins
-  type Trending = { coins: { item: { name: string; symbol: string; price_btc: number } }[] };
-  const trending = await fetchJson<Trending>("https://api.coingecko.com/api/v3/search/trending");
-  if (trending?.coins) {
-    lines.push("\n=== TRENDING (últimas 24h) ===");
-    trending.coins.slice(0, 5).forEach((c) => {
-      lines.push(`${c.item.name} (${c.item.symbol})`);
-    });
-  }
-
-  return lines.join("\n");
-}
-
-async function buildTraditionalContext(): Promise<string> {
-  const lines: string[] = [];
-
-  // Ouro e prata via metals API (gratuita)
-  type MetalsData = { price: number; currency: string };
-  const gold = await fetchJson<MetalsData>("https://api.metals.live/v1/spot/gold");
-  const silver = await fetchJson<MetalsData>("https://api.metals.live/v1/spot/silver");
-
-  lines.push("=== COMMODITIES EM TEMPO REAL ===");
-  if (gold) lines.push(`Ouro (XAU): $${gold.price?.toFixed(2) ?? "n/d"}/oz`);
-  if (silver) lines.push(`Prata (XAG): $${silver.price?.toFixed(2) ?? "n/d"}/oz`);
-
-  lines.push("\n=== NOTA ===");
-  lines.push("Para ações e índices (S&P 500, NVDA, AAPL, MSFT), faz análise baseada em tendências estruturais e contexto macro — não inventes cotações específicas do dia.");
-
-  return lines.join("\n");
-}
-
-type MarketMode = "crypto" | "tradicional";
-
-/**
- * Gera o briefing de mercado, em cache (Data Cache do Next/Vercel) por modo+idioma
- * durante 45 min. A análise é igual para todos os utilizadores, por isso o cache
- * evita gerar de novo a cada clique e poupa tokens do Groq. Lança em caso de erro
- * (erros não ficam em cache).
- */
-const generateMarketBriefing = unstable_cache(
-  async (mode: MarketMode, lang: string): Promise<{ content: string; mode: MarketMode; date: string }> => {
-  const LANG_NAME: Record<string, string> = { pt: "português europeu (PT-PT)", en: "English", es: "español", fr: "français" };
-  const langInstruction = `\n\nIDIOMA (regra crítica): Escreve TODO o briefing em ${LANG_NAME[lang] ?? "português europeu (PT-PT)"}, incluindo títulos e secções.`;
-
-  const today = new Date().toISOString().split("T")[0];
-  const time = new Date().toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Lisbon" });
-
-  const context = mode === "crypto"
-    ? await buildCryptoContext()
-    : await buildTraditionalContext();
-
-  const prompt = mode === "crypto"
-    ? `És um analista de criptomoedas sénior. Data/hora atual: ${today} ${time} (Lisboa).
-
-DADOS REAIS DE MERCADO AGORA:
-${context}
-
-Com base EXCLUSIVAMENTE nos dados reais acima, escreve um briefing de mercado em português europeu.
-
-REGRAS:
-- Usa APENAS os valores fornecidos acima para preços
-- Nunca inventes dados — se não sabes algo, diz "dados não disponíveis"
-- Foca em análise técnica, sentimento (Fear & Greed) e dominância
-
-## 📊 Resumo do Mercado
-[Sentimento geral baseado no Fear & Greed e variações 24h reais]
-
-## 🔥 Destaques
-- [baseado nos dados reais — variações, trending, dominância]
-- [outro destaque real]
-- [outro]
-
-## 📈 Análise por Ativo
-**BTC $[preço real]:** [análise]
-**ETH $[preço real]:** [análise]
-**SOL $[preço real]:** [análise]
-**BNB $[preço real]:** [análise]
-
-## 🚀 Trending Agora
-[Menciona as coins trending fornecidas e por que podem estar a ganhar atenção]
-
-## ⚠️ Riscos
-- [risco identificável com base nos dados]
-- [outro]
-
-## 🎯 Perspetiva 24-48h
-[Outlook baseado no sentimento e dados reais]`
-    : `És um analista de mercados financeiros sénior. Data/hora atual: ${today} ${time} (Lisboa).
-
-DADOS REAIS DE MERCADO:
-${context}
-
-Escreve um briefing do mercado tradicional em português europeu.
-
-## 📊 Resumo Macro
-[Contexto macro atual: Fed, inflação, ciclo económico]
-
-## 🔥 Destaques
-- [tendência setorial relevante]
-- [outro]
-- [outro]
-
-## 📈 Análise por Setor
-**Commodities (Ouro: $[preço real], Prata: $[preço real]):** [análise]
-**Tecnologia (NVDA, AAPL, MSFT):** [tendência estrutural do setor]
-**S&P 500 / Índices:** [contexto e expectativas]
-
-## ⚠️ Riscos Macro
-- [risco real identificável]
-- [outro]
-
-## 🎯 Perspetiva
-[Outlook para os próximos dias]`;
-
-    const content = await generateAiText({
-      prompt: prompt + "\n\n" + NO_ADVICE_RULE + langInstruction,
-      maxTokens: 1500,
-      temperature: 0.2,
-    });
-    return { content, mode, date: `${today} ${time}` };
-  },
-  ["market-news-briefing-v1"],
-  { revalidate: 2700 },
-);
+// A geração (dados + prompt + cache de 45 min) vive em src/lib/ai/briefingMercado.ts,
+// partilhada com o Chat de Mercado (auditoria 8 out 2026, mercado-02).
 
 // Chamada a fornecedor de IA: pode demorar. Sem isto a funcao usa o tempo por
 // omissao da plataforma e corta a meio uma resposta que ia chegar.
@@ -219,10 +22,19 @@ export async function POST(request: Request) {
   if (!plan) return planUnavailableResponse();
   if (plan === "free") return requiresPlanResponse("pro");
 
-  const body = await request.json() as { mode?: MarketMode; lang?: string };
-  const { mode = "crypto", lang = "pt" } = body;
+  let body: { mode?: unknown; lang?: unknown };
+  try {
+    body = (await request.json()) as typeof body;
+  } catch {
+    return NextResponse.json({ error: apiMsg(request, "invalid_body"), code: "invalid_body" }, { status: 400 });
+  }
+  // Só valores conhecidos: antes "pt1", "pt2"… criavam entradas de cache novas
+  // (e uma geração nova cada) e o texto saía sempre em português.
+  const mode = body?.mode === undefined ? "crypto" : modoMercado(body.mode);
+  if (!mode) return NextResponse.json({ error: apiMsg(request, "invalid_body"), code: "invalid_mode" }, { status: 400 });
+  const lang = langMercado(body?.lang) ?? apiLang(request);
 
-  if (!hasAnyAiProvider()) return NextResponse.json({ error: apiMsg(request, "ai_unconfigured") }, { status: 503 });
+  if (!hasAnyAiProvider()) return NextResponse.json({ error: apiMsg(request, "ai_unconfigured"), code: "ai_unconfigured" }, { status: 503 });
 
   try {
     const result = await generateMarketBriefing(mode, lang);
