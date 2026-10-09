@@ -11,5 +11,11 @@ export async function GET(req: NextRequest) {
   const auth = await authenticateApiKey(req);
   if (!auth.ok) return auth.response;
 
-  return apiJson(await getMetrics(auth.userId));
+  try {
+    return apiJson(await getMetrics(auth.userId));
+  } catch (e) {
+    // A leitura das fotografias falhou: 503 em JSON, em vez de números vazios.
+    console.error("[v1/metrics]", e instanceof Error ? e.message : e);
+    return apiJson({ error: "service_unavailable", code: "service_unavailable", message: "Snapshots are temporarily unavailable. Try again shortly." }, { status: 503 });
+  }
 }

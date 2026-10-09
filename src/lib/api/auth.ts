@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isPremiumPriceId } from "@/lib/payments/priceIds";
 import { createHash } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { apiJson } from "@/lib/api/response";
+import { getPlan } from "@/lib/api/entitlement";
 
 
 // Formato da chave: cfa_live_<40 hex> (ChainFolioAI). Aceita também o prefixo
@@ -17,43 +17,47 @@ export type KeyCheck =
   | { ok: true; userId: string }
   | { ok: false; reason: "invalid" | "premium" | "unavailable" | "rate_limited" };
 
+/** O que checkApiKey usa do cliente Supabase (para os testes poderem passar um falso). */
+type ClienteChave = Pick<ReturnType<typeof getSupabaseAdmin>, "from" | "rpc">;
+
 /**
  * Núcleo de validação de uma chave `cfa_live_…`, partilhado pela API REST e pelo MCP.
  * Usa o cliente admin (service role) porque quem chama não tem sessão por cookie.
  * Confirma que a chave existe, está ativa e que o dono ainda é Premium.
+ * `cliente` só é passado pelos testes (scripts/testes/chaveApi.test.ts).
  */
-export async function checkApiKey(token: string): Promise<KeyCheck> {
+export async function checkApiKey(token: string, cliente?: ClienteChave): Promise<KeyCheck> {
   if (!KEY_RE.test(token)) return { ok: false, reason: "invalid" };
 
   const keyHash = createHash("sha256").update(token).digest("hex");
 
-  let admin: ReturnType<typeof getSupabaseAdmin>;
+  let admin: ClienteChave;
   try {
-    admin = getSupabaseAdmin();
+    admin = cliente ?? getSupabaseAdmin();
   } catch {
     return { ok: false, reason: "unavailable" };
   }
 
-  const { data: key } = await admin
-    .from("api_keys")
-    .select("user_id, is_active")
-    .eq("key_hash", keyHash)
-    .maybeSingle();
+  // Uma falha da BD é 503 (unavailable), não "chave inválida" nem "requer Premium".
+  let userId: string;
+  try {
+    const { data: key, error } = await admin
+      .from("api_keys")
+      .select("user_id, is_active")
+      .eq("key_hash", keyHash)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!key || !key.is_active) return { ok: false, reason: "invalid" };
+    userId = String(key.user_id);
 
-  if (!key || !key.is_active) return { ok: false, reason: "invalid" };
-
-  const { data: sub } = await admin
-    .from("subscriptions")
-    .select("price_id")
-    .eq("user_id", key.user_id)
-    .eq("status", "active")
-    .or(`current_period_end.is.null,current_period_end.gt.${new Date().toISOString()}`)
-    .order("current_period_end", { ascending: false, nullsFirst: false })
-    .limit(1)
-    .maybeSingle();
-
-  const isPremium = isPremiumPriceId(sub?.price_id); // o acesso à API/MCP é Premium
-  if (!isPremium) return { ok: false, reason: "premium" };
+    // O plano vem da fonte única (entitlement.getPlan): ativa OU trialing, todas
+    // as linhas válidas, Premium ganha — o mesmo que o site e o Block (api-06).
+    // Antes só lia "active" e uma linha, e um Premium em trialing levava 403.
+    if ((await getPlan(admin, userId)) !== "premium") return { ok: false, reason: "premium" };
+  } catch (e) {
+    console.error("[api-auth] chave/plano indisponível (fail-closed):", e instanceof Error ? e.message : e);
+    return { ok: false, reason: "unavailable" };
+  }
 
   // Rate limit por chave (janela fixa). Falha FECHADO (503): sem o contador não
   // há como travar abuso, e a API gasta fornecedores pagos por pedido.
@@ -78,7 +82,7 @@ export async function checkApiKey(token: string): Promise<KeyCheck> {
   admin.from("api_keys").update({ last_used_at: new Date().toISOString() }).eq("key_hash", keyHash)
     .then(({ error: e }) => { if (e) console.error("[api-auth] last_used_at", e.message); }, () => {});
 
-  return { ok: true, userId: key.user_id };
+  return { ok: true, userId };
 }
 
 export type AuthResult =
@@ -88,6 +92,7 @@ export type AuthResult =
 /**
  * Valida o cabeçalho `Authorization: Bearer cfa_live_…` de um pedido à API REST,
  * devolvendo uma resposta de erro pronta (401 / 403 / 503) quando falha.
+ * Mensagens em inglês (a API e o MCP falam inglês), com `error`/`code` estáveis.
  */
 export async function authenticateApiKey(req: NextRequest): Promise<AuthResult> {
   const header = req.headers.get("authorization") ?? "";
@@ -98,21 +103,21 @@ export async function authenticateApiKey(req: NextRequest): Promise<AuthResult> 
 
   if (check.reason === "rate_limited") {
     const res = apiJson(
-      { error: "rate_limited", message: `Demasiados pedidos. Limite: ${RATE_LIMIT} por ${RATE_WINDOW_SECONDS}s.` },
+      { error: "rate_limited", code: "rate_limited", message: `Too many requests. Limit: ${RATE_LIMIT} per ${RATE_WINDOW_SECONDS}s.` },
       { status: 429 });
     res.headers.set("Retry-After", String(RATE_WINDOW_SECONDS));
     return { ok: false, response: res };
   }
   if (check.reason === "premium") {
     return { ok: false, response: apiJson(
-      { error: "premium_required", message: "O acesso à API requer um plano Premium ativo." }, { status: 403 }) };
+      { error: "premium_required", code: "premium_required", message: "API access requires an active Premium plan." }, { status: 403 }) };
   }
   if (check.reason === "unavailable") {
     return { ok: false, response: apiJson(
-      { error: "service_unavailable", message: "Serviço temporariamente indisponível." }, { status: 503 }) };
+      { error: "service_unavailable", code: "service_unavailable", message: "Service temporarily unavailable. Try again shortly." }, { status: 503 }) };
   }
   const res = apiJson(
-    { error: "invalid_key", message: "Chave de API em falta, inválida ou revogada. Usa: Authorization: Bearer cfa_live_…" },
+    { error: "invalid_key", code: "invalid_key", message: "Missing, invalid or revoked API key. Use: Authorization: Bearer cfa_live_…" },
     { status: 401 });
   res.headers.set("WWW-Authenticate", 'Bearer realm="ChainFolioAI API"');
   return { ok: false, response: res };
