@@ -846,7 +846,7 @@ export const fr: Record<TranslationKey, string> = {
     dev_err_404: "Symbole inconnu dans /price.",
     dev_err_405: "Mauvaise méthode (ex. : GET sur /chat).",
     dev_err_429: "Plus de 60 requêtes par minute par clé — respecte l'en-tête Retry-After (60 s).",
-    dev_err_429_chat: "Plus de 50 messages IA en 24 h par compte (Retry-After : 86400).",
+    dev_err_429_chat: "Plus de 50 messages IA par jour et par compte. Le compteur repart à 00:00 UTC (Retry-After indique les secondes restantes).",
     dev_err_503: "Service ou fournisseur IA temporairement indisponible — réessaie.",
     dev_versioning: "Versionnage : v1 est stable ; changements incompatibles uniquement dans un futur chemin v2. De nouveaux champs peuvent être ajoutés sans préavis.",
     dev_sec_1: "Les adresses de vos wallets ne sortent jamais en entier dans /portfolio et /wallets — elles sont remplacées par un pseudonyme stable, ex. :",

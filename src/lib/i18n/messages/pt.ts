@@ -855,7 +855,7 @@ export const pt = {
     dev_err_404: "Símbolo desconhecido em /price.",
     dev_err_405: "Método errado (ex.: GET em /chat).",
     dev_err_429: "Mais de 60 pedidos por minuto por chave — respeita o cabeçalho Retry-After (60 s).",
-    dev_err_429_chat: "Mais de 50 mensagens de IA em 24 h por conta (Retry-After: 86400).",
+    dev_err_429_chat: "Mais de 50 mensagens de IA por dia por conta. O contador recomeça às 00:00 UTC (Retry-After traz os segundos que faltam).",
     dev_err_503: "Serviço ou fornecedor de IA temporariamente indisponível — tenta de novo.",
     dev_versioning: "Versão: v1 é estável; alterações incompatíveis só numa futura v2 no caminho. Campos novos podem ser acrescentados sem aviso.",
     dev_sec_1: "Os endereços das tuas carteiras nunca saem inteiros em /portfolio e /wallets — são substituídos por um pseudónimo estável, ex.:",

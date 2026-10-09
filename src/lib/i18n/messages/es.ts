@@ -846,7 +846,7 @@ export const es: Record<TranslationKey, string> = {
     dev_err_404: "Símbolo desconocido en /price.",
     dev_err_405: "Método incorrecto (ej.: GET en /chat).",
     dev_err_429: "Más de 60 peticiones por minuto por clave — respeta la cabecera Retry-After (60 s).",
-    dev_err_429_chat: "Más de 50 mensajes de IA en 24 h por cuenta (Retry-After: 86400).",
+    dev_err_429_chat: "Más de 50 mensajes de IA al día por cuenta. El contador se reinicia a las 00:00 UTC (Retry-After indica los segundos que faltan).",
     dev_err_503: "Servicio o proveedor de IA temporalmente no disponible — reintenta.",
     dev_versioning: "Versionado: v1 es estable; cambios incompatibles solo en una futura v2 en la ruta. Pueden añadirse campos nuevos sin aviso.",
     dev_sec_1: "Las direcciones de tus wallets nunca salen completas en /portfolio y /wallets — se sustituyen por un seudónimo estable, ej.:",

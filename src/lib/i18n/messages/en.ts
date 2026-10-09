@@ -846,7 +846,7 @@ export const en: Record<TranslationKey, string> = {
     dev_err_404: "Unknown symbol in /price.",
     dev_err_405: "Wrong method (e.g. GET on /chat).",
     dev_err_429: "More than 60 requests per minute per key — respect the Retry-After header (60 s).",
-    dev_err_429_chat: "More than 50 AI messages in 24 h per account (Retry-After: 86400).",
+    dev_err_429_chat: "More than 50 AI messages per day per account. The counter resets at 00:00 UTC (Retry-After gives the seconds left).",
     dev_err_503: "Service or AI provider temporarily unavailable — retry.",
     dev_versioning: "Versioning: v1 is stable; breaking changes only in a future v2 path. New fields may be added without notice.",
     dev_sec_1: "Your wallet addresses never leave in full in /portfolio and /wallets — they're replaced by a stable pseudonym, e.g.",
