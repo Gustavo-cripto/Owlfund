@@ -2275,6 +2275,7 @@ export const es: Record<TranslationKey, string> = {
     gz_you: "Tú",
     gz_reset_confirm: "¿Borrar toda la conversación de esta cuenta? No se puede deshacer.",
     gz_err_prefix: "No pude responder:",
+    gz_incomplete: "(respuesta incompleta: la conexión falló a mitad)",
     gz_retry: "Reintentar",
     gz_no_portfolio_title: "Aún no hay cartera en esta cuenta — conecta una wallet para que Block analice datos reales.",
     gz_no_portfolio_cta: "Conectar wallet",

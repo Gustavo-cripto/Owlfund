@@ -2287,6 +2287,7 @@ export const pt = {
     gz_you: "Tu",
     gz_reset_confirm: "Limpar toda a conversa desta conta? Esta ação não pode ser anulada.",
     gz_err_prefix: "Não consegui responder:",
+    gz_incomplete: "(resposta incompleta: a ligação falhou a meio)",
     gz_retry: "Tentar de novo",
     gz_no_portfolio_title: "Ainda sem portefólio nesta conta — liga uma carteira para o Block analisar dados reais.",
     gz_no_portfolio_cta: "Ligar carteira",

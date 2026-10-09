@@ -50,7 +50,8 @@ export async function requireUser(
 
   const limit = opts.limit ?? 60;
   const windowMs = opts.windowMs ?? 60_000;
-  const key = `${opts.route}:${userId}:${clientIp(req)}`;
+  // Por utilizador (antes era utilizador + IP: mudar de rede ou de VPN multiplicava o limite).
+  const key = `${opts.route}:${userId}`;
   if (!rateLimit(key, limit, windowMs)) {
     const res = NextResponse.json({ error: "rate_limited", message: `Demasiados pedidos (${limit}/min).` }, { status: 429 });
     res.headers.set("Retry-After", String(Math.ceil(windowMs / 1000)));

@@ -84,6 +84,14 @@ function classify(usdValue: number | null): Movement["type"] {
   return usdValue != null && usdValue >= LARGE_TRANSFER_USD ? "large_transfer" : "accumulation";
 }
 
+// Símbolos de tokens são escolhidos por quem cria o contrato: qualquer um pode
+// enviar um airdrop com "Visit eth-claim.xyz" ou quebras de linha no símbolo.
+// Só passam símbolos curtos e alfanuméricos; o resto fica genérico.
+export function simboloSeguro(s: unknown): string {
+  const t = typeof s === "string" ? s.trim() : "";
+  return /^[A-Za-z0-9.$_+-]{1,12}$/.test(t) && !/\.[a-z]{2,}$/i.test(t) ? t : "token";
+}
+
 function withUsd(base: string, usdValue: number | null): string {
   return usdValue != null ? `${base} (~$${Math.round(usdValue).toLocaleString("en-US")})` : base;
 }
@@ -97,7 +105,7 @@ export async function fetchEthMovements(address: string, label: string, prices: 
       for (const t of transfers) {
         const amount = t.value ?? 0;
         if (amount <= 0) continue;
-        const sym = t.asset ?? "?";
+        const sym = simboloSeguro(t.asset);
         const usdValue = ethTransferUsd(sym, amount, prices.eth);
         movs.push({
           address, label, chain: "eth",
@@ -128,11 +136,12 @@ export async function fetchEthMovements(address: string, label: string, prices: 
       const decimals = parseInt(tx.token_decimals ?? "18");
       const amount = parseInt(tx.value ?? "0") / Math.pow(10, decimals);
       if (amount <= 0) continue;
-      const usdValue = ethTransferUsd(tx.token_symbol, amount, prices.eth);
+      const sym = simboloSeguro(tx.token_symbol);
+      const usdValue = ethTransferUsd(sym, amount, prices.eth);
       movs.push({
         address, label, chain: "eth",
         type: classify(usdValue),
-        description: withUsd(`${amount.toFixed(2)} ${tx.token_symbol}`, usdValue),
+        description: withUsd(`${amount.toFixed(2)} ${sym}`, usdValue),
         usdValue,
         timestamp: new Date(tx.block_timestamp).getTime(),
       });
@@ -228,6 +237,30 @@ export async function fetchSolMovements(address: string, label: string, prices: 
   } catch { return []; }
 }
 
+// Cache de processo por endereço (best-effort, por instância): o Block, o
+// /api/smart-money-rt e o MCP pedem os mesmos endereços muitas vezes seguidas.
+const CACHE_MOV_MS = 3 * 60_000;
+const CACHE_MOV_MAX = 500;
+const cacheMov = new Map<string, { em: number; movs: Movement[] }>();
+
+async function movimentosDe(entry: WatchEntry, prices: UsdPrices): Promise<Movement[]> {
+  const chave = `${entry.chain}:${entry.address}`;
+  const agora = Date.now();
+  const hit = cacheMov.get(chave);
+  // O rótulo é de quem pergunta: vem sempre da entrada, nunca da cache.
+  if (hit && agora - hit.em < CACHE_MOV_MS) return hit.movs.map((m) => ({ ...m, label: entry.label }));
+  const movs = entry.chain === "btc" ? await fetchBtcMovements(entry.address, entry.label, prices)
+    : entry.chain === "eth" ? await fetchEthMovements(entry.address, entry.label, prices)
+    : entry.chain === "sol" ? await fetchSolMovements(entry.address, entry.label, prices)
+    : [];
+  if (cacheMov.size >= CACHE_MOV_MAX) {
+    for (const [k, v] of cacheMov) if (agora - v.em >= CACHE_MOV_MS) cacheMov.delete(k);
+    if (cacheMov.size >= CACHE_MOV_MAX) cacheMov.delete(cacheMov.keys().next().value as string);
+  }
+  cacheMov.set(chave, { em: agora, movs });
+  return movs;
+}
+
 /** Varre uma watchlist (máx. 10 endereços) e devolve os movimentos mais recentes. */
 export async function scanWatchlist(watchlist: WatchEntry[]): Promise<{ movements: Movement[]; scanned: number }> {
   // Defesa em profundidade: descarta endereços malformados antes de os usar em
@@ -239,12 +272,7 @@ export async function scanWatchlist(watchlist: WatchEntry[]): Promise<{ movement
   const prices = await getUsdPrices();
 
   const results = await Promise.allSettled(
-    entries.map((entry) => {
-      if (entry.chain === "btc") return fetchBtcMovements(entry.address, entry.label, prices);
-      if (entry.chain === "eth") return fetchEthMovements(entry.address, entry.label, prices);
-      if (entry.chain === "sol") return fetchSolMovements(entry.address, entry.label, prices);
-      return Promise.resolve([] as Movement[]);
-    }),
+    entries.map((entry) => movimentosDe(entry, prices)),
   );
 
   const movements = results

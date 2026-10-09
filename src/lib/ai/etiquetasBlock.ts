@@ -12,9 +12,14 @@ const limpar = (s: string) => s.replace(/\s+/g, " ").trim();
 // (ou um texto malicioso num nome de token) tentar guardar "ignora as regras",
 // a nota é recusada aqui — no servidor, antes de chegar ao browser.
 const PARECE_INSTRUCAO = /\b(ignor\w*|instru\w*|instruction\w*|regra\w*|rules?|prompt\w*|sistema|system|block|assistente|assistant|recomend\w*|recommend\w*|aconselh\w*|compra\w*|vend\w*|buy|sell)\b/i;
+// Ligações, domínios e números longos (endereços, cartões, telefones) nunca
+// entram na memória: uma injeção não pode deixar um "site preferido" guardado.
+const LIGACAO_OU_DOMINIO = /(https?:|www\.|\b[a-z0-9-]+\.(com|xyz|io|net|org|app|info|co|me|link|site|online|top|finance|exchange|eth|sol)\b|@\w)/i;
+const NUMERO_LONGO = /\d[\d\s.-]{9,}\d|0x[0-9a-f]{6,}|\b[13][a-km-zA-HJ-NP-Z1-9]{25,}\b/i;
 export function notaAceitavel(texto: string): boolean {
   const t = limpar(texto);
-  return t.length >= 8 && t.length <= 200 && !PARECE_INSTRUCAO.test(t) && !/[<>{}]/.test(t);
+  return t.length >= 8 && t.length <= 200 && !PARECE_INSTRUCAO.test(t) && !/[<>{}]/.test(t)
+    && !LIGACAO_OU_DOMINIO.test(t) && !NUMERO_LONGO.test(t);
 }
 
 export function extrairEtiquetas(resposta: string): Etiquetas {

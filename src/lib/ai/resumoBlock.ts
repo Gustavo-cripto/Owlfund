@@ -157,7 +157,7 @@ function transacoes(locale: string): string[] {
     const a = porAno.get(ano) ?? { ganho: 0, vendas: 0 };
     a.ganho += l.gain; a.vendas += 1; porAno.set(ano, a);
   }
-  out.push(`Mais-valias realizadas (FIFO, em EUR): ${[...porAno.entries()].sort((a, b) => b[0] - a[0]).slice(0, 4).map(([ano, a]) => `${ano}: ${a.ganho >= 0 ? "+" : "−"}€ ${n(Math.abs(a.ganho))} em ${a.vendas} venda${a.vendas > 1 ? "s" : ""}${ano === anoAtual ? " (ano corrente)" : ""}`).join(" · ") || "sem vendas emparelhadas"}. Total: ${fifo.realizedPnl >= 0 ? "+" : "−"}€ ${n(Math.abs(fifo.realizedPnl))}.`);
+  out.push(`Ganho realizado de referência (FIFO global da conta, em EUR; NÃO é o valor fiscal, que segue o método do país na secção FISCALIDADE ou na ferramenta estimativa_fiscal): ${[...porAno.entries()].sort((a, b) => b[0] - a[0]).slice(0, 4).map(([ano, a]) => `${ano}: ${a.ganho >= 0 ? "+" : "−"}€ ${n(Math.abs(a.ganho))} em ${a.vendas} venda${a.vendas > 1 ? "s" : ""}${ano === anoAtual ? " (ano corrente)" : ""}`).join(" · ") || "sem vendas emparelhadas"}. Total: ${fifo.realizedPnl >= 0 ? "+" : "−"}€ ${n(Math.abs(fifo.realizedPnl))}.`);
   const semCompra = Object.entries(fifo.unmatched).filter(([, v]) => v > 0);
   if (semCompra.length) out.push(`Vendas sem compra registada (o FIFO não as emparelha): ${semCompra.map(([a, v]) => `${q(v)} ${a}`).join(", ")}.`);
   const porAtivo = Object.entries(fifo.byAsset).filter(([, a]) => a.qtyNet > 0 || a.realizedPnl !== 0).slice(0, 20);

@@ -2275,6 +2275,7 @@ export const en: Record<TranslationKey, string> = {
     gz_you: "You",
     gz_reset_confirm: "Clear the whole conversation for this account? This cannot be undone.",
     gz_err_prefix: "Couldn't answer:",
+    gz_incomplete: "(incomplete answer: the connection failed midway)",
     gz_retry: "Try again",
     gz_no_portfolio_title: "No portfolio in this account yet — connect a wallet so Block can analyse real data.",
     gz_no_portfolio_cta: "Connect wallet",

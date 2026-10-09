@@ -327,9 +327,12 @@ export default function GestorPage() {
         }
         setAChegar(false);
         if (!data) {
-          // Sem "done": se já havia texto, fica o que chegou; senão é erro.
-          if (acc.trim() && !erro) data = { reply: ocultarEtiquetasParciais(acc) };
-          else {
+          // Sem "done": se já havia texto, fica o que chegou (com aviso de
+          // incompleta se houve erro, e o botão de repetir); senão é erro.
+          if (acc.trim()) {
+            data = { reply: ocultarEtiquetasParciais(acc) + (erro ? `\n\n_${t("gz_incomplete")}_` : "") };
+            if (erro) setSendError({ text: erro, lastUser: trimmed });
+          } else {
             setMessages(prev => prev.filter(m => m.id !== streamId));
             throw new Error(erro ?? t("error"));
           }

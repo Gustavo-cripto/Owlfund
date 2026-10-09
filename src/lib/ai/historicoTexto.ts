@@ -62,7 +62,14 @@ export function fimDeMes(serie: Ponto[]): Array<{ mes: string; ponto: Ponto }> {
  * Texto para o prompt. null quando não há nenhuma fotografia (a IA recebe então
  * a nota de "sem histórico" por textoSemHistorico).
  */
+/** Nota quando não se sabe a conta e há fotografias de várias contas (ex.: app móvel antiga). */
+export const TEXTO_VARIAS_CONTAS = "=== HISTÓRICO DO PORTEFÓLIO ===\nEste utilizador tem fotografias de várias contas e o pedido não indicou qual está ativa, por isso não há uma série única para calcular variações (misturar contas daria números que não são de nenhuma). Se perguntarem quanto subiu ou desceu, explica isto e indica a página Portefólio (/portfolio) no site, com a conta escolhida no seletor. Não inventes uma variação.";
+
 export function textoHistorico(rows: SnapRow[], accountId: string, opts: OpcoesHistorico = {}): string | null {
+  if (!accountId) {
+    const contas = new Set(rows.map((r) => (r.data as { _account?: unknown } | null)?._account).filter((a) => typeof a === "string" && a !== ""));
+    if (contas.size > 1) return TEXTO_VARIAS_CONTAS;
+  }
   const agora = opts.agora ?? Date.now();
   const locale = opts.locale ?? "pt-PT";
   const serie = serieDaConta(rows, accountId, opts);

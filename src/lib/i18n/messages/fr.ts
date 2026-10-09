@@ -2275,6 +2275,7 @@ export const fr: Record<TranslationKey, string> = {
     gz_you: "Vous",
     gz_reset_confirm: "Effacer toute la conversation de ce compte ? Cette action est irréversible.",
     gz_err_prefix: "Je n'ai pas pu répondre :",
+    gz_incomplete: "(réponse incomplète : la connexion a échoué en cours de route)",
     gz_retry: "Réessayer",
     gz_no_portfolio_title: "Pas encore de portefeuille sur ce compte — connecte un wallet pour que Block analyse des données réelles.",
     gz_no_portfolio_cta: "Connecter un wallet",

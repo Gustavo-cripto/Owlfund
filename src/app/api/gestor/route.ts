@@ -8,7 +8,10 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getPlan } from "@/lib/api/entitlement";
 import { GESTOR_DAILY_LIMIT } from "@/lib/plans";
 import { AiError, generateAiChat, generateAiChatStream, friendlyAiError, errorStatus, groqTokenLimit, hasGemini, type ChatMessage } from "@/lib/ai/groq";
-import { scanWatchlist, type WatchEntry, type Movement } from "@/lib/api/whales";
+import { scanWatchlist, type Movement } from "@/lib/api/whales";
+import { textoWatchlist, watchlistSegura } from "@/lib/ai/watchlistBlock";
+import { limpo } from "@/lib/ai/limpo";
+import { dados as dadosCitados } from "@/lib/ai/disclaimer";
 import { cgFetch } from "@/lib/market/coingecko";
 import { precoOkx } from "@/lib/market/okxSpot";
 import { contextoBlockServidor } from "@/lib/ai/contextoBlock";
@@ -57,29 +60,12 @@ type SnapshotData = {
 
 const LOCALE_BY_LANG: Record<string, string> = { pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" };
 const API_ERR: Record<string, { auth: string; premium: string; internal: string; empty: string; daily: string; plan: string }> = {
-  pt: { auth: "Não autenticado.", premium: "Requer Plano Premium.", internal: "Erro interno.", empty: "Sem mensagens.", daily: "Atingiste o limite de 150 mensagens por dia do Gestor IA. Volta amanhã.", plan: "Não foi possível verificar o teu plano agora. Tenta de novo dentro de instantes." },
-  en: { auth: "Not authenticated.", premium: "Premium plan required.", internal: "Internal error.", empty: "No messages.", daily: "You reached the AI Manager limit of 150 messages per day. Come back tomorrow.", plan: "We could not verify your plan right now. Please try again in a moment." },
-  es: { auth: "No autenticado.", premium: "Requiere Plan Premium.", internal: "Error interno.", empty: "Sin mensajes.", daily: "Alcanzaste el límite de 150 mensajes por día del Gestor IA. Vuelve mañana.", plan: "No se pudo verificar tu plan ahora. Inténtalo de nuevo en unos instantes." },
-  fr: { auth: "Non authentifié.", premium: "Plan Premium requis.", internal: "Erreur interne.", empty: "Aucun message.", daily: "Vous avez atteint la limite de 150 messages par jour du Gestionnaire IA. Revenez demain.", plan: "Impossible de vérifier votre plan pour le moment. Réessayez dans un instant." },
+  pt: { auth: "Não autenticado.", premium: "Requer Plano Premium.", internal: "Erro interno.", empty: "Sem mensagens.", daily: `Atingiste o limite de ${GESTOR_DAILY_LIMIT} mensagens por dia do Gestor IA. Volta amanhã.`, plan: "Não foi possível verificar o teu plano agora. Tenta de novo dentro de instantes." },
+  en: { auth: "Not authenticated.", premium: "Premium plan required.", internal: "Internal error.", empty: "No messages.", daily: `You reached the AI Manager limit of ${GESTOR_DAILY_LIMIT} messages per day. Come back tomorrow.`, plan: "We could not verify your plan right now. Please try again in a moment." },
+  es: { auth: "No autenticado.", premium: "Requiere Plan Premium.", internal: "Error interno.", empty: "Sin mensajes.", daily: `Alcanzaste el límite de ${GESTOR_DAILY_LIMIT} mensajes por día del Gestor IA. Vuelve mañana.`, plan: "No se pudo verificar tu plan ahora. Inténtalo de nuevo en unos instantes." },
+  fr: { auth: "Non authentifié.", premium: "Plan Premium requis.", internal: "Erreur interne.", empty: "Aucun message.", daily: `Vous avez atteint la limite de ${GESTOR_DAILY_LIMIT} messages par jour du Gestionnaire IA. Revenez demain.`, plan: "Impossible de vérifier votre plan pour le moment. Réessayez dans un instant." },
 };
 const apiErr = (lang: string, k: keyof (typeof API_ERR)["pt"]) => (API_ERR[lang] ?? API_ERR.pt)[k];
-
-function buildWatchlistContext(watchlist: WatchEntry[], movements: Movement[], locale = "pt-PT"): string {
-  if (!watchlist.length) return "";
-  const lines = ["\n=== SMART MONEY WATCHLIST ==="];
-  lines.push(`Endereços monitorizados: ${watchlist.length}`);
-  watchlist.slice(0, 10).forEach(e => lines.push(`  • ${e.label} (${e.chain.toUpperCase()}): ${e.address.slice(0, 10)}...`));
-  if (movements.length) {
-    lines.push("\nMovimentos recentes detetados:");
-    movements.forEach(m => {
-      const time = new Date(m.timestamp).toLocaleString(locale);
-      lines.push(`  [${time}] ${m.label} (${m.chain.toUpperCase()}): ${m.description} — ${m.type}`);
-    });
-  } else {
-    lines.push("\nSem movimentos significativos recentes na watchlist.");
-  }
-  return lines.join("\n");
-}
 
 // Mensagem de "conta vazia" — consciente da conta ativa e de outras contas.
 // Se o utilizador tiver mais do que uma conta, sugere trocar de conta (os ativos
@@ -222,7 +208,7 @@ export async function POST(req: NextRequest) {
       .or(`current_period_end.is.null,current_period_end.gt.${new Date().toISOString()}`)
       .order("current_period_end", { ascending: false, nullsFirst: false })
       .limit(1).maybeSingle();
-    const body = await req.json() as { messages: Message[]; watchlist?: WatchEntry[]; lang?: string; portfolio?: string; nickname?: string; accountName?: string; accountId?: string; accountCount?: number; accountEmpty?: boolean; portfolioError?: boolean; totalEur?: number; memoria?: string; taxCountry?: string; stream?: boolean; simbolos?: string[] };
+    const body = await req.json() as { messages: Message[]; watchlist?: unknown; lang?: string; portfolio?: string; nickname?: string; accountName?: string; accountId?: string; accountCount?: number; accountEmpty?: boolean; portfolioError?: boolean; totalEur?: number; memoria?: string; taxCountry?: string; stream?: boolean; simbolos?: string[] };
     lang = typeof body.lang === "string" && body.lang in API_ERR ? body.lang : lang;
     const locale = LOCALE_BY_LANG[lang] ?? "pt-PT";
     if (!isPremium) return NextResponse.json({ error: apiErr(lang, "premium") }, { status: 403 });
@@ -275,9 +261,12 @@ export async function POST(req: NextRequest) {
     // Tema(s) da pergunta: decide que secções de dados entram no prompt.
     const ultimaPergunta = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
     const temas = temasDaPergunta(ultimaPergunta);
+    // A watchlist só se varre nos fornecedores quando a pergunta é sobre baleias
+    // (antes eram até 20 pedidos externos em CADA mensagem, antes de o modelo começar).
+    const pedeBaleias = temas.has("baleias");
     // Com orçamento largo (Gemini) as baleias conhecidas vão sempre; a fiscalidade continua a pedido (FIFO + lista longa).
     if (tetoTokensPedido() > 10_000) temas.add("baleias");
-    const watchlist: WatchEntry[] = (body.watchlist ?? []).slice(0, 10);
+    const watchlist = watchlistSegura(body.watchlist);
 
     if (!messages.length) return NextResponse.json({ error: apiErr(lang, "empty") }, { status: 400 });
 
@@ -291,7 +280,7 @@ export async function POST(req: NextRequest) {
             .order("created_at", { ascending: false }).limit(1).maybeSingle()
         : Promise.resolve({ data: null }),
       needSnapshot ? precosEurGestor() : Promise.resolve({} as Record<string, number>),
-      scanWatchlist(watchlist),
+      pedeBaleias && watchlist.length ? scanWatchlist(watchlist) : Promise.resolve({ movements: [] as Movement[], scanned: 0 }),
       // Histórico das fotografias, pontuação, fiscalidade e baleias conhecidas:
       // é o que faltava ao Block para responder "quanto subiu o portefólio"
       // sem pedir números ao utilizador.
@@ -317,12 +306,12 @@ export async function POST(req: NextRequest) {
         : portfolioError
           ? `=== ESTADO DO PORTFOLIO ===\nNão foi possível ler o portefólio da conta ativa neste momento (erro temporário de leitura). Diz isso ao utilizador com naturalidade, sugere tentar de novo daqui a pouco, e responde na mesma ao que ele perguntar com base no que te disser.`
           : buildPortfolioContext(snapshotRow?.data as SnapshotData ?? null, sub, prices, accountName, accountCount, locale);
-    const watchlistCtx = buildWatchlistContext(watchlist, movementsList, locale);
+    const watchlistCtx = textoWatchlist(watchlist, movementsList, { locale, lida: pedeBaleias });
     const nameDirective = nickname
-      ? `\n\nNOME DO UTILIZADOR: chama-se ${nickname}. Trata-o por esse nome de forma natural e amigável. Não inventes outro nome.`
+      ? `\n\nNOME DO UTILIZADOR (trata-o por este nome de forma natural e amigável; não inventes outro):\n${dadosCitados("nome", limpo(nickname, 40), 40)}`
       : "";
     const accountDirective = accountName
-      ? `\n\nCONTA/PORTFÓLIO ATIVO: "${accountName}". Os dados de portfolio acima referem-se a esta conta. Se for "Todas as contas", é a soma de todos os portefólios do utilizador. Menciona a conta ativa quando ajudar a dar contexto.`
+      ? `\n\nCONTA/PORTFÓLIO ATIVO (os dados de portfolio acima referem-se a esta conta; "Todas as contas" é a soma de todos os portefólios do utilizador; menciona-a quando ajudar):\n${dadosCitados("conta", limpo(accountName, 60), 60)}`
       : "";
     // ── Orçamento do pedido (ver orcamentoBlock.ts) ──
     // Base fixa (regras + diretivas) → conversa (até ~1/3 do que sobra) →
