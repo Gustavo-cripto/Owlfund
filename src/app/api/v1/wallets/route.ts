@@ -6,7 +6,7 @@ import { apiJson } from "@/lib/api/response";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// GET /api/v1/wallets — carteiras e endereços ligados à conta do dono da chave.
+// GET /api/v1/wallets — carteiras por portefólio do dono da chave, com endereços em pseudónimo (wallet_…), nunca em claro.
 export async function GET(req: NextRequest) {
   const auth = await authenticateApiKey(req);
   if (!auth.ok) return auth.response;

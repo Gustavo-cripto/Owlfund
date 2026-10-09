@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isPremiumPriceId } from "@/lib/payments/priceIds";
+import { getPlan } from "@/lib/api/entitlement";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -17,19 +17,28 @@ async function getUser() {
   return { supabase, user: data.user };
 }
 
-async function checkPremium(supabase: ReturnType<typeof createServerClient>, userId: string) {
-  const { data: sub } = await supabase.from("subscriptions")
-    .select("status, price_id").eq("user_id", userId).eq("status", "active")
-    .or(`current_period_end.is.null,current_period_end.gt.${new Date().toISOString()}`)
-    .order("current_period_end", { ascending: false, nullsFirst: false }).limit(1).maybeSingle();
-  return isPremiumPriceId(sub?.price_id);
+/**
+ * O plano vem da fonte única (entitlement.getPlan): ativa ou trialing, Premium
+ * ganha — o mesmo que a API/MCP aceita (auditoria api-06). null = BD indisponível.
+ */
+async function checkPremium(supabase: ReturnType<typeof createServerClient>, userId: string): Promise<boolean | null> {
+  try {
+    return (await getPlan(supabase, userId)) === "premium";
+  } catch (e) {
+    console.error("[api-keys] plano indisponível:", e instanceof Error ? e.message : e);
+    return null;
+  }
 }
+
+const planoIndisponivel = () =>
+  NextResponse.json({ error: "Não foi possível verificar o teu plano agora. Tenta novamente dentro de instantes.", code: "UNAVAILABLE" }, { status: 503 });
 
 // GET — list user's API keys (masked)
 export async function GET() {
   const { supabase, user } = await getUser();
   if (!user) return NextResponse.json({ error: "Não autenticado.", code: "UNAUTHENTICATED" }, { status: 401 });
   const isPremium = await checkPremium(supabase, user.id);
+  if (isPremium == null) return planoIndisponivel();
   if (!isPremium) return NextResponse.json({ error: "Requer Premium.", code: "PREMIUM_REQUIRED" }, { status: 403 });
 
   const supabaseAdmin = getSupabaseAdmin();
@@ -47,6 +56,7 @@ export async function POST(req: NextRequest) {
   const { supabase, user } = await getUser();
   if (!user) return NextResponse.json({ error: "Não autenticado.", code: "UNAUTHENTICATED" }, { status: 401 });
   const isPremium = await checkPremium(supabase, user.id);
+  if (isPremium == null) return planoIndisponivel();
   if (!isPremium) return NextResponse.json({ error: "Requer Premium.", code: "PREMIUM_REQUIRED" }, { status: 403 });
 
   const body = await req.json().catch(() => ({})) as { name?: string };

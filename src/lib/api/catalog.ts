@@ -161,9 +161,12 @@ export const API_ENDPOINTS: ApiEndpoint[] = [
     response: `{ "fireTarget": 600000, "realReturnPct": 4, "yearsToFire": 41, "retirementAge": 71, "retirementYear": 2067 }
 // se annualReturn ≤ inflation: { "yearsToFire": null, "note": "…" }` },
   { id: "chat", method: "POST", path: "/api/v1/chat", desc: "Pergunta à IA sobre o teu portefólio ({ message }, máx. 1000 chars). Máx. 50/dia por conta.", descKey: "dev_ep_chat", auth: true,
-    body: { message: "Como está diversificado o meu portefólio?" },
-    response: `{ "reply": "O teu portefólio está concentrado em… (análise). Não é conselho de compra/venda." }`,
-    errors: ["400 missing_message", "405 (GET)", "429 chat_limit (50/dia)", "503 ai_unavailable"] },
+    body: { message: "Quanto vale o meu portefólio e como variou esta semana?" },
+    // Só o que os dados suportam: total da última fotografia, PNL do mesmo
+    // portefólio e preços ao vivo. Não há valor por ativo, por isso o exemplo
+    // não promete análise de concentração (auditoria api-04).
+    response: `{ "reply": "Na última fotografia (hoje, 09:12) o portefólio «Principal» valia 12 340 €; em 7 dias variou +2,1 % (+254 €), sem contar o capital que entrou. O BTC está agora a … € (+1,3 % em 24 h). Não é conselho de compra/venda." }`,
+    errors: ["400 missing_message", "400 invalid_param", "405 (GET)", "429 chat_limit (50/dia, reinicia às 00:00 UTC; Retry-After)", "503 service_unavailable / ai_unavailable (a mensagem não conta)"] },
 ];
 
 export type McpTool = { name: string; key: TranslationKey; arg?: string };

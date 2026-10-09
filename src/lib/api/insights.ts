@@ -1,6 +1,7 @@
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { chronoCompare, computeFifo, parseTrades, type Trade } from "@/lib/portfolios/trades";
 import { metricas, seriePontos, variacoes, type PnlChange, type SnapRow } from "@/lib/api/pnlMath";
+import { daConta } from "@/lib/portfolio/posicao";
 import { resumirImposto } from "@/lib/api/taxMath";
 import { realizar, resumoAnualPolaco, type Operacao } from "@/lib/tax/metodos";
 import { estimarImpostoPais, rotuloAnoFiscal, taxaMinima } from "@/lib/tax/regras";
@@ -19,6 +20,8 @@ import { COST_METHOD_LABEL, COST_METHOD_SHORT, fifoPorCarteira, metodoRessalva, 
 
 export type PnlResult = {
   currency: "EUR";
+  /** Portefólio (conta) a que a série pertence: o da fotografia mais recente. null = fotografia sem etiqueta. */
+  accountId: string | null;
   totalEur: number | null;
   updatedAt: string | null;
   changes: PnlChange[];
@@ -26,26 +29,47 @@ export type PnlResult = {
   note: string;
 };
 
-export async function getPnl(userId: string): Promise<PnlResult> {
+type LinhaLeve = { created_at: string; total: unknown; conta: unknown };
+
+/**
+ * Série de UM portefólio: o da fotografia mais recente, mais as fotografias
+ * antigas sem etiqueta (legado). Antes misturavam-se os snapshots de todos os
+ * portefólios da conta e, ao alternar entre dois, a IA e o get_pnl viam ganhos
+ * e perdas que não aconteceram (auditoria api-05). Só se pedem o total e a
+ * conta de cada fotografia, não o blob inteiro (api-07).
+ */
+export async function serieDaContaRecente(userId: string): Promise<{ accountId: string | null; rows: SnapRow[] }> {
   const admin = getSupabaseAdmin();
-  const { data } = await admin
+  const { data, error } = await admin
     .from("portfolio_snapshots")
-    .select("created_at, data")
+    .select("created_at, total:data->_totalEur, conta:data->>_account")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(400);
+  if (error) throw new Error(error.message);
+  const linhas = (data ?? []) as LinhaLeve[];
+  const recente = linhas[0]?.conta;
+  const accountId = typeof recente === "string" && recente !== "" ? recente : null;
+  const rows: SnapRow[] = linhas
+    .map((r) => ({ created_at: r.created_at, data: { _totalEur: r.total, _account: r.conta } }))
+    .filter((r) => daConta(r.data, accountId ?? ""));
+  return { accountId, rows };
+}
 
-  const serie = seriePontos((data ?? []) as SnapRow[]);
+export async function getPnl(userId: string): Promise<PnlResult> {
+  const { accountId, rows } = await serieDaContaRecente(userId);
+  const serie = seriePontos(rows);
   const ultimo = serie[serie.length - 1] ?? null;
   const changes = variacoes(serie);
 
   return {
     currency: "EUR",
+    accountId,
     totalEur: ultimo?.total ?? null,
     updatedAt: ultimo?.iso ?? null,
     changes,
     snapshotsUsed: serie.length,
-    note: "Valores dos snapshots gravados na altura (nunca recalculados com preços de hoje). Um período fica a null quando não há snapshot suficientemente antigo.",
+    note: "Valores dos snapshots gravados na altura (nunca recalculados com preços de hoje), só do portefólio da fotografia mais recente (accountId). Um período fica a null quando não há snapshot suficientemente antigo.",
   };
 }
 
@@ -145,21 +169,15 @@ export async function getRealizedGains(userId: string, year?: number): Promise<R
 // ── Métricas avançadas ───────────────────────────────────────────────────────
 
 export async function getMetrics(userId: string) {
-  const admin = getSupabaseAdmin();
-  const { data } = await admin
-    .from("portfolio_snapshots")
-    .select("created_at, data")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(400);
-
-  const serie = seriePontos((data ?? []) as SnapRow[]);
+  const { accountId, rows } = await serieDaContaRecente(userId);
+  const serie = seriePontos(rows);
   const m = metricas(serie);
   return {
     currency: "EUR" as const,
+    accountId,
     metrics: m,
     note: m
-      ? "Calculado sobre os snapshots gravados. O 'atual' é o último snapshot, não o preço ao vivo — pode diferir ligeiramente do ecrã. CAGR só a partir de 90 dias; saltos acima de ±50 % entre capturas (depósitos/levantamentos) ficam de fora das métricas de risco."
+      ? "Calculado sobre os snapshots gravados do portefólio da fotografia mais recente (accountId). O 'atual' é o último snapshot, não o preço ao vivo — pode diferir ligeiramente do ecrã. CAGR só a partir de 90 dias; saltos acima de ±50 % entre capturas (depósitos/levantamentos) ficam de fora das métricas de risco."
       : "Sem snapshots suficientes: são precisas pelo menos duas capturas em dias diferentes.",
   };
 }
