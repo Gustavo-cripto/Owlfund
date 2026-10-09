@@ -41,6 +41,7 @@ if (ctx) {
   ok("sem mercado: não comenta preços", p.includes("sem preços ao vivo"));
   ok("histórico só para ≥ 60 dias", p.includes("60 dias ou mais"));
   ok("francês por vous", p.includes("«vous»"));
+  ok("24 h por ativo não explica a semana", p.includes("variação semanal por ativo não está disponível"));
   ok("perguntas do site → Chain e suporte, sem inventar", p.includes("suporte@chainfolioai.com") && p.includes("NUNCA inventes páginas"));
 }
 
