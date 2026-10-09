@@ -60,7 +60,7 @@ jobs:
       # esteja justificado na lista de exceções do script (cada exceção tem
       # motivo e data de validade).
       - name: Auditar dependências de produção
-        run: node scripts/auditar-dependencias.mjs
+        run: AUDIT_RESUMO="$RUNNER_TEMP/auditoria.txt" node scripts/auditar-dependencias.mjs
       - name: Avisar no Telegram (se configurado)
         if: failure()
         env:
@@ -69,6 +69,10 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           if [ -z "$TOKEN" ] || [ -z "$CHAT" ]; then echo "Sem segredos do Telegram — só email do GitHub."; exit 0; fi
+          RESUMO=$(head -c 1500 "$RUNNER_TEMP/auditoria.txt" 2>/dev/null || true)
+          [ -n "$RESUMO" ] || RESUMO="(sem resumo: ver o registo)"
           curl -s -X POST "https://api.telegram.org/bot$TOKEN/sendMessage" \
             --data-urlencode "chat_id=$CHAT" \
-            --data-urlencode "text=🔴 Auditoria noturna das dependências FALHOU (aviso crítico/alto novo). Ver: $RUN_URL" >/dev/null
+            --data-urlencode "text=🔴 Auditoria noturna das dependências FALHOU (aviso crítico/alto novo):
+          $RESUMO
+          Ver: $RUN_URL" >/dev/null

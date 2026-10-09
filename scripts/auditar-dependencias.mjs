@@ -20,6 +20,11 @@
 // `--omit=dev` no fix (apaga as devDependencies). Esses são à mão.
 
 import { execFileSync } from "node:child_process";
+import { writeFileSync } from "node:fs";
+
+// Resumo curto para o aviso no Telegram (o workflow passa AUDIT_RESUMO com um
+// caminho): pacote, versões afetadas e aviso, para se perceber sem abrir o GitHub.
+const resumo = [];
 
 /** Exceções aceites: pacote → { motivo, ate (AAAA-MM-DD) }. */
 const EXCECOES = {
@@ -38,6 +43,14 @@ const EXCECOES = {
   // (chokidar/tailwindcss 3), com padrões nossos, nunca com entrada de utilizador.
   "braces": { motivo: "só no build (tailwindcss 3 → chokidar); a correção é Tailwind 4", ate: "2027-01-31" },
   "micromatch": { motivo: "só no build (tailwindcss 3); a correção é Tailwind 4", ate: "2027-01-31" },
+  // GHSA-6qxp-vccf-f47h (9 out 2026): o SDK, como CLIENTE OAuth, pode mandar
+  // credenciais para um servidor de autorização escolhido pelo servidor MCP.
+  // Nós somos só o servidor MCP (src/app/api/[transport]/route.ts importa
+  // apenas um tipo de server/auth); o cliente OAuth do SDK nunca corre. A
+  // correção (SDK 1.31+) exige o mcp-handler 2, que muda para
+  // @modelcontextprotocol/server (major): migração à parte, até à data abaixo.
+  "@modelcontextprotocol/sdk": { motivo: "só afeta o cliente OAuth do SDK; nós só usamos o lado do servidor; correção exige mcp-handler 2 (major)", ate: "2026-12-31" },
+  "mcp-handler": { motivo: "aviso herdado do @modelcontextprotocol/sdk 1.26 (cliente OAuth, que não usamos); correção é o mcp-handler 2 (major)", ate: "2026-12-31" },
 };
 
 const hoje = new Date().toISOString().slice(0, 10);
@@ -71,13 +84,18 @@ for (const [nome, v] of Object.entries(vulns)) {
   const exc = EXCECOES[nome];
   const fix = v.fixAvailable === true ? "npm audit fix resolve" : v.fixAvailable ? `só com major (${v.fixAvailable.name}@${v.fixAvailable.version})` : "sem correção publicada";
   if (!grave) { console.log(`  ℹ️  ${v.severity}: ${nome} ${v.range} — ${fix}`); continue; }
-  if (!exc) { mal(`${v.severity.toUpperCase()}: ${nome} ${v.range} — ${fix}${titulos(v).length ? "\n       " + titulos(v).join("\n       ") : ""}`); continue; }
-  if (exc.ate < hoje) { mal(`${v.severity.toUpperCase()}: ${nome} — exceção expirou a ${exc.ate} (${exc.motivo}); rever e renovar ou corrigir`); continue; }
+  const ghsa = (v.via ?? []).filter((x) => typeof x !== "string").map((x) => String(x.url ?? "").split("/").pop()).filter(Boolean);
+  if (!exc) { resumo.push(`${v.severity.toUpperCase()} ${nome} ${v.range}${ghsa.length ? " · " + ghsa.join(", ") : ""} · ${fix}`); mal(`${v.severity.toUpperCase()}: ${nome} ${v.range} — ${fix}${titulos(v).length ? "\n       " + titulos(v).join("\n       ") : ""}`); continue; }
+  if (exc.ate < hoje) { resumo.push(`${v.severity.toUpperCase()} ${nome} · exceção expirou a ${exc.ate}`); mal(`${v.severity.toUpperCase()}: ${nome} — exceção expirou a ${exc.ate} (${exc.motivo}); rever e renovar ou corrigir`); continue; }
   ok(`${v.severity}: ${nome} — exceção até ${exc.ate}: ${exc.motivo}`);
 }
 
 for (const nome of Object.keys(EXCECOES)) {
   if (!vulns[nome]) aviso(`exceção a mais: ${nome} já não aparece na auditoria — apagar da lista`);
+}
+
+if (process.env.AUDIT_RESUMO) {
+  try { writeFileSync(process.env.AUDIT_RESUMO, resumo.join("\n")); } catch { /* o resumo é só para o aviso */ }
 }
 
 if (falhas) {
