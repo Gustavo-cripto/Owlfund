@@ -167,6 +167,25 @@ export const API_MESSAGES = {
     "Solicitud no válida.",
     "Requête non valide.",
   ),
+  // ── Chat de Mercado e briefings (auditoria 8 out 2026) ──
+  market_chat_daily_limit: M(
+    "Atingiste o limite diário de perguntas sobre a análise de mercado. Volta amanhã.",
+    "You have reached today's limit of questions about the market analysis. Come back tomorrow.",
+    "Has alcanzado el límite diario de preguntas sobre el análisis de mercado. Vuelve mañana.",
+    "Vous avez atteint la limite quotidienne de questions sur l'analyse de marché. Revenez demain.",
+  ),
+  daily_limit_unavailable: M(
+    "Serviço temporariamente indisponível. Tenta de novo daqui a pouco.",
+    "Service temporarily unavailable. Try again in a moment.",
+    "Servicio no disponible temporalmente. Inténtalo de nuevo en un momento.",
+    "Service temporairement indisponible. Réessayez dans un instant.",
+  ),
+  news_unavailable: M(
+    "Não foi possível ler as notícias agora. Tenta de novo daqui a pouco.",
+    "Could not read the news right now. Try again in a moment.",
+    "No se pudieron leer las noticias ahora. Inténtalo de nuevo en un momento.",
+    "Impossible de lire les actualités pour le moment. Réessayez dans un instant.",
+  ),
 } as const;
 
 export type ApiMessageKey = keyof typeof API_MESSAGES;

@@ -890,6 +890,8 @@ export default function MercadoPage() {
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
+  // Erros do chat ficam à parte: não entram na conversa nem voltam ao servidor no histórico.
+  const [chatError, setChatError] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [rows, setRows] = useState<MarketRow[]>([]);
   const [selected, setSelected] = useState<MarketRow | null>(null);
@@ -2130,7 +2132,7 @@ export default function MercadoPage() {
                       setNewsMode(m);
                       // O briefing/chat pertencem ao modo anterior — não mostrar com o rótulo novo
                       setNewsContent(null); setNewsError(null); setNewsDate(null);
-                      setChatMessages([]);
+                      setChatMessages([]); setChatError(null);
                       if (m === "diarias" && newsItems.length === 0) {
                         setNewsItemsLoading(true);
                         setNewsItemsError(false);
@@ -2229,7 +2231,8 @@ export default function MercadoPage() {
                             const r = await fetch("/api/news-briefing", {
                               method: "POST",
                               headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ items: newsItems, lang }),
+                              // O servidor lê as notícias ele próprio: só a língua vai no pedido.
+                              body: JSON.stringify({ lang }),
                             });
                             const d = await r.json() as { content?: string; error?: string; date?: string };
                             if (!r.ok || d.error) { setNewsBriefingError(d.error ?? t("mc_err_data")); return; }
@@ -2267,21 +2270,8 @@ export default function MercadoPage() {
                         <p className="text-xs uppercase tracking-[0.2em] text-orange-400">{t("mc_ai_news")}</p>
                         <span className="text-[11px] text-slate-500">{newsBriefingDate}</span>
                       </div>
-                      <div className="space-y-1">
-                        {newsBriefing.split("\n").map((line, i) => {
-                          if (line.startsWith("## ")) return <h3 key={i} className="text-base font-bold text-white mt-5 mb-1">{line.replace(/^## /, "")}</h3>;
-                          if (line.startsWith("### ")) return <h4 key={i} className="text-sm font-semibold text-orange-300 mt-3 mb-0.5">{line.replace(/^### /, "")}</h4>;
-                          if (line.startsWith("**") && line.endsWith("**")) return <p key={i} className="text-sm font-semibold text-slate-200">{line.replace(/\*\*/g, "")}</p>;
-                          if (/^\*\*[^*]+\*\*:/.test(line)) {
-                            const [bold, ...rest] = line.split(":**");
-                            return <p key={i} className="text-sm text-slate-300"><span className="font-semibold text-slate-100">{bold.replace(/\*\*/g, "")}:</span>{rest.join(":**")}</p>;
-                          }
-                          if (line.startsWith("- ")) return <p key={i} className="text-sm text-slate-300 pl-3 border-l border-orange-500/30 my-1">{line.replace(/^- /, "")}</p>;
-                          if (line.startsWith("---")) return <hr key={i} className="border-slate-700 my-3" />;
-                          if (line.startsWith("*") && line.endsWith("*")) return <p key={i} className="text-[11px] text-slate-500 italic">{line.replace(/^\*|\*$/g, "")}</p>;
-                          if (line.trim() === "") return <div key={i} className="h-1" />;
-                          return <p key={i} className="text-sm text-slate-300 leading-relaxed">{line}</p>;
-                        })}
+                      <div className="text-sm text-slate-300 leading-relaxed">
+                        <ChatMarkdown content={newsBriefing} labels={{ copy: t("dev_copy"), copied: t("dev_copied"), downloadCsv: t("gz_download_csv") }} />
                       </div>
                     </div>
                   )}
@@ -2301,7 +2291,7 @@ export default function MercadoPage() {
                   setNewsLoading(true);
                   setNewsError(null);
                   setNewsContent(null);
-                  setChatMessages([]);
+                  setChatMessages([]); setChatError(null);
                   try {
                     const res = await fetch("/api/market-news", {
                       method: "POST",
@@ -2333,17 +2323,8 @@ export default function MercadoPage() {
                       <p className="text-xs text-slate-500">{newsMode === "crypto" ? t("mc_crypto") : t("mc_mtrad")} · {newsDate}</p>
                       <span className="text-xs text-orange-400 font-semibold">🤖 ChainFolioAI</span>
                     </div>
-                    <div className="prose prose-sm prose-invert max-w-none">
-                      {newsContent.split("\n").map((line, i) => {
-                        if (line.startsWith("## ")) {
-                          return <h3 key={i} className="text-base font-bold text-white mt-4 mb-2">{line.replace("## ", "")}</h3>;
-                        }
-                        if (line.startsWith("- ") || line.startsWith("• ")) {
-                          return <p key={i} className="text-sm text-slate-300 pl-3 border-l border-orange-500/30 my-1">{line.replace(/^[-•] /, "")}</p>;
-                        }
-                        if (line.trim() === "") return <div key={i} className="h-1" />;
-                        return <p key={i} className="text-sm text-slate-300 leading-relaxed">{line}</p>;
-                      })}
+                    <div className="text-sm text-slate-300 leading-relaxed">
+                      <ChatMarkdown content={newsContent} labels={{ copy: t("dev_copy"), copied: t("dev_copied"), downloadCsv: t("gz_download_csv") }} />
                     </div>
                   </div>
 
@@ -2392,6 +2373,8 @@ export default function MercadoPage() {
                       </div>
                     )}
 
+                    {chatError && <ErrorNote>{chatError}</ErrorNote>}
+
                     {/* Input */}
                     <form
                       onSubmit={async (e) => {
@@ -2401,25 +2384,27 @@ export default function MercadoPage() {
                         const newMessages: ChatMsg[] = [...chatMessages, { role: "user", content: q }];
                         setChatMessages(newMessages);
                         setChatInput("");
+                        setChatError(null);
                         setChatLoading(true);
                         setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
                         try {
                           const res = await fetch("/api/market-chat", {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
+                            // O briefing já não vai no pedido: o servidor usa o da sua cache.
                             body: JSON.stringify({
-                              briefing: newsContent,
                               mode: newsMode,
-                              messages: newMessages,
+                              messages: newMessages.slice(-8),
                               nickname: loadNickname() || undefined,
                               lang,
                             }),
                           });
-                          const data = await res.json() as { reply?: string; error?: string };
-                          const reply = data.reply ?? data.error ?? t("mc_err_response");
+                          const data = await res.json().catch(() => ({})) as { reply?: string; error?: string };
+                          if (!res.ok || !data.reply) { setChatError(data.error ?? t("mc_err_response")); return; }
+                          const reply = data.reply;
                           setChatMessages(prev => [...prev, { role: "assistant", content: reply }]);
                         } catch {
-                          setChatMessages(prev => [...prev, { role: "assistant", content: t("mc_err_conn") }]);
+                          setChatError(t("mc_err_conn"));
                         } finally {
                           setChatLoading(false);
                           setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);

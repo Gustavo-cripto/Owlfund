@@ -2,110 +2,76 @@ import { NextResponse } from "next/server";
 import { activeSubscribers, type Plan } from "@/lib/api/entitlement";
 import { generateAiText } from "@/lib/ai/groq";
 import { createClient } from "@supabase/supabase-js";
-import { NO_ADVICE_RULE } from "@/lib/ai/disclaimer";
 import { verifyCronAuth } from "@/lib/api/cron-auth";
 import { esc, fmtDate, FROM_BRIEFING, sendEmail } from "@/lib/email";
 import type { Lang } from "@/lib/i18n/translations";
 import { langFromMetadata, resolveLang, signupLangByEmail } from "@/lib/user/lang";
 import { sendTelegram, tgEsc } from "@/lib/notify/telegram";
-import { cgFetch } from "@/lib/market/coingecko";
-import { getGlobalMarket } from "@/lib/api/market";
-import { precosOkx24h } from "@/lib/market/okxSpot";
+import { dadosCripto } from "@/lib/ai/briefingMercado";
+import { lerNoticias } from "@/lib/news/feeds";
+import { promptEmailCripto, promptEmailMacro, tituloMacro, type DadosCripto, type DadosTradicional } from "@/lib/ai/promptsMercado";
 import { mascararEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const COINGECKO_IDS: Record<string, string> = {
-  BTC: "bitcoin", ETH: "ethereum", SOL: "solana",
-  BNB: "binancecoin", ADA: "cardano", XRP: "ripple",
-};
-
-// O CoinGecko vai SEMPRE pelo cgFetch (lote F): chave Demo — sem ela conta no
-// IP partilhado da Vercel —, cache mínima por tipo de pedido e travão após 429.
-async function fetchJson<T>(url: string): Promise<T | null> {
-  try {
-    const res = url.startsWith("https://api.coingecko.com/")
-      ? await cgFetch(url, { signal: AbortSignal.timeout(6000) })
-      : await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(6000) });
-    if (!res.ok) return null;
-    return await res.json() as T;
-  } catch { return null; }
-}
-
-type PriceData = Record<string, { usd: number; usd_24h_change: number }>;
-
 // Tudo o que o email diz por si (fora do texto da IA), nas 4 linguas.
-const L: Record<Lang, { in: string; crypto: string; trad: string; briefing: string; cta: string; foot: string; unsub: string }> = {
-  pt: { in: "em português europeu", crypto: "Cripto", trad: "Mercado Tradicional", briefing: "Briefing", cta: "Ver Mercado →", foot: "Não constitui aconselhamento financeiro. Para cancelar, vai a", unsub: "Conta → Notificações" },
-  en: { in: "in English", crypto: "Crypto", trad: "Traditional Markets", briefing: "Briefing", cta: "View Markets →", foot: "This is not financial advice. To unsubscribe, go to", unsub: "Account → Notifications" },
-  es: { in: "en español", crypto: "Cripto", trad: "Mercado Tradicional", briefing: "Briefing", cta: "Ver Mercado →", foot: "No constituye asesoramiento financiero. Para cancelar, ve a", unsub: "Cuenta → Notificaciones" },
-  fr: { in: "en français", crypto: "Crypto", trad: "Marchés traditionnels", briefing: "Briefing", cta: "Voir le marché →", foot: "Ceci ne constitue pas un conseil financier. Pour vous désabonner, allez dans", unsub: "Compte → Notifications" },
+const L: Record<Lang, { crypto: string; trad: string; briefing: string; cta: string; foot: string; unsub: string }> = {
+  pt: { crypto: "Cripto", trad: "Mercado Tradicional", briefing: "Briefing", cta: "Ver Mercado →", foot: "Não constitui aconselhamento financeiro. Para cancelar, vai a", unsub: "Conta → Notificações" },
+  en: { crypto: "Crypto", trad: "Traditional Markets", briefing: "Briefing", cta: "View Markets →", foot: "This is not financial advice. To unsubscribe, go to", unsub: "Account → Notifications" },
+  es: { crypto: "Cripto", trad: "Mercado Tradicional", briefing: "Briefing", cta: "Ver Mercado →", foot: "No constituye asesoramiento financiero. Para cancelar, ve a", unsub: "Cuenta → Notificaciones" },
+  fr: { crypto: "Crypto", trad: "Marchés traditionnels", briefing: "Briefing", cta: "Voir le marché →", foot: "Ceci ne constitue pas un conseil financier. Pour vous désabonner, allez dans", unsub: "Compte → Notifications" },
 };
 const BRIEFING_DATE: Intl.DateTimeFormatOptions = { weekday: "long", day: "numeric", month: "long", year: "numeric" };
 
-// `avisos` recebe o que faltou (CoinGecko em 429, por exemplo): o briefing sai
-// na mesma, mas com contexto pobre — e isso tem de chegar ao Telegram.
-async function buildContext(mode: "crypto" | "tradicional", avisos: string[] = []): Promise<string> {
-  if (mode === "tradicional") return "Análise de mercado tradicional: foca em contexto macro, Fed, inflação e tendências setoriais.";
+type Dados = { mode: "crypto"; d: DadosCripto } | { mode: "tradicional"; manchetes: DadosTradicional["manchetes"] };
 
-  const ids = Object.values(COINGECKO_IDS).join(",");
-  let prices = await fetchJson<PriceData>(
-    `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`
-  );
-  if (!prices) {
-    // Plano B: OKX (src/lib/market/okxSpot.ts). Era a unica chamada de precos
-    // sem reserva; a 28/09/2026 o email das 08:36 saiu sem precos nenhuns.
-    prices = await precosOkx24h(COINGECKO_IDS);
-    // De proposito NAO entra nos `avisos` quando a OKX cobre: o briefing saiu
-    // completo, e chamar-lhe "problema" treinava-nos a ignorar o alarme. O
-    // CoinGecko em baixo ja e dito pelo /api/status e pelo site-noturno.
-    if (prices) console.warn("[briefing] CoinGecko sem precos — usei a OKX");
-  }
-  // Global partilhado com /api/v1/global: cache 30 min e CoinPaprika de reserva.
-  const global = await getGlobalMarket();
-  type FG = { data: { value: string; value_classification: string }[] };
-  const fg = await fetchJson<FG>("https://api.alternative.me/fng/?limit=1");
-  if (!prices) avisos.push("contexto pobre: sem precos (CoinGecko e OKX sem resposta)");
-  if (!global.source) avisos.push("contexto pobre: CoinGecko e CoinPaprika global sem resposta");
-
-  const lines: string[] = [];
-  if (prices) {
-    for (const [sym, id] of Object.entries(COINGECKO_IDS)) {
-      const p = prices[id];
-      if (!p) continue;
-      const sign = p.usd_24h_change >= 0 ? "+" : "";
-      lines.push(`${sym}: $${p.usd.toLocaleString("en-US", { maximumFractionDigits: 2 })} (${sign}${p.usd_24h_change?.toFixed(2)}% 24h)`);
+// Dados reais de cada modo, ou null quando não há o mínimo para um email honesto
+// (auditoria 8 out 2026, mercado-09): cripto sem preços NÃO sai; o tradicional
+// só sai com manchetes reais dos feeds de economia, como "Contexto macro (sem
+// cotações do dia)". O motivo vai para `avisos` (chega ao Telegram).
+async function buildDados(mode: "crypto" | "tradicional", avisos: string[] = []): Promise<Dados | null> {
+  if (mode === "tradicional") {
+    const manchetes = await lerNoticias({ tipo: "macro", max: 15 }).catch(() => []);
+    if (!manchetes.length) {
+      avisos.push("tradicional: sem manchetes de economia (feeds sem resposta) — email não enviado");
+      return null;
     }
+    return { mode, manchetes };
   }
-  if (global.totalMarketCapUsd != null) {
-    lines.push(`Cap total: $${(global.totalMarketCapUsd / 1e12).toFixed(2)}T (${global.marketCapChange24h?.toFixed(2)}% 24h)`);
-    if (global.btcDominance != null) lines.push(`Dominância BTC: ${global.btcDominance.toFixed(1)}%`);
+  // Mesmos dados do briefing do site: CoinGecko com a OKX de reserva (a OKX a
+  // cobrir NÃO é aviso: o briefing sai completo), global com CoinPaprika de reserva.
+  const d = await dadosCripto();
+  if (!d.precos.length) {
+    avisos.push("cripto: sem precos (CoinGecko e OKX sem resposta) — email não enviado");
+    return null;
   }
-  if (fg?.data?.[0]) lines.push(`Fear & Greed: ${fg.data[0].value}/100 — ${fg.data[0].value_classification}`);
-  return lines.join("\n");
+  if (!d.global) avisos.push("contexto pobre: CoinGecko e CoinPaprika global sem resposta");
+  return { mode, d };
 }
 
 // Devolve null em falha — o caller NUNCA envia email com texto de erro.
-async function generateBriefing(mode: "crypto" | "tradicional", context: string, lang: Lang): Promise<string | null> {
+async function generateBriefing(dados: Dados, lang: Lang): Promise<string | null> {
   const today = new Date().toISOString().split("T")[0];
-  // O pedido fica em portugues (a IA segue-o bem); so a lingua DO TEXTO muda.
-  const prompt = (mode === "crypto"
-    ? `Briefing diário de mercado cripto, escrito ${L[lang].in}. Data: ${today}.\n\nDados reais:\n${context}\n\nEscreve um briefing conciso com: Resumo, Destaques (bullets), Análise BTC/ETH/SOL, Fear & Greed e Perspetiva 24h (descritiva: cenários e riscos, sem recomendações). Usa APENAS os preços fornecidos. Todo o texto, incluindo títulos, ${L[lang].in}.`
-    : `Briefing diário de mercado tradicional, escrito ${L[lang].in}. Data: ${today}.\n\nEscreve um briefing com: Resumo Macro, Destaques, Análise setorial (Tech, Ouro, Índices) e Perspetiva (descritiva). Não inventes cotações específicas. Todo o texto, incluindo títulos, ${L[lang].in}.`)
-    + `\n\n${NO_ADVICE_RULE}`;
+  const prompt = dados.mode === "crypto"
+    ? promptEmailCripto(dados.d, lang, today)
+    : promptEmailMacro(dados.manchetes, lang, today);
   try {
     // Cadeia completa: candidatos Groq (modelos vivos) → OpenAI → xAI.
     const text = await generateAiText({ prompt, maxTokens: 1000, temperature: 0.2 });
     return text || null;
   } catch (err) {
-    console.error(`[briefing:${mode}] geração falhou:`, err instanceof Error ? err.message : err);
+    console.error(`[briefing:${dados.mode}] geração falhou:`, err instanceof Error ? err.message : err);
     return null;
   }
 }
 
-function buildEmailHtml(briefing: string, mode: string, date: string, lang: Lang): string {
+/** Título do email: o tradicional diz claramente que não traz cotações. */
+const tituloEmail = (mode: "crypto" | "tradicional", lang: Lang) =>
+  mode === "crypto" ? `${L[lang].briefing} ${L[lang].crypto}` : tituloMacro(lang);
+
+function buildEmailHtml(briefing: string, mode: "crypto" | "tradicional", date: string, lang: Lang): string {
   const l = L[lang];
   // Output da IA é escapado antes de ir para HTML.
   const lines = briefing.split("\n").map((raw) => {
@@ -125,7 +91,7 @@ function buildEmailHtml(briefing: string, mode: string, date: string, lang: Lang
     <div style="text-align:center;margin-bottom:24px">
       <img src="https://chainfolioai.com/chainfolioai-icon.png" alt="ChainFolioAI" width="48" height="48" style="border-radius:12px;object-fit:cover;margin-bottom:8px" />
       <p style="color:#f97316;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;margin:0">ChainFolioAI</p>
-      <h1 style="color:#fff;font-size:22px;margin:8px 0">${l.briefing} ${mode === "crypto" ? l.crypto : l.trad}</h1>
+      <h1 style="color:#fff;font-size:22px;margin:8px 0">${tituloEmail(mode, lang)}</h1>
       <p style="color:#64748b;font-size:12px;margin:0">${date}</p>
     </div>
     <div style="background:#1e293b;border-radius:16px;padding:24px;border:1px solid #334155">
@@ -210,14 +176,16 @@ export async function GET(request: Request) {
   // O briefing é igual para todos na mesma lingua → gera-se UMA vez por
   // modo × lingua em uso (antes: 1 chamada LLM por utilizador). O contexto de
   // mercado (precos) vai buscar-se uma vez por modo.
-  const contexts = new Map<"crypto" | "tradicional", string>();
+  const contexts = new Map<"crypto" | "tradicional", Dados | null>();
   const cache = new Map<string, string | null>();
   const briefingFor = async (mode: "crypto" | "tradicional", lang: Lang) => {
     const key = `${mode}:${lang}`;
     if (!cache.has(key)) {
-      if (!contexts.has(mode)) contexts.set(mode, await buildContext(mode, errors));
-      const b = await generateBriefing(mode, contexts.get(mode) ?? "", lang);
-      if (!b) { console.error(`[briefing] ${key}: IA indisponível — briefing não enviado`); errors.push(`${key}: IA indisponível`); }
+      if (!contexts.has(mode)) contexts.set(mode, await buildDados(mode, errors));
+      const dados = contexts.get(mode) ?? null;
+      // Sem dados reais o email deste modo não sai (o aviso já está em `errors`).
+      const b = dados ? await generateBriefing(dados, lang) : null;
+      if (dados && !b) { console.error(`[briefing] ${key}: IA indisponível — briefing não enviado`); errors.push(`${key}: IA indisponível`); }
       cache.set(key, b ? buildEmailHtml(b, mode, fmtDate(new Date(), lang, BRIEFING_DATE), lang) : null);
     }
     return cache.get(key) ?? null;
@@ -230,7 +198,7 @@ export async function GET(request: Request) {
     for (const mode of modes) {
       const html = await briefingFor(mode, lang);
       if (!html) continue;
-      const ok = await sendEmail({ from: FROM_BRIEFING, to: user.email, subject: `${L[lang].briefing} ${mode === "crypto" ? L[lang].crypto : L[lang].trad} — ${fmtDate(new Date(), lang, BRIEFING_DATE)}`, html, tag: "briefing" });
+      const ok = await sendEmail({ from: FROM_BRIEFING, to: user.email, subject: `${tituloEmail(mode, lang)} — ${fmtDate(new Date(), lang, BRIEFING_DATE)}`, html, tag: "briefing" });
       // Email mascarado: os registos da Vercel e o Telegram não guardam dados pessoais.
       if (ok) sent++; else errors.push(`${mascararEmail(user.email)}/${mode}`);
     }
