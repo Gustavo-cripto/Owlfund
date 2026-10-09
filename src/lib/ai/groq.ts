@@ -179,7 +179,13 @@ function* planoDeTentativas(opts: { maxTokens: number; temperature: number; toke
     // próximo modelo Groq. Um 400 de pedido inválido não se corrige trocando de
     // modelo Groq: passa logo ao fornecedor seguinte (antes gastava 3 chamadas).
     for (const model of groqModelCandidates()) {
-      const r = yield { label: "groq", url: GROQ_URL, key: groqKey, model, maxTokens: opts.maxTokens, timeoutMs: 20000, extra: {} };
+      // Os gpt-oss "pensam" e o raciocínio conta para max_tokens: sem esforço
+      // baixo e folga, a resposta visível parava a meio (Assistente IA, 9 out).
+      // A folga só vai até ao teto do pedido no Groq.
+      const pensa = model.startsWith("openai/gpt-oss");
+      const livre = opts.tokensEntrada == null ? 1024 : groqTokenLimit() - opts.tokensEntrada - opts.maxTokens;
+      const folgaGroq = pensa ? Math.max(0, Math.min(1024, livre)) : 0;
+      const r = yield { label: "groq", url: GROQ_URL, key: groqKey, model, maxTokens: opts.maxTokens + folgaGroq, timeoutMs: 20000, extra: pensa ? { reasoning_effort: "low" } : {} };
       if (!r.ok) lastStatus = r.status;
       if (r.ok || !r.modeloInexistente) break;
       console.error(`[ai:groq] modelo "${model}" indisponível — a tentar o próximo candidato`);

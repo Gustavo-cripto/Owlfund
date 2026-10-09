@@ -723,7 +723,8 @@ export default function PortfolioPage() {
       }
       setAiThread((prev) => [...prev, { role: "assistant", content: data.reply ?? "" }]);
       // Fica à vista a caixa de pergunta, logo a seguir à resposta (para continuar a conversa).
-      requestAnimationFrame(() => aiInputRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
+      // Depois de a resposta (tabelas incluídas) estar desenhada, não no mesmo frame.
+      setTimeout(() => aiInputRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }), 250);
     } catch (err) {
       setAiError(userError(err, t("pf_error")));
       setAiThread((prev) => prev.slice(0, -1));

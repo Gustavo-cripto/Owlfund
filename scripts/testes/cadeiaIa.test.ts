@@ -41,6 +41,8 @@ void (async () => {
   let r = await correr([{ status: 404, corpo: "model_not_found" }, { status: 200, conteudo: "resposta" }]);
   ok("modelo Groq inexistente → próximo modelo Groq", r.texto === "resposta" && r.chamadas.map((c) => c.fornecedor).join() === "groq,groq");
 
+  ok("gpt-oss do Groq pede raciocínio baixo", r.chamadas[0].modelo.startsWith("openai/gpt-oss") && r.chamadas[0].raciocinio);
+
   r = await correr([{ status: 400, corpo: "invalid request: bad messages" }, { status: 200, conteudo: "gem" }]);
   ok("400 de pedido inválido no Groq → passa logo ao Gemini", r.texto === "gem" && r.chamadas.map((c) => c.fornecedor).join() === "groq,gemini");
 

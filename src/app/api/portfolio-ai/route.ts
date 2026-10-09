@@ -90,7 +90,7 @@ export async function POST(request: Request) {
     const conversa = cortarHistorico([...anteriores, { role: "user" as const, content: question }], 9_000);
     const mensagens = [{ role: "system" as const, content: system }, ...conversa];
     const reply = await generateAiChat(mensagens, {
-      maxTokens: 1000,
+      maxTokens: 1300,
       temperature: 0.4,
       tokensEntrada: estimarTokens(mensagens.map((x) => x.content).join("\n")),
       prazo: inicio + PRAZO_MS,
