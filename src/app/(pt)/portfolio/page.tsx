@@ -363,6 +363,7 @@ export default function PortfolioPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const aiEndRef = useRef<HTMLDivElement | null>(null);
+  const aiInputRef = useRef<HTMLInputElement | null>(null);
   const [portfolioNote, setPortfolioNote] = useState("");
   const [snapshotCexUsd, setSnapshotCexUsd] = useState(0);
   const [snapshotDefiUsd, setSnapshotDefiUsd] = useState(0);
@@ -721,7 +722,8 @@ export default function PortfolioPage() {
         return;
       }
       setAiThread((prev) => [...prev, { role: "assistant", content: data.reply ?? "" }]);
-      requestAnimationFrame(() => aiEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
+      // Fica à vista a caixa de pergunta, logo a seguir à resposta (para continuar a conversa).
+      requestAnimationFrame(() => aiInputRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
     } catch (err) {
       setAiError(userError(err, t("pf_error")));
       setAiThread((prev) => prev.slice(0, -1));
@@ -2560,8 +2562,8 @@ export default function PortfolioPage() {
               <a href={paymentsFrozen ? "/beta" : "/pricing"} className="font-semibold text-orange-500 underline hover:text-orange-400">{t("pf_ai_pro_cta")}</a>
             </p>
           ) : (<>
-          {/* Sugestões rápidas */}
-          <div className="flex flex-wrap gap-2 mb-4">
+          {/* Sugestões rápidas: só antes de a conversa começar */}
+          {aiThread.length === 0 && <div className="flex flex-wrap gap-2 mb-4">
             {[
               t("pf_q1"),
               t("pf_q2"),
@@ -2576,10 +2578,31 @@ export default function PortfolioPage() {
                 {q}
               </button>
             ))}
-          </div>
+          </div>}
 
+          {/* A conversa por cima e a caixa no fim, para continuar a responder. */}
+          {aiThread.length > 0 && (
+            <div className="keep-dark mb-3 space-y-3 rounded-xl border border-slate-800 bg-slate-900 p-4 text-slate-200">
+              {aiThread.map((m, i) => m.role === "user"
+                ? <p key={i} className="rounded-xl bg-orange-500/15 px-3 py-2 text-sm text-orange-100">{m.content}</p>
+                : (
+                  <div key={i}>
+                    <p className="flex items-center gap-1.5 text-xs text-orange-300/80 font-semibold mb-1"><img src="/chainfolioai-icon-128.webp" alt="" className="h-4 w-4 rounded-full object-cover" /> ChainFolioAI — {t("pfu_ai_assistant")}</p>
+                    <ChatMarkdown content={m.content} labels={{ copy: t("dev_copy"), copied: t("dev_copied"), downloadCsv: t("gz_download_csv") }} />
+                  </div>
+                ))}
+              {aiLoading && <p className="text-xs text-slate-400 animate-pulse">{t("pf_analyzing")}</p>}
+              <div ref={aiEndRef} />
+              {!aiLoading && (
+                <button type="button" onClick={() => { setAiThread([]); setAiError(null); }} className="text-[11px] text-slate-500 hover:text-slate-300">
+                  {t("gz_clear")}
+                </button>
+              )}
+            </div>
+          )}
           <div className="flex gap-2">
             <input
+              ref={aiInputRef}
               type="text"
               value={aiQuestion}
               onChange={(e) => setAiQuestion(e.target.value)}
@@ -2602,25 +2625,6 @@ export default function PortfolioPage() {
           </div>
           </>)}
 
-          {aiThread.length > 0 && (
-            <div className="keep-dark mt-4 space-y-3 rounded-xl border border-slate-800 bg-slate-900 p-4 text-slate-200">
-              {aiThread.map((m, i) => m.role === "user"
-                ? <p key={i} className="rounded-xl bg-orange-500/15 px-3 py-2 text-sm text-orange-100">{m.content}</p>
-                : (
-                  <div key={i}>
-                    <p className="flex items-center gap-1.5 text-xs text-orange-300/80 font-semibold mb-1"><img src="/chainfolioai-icon-128.webp" alt="" className="h-4 w-4 rounded-full object-cover" /> ChainFolioAI — {t("pfu_ai_assistant")}</p>
-                    <ChatMarkdown content={m.content} labels={{ copy: t("dev_copy"), copied: t("dev_copied"), downloadCsv: t("gz_download_csv") }} />
-                  </div>
-                ))}
-              {aiLoading && <p className="text-xs text-slate-400 animate-pulse">{t("pf_analyzing")}</p>}
-              <div ref={aiEndRef} />
-              {!aiLoading && (
-                <button type="button" onClick={() => { setAiThread([]); setAiError(null); }} className="text-[11px] text-slate-500 hover:text-slate-300">
-                  {t("gz_clear")}
-                </button>
-              )}
-            </div>
-          )}
           {aiError && (
             <ErrorNote className="mt-3">{aiError}</ErrorNote>
           )}
