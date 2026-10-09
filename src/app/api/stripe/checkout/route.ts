@@ -5,6 +5,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getStripe } from "@/lib/stripe";
 import { isFounder } from "@/lib/beta/founder";
+import { sendTelegram, tgEsc } from "@/lib/notify/telegram";
 
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL ??
@@ -68,14 +69,23 @@ export async function POST(request: Request) {
 
   // Preço de fundador (beta testers): usa os price IDs STRIPE_FOUNDER_* quando
   // existirem (Pro €9,99 / Premium €19, vitalício). Sem eles, cai no preço normal
-  // e fica registado no log — para o Gustavo criar os preços no Stripe.
+  // e fica registado no log + aviso ao admin no Telegram, para criar os preços no Stripe.
   const founder = await isFounder(user.id);
   const founderPrice = founder
     ? (plan === "premium"
         ? (annual ? process.env.STRIPE_FOUNDER_PREMIUM_PRICE_ID_ANNUAL : process.env.STRIPE_FOUNDER_PREMIUM_PRICE_ID)
         : (annual ? process.env.STRIPE_FOUNDER_PRO_PRICE_ID_ANNUAL : process.env.STRIPE_FOUNDER_PRO_PRICE_ID))
     : undefined;
-  if (founder && !founderPrice) console.error(`[stripe/checkout] fundador ${user.id} sem STRIPE_FOUNDER_*_PRICE_ID (${plan}/${annual ? "anual" : "mensal"}) — a usar preço normal`);
+  if (founder && !founderPrice) {
+    const falta = plan === "premium"
+      ? (annual ? "STRIPE_FOUNDER_PREMIUM_PRICE_ID_ANNUAL" : "STRIPE_FOUNDER_PREMIUM_PRICE_ID")
+      : (annual ? "STRIPE_FOUNDER_PRO_PRICE_ID_ANNUAL" : "STRIPE_FOUNDER_PRO_PRICE_ID");
+    console.error(`[stripe/checkout] fundador ${user.id} sem ${falta} — a usar preço normal`);
+    // Não recusa o checkout, mas o admin tem de saber: foi prometido o preço de fundador.
+    await sendTelegram(
+      `⚠️ <b>Fundador a pagar o preço normal</b>\n📧 ${tgEsc(user.email ?? user.id)}\n💎 ${plan === "premium" ? "Premium" : "Pro"} ${annual ? "anual" : "mensal"}\n\nFalta <code>${falta}</code> na Vercel; o checkout do Stripe seguiu com o preço normal.`,
+    ).catch(() => false);
+  }
   const priceId = founderPrice ?? (plan === "premium"
     ? (annual
         ? process.env.STRIPE_PREMIUM_PRICE_ID_ANNUAL

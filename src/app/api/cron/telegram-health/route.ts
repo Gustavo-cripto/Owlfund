@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { rateLimitPublic } from "@/lib/api/requireUser";
 import { REPLY_TO, sendEmail, esc } from "@/lib/email";
 import { sendTelegram, tgEsc } from "@/lib/notify/telegram";
-import { checkAndHeal } from "@/lib/notify/telegramWebhook";
+import { checkAndHeal, type HealthResult } from "@/lib/notify/telegramWebhook";
 
 // Mantem o bot de admin sempre a funcionar: verifica o registo do webhook no
 // Telegram e, se estiver desalinhado, volta a registar-o (ver
@@ -27,7 +27,15 @@ export async function GET(request: Request) {
   const limitado = rateLimitPublic(request, "telegram-health", 6);
   if (limitado) return limitado;
 
-  const r = await checkAndHeal();
+  let r: HealthResult;
+  try {
+    r = await checkAndHeal();
+  } catch (e) {
+    // Nao devia acontecer (o tgCall nunca lanca), mas um 500 generico sem
+    // corpo nao diria nada a ninguem.
+    console.error("[telegram-health]", e instanceof Error ? e.message : e);
+    return NextResponse.json({ ok: false, healed: false, reason: "erro interno" }, { status: 500, headers: { "Cache-Control": "no-store" } });
+  }
 
   if (r.healed && podeAvisar()) {
     // Se o webhook estava mal, o envio de mensagens continua a funcionar
@@ -48,8 +56,9 @@ export async function GET(request: Request) {
   // Nunca devolve o url nem mensagens do Telegram: so o estado.
   return NextResponse.json(
     { ok: r.ok, healed: r.healed, ...(r.reason ? { reason: r.reason.split(":")[0].split(" (")[0] } : {}) },
-    // Erro transitorio (timeout do lado do Telegram) nao falha o job: so falha
-    // quando nao ha maneira de reparar.
+    // Erro transitorio (timeout, 5xx ou corpo invalido do Telegram) nao preenche
+    // `error`: nao falha o job nem manda email. So falha quando o Telegram
+    // recusa (token invalido) ou recusa o novo registo.
     { status: r.ok || !r.error ? 200 : 503, headers: { "Cache-Control": "no-store" } },
   );
 }

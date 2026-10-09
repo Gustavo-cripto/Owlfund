@@ -3,7 +3,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { procurarContaPorEmail } from "@/lib/beta/grant";
 import { setFounder, unsetFounder } from "@/lib/beta/founder";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -33,15 +33,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Email inválido." }, { status: 400 });
   }
 
-  // Resolve o user_id pelo email (mesma abordagem do grantTester).
-  const admin = getSupabaseAdmin();
-  let userId: string | null = null;
-  for (let page = 1; page <= 5; page++) {
-    const { data } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
-    const u = data.users.find((x) => (x.email ?? "").toLowerCase() === target);
-    if (u) { userId = u.id; break; }
-    if (data.users.length < 1000) break;
-  }
+  // Resolve o user_id pelo email (o mesmo helper do grantTester). Uma falha da
+  // Auth API e "tenta de novo", nunca "nao tem conta".
+  const conta = await procurarContaPorEmail(target);
+  if (conta.error) return NextResponse.json({ error: conta.error }, { status: 503 });
+  const userId = conta.userId;
   if (!userId) return NextResponse.json({ error: "Este email não tem conta." }, { status: 404 });
 
   const res = body.founder === false ? await unsetFounder(userId) : await setFounder(userId);
