@@ -9,6 +9,9 @@ import { NETWORK_SHORT, networkKey } from "@/lib/wallets/networkKey";
 import { useState, useEffect, useRef } from "react";
 import { btnPrimary } from "@/lib/ui/buttons";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+
+// Stablecoins em dólar: valem 1 $ sem pedir cotação.
+const STABLES = new Set(["USDC", "USDT", "DAI", "BUSD", "USDE"]);
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -251,8 +254,9 @@ export default function CexSection({
   }, [servidorLido, cexAccounts, hlAccounts, serverCex]);
 
   // "Saldo actualizado enquanto a app esta aberta": de 5 em 5 minutos e sempre
-  // que a pessoa volta ao separador. As contas do servidor releem a cache (que
-  // o cron actualiza de meia em meia hora); as locais vao a exchange.
+  // que a pessoa volta ao separador. As contas do servidor releem a cache (o
+  // GET de /api/cex-keys refresca o que tiver mais de 30 min; o cron diário
+  // das 05:20 UTC cobre quem não abre a app); as locais vao a exchange.
   const cexRef = useRef<CexAccount[]>([]);
   cexRef.current = cexAccounts;
   useEffect(() => {
@@ -276,7 +280,11 @@ export default function CexSection({
   // Fetch prices for all tokens via server-side proxy (avoids CORS)
   useEffect(() => {
     const allSymbols = Array.from(
-      new Set([...cexAccounts.flatMap((a) => a.balances.map((b) => b.asset)), ...serverCex.flatMap((a) => (a.balances ?? []).map((b) => b.asset))])
+      new Set([
+        ...cexAccounts.flatMap((a) => a.balances.map((b) => b.asset)),
+        ...serverCex.flatMap((a) => (a.balances ?? []).map((b) => b.asset)),
+        ...hlAccounts.flatMap((a) => a.spotBalances.map((b) => b.coin)),
+      ])
     );
     if (allSymbols.length === 0) return;
 
@@ -286,7 +294,7 @@ export default function CexSection({
         if (d.prices) setTokenPricesUsd(d.prices);
       })
       .catch(() => {});
-  }, [cexAccounts, serverCex]);
+  }, [cexAccounts, serverCex, hlAccounts]);
 
   const refreshAccount = (acc: CexAccount) => {
     setCexAccounts((prev) => prev.map((a) => a.id === acc.id ? { ...a, loading: true, error: undefined } : a));
@@ -314,6 +322,10 @@ export default function CexSection({
 
   const accountUsd = (balances: CexBalance[]) =>
     balances.reduce((s, b) => s + b.total * (tokenPricesUsd[b.asset] ?? 0), 0);
+  // Spot da Hyperliquid: cada moeda ao seu preço (antes somava-se a QUANTIDADE
+  // como se cada moeda valesse 1 $, e o total guardado ficava errado).
+  const hlSpotUsd = (balances: HlBalance[]) =>
+    balances.reduce((s, b) => s + (b.total ?? 0) * (STABLES.has(b.coin) ? 1 : (tokenPricesUsd[b.coin] ?? 0)), 0);
 
   useEffect(() => {
     if (!onTotalChange) return;
@@ -323,10 +335,7 @@ export default function CexSection({
     if (cexAccounts.some((a) => a.loading)) return;
     const cexUsd = cexAccounts.reduce((sum, a) => sum + accountUsd(a.balances), 0)
       + serverCex.reduce((sum, a) => sum + accountUsd(a.balances ?? []), 0);
-    const hlUsd = hlAccounts.reduce((sum, a) => {
-      const spot = a.spotBalances.reduce((s, b) => s + (b.total ?? 0), 0);
-      return sum + spot + (a.perpValue ?? 0);
-    }, 0);
+    const hlUsd = hlAccounts.reduce((sum, a) => sum + hlSpotUsd(a.spotBalances) + (a.perpValue ?? 0), 0);
     onTotalChange(cexUsd + hlUsd + venueUsd);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cexAccounts, hlAccounts, serverCex, onTotalChange, tokenPricesUsd, venueUsd]);
@@ -949,7 +958,6 @@ export default function CexSection({
                   )}
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {acc.spotBalances.map((b) => {
-                      const STABLES = new Set(["USDC", "USDT", "DAI", "BUSD", "USDE"]);
                       const priceUsd = STABLES.has(b.coin) ? 1 : (tokenPricesUsd[b.coin] ?? 0);
                       const valueEur = b.total > 0 && priceUsd > 0 ? b.total * priceUsd * usdToEur : null;
                       return (
@@ -969,7 +977,6 @@ export default function CexSection({
                     <p className="text-xs text-slate-600">{t("cx_no_balances")}</p>
                   )}
                   {(() => {
-                    const STABLES = new Set(["USDC", "USDT", "DAI", "BUSD", "USDE"]);
                     const spotUsd = acc.spotBalances.reduce((s, b) => {
                       const priceUsd = STABLES.has(b.coin) ? 1 : (tokenPricesUsd[b.coin] ?? 0);
                       return s + (b.total > 0 && priceUsd > 0 ? b.total * priceUsd : 0);

@@ -271,7 +271,10 @@ const SOL_DEFI_TOKENS: Record<string, string> = {
 };
 
 const SOL_RPC = "https://api.mainnet-beta.solana.com";
-const JUPITER_PRICE = "https://price.jup.ag/v6/price";
+// price.jup.ag/v6 deixou de existir (DNS sem resposta, out 2026): a API
+// pública atual é a lite-api v3, que devolve { [mint]: { usdPrice } }.
+const JUPITER_PRICE = "https://lite-api.jup.ag/price/v3";
+type JupiterV3 = Record<string, { usdPrice?: number } | undefined>;
 const STAKE_PROGRAM = "Stake11111111111111111111111111111111111111112";
 const SOL_MINT = "So11111111111111111111111111111111111111112";
 
@@ -302,8 +305,8 @@ async function fetchSolanaStakeAccounts(
       cache: "no-store",
     });
     if (p.ok) {
-      const j = await p.json() as { data?: { [k: string]: { price?: number } } };
-      solPrice = j?.data?.[SOL_MINT]?.price ?? 0;
+      const j = await p.json() as JupiterV3;
+      solPrice = j?.[SOL_MINT]?.usdPrice ?? 0;
     }
   } catch { /* ignore */ }
   if (solPrice <= 0) return { total: 0, positions: [] };
@@ -406,9 +409,9 @@ async function fetchSolanaDefiFromTokenAccounts(
       cache: "no-store",
     });
     if (priceRes.ok) {
-      const priceJson = await priceRes.json() as { data?: Record<string, { price?: number }> };
-      for (const [mint, info] of Object.entries(priceJson?.data ?? {})) {
-        prices[mint] = info?.price ?? 0;
+      const priceJson = await priceRes.json() as JupiterV3;
+      for (const [mint, info] of Object.entries(priceJson ?? {})) {
+        prices[mint] = info?.usdPrice ?? 0;
       }
     }
   } catch { /* use fallback prices */ }

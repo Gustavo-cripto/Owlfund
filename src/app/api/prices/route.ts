@@ -53,17 +53,54 @@ async function fetchYahooQuote(symbol: string): Promise<{ price: number; prevClo
   }
 }
 
+/** Fechos diários (até ~1 mês) de um símbolo no Yahoo: [{ dia AAAA-MM-DD, close }]. */
+async function fetchYahooCloses(symbol: string): Promise<Array<{ dia: string; close: number }>> {
+  try {
+    const res = await fetch(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1mo&interval=1d`,
+      { cache: "no-store", headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(5000) },
+    );
+    if (!res.ok) return [];
+    const json = (await res.json()) as { chart?: { result?: Array<{ timestamp?: number[]; indicators?: { quote?: Array<{ close?: Array<number | null> }> } }> } };
+    const r = json.chart?.result?.[0];
+    const ts = r?.timestamp ?? [];
+    const closes = r?.indicators?.quote?.[0]?.close ?? [];
+    return ts.flatMap((t, i) => {
+      const c = closes[i];
+      return typeof c === "number" && Number.isFinite(c) && c > 0 ? [{ dia: new Date(t * 1000).toISOString().slice(0, 10), close: c }] : [];
+    });
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Variação do ouro em EUR a N dias: fecho de há N dias (ou o último anterior),
+ * convertido com o câmbio EUR/USD desse mesmo dia. null sem histórico.
+ */
+function variacaoOuro(goldEur: number, ouroUsd: Array<{ dia: string; close: number }>, eurUsd: Array<{ dia: string; close: number }>, dias: number): number | null {
+  if (goldEur <= 0 || !ouroUsd.length || !eurUsd.length) return null;
+  const alvo = new Date(Date.now() - dias * 86_400_000).toISOString().slice(0, 10);
+  const ouro = [...ouroUsd].reverse().find((p) => p.dia <= alvo) ?? (dias >= 28 ? ouroUsd[0] : undefined);
+  if (!ouro) return null;
+  const cambio = [...eurUsd].reverse().find((p) => p.dia <= ouro.dia) ?? eurUsd[0];
+  const base = ouro.close / cambio.close;
+  return base > 0 ? pctChange(goldEur, base) : null;
+}
+
 const pctChange = (price: number, prev: number) =>
   price > 0 && prev > 0 ? ((price - prev) / prev) * 100 : 0;
 
 /** S&P 500 (pontos do índice) + ouro em EUR/onça, ambos do Yahoo.
  *  O ouro vinha do id "gold" da CoinGecko, que é um TOKEN cripto (~0,00002 €),
  *  não ouro real — o valor mostrado estava errado por ordens de grandeza. */
-async function fetchMarketBenchmarks(): Promise<Pick<Benchmark, "sp500" | "gold_eur" | "gold_24h">> {
-  const [spx, gold, eurusd] = await Promise.all([
+async function fetchMarketBenchmarks(): Promise<Pick<Benchmark, "sp500" | "gold_eur" | "gold_24h" | "gold_7d" | "gold_30d">> {
+  const [spx, gold, eurusd, ouroHist, cambioHist] = await Promise.all([
     fetchYahooQuote("^GSPC"),
     fetchYahooQuote("GC=F"),   // futuros de ouro, em USD/onça
     fetchYahooQuote("EURUSD=X"),
+    fetchYahooCloses("GC=F"),
+    fetchYahooCloses("EURUSD=X"),
   ]);
   const rate = eurusd.price > 0 ? eurusd.price : 0; // USD por 1 EUR
   const goldEur = gold.price > 0 && rate > 0 ? gold.price / rate : 0;
@@ -73,6 +110,8 @@ async function fetchMarketBenchmarks(): Promise<Pick<Benchmark, "sp500" | "gold_
     gold_eur: goldEur,
     // A variação é a mesma em USD ou EUR quando se usa a mesma taxa nos dois lados.
     gold_24h: pctChange(goldEur, goldPrevEur),
+    gold_7d: variacaoOuro(goldEur, ouroHist, cambioHist, 7),
+    gold_30d: variacaoOuro(goldEur, ouroHist, cambioHist, 30),
   };
 }
 
@@ -242,9 +281,8 @@ export async function GET(request: Request) {
         eth_30d: benchmark.eth_30d ?? ethVar.d30,
         gold_eur: market.gold_eur,
         gold_24h: market.gold_24h,
-        // 7d/30d do ouro exigiriam historico; null (o ecra mostra "—") em vez de 0.
-        gold_7d: null,
-        gold_30d: null,
+        gold_7d: market.gold_7d,
+        gold_30d: market.gold_30d,
       };
       const body = rememberGood("prices", { prices, benchmark: fullBenchmark, source: name });
       return NextResponse.json(body, {

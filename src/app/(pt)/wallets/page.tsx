@@ -1200,8 +1200,8 @@ export default function WalletsPage() {
   const stablecoinTotalEur = useMemo(
     () =>
       stablecoinEntries.reduce((sum, e) => {
-        const v = parseFloat(stablecoinBalances[e.id] ?? e.balance ?? "0");
-        if (!Number.isFinite(v)) return sum;
+        // "—" (falha) não é saldo: cai no guardado, como nas outras carteiras.
+        const v = valorDoSaldo(stablecoinBalances[e.id], e.balance);
         return sum + (e.symbol.toUpperCase() === "EURC" ? v : v * usdToEurRate);
       }, 0),
     [stablecoinEntries, stablecoinBalances, usdToEurRate],
@@ -2634,7 +2634,8 @@ export default function WalletsPage() {
         });
       } catch {
         startTransition(() => {
-          setStablecoinBalances((prev) => ({ ...prev, [entryId]: "—" }));
+          // Uma falha de leitura não apaga o último saldo bom (regra "saldo nunca a 0 por falha").
+          setStablecoinBalances((prev) => aposFalha(prev, entryId));
           setStablecoinBalancesLoading((prev) => ({ ...prev, [entryId]: false }));
         });
       }
