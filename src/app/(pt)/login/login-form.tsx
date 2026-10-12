@@ -17,6 +17,7 @@ import { isPhantomAvailable } from "@/lib/wallets/solana";
 import { userError } from "@/lib/ui/userError";
 import { useTurnstile } from "@/components/Turnstile";
 import { origemDoCookie } from "@/lib/origem";
+import { pageUrl } from "@/lib/i18n/routes";
 
 // Canal do primeiro toque (cookie cfa-src do middleware): vai nos metadados da
 // conta logo na criação. Antes só ficava se o cliente voltasse a abrir o site
@@ -370,7 +371,7 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
       </div>
 
       <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-6 px-6 py-12">
-        <Link className="mx-auto text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 transition hover:text-slate-200" href={toBeta ? "/beta" : "/"}>
+        <Link className="mx-auto text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 transition hover:text-slate-200" href={toBeta ? pageUrl("beta", lang) : pageUrl("home", lang)}>
           {toBeta ? `← ${t("nav_beta_signup")}` : t("legal_back_home")}
         </Link>
 
