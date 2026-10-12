@@ -16,6 +16,16 @@ import { isMetaMaskAvailable } from "@/lib/wallets/evm";
 import { isPhantomAvailable } from "@/lib/wallets/solana";
 import { userError } from "@/lib/ui/userError";
 import { useTurnstile } from "@/components/Turnstile";
+import { origemDoCookie } from "@/lib/origem";
+
+// Canal do primeiro toque (cookie cfa-src do middleware): vai nos metadados da
+// conta logo na criação. Antes só ficava se o cliente voltasse a abrir o site
+// com sessão no mesmo browser, e quem confirmava o email noutro aparelho ficava
+// "(direto)". O mesmo cookie é lido no servidor para Google/Apple (callback).
+const metadadosNovaConta = (lang: string): Record<string, string> => {
+  const src = typeof document === "undefined" ? "" : origemDoCookie(document.cookie);
+  return src ? { lang, src } : { lang };
+};
 
 export type LoginFormProps = {
   nextParam: string | null;
@@ -201,7 +211,7 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
       marcarEvento("registo");
       const { data, error } = await supabase.auth.signUp({
         ...creds,
-        options: { emailRedirectTo: destinoDoEmail(lang, nextPath), data: { lang }, ...captcha.captcha },
+        options: { emailRedirectTo: destinoDoEmail(lang, nextPath), data: metadadosNovaConta(lang), ...captcha.captcha },
       });
       captcha.renovar();
       if (error) { fail(t(mapAuthError(error))); return; }
@@ -263,7 +273,7 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email: nextEmail,
-        options: { shouldCreateUser: true, emailRedirectTo: destinoDoEmail(lang, nextPath), data: { lang }, ...captcha.captcha },
+        options: { shouldCreateUser: true, emailRedirectTo: destinoDoEmail(lang, nextPath), data: metadadosNovaConta(lang), ...captcha.captcha },
       });
       captcha.renovar();
       if (error) { setMagicMsg({ text: t(mapAuthError(error)), error: true }); return; }

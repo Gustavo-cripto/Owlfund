@@ -8,6 +8,7 @@ import { COOKIE_NEXT } from "@/lib/auth/emailRedirect";
 import { COOKIE_LANG, contaSemCarteiras, langDoPedido } from "@/lib/auth/contaNova";
 import { pageUrl } from "@/lib/i18n/routes";
 import { COOKIE_RECUPERACAO, RECUPERACAO_MAX_AGE, destinoDaConfirmacao } from "@/lib/auth/recuperacao";
+import { origemDoCookie } from "@/lib/origem";
 import { eDoProprioSite } from "@/lib/auth/proprioSite";
 
 // Confirmacao de email e ligacao magica por `token_hash` (modelos em
@@ -53,6 +54,19 @@ function paginaDeConfirmacao(lang: LangPag, type: string, action: string): NextR
   return new NextResponse(html, { status: 200, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
 }
 
+
+/**
+ * Canal do primeiro toque na conta, uma única vez: lê o cookie cfa-src do
+ * pedido e grava user_metadata.src se ainda não existir. Nunca falha o login.
+ */
+async function gravarOrigemNaConta(req: Request, supabase: { auth: { updateUser: (a: { data: Record<string, string> }) => Promise<unknown> } }, user: { user_metadata?: Record<string, unknown> } | null | undefined): Promise<void> {
+  try {
+    if (!user || typeof user.user_metadata?.src === "string") return;
+    const src = origemDoCookie(req.headers.get("cookie"));
+    if (src) await supabase.auth.updateUser({ data: { src } });
+  } catch { /* a origem é só estatística; o login segue */ }
+}
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const tokenHash = url.searchParams.get("token_hash") ?? "";
@@ -96,6 +110,7 @@ export async function POST(request: Request) {
       return paraLogin(/expired|otp_expired/i.test(`${error.code ?? ""} ${error.message}`) ? "expired" : "confirm");
     }
     uid = sessao?.user?.id ?? "";
+    await gravarOrigemNaConta(request, supabase, sessao?.user);
     // Passo do funil que faltava: o email foi confirmado (pagina_inicial →
     // cta → registo → email_confirmado → conta com carteira). Sem dados pessoais.
     if (type !== "recovery" && type !== "email_change" && uid) {

@@ -33,3 +33,9 @@ export const redeDe = (origem: string): string => origem.split(".")[0];
 
 /** Padrão para ler a origem de um cookie ou nota, já com a campanha. */
 export const ORIGEM_PADRAO = "[A-Za-z0-9_-]{1,40}(?:\\.[A-Za-z0-9_-]{1,39})?";
+
+/** A origem guardada no cookie cfa-src (cabeçalho Cookie ou document.cookie); "" sem cookie. */
+export function origemDoCookie(cookie: string | null | undefined): string {
+  const m = new RegExp(`(?:^|;\\s*)cfa-src=(${ORIGEM_PADRAO})(?:;|$)`).exec(cookie ?? "");
+  return m ? limparOrigem(m[1]) : "";
+}

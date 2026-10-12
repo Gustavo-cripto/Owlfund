@@ -4,6 +4,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { sanitizeNext } from "@/lib/auth/redirects";
 import { COOKIE_NEXT } from "@/lib/auth/emailRedirect";
 import { COOKIE_LANG, contaSemCarteiras, langDoPedido } from "@/lib/auth/contaNova";
+import { origemDoCookie } from "@/lib/origem";
 import { pageUrl } from "@/lib/i18n/routes";
 
 // Callback do Supabase para o fluxo PKCE (`?code=`): OAuth Google e os emails
@@ -17,6 +18,19 @@ import { pageUrl } from "@/lib/i18n/routes";
 // - Erros do Supabase (`?error=access_denied&error_code=otp_expired`, links
 //   abertos noutro browser sem o code_verifier PKCE, código já usado) deixam de
 //   ser engolidos: vão para /login?error=… com mensagem e botão de reenvio.
+
+/**
+ * Canal do primeiro toque na conta, uma única vez: lê o cookie cfa-src do
+ * pedido e grava user_metadata.src se ainda não existir. Nunca falha o login.
+ */
+async function gravarOrigemNaConta(req: Request, supabase: { auth: { updateUser: (a: { data: Record<string, string> }) => Promise<unknown> } }, user: { user_metadata?: Record<string, unknown> } | null | undefined): Promise<void> {
+  try {
+    if (!user || typeof user.user_metadata?.src === "string") return;
+    const src = origemDoCookie(req.headers.get("cookie"));
+    if (src) await supabase.auth.updateUser({ data: { src } });
+  } catch { /* a origem é só estatística; o login segue */ }
+}
+
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
@@ -51,6 +65,7 @@ export async function GET(request: Request) {
         return paraLogin("confirm");
       }
       const uid = sessao?.user?.id ?? "";
+      await gravarOrigemNaConta(request, supabase, sessao?.user);
       if (!pediuDestino && uid) {
         try { if (await contaSemCarteiras(getSupabaseAdmin(), uid)) destino = "/wallets"; } catch { /* sem admin: fica o destino normal */ }
       }

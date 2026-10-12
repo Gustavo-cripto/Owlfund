@@ -1,4 +1,4 @@
-import { limparOrigem, origemDoUrl, redeDe } from "@/lib/origem";
+import { limparOrigem, origemDoCookie, origemDoUrl, redeDe } from "@/lib/origem";
 let fails = 0;
 const eq = (name: string, got: string, want: string) => {
   const ok = got === want;
@@ -16,4 +16,11 @@ eq("40 caracteres no total", u(`src=${"r".repeat(30)}&campanha=${"c".repeat(30)}
 eq("limpar valor gravado", limparOrigem("bluesky.isencao;x"), "bluesky.isencaox");
 eq("limpar não string", limparOrigem(42), "");
 eq("rede de bluesky.isencao", redeDe("bluesky.isencao"), "bluesky");
+
+eq("cookie: rede.campanha", origemDoCookie("a=b; cfa-src=bluesky-marca.aud; c=d"), "bluesky-marca.aud");
+eq("cookie: só rede", origemDoCookie("cfa-src=threads"), "threads");
+eq("cookie: ausente", origemDoCookie("a=b") + origemDoCookie(null), "");
+eq("cookie: não confunde prefixo", origemDoCookie("xcfa-src=yt"), "");
+eq("cookie: lixo recusado", origemDoCookie("cfa-src=<script>"), "");
+
 if (fails) { console.error(`${fails} falha(s)`); process.exit(1); }
