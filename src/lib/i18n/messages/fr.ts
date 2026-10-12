@@ -2693,7 +2693,7 @@ export const fr: Record<TranslationKey, string> = {
     lp_cmp_r6_c: "Toujours",
 
     // ── Légal (partagé) ──
-    legal_draft: "Ceci est un document de base et ne constitue pas un conseil juridique. À revoir avec un avocat avant la publication finale.",
+    legal_draft: "Ceci est un document de base et ne constitue pas un conseil juridique.",
     legal_updated: "Dernière mise à jour",
     legal_privacy_short: "Confidentialité",
     legal_terms_short: "Conditions",
@@ -2758,7 +2758,7 @@ export const fr: Record<TranslationKey, string> = {
     pp_s8_h: "Contact",
     pp_s8_b: "Pour toute question de confidentialité, contactez-nous à suporte@chainfolioai.com.",
     pp_s9_h: "Cookies",
-    pp_s9_b: "Nous utilisons des cookies essentiels pour maintenir votre session ouverte (authentification via Supabase) — sans eux la plateforme ne fonctionne pas. Nous conservons aussi un cookie propre nommé « cfa-src », pendant 30 jours, qui contient uniquement le nom du canal par lequel vous êtes arrivé et, le cas échéant, de la campagne (par exemple « reddit » ou « bluesky.exoneration »), afin de savoir quelle diffusion fonctionne ; il ne contient aucun identifiant vous concernant. Pour les statistiques d'utilisation, nous utilisons Vercel Analytics et un journal qui nous est propre des pages visitées et de quelques étapes du parcours (par exemple, utiliser la démonstration ou envoyer l'inscription) : les deux n'enregistrent que l'adresse de la page et l'origine, sans cookie, sans adresse IP et sans rien qui vous identifie. Nous n'utilisons pas de cookies publicitaires ni de traqueurs tiers (Google Analytics, Meta Pixel et similaires).",
+    pp_s9_b: "Nous utilisons des cookies essentiels pour maintenir votre session ouverte (authentification via Supabase) — sans eux la plateforme ne fonctionne pas. Nous conservons aussi trois cookies qui nous sont propres, aucun ne contenant d'identifiant vous concernant : « cfa-lang » (un an) mémorise la langue que vous avez choisie ; « cfa-src » (30 jours) contient uniquement le nom du canal par lequel vous êtes arrivé et, le cas échéant, de la campagne (par exemple « reddit » ou « bluesky.exoneration »), afin de savoir quelle diffusion fonctionne ; « cfa-ev » (24 heures) est un sceau technique avec l'heure à laquelle vous avez chargé une page et une signature de cette heure, qui sert uniquement à ce que notre journal d'utilisation accepte les événements venant d'un navigateur ayant ouvert le site et refuse les envois automatisés — il ne contient aucune donnée vous concernant et ne permet pas de vous suivre d'une visite à l'autre. Pour les statistiques d'utilisation, nous utilisons Vercel Analytics et un journal qui nous est propre des pages visitées et de quelques étapes du parcours (par exemple, utiliser la démonstration ou envoyer l'inscription) : les deux n'enregistrent que l'adresse de la page et l'origine, sans adresse IP et sans rien qui vous identifie. Nous n'utilisons pas de cookies publicitaires ni de traqueurs tiers (Google Analytics, Meta Pixel et similaires).",
     // ── Conditions d'Utilisation ──
     tp_title: "Conditions d'Utilisation",
     tp_intro: "En utilisant ChainFolioAI, vous acceptez ces conditions. Veuillez les lire attentivement.",

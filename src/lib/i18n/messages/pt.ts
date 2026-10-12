@@ -2708,7 +2708,7 @@ export const pt = {
     lp_cmp_r6_c: "Sempre",
 
     // ── Legal (partilhado) ──
-    legal_draft: "Este é um documento base e não constitui aconselhamento jurídico. Rever com um advogado antes da publicação final.",
+    legal_draft: "Este é um documento base e não constitui aconselhamento jurídico.",
     legal_updated: "Última atualização",
     legal_privacy_short: "Privacidade",
     legal_terms_short: "Termos",
@@ -2773,7 +2773,7 @@ export const pt = {
     pp_s8_h: "Contacto",
     pp_s8_b: "Para questões de privacidade, contacta-nos em suporte@chainfolioai.com.",
     pp_s9_h: "Cookies",
-    pp_s9_b: "Usamos cookies essenciais para manter a tua sessão iniciada (autenticação via Supabase) — sem eles a plataforma não funciona. Guardamos também um cookie próprio chamado «cfa-src», durante 30 dias, que contém apenas o nome do canal por onde chegaste e, se houver, da campanha (por exemplo «reddit» ou «bluesky.isencao»), para sabermos que divulgação funciona; não contém nenhum identificador teu. Para estatísticas de utilização usamos o Vercel Analytics e um registo próprio de páginas visitadas e de alguns momentos do percurso (por exemplo, usar a demonstração ou submeter o registo): ambos guardam só o endereço da página e a origem, sem cookie, sem endereço IP e sem nada que te identifique. Não usamos cookies de publicidade nem rastreadores de terceiros (Google Analytics, Meta Pixel e semelhantes).",
+    pp_s9_b: "Usamos cookies essenciais para manter a tua sessão iniciada (autenticação via Supabase) — sem eles a plataforma não funciona. Guardamos ainda três cookies próprios, nenhum deles com identificadores teus: «cfa-lang» (um ano) lembra o idioma que escolheste; «cfa-src» (30 dias) contém apenas o nome do canal por onde chegaste e, se houver, da campanha (por exemplo «reddit» ou «bluesky.isencao»), para sabermos que divulgação funciona; «cfa-ev» (24 horas) é um selo técnico com a hora em que carregaste uma página e uma assinatura dessa hora, que serve só para o registo de utilização aceitar eventos vindos de um browser que abriu o site e recusar envios automáticos — não contém nenhum dado teu nem permite seguir-te entre visitas. Para estatísticas de utilização usamos o Vercel Analytics e um registo próprio de páginas visitadas e de alguns momentos do percurso (por exemplo, usar a demonstração ou submeter o registo): ambos guardam só o endereço da página e a origem, sem endereço IP e sem nada que te identifique. Não usamos cookies de publicidade nem rastreadores de terceiros (Google Analytics, Meta Pixel e semelhantes).",
     // ── Termos de Serviço ──
     tp_title: "Termos de Serviço",
     tp_intro: "Ao usar o ChainFolioAI, concordas com estes termos. Lê-os com atenção.",
