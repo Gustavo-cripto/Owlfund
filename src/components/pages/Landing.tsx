@@ -7,7 +7,7 @@ import { COUNTRIES, TEXT_PREFIX, guideUrl } from "@/lib/tax/countries";
 import { preencherContagens } from "@/lib/api/catalog";
 import { SUPPORTED_CHAINS } from "@/lib/wallets/evm";
 import { useEffect, useState } from "react";
-import { SOCIAL_LINKS } from "@/lib/social";
+import { CRIADO_POR, SOCIAL_LINKS } from "@/lib/social";
 import AppShell from "@/components/AppShell";
 import PnlSummaryCard from "@/components/PnlSummaryCard";
 import PlanBadge from "@/components/PlanBadge";
@@ -726,6 +726,11 @@ export default function Landing() {
                 ))}
               </div>
               <p className="text-xs text-slate-600">© {new Date().getFullYear()} ChainFolioAI · {t("lp_rights")}</p>
+              {/* Autoria, separada das redes da marca e com menos peso (ver src/lib/social.ts). */}
+              <p className="text-[11px] text-slate-700">
+                {t("lp_made_by")} {CRIADO_POR.nome} ·{" "}
+                <a href={CRIADO_POR.href} target="_blank" rel="noopener noreferrer" className="transition hover:text-slate-400">{CRIADO_POR.texto}</a>
+              </p>
             </div>
           </div>
           <p className="mx-auto mt-6 w-full max-w-6xl px-6 text-center text-[11px] text-slate-600">⚠️ {t("lp_disclaimer")}</p>

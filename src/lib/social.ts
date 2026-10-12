@@ -15,3 +15,11 @@ export const SOCIAL_LINKS = [
 
 /** Só os endereços, para o campo `sameAs` do schema.org. */
 export const SOCIAL_URLS: string[] = SOCIAL_LINKS.map((s) => s.href);
+
+/**
+ * Atribuição de autoria, À PARTE das redes da marca (decisão do dono, 12 out 2026):
+ * o canal pessoal do YouTube aparece no rodapé como "criado por", com menos peso
+ * visual, nunca na lista das redes oficiais nem no `sameAs`. O ?src= deixa
+ * registado, do nosso lado, que o clique saiu do rodapé.
+ */
+export const CRIADO_POR = { nome: "Gust_CryptoAi", href: "https://youtube.com/@gust_criptoai?src=site-rodape", texto: "youtube.com/@gust_criptoai" } as const;

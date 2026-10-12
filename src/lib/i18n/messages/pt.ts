@@ -734,6 +734,7 @@ export const pt = {
     lp_try_cta: "Acompanhar esta carteira todos os dias: criar conta grátis",
     lp_try_note: "Valores em tempo real (Alchemy, Helius, mempool.space). Tokens sem preço conhecido ficam de fora. Na conta vês também DeFi, NFTs de 9 redes, PNL e impostos.",
     lp_try_hero_link: "ou experimenta já com um endereço, sem conta ↓",
+    lp_made_by: "Criado por",
     lp_rights: "Todos os direitos reservados",
     lp_follow: "Segue-nos",
     lp_guides_tag: "Guias fiscais",

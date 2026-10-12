@@ -725,6 +725,7 @@ export const es: Record<TranslationKey, string> = {
     lp_try_cta: "Seguir este monedero cada día: crear cuenta gratis",
     lp_try_note: "Valores en tiempo real (Alchemy, Helius, mempool.space). Los tokens sin precio conocido quedan fuera. Con cuenta ves también DeFi, NFTs de 9 redes, PNL e impuestos.",
     lp_try_hero_link: "o pruébalo ya con una dirección, sin cuenta ↓",
+    lp_made_by: "Creado por",
     lp_rights: "Todos los derechos reservados",
     lp_follow: "Síguenos",
     lp_guides_tag: "Guías fiscales",

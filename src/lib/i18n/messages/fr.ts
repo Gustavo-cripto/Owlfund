@@ -725,6 +725,7 @@ export const fr: Record<TranslationKey, string> = {
     lp_try_cta: "Suivre ce portefeuille chaque jour : créer un compte gratuit",
     lp_try_note: "Valeurs en temps réel (Alchemy, Helius, mempool.space). Les jetons sans prix connu sont exclus. Avec un compte, vous avez aussi la DeFi, les NFT de 9 réseaux, le PNL et la fiscalité.",
     lp_try_hero_link: "ou essayez maintenant avec une adresse, sans compte ↓",
+    lp_made_by: "Créé par",
     lp_rights: "Tous droits réservés",
     lp_follow: "Suivez-nous",
     lp_guides_tag: "Guides fiscaux",

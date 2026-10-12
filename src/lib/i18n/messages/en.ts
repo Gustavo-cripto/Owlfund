@@ -725,6 +725,7 @@ export const en: Record<TranslationKey, string> = {
     lp_try_cta: "Track this wallet every day: create a free account",
     lp_try_note: "Live values (Alchemy, Helius, mempool.space). Tokens with no known price are left out. With an account you also get DeFi, NFTs on 9 networks, PNL and taxes.",
     lp_try_hero_link: "or try it now with an address, no account ↓",
+    lp_made_by: "Created by",
     lp_rights: "All rights reserved",
     lp_follow: "Follow us",
     lp_guides_tag: "Tax guides",
