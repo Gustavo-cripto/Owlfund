@@ -40,7 +40,7 @@ const ALLOWED = new Set([
   "account", "beta", "como-funciona", "crypto", "dashboard", "developers", "fire",
   "guias", "guides",
   "fiscalidade", "gestor", "historico", "login", "mercado", "portfolio",
-  "pricing", "privacidade", "reset-password", "smart-money", "termos", "wallets",
+  "pricing", "privacidade", "privacy", "privacidad", "confidentialite", "reset-password", "smart-money", "termos", "terms", "terminos", "conditions", "wallets",
   // Slugs das paginas publicas nos outros idiomas (/en/how-it-works, /fr/tarifs...).
   "how-it-works", "precios", "tarifs", "comment-ca-marche", "feedback",
   // Comparacoes, nas quatro linguas.
@@ -74,7 +74,10 @@ export async function POST(req: NextRequest) {
   try {
     if (!isInternalCall(req)) return new Response(null, { status: 204 });
 
-    const body = (await req.json().catch(() => ({}))) as { path?: unknown; bot?: unknown; src?: unknown };
+    const body = (await req.json().catch(() => ({}))) as { path?: unknown; bot?: unknown; src?: unknown; ref?: unknown };
+    // Domínio do site de onde a pessoa veio (só o domínio, nunca o URL): o
+    // middleware já o reduziu; aqui só se valida o formato (supabase-page-views-ref.sql).
+    const ref = typeof body.ref === "string" && /^[a-z0-9.-]{3,80}$/.test(body.ref) ? body.ref : "";
     const path = typeof body.path === "string" ? body.path : "";
     // O middleware classifica pelo User-Agent; guardamos so a marca, nunca o UA.
     const isBot = body.bot === true;
@@ -96,13 +99,18 @@ export async function POST(req: NextRequest) {
     } catch { /* função ainda não migrada → não perder tracking legítimo */ }
 
     const src = limparOrigem(body.src);
-    if (src) {
-      // A coluna `src` e nova (supabase-page-views-src.sql). Se ainda nao
-      // existir, a visita conta na mesma — so sem origem.
-      const { error } = await admin.from("page_views").insert({ path, is_bot: isBot, src });
-      if (!error) return new Response(null, { status: 204 });
+    // As colunas `src` e `ref` sao posteriores a tabela (supabase-page-views-src.sql,
+    // supabase-page-views-ref.sql). Se alguma ainda nao existir, tenta-se com
+    // menos colunas — a visita conta na mesma, so com menos detalhe.
+    const tentativas: Array<Record<string, unknown>> = [];
+    if (src && ref) tentativas.push({ path, is_bot: isBot, src, ref });
+    if (ref) tentativas.push({ path, is_bot: isBot, ref });
+    if (src) tentativas.push({ path, is_bot: isBot, src });
+    tentativas.push({ path, is_bot: isBot });
+    for (const linha of tentativas) {
+      const { error } = await admin.from("page_views").insert(linha);
+      if (!error) break;
     }
-    await admin.from("page_views").insert({ path, is_bot: isBot });
   } catch {
     /* nunca deixar o tracking quebrar a navegacao */
   }

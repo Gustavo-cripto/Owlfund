@@ -1,6 +1,8 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { pageFromPath } from "@/lib/i18n/routes";
 import { notaAfiliados } from "./notaAfiliados";
 
 // Faixa de parceiros (Ledger & Trezor) no fim de todas as paginas.
@@ -19,7 +21,12 @@ const MARCAS = [
 ] as const;
 
 export default function ParceirosHardware() {
+  // Nas páginas de Termos e Privacidade não se vende nada: é onde a pessoa
+  // decide se confia no site (revisão de 12 out 2026).
+  const pathname = usePathname();
   const { t } = useLanguage();
+  const pagina = pageFromPath(pathname ?? "")?.page;
+  if (pagina === "terms" || pagina === "privacy") return null;
   return (
     <aside aria-labelledby="hw-parceiros" className="keep-dark border-t border-slate-900 bg-slate-950/80">
       <div className="mx-auto w-full max-w-6xl px-6 py-8">

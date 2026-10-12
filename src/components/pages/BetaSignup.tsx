@@ -288,7 +288,7 @@ export default function BetaSignup() {
             <button type="submit" disabled={state === "sending"} className={`${btnPrimary} w-full px-6 py-3 text-base disabled:opacity-60`}>
               {state === "sending" ? t("beta_sending") : temConta ? t("beta_submit_account") : t("beta_submit")}
             </button>
-            <p className="text-center text-[11px] text-slate-600">{t("beta_privacy")} · <Link href="/privacidade" className="underline decoration-dotted">{t("legal_privacy_short")}</Link></p>
+            <p className="text-center text-[11px] text-slate-600">{t("beta_privacy")} · <Link href={pageUrl("privacy", lang)} className="underline decoration-dotted">{t("legal_privacy_short")}</Link></p>
 
             {/* Canal de feedback dos testers — visível já antes da inscrição. */}
             <TelegramCard t={t} />

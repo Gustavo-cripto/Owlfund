@@ -25,8 +25,6 @@ const PAGES: Array<{ path: string; priority: number; changeFrequency: MetadataRo
   { path: "/developers", priority: 0.6, changeFrequency: "monthly", lastModified: DEVELOPERS_LAST_UPDATED },
   { path: "/guias/impostos-cripto", priority: 0.8, changeFrequency: "monthly", lastModified: TAX_GUIDE_DATE_MODIFIED },
   { path: "/guides/crypto-tax", priority: 0.8, changeFrequency: "monthly", lastModified: TAX_GUIDE_DATE_MODIFIED },
-  { path: "/termos", priority: 0.3, changeFrequency: "yearly", lastModified: LEGAL_LAST_UPDATED },
-  { path: "/privacidade", priority: 0.3, changeFrequency: "yearly", lastModified: LEGAL_LAST_UPDATED },
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -49,11 +47,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
   // Uma entrada por pagina publica x idioma (4 x 4 = 16).
   // O login tem endereco e metadata por idioma, mas fica fora do sitemap: nao e
   // destino de pesquisa e nao vale a pena pedir ao Google que indexe quatro.
-  const prioridade: Record<PublicPage, number> = { home: 1.0, beta: 0.9, pricing: 0.9, howItWorks: 0.8, login: 0, feedback: 0, status: 0.3 };
+  const prioridade: Record<PublicPage, number> = { home: 1.0, beta: 0.9, pricing: 0.9, howItWorks: 0.8, login: 0, feedback: 0, status: 0.3, terms: 0.3, privacy: 0.3 };
+  const legal = (page: PublicPage) => page === "terms" || page === "privacy";
   const traduzidas = (Object.keys(PAGE_SLUG) as PublicPage[]).filter((p) => prioridade[p] > 0).flatMap((page) =>
     LANGS.map((lang) => ({
       url: `${SITE_URL}${pageUrl(page, lang)}`,
-      changeFrequency: (page === "howItWorks" ? "monthly" : "weekly") as MetadataRoute.Sitemap[number]["changeFrequency"],
+      ...(legal(page) ? { lastModified: LEGAL_LAST_UPDATED } : {}),
+      changeFrequency: (legal(page) ? "yearly" : page === "howItWorks" ? "monthly" : "weekly") as MetadataRoute.Sitemap[number]["changeFrequency"],
       priority: prioridade[page],
     })),
   );

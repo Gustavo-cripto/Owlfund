@@ -628,7 +628,7 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
         {!showMfa && jaEntrou === null && <GoogleOneTap next={nextPath} pediuDestino={Boolean(nextParam)} />}
 
         <p className="text-center text-xs text-slate-600">
-          {t("lg_terms_1")} <Link href="/termos" className="underline decoration-dotted hover:text-slate-400">{t("legal_terms_short")}</Link> {t("lg_terms_2")} <Link href="/privacidade" className="underline decoration-dotted hover:text-slate-400">{t("legal_privacy_short")}</Link>.
+          {t("lg_terms_1")} <Link href={pageUrl("terms", lang)} className="underline decoration-dotted hover:text-slate-400">{t("legal_terms_short")}</Link> {t("lg_terms_2")} <Link href={pageUrl("privacy", lang)} className="underline decoration-dotted hover:text-slate-400">{t("legal_privacy_short")}</Link>.
         </p>
       </main>
     </div>

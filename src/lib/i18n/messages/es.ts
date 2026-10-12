@@ -2693,6 +2693,8 @@ export const es: Record<TranslationKey, string> = {
     lp_cmp_r6_c: "Siempre",
 
     // ── Legal (compartido) ──
+    legal_prevails: "Esta traducción se ofrece por comodidad; en caso de discrepancia prevalece la versión portuguesa.",
+    legal_prevails_link: "Ver la versión portuguesa",
     legal_draft: "Este es un documento base y no constituye asesoramiento jurídico.",
     legal_updated: "Última actualización",
     legal_privacy_short: "Privacidad",
@@ -2758,7 +2760,7 @@ export const es: Record<TranslationKey, string> = {
     pp_s8_h: "Contacto",
     pp_s8_b: "Para cuestiones de privacidad, contáctanos en suporte@chainfolioai.com.",
     pp_s9_h: "Cookies",
-    pp_s9_b: "Usamos cookies esenciales para mantener tu sesión iniciada (autenticación vía Supabase) — sin ellas la plataforma no funciona. Guardamos además tres cookies propias, ninguna con identificadores tuyos: «cfa-lang» (un año) recuerda el idioma que elegiste; «cfa-src» (30 días) contiene solo el nombre del canal por el que llegaste y, si lo hay, de la campaña (por ejemplo «reddit» o «bluesky.exencion»), para saber qué difusión funciona; «cfa-ev» (24 horas) es un sello técnico con la hora en que cargaste una página y una firma de esa hora, que sirve solo para que el registro de uso acepte eventos procedentes de un navegador que abrió el sitio y rechace envíos automáticos — no contiene ningún dato tuyo ni permite seguirte entre visitas. Para estadísticas de uso usamos Vercel Analytics y un registro propio de páginas visitadas y de algunos momentos del recorrido (por ejemplo, usar la demostración o enviar el registro): ambos guardan solo la dirección de la página y el origen, sin dirección IP y sin nada que te identifique. No usamos cookies publicitarias ni rastreadores de terceros (Google Analytics, Meta Pixel y similares).",
+    pp_s9_b: "Usamos cookies esenciales para mantener tu sesión iniciada (autenticación vía Supabase) — sin ellas la plataforma no funciona. Guardamos además tres cookies propias, ninguna con identificadores tuyos: «cfa-lang» (un año) recuerda el idioma que elegiste; «cfa-src» (30 días) contiene solo el nombre del canal por el que llegaste y, si lo hay, de la campaña (por ejemplo «reddit» o «bluesky.exencion»), para saber qué difusión funciona; «cfa-ev» (24 horas) es un sello técnico con la hora en que cargaste una página y una firma de esa hora, que sirve solo para que el registro de uso acepte eventos procedentes de un navegador que abrió el sitio y rechace envíos automáticos — no contiene ningún dato tuyo ni permite seguirte entre visitas. Para estadísticas de uso usamos Vercel Analytics y un registro propio de páginas visitadas y de algunos momentos del recorrido (por ejemplo, usar la demostración o enviar el registro): ambos guardan solo la dirección de la página, el origen y el dominio del sitio desde el que llegaste (nunca la dirección completa), sin dirección IP y sin nada que te identifique. No usamos cookies publicitarias ni rastreadores de terceros (Google Analytics, Meta Pixel y similares).",
     // ── Términos del Servicio ──
     tp_title: "Términos del Servicio",
     tp_intro: "Al usar ChainFolioAI, aceptas estos términos. Léelos con atención.",

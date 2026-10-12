@@ -1,68 +1,9 @@
-"use client";
+import type { Metadata } from "next";
+import Privacy from "@/components/pages/Privacy";
+import { pageMetadata } from "@/lib/i18n/pageMeta";
 
-import Link from "next/link";
-import AppShell from "@/components/AppShell";
-import { useLanguage } from "@/lib/i18n/LanguageContext";
-import type { TranslationKey } from "@/lib/i18n/translations";
-import { LEGAL_LAST_UPDATED } from "@/lib/seo/site";
+export const metadata: Metadata = pageMetadata("privacy", "pt");
 
-const SECTIONS: { h: TranslationKey; b: TranslationKey }[] = [
-  { h: "pp_s1_h", b: "pp_s1_b" },
-  { h: "pp_s2_h", b: "pp_s2_b" },
-  { h: "pp_s3_h", b: "pp_s3_b" },
-  { h: "pp_s4_h", b: "pp_s4_b" },
-  { h: "pp_s5_h", b: "pp_s5_b" },
-  { h: "pp_s6_h", b: "pp_s6_b" },
-  { h: "pp_s7_h", b: "pp_s7_b" },
-  { h: "pp_s9_h", b: "pp_s9_b" },
-  { h: "pp_s10_h", b: "pp_s10_b" },
-  { h: "pp_s11_h", b: "pp_s11_b" },
-  { h: "pp_s8_h", b: "pp_s8_b" },
-];
-
-// A mesma data que o sitemap anuncia como lastmod (src/lib/seo/site.ts).
-const LAST_UPDATED = LEGAL_LAST_UPDATED;
-
-export default function PrivacyPage() {
-  const { t, lang } = useLanguage();
-  const locale = ({ pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" } as Record<string, string>)[lang] ?? "pt-PT";
-
-  return (
-    <AppShell>
-      <div className="min-h-screen bg-slate-950 text-slate-100">
-        <div className="mx-auto w-full max-w-3xl px-6 py-16">
-          <Link href="/" className="text-sm text-orange-300/90 transition hover:text-orange-200">
-            {t("legal_back_home")}
-          </Link>
-
-          <h1 className="mt-6 text-3xl font-bold text-white md:text-4xl">{t("pp_title")}</h1>
-          <p className="mt-2 text-xs text-slate-500">
-            {t("legal_updated")}: {new Date(LAST_UPDATED + "T12:00:00Z").toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}
-          </p>
-          <p className="mt-6 text-slate-300">{t("pp_intro")}</p>
-
-          <div className="mt-6 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] px-4 py-3 text-sm text-amber-200/90">
-            {t("legal_draft")}
-          </div>
-
-          <div className="mt-10 space-y-8">
-            {SECTIONS.map((s, i) => (
-              <section key={s.h}>
-                <h2 className="text-lg font-bold text-white">
-                  {i + 1}. {t(s.h)}
-                </h2>
-                <p className="mt-2 text-sm leading-relaxed text-slate-400">{t(s.b)}</p>
-              </section>
-            ))}
-          </div>
-
-          <div className="mt-12 border-t border-slate-900 pt-6 text-sm text-slate-500">
-            <a href="/termos" className="transition hover:text-slate-300">
-              {t("legal_terms_short")}
-            </a>
-          </div>
-        </div>
-      </div>
-    </AppShell>
-  );
+export default function Page() {
+  return <Privacy />;
 }

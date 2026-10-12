@@ -131,6 +131,18 @@ const META: Record<PublicPage, Record<Lang, Meta>> = {
     es: { title: "Estado del servicio", description: "Estado en tiempo real de las fuentes de datos de las que depende ChainFolioAI: cotizaciones, blockchain, cambios, acciones y alertas." },
     fr: { title: "État du service", description: "État en temps réel des sources de données dont dépend ChainFolioAI : cours, blockchain, taux de change, actions et alertes." },
   },
+  terms: {
+    pt: { title: "Termos de Serviço", description: "Condições de utilização do ChainFolioAI: conta, planos, limites de responsabilidade e o que a plataforma faz e não faz." },
+    en: { title: "Terms of Service", description: "Terms of use of ChainFolioAI: account, plans, limits of liability and what the platform does and does not do." },
+    es: { title: "Términos de Servicio", description: "Condiciones de uso de ChainFolioAI: cuenta, planes, límites de responsabilidad y lo que la plataforma hace y no hace." },
+    fr: { title: "Conditions d'utilisation", description: "Conditions d'utilisation de ChainFolioAI : compte, offres, limites de responsabilité et ce que la plateforme fait et ne fait pas." },
+  },
+  privacy: {
+    pt: { title: "Política de Privacidade", description: "Que dados o ChainFolioAI trata, porquê, durante quanto tempo, com que subprocessadores e quais são os teus direitos." },
+    en: { title: "Privacy Policy", description: "What data ChainFolioAI processes, why, for how long, with which subprocessors, and what your rights are." },
+    es: { title: "Política de Privacidad", description: "Qué datos trata ChainFolioAI, por qué, durante cuánto tiempo, con qué subencargados y cuáles son tus derechos." },
+    fr: { title: "Politique de confidentialité", description: "Quelles données ChainFolioAI traite, pourquoi, pendant combien de temps, avec quels sous-traitants, et quels sont vos droits." },
+  },
 };
 
 const OG_LOCALE: Record<Lang, string> = {

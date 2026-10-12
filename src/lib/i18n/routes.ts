@@ -11,7 +11,7 @@
 
 import type { Lang } from "./translations";
 
-export type PublicPage = "home" | "pricing" | "howItWorks" | "beta" | "login" | "feedback" | "status";
+export type PublicPage = "home" | "pricing" | "howItWorks" | "beta" | "login" | "feedback" | "status" | "terms" | "privacy";
 
 /** Slug de cada página em cada idioma. "" = raiz do idioma. */
 export const PAGE_SLUG: Record<PublicPage, Record<Lang, string>> = {
@@ -27,6 +27,10 @@ export const PAGE_SLUG: Record<PublicPage, Record<Lang, string>> = {
   feedback: { pt: "feedback", en: "feedback", es: "feedback", fr: "feedback" },
   // Estado das fontes externas ("e comigo ou e o site?").
   status: { pt: "estado", en: "status", es: "estado", fr: "etat" },
+  // Termos e Privacidade por idioma (12 out 2026): um visitante de /en caía nas
+  // páginas legais em português, na altura em que decide se confia no site.
+  terms: { pt: "termos", en: "terms", es: "terminos", fr: "conditions" },
+  privacy: { pt: "privacidade", en: "privacy", es: "privacidad", fr: "confidentialite" },
 };
 
 /** Prefixo do idioma. O português não tem — é o idioma de origem do site. */

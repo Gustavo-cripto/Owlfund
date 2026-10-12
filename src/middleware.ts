@@ -54,6 +54,7 @@ function trackPageView(request: NextRequest, event: NextFetchEvent): void {
       path,
       bot: isBotUserAgent(request.headers.get("user-agent")),
       src: srcFromUrl(request),
+      ref: refDoPedido(request),
     }),
     }).catch(() => {}),
   );
@@ -61,6 +62,21 @@ function trackPageView(request: NextRequest, event: NextFetchEvent): void {
 
 // ?src=… (ou utm_source) e, opcional, ?campanha=… (ou utm_campaign), saneados:
 // "rede" ou "rede.campanha", ate 40 caracteres (src/lib/origem.ts).
+// Domínio do site de onde a visita veio (cabeçalho Referer), e só o domínio:
+// nunca o caminho nem parâmetros. Vazio quando é o próprio site, quando não há
+// referenciador (acesso direto, apps) ou quando o valor não é um domínio.
+function refDoPedido(request: NextRequest): string {
+  try {
+    const raw = request.headers.get("referer");
+    if (!raw) return "";
+    const host = new URL(raw).hostname.toLowerCase().replace(/^www\./, "");
+    if (!host || host === request.nextUrl.hostname.replace(/^www\./, "") || host.endsWith("chainfolioai.com") || host.endsWith(".vercel.app")) return "";
+    return /^[a-z0-9.-]{3,80}$/.test(host) ? host : "";
+  } catch {
+    return "";
+  }
+}
+
 function srcFromUrl(request: NextRequest): string {
   return origemDoUrl(request.nextUrl.searchParams);
 }

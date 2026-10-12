@@ -205,6 +205,10 @@ export async function GET(req: NextRequest) {
     bySource: Array<{ src: string; humans: number; bots: number; count: number }>;
     /** "rede.campanha" (?src=bluesky&campanha=isencao), só as que têm campanha. */
     byCampaign: Array<{ src: string; humans: number; bots: number; count: number }>;
+    /** Domínio do site de onde a visita veio (Referer, só o domínio), 7 dias; "(direto)" = sem referenciador. */
+    byReferrer: Array<{ ref: string; humans: number; bots: number; count: number }>;
+    /** Para cada página do topPaths, de onde vieram as PESSOAS (7 dias). */
+    referrersByPath: Record<string, Array<{ ref: string; humans: number }>>;
   } = {
     last24h: await countOf(head(admin, "page_views").eq("is_bot", false).not("path", "like", "/_ev/%").gte("created_at", ISO(daysAgo(1)))),
     last7d: await countOf(head(admin, "page_views").eq("is_bot", false).not("path", "like", "/_ev/%").gte("created_at", ISO(daysAgo(7)))),
@@ -219,19 +223,23 @@ export async function GET(req: NextRequest) {
     byDay: [],
     bySource: [],
     byCampaign: [],
+    byReferrer: [],
+    referrersByPath: {},
     // Janelas de cada bloco, para quem lê o JSON não ter de adivinhar.
-    windowDays: { topPaths: 7, bottomPaths: 7, bySource: 7, byCampaign: 7, byDay: 14 },
+    windowDays: { topPaths: 7, bottomPaths: 7, bySource: 7, byCampaign: 7, byReferrer: 7, byDay: 14 },
   };
   try {
     // Le TODAS as visitas dos ultimos 14 dias (serve o top de paginas 7d e a serie diaria 14d).
     // NB: o PostgREST devolve no maximo ~1000 linhas por pedido (max-rows) e IGNORA .limit(),
     // por isso paginamos com .range() ate ler tudo — senao os dias recentes ficavam a 0.
-    type Row = { path: string; created_at: string; src?: string | null; is_bot?: boolean | null };
+    type Row = { path: string; created_at: string; src?: string | null; ref?: string | null; is_bot?: boolean | null };
     const data: Row[] = [];
     const PAGE = 1000;
     // `src` e uma coluna nova (supabase-page-views-src.sql). Se ainda nao
     // existir, o pedido falha e repete-se sem ela — as visitas contam na mesma.
-    let colunas = "path, created_at, src, is_bot";
+    // `ref` (supabase-page-views-ref.sql) e mais recente ainda: sem ela, cai para as colunas anteriores.
+    const conjuntos = ["path, created_at, src, ref, is_bot", "path, created_at, src, is_bot", "path, created_at"];
+    let colunas = conjuntos[0];
     for (let from = 0; from < 100000; from += PAGE) {
       let { data: page, error } = await admin
         .from("page_views")
@@ -239,8 +247,8 @@ export async function GET(req: NextRequest) {
         .gte("created_at", ISO(daysAgo(14)))
         .order("created_at", { ascending: true })
         .range(from, from + PAGE - 1);
-      if (error && colunas !== "path, created_at") {
-        colunas = "path, created_at";
+      while (error && conjuntos.indexOf(colunas) < conjuntos.length - 1) {
+        colunas = conjuntos[conjuntos.indexOf(colunas) + 1];
         ({ data: page, error } = await admin
           .from("page_views")
           .select(colunas)
@@ -258,11 +266,18 @@ export async function GET(req: NextRequest) {
     const dayCounts: Record<string, number> = {};
     const dayBots: Record<string, number> = {};
     const srcCounts: Record<string, { humans: number; bots: number }> = {};
+    const refCounts: Record<string, { humans: number; bots: number }> = {};
+    const refPorPath: Record<string, Record<string, number>> = {};
     for (const r of data ?? []) {
       if (r.path.startsWith("/_ev/")) continue; // momentos do funil: contados em `funnel`, nao como paginas
       const iso = String(r.created_at);
       const t = new Date(iso).getTime();
       const day = iso.slice(0, 10);
+      if (t >= sevenAgo) {
+        const ref = r.ref || "(direto)";
+        const c = (refCounts[ref] ??= { humans: 0, bots: 0 });
+        if (r.is_bot) c.bots++; else { c.humans++; (refPorPath[r.path] ??= {})[ref] = ((refPorPath[r.path] ??= {})[ref] ?? 0) + 1; }
+      }
       if (r.is_bot) { dayBots[day] = (dayBots[day] ?? 0) + 1; if (t >= sevenAgo) pathBots[r.path] = (pathBots[r.path] ?? 0) + 1; }
       if (t >= sevenAgo && r.src) {
         const c = (srcCounts[r.src] ??= { humans: 0, bots: 0 });
@@ -291,6 +306,16 @@ export async function GET(req: NextRequest) {
     // ?top=N (1–30, por omissão 5): o stats-bot precisava de mais do que 5 para ver onde as pessoas caem.
     const topN = Math.min(30, Math.max(1, Number(req.nextUrl.searchParams.get("top")) || 5));
     views.topPaths = ranked.slice(0, topN);
+    views.byReferrer = Object.entries(refCounts)
+      .map(([ref, c]) => ({ ref, humans: c.humans, bots: c.bots, count: c.humans + c.bots }))
+      .sort((a, b) => b.humans - a.humans || b.count - a.count)
+      .slice(0, 30);
+    for (const p of views.topPaths) {
+      views.referrersByPath[p.path] = Object.entries(refPorPath[p.path] ?? {})
+        .map(([ref, humans]) => ({ ref, humans }))
+        .sort((a, b) => b.humans - a.humans)
+        .slice(0, 10);
+    }
     // Menos vistas: as com menos visitas (asc), excluindo as que ja estao no top.
     const inTop = new Set(views.topPaths.map((p) => p.path));
     views.bottomPaths = ranked

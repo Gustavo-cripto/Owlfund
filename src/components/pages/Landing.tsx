@@ -705,8 +705,8 @@ export default function Landing() {
               <Link href={compareUrl(lang)} className="transition hover:text-slate-300">{t("lp_compare_tag")}</Link>
               {paymentsFrozen && <Link href={pageUrl("beta", lang)} className="transition hover:text-slate-300">{t("nav_beta")}</Link>}
               <a href="#faq" className="transition hover:text-slate-300">{t("lp_faq_tag")}</a>
-              <Link href="/privacidade" className="transition hover:text-slate-300">{t("legal_privacy_short")}</Link>
-              <Link href="/termos" className="transition hover:text-slate-300">{t("legal_terms_short")}</Link>
+              <Link href={pageUrl("privacy", lang)} className="transition hover:text-slate-300">{t("legal_privacy_short")}</Link>
+              <Link href={pageUrl("terms", lang)} className="transition hover:text-slate-300">{t("legal_terms_short")}</Link>
               <Link href={pageUrl("status", lang)} className="transition hover:text-slate-300">{t("footer_status")}</Link>
               <Link href={pageUrl("login", lang)} className="transition hover:text-slate-300">{t("lp_login")}</Link>
             </div>
