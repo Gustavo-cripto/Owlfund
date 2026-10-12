@@ -340,6 +340,9 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
   const abrirReset = () => {
     setResetOpen((v) => !v);
     if (!resetEmail && email.trim()) setResetEmail(email.trim());
+    // A mensagem da tentativa de entrada ("email ou palavra-passe errados") não
+    // fica ao lado da recuperação: confundia-se com a confirmação do envio.
+    setMessage(null); setIsError(false);
   };
   const handleReset = async () => {
     const nextEmail = resetEmail.trim();
