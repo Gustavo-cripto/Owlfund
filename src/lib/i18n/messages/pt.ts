@@ -1916,6 +1916,7 @@ export const pt = {
     pfu_glossary_title: "O que significa cada indicador",
     pfu_glossary_note: "Nota: as métricas de risco são calculadas a partir dos teus snapshots. Saltos de valor causados por depósitos ou levantamentos (variações acima de ±50% entre snapshots) são ignorados para não distorcer a volatilidade. Quantos mais snapshots tiveres, mais fiáveis ficam.",
     pfu_beta_accum: "Beta vs BTC/S&P 500: a acumular dados — cada snapshot novo guarda a cotação do BTC e do S&P 500; assim que houver capturas suficientes, o Beta aparece aqui automaticamente.",
+    pfu_premium_active: "Plano Premium ativo. Snapshots automáticos a cada 24h.",
     pfu_pro_active: "Plano Pro ativo. Snapshots automáticos a cada 24h.",
     pfu_beta_plan: "Estamos em beta — pede o Premium grátis (60 dias) e fica com snapshots e histórico completos.",
     pfu_free_plan: "Plano Free — snapshots manuais e automáticos disponíveis gratuitamente.",

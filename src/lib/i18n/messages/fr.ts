@@ -1907,6 +1907,7 @@ export const fr: Record<TranslationKey, string> = {
     pfu_glossary_title: "Ce que signifie chaque indicateur",
     pfu_glossary_note: "Note : les métriques de risque sont calculées à partir de vos snapshots. Les sauts de valeur dus aux dépôts ou retraits (variations au-delà de ±50% entre snapshots) sont ignorés pour ne pas fausser la volatilité. Plus vous avez de snapshots, plus elles sont fiables.",
     pfu_beta_accum: "Bêta vs BTC/S&P 500 : accumulation de données — chaque nouveau snapshot enregistre les cours du BTC et du S&P 500 ; dès qu'il y a assez de captures, le Bêta apparaît ici automatiquement.",
+    pfu_premium_active: "Plan Premium actif. Snapshots automatiques toutes les 24h.",
     pfu_pro_active: "Plan Pro actif. Snapshots automatiques toutes les 24h.",
     pfu_beta_plan: "Nous sommes en bêta — demandez le Premium gratuit (60 jours) et profitez des snapshots et de l'historique complets.",
     pfu_free_plan: "Plan Free — snapshots manuels et automatiques disponibles gratuitement.",
