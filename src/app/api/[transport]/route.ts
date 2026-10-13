@@ -340,10 +340,19 @@ const handler = createMcpHandler(
 // Também aceita a chave no cabeçalho `x-api-key`: gateways como o Smithery
 // reservam o `Authorization` para si e não o deixam passar até nós.
 async function verifyToken(req: Request, bearerToken?: string): Promise<AuthInfo | undefined> {
-  const chave = bearerToken || req.headers.get("x-api-key")?.trim() || undefined;
-  if (!chave) return undefined;
+  // Há quem cole "Bearer cfa_live_…" no campo da chave: tira-se o prefixo.
+  const doCabecalho = req.headers.get("x-api-key")?.trim().replace(/^bearer\s+/i, "") || undefined;
+  const chave = bearerToken || doCabecalho;
+  if (!chave) {
+    // Diagnóstico sem a chave: só o que veio (para perceber gateways como o Smithery).
+    console.warn("[mcp] sem chave", { authorization: req.headers.has("authorization"), xApiKey: req.headers.has("x-api-key"), ua: (req.headers.get("user-agent") ?? "").slice(0, 40) });
+    return undefined;
+  }
   const check = await checkApiKey(chave);
-  if (!check.ok) return undefined;
+  if (!check.ok) {
+    console.warn("[mcp] chave recusada", { motivo: check.reason, via: bearerToken ? "authorization" : "x-api-key", formato: /^(cfa|owf)_live_/i.test(chave) ? "prefixo-ok" : "prefixo-errado", tamanho: chave.length });
+    return undefined;
+  }
   return {
     token: chave,
     clientId: check.userId,
