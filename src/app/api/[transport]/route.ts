@@ -363,4 +363,28 @@ async function verifyToken(req: Request, bearerToken?: string): Promise<AuthInfo
 
 const authHandler = withMcpAuth(handler, verifyToken, { required: true });
 
-export { authHandler as GET, authHandler as POST };
+// Descoberta sem chave: apresentar o servidor e listar as ferramentas é público
+// (a mesma informação está em /developers). Diretórios como o Smithery testam o
+// servidor SEM enviar a chave e, com um 401, concluíam que era OAuth e não o
+// listavam. Chamar uma ferramenta (tools/call) continua SEMPRE a exigir chave —
+// também as de mercado, que gastam fornecedores pagos.
+const METODOS_PUBLICOS = new Set([
+  "initialize", "notifications/initialized", "ping",
+  "tools/list", "prompts/list", "resources/list", "resources/templates/list",
+]);
+
+async function mcp(req: Request): Promise<Response> {
+  const temChave = req.headers.has("authorization") || req.headers.has("x-api-key");
+  if (!temChave && req.method === "POST") {
+    const corpo = (await req.clone().json().catch(() => null)) as unknown;
+    const mensagens = Array.isArray(corpo) ? corpo : [corpo];
+    const soDescoberta = mensagens.length > 0 && mensagens.every((m) => {
+      const metodo = (m as { method?: unknown } | null)?.method;
+      return typeof metodo === "string" && METODOS_PUBLICOS.has(metodo);
+    });
+    if (soDescoberta) return handler(req);
+  }
+  return authHandler(req);
+}
+
+export { mcp as GET, mcp as POST };
