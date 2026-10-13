@@ -2,6 +2,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { chronoCompare, computeFifo, parseTrades, type Trade } from "@/lib/portfolios/trades";
 import { metricas, seriePontos, variacoes, type PnlChange, type SnapRow } from "@/lib/api/pnlMath";
 import { daConta } from "@/lib/portfolio/posicao";
+import { semCopiasDoCron } from "@/lib/portfolio/copias";
 import { resumirImposto } from "@/lib/api/taxMath";
 import { realizar, resumoAnualPolaco, type Operacao } from "@/lib/tax/metodos";
 import { estimarImpostoPais, rotuloAnoFiscal, taxaMinima } from "@/lib/tax/regras";
@@ -29,7 +30,7 @@ export type PnlResult = {
   note: string;
 };
 
-type LinhaLeve = { created_at: string; total: unknown; conta: unknown };
+type LinhaLeve = { created_at: string; total: unknown; conta: unknown; copia: unknown; bench: unknown };
 
 /**
  * Série de UM portefólio: o da fotografia mais recente, mais as fotografias
@@ -42,7 +43,7 @@ export async function serieDaContaRecente(userId: string): Promise<{ accountId: 
   const admin = getSupabaseAdmin();
   const { data, error } = await admin
     .from("portfolio_snapshots")
-    .select("created_at, total:data->_totalEur, conta:data->>_account")
+    .select("created_at, total:data->_totalEur, conta:data->>_account, copia:data->_copia, bench:data->_bench")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(400);
@@ -50,9 +51,10 @@ export async function serieDaContaRecente(userId: string): Promise<{ accountId: 
   const linhas = (data ?? []) as LinhaLeve[];
   const recente = linhas[0]?.conta;
   const accountId = typeof recente === "string" && recente !== "" ? recente : null;
-  const rows: SnapRow[] = linhas
-    .map((r) => ({ created_at: r.created_at, data: { _totalEur: r.total, _account: r.conta } }))
-    .filter((r) => daConta(r.data, accountId ?? ""));
+  // Sem as copias do cron (repetem o valor anterior): src/lib/portfolio/copias.ts.
+  const rows: SnapRow[] = semCopiasDoCron(linhas
+    .map((r) => ({ created_at: r.created_at, data: { _totalEur: r.total, _account: r.conta, _copia: r.copia, _bench: r.bench } }))
+    .filter((r) => daConta(r.data, accountId ?? "")));
   return { accountId, rows };
 }
 

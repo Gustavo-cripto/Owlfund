@@ -98,8 +98,10 @@ export async function GET(request: Request) {
     // o valor do portefólio é apenas copiado, guardar um _bench com timestamp
     // novo criaria pontos desalinhados e distorceria o Beta. O Beta usa só os
     // snapshots gravados ao vivo na página (com valor e benchmark reais).
-    const copied = { ...(lastSnapshot[0].data as Record<string, unknown>) };
+    const copied: Record<string, unknown> = { ...(lastSnapshot[0].data as Record<string, unknown>), _copia: true };
     delete copied._bench;
+    // `_copia` diz que isto não é uma medição: as métricas não a contam e a
+    // página grava o valor real na próxima visita (src/lib/portfolio/copias.ts).
     const { error: insertError } = await supabase
       .from("portfolio_snapshots")
       .insert({ user_id: userId, data: copied });

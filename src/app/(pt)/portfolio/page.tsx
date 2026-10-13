@@ -26,6 +26,7 @@ import { getActiveAccountId, listAccounts } from "@/lib/portfolios/accounts";
 import ChatMarkdown from "@/components/ChatMarkdown";
 import { exemploAtivo } from "@/lib/demo/exemplo";
 import { baseDaPosicao, daConta, posicaoAjustada } from "@/lib/portfolio/posicao";
+import { semCopiasDoCron } from "@/lib/portfolio/copias";
 import { getEvmBalance } from "@/lib/wallets/evm";
 import { getSolBalance } from "@/lib/wallets/solana";
 import { getBtcBalanceFromAddress } from "@/lib/wallets/bitcoin";
@@ -832,13 +833,17 @@ export default function PortfolioPage() {
     // "fresco" e o auto-snapshot nunca disparava.
     let activeId = "";
     try { activeId = getActiveAccountId(); } catch { /* ignore */ }
-    const latest = snapshots.find((r) => {
+    // E so as fotografias REAIS: a copia que o cron faz todas as noites contava
+    // como recente e a pagina nunca gravava o valor verdadeiro — o historico
+    // ficava congelado no ultimo valor medido (src/lib/portfolio/copias.ts).
+    // 20 h, como o cron: quem abre todos os dias grava um ponto real por dia.
+    const latest = semCopiasDoCron(snapshots).find((r) => {
       const d = r.data as WalletSnapshot & { _totalEur?: unknown };
       return typeof d._totalEur === "number" && d._totalEur > 0 && daConta(d, activeId);
     });
     const lastSaved = latest ? new Date(latest.created_at).getTime() : 0;
     const hoursSince = (Date.now() - lastSaved) / (1000 * 60 * 60);
-    if (hoursSince >= 24) {
+    if (hoursSince >= 20) {
       handleSaveSnapshot(true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -851,10 +856,11 @@ export default function PortfolioPage() {
   const accountSnapshots = useMemo(() => {
     let active = "";
     try { active = getActiveAccountId(); } catch { /* ignore */ }
-    return snapshots.filter((r) => {
+    // Sem as copias do cron: repetem o valor anterior e nao sao medicoes.
+    return semCopiasDoCron(snapshots.filter((r) => {
       const acc = (r.data as { _account?: string })._account;
       return !acc || acc === active;
-    });
+    }));
   }, [snapshots]);
 
   // Um snapshot com um valor absurdo (ex.: 161 546 $ num portefolio de 3 400 $ —
@@ -934,7 +940,7 @@ export default function PortfolioPage() {
     const oldest = baseDaPosicao(snapshots, activeId);
     // Ganho desde a 1.a fotografia SEM as entradas/saidas de capital (ligar ou
     // remover carteiras, depositos): a mesma conta do Painel, do Block e da API.
-    const ajustada = posicaoAjustada(snapshots, activeId, currentTotal);
+    const ajustada = posicaoAjustada(semCopiasDoCron(snapshots), activeId, currentTotal);
     const position = ajustada ? ajustada.eur : days30;
     const posPct = ajustada ? ajustada.pct : (total30d > 0 ? (days30 / total30d) * 100 : null);
 
