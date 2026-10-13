@@ -909,6 +909,9 @@ export default function PortfolioPage() {
           id: row.id,
           createdAt: new Date(row.created_at).getTime(),
           total,
+          // Medido na altura (_totalEur) ou recalculado com os precos de HOJE
+          // (fotografias antigas): estas valem todas o mesmo entre si.
+          medido: storedTotal != null,
         };
       })
       .sort((a, b) => b.createdAt - a.createdAt);
@@ -972,7 +975,10 @@ export default function PortfolioPage() {
     const agora = Date.now();
     // snapshotTotals vem por ordem decrescente; metricas() deduplica "um por dia,
     // o ultimo" pela ordem de chegada, por isso a serie tem de ir cronologica.
-    const serie: Ponto[] = [...snapshotTotals].reverse().map((s) => ({ t: s.createdAt, total: s.total, iso: new Date(s.createdAt).toISOString() }));
+    // So pontos medidos na altura: os antigos sem _totalEur sao recalculados com
+    // os precos de hoje, ficam iguais entre si e davam retornos de 0 % em serie
+    // (taxa de dias positivos a 5 %, VaR a 0 % — auditoria de 13 out 2026).
+    const serie: Ponto[] = [...snapshotTotals].filter((s) => s.medido).reverse().map((s) => ({ t: s.createdAt, total: s.total, iso: new Date(s.createdAt).toISOString() }));
     serie.push({ t: agora, total: portfolioTotal, iso: new Date(agora).toISOString() });
     return metricas(serie, agora);
   }, [snapshotTotals, portfolioTotal]);
@@ -2457,7 +2463,9 @@ export default function PortfolioPage() {
           ) : userId ? (
             <div className="mt-4 space-y-3">
               <p className="text-sm text-slate-300">
-                {isPro
+                {isPremium
+                  ? t("pfu_premium_active")
+                  : isPro
                   ? t("pfu_pro_active")
                   : paymentsFrozen
                     ? t("pfu_beta_plan")
