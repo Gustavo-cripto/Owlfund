@@ -372,6 +372,12 @@ export default function PortfolioPage() {
   const [snapshotManualEur, setSnapshotManualEur] = useState<number | null>(null);
   const [snapshotTraditionalEur, setSnapshotTraditionalEur] = useState<number | null>(null);
   const [usdToEur, setUsdToEur] = useState(0.92); // fallback ~0.92
+  // A gravação automática só corre com preços ao vivo (e a taxa USD→EUR real) e
+  // com os saldos já relidos: antes gravava o total do arranque, com a taxa de
+  // reserva e saldos guardados (auditoria de 13 out: fotografia de 523 € com o
+  // portefólio a 500 €).
+  const [precosAoVivo, setPrecosAoVivo] = useState(false);
+  const [saldosRelidos, setSaldosRelidos] = useState(false);
 
   useEffect(() => {
     const snap = loadWalletSnapshot();
@@ -416,6 +422,7 @@ export default function PortfolioPage() {
             applyPrices(data.prices);
             if (data.prices.usdToEur && data.prices.usdToEur > 0) {
               setUsdToEur(data.prices.usdToEur);
+              setPrecosAoVivo(true);
             }
           }
         })
@@ -488,7 +495,7 @@ export default function PortfolioPage() {
         pushWalletCloud();
       }
     };
-    run();
+    run().finally(() => setSaldosRelidos(true));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -828,6 +835,7 @@ export default function PortfolioPage() {
     // snapshot ha 24 h+" era sempre verdade e guardava-se um por visita —
     // foi assim que uma conta chegou a mais de mil.
     if (!snapshotsLoaded) return;
+    if (!precosAoVivo || !saldosRelidos) return;
     // "Ultimo" = o mais recente COM _totalEur e da conta ativa. Um snapshot sem
     // total (os que a pagina de Carteiras gravava por visita) contava como
     // "fresco" e o auto-snapshot nunca disparava.
@@ -847,7 +855,7 @@ export default function PortfolioPage() {
       handleSaveSnapshot(true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, isLoadingAuth, portfolioTotal, snapshotsLoaded]);
+  }, [userId, isLoadingAuth, portfolioTotal, snapshotsLoaded, precosAoVivo, saldosRelidos]);
 
   const manualTotals = manualCryptoTotal + traditionalTotal + stablecoinTotal;
 
