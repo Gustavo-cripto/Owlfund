@@ -8,6 +8,7 @@ import { precoOkx } from "@/lib/market/okxSpot";
 import { getLendingPositions, isOnchainLendingProtocol, LENDING_CHAINS, type LendingChain, type LendingPosition } from "@/lib/defi/lending";
 import { getEigenLayerPositions, getMorphoPositions } from "@/lib/defi/morphoEigen";
 import { alchemyNftTokenIds, hasAlchemy, type EvmChainKey } from "@/lib/providers/alchemy";
+import { SOL_DEFI_TOKENS } from "@/lib/defi/recibos";
 import { completarPosicao, lerSimboloAbi, precoDoTick, precoPorSimbolo, precosOkxUsd, tickDoSlot0, type PosicaoDefi } from "@/lib/defi/posicoes";
 
 // Tudo o que se le sem intermediario: Aave/Spark/Compound (contratos), Morpho
@@ -256,19 +257,7 @@ async function fetchMeteoraPositionsViaRPC(
   return { total: 0, positions: [] };
 }
 
-// Known Solana DeFi protocol tokens (mint → protocol name)
-const SOL_DEFI_TOKENS: Record<string, string> = {
-  mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So: "Marinade (mSOL)",
-  "7dHbWXmci3dT8UFYWYZweBLXgycu7Y3iL6trKn1Y7ARj": "Lido (stSOL)",
-  J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn: "Jito (jitoSOL)",
-  bSo13r4TkiE4KumL71LsHTPpL2euBYLFx6h9HP3piy1: "BlazeStake (bSOL)",
-  "27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4": "Jupiter (JLP)",
-  LSTxxxnJzKDFSLr4dUkPcmCf5VyryEqzPLz5j4bpxFp: "Marginfi (LST)",
-  "5oVNBeEEQvYi1cX3ir8Dx5n1P7pdxydbGF2X4TxVusJm": "Orca (whSOL)",
-  "7Q2afV64in6N6SeZsAAB81TJzwDoD6zpqmHkzi9Dcavn": "Raydium (USDC-SOL LP)",
-  "3UNBZ6o52WTWwjac2kPiK9xns6XHW5UsqohAd5n4VFGf": "Raydium (SOL-USDC)",
-  EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v: "USDC",
-};
+// Tokens de protocolos DeFi em Solana: src/lib/defi/recibos.ts (partilhado com as Carteiras).
 
 const SOL_RPC = "https://api.mainnet-beta.solana.com";
 // price.jup.ag/v6 deixou de existir (DNS sem resposta, out 2026): a API

@@ -21,6 +21,7 @@ import { propsCartaoAda, propsCartaoBtc, propsCartaoEth, propsCartaoSol } from "
 import { criarMoneyField, criarQtyField } from "@/components/wallets/camposNumero";
 import { remocaoEth, remocaoPorEndereco, remocaoSol, semChave } from "@/lib/wallets/remover";
 import { aposFalha, leituraRecente, valorDoSaldo } from "@/lib/wallets/saldos";
+import { contaComoDefi } from "@/lib/defi/recibos";
 // Blocos de apresentacao da pagina (fase 1 da divisao): recebem tudo por props.
 import CabecalhoCarteiras from "@/components/wallets/CabecalhoCarteiras";
 import ConfirmacaoModal from "@/components/wallets/ConfirmacaoModal";
@@ -870,14 +871,17 @@ export default function WalletsPage() {
           try {
             const pricesRes = await fetch("/api/prices");
             if (pricesRes.ok) {
+              // /api/prices devolve { prices: { BTC, ETH, SOL, ADA (em EUR), usdToEur } };
+              // antes lia btc_eur/eth_eur/sol_eur, que não existem, e o preço ficava 0.
               const pricesData = (await pricesRes.json()) as {
-                prices?: { btc_eur?: number; eth_eur?: number; sol_eur?: number; usdToEur?: number };
+                prices?: { BTC?: number; ETH?: number; SOL?: number; ADA?: number; usdToEur?: number };
               };
-              const rate = pricesData.prices?.usdToEur ?? 0.92;
+              const rate = pricesData.prices?.usdToEur || 0.92;
               const fillFrom: Record<string, { priceUsd: number; name: string }> = {
-                BTC: { priceUsd: (pricesData.prices?.btc_eur ?? 0) / rate, name: "Bitcoin" },
-                ETH: { priceUsd: (pricesData.prices?.eth_eur ?? 0) / rate, name: "Ethereum" },
-                SOL: { priceUsd: (pricesData.prices?.sol_eur ?? 0) / rate, name: "Solana" },
+                BTC: { priceUsd: (pricesData.prices?.BTC ?? 0) / rate, name: "Bitcoin" },
+                ETH: { priceUsd: (pricesData.prices?.ETH ?? 0) / rate, name: "Ethereum" },
+                SOL: { priceUsd: (pricesData.prices?.SOL ?? 0) / rate, name: "Solana" },
+                ADA: { priceUsd: (pricesData.prices?.ADA ?? 0) / rate, name: "Cardano" },
               };
               missing.forEach((sym) => {
                 if (fillFrom[sym] && fillFrom[sym].priceUsd > 0) {
@@ -2445,13 +2449,17 @@ export default function WalletsPage() {
     return out;
   }, [ethWallets, solWallets, btcWallets, adaWallets, otherWallets, ethBalancesByKey, solBalancesByAddress, btcBalancesByAddress, adaBalancesByAddress, nftCounts, defiTotals, web3Prices]);
 
-  // Endereços cold únicos por chain (para buscar tokens ERC-20/SPL via Moralis).
+  // Endereços únicos por chain para ler tokens ERC-20/SPL e o nativo das outras
+  // redes EVM. Antes só as carteiras "cold"; as ligadas (MetaMask, Phantom) e as
+  // por endereço ficavam sem tokens nem ETH em L2 no total (auditoria de 13 out
+  // 2026: uma carteira com ETH na Arbitrum não o contava). As de exemplo não.
+  const comTokens = (w: StoredWalletEntry) => Boolean(w.address) && w.source !== "demo";
   const coldEvmAddresses = useMemo(
-    () => Array.from(new Set(ethWallets.filter((w) => w.source === "cold" && w.address).map((w) => w.address as string))),
+    () => Array.from(new Set(ethWallets.filter(comTokens).map((w) => w.address as string))),
     [ethWallets]
   );
   const coldSolAddresses = useMemo(
-    () => Array.from(new Set(solWallets.filter((w) => w.source === "cold" && w.address).map((w) => w.address as string))),
+    () => Array.from(new Set(solWallets.filter(comTokens).map((w) => w.address as string))),
     [solWallets]
   );
 
@@ -2502,6 +2510,8 @@ export default function WalletsPage() {
       const addr = key.slice(key.indexOf(":") + 1);
       for (const t of tokens) {
         if (t.address === "native" && (!t.network || registered[addr]?.has(t.network))) continue;
+        // aTokens, LST, LP… já contam no DeFi (src/lib/defi/recibos.ts).
+        if (contaComoDefi(t)) continue;
         if (Number.isFinite(t.usdValue)) sum += t.usdValue;
       }
     }
@@ -3326,7 +3336,9 @@ export default function WalletsPage() {
               solBalancesByAddress={solBalancesByAddress}
               btcBalancesByAddress={btcBalancesByAddress}
               adaBalancesByAddress={adaBalancesByAddress}
-              cryptoPrices={cryptoPrices}
+              // Preço atual de cada carteira: o mesmo mapa que dá o valor (web3Prices).
+              // cryptoPrices só tem os ativos manuais, e sem eles a coluna ficava "—".
+              cryptoPrices={{ ...cryptoPrices, ...web3Prices }}
               getFiatValue={getFiatValue}
               usdToEurRate={usdToEurRate}
               onRemoveEth={(i) => {
