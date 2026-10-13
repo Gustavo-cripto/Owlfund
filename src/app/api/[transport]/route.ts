@@ -337,12 +337,15 @@ const handler = createMcpHandler(
 );
 
 // Valida o Bearer token (mesma chave da API REST) antes de servir o MCP.
-async function verifyToken(_req: Request, bearerToken?: string): Promise<AuthInfo | undefined> {
-  if (!bearerToken) return undefined;
-  const check = await checkApiKey(bearerToken);
+// Também aceita a chave no cabeçalho `x-api-key`: gateways como o Smithery
+// reservam o `Authorization` para si e não o deixam passar até nós.
+async function verifyToken(req: Request, bearerToken?: string): Promise<AuthInfo | undefined> {
+  const chave = bearerToken || req.headers.get("x-api-key")?.trim() || undefined;
+  if (!chave) return undefined;
+  const check = await checkApiKey(chave);
   if (!check.ok) return undefined;
   return {
-    token: bearerToken,
+    token: chave,
     clientId: check.userId,
     scopes: ["read"],
     extra: { userId: check.userId },
