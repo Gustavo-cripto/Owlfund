@@ -34,17 +34,17 @@ const handler = createMcpHandler(
           // O detalhe (Postgres, URLs de RPC…) fica só no log do servidor,
           // como em src/lib/api/response.ts (internalError) — nunca no cliente.
           console.error(`[mcp:${name}]`, e instanceof Error ? e.message : String(e));
-          return { content: [{ type: "text", text: `Falha temporária em ${name}. Tenta de novo daqui a pouco.` }], isError: true };
+          return { content: [{ type: "text", text: `Temporary failure in ${name}. Try again shortly.` }], isError: true };
         }
       });
 
     server.tool(
       "get_portfolio",
-      "Devolve o último snapshot do portefólio do utilizador: saldos por rede (ETH, SOL, BTC, ADA), CEX, DeFi e ativos manuais.",
+      "Returns the user's latest portfolio snapshot: balances per network (ETH, SOL, BTC, ADA), exchanges (CEX), DeFi and manual assets.",
       {},
       async (_args, extra) => {
         const userId = (extra?.authInfo?.extra?.userId as string | undefined) ?? "";
-        if (!userId) return { content: [{ type: "text", text: "Não autenticado." }], isError: true };
+        if (!userId) return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
         const data = await getPortfolio(userId);
         return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
       },
@@ -52,11 +52,11 @@ const handler = createMcpHandler(
 
     server.tool(
       "get_wallets",
-      "Devolve as carteiras por portefólio, com endereços em pseudónimo (wallet_…), nunca em claro.",
+      "Returns the wallets of each portfolio, with addresses as pseudonyms (wallet_…), never in clear.",
       {},
       async (_args, extra) => {
         const userId = (extra?.authInfo?.extra?.userId as string | undefined) ?? "";
-        if (!userId) return { content: [{ type: "text", text: "Não autenticado." }], isError: true };
+        if (!userId) return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
         const data = await getWallets(userId);
         return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
       },
@@ -64,11 +64,11 @@ const handler = createMcpHandler(
 
     server.tool(
       "get_pnl",
-      "Evolução do portefólio do utilizador em euros: total atual e variação a 24 h, 7 dias, 30 dias e desde o início, a partir dos snapshots gravados.",
+      "The user's portfolio performance in euros: current total and change over 24 h, 7 days, 30 days and since the start, from the saved snapshots.",
       {},
       async (_args, extra) => {
         const userId = (extra?.authInfo?.extra?.userId as string | undefined) ?? "";
-        if (!userId) return { content: [{ type: "text", text: "Não autenticado." }], isError: true };
+        if (!userId) return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
         const data = await getPnl(userId);
         return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
       },
@@ -76,11 +76,11 @@ const handler = createMcpHandler(
 
     server.tool(
       "get_realized_gains",
-      "Mais-valias realizadas do utilizador pelo método FIFO, em euros, com taxas e gás deduzidos: total, por ativo e por ano. Não é uma declaração fiscal.",
-      { year: z.number().int().min(2009).max(2100).optional().describe("Ano civil das vendas (opcional; sem ele devolve tudo).") },
+      "The user's realised capital gains using FIFO, in euros, with fees and gas deducted: total, per asset and per year. Not a tax return.",
+      { year: z.number().int().min(2009).max(2100).optional().describe("Calendar year of the sales (optional; without it everything is returned).") },
       async (args, extra) => {
         const userId = (extra?.authInfo?.extra?.userId as string | undefined) ?? "";
-        if (!userId) return { content: [{ type: "text", text: "Não autenticado." }], isError: true };
+        if (!userId) return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
         const data = await getRealizedGains(userId, args.year);
         return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
       },
@@ -88,65 +88,65 @@ const handler = createMcpHandler(
 
     server.tool(
       "get_metrics",
-      "Métricas avançadas do portefólio a partir do histórico gravado: ROI, CAGR, Sharpe, Sortino, Calmar, volatilidade, queda máxima e atual, taxa de acerto e VaR 95%.",
+      "Advanced portfolio metrics from the saved history: ROI, CAGR, Sharpe, Sortino, Calmar, volatility, maximum and current drawdown, win rate and 95% VaR.",
       {},
       async (_args, extra) => {
         const userId = (extra?.authInfo?.extra?.userId as string | undefined) ?? "";
-        if (!userId) return { content: [{ type: "text", text: "Não autenticado." }], isError: true };
+        if (!userId) return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
         return { content: [{ type: "text", text: JSON.stringify(await getMetrics(userId), null, 2) }] };
       },
     );
 
     server.tool(
       "get_trades",
-      "Transações registadas pelo utilizador (compras, vendas e taxas), em euros, da mais recente para a mais antiga. Filtros opcionais por ativo e ano.",
+      "Transactions recorded by the user (buys, sells and fees), in euros, newest first. Optional filters by asset and year.",
       {
-        asset: z.string().max(20).optional().describe("Símbolo do ativo (ex.: BTC)."),
-        year: z.number().int().min(2009).max(2100).optional().describe("Ano civil da transação."),
-        limit: z.number().int().min(1).max(500).optional().describe("Máximo de transações a devolver (por omissão 100)."),
+        asset: z.string().max(20).optional().describe("Asset symbol (e.g. BTC)."),
+        year: z.number().int().min(2009).max(2100).optional().describe("Calendar year of the transaction."),
+        limit: z.number().int().min(1).max(500).optional().describe("Maximum number of transactions to return (default 100)."),
       },
       async (args, extra) => {
         const userId = (extra?.authInfo?.extra?.userId as string | undefined) ?? "";
-        if (!userId) return { content: [{ type: "text", text: "Não autenticado." }], isError: true };
+        if (!userId) return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
         return { content: [{ type: "text", text: JSON.stringify(await getTrades(userId, args), null, 2) }] };
       },
     );
 
     server.tool(
       "get_tax_estimate",
-      "ESTIMATIVA de imposto sobre mais-valias num país, na moeda desse país: método de custo do país (FIFO, preço médio, LIFO, pool britânico, soma anual), cada operação convertida à taxa do BCE da sua data, regras do ano da venda, prazo de detenção, isenção anual e, onde a lei deixa, perdas de anos anteriores. Não é uma declaração fiscal. As opções de cada país estão em list_tax_countries (campo options).",
+      "ESTIMATE of capital-gains tax in a country, in that country's currency: the country's cost method (FIFO, average cost, LIFO, UK pooling, annual sum), each trade converted at the ECB rate of its date, the rules of the year of sale, holding period, annual allowance and, where the law allows, losses carried from previous years. Not a tax return. Each country's options are in list_tax_countries (options field).",
       {
-        country: z.string().length(2).describe("Código do país em duas letras (ex.: PT, ES, US). Ver list_tax_countries."),
-        year: z.number().int().min(2009).max(2100).optional().describe("Ano fiscal das vendas (opcional). No Reino Unido e na Austrália é o ano em que o ano fiscal começa (2025 = 2025/26)."),
-        alternative: z.boolean().optional().describe("Só BR, PT, AR e AT: a opção alternativa de onde estão as moedas (BR exchange estrangeira; PT corretora fora da UE/EEE sem convenção; AR venda em pesos; AT plataforma austríaca)."),
-        marginalRate: z.number().min(0).max(0.6).optional().describe("Só onde a taxa depende do rendimento (DE, GB, US, CA, AU, LU, MX): a taxa marginal da pessoa em fração (0.35 = 35%). Sem ela usa-se a taxa máxima."),
-        marginalRateLong: z.number().min(0).max(0.6).optional().describe("Só US: a taxa de longo prazo da pessoa em fração (0, 0.15 ou 0.20, mais 0.038 de NIIT se aplicável)."),
+        country: z.string().length(2).describe("Two-letter country code (e.g. PT, ES, US). See list_tax_countries."),
+        year: z.number().int().min(2009).max(2100).optional().describe("Tax year of the sales (optional). In the UK and Australia it is the year the tax year starts (2025 = 2025/26)."),
+        alternative: z.boolean().optional().describe("BR, PT, AR and AT only: the alternative option for where the coins are held (BR foreign exchange; PT broker outside the EU/EEA with no tax treaty; AR sale in pesos; AT Austrian platform)."),
+        marginalRate: z.number().min(0).max(0.6).optional().describe("Only where the rate depends on income (DE, GB, US, CA, AU, LU, MX): the person's marginal rate as a fraction (0.35 = 35%). Without it the top rate is used."),
+        marginalRateLong: z.number().min(0).max(0.6).optional().describe("US only: the person's long-term rate as a fraction (0, 0.15 or 0.20, plus 0.038 NIIT if applicable)."),
       },
       async (args, extra) => {
         const userId = (extra?.authInfo?.extra?.userId as string | undefined) ?? "";
-        if (!userId) return { content: [{ type: "text", text: "Não autenticado." }], isError: true };
+        if (!userId) return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
         return { content: [{ type: "text", text: JSON.stringify(await getTaxEstimate(userId, args.country, args.year, { alternative: args.alternative, marginalRate: args.marginalRate, marginalRateLong: args.marginalRateLong }), null, 2) }] };
       },
     );
 
     server.tool(
       "list_tax_countries",
-      "Regimes fiscais de criptomoedas publicados pelo ChainFolioAI: taxa de curto e longo prazo, prazo de detenção, isenção anual e referência legal, por país.",
+      "Crypto tax regimes published by ChainFolioAI: short- and long-term rate, holding period, annual allowance and legal reference, per country.",
       {},
       async () => ({ content: [{ type: "text", text: JSON.stringify(listTaxCountries(), null, 2) }] }),
     );
 
     server.tool(
       "get_global_market",
-      "Estado global do mercado cripto: capitalização total, variação em 24 h e dominância de Bitcoin e Ethereum.",
+      "Global crypto market state: total market cap, 24 h change and Bitcoin and Ethereum dominance.",
       {},
       async () => ({ content: [{ type: "text", text: JSON.stringify(await getGlobalMarket(), null, 2) }] }),
     );
 
     server.tool(
       "get_derivatives",
-      "Derivados de um símbolo na OKX: open interest, rácio long/short, funding, CVD, volume taker, velas de 1 h, put/call e um score de sentimento composto (0–100).",
-      { symbol: z.string().max(10).optional().describe("Símbolo, ex.: BTC (por omissão) ou ETH.") },
+      "Derivatives data for a symbol on OKX: open interest, long/short ratio, funding, CVD, taker volume, 1 h candles, put/call and a composite sentiment score (0–100).",
+      { symbol: z.string().max(10).optional().describe("Symbol, e.g. BTC (default) or ETH.") },
       async (args) => {
         const symbol = (args.symbol ?? "BTC").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10);
         return { content: [{ type: "text", text: JSON.stringify(await getDerivatives(symbol), null, 2) }] };
@@ -155,9 +155,9 @@ const handler = createMcpHandler(
 
     server.tool(
       "get_price_on",
-      "Preço de fecho em dólares de um criptoativo numa data (UTC), a partir das velas diárias da OKX. Serve para avaliar uma compra ou venda passada.",
+      "Closing price in US dollars of a crypto asset on a date (UTC), from OKX daily candles. Useful to value a past buy or sale.",
       {
-        symbol: z.string().max(10).describe("Símbolo, ex.: BTC."),
+        symbol: z.string().max(10).describe("Symbol, e.g. BTC."),
         date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("Data em AAAA-MM-DD (UTC)."),
       },
       async (args) => ({ content: [{ type: "text", text: JSON.stringify(await getPriceOn(args.symbol, args.date), null, 2) }] }),
@@ -165,53 +165,53 @@ const handler = createMcpHandler(
 
     server.tool(
       "get_defi_positions",
-      "Posições de lending do utilizador lidas dos contratos (Aave V3, Spark, Compound V3, Morpho, EigenLayer) em Ethereum, Arbitrum, Base, Optimism e Polygon: depositado, emprestado e líquido, com fator de saúde. Fala com a blockchain, por isso demora alguns segundos.",
+      "The user's lending positions read from the contracts (Aave V3, Spark, Compound V3, Morpho, EigenLayer) on Ethereum, Arbitrum, Base, Optimism and Polygon: supplied, borrowed and net, with health factor. It queries the blockchain, so it takes a few seconds.",
       {},
       async (_args, extra) => {
         const userId = (extra?.authInfo?.extra?.userId as string | undefined) ?? "";
-        if (!userId) return { content: [{ type: "text", text: "Não autenticado." }], isError: true };
+        if (!userId) return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
         return { content: [{ type: "text", text: JSON.stringify(await getDefiPositions(userId), null, 2) }] };
       },
     );
 
     server.tool(
       "get_nfts",
-      "NFTs das carteiras EVM do utilizador numa rede. Não entram no total do portefólio (sem preço fiável).",
-      { chain: z.enum(["eth", "polygon", "arbitrum", "base", "optimism"]).optional().describe("Rede (por omissão eth).") },
+      "NFTs in the user's EVM wallets on one network. They are not included in the portfolio total (no reliable price).",
+      { chain: z.enum(["eth", "polygon", "arbitrum", "base", "optimism"]).optional().describe("Network (default eth).") },
       async (args, extra) => {
         const userId = (extra?.authInfo?.extra?.userId as string | undefined) ?? "";
-        if (!userId) return { content: [{ type: "text", text: "Não autenticado." }], isError: true };
+        if (!userId) return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
         return { content: [{ type: "text", text: JSON.stringify(await getNfts(userId, args.chain), null, 2) }] };
       },
     );
 
     server.tool(
       "get_portfolio_score",
-      "Pontuação 0–100 do portefólio do utilizador, tal como aparece na app: diversificação, mistura cripto/tradicional, reserva em stablecoins, desempenho e gestão de risco. Apoio à leitura, não é recomendação de compra ou venda.",
+      "The user's portfolio score (0–100), as shown in the app: diversification, crypto/traditional mix, stablecoin reserve, performance and risk management. A reading aid, not a recommendation to buy or sell.",
       {},
       async (_args, extra) => {
         const userId = (extra?.authInfo?.extra?.userId as string | undefined) ?? "";
-        if (!userId) return { content: [{ type: "text", text: "Não autenticado." }], isError: true };
+        if (!userId) return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
         return { content: [{ type: "text", text: JSON.stringify(await getScore(userId), null, 2) }] };
       },
     );
 
     server.tool(
       "get_whale_activity",
-      "Varre os endereços dados e devolve os movimentos on-chain recentes (transferências grandes, acumulação). Suporta ETH, BTC e SOL.",
+      "Scans the given addresses and returns recent on-chain movements (large transfers, accumulation). Supports ETH, BTC and SOL.",
       {
         watchlist: z
           .array(z.object({
-            address: z.string().regex(ADDRESS_RE, "Endereço inválido (ETH 0x…, BTC ou SOL)"),
+            address: z.string().regex(ADDRESS_RE, "Invalid address (ETH 0x…, BTC or SOL)"),
             chain: z.enum(["eth", "btc", "sol"]),
             label: z.string().max(60).optional(),
           }))
           .max(10)
-          .describe("Endereços a vigiar (máx. 10)."),
+          .describe("Addresses to watch (max. 10)."),
       },
       async (args, extra) => {
         const userId = (extra?.authInfo?.extra?.userId as string | undefined) ?? "";
-        if (!userId) return { content: [{ type: "text", text: "Não autenticado." }], isError: true };
+        if (!userId) return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
         const watchlist: WatchEntry[] = (args.watchlist ?? []).map((w) => ({
           address: w.address,
           chain: w.chain,
@@ -224,9 +224,9 @@ const handler = createMcpHandler(
 
     server.tool(
       "get_market",
-      "Devolve os principais criptoativos por capitalização de mercado (preço, market cap, volume, variação 24h e 7d).",
+      "Returns the top crypto assets by market cap (price, market cap, volume, 24h and 7d change).",
       {
-        limit: z.number().int().min(1).max(250).optional().describe("Quantos ativos devolver (1–250, por omissão 50)."),
+        limit: z.number().int().min(1).max(250).optional().describe("How many assets to return (1–250, default 50)."),
       },
       async (args) => {
         const data = await getMarket(args.limit ?? 50);
@@ -236,7 +236,7 @@ const handler = createMcpHandler(
 
     server.tool(
       "list_known_whales",
-      "Lista as baleias conhecidas pré-carregadas (exchanges, fundos, figuras públicas, governos) com endereço e cadeia. Usa os endereços como input do get_whale_activity.",
+      "Lists the preloaded known whales (exchanges, funds, public figures, governments) with address and chain. Use the addresses as input to get_whale_activity.",
       {},
       async () => {
         const whales = getKnownWhales();
@@ -246,7 +246,7 @@ const handler = createMcpHandler(
 
     server.tool(
       "get_fear_greed",
-      "Índice Fear & Greed do mercado cripto (valor atual 0–100, classificação, e histórico recente).",
+      "Crypto market Fear & Greed index (current value 0–100, classification and recent history).",
       {},
       async () => {
         const data = await getFearGreed();
@@ -256,8 +256,8 @@ const handler = createMcpHandler(
 
     server.tool(
       "get_asset",
-      "Preço, capitalização, volume e variação (24h/7d) de um criptoativo pelo símbolo (ex.: btc, eth, sol).",
-      { symbol: z.string().regex(/^[a-zA-Z0-9]{1,20}$/).describe("Símbolo do ativo, ex.: btc") },
+      "Price, market cap, volume and change (24h/7d) of a crypto asset by symbol (e.g. btc, eth, sol).",
+      { symbol: z.string().regex(/^[a-zA-Z0-9]{1,20}$/).describe("Asset symbol, e.g. btc") },
       async (args) => {
         const asset = await getAsset(args.symbol);
         return { content: [{ type: "text", text: asset ? JSON.stringify(asset, null, 2) : `Ativo não encontrado: ${args.symbol}` }], isError: !asset };
@@ -266,14 +266,14 @@ const handler = createMcpHandler(
 
     server.tool(
       "get_fire",
-      "Calcula os anos até à independência financeira (regra dos 4%) a partir de despesas, poupança, retorno e idade.",
+      "Calculates the years to financial independence (4% rule) from expenses, savings, return and age.",
       {
-        monthlyExpenses: z.number().min(0).max(1e7).describe("Despesas mensais"),
-        monthlyInvestment: z.number().min(0).max(1e7).describe("Poupança/investimento mensal"),
-        annualReturn: z.number().min(-50).max(100).optional().describe("Retorno anual esperado em % (def. 7)"),
-        inflation: z.number().min(-20).max(100).optional().describe("Inflação anual em % (def. 3)"),
-        currentAge: z.number().int().min(0).max(120).optional().describe("Idade atual (def. 30)"),
-        currentPortfolio: z.number().min(0).max(1e11).optional().describe("Património atual (def. 0)"),
+        monthlyExpenses: z.number().min(0).max(1e7).describe("Monthly expenses"),
+        monthlyInvestment: z.number().min(0).max(1e7).describe("Monthly savings/investment"),
+        annualReturn: z.number().min(-50).max(100).optional().describe("Expected annual return in % (default 7)"),
+        inflation: z.number().min(-20).max(100).optional().describe("Annual inflation in % (default 3)"),
+        currentAge: z.number().int().min(0).max(120).optional().describe("Current age (default 30)"),
+        currentPortfolio: z.number().min(0).max(1e11).optional().describe("Current net worth (default 0)"),
       },
       async (args) => {
         const result = computeFire({
@@ -290,8 +290,8 @@ const handler = createMcpHandler(
 
     server.tool(
       "get_news",
-      "Últimas notícias de cripto (CoinDesk, CoinTelegraph): título, fonte, link e data.",
-      { limit: z.number().int().min(1).max(30).optional().describe("Quantas notícias (def. 15)") },
+      "Latest crypto news (CoinDesk, CoinTelegraph): title, source, link and date.",
+      { limit: z.number().int().min(1).max(30).optional().describe("How many news items (default 15)") },
       async (args) => {
         const news = await getNews(args.limit ?? 15);
         return { content: [{ type: "text", text: JSON.stringify({ news, count: news.length }, null, 2) }] };
@@ -300,7 +300,7 @@ const handler = createMcpHandler(
 
     server.tool(
       "get_btc_blocks",
-      "Blocos Bitcoin recentes (altura, nº de transações, taxa mediana, pool) e taxas recomendadas da mempool.",
+      "Recent Bitcoin blocks (height, number of transactions, median fee, pool) and recommended mempool fees.",
       {},
       async () => {
         const data = await getBtcBlocks();
@@ -310,14 +310,14 @@ const handler = createMcpHandler(
 
     server.tool(
       "ask_ai",
-      "Pergunta em linguagem natural ao assistente de IA sobre o teu portefólio real (análise, contexto, riscos). Não dá ordens de compra/venda. Limite diário por conta.",
-      { question: z.string().max(1000).describe("A pergunta sobre o portefólio ou o mercado (máx. 1000 caracteres).") },
+      "Ask the AI assistant, in natural language, about your real portfolio (analysis, context, risks). It never gives buy or sell orders. Daily limit per account.",
+      { question: z.string().max(1000).describe("The question about the portfolio or the market (max. 1000 characters).") },
       async (args, extra) => {
         const inicio = Date.now();
         const userId = (extra?.authInfo?.extra?.userId as string | undefined) ?? "";
-        if (!userId) return { content: [{ type: "text", text: "Não autenticado." }], isError: true };
+        if (!userId) return { content: [{ type: "text", text: "Not authenticated." }], isError: true };
         const question = (args.question ?? "").trim().slice(0, 1000);
-        if (!question) return { content: [{ type: "text", text: "Pergunta vazia." }], isError: true };
+        if (!question) return { content: [{ type: "text", text: "Empty question." }], isError: true };
 
         // A mesma função do /api/v1/chat: teto diário partilhado, PNL do mesmo
         // portefólio, mercado ao vivo e o prompt único (src/lib/api/ai.ts).
