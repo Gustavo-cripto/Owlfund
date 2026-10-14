@@ -27,6 +27,12 @@ export const EVENTO_EXEMPLO = "cf-exemplo-mudou";
 const eDemo = (e: StoredWalletEntry) => e.source === "demo";
 const temWindow = () => typeof window !== "undefined";
 
+const ENDERECOS_EXEMPLO = new Set(Object.values(EXEMPLOS).map((a) => a.toLowerCase()));
+/** O endereço é um dos do exemplo? (as leituras DeFi/NFT dele não contam para os totais) */
+export function eEnderecoDeExemplo(address: string): boolean {
+  return ENDERECOS_EXEMPLO.has(address.trim().toLowerCase());
+}
+
 /** A conta ativa está em modo de exemplo? */
 export function exemploAtivo(): boolean {
   if (!temWindow() || getActiveAccountId() === ALL_ACCOUNTS_ID) return false;
@@ -98,7 +104,13 @@ export function removerExemplo(): void {
   if (!temWindow() || getActiveAccountId() === ALL_ACCOUNTS_ID) return;
   const s = loadWalletSnapshot();
   const limpa = (l?: StoredWalletEntry[]) => (l ?? []).filter((e) => !eDemo(e));
-  updateWalletSnapshot({ eth: limpa(s.eth), sol: limpa(s.sol), btc: limpa(s.btc), ada: limpa(s.ada) });
+  // O DeFi lido nos endereços do exemplo também sai (14 out 2026: ficavam 105 $
+  // de DeFi da carteira Solana de exemplo no total de uma conta nova, e a
+  // fotografia do portefólio guardava-os). Sem carteiras a sério, o total é 0.
+  const posicoes = Object.fromEntries(Object.entries(s.defiPosicoes ?? {}).filter(([k]) => !eEnderecoDeExemplo(k.slice(0, k.indexOf(":")))));
+  const ficam = [limpa(s.eth), limpa(s.sol), limpa(s.btc), limpa(s.ada)];
+  const semCarteiras = ficam.every((l) => l.length === 0);
+  updateWalletSnapshot({ eth: ficam[0], sol: ficam[1], btc: ficam[2], ada: ficam[3], defiPosicoes: posicoes, defiPosicoesEm: Date.now(), ...(semCarteiras ? { defiUsd: 0 } : {}) });
   try { localStorage.removeItem(accKey(MARCA)); localStorage.setItem(accKey(RECUSADO), String(Date.now())); } catch { /* ignore */ }
   window.dispatchEvent(new CustomEvent(EVENTO_EXEMPLO));
 }

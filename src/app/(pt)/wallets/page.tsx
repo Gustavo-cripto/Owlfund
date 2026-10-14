@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from "react";
-import { ativarExemplo, ativarExemploAutomatico, exemploAtivo, removerExemplo } from "@/lib/demo/exemplo";
+import { ativarExemplo, ativarExemploAutomatico, eEnderecoDeExemplo, exemploAtivo, removerExemplo } from "@/lib/demo/exemplo";
 import { marcarEvento } from "@/lib/analytics/eventos";
 import { repetirVisivel, DOIS_MIN, TRES_MIN } from "@/lib/polling";
 import { userError } from "@/lib/ui/userError";
@@ -1305,10 +1305,21 @@ export default function WalletsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [evmNativeUsd, totalSolBalance, totalBtcBalance, totalAdaBalance, web3Prices]);
 
+  // As leituras DeFi/NFT dos endereços do exemplo não contam para os totais,
+  // para o snapshot nem para o histórico — nem depois de o exemplo sair (ficam
+  // no estado até recarregar). Só se alguém juntar esse endereço a sério.
+  const enderecosReais = useMemo(() => new Set([...ethWallets, ...solWallets, ...btcWallets, ...adaWallets]
+    .filter((w) => w.source !== "demo" && w.address).map((w) => (w.address as string).toLowerCase())), [ethWallets, solWallets, btcWallets, adaWallets]);
+  const contaParaOTotal = useCallback((key: string) => {
+    const addr = key.slice(0, key.indexOf(":"));
+    return !eEnderecoDeExemplo(addr) || enderecosReais.has(addr.toLowerCase());
+  }, [enderecosReais]);
+
   const totalNftCount = useMemo(() => {
     const seen = new Set<string>();
     let sum = 0;
     for (const [key, count] of Object.entries(nftCounts)) {
+      if (!contaParaOTotal(key)) continue;
       const colonIdx = key.indexOf(":");
       const addr = key.slice(0, colonIdx);
       const chain = normalizeChain(key.slice(colonIdx + 1));
@@ -1319,12 +1330,13 @@ export default function WalletsPage() {
       }
     }
     return sum;
-  }, [nftCounts]);
+  }, [nftCounts, contaParaOTotal]);
 
   const totalDefiUsd = useMemo((): number => {
     const seen = new Set<string>();
     let sum = 0;
     for (const [key, value] of Object.entries(defiTotals)) {
+      if (!contaParaOTotal(key)) continue;
       const colonIdx = key.indexOf(":");
       const addr = key.slice(0, colonIdx);
       const chain = normalizeChain(key.slice(colonIdx + 1));
@@ -1335,7 +1347,7 @@ export default function WalletsPage() {
       }
     }
     return sum;
-  }, [defiTotals]);
+  }, [defiTotals, contaParaOTotal]);
 
   // Este aparelho já teve exchanges com valor nesta sessão? Se sim, um 0 a
   // seguir é real (a pessoa removeu-as) e tem de ser gravado; se não, um 0 é
@@ -1362,6 +1374,10 @@ export default function WalletsPage() {
     const aCarregar = [ethBalancesLoading, solBalancesLoading, btcBalancesLoading, adaBalancesLoading, coldTokensLoading, stablecoinBalancesLoading]
       .some((m) => Object.values(m).some(Boolean));
     if (aCarregar) return;
+    // Com o exemplo carregado não se fotografa nada: o histórico ficava com as
+    // carteiras de exemplo e, ao tirá-lo, com "saídas" que nunca foram da pessoa
+    // (a faixa promete "não ficam no histórico").
+    if ([...ethWallets, ...solWallets, ...btcWallets, ...adaWallets].some((w) => w.source === "demo")) return;
     const id = window.setTimeout(() => {
       const num = (v: unknown): number | null => {
         if (v == null) return null;
@@ -1423,7 +1439,7 @@ export default function WalletsPage() {
       }
       const defi: NonNullable<Foto["defi"]> = {};
       const nfts: NonNullable<Foto["nfts"]> = {};
-      const chaves = new Set([...Object.keys(defiTotals), ...Object.keys(defiLoading), ...Object.keys(nftCounts), ...Object.keys(nftLoading)]);
+      const chaves = new Set([...Object.keys(defiTotals), ...Object.keys(defiLoading), ...Object.keys(nftCounts), ...Object.keys(nftLoading)].filter(contaParaOTotal));
       for (const k of chaves) {
         const addr = k.slice(0, k.indexOf(":"));
         const nome = etiqueta(addr);
@@ -1458,9 +1474,10 @@ export default function WalletsPage() {
   useEffect(() => {
     if (!hidratado || !defiPronto) return;
     const atual = loadWalletSnapshot().defiPosicoes ?? {};
-    if (JSON.stringify(atual) === JSON.stringify(defiPosicoes)) return;
-    updateWalletSnapshot({ defiPosicoes, defiPosicoesEm: Date.now() });
-  }, [hidratado, defiPronto, defiPosicoes]);
+    const reais = Object.fromEntries(Object.entries(defiPosicoes).filter(([k]) => contaParaOTotal(k)));
+    if (JSON.stringify(atual) === JSON.stringify(reais)) return;
+    updateWalletSnapshot({ defiPosicoes: reais, defiPosicoesEm: Date.now() });
+  }, [hidratado, defiPronto, defiPosicoes, contaParaOTotal]);
 
   useEffect(() => {
     if (!hidratado) return;

@@ -34,7 +34,13 @@ export default function PosicoesDefi({ posicoes, abertaAoInicio = false, comCart
     const a = Math.abs(x);
     return x.toLocaleString(numberFormat, { maximumFractionDigits: a >= 1000 ? 2 : a >= 1 ? 4 : a >= 0.0001 ? 6 : 10, maximumSignificantDigits: a > 0 && a < 1 ? 6 : undefined });
   };
-  const preco = (x: number) => x.toLocaleString(numberFormat, { maximumSignificantDigits: 6 });
+  // Pares de tokens de spam dão preços absurdos (3,4 × 10^38): em notação
+  // científica para não rebentar o cartão no telemóvel (14 out 2026).
+  const preco = (x: number) => {
+    const a = Math.abs(x);
+    const cientifico = a >= 1e9 || (a > 0 && a < 1e-6);
+    return x.toLocaleString(numberFormat, cientifico ? { notation: "scientific", maximumSignificantDigits: 4 } : { maximumSignificantDigits: 6 });
+  };
 
   return (
     <div className="mt-1.5 rounded-lg border border-slate-800/80 bg-slate-950/40">
@@ -87,7 +93,7 @@ export default function PosicoesDefi({ posicoes, abertaAoInicio = false, comCart
                   <p className="mt-1 text-slate-300">{p.quantidades.map((q) => `${n(q.qtd)} ${q.simbolo}`).join(" + ")}</p>
                 )}
                 {iv && (
-                  <p className="mt-0.5 text-slate-400">
+                  <p className="mt-0.5 break-words text-slate-400">
                     {t("df_range")}: {muitoLargo ? t("df_full_range") : `${preco(iv.min)} – ${preco(iv.max)}`} {cot}/{base}
                     {iv.atual != null && <> · {t("df_now")} {preco(iv.atual)}</>}
                   </p>
