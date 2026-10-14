@@ -9,8 +9,11 @@ export const PREFIXO_EVENTO = "/_ev/";
 
 /** Nomes aceites. Tudo o resto e ignorado (a rota e publica). */
 // cta_*: cada botão da página inicial à parte (hero, planos, final, demonstração);
+// cta_hero foi o botão PRINCIPAL do topo até 14 out 2026; desde então o topo abre
+// com a demonstração e o "Criar conta grátis" secundário grava cta_criar_conta
+// (corte limpo: uma série não muda de significado a meio).
 // email_confirmado: o passo do registo que faltava medir (gravado pelo servidor).
-export const EVENTOS = ["experimentar", "registo", "exemplo", "cta_hero", "cta_planos", "cta_final", "cta_demo", "email_confirmado"] as const;
+export const EVENTOS = ["experimentar", "registo", "exemplo", "cta_hero", "cta_criar_conta", "cta_planos", "cta_final", "cta_demo", "email_confirmado"] as const;
 export type Evento = (typeof EVENTOS)[number];
 export const eEvento = (x: unknown): x is Evento => typeof x === "string" && (EVENTOS as readonly string[]).includes(x);
 

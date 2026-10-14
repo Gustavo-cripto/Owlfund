@@ -301,7 +301,7 @@ export default function Landing() {
           </div>
           <div className="space-y-3 md:col-start-1 md:row-start-2">
             <div className="animate-fade-in-up delay-400 flex flex-wrap gap-3">
-              <a href={`${pageUrl("login", lang)}?mode=signup`} onClick={() => marcarEvento("cta_hero")} className={`${btnSecondary} px-6 py-3 text-sm`}>
+              <a href={`${pageUrl("login", lang)}?mode=signup`} onClick={() => marcarEvento("cta_criar_conta")} className={`${btnSecondary} px-6 py-3 text-sm`}>
                 {t("lp_final_cta1")} →
               </a>
               {paymentsFrozen ? (

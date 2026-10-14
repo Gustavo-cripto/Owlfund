@@ -10,7 +10,7 @@ import { PREFIXO_EVENTO } from "@/lib/analytics/eventos";
 export type Etapas = {
   paginaInicial: number | null;
   /** Cliques nos botões da página inicial, cada um à parte. `demonstracaoInicial` = botão "criar conta" dentro da demonstração da inicial. */
-  cta: { hero: number | null; planos: number | null; final: number | null; demonstracaoInicial: number | null };
+  cta: { hero: number | null; criarConta: number | null; planos: number | null; final: number | null; demonstracaoInicial: number | null };
   experimentar: number | null;
   /** Submeteu registo/entrada: formulário, link mágico, Google/Apple, carteira ou beta. */
   registo: number | null;
@@ -30,10 +30,17 @@ export type Etapas = {
  * contam desde 24 set porque só a partir daí há a marca de robô (is_bot) que
  * o funil exige; as linhas anteriores ficam de fora.
  */
+// Data por métrica. Nos CTA, uma por botão: o topo da inicial mudou a 14 out 2026
+// (demonstração primeiro). `cta.hero` é a série do antigo botão principal e
+// `ateA` diz até quando mediu isso; `cta.criarConta` é o botão secundário novo.
 export const MEDIDO_DESDE: Record<string, string> = {
   paginaInicial: "2026-09-24", experimentar: "2026-09-25", registo: "2026-09-25",
-  cta: "2026-10-05", emailConfirmado: "2026-10-05", modoExemploCliques: "2026-10-05", soComExemplo: "2026-10-05",
+  cta: "2026-10-05", "cta.hero": "2026-10-05", "cta.hero.ateA": "2026-10-14", "cta.criarConta": "2026-10-14",
+  "cta.planos": "2026-10-05", "cta.final": "2026-10-05", "cta.demonstracaoInicial": "2026-10-05",
+  emailConfirmado: "2026-10-05", modoExemploCliques: "2026-10-05", soComExemplo: "2026-10-05",
   registoGoogleAppleCarteira: "2026-10-05",
+  // A partir desta data a demonstração está no topo da inicial (antes a ~2100 px).
+  "inicial.demonstracaoNoTopo": "2026-10-14",
 };
 export type Funil = {
   d7: Etapas;
@@ -159,12 +166,12 @@ export async function calcularFunil(admin: SupabaseClient): Promise<Funil> {
     const corte = agora - dias * 86_400_000;
     const naJanela = users.filter((u) => u.criada >= corte);
     const ev = (nome: string) => vistas(dias, (q) => q.eq("path", `${PREFIXO_EVENTO}${nome}`));
-    const [paginaInicial, experimentar, registo, emailConfirmado, modoExemploCliques, hero, planos, final, demonstracaoInicial] = await Promise.all([
+    const [paginaInicial, experimentar, registo, emailConfirmado, modoExemploCliques, hero, criarConta, planos, final, demonstracaoInicial] = await Promise.all([
       vistas(dias, (q) => q.in("path", INICIAIS)),
-      ev("experimentar"), ev("registo"), ev("email_confirmado"), ev("exemplo"), ev("cta_hero"), ev("cta_planos"), ev("cta_final"), ev("cta_demo"),
+      ev("experimentar"), ev("registo"), ev("email_confirmado"), ev("exemplo"), ev("cta_hero"), ev("cta_criar_conta"), ev("cta_planos"), ev("cta_final"), ev("cta_demo"),
     ]);
     return {
-      paginaInicial, cta: { hero, planos, final, demonstracaoInicial }, experimentar, registo, emailConfirmado, modoExemploCliques,
+      paginaInicial, cta: { hero, criarConta, planos, final, demonstracaoInicial }, experimentar, registo, emailConfirmado, modoExemploCliques,
       contas: listagemOk ? naJanela.length : null,
       comCarteira: listagemOk ? naJanela.filter((u) => comCarteira.has(u.id)).length : null,
       soComExemplo: listagemOk ? naJanela.filter((u) => comExemplo.has(u.id) && !comCarteira.has(u.id)).length : null,
