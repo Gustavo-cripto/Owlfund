@@ -30,7 +30,7 @@ export type { RedeDemo };
  * campo; a consulta aceita na mesma qualquer endereco suportado.
  * `semCabecalho`: nas paginas proprias o titulo e o <h1> da pagina.
  */
-export default function ExperimentarSemConta({ rede, semCabecalho = false }: { rede?: RedeDemo; semCabecalho?: boolean } = {}) {
+export default function ExperimentarSemConta({ rede, semCabecalho = false, noTopo = false }: { rede?: RedeDemo; semCabecalho?: boolean; noTopo?: boolean } = {}) {
   const { t, lang } = useLanguage();
   const { formatUsd } = useCurrencyFormat();
   const [address, setAddress] = useState("");
@@ -122,18 +122,27 @@ export default function ExperimentarSemConta({ rede, semCabecalho = false }: { r
   const fmtQtd = (n: number) => n.toLocaleString(lang === "en" ? "en-GB" : `${lang}-${lang.toUpperCase()}`, { maximumFractionDigits: n >= 100 ? 2 : n >= 1 ? 4 : 6 });
 
   return (
-    <section id="experimentar" className={`mx-auto w-full max-w-4xl scroll-mt-24 px-6 ${semCabecalho ? "" : "pt-16"}`}>
-      <div className="rounded-2xl border border-orange-500/25 bg-gradient-to-br from-orange-500/[0.07] to-slate-900/60 p-6 md:p-8">
-        {!semCabecalho && (
+    // `noTopo`: na inicial a demonstração é o primeiro passo, dentro do hero
+    // (14 out 2026: 18 pessoas foram ao "Começar grátis" e só 2 desceram até
+    // aqui, a três ecrãs de distância). Sem margens de secção e com o título curto.
+    <section id="experimentar" className={noTopo ? "w-full scroll-mt-24" : `mx-auto w-full max-w-4xl scroll-mt-24 px-6 ${semCabecalho ? "" : "pt-16"}`}>
+      <div className={`rounded-2xl border border-orange-500/25 bg-gradient-to-br from-orange-500/[0.07] to-slate-900/60 ${noTopo ? "p-5" : "p-6 md:p-8"}`}>
+        {!semCabecalho && !noTopo && (
           <>
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/90">{t("lp_try_kicker")}</p>
             <h2 className="mt-2 text-2xl font-bold text-white md:text-3xl">{t("lp_try_title")}</h2>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-300">{t("lp_try_desc")}</p>
           </>
         )}
+        {noTopo && (
+          <>
+            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-orange-300/90">{t("lp_try_kicker")}</p>
+            <p className="mt-1 text-base font-semibold text-white">{t("lp_try_title")}</p>
+          </>
+        )}
 
         <form
-          className={`${semCabecalho ? "" : "mt-5 "}flex flex-col gap-2 sm:flex-row`}
+          className={`${semCabecalho ? "" : noTopo ? "mt-3 " : "mt-5 "}flex flex-col gap-2 sm:flex-row`}
           onSubmit={(e) => { e.preventDefault(); void consultar(address); }}
         >
           <label htmlFor="try-address" className="sr-only">{t("lp_try_ph")}</label>

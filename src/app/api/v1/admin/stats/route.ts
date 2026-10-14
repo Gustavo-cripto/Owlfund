@@ -4,6 +4,7 @@ import { apiJson } from "@/lib/api/response";
 import { verifyAdminAuth } from "@/lib/api/admin-auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { isPremiumPriceId, launchReadiness, priceLabel } from "@/lib/payments/priceIds";
+import { eContaInterna, emailsInternos } from "@/lib/analytics/internas";
 import { ORIGEM_PADRAO, redeDe } from "@/lib/origem";
 
 // Contagens por origem → por rede (somando as campanhas) e só as com campanha.
@@ -73,7 +74,10 @@ export async function GET(req: NextRequest) {
   // admin do GoTrue e conta o total + novos por janela. Devolve tudo a null se
   // a listagem falhar (fail-open).
   async function countAccounts() {
-    const w: { total: number; new24h: number; new7d: number; new30d: number; bySource30d: Array<{ src: string; count: number }>; byCampaign30d: Array<{ src: string; count: number }> } = { total: 0, new24h: 0, new7d: 0, new30d: 0, bySource30d: [], byCampaign30d: [] };
+    // Contas internas (CONTAS_INTERNAS + ADMIN_EMAILS) ficam fora de todas as
+    // contagens; `internalExcluded` diz quantas foram tiradas.
+    const w: { total: number; new24h: number; new7d: number; new30d: number; internalExcluded: number; bySource30d: Array<{ src: string; count: number }>; byCampaign30d: Array<{ src: string; count: number }> } = { total: 0, new24h: 0, new7d: 0, new30d: 0, internalExcluded: 0, bySource30d: [], byCampaign30d: [] };
+    const internos = emailsInternos();
     const porCanal: Record<string, number> = {};
     const t1 = daysAgo(1).getTime();
     const t7 = daysAgo(7).getTime();
@@ -84,6 +88,7 @@ export async function GET(req: NextRequest) {
         if (error) return null;
         const users = data?.users ?? [];
         for (const u of users) {
+          if (eContaInterna(u.email, internos)) { w.internalExcluded++; continue; }
           w.total++;
           const c = u.created_at ? new Date(u.created_at).getTime() : 0;
           if (c >= t1) w.new24h++;

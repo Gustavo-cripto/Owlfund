@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { eContaInterna, emailsInternos } from "@/lib/analytics/internas";
 import { PREFIXO_EVENTO } from "@/lib/analytics/eventos";
 
 // Funil de ponta a ponta, so com pessoas (is_bot = false):
@@ -39,6 +40,8 @@ export type Funil = {
   d30: Etapas;
   /** Coorte: contas criadas ha 7–37 dias; quantas voltaram 7+ dias depois de criar conta. */
   retencao7d: { coorte: number; voltaram: number } | null;
+  /** Contas internas (CONTAS_INTERNAS + ADMIN_EMAILS) tiradas de contas, carteiras e retenção. */
+  contasInternasExcluidas: number | null;
   measuredSince: Record<string, string>;
   geradoEm: string;
 };
@@ -113,11 +116,15 @@ export async function calcularFunil(admin: SupabaseClient): Promise<Funil> {
   type U = { id: string; criada: number; ultimo: number };
   const users: U[] = [];
   let listagemOk = true;
+  // Contas internas (o dono, testes) não são clientes: ficam fora do funil.
+  const internos = emailsInternos();
+  let internasExcluidas = 0;
   try {
     for (let page = 1; page <= 50; page++) {
       const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
       if (error) { listagemOk = false; break; }
       for (const u of data.users) {
+        if (eContaInterna(u.email, internos)) { internasExcluidas++; continue; }
         const criada = u.created_at ? new Date(u.created_at).getTime() : 0;
         const carimbos = [u.last_sign_in_at, (u.user_metadata as Record<string, unknown> | null)?.last_seen_at]
           .filter((x): x is string => typeof x === "string").map((x) => new Date(x).getTime());
@@ -170,6 +177,7 @@ export async function calcularFunil(admin: SupabaseClient): Promise<Funil> {
     d7, d30,
     retencao7d: listagemOk ? { coorte: coorte.length, voltaram: coorte.filter((u) => u.ultimo >= u.criada + 7 * 86_400_000).length } : null,
     measuredSince: MEDIDO_DESDE,
+    contasInternasExcluidas: listagemOk ? internasExcluidas : null,
     geradoEm: new Date(agora).toISOString(),
   };
 }

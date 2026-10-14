@@ -289,24 +289,28 @@ export default function Landing() {
               {t("lp_hero_sub")}
             </p>
             <p className="animate-rise delay-200 text-sm font-semibold text-orange-300/90">{t("lp_audience")}</p>
-            <div className="animate-fade-in-up delay-300 flex flex-wrap gap-4">
-              <a href={`${pageUrl("login", lang)}?mode=signup`} onClick={() => marcarEvento("cta_hero")} className={`${btnPrimary} px-8 py-3.5 text-base`}>
-                {t("lp_plan_cta")} →
+            {/* Primeiro passo: ver uma carteira a sério, sem conta. A conta pede-se
+                depois, no resultado (botão "acompanhar esta carteira"). */}
+            <div className="animate-fade-in-up delay-300">
+              <ExperimentarSemConta noTopo />
+            </div>
+            <div className="animate-fade-in-up delay-400 flex flex-wrap gap-3">
+              <a href={`${pageUrl("login", lang)}?mode=signup`} onClick={() => marcarEvento("cta_hero")} className={`${btnSecondary} px-6 py-3 text-sm`}>
+                {t("lp_final_cta1")} →
               </a>
               {paymentsFrozen ? (
-                <Link href={pageUrl("beta", lang)} className={`${btnSecondary} px-8 py-3.5 text-base`}>
+                <Link href={pageUrl("beta", lang)} className={`${btnSecondary} px-6 py-3 text-sm`}>
                   🧪 {t("lp_hero_beta_cta")}
                 </Link>
               ) : (
-                <a href="#como-funciona" className={`${btnSecondary} px-8 py-3.5 text-base`}>
+                <a href="#como-funciona" className={`${btnSecondary} px-6 py-3 text-sm`}>
                   {t("lp_how_works")}
                 </a>
               )}
             </div>
             <p className="animate-fade-in-up delay-400 text-xs text-slate-500">{paymentsFrozen ? t("lp_no_card_beta") : t("lp_no_card")}</p>
-            <a href="#experimentar" className="animate-fade-in-up delay-400 inline-block text-sm font-semibold text-orange-300 underline decoration-dotted underline-offset-4 transition hover:text-orange-200">{t("lp_try_hero_link")}</a>
           </div>
-          <div className="animate-scale-in delay-200 w-full max-w-sm flex-shrink-0">
+          <div className="animate-scale-in delay-200 hidden w-full max-w-sm flex-shrink-0 md:block">
             <PnlSummaryCard position={2150} today={120} days30={480} daily7d={-35} />
             <p className="mt-2 text-center text-[11px] text-slate-600">{t("lp_demo_label")}</p>
           </div>
@@ -324,8 +328,6 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* EXPERIMENTAR SEM CONTA — cola um endereço público e vê os saldos */}
-        <ExperimentarSemConta />
 
         {/* DADOS & CONFIANÇA */}
         <section className="mx-auto w-full max-w-5xl px-6 pt-16">
