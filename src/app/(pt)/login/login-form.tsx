@@ -223,6 +223,14 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
         setMode("login");
         return;
       }
+      // Com "confirm email" desligado no Supabase a conta já vem com sessão e
+      // nenhum email é enviado: entra logo, em vez de esperar por um email que
+      // não chega (14 out: ficava no "verifica o teu email" para sempre).
+      if (data.session) {
+        try { localStorage.setItem("cfa-ja-entrou", "1"); } catch { /* ignore */ }
+        window.location.href = nextPath === "/beta" ? `/beta?email=${encodeURIComponent(creds.email)}` : nextParam ? nextPath : "/wallets";
+        return;
+      }
       setSignedUp(true);
       setMessage(t("lg_signup_ok"));
       setIsError(false);
