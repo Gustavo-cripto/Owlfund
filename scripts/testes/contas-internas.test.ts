@@ -12,4 +12,6 @@ eq("email de cliente", eContaInterna("cliente@example.com", lista), false);
 eq("conta sem email pelo id", eContaInterna(null, lista, "056a9cc2-47cf-4a1c-b071-a3bbcb16a132"), true);
 eq("conta sem email e id desconhecido", eContaInterna(null, lista, "11111111-1111-1111-1111-111111111111"), false);
 eq("sem nada", eContaInterna(undefined, lista), false);
+eq("alias +teste de um email interno", eContaInterna("teste+t2@example.com", lista), true);
+eq("alias de um email que não está na lista", eContaInterna("cliente+t2@example.com", lista), false);
 if (fails) { console.log(`❌ ${fails} falha(s)`); process.exit(1); }

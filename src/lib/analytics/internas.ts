@@ -14,8 +14,14 @@ export function emailsInternos(): Set<string> {
   return new Set([...lista("CONTAS_INTERNAS"), ...lista("ADMIN_EMAILS")]);
 }
 
-/** A conta é interna? Pelo email ou, nas contas sem email (carteira), pelo id. */
+/** "nome+teste2@x.com" → "nome@x.com": os aliases de teste contam como o email da lista. */
+function semAlias(email: string): string {
+  return email.replace(/\+[^@]*@/, "@");
+}
+
+/** A conta é interna? Pelo email (ou o mesmo sem o +alias) ou, nas contas sem email (carteira), pelo id. */
 export function eContaInterna(email: string | null | undefined, internos: Set<string> = emailsInternos(), id?: string | null): boolean {
-  if (email && internos.has(String(email).trim().toLowerCase())) return true;
+  const e = email ? String(email).trim().toLowerCase() : "";
+  if (e && (internos.has(e) || internos.has(semAlias(e)))) return true;
   return Boolean(id) && internos.has(String(id).trim().toLowerCase());
 }
