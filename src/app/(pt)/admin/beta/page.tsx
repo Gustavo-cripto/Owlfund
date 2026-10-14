@@ -8,6 +8,7 @@ import { useConfirm } from "@/components/ConfirmDialog";
 
 type Tester = { email: string; plan: "pro" | "premium"; activatedAt?: string | null; expiresAt: string | null; daysLeft: number | null; lastSignInAt?: string | null; inactiveDays?: number | null; founder?: boolean };
 type Pending = { email: string; name: string | null; note: string | null; createdAt: string };
+type Conta = { id: string; email: string; via: string; criada: string | null; ultimaEntrada: string | null; interna: boolean; admin: boolean };
 import type { Etapas, Funil } from "@/lib/analytics/funil";
 
 // Funil de pessoas (sem robos), 7 e 30 dias. Cada linha mostra tambem a
@@ -68,6 +69,42 @@ export default function AdminBetaPage() {
   const [granting, setGranting] = useState(false);
   const [grantMsg, setGrantMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [dispensando, setDispensando] = useState<string | null>(null);
+
+  // Eliminar contas (de teste, ou de um cliente que pediu). Irreversível: abre
+  // uma linha de confirmação onde se escreve o email da conta.
+  const [contas, setContas] = useState<Conta[]>([]);
+  const [verTodas, setVerTodas] = useState(false);
+  const [aApagar, setAApagar] = useState<string | null>(null);
+  const [confirmacao, setConfirmacao] = useState("");
+  const [apagando, setApagando] = useState(false);
+  const [contasMsg, setContasMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const carregarContas = () => {
+    fetch("/api/admin/contas").then((r) => (r.ok ? r.json() : null)).then((j) => { if (j?.contas) setContas(j.contas as Conta[]); }).catch(() => {});
+  };
+  useEffect(() => { carregarContas(); }, []);
+  const apagarConta = async (c: Conta) => {
+    if (apagando) return;
+    setApagando(true);
+    setContasMsg(null);
+    try {
+      const r = await fetch("/api/admin/apagar-conta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: c.id, confirmacao }),
+      });
+      const j = (await r.json().catch(() => ({}))) as { error?: string; parcial?: boolean; falhas?: string[] };
+      if (!r.ok) { setContasMsg({ ok: false, text: j.error || "Falhou." }); return; }
+      setContasMsg({ ok: true, text: j.parcial ? `⚠️ Conta ${c.email || c.id} apagada, mas ficaram dados em: ${(j.falhas ?? []).join(", ")}.` : `🗑️ Conta ${c.email || c.id} apagada, com todos os dados.` });
+      setAApagar(null);
+      setConfirmacao("");
+      carregarContas();
+      load();
+    } catch {
+      setContasMsg({ ok: false, text: "Erro de rede." });
+    } finally {
+      setApagando(false);
+    }
+  };
 
   const [founderBusy, setFounderBusy] = useState<string | null>(null);
   const [tgBusy, setTgBusy] = useState(false);
@@ -212,7 +249,7 @@ export default function AdminBetaPage() {
   const dispensarPendente = async (email: string) => {
     if (dispensando || granting) return;
     const ok = await askConfirm({
-      message: `Dispensar a inscrição de ${email}? Sai da lista de pendentes e não recebe o Premium do beta. Se já criou conta no site, a conta não é apagada — fica no plano gratuito.`,
+      message: `Dispensar a inscrição de ${email}? Só sai da lista de pendentes. A conta no site (se existir), as carteiras, as configurações e o plano que já tem ficam como estão.`,
       danger: true,
       okLabel: "Dispensar",
     });
@@ -311,6 +348,47 @@ export default function AdminBetaPage() {
                   </div>
                 </div>
               )}
+
+              {/* Contas: apagar as de teste (ou a pedido do cliente). */}
+              <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-white">Contas <span className="text-slate-500">({contas.length})</span></p>
+                  <button type="button" onClick={() => setVerTodas((v) => !v)} className="text-xs text-slate-400 underline-offset-2 hover:underline">{verTodas ? "Mostrar menos" : "Mostrar todas"}</button>
+                </div>
+                <p className="mt-1 text-xs text-slate-500">Eliminar apaga a conta e <b>todos</b> os dados dela (carteiras, histórico, chaves de exchange, plano). Não se pode desfazer. As contas de administrador não se apagam aqui.</p>
+                <div className="mt-3 space-y-2">
+                  {(verTodas ? contas : contas.slice(0, 10)).map((c) => (
+                    <div key={c.id} className="rounded-xl border border-slate-800 bg-slate-950/60 p-3">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm text-slate-200">
+                            {c.email || <span className="text-slate-500">(carteira, sem email)</span>}
+                            {c.admin ? <span className="ml-2 rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold text-violet-300">admin</span>
+                              : c.interna ? <span className="ml-2 rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-semibold text-sky-300">teste</span>
+                              : <span className="ml-2 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">cliente</span>}
+                          </p>
+                          <p className="mt-0.5 text-xs text-slate-500">{c.via} · criada {fmt(c.criada)} · última entrada {fmt(c.ultimaEntrada)}</p>
+                        </div>
+                        {!c.admin && aApagar !== c.id && (
+                          <button type="button" onClick={() => { setAApagar(c.id); setConfirmacao(""); setContasMsg(null); }} disabled={apagando} className="shrink-0 rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-rose-500/60 hover:text-rose-300 disabled:opacity-40">Eliminar conta</button>
+                        )}
+                      </div>
+                      {aApagar === c.id && (
+                        <div className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/5 p-3">
+                          <p className="text-xs text-rose-200">{c.interna ? "" : "⚠️ Esta conta não está marcada como de teste: é de um cliente. "}Para apagar, escreve {c.email ? "o email" : "o id"} da conta: <b className="break-all">{c.email || c.id}</b></p>
+                          <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                            <input value={confirmacao} onChange={(e) => setConfirmacao(e.target.value)} autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder={c.email || c.id}
+                              className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-rose-400" />
+                            <button type="button" onClick={() => apagarConta(c)} disabled={apagando || confirmacao.trim().toLowerCase() !== (c.email || c.id)} className="rounded-lg bg-rose-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-rose-500 disabled:opacity-40">{apagando ? "A apagar…" : "Apagar para sempre"}</button>
+                            <button type="button" onClick={() => { setAApagar(null); setConfirmacao(""); }} disabled={apagando} className="rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-300">Cancelar</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {contasMsg && <p className={`mt-2 text-xs ${contasMsg.ok ? "text-emerald-400" : "text-rose-400"}`}>{contasMsg.text}</p>}
+              </div>
 
               <div className="mt-6 flex items-center gap-4">
                 <div className="rounded-2xl border border-orange-500/30 bg-orange-500/10 px-5 py-4">
