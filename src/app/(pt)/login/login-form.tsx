@@ -18,6 +18,7 @@ import { userError } from "@/lib/ui/userError";
 import { useTurnstile } from "@/components/Turnstile";
 import { origemDoCookie } from "@/lib/origem";
 import { pageUrl } from "@/lib/i18n/routes";
+import { sugerirEmail } from "@/lib/auth/sugestaoEmail";
 
 // Canal do primeiro toque (cookie cfa-src do middleware): vai nos metadados da
 // conta logo na criação. Antes só ficava se o cliente voltasse a abrir o site
@@ -50,6 +51,21 @@ function mapAuthError(err: { code?: string; message?: string } | null | undefine
   if (code === "email_address_invalid" || msg.includes("invalid email")) return "lg_err_email";
   if (code === "signup_disabled") return "lg_err_signup_disabled";
   return "lg_err_generic";
+}
+
+// "Querias dizer …@gmail.com?" por baixo do email do registo e do link mágico
+// (src/lib/auth/sugestaoEmail.ts). Um toque corrige; nunca bloqueia.
+function SugestaoEmail({ email, onAceitar, texto }: { email: string; onAceitar: (v: string) => void; texto: string }) {
+  const sugestao = sugerirEmail(email);
+  if (!sugestao) return null;
+  const [antes, depois] = texto.split("{email}");
+  return (
+    <p className="mt-1.5 text-xs text-amber-300">
+      {antes}
+      <button type="button" onClick={() => onAceitar(sugestao)} className="font-semibold underline underline-offset-2 hover:text-amber-200">{sugestao}</button>
+      {depois}
+    </p>
+  );
 }
 
 export default function LoginForm({ nextParam, modeParam, emailParam, errorParam }: LoginFormProps) {
@@ -493,6 +509,7 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
             <div>
               <label htmlFor="lg-email" className="sr-only">Email</label>
               <input id="lg-email" className={inputClass} placeholder="Email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
+              {mode === "signup" && <SugestaoEmail email={email} onAceitar={setEmail} texto={t("lg_email_suggest")} />}
             </div>
             <div className="relative">
               <label htmlFor="lg-password" className="sr-only">{t("lg_password")}</label>
@@ -596,6 +613,7 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
                 <input id="lg-magic-email" className={inputClass} placeholder="Email" type="email" autoComplete="email" inputMode="email"
                   value={magicEmail} onChange={(event) => setMagicEmail(event.target.value)}
                   onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void handleMagic(); } }} />
+                {!magicSent && <SugestaoEmail email={magicEmail} onAceitar={setMagicEmail} texto={t("lg_email_suggest")} />}
               </div>
               <button type="button" onClick={() => void handleMagic()} disabled={busy || magicSent}
                 className={`${btnPrimary} w-full px-6 py-3 text-sm`}>

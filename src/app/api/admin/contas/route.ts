@@ -1,5 +1,6 @@
 // Lista de contas para o /admin/beta (eliminar contas de teste). Só admins.
 import { NextResponse } from "next/server";
+import { Resend } from "resend";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { adminDaSessao, emailsAdmin } from "@/lib/auth/adminSessao";
 import { eContaInterna, emailsInternos } from "@/lib/analytics/internas";
@@ -12,7 +13,7 @@ export async function GET() {
   const admin = getSupabaseAdmin();
   const internos = emailsInternos();
   const admins = new Set(emailsAdmin());
-  const contas: Array<{ id: string; email: string; via: string; criada: string | null; ultimaEntrada: string | null; interna: boolean; admin: boolean; boasVindas?: string | null }> = [];
+  const contas: Array<{ id: string; email: string; via: string; criada: string | null; ultimaEntrada: string | null; interna: boolean; admin: boolean; boasVindas?: string | null; entregaBoasVindas?: string | null; devolvido?: boolean }> = [];
   for (let page = 1; page <= 5; page++) {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
     if (error) return NextResponse.json({ error: "Falhou a listar as contas." }, { status: 500 });
@@ -37,6 +38,30 @@ export async function GET() {
     const { data } = await admin.from("notification_log").select("user_id, sent_at").eq("kind", "welcome_account");
     for (const r of data ?? []) boasVindas.set(r.user_id as string, r.sent_at as string);
   } catch { /* sem tabela: fica vazio */ }
-  for (const c of contas) c.boasVindas = boasVindas.get(c.id) ?? null;
+  // O que aconteceu DEPOIS de sair (Resend, últimos 100 envios): "enviado" só
+  // diz que saiu; "delivered" diz que chegou; "bounced" quer dizer, na prática,
+  // que o endereço não existe (com a confirmação de email desligada, é a única
+  // forma de apanhar um email mal escrito). Sem chave ou se falhar: fica vazio.
+  const entregaBoasVindas = new Map<string, string>();
+  const devolvidos = new Set<string>();
+  try {
+    const key = process.env.RESEND_API_KEY;
+    if (key) {
+      const { data } = await new Resend(key).emails.list({ limit: 100 });
+      for (const e of data?.data ?? []) {
+        const boasVindasEmail = /^(Bem-vindo|Welcome|Bienvenid|Bienvenue)/i.test(e.subject ?? "");
+        for (const to of e.to ?? []) {
+          const a = to.toLowerCase();
+          if (e.last_event === "bounced" || e.last_event === "failed" || e.last_event === "suppressed") devolvidos.add(a);
+          if (boasVindasEmail && !entregaBoasVindas.has(a)) entregaBoasVindas.set(a, e.last_event);
+        }
+      }
+    }
+  } catch (e) { console.error("[admin/contas] resend:", e instanceof Error ? e.message : e); }
+  for (const c of contas) {
+    c.boasVindas = boasVindas.get(c.id) ?? null;
+    c.entregaBoasVindas = c.email ? entregaBoasVindas.get(c.email) ?? null : null;
+    c.devolvido = Boolean(c.email) && devolvidos.has(c.email);
+  }
   return NextResponse.json({ contas });
 }

@@ -8,7 +8,7 @@ import { useConfirm } from "@/components/ConfirmDialog";
 
 type Tester = { email: string; plan: "pro" | "premium"; activatedAt?: string | null; expiresAt: string | null; daysLeft: number | null; lastSignInAt?: string | null; inactiveDays?: number | null; founder?: boolean };
 type Pending = { email: string; name: string | null; note: string | null; createdAt: string };
-type Conta = { id: string; email: string; via: string; criada: string | null; ultimaEntrada: string | null; interna: boolean; admin: boolean; boasVindas?: string | null };
+type Conta = { id: string; email: string; via: string; criada: string | null; ultimaEntrada: string | null; interna: boolean; admin: boolean; boasVindas?: string | null; entregaBoasVindas?: string | null; devolvido?: boolean };
 import type { Etapas, Funil } from "@/lib/analytics/funil";
 
 // Funil de pessoas (sem robos), 7 e 30 dias. Cada linha mostra tambem a
@@ -55,6 +55,12 @@ function CartaoFunil({ f }: { f: Funil }) {
     </div>
   );
 }
+
+// Estado do email de boas-vindas no Resend (last_event) → texto no ecrã.
+const ESTADO_ENTREGA: Record<string, string> = {
+  delivered: "entregue", opened: "entregue e aberto", clicked: "entregue e clicado", sent: "enviado (à espera de entrega)", queued: "em fila",
+  delivery_delayed: "entrega atrasada", bounced: "DEVOLVIDO", failed: "FALHOU", suppressed: "bloqueado (devolvido antes)", complained: "marcado como spam",
+};
 
 export default function AdminBetaPage() {
   const askConfirm = useConfirm();
@@ -366,7 +372,8 @@ export default function AdminBetaPage() {
                               : c.interna ? <span className="ml-2 rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-semibold text-sky-300">teste</span>
                               : <span className="ml-2 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">cliente</span>}
                           </p>
-                          <p className="mt-0.5 text-xs text-slate-500">{c.via} · criada {fmt(c.criada)} · última entrada {fmt(c.ultimaEntrada)}{c.email ? ` · boas-vindas ${c.boasVindas ? `enviado ${new Date(c.boasVindas).toLocaleString("pt-PT", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}` : "não enviado"}` : ""}</p>
+                          <p className="mt-0.5 text-xs text-slate-500">{c.via} · criada {fmt(c.criada)} · última entrada {fmt(c.ultimaEntrada)}{c.email ? ` · boas-vindas ${c.boasVindas ? `${ESTADO_ENTREGA[c.entregaBoasVindas ?? ""] ?? "enviado"} ${new Date(c.boasVindas).toLocaleString("pt-PT", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}` : "não enviado"}` : ""}</p>
+                          {c.devolvido && <p className="mt-0.5 text-xs font-semibold text-rose-300">⚠️ Um email para esta conta foi devolvido: o endereço provavelmente não existe (mal escrito?). A pessoa não recebe nada, nem a recuperação da palavra-passe.</p>}
                         </div>
                         {!c.admin && aApagar !== c.id && (
                           <button type="button" onClick={() => { setAApagar(c.id); setContasMsg(null); }} disabled={apagando} className="shrink-0 rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-rose-500/60 hover:text-rose-300 disabled:opacity-40">Eliminar conta</button>

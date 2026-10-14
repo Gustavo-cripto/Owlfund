@@ -474,6 +474,7 @@ export const pt = {
     lg_magic_desc: "Recebes um email com uma ligação. Abre-a (aqui ou no telemóvel) e entras logo, sem palavra-passe. Se ainda não tens conta, fica criada nesse clique.",
     lg_magic_send: "Enviar ligação por email",
     lg_magic_sent_short: "Ligação enviada ✓",
+    lg_email_suggest: "Querias dizer {email}?",
     lg_magic_sent: "Enviámos uma ligação para {email}. Abre-a neste aparelho e entras logo — se ainda não tinhas conta, fica criada nesse clique.",
     lg_apple: "Continuar com a Apple",
     lg_wallet_hint: "Ou entra com a tua carteira — assinas uma mensagem, sem email nem palavra-passe:",

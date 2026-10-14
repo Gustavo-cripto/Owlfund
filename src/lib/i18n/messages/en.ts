@@ -465,6 +465,7 @@ export const en: Record<TranslationKey, string> = {
     lg_magic_desc: "You get an email with a link. Open it (here or on your phone) and you are in, no password. If you have no account yet, it is created with that click.",
     lg_magic_send: "Send me the email link",
     lg_magic_sent_short: "Link sent ✓",
+    lg_email_suggest: "Did you mean {email}?",
     lg_magic_sent: "We sent a link to {email}. Open it on this device and you are in — if you had no account, it is created with that click.",
     lg_apple: "Continue with Apple",
     lg_wallet_hint: "Or sign in with your wallet — you sign a message, no email or password:",
