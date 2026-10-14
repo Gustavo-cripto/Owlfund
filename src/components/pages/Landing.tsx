@@ -278,7 +278,7 @@ export default function Landing() {
             1.º ecrã). Computador: texto e criar conta à esquerda, demonstração à
             direita, também no 1.º ecrã. Antes a demonstração estava a ~2100 px e
             quase ninguém lá chegava (14 out 2026). */}
-        <section className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 pb-16 pt-8 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,30rem)] md:grid-rows-[auto_1fr] md:gap-x-12 md:gap-y-7 md:pt-20">
+        <section className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-6 pb-16 pt-8 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,30rem)] md:grid-rows-[auto_1fr] md:gap-x-12 md:gap-y-7 md:pt-20">
           <div className="space-y-5 md:col-start-1 md:row-start-1 md:space-y-7">
             <div className="animate-rise inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-4 py-1.5 text-xs font-bold text-orange-300 uppercase tracking-widest">
               <img src="/chainfolioai-icon-128.webp" alt="" className="h-4 w-4 rounded-full object-cover" /> {t("lp_hero_badge")}
@@ -291,7 +291,8 @@ export default function Landing() {
             <p className="animate-rise delay-200 max-w-lg text-lg text-slate-300">
               {t("lp_hero_sub")}
             </p>
-            <p className="animate-rise delay-200 text-sm font-semibold text-orange-300/90">{t("lp_audience")}</p>
+            {/* No telemóvel fica de fora: empurrava a demonstração para fora do 1.º ecrã. */}
+            <p className="animate-rise delay-200 hidden text-sm font-semibold text-orange-300/90 md:block">{t("lp_audience")}</p>
           </div>
           {/* Primeiro passo: ver uma carteira a sério, sem conta. A conta pede-se
               depois, no resultado (botão "acompanhar esta carteira"). */}
