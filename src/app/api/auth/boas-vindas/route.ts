@@ -15,6 +15,7 @@ export async function POST() {
     const supabase = await createClient();
     const { data } = await supabase.auth.getUser();
     if (data.user) await enviarBoasVindas(getSupabaseAdmin(), data.user);
+    else console.info("[boas-vindas] pedido sem sessão (cookie ainda não chegou ao servidor?)");
   } catch (e) {
     console.error("[auth/boas-vindas]", e instanceof Error ? e.message : e);
   }

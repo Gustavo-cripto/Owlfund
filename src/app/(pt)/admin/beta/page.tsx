@@ -8,7 +8,7 @@ import { useConfirm } from "@/components/ConfirmDialog";
 
 type Tester = { email: string; plan: "pro" | "premium"; activatedAt?: string | null; expiresAt: string | null; daysLeft: number | null; lastSignInAt?: string | null; inactiveDays?: number | null; founder?: boolean };
 type Pending = { email: string; name: string | null; note: string | null; createdAt: string };
-type Conta = { id: string; email: string; via: string; criada: string | null; ultimaEntrada: string | null; interna: boolean; admin: boolean };
+type Conta = { id: string; email: string; via: string; criada: string | null; ultimaEntrada: string | null; interna: boolean; admin: boolean; boasVindas?: string | null };
 import type { Etapas, Funil } from "@/lib/analytics/funil";
 
 // Funil de pessoas (sem robos), 7 e 30 dias. Cada linha mostra tambem a
@@ -366,7 +366,7 @@ export default function AdminBetaPage() {
                               : c.interna ? <span className="ml-2 rounded-full bg-sky-500/15 px-2 py-0.5 text-[10px] font-semibold text-sky-300">teste</span>
                               : <span className="ml-2 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">cliente</span>}
                           </p>
-                          <p className="mt-0.5 text-xs text-slate-500">{c.via} · criada {fmt(c.criada)} · última entrada {fmt(c.ultimaEntrada)}</p>
+                          <p className="mt-0.5 text-xs text-slate-500">{c.via} · criada {fmt(c.criada)} · última entrada {fmt(c.ultimaEntrada)}{c.email ? ` · boas-vindas ${c.boasVindas ? `enviado ${new Date(c.boasVindas).toLocaleString("pt-PT", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}` : "não enviado"}` : ""}</p>
                         </div>
                         {!c.admin && aApagar !== c.id && (
                           <button type="button" onClick={() => { setAApagar(c.id); setContasMsg(null); }} disabled={apagando} className="shrink-0 rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-rose-500/60 hover:text-rose-300 disabled:opacity-40">Eliminar conta</button>

@@ -6,7 +6,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Lang } from "@/lib/i18n/translations";
-import { markSent, sendEmail, shell } from "@/lib/email";
+import { mascararEmail, markSent, sendEmail, shell } from "@/lib/email";
 import { isOptedOut } from "@/lib/emailOptout";
 import { betaAberto } from "@/lib/plans";
 import { langFromMetadata, resolveLang } from "@/lib/user/lang";
@@ -69,21 +69,27 @@ type Conta = { id: string; email?: string | null; created_at?: string | null; us
  * no beta, testers e quem pediu para não receber emails.
  */
 export async function enviarBoasVindas(admin: SupabaseClient, conta: Conta | null | undefined): Promise<boolean> {
+  // Cada saída fica nos registos da Vercel ("[boas-vindas]"), com o email
+  // mascarado: 14 out 2026 não havia forma de saber se tinha saído ou porquê não.
+  const email = (conta?.email ?? "").trim();
+  const nota = (o: string) => console.info(`[boas-vindas] ${mascararEmail(email)}: ${o}`);
   try {
-    const email = (conta?.email ?? "").trim();
     if (!conta?.id || !email || !conta.created_at) return false;
     if (Date.now() - Date.parse(conta.created_at) > JANELA_MS) return false;
     const [{ data: beta }, { data: tester }] = await Promise.all([
       admin.from("beta_signups").select("email").ilike("email", email.replace(/[%_\\]/g, "\\$&")).limit(1),
       admin.from("subscriptions").select("user_id").eq("user_id", conta.id).eq("source", "manual").limit(1),
     ]);
-    if ((beta ?? []).length || (tester ?? []).length) return false;
-    if (await isOptedOut(admin, conta.id)) return false;
+    if ((beta ?? []).length) { nota("não enviado (inscrito no beta: recebe os emails do beta)"); return false; }
+    if ((tester ?? []).length) { nota("não enviado (tester)"); return false; }
+    if (await isOptedOut(admin, conta.id)) { nota("não enviado (pediu para não receber emails)"); return false; }
     // Regista ANTES de enviar (como o cron): dois pedidos ao mesmo tempo não dão dois emails.
-    if (!(await markSent(admin, conta.id, KIND_BOAS_VINDAS, false))) return false;
+    if (!(await markSent(admin, conta.id, KIND_BOAS_VINDAS, false))) { nota("já tinha sido enviado"); return false; }
     const lang = resolveLang(langFromMetadata(conta.user_metadata));
     const m = boasVindas(lang, betaAberto());
-    return await sendEmail({ to: email, subject: m.subject, html: m.html, tag: KIND_BOAS_VINDAS, userId: conta.id, lang });
+    const ok = await sendEmail({ to: email, subject: m.subject, html: m.html, tag: KIND_BOAS_VINDAS, userId: conta.id, lang });
+    nota(ok ? `enviado (${lang})` : "FALHOU no envio (ver [email:welcome_account])");
+    return ok;
   } catch (e) {
     console.error("[boas-vindas]", e instanceof Error ? e.message : e);
     return false;
