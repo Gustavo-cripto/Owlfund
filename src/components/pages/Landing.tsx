@@ -9,7 +9,6 @@ import { SUPPORTED_CHAINS } from "@/lib/wallets/evm";
 import { useEffect, useState } from "react";
 import { CRIADO_POR, SOCIAL_LINKS } from "@/lib/social";
 import AppShell from "@/components/AppShell";
-import PnlSummaryCard from "@/components/PnlSummaryCard";
 import PlanBadge from "@/components/PlanBadge";
 import { comSupabase } from "@/lib/supabase/lazy";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -274,9 +273,13 @@ export default function Landing() {
 
       <div className="relative z-10 pt-8">
 
-        {/* HERO */}
-        <section className="mx-auto flex w-full max-w-6xl flex-col items-center gap-12 px-6 pb-16 pt-8 md:flex-row md:pt-24">
-          <div className="flex-1 space-y-5 md:space-y-7">
+        {/* HERO — três blocos: texto, demonstração, criar conta.
+            Telemóvel: por esta ordem, um por baixo do outro (a demonstração cabe no
+            1.º ecrã). Computador: texto e criar conta à esquerda, demonstração à
+            direita, também no 1.º ecrã. Antes a demonstração estava a ~2100 px e
+            quase ninguém lá chegava (14 out 2026). */}
+        <section className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 pb-16 pt-8 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,30rem)] md:grid-rows-[auto_1fr] md:gap-x-12 md:gap-y-7 md:pt-20">
+          <div className="space-y-5 md:col-start-1 md:row-start-1 md:space-y-7">
             <div className="animate-rise inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-4 py-1.5 text-xs font-bold text-orange-300 uppercase tracking-widest">
               <img src="/chainfolioai-icon-128.webp" alt="" className="h-4 w-4 rounded-full object-cover" /> {t("lp_hero_badge")}
             </div>
@@ -289,11 +292,13 @@ export default function Landing() {
               {t("lp_hero_sub")}
             </p>
             <p className="animate-rise delay-200 text-sm font-semibold text-orange-300/90">{t("lp_audience")}</p>
-            {/* Primeiro passo: ver uma carteira a sério, sem conta. A conta pede-se
-                depois, no resultado (botão "acompanhar esta carteira"). */}
-            <div className="animate-fade-in-up delay-300">
-              <ExperimentarSemConta noTopo />
-            </div>
+          </div>
+          {/* Primeiro passo: ver uma carteira a sério, sem conta. A conta pede-se
+              depois, no resultado (botão "acompanhar esta carteira"). */}
+          <div className="animate-fade-in-up delay-300 md:col-start-2 md:row-span-2 md:row-start-1 md:self-center">
+            <ExperimentarSemConta noTopo />
+          </div>
+          <div className="space-y-3 md:col-start-1 md:row-start-2">
             <div className="animate-fade-in-up delay-400 flex flex-wrap gap-3">
               <a href={`${pageUrl("login", lang)}?mode=signup`} onClick={() => marcarEvento("cta_hero")} className={`${btnSecondary} px-6 py-3 text-sm`}>
                 {t("lp_final_cta1")} →
@@ -309,10 +314,6 @@ export default function Landing() {
               )}
             </div>
             <p className="animate-fade-in-up delay-400 text-xs text-slate-500">{paymentsFrozen ? t("lp_no_card_beta") : t("lp_no_card")}</p>
-          </div>
-          <div className="animate-scale-in delay-200 hidden w-full max-w-sm flex-shrink-0 md:block">
-            <PnlSummaryCard position={2150} today={120} days30={480} daily7d={-35} />
-            <p className="mt-2 text-center text-[11px] text-slate-600">{t("lp_demo_label")}</p>
           </div>
         </section>
 
