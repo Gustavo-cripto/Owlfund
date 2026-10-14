@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from "react";
-import { ativarExemplo, exemploAtivo, removerExemplo } from "@/lib/demo/exemplo";
+import { ativarExemplo, ativarExemploAutomatico, exemploAtivo, removerExemplo } from "@/lib/demo/exemplo";
 import { marcarEvento } from "@/lib/analytics/eventos";
 import { repetirVisivel, DOIS_MIN, TRES_MIN } from "@/lib/polling";
 import { userError } from "@/lib/ui/userError";
@@ -101,7 +101,7 @@ import {
   updateWalletSnapshot,
   type StoredWalletEntry,
 } from "@/lib/wallets/storage";
-import { pushWalletCloud, pullWalletCloud } from "@/lib/portfolios/cloudSync";
+import { leituraDaNuvemOk, pushWalletCloud, pullWalletCloud } from "@/lib/portfolios/cloudSync";
 import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { traditionalAssets } from "@/lib/traditional/assets";
 import {
@@ -549,6 +549,23 @@ export default function WalletsPage() {
         setStablecoinEntries(loadStablecoinEntries());
         walletsHydratedRef.current = true;
         setHidratado(true);
+        // Conta acabada de criar e vazia: abre já com o exemplo carregado, em vez
+        // de um painel em branco. Só com a nuvem lida com sucesso (senão uma conta
+        // com carteiras noutro aparelho parecia vazia) e sem ativos manuais.
+        const nadaNaConta = [d.eth, d.sol, d.btc, d.ada, d.other].every((l) => !(l ?? []).length)
+          && Object.keys(loadCryptoHoldings()).length === 0
+          && Object.keys(loadTraditionalHoldings()).length === 0
+          && loadStablecoinEntries().length === 0;
+        if (leituraDaNuvemOk() && nadaNaConta) {
+          void supabase.auth.getUser().then(async (r: { data: { user: { created_at?: string } | null } }) => {
+            if (!r.data.user || !(await ativarExemploAutomatico(r.data.user.created_at))) return;
+            marcarEvento("exemplo_auto");
+            const comExemplo = loadWalletSnapshot();
+            setEthWallets((comExemplo.eth ?? []) as typeof ethWallets);
+            setSolWallets((comExemplo.sol ?? []) as typeof solWallets);
+            setBtcWallets((comExemplo.btc ?? []) as typeof btcWallets);
+          }).catch(() => { /* sem exemplo: fica a conta vazia, como antes */ });
+        }
         // Após o merge, envia o estado local para a nuvem — garante que a app
         // mobile (e outros dispositivos) veem os dados mesmo sem edições novas.
         pushWalletCloud();

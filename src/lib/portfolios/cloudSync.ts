@@ -67,8 +67,16 @@ export function pushWalletCloud() {
   }
 }
 
+// A última leitura da nuvem RESPONDEU (com ou sem dados)? `pullWalletCloud`
+// devolve false tanto quando falha como quando não há nada para trazer; quem
+// precisa de distinguir (o exemplo automático das contas novas não pode entrar
+// numa conta com carteiras noutro aparelho) lê isto.
+let ultimaLeituraOk = false;
+export const leituraDaNuvemOk = (): boolean => ultimaLeituraOk;
+
 /** Restaura da nuvem (contas + carteiras + ativos manuais). true se restaurou. */
 export async function pullWalletCloud(): Promise<boolean> {
+  ultimaLeituraOk = false;
   try {
     const supabase = await getSupabase();
     const { data: { user } } = await supabase.auth.getUser();
@@ -78,6 +86,7 @@ export async function pullWalletCloud(): Promise<boolean> {
     const res = await fetch("/api/wallet-sync");
     if (!res.ok) return false;
     const json = (await res.json()) as { data?: unknown };
+    ultimaLeituraOk = true;
     const data = json?.data as
       | (Record<string, unknown> & { v?: number })
       | null;

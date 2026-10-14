@@ -18,6 +18,9 @@ export type RedeDemo = keyof typeof EXEMPLOS;
 export const ROTULO_EXEMPLO: Record<RedeDemo, string> = { eth: "Exemplo · vitalik.eth", btc: "Exemplo · bloco génese", sol: "Exemplo · Solana" };
 const REDE: Record<RedeDemo, string> = { eth: "Ethereum", btc: "Bitcoin", sol: "Solana" };
 const MARCA = "cfa-exemplo-v1";
+// Quem já tirou o exemplo não o volta a ver carregado sozinho.
+const RECUSADO = "cfa-exemplo-recusado-v1";
+const JANELA_CONTA_NOVA_MS = 14 * 86_400_000;
 export const EVENTO_EXEMPLO = "cf-exemplo-mudou";
 
 const eDemo = (e: StoredWalletEntry) => e.source === "demo";
@@ -71,12 +74,30 @@ export async function ativarExemplo(): Promise<boolean> {
   return true;
 }
 
+/**
+ * Exemplo carregado SOZINHO numa conta acabada de criar (14 out 2026: a única
+ * conta real da história do site ficou 2 minutos num painel vazio e saiu; o
+ * botão "ver com dados de exemplo" nunca foi tocado). Só quando:
+ * a conta tem menos de 14 dias, nunca teve o exemplo nem o tirou, e não tem
+ * carteiras (isto é verificado em ativarExemplo). Quem chama tem de garantir que
+ * a nuvem foi lida com sucesso e que a conta não tem ativos manuais.
+ */
+export async function ativarExemploAutomatico(contaCriadaEm?: string | null): Promise<boolean> {
+  if (!temWindow() || getActiveAccountId() === ALL_ACCOUNTS_ID) return false;
+  try {
+    if (localStorage.getItem(accKey(RECUSADO)) || localStorage.getItem(accKey(MARCA))) return false;
+  } catch { return false; }
+  const criada = contaCriadaEm ? Date.parse(contaCriadaEm) : NaN;
+  if (!Number.isFinite(criada) || Date.now() - criada > JANELA_CONTA_NOVA_MS) return false;
+  return ativarExemplo();
+}
+
 /** Retira todas as entradas de exemplo da conta ativa. */
 export function removerExemplo(): void {
   if (!temWindow() || getActiveAccountId() === ALL_ACCOUNTS_ID) return;
   const s = loadWalletSnapshot();
   const limpa = (l?: StoredWalletEntry[]) => (l ?? []).filter((e) => !eDemo(e));
   updateWalletSnapshot({ eth: limpa(s.eth), sol: limpa(s.sol), btc: limpa(s.btc), ada: limpa(s.ada) });
-  try { localStorage.removeItem(accKey(MARCA)); } catch { /* ignore */ }
+  try { localStorage.removeItem(accKey(MARCA)); localStorage.setItem(accKey(RECUSADO), String(Date.now())); } catch { /* ignore */ }
   window.dispatchEvent(new CustomEvent(EVENTO_EXEMPLO));
 }

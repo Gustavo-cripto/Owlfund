@@ -20,6 +20,8 @@ export type Etapas = {
   comCarteira: number | null;
   /** Cliques em "Ver com dados de exemplo" dentro da app (Painel/Carteiras). */
   modoExemploCliques: number | null;
+  /** Contas novas a quem o exemplo foi carregado sozinho (desde 14 out 2026). */
+  modoExemploAuto: number | null;
   /** Contas da janela que só têm carteiras de exemplo (nenhuma real, nem corretora). */
   soComExemplo: number | null;
 };
@@ -39,6 +41,8 @@ export const MEDIDO_DESDE: Record<string, string> = {
   "cta.planos": "2026-10-05", "cta.final": "2026-10-05", "cta.demonstracaoInicial": "2026-10-05",
   emailConfirmado: "2026-10-05", modoExemploCliques: "2026-10-05", soComExemplo: "2026-10-05",
   registoGoogleAppleCarteira: "2026-10-05",
+  // Contas novas abrem com o exemplo carregado sozinho (evento exemplo_auto).
+  modoExemploAuto: "2026-10-14",
   // A partir desta data a demonstração está no topo da inicial (antes a ~2100 px).
   "inicial.demonstracaoNoTopo": "2026-10-14",
 };
@@ -166,12 +170,12 @@ export async function calcularFunil(admin: SupabaseClient): Promise<Funil> {
     const corte = agora - dias * 86_400_000;
     const naJanela = users.filter((u) => u.criada >= corte);
     const ev = (nome: string) => vistas(dias, (q) => q.eq("path", `${PREFIXO_EVENTO}${nome}`));
-    const [paginaInicial, experimentar, registo, emailConfirmado, modoExemploCliques, hero, criarConta, planos, final, demonstracaoInicial] = await Promise.all([
+    const [paginaInicial, experimentar, registo, emailConfirmado, modoExemploCliques, modoExemploAuto, hero, criarConta, planos, final, demonstracaoInicial] = await Promise.all([
       vistas(dias, (q) => q.in("path", INICIAIS)),
-      ev("experimentar"), ev("registo"), ev("email_confirmado"), ev("exemplo"), ev("cta_hero"), ev("cta_criar_conta"), ev("cta_planos"), ev("cta_final"), ev("cta_demo"),
+      ev("experimentar"), ev("registo"), ev("email_confirmado"), ev("exemplo"), ev("exemplo_auto"), ev("cta_hero"), ev("cta_criar_conta"), ev("cta_planos"), ev("cta_final"), ev("cta_demo"),
     ]);
     return {
-      paginaInicial, cta: { hero, criarConta, planos, final, demonstracaoInicial }, experimentar, registo, emailConfirmado, modoExemploCliques,
+      paginaInicial, cta: { hero, criarConta, planos, final, demonstracaoInicial }, experimentar, registo, emailConfirmado, modoExemploCliques, modoExemploAuto,
       contas: listagemOk ? naJanela.length : null,
       comCarteira: listagemOk ? naJanela.filter((u) => comCarteira.has(u.id)).length : null,
       soComExemplo: listagemOk ? naJanela.filter((u) => comExemplo.has(u.id) && !comCarteira.has(u.id)).length : null,
