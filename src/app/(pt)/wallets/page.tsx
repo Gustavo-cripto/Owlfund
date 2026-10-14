@@ -335,6 +335,23 @@ export default function WalletsPage() {
   // Campo rapido do topo (so para quem ainda nao tem carteiras).
   const [quickAddr, setQuickAddr] = useState("");
   const [exemploACarregar, setExemploACarregar] = useState(false);
+  // Ligar/juntar uma carteira pela via de cada rede com o exemplo carregado: as
+  // 3 de exemplo enchiam o limite do Free (3/3) e a carteira a sério era
+  // recusada (14 out 2026). Sai primeiro o exemplo; a ação corre no render
+  // seguinte, já com as listas sem as entradas "demo" (ver o efeito antes do JSX).
+  type AcaoCarteira = "eth" | "wc" | "sol" | "btc" | "ada" | "adaPeer" | "addEth" | "addSol" | "addBtc" | "addAda";
+  const [depoisDoExemplo, setDepoisDoExemplo] = useState<AcaoCarteira | null>(null);
+  const semExemploPrimeiro = (acao: AcaoCarteira): boolean => {
+    if (!exemploAtivo()) return false;
+    removerExemplo();
+    const s = loadWalletSnapshot();
+    setEthWallets((s.eth ?? []) as StoredWalletEntry[]);
+    setSolWallets((s.sol ?? []) as StoredWalletEntry[]);
+    setBtcWallets((s.btc ?? []) as StoredWalletEntry[]);
+    setAdaWallets((s.ada ?? []) as StoredWalletEntry[]);
+    setDepoisDoExemplo(acao);
+    return true;
+  };
   const [quickMsg, setQuickMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [manualAddNetworkOpen, setManualAddNetworkOpen] = useState(false);
   const [manualAddNetworkFilter, setManualAddNetworkFilter] = useState("");
@@ -1620,6 +1637,7 @@ export default function WalletsPage() {
   };
 
   const handleEthConnect = () => {
+    if (semExemploPrimeiro("eth")) return;
     const host = typeof window !== "undefined" ? window.location.hostname : "";
     requestConfirm({
       title: `${t("wl_connect_wallet")} Ethereum`,
@@ -1655,6 +1673,7 @@ export default function WalletsPage() {
   };
 
   const handleWalletConnect = () => {
+    if (semExemploPrimeiro("wc")) return;
     const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
     if (!projectId) {
       setEthError(t("wl_wc_missing"));
@@ -1765,6 +1784,7 @@ export default function WalletsPage() {
   };
 
   const handleAddEthWallet = () => {
+    if (semExemploPrimeiro("addEth")) return;
     const host = typeof window !== "undefined" ? window.location.hostname : "";
     requestConfirm({
       title: t("wl_add_addr_title").replace("{chain}", "Ethereum"),
@@ -1805,6 +1825,7 @@ export default function WalletsPage() {
   };
 
   const handleSolConnect = () => {
+    if (semExemploPrimeiro("sol")) return;
     const host = typeof window !== "undefined" ? window.location.hostname : "";
     requestConfirm({
       title: `${t("wl_connect_wallet")} Solana`,
@@ -1898,6 +1919,7 @@ export default function WalletsPage() {
   };
 
   const handleAddSolWallet = () => {
+    if (semExemploPrimeiro("addSol")) return;
     const host = typeof window !== "undefined" ? window.location.hostname : "";
     requestConfirm({
       title: t("wl_add_addr_title").replace("{chain}", "Solana"),
@@ -1952,6 +1974,7 @@ export default function WalletsPage() {
   };
 
   const handleBtcConnect = () => {
+    if (semExemploPrimeiro("btc")) return;
     const host = typeof window !== "undefined" ? window.location.hostname : "";
     requestConfirm({
       title: `${t("wl_connect_wallet")} Bitcoin`,
@@ -2065,6 +2088,7 @@ export default function WalletsPage() {
   };
 
   const handleAddBtcWallet = () => {
+    if (semExemploPrimeiro("addBtc")) return;
     const host = typeof window !== "undefined" ? window.location.hostname : "";
     requestConfirm({
       title: t("wl_add_addr_title").replace("{chain}", "Bitcoin"),
@@ -2142,6 +2166,7 @@ export default function WalletsPage() {
   };
 
   const handleAdaConnect = () => {
+    if (semExemploPrimeiro("ada")) return;
     const host = typeof window !== "undefined" ? window.location.hostname : "";
     requestConfirm({
       title: `${t("wl_connect_wallet")} Cardano`,
@@ -2151,6 +2176,7 @@ export default function WalletsPage() {
   };
 
   const handleAdaPeerConnect = async () => {
+    if (semExemploPrimeiro("adaPeer")) return;
     setAdaPeerConnecting(true);
     setAdaError(null);
     setAdaPeerAddress(null);
@@ -2939,6 +2965,7 @@ export default function WalletsPage() {
   };
 
   const handleAddAdaWallet = () => {
+    if (semExemploPrimeiro("addAda")) return;
     const host = typeof window !== "undefined" ? window.location.hostname : "";
     requestConfirm({
       title: t("wl_add_addr_title").replace("{chain}", "Cardano"),
@@ -2961,6 +2988,18 @@ export default function WalletsPage() {
   };
 
   // Mapas de DeFi/NFT so de leitura, agrupados para os componentes dos cartoes.
+  useEffect(() => {
+    if (!depoisDoExemplo) return;
+    const acao = depoisDoExemplo;
+    setDepoisDoExemplo(null);
+    const acoes: Record<AcaoCarteira, () => unknown> = {
+      eth: handleEthConnect, wc: handleWalletConnect, sol: handleSolConnect, btc: handleBtcConnect, ada: handleAdaConnect, adaPeer: handleAdaPeerConnect,
+      addEth: handleAddEthWallet, addSol: handleAddSolWallet, addBtc: handleAddBtcWallet, addAda: handleAddAdaWallet,
+    };
+    void acoes[acao]();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [depoisDoExemplo]);
+
   const defiNftMaps = { defiTotals, defiLoading, defiPartial, defiErrors, nftCounts, nftLoading, nftErrors, nftsByKey, nftPartial, defiPosicoes };
 
   return (
