@@ -131,7 +131,7 @@ export async function calcularFunil(admin: SupabaseClient): Promise<Funil> {
       const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
       if (error) { listagemOk = false; break; }
       for (const u of data.users) {
-        if (eContaInterna(u.email, internos)) { internasExcluidas++; continue; }
+        if (eContaInterna(u.email, internos, u.id)) { internasExcluidas++; continue; }
         const criada = u.created_at ? new Date(u.created_at).getTime() : 0;
         const carimbos = [u.last_sign_in_at, (u.user_metadata as Record<string, unknown> | null)?.last_seen_at]
           .filter((x): x is string => typeof x === "string").map((x) => new Date(x).getTime());

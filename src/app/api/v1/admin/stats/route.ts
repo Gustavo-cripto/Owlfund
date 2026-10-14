@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
         if (error) return null;
         const users = data?.users ?? [];
         for (const u of users) {
-          if (eContaInterna(u.email, internos)) { w.internalExcluded++; continue; }
+          if (eContaInterna(u.email, internos, u.id)) { w.internalExcluded++; continue; }
           w.total++;
           const c = u.created_at ? new Date(u.created_at).getTime() : 0;
           if (c >= t1) w.new24h++;
