@@ -275,8 +275,8 @@ export default function Landing() {
       <div className="relative z-10 pt-8">
 
         {/* HERO */}
-        <section className="mx-auto flex w-full max-w-6xl flex-col items-center gap-12 px-6 pb-16 pt-16 md:flex-row md:pt-24">
-          <div className="flex-1 space-y-7">
+        <section className="mx-auto flex w-full max-w-6xl flex-col items-center gap-12 px-6 pb-16 pt-8 md:flex-row md:pt-24">
+          <div className="flex-1 space-y-5 md:space-y-7">
             <div className="animate-rise inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-4 py-1.5 text-xs font-bold text-orange-300 uppercase tracking-widest">
               <img src="/chainfolioai-icon-128.webp" alt="" className="h-4 w-4 rounded-full object-cover" /> {t("lp_hero_badge")}
             </div>
