@@ -1,7 +1,8 @@
 // Apaga uma conta e todos os dados dela, a partir do /admin/beta (contas de
 // teste, ou um cliente que pediu para sair). Só admins; irreversível.
-// Travões: é preciso repetir o email da conta (ou o id, nas contas por
-// carteira), e nunca se apaga uma conta de admin nem a da própria sessão.
+// Travões: o pedido leva o email da conta (ou o id, nas contas por carteira)
+// que está no ecrã, para um id trocado não apagar outra conta; nunca se apaga
+// uma conta de admin nem a da própria sessão. No ecrã: botão + confirmar.
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { adminDaSessao, emailsAdmin } from "@/lib/auth/adminSessao";
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
   if (email && emailsAdmin().includes(email)) return NextResponse.json({ error: "Contas de administrador não se apagam por aqui." }, { status: 400 });
   const esperado = email || id;
   if (String(body.confirmacao ?? "").trim().toLowerCase() !== esperado) {
-    return NextResponse.json({ error: `Para confirmar, escreve exatamente ${email ? "o email" : "o id"} da conta.` }, { status: 400 });
+    return NextResponse.json({ error: "A conta mudou entretanto. Recarrega a página e tenta de novo." }, { status: 400 });
   }
 
   const { apagada, falhas } = await apagarContaETudo(admin, id, email);

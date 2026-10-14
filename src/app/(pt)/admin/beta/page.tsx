@@ -70,12 +70,12 @@ export default function AdminBetaPage() {
   const [grantMsg, setGrantMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [dispensando, setDispensando] = useState<string | null>(null);
 
-  // Eliminar contas (de teste, ou de um cliente que pediu). Irreversível: abre
-  // uma linha de confirmação onde se escreve o email da conta.
+  // Eliminar contas (de teste, ou de um cliente que pediu). Irreversível: o
+  // primeiro toque abre a confirmação, o segundo apaga (o dono pediu um botão
+  // de confirmar em vez de escrever o email, 14 out 2026).
   const [contas, setContas] = useState<Conta[]>([]);
   const [verTodas, setVerTodas] = useState(false);
   const [aApagar, setAApagar] = useState<string | null>(null);
-  const [confirmacao, setConfirmacao] = useState("");
   const [apagando, setApagando] = useState(false);
   const [contasMsg, setContasMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const carregarContas = () => {
@@ -90,13 +90,12 @@ export default function AdminBetaPage() {
       const r = await fetch("/api/admin/apagar-conta", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: c.id, confirmacao }),
+        body: JSON.stringify({ id: c.id, confirmacao: c.email || c.id }),
       });
       const j = (await r.json().catch(() => ({}))) as { error?: string; parcial?: boolean; falhas?: string[] };
       if (!r.ok) { setContasMsg({ ok: false, text: j.error || "Falhou." }); return; }
       setContasMsg({ ok: true, text: j.parcial ? `⚠️ Conta ${c.email || c.id} apagada, mas ficaram dados em: ${(j.falhas ?? []).join(", ")}.` : `🗑️ Conta ${c.email || c.id} apagada, com todos os dados.` });
       setAApagar(null);
-      setConfirmacao("");
       carregarContas();
       load();
     } catch {
@@ -370,17 +369,15 @@ export default function AdminBetaPage() {
                           <p className="mt-0.5 text-xs text-slate-500">{c.via} · criada {fmt(c.criada)} · última entrada {fmt(c.ultimaEntrada)}</p>
                         </div>
                         {!c.admin && aApagar !== c.id && (
-                          <button type="button" onClick={() => { setAApagar(c.id); setConfirmacao(""); setContasMsg(null); }} disabled={apagando} className="shrink-0 rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-rose-500/60 hover:text-rose-300 disabled:opacity-40">Eliminar conta</button>
+                          <button type="button" onClick={() => { setAApagar(c.id); setContasMsg(null); }} disabled={apagando} className="shrink-0 rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-rose-500/60 hover:text-rose-300 disabled:opacity-40">Eliminar conta</button>
                         )}
                       </div>
                       {aApagar === c.id && (
                         <div className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/5 p-3">
-                          <p className="text-xs text-rose-200">{c.interna ? "" : "⚠️ Esta conta não está marcada como de teste: é de um cliente. "}Para apagar, escreve {c.email ? "o email" : "o id"} da conta: <b className="break-all">{c.email || c.id}</b></p>
+                          <p className="text-xs text-rose-200">{c.interna ? "" : "⚠️ Esta conta não está marcada como de teste: pode ser de um cliente. "}Apagar <b className="break-all">{c.email || c.id}</b> e todos os dados? Não se pode desfazer.</p>
                           <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                            <input value={confirmacao} onChange={(e) => setConfirmacao(e.target.value)} autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder={c.email || c.id}
-                              className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-rose-400" />
-                            <button type="button" onClick={() => apagarConta(c)} disabled={apagando || confirmacao.trim().toLowerCase() !== (c.email || c.id)} className="rounded-lg bg-rose-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-rose-500 disabled:opacity-40">{apagando ? "A apagar…" : "Apagar para sempre"}</button>
-                            <button type="button" onClick={() => { setAApagar(null); setConfirmacao(""); }} disabled={apagando} className="rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-300">Cancelar</button>
+                            <button type="button" onClick={() => apagarConta(c)} disabled={apagando} className="flex-1 rounded-lg bg-rose-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-rose-500 disabled:opacity-40">{apagando ? "A apagar…" : "Confirmar: apagar para sempre"}</button>
+                            <button type="button" onClick={() => setAApagar(null)} disabled={apagando} className="rounded-lg border border-slate-700 px-3 py-2 text-xs text-slate-300">Cancelar</button>
                           </div>
                         </div>
                       )}
