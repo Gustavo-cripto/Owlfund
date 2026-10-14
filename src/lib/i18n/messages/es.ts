@@ -64,7 +64,7 @@ export const es: Record<TranslationKey, string> = {
     dash_connect_wallets: "Conectar monederos →",
     ex_cta: "Ver con datos de ejemplo",
     ex_loading: "Cargando el ejemplo…",
-    ex_banner: "Estás viendo datos de ejemplo: tres monederos públicos (vitalik.eth, el bloque génesis de Bitcoin y una dirección de Solana). No son tuyos, no cuentan en las estadísticas ni quedan en el historial.",
+    ex_banner: "Estás viendo datos de ejemplo: tres monederos públicos (la Cartera Block en Ethereum, el bloque génesis de Bitcoin y una dirección de Solana). No son tuyos, no cuentan en las estadísticas ni quedan en el historial.",
     ex_connect: "Conectar mi monedero",
     ex_remove: "Quitar ejemplo",
     ex_no_snapshot: "En modo de ejemplo no se guardan instantáneas de la cartera.",

@@ -71,7 +71,7 @@ export const pt = {
     dash_connect_wallets: "Ligar carteiras →",
     ex_cta: "Ver com dados de exemplo",
     ex_loading: "A carregar o exemplo…",
-    ex_banner: "Estás a ver dados de exemplo: três carteiras públicas (vitalik.eth, o bloco génese do Bitcoin e um endereço Solana). Não são tuas, não contam para as estatísticas nem ficam no histórico.",
+    ex_banner: "Estás a ver dados de exemplo: três carteiras públicas (a Carteira Block em Ethereum, o bloco génese do Bitcoin e um endereço Solana). Não são tuas, não contam para as estatísticas nem ficam no histórico.",
     ex_connect: "Ligar a minha carteira",
     ex_remove: "Remover exemplo",
     ex_no_snapshot: "Em modo de exemplo não se guardam fotografias do portefólio.",

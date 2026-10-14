@@ -64,7 +64,7 @@ export const fr: Record<TranslationKey, string> = {
     dash_connect_wallets: "Connecter des portefeuilles →",
     ex_cta: "Voir avec des données d'exemple",
     ex_loading: "Chargement de l'exemple…",
-    ex_banner: "Vous consultez des données d'exemple : trois portefeuilles publics (vitalik.eth, le bloc de genèse du Bitcoin et une adresse Solana). Ils ne sont pas à vous, ne comptent pas dans les statistiques et ne restent pas dans l'historique.",
+    ex_banner: "Vous consultez des données d'exemple : trois portefeuilles publics (le portefeuille Block sur Ethereum, le bloc de genèse du Bitcoin et une adresse Solana). Ils ne sont pas à vous, ne comptent pas dans les statistiques et ne restent pas dans l'historique.",
     ex_connect: "Connecter mon portefeuille",
     ex_remove: "Retirer l'exemple",
     ex_no_snapshot: "En mode exemple, aucun instantané du portefeuille n'est enregistré.",

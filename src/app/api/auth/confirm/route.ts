@@ -10,6 +10,7 @@ import { pageUrl } from "@/lib/i18n/routes";
 import { COOKIE_RECUPERACAO, RECUPERACAO_MAX_AGE, destinoDaConfirmacao } from "@/lib/auth/recuperacao";
 import { origemDoCookie } from "@/lib/origem";
 import { eDoProprioSite } from "@/lib/auth/proprioSite";
+import { enviarBoasVindas } from "@/lib/emails/boasVindas";
 
 // Confirmacao de email e ligacao magica por `token_hash` (modelos em
 // supabase/email-templates/*.html): /api/auth/confirm?token_hash=…&type=…&lang=xx
@@ -115,6 +116,8 @@ export async function POST(request: Request) {
     // cta → registo → email_confirmado → conta com carteira). Sem dados pessoais.
     if (type !== "recovery" && type !== "email_change" && uid) {
       try { await getSupabaseAdmin().from("page_views").insert({ path: `${PREFIXO_EVENTO}email_confirmado`, is_bot: false }); } catch { /* medir nunca trava a entrada */ }
+      // Conta criada pela ligação mágica: boas-vindas já (uma vez; nunca lança).
+      try { await enviarBoasVindas(getSupabaseAdmin(), sessao?.user); } catch { /* sem admin */ }
     }
     if (type !== "recovery" && !pediuDestino && uid) {
       try { contaNova = await contaSemCarteiras(getSupabaseAdmin(), uid); } catch { /* sem admin: fica o destino normal */ }

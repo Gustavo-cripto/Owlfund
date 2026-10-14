@@ -64,7 +64,7 @@ export const en: Record<TranslationKey, string> = {
     dash_connect_wallets: "Connect wallets →",
     ex_cta: "See it with sample data",
     ex_loading: "Loading the sample…",
-    ex_banner: "You are looking at sample data: three public wallets (vitalik.eth, the Bitcoin genesis block and a Solana address). They are not yours, do not count in the statistics and are not kept in the history.",
+    ex_banner: "You are looking at sample data: three public wallets (the Block wallet on Ethereum, the Bitcoin genesis block and a Solana address). They are not yours, do not count in the statistics and are not kept in the history.",
     ex_connect: "Connect my wallet",
     ex_remove: "Remove sample",
     ex_no_snapshot: "In sample mode no portfolio snapshots are saved.",

@@ -18,6 +18,7 @@ import { langFromMetadata, resolveLang, signupLangByEmail } from "@/lib/user/lan
 import { sendTelegram, tgEsc } from "@/lib/notify/telegram";
 import { esc, fmtDate, markSent, sendEmail, shell, TZ } from "@/lib/email";
 import { betaAberto } from "@/lib/plans";
+import { boasVindas } from "@/lib/emails/boasVindas";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,7 +40,6 @@ const CARTEIRAS = '<a href="https://chainfolioai.com/wallets" style="display:inl
 
 const COPY: {
   nudgeWallet: Record<Lang, () => { subject: string; html: string }>;
-  welcome: Record<Lang, (beta: boolean) => { subject: string; html: string }>;
   step1: Record<Lang, (plan: string) => { subject: string; html: string }>;
   idle: Record<Lang, (days: number) => { subject: string; html: string }>;
   d3: Record<Lang, (plan: string, end: string) => { subject: string; html: string }>;
@@ -80,47 +80,6 @@ const COPY: {
         <p style="margin:18px 0">${CARTEIRAS}Connecter mon portefeuille →</a></p>
         <p style="color:#94a3b8;font-size:13px">Uniquement l'adresse publique, celle que vous donnez pour recevoir des cryptos. <b>Jamais</b> votre phrase de récupération ni vos clés privées — si vous les collez par erreur, le champ les efface.</p>
         <p>Vos cryptos sont sur une plateforme ? Vous pouvez la connecter avec une clé en lecture seule, ou les ajouter à la main. Des questions : répondez à cet email.</p>`),
-    }),
-  },
-  // Boas-vindas a quem cria conta FORA do beta (os testers recebem o step1 abaixo).
-  // Um so envio, no dia seguinte a criar conta. Sem isto, uma conta gratuita
-  // normal nunca recebia nada do produto.
-  welcome: {
-    pt: (beta: boolean) => ({
-      subject: "Bem-vindo ao ChainFolioAI — o primeiro passo (2 minutos)",
-      html: shell(`<p style="color:#fff;font-size:16px;font-weight:700">A tua conta está criada 👋</p>
-        <p>O site só te serve para alguma coisa quando vê o que tens. O primeiro passo é ligar uma carteira, e leva menos de dois minutos:</p>
-        <p style="background:#1f2937;border-radius:10px;padding:12px 14px">1️⃣ Abre ${APP} → <b>Carteiras</b><br>2️⃣ Cola o <b>endereço público</b> (aquele que dás a quem te envia moedas)<br>3️⃣ Os saldos, os tokens e o histórico aparecem sozinhos</p>
-        <p>Só precisamos do endereço público. <b>Nunca pedimos chaves privadas nem seed phrase</b>, e o site é só-leitura: não move fundos nem assina nada.</p>
-        ${beta ? `<p style="background:#0c4a6e33;border:1px solid #0ea5e955;border-radius:10px;padding:12px 14px">🧪 Estamos em beta: podes ter o <b>Premium grátis durante 60 dias</b>. Inscreve-te com este email em ${BETA_LINK("pt")} e ativamos-to.</p>` : ""}
-        <p>Dúvidas ou sugestões? Responde a este email.</p>`),
-    }),
-    en: (beta: boolean) => ({
-      subject: "Welcome to ChainFolioAI — your first step (2 minutes)",
-      html: shell(`<p style="color:#fff;font-size:16px;font-weight:700">Your account is ready 👋</p>
-        <p>The site can only be useful once it can see what you hold. The first step is connecting a wallet, and it takes under two minutes:</p>
-        <p style="background:#1f2937;border-radius:10px;padding:12px 14px">1️⃣ Open ${APP} → <b>Wallets</b><br>2️⃣ Paste the <b>public address</b> (the one you give people who send you coins)<br>3️⃣ Balances, tokens and history show up on their own</p>
-        <p>We only need the public address. <b>We never ask for private keys or your seed phrase</b>, and the site is read-only: it moves nothing and signs nothing.</p>
-        ${beta ? `<p style="background:#0c4a6e33;border:1px solid #0ea5e955;border-radius:10px;padding:12px 14px">🧪 We are in beta: you can get <b>Premium free for 60 days</b>. Sign up with this email at ${BETA_LINK("en")} and we will switch it on.</p>` : ""}
-        <p>Questions or ideas? Just reply to this email.</p>`),
-    }),
-    es: (beta: boolean) => ({
-      subject: "Bienvenido a ChainFolioAI — tu primer paso (2 minutos)",
-      html: shell(`<p style="color:#fff;font-size:16px;font-weight:700">Tu cuenta ya está creada 👋</p>
-        <p>El sitio solo te sirve cuando puede ver lo que tienes. El primer paso es conectar un monedero, y lleva menos de dos minutos:</p>
-        <p style="background:#1f2937;border-radius:10px;padding:12px 14px">1️⃣ Abre ${APP} → <b>Monederos</b><br>2️⃣ Pega la <b>dirección pública</b> (la que das a quien te envía monedas)<br>3️⃣ Los saldos, los tokens y el historial aparecen solos</p>
-        <p>Solo necesitamos la dirección pública. <b>Nunca pedimos claves privadas ni tu frase semilla</b>, y el sitio es de solo lectura: no mueve fondos ni firma nada.</p>
-        ${beta ? `<p style="background:#0c4a6e33;border:1px solid #0ea5e955;border-radius:10px;padding:12px 14px">🧪 Estamos en beta: puedes tener el <b>Premium gratis durante 60 días</b>. Apúntate con este correo en ${BETA_LINK("es")} y te lo activamos.</p>` : ""}
-        <p>¿Dudas o sugerencias? Responde a este correo.</p>`),
-    }),
-    fr: (beta: boolean) => ({
-      subject: "Bienvenue sur ChainFolioAI — votre première étape (2 minutes)",
-      html: shell(`<p style="color:#fff;font-size:16px;font-weight:700">Votre compte est créé 👋</p>
-        <p>Le site ne sert à rien tant qu'il ne voit pas ce que vous détenez. La première étape est de connecter un portefeuille, en moins de deux minutes :</p>
-        <p style="background:#1f2937;border-radius:10px;padding:12px 14px">1️⃣ Ouvrez ${APP} → <b>Portefeuilles</b><br>2️⃣ Collez l'<b>adresse publique</b> (celle que vous donnez à qui vous envoie des cryptos)<br>3️⃣ Les soldes, les jetons et l'historique arrivent tout seuls</p>
-        <p>Nous n'avons besoin que de l'adresse publique. <b>Nous ne demandons jamais de clés privées ni votre phrase de récupération</b>, et le site est en lecture seule : il ne déplace rien et ne signe rien.</p>
-        ${beta ? `<p style="background:#0c4a6e33;border:1px solid #0ea5e955;border-radius:10px;padding:12px 14px">🧪 Nous sommes en bêta : vous pouvez avoir le <b>Premium gratuit pendant 60 jours</b>. Inscrivez-vous avec cet email sur ${BETA_LINK("fr")} et nous l'activons.</p>` : ""}
-        <p>Des questions ou des idées ? Répondez simplement à cet email.</p>`),
     }),
   },
   // Primeiro passo, no dia seguinte a ativacao. Ate aqui um tester ativado nao
@@ -381,7 +340,7 @@ export async function GET(request: Request) {
       if (dias < 1 || dias > 3) continue;
       if (!(await markSent(admin, uid, "welcome_account", dias === 1))) continue;
       const lang = langOf(uid, u.email);
-      const m = COPY.welcome[lang](beta);
+      const m = boasVindas(lang, beta);
       if (await sendEmail({ to: u.email, subject: m.subject, html: m.html, tag: "welcome_account", userId: uid, lang })) welcome++;
     }
   } catch (e) { falhou("boas-vindas", e); }

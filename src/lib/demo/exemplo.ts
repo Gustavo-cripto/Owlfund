@@ -15,7 +15,8 @@ export const EXEMPLOS = {
 } as const;
 export type RedeDemo = keyof typeof EXEMPLOS;
 
-export const ROTULO_EXEMPLO: Record<RedeDemo, string> = { eth: "Exemplo · vitalik.eth", btc: "Exemplo · bloco génese", sol: "Exemplo · Solana" };
+// O dono pediu "Carteira Block" em vez do nome de uma pessoa (14 out 2026).
+export const ROTULO_EXEMPLO: Record<RedeDemo, string> = { eth: "Exemplo · Carteira Block", btc: "Exemplo · bloco génese", sol: "Exemplo · Solana" };
 const REDE: Record<RedeDemo, string> = { eth: "Ethereum", btc: "Bitcoin", sol: "Solana" };
 const MARCA = "cfa-exemplo-v1";
 // Quem já tirou o exemplo não o volta a ver carregado sozinho.
