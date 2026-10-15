@@ -96,14 +96,36 @@ for (const e of endpoints) {
 }
 
 // ── 3) O servidor MCP ───────────────────────────────────────────────────────
+// Desde be552ec (13 out 2026) o `initialize` e o `tools/list` respondem SEM
+// chave, de propósito: os diretórios (Smithery, Glama, mcp.so, PulseMCP) listam
+// as ferramentas antes de haver autenticação — é o mesmo catálogo do
+// /developers. O limite a vigiar é o `tools/call`: é por lá que saem dados.
+// (Esta verificação ficou para trás e deu 3 noites a vermelho, 13–15 out;
+// correção proposta pelo agente social.)
 console.log(`\n── 3) Servidor MCP`);
-const mcp = await pedir("/api/mcp", {
+const corpoMcp = (method, params) => ({
   method: "POST",
   headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
-  body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "verificar-api", version: "1" } } }),
+  body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
 });
-if (mcp.res?.status === 401) ok("/api/mcp exige chave (401)");
-else mal(`/api/mcp devolveu ${mcp.res?.status ?? mcp.erro} — deveria ser 401 sem chave`);
+
+// 3a) descoberta pública — tem de ABRIR
+const ini = await pedir("/api/mcp", corpoMcp("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "verificar-api", version: "1" } }));
+if (ini.res?.status === 200) ok("initialize responde sem chave (descoberta pública)");
+else mal(`initialize devolveu ${ini.res?.status ?? ini.erro} — deveria ser 200`);
+const lst = await pedir("/api/mcp", corpoMcp("tools/list", {}));
+if (lst.res?.status === 200) ok("tools/list responde sem chave (descoberta pública)");
+else mal(`tools/list devolveu ${lst.res?.status ?? lst.erro} — deveria ser 200`);
+
+// 3b) O LIMITE QUE INTERESSA: executar uma ferramenta sem chave dá 401.
+const call = await pedir("/api/mcp", corpoMcp("tools/call", { name: "global", arguments: {} }));
+if (call.res?.status === 401) ok("tools/call exige chave (401) — o limite real");
+else mal(`tools/call devolveu ${call.res?.status ?? call.erro} SEM CHAVE — possível fuga de dados`);
+
+// 3c) O GET continua a dar 401, com o cabeçalho que diz onde está a documentação
+const mcp = await pedir("/api/mcp");
+if (mcp.res?.status === 401) ok("GET /api/mcp exige chave (401)");
+else mal(`GET /api/mcp devolveu ${mcp.res?.status ?? mcp.erro} — deveria ser 401 sem chave`);
 
 const wwwAuth = mcp.res?.headers.get("www-authenticate") ?? "";
 if (/resource_metadata=/.test(wwwAuth)) ok("diz aos clientes onde está a documentação (WWW-Authenticate)");

@@ -17,7 +17,8 @@
 //      404 amanhã).
 //   4. Conta, em cada página traduzida, links que ainda apontem para as
 //      versões portuguesas.
-//   5. Lê o /api/status do próprio site: "falha" conta como erro; "degradado"
+//   5. Lê o /api/status do próprio site: "falha" do que é nosso (Supabase,
+//      snapshots) conta como erro; um fornecedor externo em falha ou "degradado"
 //      (ex.: CoinGecko em 429, snapshots parados) manda aviso ao Telegram se
 //      TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID (ou TOKEN/CHAT) estiverem no ambiente
 //      — antes o 429 persistente da CoinGecko não avisava ninguém.
@@ -161,12 +162,17 @@ const EXTERNAS = [
   "https://blockstream.info/api/address/1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
   "https://api.twelvedata.com/quote?symbol=AAPL&apikey=demo",
 ];
+// Um fornecedor em baixo (ou a recusar o IP do GitHub) é AVISO, não falha: o
+// alerta vermelho é para "o nosso site tem um problema" (15 out 2026: três
+// noites a vermelho e nenhuma era do site). Um redirecionamento continua a ser
+// falha — é o código que tem de mudar.
+const externasEmBaixo = [];
 for (const u of EXTERNAS) {
   const { res, ms, falha } = await pedir(u, { method: "GET", headers: { "User-Agent": "chainfolioai-check" } });
   const host = new URL(u).host;
-  if (!res) { erro(`${host} — sem resposta (${falha})`); continue; }
+  if (!res) { aviso(`${host} — sem resposta (${falha}) — fonte externa`); externasEmBaixo.push(host); continue; }
   if (res.status >= 300 && res.status < 400) { erro(`${host} → ${res.status} redireciona para ${res.headers.get("location")} — atualizar o endereço no código`); continue; }
-  if (res.status !== 200) { (res.status === 429 ? aviso : erro)(`${host} → ${res.status}`); continue; }
+  if (res.status !== 200) { aviso(`${host} → ${res.status} — fonte externa`); externasEmBaixo.push(`${host} (${res.status})`); continue; }
   ok(`${host.padEnd(24)} ${ms.toString().padStart(5)} ms`);
 }
 
@@ -181,13 +187,17 @@ console.log(`\n── 6) /api/status (o que o servidor vê)`);
   else if (res.status !== 200) erro(`/api/status → ${res.status}`);
   else { try { st = JSON.parse(texto); } catch { erro("/api/status — não é JSON"); } }
   if (st) {
+    // Só o que é NOSSO conta como falha (a base de dados e o cron dos snapshots);
+    // um fornecedor externo em falha é aviso amarelo.
+    const NOSSOS = new Set(["supabase", "snapshots"]);
     const maus = (st.servicos ?? []).filter((s) => s.estado === "falha" || s.estado === "degradado");
     for (const s of st.servicos ?? []) {
       const linha = `${String(s.nome).padEnd(20)} ${String(s.estado).padEnd(16)}${s.codigo ? ` código ${s.codigo}` : ""}${s.ms != null ? `  ${s.ms} ms` : ""}`;
-      (s.estado === "falha" ? erro : s.estado === "degradado" ? aviso : ok)(linha);
+      (s.estado === "falha" && NOSSOS.has(s.id) ? erro : s.estado === "falha" || s.estado === "degradado" ? aviso : ok)(linha);
     }
-    if (st.geral === "degradado") {
-      const texto = `⚠️ chainfolioai.com /api/status: DEGRADADO\n${maus.map((s) => `• ${s.nome}: ${s.estado}${s.codigo ? ` (${s.codigo})` : ""}`).join("\n")}\nVer ${BASE}/estado`;
+    if (maus.length || externasEmBaixo.length) {
+      const linhas = [...maus.map((s) => `• ${s.nome}: ${s.estado}${s.codigo ? ` (${s.codigo})` : ""}`), ...externasEmBaixo.map((h) => `• ${h} (visto do GitHub)`)];
+      const texto = `🟡 chainfolioai.com: fornecedor externo com problemas (o site está a responder)\n${linhas.join("\n")}\nVer ${BASE}/estado`;
       const enviado = await avisarTelegram(texto);
       aviso(enviado ? "aviso enviado ao Telegram" : "sem TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID — aviso só aqui");
     }
