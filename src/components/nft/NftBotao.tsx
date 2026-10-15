@@ -70,14 +70,18 @@ function NftDetalhe({ nft, rede, onFechar }: { nft: NftDados; rede?: string | nu
           )}
         </div>
 
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          {l.contrato && (
+            <a href={l.contrato} target="_blank" rel="noopener noreferrer" className="flex-1 rounded-xl bg-orange-500 px-3 py-2 text-center text-xs font-semibold text-slate-950 hover:bg-orange-400">{t("nft_view_contract")} ↗</a>
+          )}
           {l.explorador && (
-            <a href={l.explorador} target="_blank" rel="noopener noreferrer" className="flex-1 rounded-xl bg-orange-500 px-3 py-2 text-center text-xs font-semibold text-slate-950 hover:bg-orange-400">{t("nft_view_chain")} ↗</a>
+            <a href={l.explorador} target="_blank" rel="noopener noreferrer" className={`flex-1 rounded-xl px-3 py-2 text-center text-xs font-semibold ${l.contrato ? "border border-slate-700 text-slate-200 hover:border-slate-500" : "bg-orange-500 text-slate-950 hover:bg-orange-400"}`}>{t(l.contrato ? "nft_view_item" : "nft_view_chain")} ↗</a>
           )}
           {l.mercado && (
             <a href={l.mercado} target="_blank" rel="noopener noreferrer" className="flex-1 rounded-xl border border-slate-700 px-3 py-2 text-center text-xs font-semibold text-slate-200 hover:border-slate-500">{t("nft_view_market")} ↗</a>
           )}
         </div>
+        {l.contrato && <p className="mt-2 text-[11px] leading-relaxed text-slate-500">{t("nft_na_note")}</p>}
       </div>
     </div>,
     document.body,

@@ -16,7 +16,10 @@ export type LigacoesNft = {
   /** O identificador a mostrar e copiar (contrato, mint, inscrição ou policy). */
   id: string | null;
   tokenId: string | null;
+  /** Página do NFT (ou do mint/inscrição/token) no explorador. */
   explorador: string | null;
+  /** Página do CONTRATO no explorador (só redes EVM; nas outras é o próprio explorador). */
+  contrato: string | null;
   mercado: string | null;
 };
 
@@ -46,27 +49,30 @@ export function ligacoesNft(nft: { tokenAddress?: string | null; tokenId?: strin
   const e = encodeURIComponent;
 
   if (rede === "Solana") {
-    return { rede, tipo: "mint", id: addr, tokenId: null,
+    return { rede, tipo: "mint", id: addr, tokenId: null, contrato: null,
       explorador: addr ? `https://solscan.io/token/${e(addr)}` : null,
       mercado: addr ? `https://magiceden.io/item-details/${e(addr)}` : null };
   }
   if (rede === "Bitcoin") {
     const insc = addr ?? (nft.id ?? null);
-    return { rede, tipo: "inscricao", id: insc, tokenId: null,
+    return { rede, tipo: "inscricao", id: insc, tokenId: null, contrato: null,
       explorador: insc ? `https://ordinals.com/inscription/${e(insc)}` : null,
       mercado: insc ? `https://magiceden.us/ordinals/item-details/${e(insc)}` : null };
   }
   if (rede === "Cardano") {
     const policy = addr && /^[0-9a-f]{56}/i.test(addr) ? addr.slice(0, 56) : addr;
-    return { rede, tipo: "policy", id: policy, tokenId: null,
+    return { rede, tipo: "policy", id: policy, tokenId: null, contrato: null,
       explorador: addr ? `https://cardanoscan.io/token/${e(addr)}` : null,
       mercado: null };
   }
+  // Duas páginas: o contrato (o que o dono pediu: código, transações,
+  // detentores) e o NFT em si, que mostra "N/A" quando o explorador não tem
+  // metadados do NFT, o que é normal em NFTs oferecidos sem pedido (15 out 2026).
   const cfg = EVM[rede] ?? EVM.Ethereum;
-  const explorador = addr
-    ? (cfg.nft && tokenId ? `${cfg.base}/nft/${e(addr)}/${e(tokenId)}` : `${cfg.base}/address/${e(addr)}`)
-    : null;
+  const contrato = addr ? `${cfg.base}/address/${e(addr)}` : null;
+  const explorador = addr && cfg.nft && tokenId ? `${cfg.base}/nft/${e(addr)}/${e(tokenId)}` : null;
   return { rede: EVM[rede] ? rede : "Ethereum", tipo: "contrato", id: addr, tokenId,
+    contrato,
     explorador,
     mercado: addr && tokenId && cfg.opensea ? `https://opensea.io/assets/${cfg.opensea}/${e(addr)}/${e(tokenId)}` : null };
 }
