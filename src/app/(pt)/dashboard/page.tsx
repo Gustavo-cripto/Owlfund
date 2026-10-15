@@ -15,7 +15,9 @@ import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { loadWalletSnapshot, type WalletSnapshot } from "@/lib/wallets/storage";
 import { loadCryptoHoldings, loadStablecoinEntries } from "@/lib/crypto/storage";
 import { loadTraditionalHoldings } from "@/lib/traditional/storage";
-import { getActiveAccountId } from "@/lib/portfolios/accounts";
+import { ALL_ACCOUNTS_ID, getActiveAccountId } from "@/lib/portfolios/accounts";
+import { relerDefiDaConta } from "@/lib/defi/lerDefi";
+import { pushWalletCloud } from "@/lib/portfolios/cloudSync";
 import { inicioDaJanela, limiteDaJanela, posicaoAjustada } from "@/lib/portfolio/posicao";
 import { createClient } from "@/lib/supabase/client";
 import { loadNickname, saveNickname, nicknameFromMetadata } from "@/lib/user/nickname";
@@ -186,6 +188,18 @@ export default function DashboardPage() {
       finally { if (mountedRef.current) setIsPnlLoading(false); }
     };
     loadPnl();
+    // DeFi relido da blockchain ao abrir (como no Portefólio): uma posição
+    // desfeita deixava de contar só depois de se passar pelas Carteiras.
+    let conta = "";
+    try { conta = getActiveAccountId(); } catch { /* ignore */ }
+    if (conta && conta !== ALL_ACCOUNTS_ID) {
+      const antes = loadWalletSnapshot().defiUsd ?? 0;
+      void relerDefiDaConta(loadWalletSnapshot()).then((novo) => {
+        if (novo == null || Math.abs(novo - antes) < 0.005 || !mountedRef.current) return;
+        pushWalletCloud();
+        void loadPnl();
+      }).catch(() => {});
+    }
   }, [supabase]);
 
   // "PNL da posicao" com a MESMA base do Portefolio (lib/portfolio/posicao):

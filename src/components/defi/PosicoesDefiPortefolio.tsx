@@ -7,9 +7,11 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import { loadWalletSnapshot, type WalletSnapshot } from "@/lib/wallets/storage";
 import type { PosicaoDefi } from "@/lib/defi/posicoes";
+import { EVENTO_DEFI_RELIDO } from "@/lib/defi/lerDefi";
 
-// Secção do Portefólio: as posições DeFi de todas as carteiras da conta, como
-// as Carteiras as leram da última vez (não volta a pedir tudo à blockchain).
+// Secção do Portefólio: as posições DeFi de todas as carteiras da conta. Mostra
+// logo a última leitura guardada e atualiza-se quando o Portefólio acaba de as
+// reler na blockchain (src/lib/defi/lerDefi.ts, evento cf-defi-relido).
 
 const curto = (a: string) => (a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a);
 
@@ -17,7 +19,12 @@ export default function PosicoesDefiPortefolio() {
   const { t, lang } = useLanguage();
   const { formatUsd } = useCurrencyFormat();
   const [snap, setSnap] = useState<WalletSnapshot | null>(null);
-  useEffect(() => { setSnap(loadWalletSnapshot()); }, []);
+  useEffect(() => {
+    const ler = () => setSnap(loadWalletSnapshot());
+    ler();
+    window.addEventListener(EVENTO_DEFI_RELIDO, ler);
+    return () => window.removeEventListener(EVENTO_DEFI_RELIDO, ler);
+  }, []);
 
   const posicoes = useMemo(() => {
     if (!snap?.defiPosicoes) return [] as (PosicaoDefi & { carteira?: string })[];

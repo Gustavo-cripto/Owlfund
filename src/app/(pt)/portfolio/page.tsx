@@ -22,7 +22,8 @@ import ScenarioSimulator from "@/components/ScenarioSimulator";
 import { createClient } from "@/lib/supabase/client";
 import { loadWalletSnapshot, updateWalletSnapshot, type StoredWalletEntry, type WalletSnapshot } from "@/lib/wallets/storage";
 import { pushWalletCloud, pullWalletCloud } from "@/lib/portfolios/cloudSync";
-import { getActiveAccountId, listAccounts } from "@/lib/portfolios/accounts";
+import { ALL_ACCOUNTS_ID, getActiveAccountId, listAccounts } from "@/lib/portfolios/accounts";
+import { relerDefiDaConta } from "@/lib/defi/lerDefi";
 import ChatMarkdown from "@/components/ChatMarkdown";
 import { exemploAtivo } from "@/lib/demo/exemplo";
 import { baseDaPosicao, daConta, posicaoAjustada } from "@/lib/portfolio/posicao";
@@ -460,6 +461,13 @@ export default function PortfolioPage() {
 
       if (!snapshot.eth?.length && !snapshot.sol?.length && !snapshot.btc?.length && !snapshot.ada?.length) return;
 
+      // DeFi relido da blockchain ao abrir, em paralelo com os saldos: uma posição
+      // desfeita saía só quando se voltava às Carteiras (15 out 2026). Só grava
+      // se todas as leituras correrem bem; a vista "Todas" não se grava.
+      let contaAtiva = "";
+      try { contaAtiva = getActiveAccountId(); } catch { /* ignore */ }
+      const defiNovo = contaAtiva && contaAtiva !== ALL_ACCOUNTS_ID ? relerDefiDaConta(snapshot) : Promise.resolve(null);
+
       const patch: WalletSnapshot = {};
       const refreshEntries = async (
         entries: StoredWalletEntry[] | undefined,
@@ -487,13 +495,16 @@ export default function PortfolioPage() {
       if (btc.status === "fulfilled" && btc.value) patch.btc = btc.value;
       if (ada.status === "fulfilled" && ada.value) patch.ada = ada.value;
 
+      const totalDefi = await defiNovo;
+      if (totalDefi != null) setSnapshotDefiUsd(totalDefi);
+
       if (Object.keys(patch).length > 0) {
         updateWalletSnapshot(patch);
         const fresh = loadWalletSnapshot();
         setWallets(snapshotToWallets(fresh as WalletSnapshot, tokenPricesRef.current));
-        // Sync updated balances back to cloud (todas as contas)
-        pushWalletCloud();
       }
+      // Sync updated balances (e o DeFi relido) back to cloud (todas as contas)
+      if (Object.keys(patch).length > 0 || totalDefi != null) pushWalletCloud();
     };
     run().finally(() => setSaldosRelidos(true));
   // eslint-disable-next-line react-hooks/exhaustive-deps
