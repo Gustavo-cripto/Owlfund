@@ -1269,6 +1269,14 @@ export default function PortfolioPage() {
           tokenPrices={tokenPrices}
           cryptoTotal={cryptoTotal}
           traditionalTotal={traditionalTotal}
+          manualRows={manualCryptoScaled.map((m) => ({ symbol: m.symbol, quantity: Number(cryptoHoldings[m.symbol]?.quantity ?? 0) || 0, valueEur: m.value }))}
+          otherRows={[
+            { key: "tokens", valueEur: snapshotTokensEur },
+            { key: "defi", valueEur: snapshotDefiEur },
+            { key: "cex", valueEur: snapshotCexEur },
+            { key: "stable", valueEur: stablecoinTotal },
+            { key: "trad", valueEur: traditionalTotal },
+          ]}
         />
 
         <section className="grid gap-6 md:grid-cols-[1.2fr_0.8fr]">

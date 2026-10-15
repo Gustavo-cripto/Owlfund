@@ -26,8 +26,15 @@ type TokenPrices = Record<string, number>;
 type SnapshotTotal = { id: number; createdAt: number; total: number };
 type HistoricalPrices = { "1d": Record<string, number>; "7d": Record<string, number>; "30d": Record<string, number> };
 
+/** Cripto adicionada à mão (quantidade e valor de mercado já calculados no Portefólio). */
+type ManualRow = { symbol: string; quantity: number; valueEur: number };
+/** Partes do total sem preço por unidade: tokens, DeFi, exchanges, stablecoins, tradicionais. */
+type OtherRow = { key: "tokens" | "defi" | "cex" | "stable" | "trad"; valueEur: number };
+
 type Props = {
   portfolioTotal: number;
+  manualRows?: ManualRow[];
+  otherRows?: OtherRow[];
   pnlToday: number;
   snapshotTotals: SnapshotTotal[];
   historicalPrices: HistoricalPrices;
@@ -133,6 +140,17 @@ function buildChartData(
 // ── Token row ───────────────────────────────────────────────────────────────
 // Variacao 24 h POR TOKEN: preco de ha 1 dia do proprio simbolo (historicalPrices).
 // Antes cada linha mostrava a percentagem do portefolio inteiro, igual em todas.
+/** Linha só com valor (sem preço por unidade nem variação). */
+function ValorRow({ label, value }: { label: string; value: number }) {
+  const { format: fmt } = useCurrencyFormat();
+  return (
+    <div className="flex items-center gap-3 py-3 border-b border-slate-800/60 last:border-0">
+      <p className="flex-1 min-w-0 text-sm font-semibold text-white">{label}</p>
+      <p className="text-sm font-semibold text-white">{fmt(value)}</p>
+    </div>
+  );
+}
+
 function TokenRow({ wallet, price, price1d }: { wallet: WalletBalance; price: number; price1d: number | undefined }) {
   const { format: fmt, formatSigned: fmtSigned, hideBalances } = useCurrencyFormat();
   const balanceNum = parseFloat(wallet.balance ?? "0") || 0;
@@ -202,7 +220,7 @@ function NftCard({ nft }: { nft: NftItem }) {
 // ── Main export ─────────────────────────────────────────────────────────────
 export default function PortfolioChartSection({
   portfolioTotal, pnlToday, snapshotTotals, historicalPrices,
-  wallets, tokenPrices,
+  wallets, tokenPrices, manualRows = [], otherRows = [],
 }: Props) {
   const { t, lang } = useLanguage();
   const locale = LOCALE_BY_LANG[lang] ?? "pt-PT";
@@ -533,7 +551,7 @@ export default function PortfolioChartSection({
             <span className="w-28 text-right">{t("pcs_unrealized")}</span>
           </div>
           <div className="px-4">
-            {wallets.filter(w => (parseFloat(w.balance ?? "0") || 0) * (priceMap[w.symbol] ?? 0) >= 0.01).length === 0 ? (
+            {wallets.filter(w => (parseFloat(w.balance ?? "0") || 0) * (priceMap[w.symbol] ?? 0) >= 0.01).length === 0 && manualRows.every((m) => m.valueEur < 0.01) && otherRows.every((o) => o.valueEur < 0.01) ? (
               <p className="text-sm text-slate-500 py-8 text-center">{t("pcs_no_token")}<br /><Link href="/wallets" className="text-orange-400 underline text-xs">{t("pcs_connect_wallet")}</Link></p>
             ) : [...wallets]
                 .sort((a, b) => {
@@ -544,18 +562,45 @@ export default function PortfolioChartSection({
                 .map((w, i) => (
                   <TokenRow key={`${w.symbol}-${i}`} wallet={w} price={priceMap[w.symbol] ?? 0} price1d={historicalPrices["1d"]?.[w.symbol]} />
                 ))}
+            {/* Cripto adicionada à mão (15 out 2026: não aparecia nesta lista,
+                embora contasse no total). */}
+            {[...manualRows].filter((m) => m.valueEur >= 0.01).sort((a, b) => b.valueEur - a.valueEur).map((m) => (
+              m.quantity > 0
+                ? <TokenRow key={`manual-${m.symbol}`} wallet={{ label: t("pcs_manual_label"), symbol: m.symbol, balance: String(m.quantity) }} price={m.valueEur / m.quantity} price1d={historicalPrices["1d"]?.[m.symbol]} />
+                : <ValorRow key={`manual-${m.symbol}`} label={`${m.symbol} · ${t("pcs_manual_label")}`} value={m.valueEur} />
+            ))}
           </div>
           {(() => {
             const walletTotal = wallets.reduce((sum, w) => {
               const val = (parseFloat(w.balance ?? "0") || 0) * (priceMap[w.symbol] ?? 0);
               return sum + (val >= 0.01 ? val : 0);
             }, 0);
-            return walletTotal > 0 ? (
-              <div className="px-4 py-3 border-t border-slate-800 flex items-center justify-between">
-                <span className="text-xs text-slate-500">{t("pcs_total_blockchain")}</span>
-                <span className="text-sm font-bold text-white">{fmt(walletTotal)}</span>
-              </div>
-            ) : null;
+            const outros = otherRows.filter((o) => o.valueEur >= 0.01);
+            const rotulo: Record<OtherRow["key"], TranslationKey> = { tokens: "pcs_o_tokens", defi: "pcs_o_defi", cex: "pcs_o_cex", stable: "pcs_o_stable", trad: "pcs_o_trad" };
+            return (
+              <>
+                {walletTotal > 0 && (
+                  <div className="px-4 py-3 border-t border-slate-800 flex items-center justify-between">
+                    <span className="text-xs text-slate-500">{t("pcs_total_blockchain")}</span>
+                    <span className="text-sm font-bold text-white">{fmt(walletTotal)}</span>
+                  </div>
+                )}
+                {/* O resto do total, sem preço por unidade: assim a lista soma o
+                    mesmo que o "Valor total" do Portefólio. */}
+                {outros.length > 0 && (
+                  <div className="px-4 border-t border-slate-800">
+                    <p className="pt-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("pcs_others")}</p>
+                    {outros.sort((a, b) => b.valueEur - a.valueEur).map((o) => <ValorRow key={o.key} label={t(rotulo[o.key])} value={o.valueEur} />)}
+                  </div>
+                )}
+                {portfolioTotal > 0 && (manualRows.length > 0 || outros.length > 0) && (
+                  <div className="px-4 py-3 border-t border-slate-800 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-300">{t("pcs_total_portfolio")}</span>
+                    <span className="text-sm font-bold text-white">{fmt(portfolioTotal)}</span>
+                  </div>
+                )}
+              </>
+            );
           })()}
         </div>
       )}
