@@ -2,6 +2,7 @@
 
 import EditableName from "@/components/wallets/EditableName";
 import NftImage from "@/components/NftImage";
+import NftBotao from "@/components/nft/NftBotao";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import { defiKey, type DefiChain, type DefiNftMaps } from "@/lib/wallets/formatar";
@@ -134,17 +135,16 @@ export default function SolCarteirasLista({
                 {!hideBalances && itemNfts.length > 0 && (
                   <div className="mt-1 grid grid-cols-4 gap-1 max-w-[160px]">
                     {itemNfts.slice(0, 8).map((nft) => (
-                      <a
+                      <NftBotao
                         key={nft.id}
-                        href={nft.tokenAddress ? `https://magiceden.io/item-details/${nft.tokenAddress}` : "#"}
-                        target="_blank" rel="noopener noreferrer"
+                        nft={nft}
+                        rede="Solana"
                         className="aspect-square overflow-hidden rounded border border-slate-700 bg-slate-800"
-                        title={nft.name}
                       >
                         {(nft.image || nft.tokenUri)
                           ? <NftImage src={nft.image} tokenUri={nft.tokenUri} alt={nft.name} className="h-full w-full object-cover" loading="lazy" />
                           : <div className="h-full w-full flex items-center justify-center text-[8px] text-slate-500">{nft.name?.slice(0, 3)}</div>}
-                      </a>
+                      </NftBotao>
                     ))}
                   </div>
                 )}

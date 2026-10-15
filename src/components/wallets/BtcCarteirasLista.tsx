@@ -2,6 +2,7 @@
 
 import EditableName from "@/components/wallets/EditableName";
 import NftImage from "@/components/NftImage";
+import NftBotao from "@/components/nft/NftBotao";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import { defiKey, type DefiNftMaps } from "@/lib/wallets/formatar";
@@ -115,19 +116,18 @@ export default function BtcCarteirasLista({
                   {!hideBalances && itemNfts.length > 0 && (
                     <div className="mt-1 grid grid-cols-4 gap-1 max-w-[160px]">
                       {itemNfts.slice(0, 8).map((nft) => (
-                        <a
+                        <NftBotao
                           key={nft.id}
-                          href={nft.tokenAddress ? `https://magiceden.us/ordinals/item-details/${nft.tokenAddress}` : "#"}
-                          target="_blank" rel="noopener noreferrer"
+                          nft={nft}
+                          rede="Bitcoin"
                           className="aspect-square rounded overflow-hidden bg-slate-800 border border-slate-700 hover:border-orange-400 transition"
-                          title={nft.name}
                         >
                           {(nft.image || nft.tokenUri) ? (
                             <NftImage src={nft.image} tokenUri={nft.tokenUri} alt={nft.name} className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-[8px] text-slate-500 p-0.5 text-center leading-tight">{nft.name}</div>
                           )}
-                        </a>
+                        </NftBotao>
                       ))}
                     </div>
                   )}

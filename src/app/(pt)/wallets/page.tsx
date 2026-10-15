@@ -3070,6 +3070,7 @@ export default function WalletsPage() {
         )}
         <div id="chain-cards" className="grid gap-6 md:grid-cols-2 scroll-mt-24">
           <WalletCard
+            nftRede="Ethereum"
             {...propsCartaoEth({
               t, ethWallets, selectedEthConnectNetwork, ethActiveEntry, ethAddress, ethShowMain, ethActiveBalance, getFiatValue,
               defiNftMaps, ethMainAddress, usdToEurRate, fetchDefiTotal, ethIsAvailable, ethLoading, ethError,
@@ -3152,6 +3153,7 @@ export default function WalletsPage() {
             </div>
           </WalletCard>
           <WalletCard
+            nftRede="Solana"
             {...propsCartaoSol({
               solWallets, solAddress, solShowMain, totalSolBalance, solBalance, getFiatValue, defiNftMaps, solMainAddress,
               usdToEurRate, fetchDefiTotal, solIsAvailable, solLoading, solError,
@@ -3220,6 +3222,7 @@ export default function WalletsPage() {
             </div>
           </WalletCard>
           <WalletCard
+            nftRede="Bitcoin"
             {...propsCartaoBtc({
               btcWallets, selectedBtcProvider, btcAddress, btcShowMain, totalBtcBalance, btcBalance, getFiatValue,
               defiNftMaps, btcMainAddress, usdToEurRate, btcIsAvailable, btcLoading, btcError,
@@ -3301,6 +3304,7 @@ export default function WalletsPage() {
             </div>
           </WalletCard>
           <WalletCard
+            nftRede="Cardano"
             {...propsCartaoAda({
               adaWallets, selectedAdaProvider, adaAddress, adaShowMain, totalAdaBalance, adaBalance, getFiatValue,
               defiNftMaps, adaMainAddress, usdToEurRate, adaIsAvailable, adaLoading, adaLoadingMsg, adaError,

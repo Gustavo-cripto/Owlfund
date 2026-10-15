@@ -6,6 +6,7 @@ import { btnPrimary } from "@/lib/ui/buttons";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import NftImage from "@/components/NftImage";
+import NftBotao from "@/components/nft/NftBotao";
 import PosicoesDefi from "@/components/defi/PosicoesDefi";
 import type { PosicaoDefi } from "@/lib/defi/posicoes";
 
@@ -40,6 +41,8 @@ type WalletCardProps = {
   nftLoading?: boolean;
   nftError?: string | null;
   nfts?: NftPreview[];
+  /** Rede dos NFTs deste cartão ("Ethereum", "Solana", "Bitcoin", "Cardano"): diz que contrato/explorador mostrar. */
+  nftRede?: string;
   isLoading?: boolean;
   loadingMessage?: string;
   error?: string | null;
@@ -87,6 +90,7 @@ export default function WalletCard({
   nftLoading,
   nftError,
   nfts,
+  nftRede,
   isLoading,
   loadingMessage,
   error,
@@ -221,18 +225,11 @@ export default function WalletCard({
             <p className="mb-2 text-xs font-semibold text-slate-400">{t("wc_collection")}</p>
             <div className="grid max-h-48 grid-cols-4 gap-2 overflow-y-auto sm:grid-cols-5">
               {nfts.slice(0, 20).map((nft) => (
-                <a
+                <NftBotao
                   key={nft.id}
-                  href={
-                    nft.tokenAddress && nft.tokenId
-                      ? `https://opensea.io/assets/ethereum/${nft.tokenAddress}/${nft.tokenId}`
-                      : nft.tokenAddress
-                        ? `https://magiceden.io/item-details/${nft.tokenAddress}`
-                        : "#"
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group flex flex-col overflow-hidden rounded-lg border border-slate-700 transition hover:border-slate-500"
+                  nft={nft}
+                  rede={nftRede}
+                  className="group flex flex-col overflow-hidden rounded-lg border border-slate-700 text-left transition hover:border-slate-500"
                 >
                   <div className="aspect-square bg-slate-800">
                     {nft.image ? (
@@ -251,7 +248,7 @@ export default function WalletCard({
                   <p className="truncate px-1 py-0.5 text-[11px] text-slate-400 group-hover:text-slate-200" title={nft.name}>
                     {nft.name || "NFT"}
                   </p>
-                </a>
+                </NftBotao>
               ))}
             </div>
             {nfts.length > 20 ? (

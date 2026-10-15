@@ -9,6 +9,7 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import dynamic from "next/dynamic";
 import NftImage from "@/components/NftImage";
+import NftBotao from "@/components/nft/NftBotao";
 import { combineSeries, MOVING_AVERAGES, maKey, TF, type Bar, type MovingAverage, type SeriesBySymbol, type Timeframe } from "@/lib/portfolio/history";
 import { loadFxTable } from "@/lib/fx/historical";
 import { loadCryptoHoldings, type CryptoHoldings } from "@/lib/crypto/storage";
@@ -102,7 +103,7 @@ type NftItem = { id: string; name: string; image?: string; tokenAddress?: string
 // Emprestimos (kind "lending") trazem depositado e emprestado; `usd` e o liquido.
 type DefiPosition = { name: string; usd: number; kind?: "lending"; supplied?: number; borrowed?: number; healthFactor?: number | null };
 
-type WalletNfts = { address: string; chain: string; label: string; nfts: NftItem[]; loading: boolean; error?: string };
+type WalletNfts = { address: string; chain: string; network?: string; label: string; nfts: NftItem[]; loading: boolean; error?: string };
 type WalletDefi = { address: string; chain: string; label: string; total: number; positions: DefiPosition[]; loading: boolean; error?: string; partial?: boolean };
 
 
@@ -197,11 +198,11 @@ function TokenRow({ wallet, price, price1d }: { wallet: WalletBalance; price: nu
 }
 
 // ── NFT card ─────────────────────────────────────────────────────────────────
-function NftCard({ nft }: { nft: NftItem }) {
+function NftCard({ nft, rede }: { nft: NftItem; rede?: string }) {
   const src = nft.image;
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden hover:border-slate-600 transition group">
+    <NftBotao nft={nft} rede={rede} className="block w-full text-left rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden hover:border-slate-600 transition group">
       <div className="aspect-square bg-slate-800 relative overflow-hidden">
         {src ? (
           <NftImage src={src} alt={nft.name} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
@@ -213,7 +214,7 @@ function NftCard({ nft }: { nft: NftItem }) {
         <p className="text-xs font-semibold text-white truncate">{nft.name || "NFT"}</p>
         {nft.tokenId && <p className="text-[11px] text-slate-500">#{String(nft.tokenId).slice(0, 8)}</p>}
       </div>
-    </div>
+    </NftBotao>
   );
 }
 
@@ -345,6 +346,7 @@ export default function PortfolioChartSection({
     const targets = addressedWallets.map(w => ({
       address: w.address!,
       chain: SYMBOL_CHAIN[w.symbol] ?? "eth",
+      network: w.network,
       label: w.label,
       url: nftUrl(w.address!, w.network, w.symbol),
     }));
@@ -642,7 +644,7 @@ export default function PortfolioChartSection({
                   ) : (
                     <div className="animate-reveal grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
                       {wd.nfts.map((nft) => (
-                        <NftCard key={nft.id} nft={nft} />
+                        <NftCard key={nft.id} nft={nft} rede={wd.network ?? wd.chain} />
                       ))}
                     </div>
                   )}

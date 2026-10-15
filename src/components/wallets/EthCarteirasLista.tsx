@@ -2,6 +2,7 @@
 
 import EditableName from "@/components/wallets/EditableName";
 import NftImage from "@/components/NftImage";
+import NftBotao from "@/components/nft/NftBotao";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import { defiKey, ethBalanceKey, type DefiNftMaps } from "@/lib/wallets/formatar";
@@ -144,17 +145,16 @@ export default function EthCarteirasLista({
               {!hideBalances && itemNfts.length > 0 && (
                 <div className="mt-1 grid grid-cols-4 gap-1 max-w-[160px]">
                   {itemNfts.slice(0, 8).map((nft) => (
-                    <a
+                    <NftBotao
                       key={nft.id}
-                      href={nft.tokenAddress && nft.tokenId ? `https://opensea.io/assets/ethereum/${nft.tokenAddress}/${nft.tokenId}` : "#"}
-                      target="_blank" rel="noopener noreferrer"
+                      nft={nft}
+                      rede={item.network ?? "Ethereum"}
                       className="aspect-square overflow-hidden rounded border border-slate-700 bg-slate-800"
-                      title={nft.name}
                     >
                       {(nft.image || nft.tokenUri)
                         ? <NftImage src={nft.image} tokenUri={nft.tokenUri} alt={nft.name} className="h-full w-full object-cover" />
                         : <div className="flex h-full w-full items-center justify-center text-[8px] text-slate-500">—</div>}
-                    </a>
+                    </NftBotao>
                   ))}
                 </div>
               )}
