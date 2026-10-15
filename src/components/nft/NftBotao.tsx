@@ -11,7 +11,9 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { ligacoesNft, type TipoId } from "@/lib/nft/ligacoes";
 import type { TranslationKey } from "@/lib/i18n/translations";
 
-type NftDados = { id: string; name?: string; image?: string; tokenUri?: string; tokenAddress?: string; tokenId?: string };
+// `rede` no próprio NFT ganha à do cartão: uma carteira Ethereum mostra NFTs
+// de todas as redes EVM (15 out 2026: a "Carol" estava na Polygon e abria o Etherscan).
+type NftDados = { id: string; name?: string; image?: string; tokenUri?: string; tokenAddress?: string; tokenId?: string; rede?: string };
 
 const ROTULO: Record<TipoId, TranslationKey> = { contrato: "nft_contract", mint: "nft_mint", inscricao: "nft_inscription", policy: "nft_policy" };
 
@@ -29,7 +31,7 @@ export default function NftBotao({ nft, rede, className, children }: { nft: NftD
 
 function NftDetalhe({ nft, rede, onFechar }: { nft: NftDados; rede?: string | null; onFechar: () => void }) {
   const { t } = useLanguage();
-  const l = ligacoesNft(nft, rede);
+  const l = ligacoesNft(nft, nft.rede ?? rede);
   const [copiado, setCopiado] = useState(false);
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => { if (e.key === "Escape") onFechar(); };

@@ -99,7 +99,7 @@ function defiUrl(address: string, network?: string, symbol?: string): string {
 }
 
 // ── Types for API responses ──────────────────────────────────────────────────
-type NftItem = { id: string; name: string; image?: string; tokenAddress?: string; tokenId?: string };
+type NftItem = { id: string; name: string; image?: string; tokenAddress?: string; tokenId?: string; rede?: string };
 // Emprestimos (kind "lending") trazem depositado e emprestado; `usd` e o liquido.
 type DefiPosition = { name: string; usd: number; kind?: "lending"; supplied?: number; borrowed?: number; healthFactor?: number | null };
 

@@ -16,6 +16,7 @@ export type NftPreview = {
   image?: string;
   tokenAddress?: string;
   tokenId?: string;
+  rede?: string;
 };
 
 type WalletCardProps = {

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { fetchExterno } from "@/lib/utils/safeFetch";
 import { apiMsg } from "@/lib/api/apiMessages";
 import { requireUser } from "@/lib/api/requireUser";
-import { alchemyNftsForOwner, hasAlchemy, type EvmChainKey } from "@/lib/providers/alchemy";
+import { alchemyNftsForOwner, hasAlchemy, REDE_DA_CADEIA, type EvmChainKey } from "@/lib/providers/alchemy";
 import { heliusAssetsByOwner, hasHelius } from "@/lib/providers/helius";
 import { eNaoEncontrado, lerCarteiraCardano } from "@/lib/cardano/blockfrost";
 
@@ -212,6 +212,7 @@ export async function GET(request: Request) {
             tokenUri: image ? undefined : (item.token_uri ? toImageUrl(item.token_uri) ?? item.token_uri : undefined),
             tokenAddress: item.token_address,
             tokenId: item.token_id,
+            rede: REDE_DA_CADEIA[evmChain as EvmChainKey],
           };
         })
       );
@@ -387,7 +388,7 @@ export async function GET(request: Request) {
       );
     }
     const evmChains = ["eth", "polygon"] as const;
-    const allItems: EvmNftItem[] = [];
+    const allItems: Array<EvmNftItem & { _rede?: string }> = [];
     for (const c of evmChains) {
       try {
         const res = await fetch(
@@ -396,7 +397,7 @@ export async function GET(request: Request) {
         );
         if (!res.ok) continue;
         const data = (await res.json()) as { result?: EvmNftItem[] };
-        allItems.push(...(data.result ?? []));
+        allItems.push(...(data.result ?? []).map((it) => ({ ...it, _rede: REDE_DA_CADEIA[c] })));
       } catch {
         continue;
       }
@@ -411,6 +412,7 @@ export async function GET(request: Request) {
           tokenUri: image ? undefined : (item.token_uri ? toImageUrl(item.token_uri) ?? item.token_uri : undefined),
           tokenAddress: item.token_address,
           tokenId: item.token_id,
+          rede: item._rede,
         };
       })
     );

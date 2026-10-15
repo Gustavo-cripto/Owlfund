@@ -73,7 +73,7 @@ export const normalizeChain = (c: string) => {
   return c.toLowerCase();
 };
 
-export type NftItem ={ id: string; name: string; image?: string; tokenUri?: string; tokenAddress?: string; tokenId?: string };
+export type NftItem ={ id: string; name: string; image?: string; tokenUri?: string; tokenAddress?: string; tokenId?: string; rede?: string };
 
 /** Mapas de DeFi/NFT por chave defiKey(endereco, cadeia) — so leitura. */
 export type DefiNftMaps = {

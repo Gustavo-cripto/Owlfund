@@ -133,6 +133,14 @@ export type AlchemyNft = {
   tokenUri?: string;
   tokenAddress?: string;
   tokenId?: string;
+  /** Rede onde o NFT está ("Polygon", "Base"…): uma carteira Ethereum junta os NFTs de todas as redes EVM. */
+  rede?: string;
+};
+
+/** Nome da rede como as Carteiras o usam (Ethereum, Polygon, Base…). */
+export const REDE_DA_CADEIA: Record<EvmChainKey, string> = {
+  eth: "Ethereum", polygon: "Polygon", arbitrum: "Arbitrum", base: "Base", optimism: "Optimism",
+  bsc: "BSC", avalanche: "Avalanche", linea: "Linea", zksync: "zkSync",
 };
 
 type NftV3Response = {
@@ -196,6 +204,7 @@ export async function alchemyNftsForOwner(address: string, chain: EvmChainKey, p
         tokenUri: image ? undefined : tokenUri ?? undefined,
         tokenAddress: n.contract?.address,
         tokenId: n.tokenId,
+        rede: REDE_DA_CADEIA[chain],
       };
     });
   return { nfts, total: json.totalCount ?? nfts.length };
