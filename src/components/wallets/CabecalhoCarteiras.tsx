@@ -39,6 +39,7 @@ export default function CabecalhoCarteiras({
         {t("wl_intro")}
       </p>
       {totalWallets === 0 && (
+        <div id="adicionar-endereco" className="scroll-mt-24">
         <QuickAddCard
           quickAddr={quickAddr}
           quickMsg={quickMsg}
@@ -46,6 +47,7 @@ export default function CabecalhoCarteiras({
           onAddrChange={onQuickAddrChange}
           onSubmit={onQuickSubmit}
         />
+        </div>
       )}
       <div className="flex items-center gap-2 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-2.5 text-sm text-blue-300">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 shrink-0">

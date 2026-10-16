@@ -12,6 +12,9 @@ import { ACCOUNTS_EVENT } from "@/lib/portfolios/accounts";
 import { EVENTO_EXEMPLO, exemploAtivo, removerExemplo } from "@/lib/demo/exemplo";
 
 const PAGINAS_DA_CONTA = ["/wallets", "/portfolio", "/dashboard", "/historico", "/gestor", "/fiscalidade", "/fire"];
+// O campo "cola o teu endereço" do topo das Carteiras (o caminho mais curto,
+// sobretudo no telemóvel); sem ele, os cartões das redes.
+const CAMPO = "adicionar-endereco";
 const ANCORA = "chain-cards";
 
 export default function ExemploBanner() {
@@ -31,9 +34,11 @@ export default function ExemploBanner() {
   // Em Carteiras o link para /wallets não fazia nada (já se estava lá): desce
   // até aos cartões das redes, onde se cola o endereço ou se liga a extensão.
   const ligar = () => {
-    const alvo = pathname === "/wallets" ? document.getElementById(ANCORA) : null;
-    if (alvo) alvo.scrollIntoView({ behavior: "smooth", block: "start" });
-    else router.push(`/wallets#${ANCORA}`);
+    const alvo = pathname === "/wallets" ? (document.getElementById(CAMPO) ?? document.getElementById(ANCORA)) : null;
+    if (!alvo) { router.push(`/wallets#${CAMPO}`); return; }
+    alvo.scrollIntoView({ behavior: "smooth", block: "start" });
+    // O teclado abre logo no campo (sem saltar a página antes do scroll acabar).
+    window.setTimeout(() => alvo.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true }), 400);
   };
   return (
     <div className="mb-4 flex flex-col gap-2 rounded-xl border border-sky-500/30 bg-sky-500/[0.07] px-4 py-3 text-xs text-sky-100 sm:flex-row sm:items-center sm:justify-between">

@@ -1753,6 +1753,10 @@ export default function WalletsPage() {
   // Durante o beta (pagamentos congelados) os CTAs de upgrade viram convite ao beta.
   const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
   const totalWallets = ethWallets.length + solWallets.length + btcWallets.length + adaWallets.length;
+  // Só as carteiras da pessoa (sem as do exemplo): é o que o cabeçalho mostra.
+  // Com o exemplo carregado o campo "cola o teu endereço" desaparecia e o
+  // contador dizia "3/3" a vermelho a quem ainda não tinha ligado nada (16 out 2026).
+  const totalWalletsReais = [ethWallets, solWallets, btcWallets, adaWallets].reduce((n, l) => n + l.filter((w) => w.source !== "demo").length, 0);
 
   const handleAddEthWalletInternal = async () => {
     if (!isPro && totalWallets >= FREE_WALLET_LIMIT) {
@@ -2429,11 +2433,11 @@ export default function WalletsPage() {
     try {
       const guardado = localStorage.getItem("cfa-demo-address");
       if (!guardado) return;
-      if (totalWallets > 0) { localStorage.removeItem("cfa-demo-address"); return; }
+      if (totalWalletsReais > 0) { localStorage.removeItem("cfa-demo-address"); return; }
       setQuickAddr((atual) => atual || guardado);
       setQuickFromDemo(true);
     } catch { /* sem localStorage */ }
-  }, [totalWallets]);
+  }, [totalWalletsReais]);
 
   const handleQuickAdd = () => {
     const d = detetarRede(quickAddr);
@@ -3024,7 +3028,7 @@ export default function WalletsPage() {
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 pb-20 pt-2">
         <CabecalhoCarteiras
-          totalWallets={totalWallets}
+          totalWallets={totalWalletsReais}
           quickAddr={quickAddr}
           quickMsg={quickMsg}
           quickFromDemo={quickFromDemo}
