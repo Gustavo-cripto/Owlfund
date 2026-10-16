@@ -75,6 +75,8 @@ export async function enviarBoasVindas(admin: SupabaseClient, conta: Conta | nul
   const nota = (o: string) => console.info(`[boas-vindas] ${mascararEmail(email)}: ${o}`);
   try {
     if (!conta?.id || !email || !conta.created_at) return false;
+    // Contas do teste noturno de registo (e2e/conta-nova.spec.ts): sem email.
+    if (/\+e2e[^@]*@/i.test(email)) return false;
     if (Date.now() - Date.parse(conta.created_at) > JANELA_MS) return false;
     const [{ data: beta }, { data: tester }] = await Promise.all([
       admin.from("beta_signups").select("email").ilike("email", email.replace(/[%_\\]/g, "\\$&")).limit(1),

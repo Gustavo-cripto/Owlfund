@@ -34,6 +34,9 @@ export default defineConfig({
     { name: "publico", testMatch: /(publico|acessibilidade)\.spec\.ts/, use: { ...devices["Desktop Chrome"] } },
     // Telemovel em Chromium (Pixel 7): um so browser instalado no CI chega.
     { name: "publico-movel", testMatch: /publico\.spec\.ts/, use: { ...devices["Pixel 7"] } },
+    // Conta nova descartável (registo → exemplo → ligar carteira → apagar); não
+    // precisa de segredos. "Playwright" no user-agent: as visitas contam como robô.
+    { name: "conta-nova", testMatch: /conta-nova\.spec\.ts/, use: { ...devices["Pixel 7"], userAgent: `${devices["Pixel 7"].userAgent} Playwright-e2e` } },
     // Sessao: so existe se houver credenciais.
     ...(HAS_ACCOUNT
       ? [

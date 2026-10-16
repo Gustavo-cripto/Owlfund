@@ -3,6 +3,9 @@
 # E2E_PASSWORD (conta de teste normal, sem 2FA), as páginas privadas — login,
 # Dashboard, Portefólio, Carteiras, Histórico e Fiscalidade (incluindo exportar
 # Excel/PDF). Sem esses segredos corre só a parte pública.
+# Sempre (sem segredos): o percurso de uma CONTA NOVA no telemóvel — registo,
+# entrada imediata, exemplo, ligar uma carteira — com uma conta descartável
+# (suporte.chainfolioai+e2e-…@gmail.com) que se apaga no fim (e2e/conta-nova.spec.ts).
 # Se falhar: email do GitHub ao dono e, com TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID,
 # aviso no Telegram. O relatório HTML fica anexado à execução.
 name: e2e-noturno
