@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { pageFromPath } from "@/lib/i18n/routes";
 import ExemploBanner from "@/components/ExemploBanner";
 import { repetirVisivel, DOIS_MIN } from "@/lib/polling";
 import Sidebar from "./Sidebar";
@@ -67,6 +69,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   // sem sessao (vem das redes, decide no primeiro ecra) ocupavam ~300 px antes
   // do titulo da landing — ficam so a partir de md ate haver sessao.
   const [hasSession, setHasSession] = useState(false);
+  const paginaInicial = pageFromPath(usePathname() ?? "")?.page === "home";
   useEffect(() => comSupabase((supabase) => {
     let alive = true;
     supabase.auth.getSession().then(({ data }: { data: { session: unknown } }) => {
@@ -123,10 +126,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        {/* BTC live blocks */}
-        <div className={hasSession ? "" : "hidden md:block"}>
-          <BtcBlocksBar />
-        </div>
+        {/* BTC live blocks. Na página inicial, sem sessão, não aparece: no
+            computador ocupava os primeiros ~400 px antes do título (auditoria de
+            conversão do /en, 16 out 2026). */}
+        {!(paginaInicial && !hasSession) && (
+          <div className={hasSession ? "" : "hidden md:block"}>
+            <BtcBlocksBar />
+          </div>
+        )}
 
         {/* Account / portfolio switcher (Pro/Premium) */}
         <div className="flex justify-end px-4 pt-2">

@@ -18,22 +18,17 @@ import { btnPrimary, btnSecondary } from "@/lib/ui/buttons";
 import Lightbox from "@/components/Lightbox";
 import ExperimentarSemConta from "@/components/ExperimentarSemConta";
 
-// Durante o beta os pagamentos estão congelados: os CTAs de planos pagos
-// apontam para o convite /beta (Pro/Premium grátis 60 dias).
+// Durante o beta os pagamentos estão congelados e, desde 16 out 2026, o Premium
+// de 60 dias liga-se sozinho ao criar conta (src/lib/beta/contaNova.ts): todos
+// os botões levam ao registo, e o "pede acesso em /beta" saiu da página.
 const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
 
-const STEPS = (paymentsFrozen
-  ? [
-      { num: "01", t: "lp_s1_t", d: "lp_s1_d" },
-      { num: "02", t: "lp_s_beta_t", d: "lp_s_beta_d" },
-      { num: "03", t: "lp_s2_t", d: "lp_s2_d" },
-      { num: "04", t: "lp_s3_t", d: "lp_s3_d" },
-    ]
-  : [
-      { num: "01", t: "lp_s1_t", d: "lp_s1_d" },
-      { num: "02", t: "lp_s2_t", d: "lp_s2_d" },
-      { num: "03", t: "lp_s3_t", d: "lp_s3_d" },
-    ]) as ReadonlyArray<{ num: string; t: "lp_s1_t" | "lp_s2_t" | "lp_s3_t" | "lp_s_beta_t"; d: "lp_s1_d" | "lp_s2_d" | "lp_s3_d" | "lp_s_beta_d" }>;
+// Três passos (o título diz "3 passos"; com o do beta eram 4).
+const STEPS = [
+  { num: "01", t: "lp_s1_t", d: paymentsFrozen ? "lp_s1_d_beta" : "lp_s1_d" },
+  { num: "02", t: "lp_s2_t", d: "lp_s2_d" },
+  { num: "03", t: "lp_s3_t", d: "lp_s3_d" },
+] as const;
 
 const STATS = [
   { value: String(SUPPORTED_CHAINS), k: "lp_st1" },
@@ -69,7 +64,8 @@ const ALLOC = [
 ] as const;
 
 const PREVIEW_BARS = [40, 55, 48, 70, 62, 85, 78, 96] as const;
-const DATA_SOURCES = ["CoinGecko", "CoinEx", "Moralis", "mempool.space", "Blockfrost", "Shyft"] as const;
+// As fontes principais de hoje (Moralis e Shyft ficaram só como reserva).
+const DATA_SOURCES = ["Alchemy", "Helius", "OKX", "CoinGecko", "mempool.space", "Blockfrost"] as const;
 const PREVIEW_METRICS = [
   { k: "ROI", v: "+38.4%", cls: "text-emerald-400" },
   { k: "CAGR", v: "+22.1%", cls: "text-emerald-400" },
@@ -301,14 +297,12 @@ export default function Landing() {
           </div>
           <div className="space-y-3 md:col-start-1 md:row-start-2">
             <div className="animate-fade-in-up delay-400 flex flex-wrap gap-3">
+              {/* Um só botão de conta: o Premium do beta vem com ela (antes havia
+                  "Criar conta" e "Entrar no beta" a competir pelo mesmo clique). */}
               <a href={`${pageUrl("login", lang)}?mode=signup`} onClick={() => marcarEvento("cta_criar_conta")} className={`${btnSecondary} px-6 py-3 text-sm`}>
-                {t("lp_final_cta1")} →
+                {paymentsFrozen ? `🧪 ${t("lp_hero_beta_cta")}` : t("lp_final_cta1")} →
               </a>
-              {paymentsFrozen ? (
-                <Link href={pageUrl("beta", lang)} className={`${btnSecondary} px-6 py-3 text-sm`}>
-                  🧪 {t("lp_hero_beta_cta")}
-                </Link>
-              ) : (
+              {!paymentsFrozen && (
                 <a href="#como-funciona" className={`${btnSecondary} px-6 py-3 text-sm`}>
                   {t("lp_how_works")}
                 </a>
@@ -359,7 +353,7 @@ export default function Landing() {
               <span className="h-3 w-3 rounded-full bg-rose-500/70" />
               <span className="h-3 w-3 rounded-full bg-amber-500/70" />
               <span className="h-3 w-3 rounded-full bg-emerald-500/70" />
-              <span className="ml-3 text-xs text-slate-500">chainfolioai · dashboard</span>
+              <span className="ml-3 text-xs text-slate-500">chainfolioai · dashboard · <span className="text-amber-300/80">{t("lp_mock_example")}</span></span>
             </div>
             {/* tiles de métricas */}
             <div className="grid gap-4 p-5 sm:grid-cols-3">
@@ -514,7 +508,7 @@ export default function Landing() {
                   ))}
                 </ul>
                 <a
-                  href={p.paid ? pageUrl(paymentsFrozen ? "beta" : "pricing", lang) : `${pageUrl("login", lang)}?mode=signup`}
+                  href={p.paid && !paymentsFrozen ? pageUrl("pricing", lang) : `${pageUrl("login", lang)}?mode=signup`}
                   className={`${p.popular ? btnPrimary : btnSecondary} mt-6 w-full px-5 py-3 text-sm`}
                 >
                   {p.paid ? (paymentsFrozen ? `🧪 ${t("lp_plan_beta_cta")}` : t("lp_plan_choose")) : t("lp_plan_cta")}
@@ -537,7 +531,7 @@ export default function Landing() {
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">{t("lp_how_works")}</p>
               <h2 className="mt-3 text-3xl font-bold text-white">{t("lp_3_steps")}</h2>
             </div>
-            <div className={`grid gap-6 ${STEPS.length === 4 ? "md:grid-cols-2 lg:grid-cols-4" : "md:grid-cols-3"}`}>
+            <div className="grid gap-6 md:grid-cols-3">
               {STEPS.map((s, i) => (
                 <div key={s.num} className={`card-hover rounded-2xl border border-orange-500/20 bg-gradient-to-br from-slate-900 to-slate-950 p-7 animate-fade-in-up delay-${i * 150 + 100}`}>
                   <div className="mb-5 text-6xl font-black text-orange-500/15 leading-none">{s.num}</div>
@@ -679,9 +673,11 @@ export default function Landing() {
                 <a href={`${pageUrl("login", lang)}?mode=signup`} onClick={() => marcarEvento("cta_final")} className={`${btnPrimary} w-full px-10 py-4 text-base sm:w-auto`}>
                   {t("lp_final_cta1")}
                 </a>
-                <a href={paymentsFrozen ? pageUrl("beta", lang) : pageUrl("login", lang)} className={`${btnSecondary} w-full px-10 py-4 text-base sm:w-auto`}>
-                  {paymentsFrozen ? `🧪 ${t("lp_hero_beta_cta")}` : t("lp_final_cta2")} →
-                </a>
+                {!paymentsFrozen && (
+                  <a href={pageUrl("login", lang)} className={`${btnSecondary} w-full px-10 py-4 text-base sm:w-auto`}>
+                    {t("lp_final_cta2")} →
+                  </a>
+                )}
               </div>
               <p className="mt-5 text-xs text-slate-600">{paymentsFrozen ? t("lp_no_card_beta") : t("lp_no_card2")}</p>
             </div>

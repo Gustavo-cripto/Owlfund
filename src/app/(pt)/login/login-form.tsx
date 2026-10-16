@@ -325,6 +325,8 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
     setWalletLoading(rede); setMessage(null); setIsError(false);
     try {
       await (rede === "eth" ? entrarComEthereum(lang) : entrarComSolana(lang));
+      // Conta nova por carteira: Premium do beta e aviso ao dono (uma vez; a rota responde sempre).
+      try { await fetch("/api/auth/boas-vindas", { method: "POST", keepalive: true }); } catch { /* não trava a entrada */ }
       // A carteira já ficou ligada: cai directamente nas Carteiras, a não ser
       // que alguém tenha pedido um destino (?next=, incluindo o /beta).
       window.location.href = nextParam ? nextPath : "/wallets";

@@ -231,6 +231,14 @@ export default function BetaSignup() {
               <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.07] px-4 py-3">
                 <p className="text-sm leading-relaxed text-emerald-200">{t("beta_have_account_note")}</p>
               </div>
+            ) : temConta === false && paymentsFrozen ? (
+              // Desde 16 out 2026 o Premium liga-se sozinho ao criar conta: quem
+              // ainda não tem conta não precisa deste formulário.
+              <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/[0.08] px-4 py-4">
+                <p className="text-sm leading-relaxed text-emerald-100">{t("beta_auto_note")}</p>
+                <a href={`${pageUrl("login", lang)}?mode=signup`} onClick={() => marcarEvento("cta_criar_conta")} className={`${btnPrimary} mt-3 block w-full px-6 py-3 text-center text-sm`}>🧪 {t("lp_hero_beta_cta")} →</a>
+                <p className="mt-2 text-[11px] text-emerald-200/70">{t("beta_auto_form_note")}</p>
+              </div>
             ) : (
               <div className="rounded-xl border border-amber-500/40 bg-amber-500/[0.08] px-4 py-3">
                 <p className="text-sm leading-relaxed text-amber-200">{t("beta_account_warn")}</p>

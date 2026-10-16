@@ -40,13 +40,14 @@ const TOOLS: { img: string; w: number; h: number; t: TranslationKey; d: Translat
   { img: "/screenshots/developers.webp", w: 1600, h: 819, t: "cf_t10_t", d: "cf_t10_d", b: ["cf_t10_b1", "cf_t10_b2", "cf_t10_b3"], plan: "premium" },
 ];
 
-// Passos reais do fluxo (durante o beta inclui a inscrição com o mesmo email).
+// Passos reais do fluxo. Desde 16 out 2026 o Premium do beta liga-se sozinho
+// ao criar conta: o passo do beta diz isso e leva ao registo, não a /beta.
 // `page` e resolvido na lingua da pagina ao renderizar; `href` fixo so para as
 // paginas da app, que so existem em portugues.
 const FLOW: Array<{ t: TranslationKey; d: TranslationKey; href?: string; page?: "login" | "beta" }> = paymentsFrozen
   ? [
       { t: "lp_s1_t", d: "lp_s1_d", page: "login" },
-      { t: "lp_s_beta_t", d: "lp_s_beta_d", page: "beta" },
+      { t: "lp_s_beta_t", d: "lp_s_beta_d", page: "login" },
       { t: "lp_s2_t", d: "lp_s2_d", href: "/wallets" },
       { t: "lp_s3_t", d: "lp_s3_d", href: "/dashboard" },
     ]
@@ -152,13 +153,9 @@ export default function HowItWorks() {
 
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <a href={`${pageUrl("login", lang)}?mode=signup`} className={`${btnPrimary} px-8 py-3.5 text-base`}>
-              {t("lp_plan_cta")}
+              {paymentsFrozen ? `🧪 ${t("lp_hero_beta_cta")}` : t("lp_plan_cta")}
             </a>
-            {paymentsFrozen && (
-              <a href={pageUrl("beta", lang)} className="rounded-xl border border-orange-500/40 px-8 py-3.5 text-base font-semibold text-orange-200 hover:bg-orange-500/10 transition">
-                🧪 {t("lp_hero_beta_cta")}
-              </a>
-            )}
+
           </div>
         </div>
       </div>
