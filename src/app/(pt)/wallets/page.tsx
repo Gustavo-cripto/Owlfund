@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from "react";
 import { ativarExemplo, ativarExemploAutomatico, eEnderecoDeExemplo, exemploAtivo, removerExemplo } from "@/lib/demo/exemplo";
-import { marcarEvento } from "@/lib/analytics/eventos";
+import { marcarEvento, type ErroCarteira } from "@/lib/analytics/eventos";
 import { repetirVisivel, DOIS_MIN, TRES_MIN } from "@/lib/polling";
 import { userError } from "@/lib/ui/userError";
 import ErrorNote from "@/components/ErrorNote";
@@ -1794,6 +1794,7 @@ export default function WalletsPage() {
       );
       setEthWallets(nextWallets);
       setEthNewAddress("");
+      medirCarteira(null);
       setEthNewCustomLabel("");
     } catch (error) {
       setEthNewError(
@@ -1930,6 +1931,7 @@ export default function WalletsPage() {
       );
       setSolWallets(nextWallets);
       setSolNewAddress("");
+      medirCarteira(null);
       setSolNewCustomLabel("");
       void fetchSolBalanceForAddress(trimmed);
     } catch (error) {
@@ -2096,6 +2098,7 @@ export default function WalletsPage() {
       );
       setBtcWallets(nextWallets);
       setBtcNewAddress("");
+      medirCarteira(null);
       setBtcNewCustomLabel("");
       if (isMainnet) {
         void fetchBtcBalanceForAddress(trimmed);
@@ -2439,12 +2442,43 @@ export default function WalletsPage() {
     } catch { /* sem localStorage */ }
   }, [totalWalletsReais]);
 
+  // ── Medir o passo da ativação por dentro (18 out 2026) ──────────────────
+  // Sem dados pessoais: só "tentou", "conseguiu" ou o TIPO de erro (nunca o
+  // endereço). Responde a "onde é que a pessoa parou?" (src/lib/analytics/funil.ts).
+  const classificarErroCarteira = (err: string): ErroCarteira => {
+    if (err.includes(t("wl_free_limit_1"))) return "limite";
+    if (err.includes(t("wl_dup_addr"))) return "repetida";
+    if (err === t("wl_quick_seed") || err === t("wl_quick_key")) return "chave";
+    const formato = [t("wl_invalid_eth"), t("wl_invalid_sol"), t("wl_invalid_btc"), t("wl_invalid_ada"), t("wl_invalid_evm"), t("wl_insert_addr"), t("wl_quick_unknown"), t("wl_addr_short")];
+    if (formato.some((m) => m && err.startsWith(m))) return "formato";
+    return "outro";
+  };
+  const medirCarteira = (err: string | null) => {
+    marcarEvento("carteira_tentativa");
+    marcarEvento(err ? (`carteira_erro_${classificarErroCarteira(err)}` as const) : "carteira_ok");
+  };
+  useEffect(() => {
+    if (!hidratado) return;
+    try { if (sessionStorage.getItem("cfa-ev-carteiras")) return; sessionStorage.setItem("cfa-ev-carteiras", "1"); } catch { /* sem sessionStorage: mede na mesma */ }
+    marcarEvento("carteiras_vistas");
+  }, [hidratado]);
+  // Erros dos formulários de cada rede (o sucesso mede-se onde a carteira entra na lista).
+  useEffect(() => { if (ethNewError) medirCarteira(ethNewError); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ethNewError]);
+  useEffect(() => { if (solNewError) medirCarteira(solNewError); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [solNewError]);
+  useEffect(() => { if (btcNewError) medirCarteira(btcNewError); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [btcNewError]);
+  useEffect(() => { if (adaNewError) medirCarteira(adaNewError); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adaNewError]);
+
   const handleQuickAdd = () => {
     const d = detetarRede(quickAddr);
-    if (d.tipo === "frase") { setQuickMsg({ ok: false, text: t("wl_quick_seed") }); setQuickAddr(""); return; }
-    if (d.tipo === "chave") { setQuickMsg({ ok: false, text: t("wl_quick_key") }); setQuickAddr(""); return; }
-    if (d.tipo !== "rede") { setQuickMsg({ ok: false, text: t("wl_quick_unknown") }); return; }
+    if (d.tipo === "frase") { medirCarteira(t("wl_quick_seed")); setQuickMsg({ ok: false, text: t("wl_quick_seed") }); setQuickAddr(""); return; }
+    if (d.tipo === "chave") { medirCarteira(t("wl_quick_key")); setQuickMsg({ ok: false, text: t("wl_quick_key") }); setQuickAddr(""); return; }
+    if (d.tipo !== "rede") { medirCarteira(t("wl_quick_unknown")); setQuickMsg({ ok: false, text: t("wl_quick_unknown") }); return; }
     const err = addManualAddress(quickAddr, d.rede);
+    medirCarteira(err);
     if (err) { setQuickMsg({ ok: false, text: err }); return; }
     setQuickAddr("");
     setQuickMsg(null);
@@ -2458,6 +2492,7 @@ export default function WalletsPage() {
     setManualAddOk(null);
     const addr = manualAddAddress.trim();
     const err = addManualAddress(manualAddAddress, manualAddNetwork, manualAddLabel);
+    medirCarteira(err);
     if (err) { setManualAddError(err); return; }
     setManualAddAddress("");
     setManualAddLabel("");
@@ -2980,6 +3015,7 @@ export default function WalletsPage() {
     );
     setAdaWallets(nextWallets);
     setAdaNewAddress("");
+    medirCarteira(null);
     setAdaNewCustomLabel("");
     setAdaNewError(null);
     if (isMainnet) void fetchAdaBalanceForAddress(trimmed);
@@ -3624,7 +3660,7 @@ export default function WalletsPage() {
             onTotalChange={setCexHlTotalUsd}
             onSaldosChange={setSaldosExchanges}
             usdToEur={usdToEurRate}
-            onAddColdWalletAddress={(addr, net, label) => addManualAddress(addr, net, label, "cold")}
+            onAddColdWalletAddress={(addr, net, label) => { const err = addManualAddress(addr, net, label, "cold"); medirCarteira(err); return err; }}
             coldWalletNetworks={MANUAL_ADD_NETWORKS}
             addedAddresses={coldWalletEntries}
             onRemoveAddress={removeManualAddress}

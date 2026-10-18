@@ -22,11 +22,15 @@ function CartaoFunil({ f }: { f: Funil }) {
     { k: "registo", label: "Submeteram registo ou entrada (formulário, link mágico, Google/Apple, carteira, beta)", v: (e) => e.registo },
     { k: "emailConfirmado", label: "Confirmaram o email", v: (e) => e.emailConfirmado ?? null },
     { k: "contas", label: "Contas criadas", v: (e) => e.contas },
+    { k: "carteirasVistas", label: "Abriram as Carteiras (uma vez por sessão)", v: (e) => e.carteiras?.vistas ?? null },
+    { k: "carteiraTentativa", label: "Tentaram juntar uma carteira", v: (e) => e.carteiras?.tentativas ?? null },
+    { k: "carteiraOk", label: "Conseguiram juntar uma carteira", v: (e) => e.carteiras?.ok ?? null },
     { k: "comCarteira", label: "Contas com pelo menos uma carteira", v: (e) => e.comCarteira },
     { k: "modoExemploCliques", label: "Cliques em «Ver com dados de exemplo»", v: (e) => e.modoExemploCliques ?? null },
     { k: "soComExemplo", label: "Contas só com carteiras de exemplo", v: (e) => e.soComExemplo ?? null },
   ];
   const pct = (a: number | null, b: number | null) => (a == null || b == null || b === 0 ? "" : `${Math.round((a / b) * 100)}%`);
+  const detalheErros = (e: Etapas) => { const x = e.carteiras?.erros; return x ? `formato ${x.formato ?? "—"} · frase/chave privada ${x.chave ?? "—"} · limite do plano ${x.limite ?? "—"} · repetida ${x.repetida ?? "—"} · outro ${x.outro ?? "—"}` : "—"; };
   const detalheCta = (e: Etapas) => e.cta ? `hero (até 14 out) ${e.cta.hero ?? "—"} · criar conta ${e.cta.criarConta ?? "—"} · planos ${e.cta.planos ?? "—"} · final ${e.cta.final ?? "—"} · demonstração ${e.cta.demonstracaoInicial ?? "—"}` : "";
   return (
     <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
@@ -38,7 +42,7 @@ function CartaoFunil({ f }: { f: Funil }) {
             const ant = i > 0 ? linhas[i - 1] : null;
             return (
               <tr key={l.k} className="border-t border-slate-800/70">
-                <td className="py-1.5 text-slate-300">{l.label}{l.k === "cta" && <span className="block text-[11px] text-slate-500">7d: {detalheCta(f.d7)} · 30d: {detalheCta(f.d30)}</span>}</td>
+                <td className="py-1.5 text-slate-300">{l.label}{l.k === "cta" && <span className="block text-[11px] text-slate-500">7d: {detalheCta(f.d7)} · 30d: {detalheCta(f.d30)}</span>}{l.k === "carteiraOk" && <span className="block text-[11px] text-slate-500">Erros 30d: {detalheErros(f.d30)}</span>}</td>
                 <td className="py-1.5 text-right font-semibold text-white">{l.v(f.d7) ?? "—"} <span className="text-xs font-normal text-slate-500">{ant ? pct(l.v(f.d7), ant.v(f.d7)) : ""}</span></td>
                 <td className="py-1.5 text-right font-semibold text-white">{l.v(f.d30) ?? "—"} <span className="text-xs font-normal text-slate-500">{ant ? pct(l.v(f.d30), ant.v(f.d30)) : ""}</span></td>
               </tr>
@@ -51,7 +55,7 @@ function CartaoFunil({ f }: { f: Funil }) {
           Voltaram 7+ dias depois de criar conta: <b className="text-white">{f.retencao7d.voltaram}</b> de {f.retencao7d.coorte} (contas criadas há 7–37 dias).
         </p>
       )}
-      <p className="mt-1 text-[11px] text-slate-500">A demonstração e o registo medem-se desde 25 set 2026; os botões da inicial, a confirmação do email e o modo de exemplo desde 5 out 2026.</p>
+      <p className="mt-1 text-[11px] text-slate-500">A demonstração e o registo medem-se desde 25 set 2026; os botões da inicial, a confirmação do email e o modo de exemplo desde 5 out 2026; o que acontece dentro das Carteiras desde 18 out 2026.</p>
     </div>
   );
 }

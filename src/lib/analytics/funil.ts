@@ -24,6 +24,8 @@ export type Etapas = {
   modoExemploAuto: number | null;
   /** Contas da janela que só têm carteiras de exemplo (nenhuma real, nem corretora). */
   soComExemplo: number | null;
+  /** Dentro das Carteiras (desde 18 out 2026): visitas, tentativas de juntar uma carteira, sucessos e erros por tipo. */
+  carteiras?: { vistas: number | null; tentativas: number | null; ok: number | null; erros: { formato: number | null; chave: number | null; limite: number | null; repetida: number | null; outro: number | null } };
 };
 /**
  * Desde quando cada métrica é medida: um zero antes desta data é "não medido",
@@ -45,6 +47,7 @@ export const MEDIDO_DESDE: Record<string, string> = {
   modoExemploAuto: "2026-10-14",
   // A partir desta data a demonstração está no topo da inicial (antes a ~2100 px).
   "inicial.demonstracaoNoTopo": "2026-10-14",
+  carteiras: "2026-10-18",
 };
 export type Funil = {
   d7: Etapas;
@@ -170,15 +173,18 @@ export async function calcularFunil(admin: SupabaseClient): Promise<Funil> {
     const corte = agora - dias * 86_400_000;
     const naJanela = users.filter((u) => u.criada >= corte);
     const ev = (nome: string) => vistas(dias, (q) => q.eq("path", `${PREFIXO_EVENTO}${nome}`));
-    const [paginaInicial, experimentar, registo, emailConfirmado, modoExemploCliques, modoExemploAuto, hero, criarConta, planos, final, demonstracaoInicial] = await Promise.all([
+    const [paginaInicial, experimentar, registo, emailConfirmado, modoExemploCliques, modoExemploAuto, hero, criarConta, planos, final, demonstracaoInicial,
+      cVistas, cTent, cOk, eFormato, eChave, eLimite, eRepetida, eOutro] = await Promise.all([
       vistas(dias, (q) => q.in("path", INICIAIS)),
       ev("experimentar"), ev("registo"), ev("email_confirmado"), ev("exemplo"), ev("exemplo_auto"), ev("cta_hero"), ev("cta_criar_conta"), ev("cta_planos"), ev("cta_final"), ev("cta_demo"),
+      ev("carteiras_vistas"), ev("carteira_tentativa"), ev("carteira_ok"), ev("carteira_erro_formato"), ev("carteira_erro_chave"), ev("carteira_erro_limite"), ev("carteira_erro_repetida"), ev("carteira_erro_outro"),
     ]);
     return {
       paginaInicial, cta: { hero, criarConta, planos, final, demonstracaoInicial }, experimentar, registo, emailConfirmado, modoExemploCliques, modoExemploAuto,
       contas: listagemOk ? naJanela.length : null,
       comCarteira: listagemOk ? naJanela.filter((u) => comCarteira.has(u.id)).length : null,
       soComExemplo: listagemOk ? naJanela.filter((u) => comExemplo.has(u.id) && !comCarteira.has(u.id)).length : null,
+      carteiras: { vistas: cVistas, tentativas: cTent, ok: cOk, erros: { formato: eFormato, chave: eChave, limite: eLimite, repetida: eRepetida, outro: eOutro } },
     };
   };
 

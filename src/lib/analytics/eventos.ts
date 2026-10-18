@@ -13,7 +13,11 @@ export const PREFIXO_EVENTO = "/_ev/";
 // com a demonstração e o "Criar conta grátis" secundário grava cta_criar_conta
 // (corte limpo: uma série não muda de significado a meio).
 // email_confirmado: o passo do registo que faltava medir (gravado pelo servidor).
-export const EVENTOS = ["experimentar", "registo", "exemplo", "exemplo_auto", "cta_hero", "cta_criar_conta", "cta_planos", "cta_final", "cta_demo", "email_confirmado"] as const;
+// carteiras_*/carteira_* (18 out 2026): o passo da ativação, por dentro — chegou
+// às Carteiras, tentou juntar uma carteira, conseguiu, ou que erro teve.
+export const EVENTOS = ["experimentar", "registo", "exemplo", "exemplo_auto", "cta_hero", "cta_criar_conta", "cta_planos", "cta_final", "cta_demo", "email_confirmado",
+  "carteiras_vistas", "carteira_tentativa", "carteira_ok", "carteira_erro_formato", "carteira_erro_chave", "carteira_erro_limite", "carteira_erro_repetida", "carteira_erro_outro"] as const;
+export type ErroCarteira = "formato" | "chave" | "limite" | "repetida" | "outro";
 export type Evento = (typeof EVENTOS)[number];
 export const eEvento = (x: unknown): x is Evento => typeof x === "string" && (EVENTOS as readonly string[]).includes(x);
 
