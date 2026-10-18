@@ -42,7 +42,7 @@ test("conta nova: regista, entra, vê o exemplo e liga uma carteira", async ({ p
 
     // 2) O exemplo aparece sozinho, e o campo para colar o endereço continua à vista,
     //    com o contador nas carteiras da pessoa (0), não nas do exemplo.
-    await expect(page.getByText(/Estás a ver dados de exemplo/)).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/Conta de EXEMPLO/)).toBeVisible({ timeout: 30_000 });
     await expect(page.locator("#wl-quick")).toBeVisible();
     await expect(page.getByText(/Carteiras:\s*0\/3/)).toBeVisible();
 
@@ -53,7 +53,7 @@ test("conta nova: regista, entra, vê o exemplo e liga uma carteira", async ({ p
     // 4) Colar um endereço a sério tira o exemplo e fica a carteira da pessoa.
     await page.locator("#wl-quick").fill(ENDERECO_TESTE);
     await page.getByRole("button", { name: /^Adicionar$/ }).click();
-    await expect(page.getByText(/Estás a ver dados de exemplo/)).toHaveCount(0, { timeout: 15_000 });
+    await expect(page.getByText(/Conta de EXEMPLO/)).toHaveCount(0, { timeout: 15_000 });
     await expect(page.getByText(/Carteiras:\s*1\/3/)).toBeVisible();
   } finally {
     // Apaga a conta e todos os dados, passe ou falhe (a sessão está nos cookies da página).

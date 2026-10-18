@@ -17,6 +17,7 @@ import { loadCryptoHoldings, loadStablecoinEntries } from "@/lib/crypto/storage"
 import { loadTraditionalHoldings } from "@/lib/traditional/storage";
 import { ALL_ACCOUNTS_ID, getActiveAccountId } from "@/lib/portfolios/accounts";
 import { relerDefiDaConta } from "@/lib/defi/lerDefi";
+import { useExemploAtivo } from "@/lib/demo/useExemploAtivo";
 import { pushWalletCloud } from "@/lib/portfolios/cloudSync";
 import { inicioDaJanela, limiteDaJanela, posicaoAjustada } from "@/lib/portfolio/posicao";
 import { createClient } from "@/lib/supabase/client";
@@ -68,6 +69,8 @@ export default function DashboardPage() {
   const [exemploACarregar, setExemploACarregar] = useState(false);
   const [hasWallets, setHasWallets] = useState(false);
   const [currentTotal, setCurrentTotal] = useState(0);
+  // Com o exemplo carregado, o total são as carteiras de exemplo: diz-se ao lado.
+  const exemplo = useExemploAtivo();
   const [isPnlLoading, setIsPnlLoading] = useState(true);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [nickname, setNickname] = useState<string>("");
@@ -424,7 +427,7 @@ export default function DashboardPage() {
                   days30={pnl30d}
                   daily7d={pnlDaily7d}
                   metrics={[
-                    { label: t("total"), value: fmtCurrency(currentTotal, { decimals: 0 }) },
+                    { label: exemplo ? `${t("total")} · 🧪 ${t("ex_badge")}` : t("total"), value: fmtCurrency(currentTotal, { decimals: 0 }) },
                     { label: t("nav_wallets"), value: "✓" },
                     { label: "Live", value: "↻" },
                   ]}

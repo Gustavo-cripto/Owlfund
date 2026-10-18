@@ -10,6 +10,7 @@ import { useCurrencyFormat } from "@/lib/theme/ThemeContext";
 import dynamic from "next/dynamic";
 import NftImage from "@/components/NftImage";
 import NftBotao from "@/components/nft/NftBotao";
+import EtiquetaExemplo from "@/components/EtiquetaExemplo";
 import { combineSeries, MOVING_AVERAGES, maKey, TF, type Bar, type MovingAverage, type SeriesBySymbol, type Timeframe } from "@/lib/portfolio/history";
 import { loadFxTable } from "@/lib/fx/historical";
 import { loadCryptoHoldings, type CryptoHoldings } from "@/lib/crypto/storage";
@@ -434,7 +435,7 @@ export default function PortfolioChartSection({
       <div className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden">
         <div className="px-6 pt-6 pb-2">
           {/* Com a cruz sobre o grafico, o cabecalho mostra esse instante; sem ela, o valor atual. */}
-          <p className="text-4xl font-black text-white tracking-tight">{fmt(hover ? hover.value : portfolioTotal)}</p>
+          <p className="text-4xl font-black text-white tracking-tight">{fmt(hover ? hover.value : portfolioTotal)} <EtiquetaExemplo className="text-xs tracking-normal" /></p>
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
             {hover ? (
               <span className="text-sm text-slate-400">

@@ -18,6 +18,7 @@ import AppShell from "@/components/AppShell";
 import { useConfirm } from "@/components/ConfirmDialog";
 import PnlSummaryCard from "@/components/PnlSummaryCard";
 import PortfolioChartSection from "@/components/PortfolioChartSection";
+import EtiquetaExemplo from "@/components/EtiquetaExemplo";
 import ScenarioSimulator from "@/components/ScenarioSimulator";
 import { createClient } from "@/lib/supabase/client";
 import { loadWalletSnapshot, updateWalletSnapshot, type StoredWalletEntry, type WalletSnapshot } from "@/lib/wallets/storage";
@@ -1288,7 +1289,7 @@ export default function PortfolioPage() {
             <div className="mt-4 flex flex-wrap items-end gap-6">
               <div>
                 <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                  {t("pf_total_value")}
+                  {t("pf_total_value")} <EtiquetaExemplo className="ml-1 normal-case tracking-normal" />
                 </p>
                 <p className="metric-value mt-2 text-4xl font-black text-white">
                   {fmt(portfolioTotal)}
