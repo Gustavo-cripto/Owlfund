@@ -56,7 +56,10 @@ test("conta nova: regista, entra, vê o exemplo e liga uma carteira", async ({ p
 
     // 4) Colar um endereço a sério tira o exemplo e fica a carteira da pessoa.
     await page.locator("#wl-quick").fill(ENDERECO_TESTE);
-    await page.getByRole("button", { name: /^Adicionar$/ }).click();
+    // Só o botão do campo rápido: a página tem 8 botões "Adicionar" (um por
+    // rede e secção) e a 2.ª noite (18 out) parou aqui, já depois de o registo,
+    // o exemplo, o 0/3 e o "Ligar a minha carteira" terem passado.
+    await page.locator("form:has(#wl-quick)").getByRole("button", { name: /^Adicionar$/ }).click();
     await expect(page.getByText(/Conta de EXEMPLO/)).toHaveCount(0, { timeout: 15_000 });
     await expect(page.getByText(/Carteiras:\s*1\/3/)).toBeVisible();
   } finally {
