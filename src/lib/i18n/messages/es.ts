@@ -1050,6 +1050,8 @@ export const es: Record<TranslationKey, string> = {
     nft_copy: "Copiar",
     nft_copied: "Copiado ✓",
     nft_close: "Cerrar",
+    nft_suspeito_isco: "Posible NFT de estafa: el nombre invita a visitar un sitio o a reclamar una recompensa. No abras ese sitio ni firmes nada con tu monedero.",
+    nft_suspeito_sem_dados: "Este NFT no tiene imagen ni datos públicos. Si llegó sin que lo pidieras, trátalo como posible basura: no abras sitios ni firmes nada que indique.",
     nft_view_contract: "Ver el contrato",
     nft_view_item: "Ver este NFT",
     nft_na_note: "Si la página del NFT muestra «N/A» sin imagen, el explorador no tiene los datos de ese NFT. Es habitual en NFT enviados sin pedirlos. El contrato se muestra siempre.",

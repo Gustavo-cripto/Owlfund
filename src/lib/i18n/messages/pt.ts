@@ -1059,6 +1059,8 @@ export const pt = {
     nft_copy: "Copiar",
     nft_copied: "Copiado ✓",
     nft_close: "Fechar",
+    nft_suspeito_isco: "Possível NFT de burla: o nome convida a visitar um site ou a reclamar uma recompensa. Não abras esse site nem assines nada com a tua carteira.",
+    nft_suspeito_sem_dados: "Este NFT não tem imagem nem dados públicos. Se chegou sem o pedires, trata-o como possível lixo: não abras sites nem assines nada que ele indique.",
     nft_view_contract: "Ver o contrato",
     nft_view_item: "Ver este NFT",
     nft_na_note: "Se a página do NFT mostrar «N/A» sem imagem, o explorador não tem os dados desse NFT. Acontece muito com NFTs oferecidos sem pedido. O contrato mostra-se sempre.",

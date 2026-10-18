@@ -1050,6 +1050,8 @@ export const en: Record<TranslationKey, string> = {
     nft_copy: "Copy",
     nft_copied: "Copied ✓",
     nft_close: "Close",
+    nft_suspeito_isco: "Possible scam NFT: its name invites you to visit a site or claim a reward. Do not open that site or sign anything with your wallet.",
+    nft_suspeito_sem_dados: "This NFT has no image or public data. If it arrived without you asking, treat it as possible junk: do not open sites or sign anything it points to.",
     nft_view_contract: "View contract",
     nft_view_item: "View this NFT",
     nft_na_note: "If the NFT page shows “N/A” with no image, the explorer has no data for that NFT. This is common with unsolicited airdropped NFTs. The contract page always works.",

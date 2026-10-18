@@ -9,6 +9,7 @@ import { createPortal } from "react-dom";
 import NftImage from "@/components/NftImage";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { ligacoesNft, type TipoId } from "@/lib/nft/ligacoes";
+import { suspeitaNft } from "@/lib/nft/suspeito";
 import type { TranslationKey } from "@/lib/i18n/translations";
 
 // `rede` no próprio NFT ganha à do cartão: uma carteira Ethereum mostra NFTs
@@ -32,6 +33,7 @@ export default function NftBotao({ nft, rede, className, children }: { nft: NftD
 function NftDetalhe({ nft, rede, onFechar }: { nft: NftDados; rede?: string | null; onFechar: () => void }) {
   const { t } = useLanguage();
   const l = ligacoesNft(nft, nft.rede ?? rede);
+  const suspeita = suspeitaNft(nft);
   const [copiado, setCopiado] = useState(false);
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => { if (e.key === "Escape") onFechar(); };
@@ -60,6 +62,11 @@ function NftDetalhe({ nft, rede, onFechar }: { nft: NftDados; rede?: string | nu
           <button type="button" onClick={onFechar} aria-label={t("nft_close")} className="shrink-0 rounded-lg px-2 py-1 text-slate-400 hover:text-white">✕</button>
         </div>
 
+        {suspeita && (
+          <p role="note" className="mt-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-100">
+            ⚠️ {t(suspeita === "isco" ? "nft_suspeito_isco" : "nft_suspeito_sem_dados")}
+          </p>
+        )}
         <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950/70 p-3">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t(ROTULO[l.tipo])}</p>
           {l.id ? (

@@ -1050,6 +1050,8 @@ export const fr: Record<TranslationKey, string> = {
     nft_copy: "Copier",
     nft_copied: "Copié ✓",
     nft_close: "Fermer",
+    nft_suspeito_isco: "NFT d'arnaque possible : son nom invite à visiter un site ou à réclamer une récompense. N'ouvrez pas ce site et ne signez rien avec votre portefeuille.",
+    nft_suspeito_sem_dados: "Ce NFT n'a ni image ni données publiques. S'il est arrivé sans que vous l'ayez demandé, considérez-le comme un possible déchet : n'ouvrez aucun site et ne signez rien de ce qu'il indique.",
     nft_view_contract: "Voir le contrat",
     nft_view_item: "Voir ce NFT",
     nft_na_note: "Si la page du NFT affiche « N/A » sans image, l'explorateur n'a pas les données de ce NFT. C'est fréquent avec les NFT reçus sans les avoir demandés. Le contrat s'affiche toujours.",
