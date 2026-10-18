@@ -339,6 +339,8 @@ export async function GET(req: NextRequest) {
   // -- Beta testers (atribuições manuais): lista completa p/ o bot de gestão --
   type BetaTester = {
     email: string;
+    /** Conta interna (CONTAS_INTERNAS/ADMIN_EMAILS): o dono, testes, agentes — não é gente. */
+    interna: boolean;
     plan: string;
     activatedAt: string | null;
     expiresAt: string | null;
@@ -347,6 +349,7 @@ export async function GET(req: NextRequest) {
     inactiveDays: number | null;
   };
   const betaTesters: BetaTester[] = [];
+  const internosTesters = emailsInternos();
   try {
     const { data: manualSubs } = await admin
       .from("subscriptions")
@@ -368,6 +371,7 @@ export async function GET(req: NextRequest) {
       const daysLeft = end ? Math.ceil((end.getTime() - now.getTime()) / 86_400_000) : null;
       betaTesters.push({
         email,
+        interna: eContaInterna(email, internosTesters, sub.user_id as string),
         plan: isPremiumPriceId(sub.price_id) ? "premium" : "pro",
         activatedAt: end ? new Date(end.getTime() - 60 * 86_400_000).toISOString() : null,
         expiresAt: (sub.current_period_end as string) ?? null,
@@ -412,6 +416,9 @@ export async function GET(req: NextRequest) {
     accounts,
     plans,
     betaTesters,
+    // Os testers ativos incluíam as contas do dono e de teste e liam-se como
+    // pessoas (18 out 2026: o agente social contou 8 "testers ativos"; reais, 1).
+    betaTestersResumo: { total: betaTesters.length, reais: betaTesters.filter((b) => !b.interna).length, internas: betaTesters.filter((b) => b.interna).length },
     apiKeys,
     usage,
     payments,
