@@ -273,9 +273,12 @@ export default function Landing() {
             <div className="animate-rise inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-4 py-1.5 text-xs font-bold text-orange-300 uppercase tracking-widest">
               <img src="/chainfolioai-icon-128.webp" alt="" className="h-4 w-4 rounded-full object-cover" /> {t("lp_hero_badge")}
             </div>
-            <h1 className="animate-rise delay-100 text-4xl font-bold leading-tight text-white md:text-5xl lg:text-6xl">
-              {t("lp_hero_title_1")}<br />
-              <span className="text-orange-400">{t("lp_crypto_trad")}</span><br />
+            {/* No telemóvel o título corre seguido (sem quebras forçadas): com
+                elas, o título de 18 out fazia 5 linhas e empurrava o botão da
+                demonstração para fora do 1.º ecrã (835 px num ecrã de 812). */}
+            <h1 className="animate-rise delay-100 text-[2rem] font-bold leading-tight text-white sm:text-4xl md:text-5xl lg:text-6xl">
+              {t("lp_hero_title_1")}<br className="hidden md:inline" />{" "}
+              <span className="text-orange-400">{t("lp_crypto_trad")}</span><br className="hidden md:inline" />{" "}
               {t("lp_hero_title_2")}
             </h1>
             <p className="animate-rise delay-200 max-w-lg text-lg text-slate-300">
