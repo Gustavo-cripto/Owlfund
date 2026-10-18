@@ -32,10 +32,14 @@ test("conta nova: regista, entra, vê o exemplo e liga uma carteira", async ({ p
     await page.getByRole("button", { name: /^Criar conta$/ }).first().click();
 
     // 1) Entra logo: nada de "verifica o teu email" à espera de um email que não vem.
+    // Só um alerta COM texto conta como erro: o Next.js tem sempre um
+    // role="alert" vazio (o anunciador de mudança de página para leitores de
+    // ecrã), e na 1.ª noite (17 out) o teste apanhou esse em menos de 1 s.
+    const erro = page.locator('p[role="alert"]').filter({ hasText: /\S/ });
     await Promise.race([
       page.waitForURL(/\/wallets/, { timeout: 30_000 }),
-      page.getByRole("alert").waitFor({ timeout: 30_000 }).then(async () => {
-        throw new Error(`O registo não entrou: ${await page.getByRole("alert").innerText()}`);
+      erro.first().waitFor({ timeout: 30_000 }).then(async () => {
+        throw new Error(`O registo não entrou: ${await erro.first().innerText()}`);
       }),
     ]);
     criada = true;
@@ -57,9 +61,10 @@ test("conta nova: regista, entra, vê o exemplo e liga uma carteira", async ({ p
     await expect(page.getByText(/Carteiras:\s*1\/3/)).toBeVisible();
   } finally {
     // Apaga a conta e todos os dados, passe ou falhe (a sessão está nos cookies da página).
-    if (criada) {
-      const r = await page.request.post("/api/account/delete");
-      expect(r.ok(), `Não foi possível apagar a conta de teste ${email} (${r.status()})`).toBeTruthy();
-    }
+    // Tenta sempre: o teste pode falhar depois de o Supabase criar a conta e
+    // antes de chegar a /wallets (17 out ficaram assim duas contas +e2e).
+    // Sem sessão a rota responde 401 e não há nada a apagar.
+    const r = await page.request.post("/api/account/delete").catch(() => null);
+    if (criada) expect(r?.ok(), `Não foi possível apagar a conta de teste ${email} (${r?.status()})`).toBeTruthy();
   }
 });
