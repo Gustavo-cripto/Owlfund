@@ -78,12 +78,6 @@ const SECURITY = [
   { icon: "🛡️", t: "lp_sec_3_t", d: "lp_sec_3_d" },
 ] as const;
 
-const INSTITUTIONS = [
-  { icon: "🔌", t: "lp_inst_1_t", d: "lp_inst_1_d" },
-  { icon: "📄", t: "lp_inst_2_t", d: "lp_inst_2_d" },
-  { icon: "🧩", t: "lp_inst_3_t", d: "lp_inst_3_d" },
-  { icon: "🇪🇺", t: "lp_inst_4_t", d: "lp_inst_4_d" },
-] as const;
 
 const FAQ = [
   { q: "lp_faq_1_q", a: "lp_faq_1_a" },
@@ -569,25 +563,23 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* PARA EQUIPAS E INSTITUIÇÕES */}
-        <section id="instituicoes" className="border-t border-slate-800/50 bg-slate-900/40 py-20">
-          <div className="mx-auto w-full max-w-6xl px-6">
-            <div className="mb-14 text-center animate-fade-in-up">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">{t("lp_inst_tag")}</p>
-              <h2 className="mt-3 text-3xl font-bold text-white md:text-4xl">{t("lp_inst_title")}</h2>
-              <p className="mt-3 text-slate-400 max-w-2xl mx-auto">{t("lp_inst_sub")}</p>
-            </div>
-            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-              {INSTITUTIONS.map((f, i) => (
-                <div
-                  key={f.t}
-                  className={`card-hover rounded-2xl border border-slate-800 bg-slate-950/50 p-6 animate-fade-in-up delay-${Math.min(i * 100, 500)}`}
-                >
-                  <div className="mb-4 text-3xl leading-none">{f.icon}</div>
-                  <h3 className="text-base font-bold text-white">{t(f.t)}</h3>
-                  <p className="mt-2 text-sm text-slate-400 leading-relaxed">{t(f.d)}</p>
-                </div>
-              ))}
+        {/* QUEM ESTÁ POR TRÁS (18 out 2026). Substitui "Para equipas e
+            instituições", que num beta com um cliente mais diluía do que
+            convencia (auditoria de conversão do /en). A única prova honesta que
+            há: uma pessoa real, o canal dela e as regras de privacidade. O
+            canal pessoal continua fora das redes oficiais e do sameAs. */}
+        <section id="quem-somos" className="border-t border-slate-800/50 bg-slate-900/40 py-16">
+          <div className="mx-auto w-full max-w-3xl px-6">
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-6 md:p-8">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300/80">{t("lp_quem_tag")}</p>
+              <h2 className="mt-3 text-2xl font-bold text-white md:text-3xl">{t("lp_quem_title")}</h2>
+              <p className="mt-3 leading-relaxed text-slate-300">{t("lp_quem_body")}</p>
+              <ul className="mt-5 space-y-2 text-sm text-slate-300">
+                <li className="flex gap-2"><span aria-hidden>🇪🇺</span><span>{t("lp_quem_p1")}</span></li>
+                <li className="flex gap-2"><span aria-hidden>👁️</span><span>{t("lp_quem_p2")}</span></li>
+                <li className="flex gap-2"><span aria-hidden>✉️</span><span>{t("lp_quem_p3")}</span></li>
+              </ul>
+              <a href={CRIADO_POR.href.replace("site-rodape", "site-quem-somos")} target="_blank" rel="noopener noreferrer" className="mt-6 inline-flex items-center gap-2 rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-orange-400/50 hover:text-white">▶ {t("lp_quem_yt")} ↗</a>
             </div>
           </div>
         </section>
@@ -697,7 +689,7 @@ export default function Landing() {
             <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-500">
               <a href="#ferramentas" className="transition hover:text-slate-300">{t("lp_tools_tag")}</a>
               <a href="#planos" className="transition hover:text-slate-300">{t("lp_plans_tag")}</a>
-              <a href="#instituicoes" className="transition hover:text-slate-300">{t("lp_inst_tag")}</a>
+              <a href="#quem-somos" className="transition hover:text-slate-300">{t("lp_quem_tag")}</a>
               <a href="#comparacao" className="transition hover:text-slate-300">{t("lp_cmp_tag")}</a>
               <Link href={pageUrl("howItWorks", lang)} className="transition hover:text-slate-300">{t("dash_how_title")}</Link>
               <Link href="/developers" className="transition hover:text-slate-300">API</Link>
