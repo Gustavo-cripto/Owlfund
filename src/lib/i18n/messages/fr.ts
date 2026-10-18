@@ -1100,7 +1100,7 @@ export const fr: Record<TranslationKey, string> = {
     lp_open_dashboard: "Ouvrir le Dashboard",
     lp_continue_desc: "Reprenez où vous en étiez : le dashboard sauvegarde vos portefeuilles, votre portefeuille et votre historique.",
     lp_help_desc: "Si vous avez besoin d'aide, utilisez le chat sur le dashboard.",
-    lp_crypto_trad: "dans tous vos portefeuilles,",
+    lp_crypto_trad: "tous vos portefeuilles,",
     lp_hero_badge: "Plateforme gratuite · Bêta ouverte",
     lp_hero_title_1: "Toutes vos cryptos,",
     lp_hero_title_2: "au même endroit",
