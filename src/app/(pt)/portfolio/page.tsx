@@ -9,7 +9,6 @@ import PlanBadge from "@/components/PlanBadge";
 import ErrorNote from "@/components/ErrorNote";
 import { btnPrimary } from "@/lib/ui/buttons";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
-import { loadStripe } from "@stripe/stripe-js";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from "recharts";
@@ -45,10 +44,6 @@ import ChartModal from "@/components/ChartModal";
 import { SkeletonLines } from "@/components/PageSkeleton";
 import { protegerTextoPdf } from "@/lib/export/pdfTexto";
 import PosicoesDefiPortefolio from "@/components/defi/PosicoesDefiPortefolio";
-
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ""
-);
 
 type WalletBalance = {
   label: string;
@@ -623,10 +618,10 @@ export default function PortfolioPage() {
         throw new Error(data.error ?? t("pf_pay_fail"));
       }
 
-      const stripe = await stripePromise;
-      if (stripe) {
-        window.location.href = data.url;
-      }
+      // O checkout é uma página do Stripe: basta ir para o URL que o servidor
+      // devolve. O Stripe.js carregado aqui sem chave pública lançava "Please
+      // call Stripe() with your publishable key" em cada visita (18 out 2026).
+      window.location.href = data.url;
     } catch (error) {
       setBillingError(userError(error, t("pf_pay_error")));
     } finally {
