@@ -1,6 +1,7 @@
 // Atribuição de plano a um tester (60 dias), partilhada entre a rota admin e o
 // webhook do Telegram. O tester tem de já ter criado conta (auth.users).
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { BETA_CUTOFF_ISO, betaAberto } from "@/lib/plans";
 
 const premiumPriceId = process.env.STRIPE_PREMIUM_PRICE_ID ?? process.env.NEXT_PUBLIC_STRIPE_PREMIUM_PRICE_ID ?? "";
 const TRIAL_DAYS = 60;
@@ -110,7 +111,11 @@ export async function grantTester(
     }
   }
 
-  const end = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+  // 60 dias e, enquanto o beta estiver aberto com os pagamentos desligados, pelo
+  // menos até ao fim do beta: ninguém fica sem Premium sem ter como pagar (20 out 2026).
+  const fimBeta = new Date(BETA_CUTOFF_ISO).getTime();
+  const semPagamentos = betaAberto() && process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
+  const end = new Date(Math.max(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000, semPagamentos && Number.isFinite(fimBeta) ? fimBeta : 0));
   const price_id = plan === "premium" ? premiumPriceId || "manual_premium" : "manual_pro";
 
   const { error } = await admin.from("subscriptions").upsert(

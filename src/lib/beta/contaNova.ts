@@ -16,7 +16,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { markSent } from "@/lib/email";
 import { enviarBoasVindas } from "@/lib/emails/boasVindas";
-import { betaAberto } from "@/lib/plans";
+import { BETA_CUTOFF_ISO, betaAberto } from "@/lib/plans";
 import { sendTelegram, tgEsc } from "@/lib/notify/telegram";
 import { origemDoCookie } from "@/lib/origem";
 import { langFromMetadata, resolveLang } from "@/lib/user/lang";
@@ -37,7 +37,10 @@ async function ligarPremium(admin: SupabaseClient, userId: string): Promise<Date
   const { data: atual } = await admin.from("subscriptions").select("status, source, current_period_end").eq("user_id", userId).maybeSingle();
   const ativa = !!atual && atual.status === "active" && (!atual.current_period_end || new Date(atual.current_period_end as string).getTime() > Date.now());
   if (ativa) return null; // já tem plano (pago ou de tester): não se mexe
-  const fim = new Date(Date.now() + TRIAL_DAYS * 86_400_000);
+  // Pelo menos 60 dias e, com os pagamentos desligados, até ao fim do beta:
+  // quem entrasse a 20 out perdia o Premium a 19 dez sem ter como pagar (20 out 2026).
+  const fimBeta = new Date(BETA_CUTOFF_ISO).getTime();
+  const fim = new Date(Math.max(Date.now() + TRIAL_DAYS * 86_400_000, Number.isFinite(fimBeta) ? fimBeta : 0));
   const { error } = await admin.from("subscriptions").upsert(
     { user_id: userId, status: "active", price_id: premiumPriceId || "manual_premium", current_period_end: fim.toISOString(), cancel_at_period_end: false, source: "manual" },
     { onConflict: "user_id" },
