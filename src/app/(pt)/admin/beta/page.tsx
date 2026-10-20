@@ -86,20 +86,22 @@ export default function AdminBetaPage() {
   const [contas, setContas] = useState<Conta[]>([]);
   // Prolongar todos os testers até ao fim do beta (decisão de 20 out 2026).
   const [prolongando, setProlongando] = useState(false);
+  // A mensagem fica junto do botão (20 out: aparecia no topo, no quadro "Ativar tester", e o dono não a viu).
+  const [prolongMsg, setProlongMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const prolongarTesters = async () => {
     if (prolongando) return;
     const ok = await askConfirm({ message: "Prolongar o Premium de TODOS os testers ativos até ao fim do beta (15 de janeiro de 2027)? Os testers reais (fora das contas de teste) recebem um email a avisar, uma vez.", okLabel: "Prolongar e avisar" });
     if (!ok) return;
     setProlongando(true);
-    setGrantMsg(null);
+    setProlongMsg(null);
     try {
       const r = await fetch("/api/admin/prolongar-testers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ avisar: true }) });
       const j = (await r.json().catch(() => ({}))) as { error?: string; prolongados?: number; avisados?: number; falhas?: number };
-      if (!r.ok) { setGrantMsg({ ok: false, text: j.error || "Falhou." }); return; }
-      setGrantMsg({ ok: true, text: `✅ ${j.prolongados ?? 0} tester(s) prolongado(s) até 15 jan 2027 · ${j.avisados ?? 0} avisado(s) por email${j.falhas ? ` · ${j.falhas} falha(s)` : ""}.` });
+      if (!r.ok) { setProlongMsg({ ok: false, text: j.error || "Falhou." }); return; }
+      setProlongMsg({ ok: true, text: `✅ ${j.prolongados ?? 0} tester(s) prolongado(s) até 15 jan 2027 · ${j.avisados ?? 0} avisado(s) por email${j.falhas ? ` · ${j.falhas} falha(s)` : ""}.` });
       load();
     } catch {
-      setGrantMsg({ ok: false, text: "Erro de rede." });
+      setProlongMsg({ ok: false, text: "Erro de rede." });
     } finally {
       setProlongando(false);
     }
@@ -422,6 +424,7 @@ export default function AdminBetaPage() {
                 <p className="text-sm font-semibold text-white">Prolongar testers</p>
                 <p className="mt-1 text-xs text-slate-400">Põe o Premium de todos os testers ativos a acabar a 15 de janeiro de 2027 (fim do beta). Quem já vai além dessa data fica como está. Os testers reais recebem um email a avisar.</p>
                 <button type="button" onClick={prolongarTesters} disabled={prolongando} className="mt-3 rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-400 disabled:opacity-40">{prolongando ? "A prolongar…" : "Prolongar todos até 15 jan 2027"}</button>
+                {prolongMsg && <p className={`mt-2 text-xs ${prolongMsg.ok ? "text-emerald-400" : "text-rose-400"}`}>{prolongMsg.text}</p>}
               </div>
 
               <div className="mt-6 flex items-center gap-4">
