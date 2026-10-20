@@ -2734,6 +2734,15 @@ export const fr: Record<TranslationKey, string> = {
 
     // ── Légal (partagé) ──
     legal_prevails: "Cette traduction est fournie pour votre commodité ; en cas de divergence, la version portugaise prévaut.",
+    legal_vendedor_h: "Qui fournit le service",
+    legal_vendedor_nome: "Nom",
+    legal_vendedor_tipo: "travailleur indépendant",
+    legal_vendedor_morada: "Adresse",
+    legal_vendedor_pais: "Pays",
+    legal_vendedor_contacto: "Contact",
+    tp_fat_h: "Prix, TVA et factures",
+    tp_fat_b: "Les prix incluent la TVA au taux en vigueur au Portugal (23 %). Pour chaque paiement, une facture-reçu est émise par un logiciel de facturation certifié par l'administration fiscale portugaise et envoyée à l'email du compte ; vous pouvez indiquer votre numéro fiscal au moment du paiement. Les paiements en crypto sont facturés en euros, au cours du moment du paiement.",
+    price_vat_included: "TVA incluse",
     legal_prevails_link: "Voir la version portugaise",
     legal_draft: "Ceci est un document de base et ne constitue pas un conseil juridique.",
     legal_updated: "Dernière mise à jour",

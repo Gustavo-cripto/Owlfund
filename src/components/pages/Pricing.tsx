@@ -6,6 +6,7 @@ import AppShell from "@/components/AppShell";
 import { btnPrimary } from "@/lib/ui/buttons";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { pageUrl } from "@/lib/i18n/routes";
+import { pagamentosAbertos } from "@/lib/legal/vendedor";
 import { useEffect, useState } from "react";
 import { getSupabase } from "@/lib/supabase/lazy";
 import { CRYPTO_PAYMENTS_ENABLED } from "@/lib/payments/config";
@@ -327,6 +328,7 @@ export default function Pricing() {
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-400">Pro</p>
                   <p className="text-3xl font-bold text-white mt-1">{priceLabel("pro")} <span className="text-sm font-normal text-slate-500">{annual ? t("pc_per_year") : t("pc_per_month")}</span></p>
+                  {pagamentosAbertos() && <p className="text-[11px] text-slate-500">{t("price_vat_included")}</p>}
                   {annual && (
                     <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-300">
                       💸 {t("pc_save_2months")} · {t("pc_you_save")} €{annualSaving("pro")} {t("pc_per_year_short")}
@@ -381,6 +383,7 @@ export default function Pricing() {
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-400">Premium</p>
                   <p className="text-3xl font-bold text-white mt-1">{priceLabel("premium")} <span className="text-sm font-normal text-slate-500">{annual ? t("pc_per_year") : t("pc_per_month")}</span></p>
+                  {pagamentosAbertos() && <p className="text-[11px] text-slate-500">{t("price_vat_included")}</p>}
                   {annual && (
                     <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-300">
                       💸 {t("pc_save_2months")} · {t("pc_you_save")} €{annualSaving("premium")} {t("pc_per_year_short")}

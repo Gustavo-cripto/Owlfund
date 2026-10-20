@@ -17,6 +17,7 @@ import type { TranslationKey } from "@/lib/i18n/translations";
 import { btnPrimary, btnSecondary } from "@/lib/ui/buttons";
 import Lightbox from "@/components/Lightbox";
 import ExperimentarSemConta from "@/components/ExperimentarSemConta";
+import { pagamentosAbertos } from "@/lib/legal/vendedor";
 
 // Durante o beta os pagamentos estão congelados e, desde 16 out 2026, o Premium
 // de 60 dias liga-se sozinho ao criar conta (src/lib/beta/contaNova.ts): todos
@@ -495,6 +496,7 @@ export default function Landing() {
                 <p className="mt-4 flex items-baseline gap-1">
                   <span className="text-3xl font-black text-white">{p.price}</span>
                   {p.paid && <span className="text-sm text-slate-500">{t("lp_plan_mo")}</span>}
+                  {p.paid && pagamentosAbertos() && <span className="ml-1 text-[11px] text-slate-500">· {t("price_vat_included")}</span>}
                 </p>
                 <ul className="mt-5 space-y-2.5">
                   {p.feats.map((f) => (

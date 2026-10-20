@@ -2749,6 +2749,15 @@ export const pt = {
 
     // ── Legal (partilhado) ──
     legal_prevails: "A versão portuguesa destes textos é a que faz fé.",
+    legal_vendedor_h: "Quem presta o serviço",
+    legal_vendedor_nome: "Nome",
+    legal_vendedor_tipo: "trabalhador independente",
+    legal_vendedor_morada: "Morada",
+    legal_vendedor_pais: "País",
+    legal_vendedor_contacto: "Contacto",
+    tp_fat_h: "Preços, IVA e faturas",
+    tp_fat_b: "Os preços indicados incluem IVA à taxa em vigor em Portugal (23%). Por cada pagamento é emitida uma fatura-recibo por programa de faturação certificado pela Autoridade Tributária, enviada para o email da conta; podes indicar o teu NIF no momento do pagamento. Os pagamentos em cripto são faturados em euros, à cotação do momento do pagamento.",
+    price_vat_included: "IVA incluído",
     legal_prevails_link: "Ver a versão portuguesa",
     legal_draft: "Este é um documento base e não constitui aconselhamento jurídico.",
     legal_updated: "Última atualização",

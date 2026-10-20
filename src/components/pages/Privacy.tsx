@@ -6,6 +6,7 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { pageUrl } from "@/lib/i18n/routes";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { LEGAL_LAST_UPDATED } from "@/lib/seo/site";
+import BlocoVendedor from "@/components/legal/BlocoVendedor";
 
 const SECTIONS: { h: TranslationKey; b: TranslationKey }[] = [
   { h: "pp_s1_h", b: "pp_s1_b" },
@@ -41,6 +42,7 @@ export default function Privacy() {
             {t("legal_updated")}: {new Date(LAST_UPDATED + "T12:00:00Z").toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}
           </p>
           <p className="mt-6 text-slate-300">{t("pp_intro")}</p>
+          <BlocoVendedor />
 
           <div className="mt-6 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] px-4 py-3 text-sm text-amber-200/90">
             {t("legal_draft")}

@@ -2734,6 +2734,15 @@ export const en: Record<TranslationKey, string> = {
 
     // ── Legal (shared) ──
     legal_prevails: "This translation is provided for convenience; in case of discrepancy, the Portuguese version prevails.",
+    legal_vendedor_h: "Who provides the service",
+    legal_vendedor_nome: "Name",
+    legal_vendedor_tipo: "sole trader",
+    legal_vendedor_morada: "Address",
+    legal_vendedor_pais: "Country",
+    legal_vendedor_contacto: "Contact",
+    tp_fat_h: "Prices, VAT and invoices",
+    tp_fat_b: "Prices include VAT at the rate in force in Portugal (23%). For each payment an invoice-receipt is issued by invoicing software certified by the Portuguese Tax Authority and sent to the account's email; you can give your tax number when you pay. Crypto payments are invoiced in euros, at the exchange rate at the time of payment.",
+    price_vat_included: "VAT included",
     legal_prevails_link: "See the Portuguese version",
     legal_draft: "This is a base document and does not constitute legal advice.",
     legal_updated: "Last updated",

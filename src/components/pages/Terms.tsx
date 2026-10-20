@@ -6,6 +6,8 @@ import { useLanguage } from "@/lib/i18n/LanguageContext";
 import { pageUrl } from "@/lib/i18n/routes";
 import type { TranslationKey } from "@/lib/i18n/translations";
 import { LEGAL_LAST_UPDATED } from "@/lib/seo/site";
+import BlocoVendedor from "@/components/legal/BlocoVendedor";
+import { pagamentosAbertos } from "@/lib/legal/vendedor";
 
 const SECTIONS: { h: TranslationKey; b: TranslationKey }[] = [
   { h: "tp_s1_h", b: "tp_s1_b" },
@@ -19,6 +21,9 @@ const SECTIONS: { h: TranslationKey; b: TranslationKey }[] = [
   { h: "tp_s10_h", b: "tp_s10_b" },
   { h: "tp_s11_h", b: "tp_s11_b" },
   { h: "tp_s12_h", b: "tp_s12_b" },
+  // Preços com IVA e faturas: só com os pagamentos abertos (decisões com o
+  // contabilista, 20 out 2026; texto a rever pela advogada antes de abrir).
+  ...(pagamentosAbertos() ? [{ h: "tp_fat_h" as TranslationKey, b: "tp_fat_b" as TranslationKey }] : []),
   { h: "tp_s8_h", b: "tp_s8_b" },
 ];
 
@@ -42,6 +47,7 @@ export default function Terms() {
             {t("legal_updated")}: {new Date(LAST_UPDATED + "T12:00:00Z").toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}
           </p>
           <p className="mt-6 text-slate-300">{t("tp_intro")}</p>
+          <BlocoVendedor />
 
           <div className="mt-6 rounded-xl border border-amber-500/30 bg-amber-500/[0.06] px-4 py-3 text-sm text-amber-200/90">
             {t("legal_draft")}

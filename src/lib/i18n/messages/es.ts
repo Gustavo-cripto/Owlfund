@@ -2734,6 +2734,15 @@ export const es: Record<TranslationKey, string> = {
 
     // ── Legal (compartido) ──
     legal_prevails: "Esta traducción se ofrece por comodidad; en caso de discrepancia prevalece la versión portuguesa.",
+    legal_vendedor_h: "Quién presta el servicio",
+    legal_vendedor_nome: "Nombre",
+    legal_vendedor_tipo: "trabajador autónomo",
+    legal_vendedor_morada: "Dirección",
+    legal_vendedor_pais: "País",
+    legal_vendedor_contacto: "Contacto",
+    tp_fat_h: "Precios, IVA y facturas",
+    tp_fat_b: "Los precios incluyen el IVA vigente en Portugal (23%). Por cada pago se emite una factura-recibo con un programa de facturación certificado por la Autoridad Tributaria portuguesa, enviada al email de la cuenta; puedes indicar tu número fiscal al pagar. Los pagos en cripto se facturan en euros, al cambio del momento del pago.",
+    price_vat_included: "IVA incluido",
     legal_prevails_link: "Ver la versión portuguesa",
     legal_draft: "Este es un documento base y no constituye asesoramiento jurídico.",
     legal_updated: "Última actualización",
