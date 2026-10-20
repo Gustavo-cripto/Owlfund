@@ -36,6 +36,7 @@ export default defineConfig({
     { name: "publico-movel", testMatch: /publico\.spec\.ts/, use: { ...devices["Pixel 7"] } },
     // Conta nova descartável (registo → exemplo → ligar carteira → apagar); não
     // precisa de segredos. "Playwright" no user-agent: as visitas contam como robô.
+    { name: "defi-nft", testMatch: /defi-nft\.spec\.ts/, use: { ...devices["Desktop Chrome"], userAgent: `${devices["Desktop Chrome"].userAgent} Playwright-e2e` } },
     { name: "conta-nova", testMatch: /conta-nova\.spec\.ts/, use: { ...devices["Pixel 7"], userAgent: `${devices["Pixel 7"].userAgent} Playwright-e2e` } },
     // Sessao: so existe se houver credenciais.
     ...(HAS_ACCOUNT
