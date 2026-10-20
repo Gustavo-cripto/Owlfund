@@ -80,6 +80,12 @@ export function launchReadiness() {
       etherscan: has("ETHERSCAN_API_KEY"), // V2 exige chave; sem ela não há histórico ETH no Smart Money
       ai: has("GROQ_API_KEY") || has("GEMINI_API_KEY") || has("OPENAI_API_KEY") || has("XAI_API_KEY"),
     },
+    // Fatura-recibo automática (src/lib/faturacao): obrigatória antes de cobrar.
+    faturacao: {
+      invoicexpress: has("INVOICEXPRESS_ACCOUNT") && has("INVOICEXPRESS_API_KEY"),
+      serie: has("INVOICEXPRESS_SEQUENCE_ID"),
+      ligada: has("INVOICEXPRESS_ACCOUNT") && has("INVOICEXPRESS_API_KEY") && env("FATURACAO_AUTOMATICA") !== "false",
+    },
     crypto: {
       enabled: env("NEXT_PUBLIC_CRYPTO_PAYMENTS_ENABLED") === "true",
       helioConfigured: has("HELIO_API_KEY") && has("HELIO_PUBLIC_KEY") && has("HELIO_WEBHOOK_TOKEN"),

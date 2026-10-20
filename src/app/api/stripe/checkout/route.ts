@@ -131,6 +131,9 @@ export async function POST(request: Request) {
     ...(customerId ? { customer: customerId } : { customer_email: user.email ?? undefined }),
     line_items: [{ price: priceId, quantity: 1 }],
     metadata: { user_id: user.id, plan, founder: founder ? "1" : "0" },
+    // NIF opcional para a fatura-recibo (src/lib/faturacao): sem ele a fatura
+    // sai como consumidor final. O webhook copia-o para o cliente Stripe.
+    custom_fields: [{ key: "nif", label: { type: "custom", custom: "NIF para a fatura (opcional)" }, type: "text", optional: true, text: { maximum_length: 20 } }],
     success_url: `${siteUrl}/account?checkout=success`,
     cancel_url: `${siteUrl}/pricing?canceled=1`,
   });

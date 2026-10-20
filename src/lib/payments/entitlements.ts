@@ -4,6 +4,9 @@
 // Idempotente por `providerEventId` (o webhook pode ser reentregue sem creditar 2×).
 
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { emitirFaturaRecibo, faturacaoAtiva } from "@/lib/faturacao/invoicexpress";
+import { cotacaoEmEur } from "@/lib/faturacao/cotacao";
+import { sendTelegram, tgEsc } from "@/lib/notify/telegram";
 
 export type CryptoPlan = "pro" | "premium";
 export type BillingPeriod = "monthly" | "annual";
@@ -95,5 +98,45 @@ export async function grantCryptoEntitlement(input: GrantInput): Promise<GrantRe
   }, { onConflict: "user_id" });
   if (subErr) return { granted: false, reason: "error", message: subErr.message };
 
+  // 4) Fatura-recibo em euros, à cotação do momento (contabilista, 20 out 2026).
+  //    Nunca desfaz o acesso já creditado: se falhar, avisa o dono para a emitir à mão.
+  await faturarPagamentoCripto(input, now).catch((e) => console.error("[faturacao] cripto:", e instanceof Error ? e.message : e));
+
   return { granted: true };
+}
+
+async function faturarPagamentoCripto(input: GrantInput, quando: Date): Promise<void> {
+  const quantidade = Number(input.amount ?? 0);
+  const moeda = (input.currency ?? "").toUpperCase();
+  if (!(quantidade > 0) || !moeda) return;
+  const admin = getSupabaseAdmin();
+  const cot = await cotacaoEmEur(moeda);
+  const totalEur = cot ? Math.round(quantidade * cot.eur * 100) / 100 : 0;
+  // Fica registado no pagamento (colunas de supabase-crypto-eur.sql; sem elas, ignora-se).
+  if (cot) {
+    try { await admin.from("crypto_payments").update({ valor_eur: totalEur, cotacao_eur: cot.eur, cotacao_fonte: cot.fonte }).eq("provider_event_id", input.providerEventId); } catch { /* colunas ainda não criadas */ }
+  }
+  if (!faturacaoAtiva()) return;
+  const { data } = await admin.auth.admin.getUserById(input.userId);
+  const email = data.user?.email ?? "";
+  const aviso = async (motivo: string) => {
+    console.error("[faturacao] cripto", input.providerEventId, motivo);
+    await sendTelegram(`⚠️ <b>Fatura NÃO emitida</b> (cripto ${tgEsc(input.providerEventId)})
+${tgEsc(email || input.userId)} · ${quantidade} ${tgEsc(moeda)}${cot ? ` ≈ ${totalEur.toFixed(2)} €` : ""}
+Motivo: ${tgEsc(motivo)}
+▶ Emite-a à mão no InvoiceXpress.`).catch(() => false);
+  };
+  if (!cot) return aviso(`sem cotação de ${moeda} em euros`);
+  if (!email) return aviso("conta sem email");
+  const r = await emitirFaturaRecibo({
+    idUnico: `cripto-${input.providerEventId}`,
+    codigoCliente: input.userId,
+    nome: (data.user?.user_metadata?.full_name as string | undefined) ?? email,
+    email,
+    descricao: `ChainFolioAI ${input.plan === "premium" ? "Premium" : "Pro"} — ${input.period === "annual" ? "anual" : "mensal"}`,
+    totalEur,
+    data: quando,
+    observacoes: `Pago em ${quantidade} ${moeda}${input.chain ? ` (${input.chain})` : ""} à cotação de ${cot.eur.toFixed(4)} € (${cot.fonte}, ${quando.toISOString()})${input.txHash ? ` · tx ${input.txHash}` : ""}`,
+  });
+  if (!r.ok && !r.duplicado) await aviso(r.erro);
 }

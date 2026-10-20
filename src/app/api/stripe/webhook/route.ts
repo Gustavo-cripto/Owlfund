@@ -3,6 +3,8 @@ import type Stripe from "stripe";
 
 import { getStripe } from "@/lib/stripe";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { emitirFaturaRecibo, faturacaoAtiva } from "@/lib/faturacao/invoicexpress";
+import { sendTelegram, tgEsc } from "@/lib/notify/telegram";
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET ?? "";
 
@@ -111,6 +113,12 @@ export async function POST(request: Request) {
   try {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
+      // NIF dado no pagamento → no cliente Stripe, para as faturas de cada renovação.
+      const nif = session.custom_fields?.find((c) => c.key === "nif")?.text?.value?.trim();
+      const cliente = typeof session.customer === "string" ? session.customer : session.customer?.id;
+      if (nif && cliente) {
+        try { await stripe.customers.update(cliente, { metadata: { nif } }); } catch (e) { console.error("[stripe-webhook] guardar NIF:", e instanceof Error ? e.message : e); }
+      }
       if (session.subscription) {
         const subscription = await stripe.subscriptions.retrieve(
           session.subscription as string
@@ -125,6 +133,39 @@ export async function POST(request: Request) {
     ) {
       const subscription = event.data.object as Stripe.Subscription;
       await upsertSubscription(subscription);
+    }
+
+    // Cada pagamento cobrado (1.º e renovações) → fatura-recibo no InvoiceXpress.
+    // Nunca devolve erro ao Stripe por causa da fatura (a repetição podia
+    // duplicá-la): se falhar, avisa o dono no Telegram para a emitir à mão.
+    if (event.type === "invoice.paid" && faturacaoAtiva()) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const inv = event.data.object as any;
+      const pago = Number(inv.amount_paid ?? 0) / 100;
+      if (pago > 0 && String(inv.currency ?? "eur").toLowerCase() === "eur") {
+        const clienteId = typeof inv.customer === "string" ? inv.customer : inv.customer?.id ?? "";
+        let nif: string | null = null;
+        try { const c = await stripe.customers.retrieve(clienteId); if (!c.deleted) nif = (c.metadata?.nif as string | undefined) ?? null; } catch { /* sem NIF */ }
+        const linha = inv.lines?.data?.[0];
+        const r = await emitirFaturaRecibo({
+          idUnico: `stripe-${inv.id}`,
+          codigoCliente: clienteId || inv.customer_email || "cliente",
+          nome: inv.customer_name ?? "",
+          email: inv.customer_email ?? "",
+          nif,
+          pais: inv.customer_address?.country ?? null,
+          descricao: linha?.description ?? "Subscrição ChainFolioAI",
+          totalEur: pago,
+          data: new Date((inv.status_transitions?.paid_at ?? inv.created ?? Date.now() / 1000) * 1000),
+        });
+        if (!r.ok && !r.duplicado) {
+          console.error("[faturacao] Stripe", inv.id, r.erro);
+          await sendTelegram(`⚠️ <b>Fatura NÃO emitida</b> (Stripe ${tgEsc(String(inv.id))})
+${tgEsc(inv.customer_email ?? "")} · ${pago.toFixed(2)} €
+Motivo: ${tgEsc(r.erro)}
+▶ Emite-a à mão no InvoiceXpress.`).catch(() => false);
+        }
+      }
     }
 
     return NextResponse.json({ received: true });
