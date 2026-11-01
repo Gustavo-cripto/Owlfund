@@ -11,7 +11,10 @@ export const PROTECTED_PATHS = [
 const EXTRA_NEXT = ["/beta", "/pricing", "/developers", "/como-funciona"] as const;
 
 export function isProtectedPath(pathname: string): boolean {
-  return PROTECTED_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  // Os pré-carregamentos do Next pedem a mesma página com sufixo
+  // (/portfolio.rsc, /portfolio.segments/_full.segment.rsc): contam como ela.
+  const pagina = pathname.replace(/\.(?:segments\/.*|prefetch\.rsc|rsc)$/, "");
+  return PROTECTED_PATHS.some((p) => pagina === p || pagina.startsWith(`${p}/`));
 }
 
 /** Devolve um caminho relativo seguro (sem open redirect) ou o fallback. */

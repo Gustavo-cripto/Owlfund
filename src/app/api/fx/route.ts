@@ -39,6 +39,7 @@ export async function GET(request: Request) {
     return NextResponse.json(memoria, { headers: CABECALHOS });
   }
   const rates: Rates = { ...FALLBACK };
+  let fiatOk = false;
 
   try {
     // BTC em EUR: OKX primeiro (par BTC-EUR, lote F) — o CoinGecko so e
@@ -48,6 +49,7 @@ export async function GET(request: Request) {
       precoOkx("BTC-EUR"),
     ]);
 
+    fiatOk = fiatRes.ok;
     if (fiatRes.ok) {
       const j = (await fiatRes.json()) as { rates?: Record<string, number> };
       for (const c of FIAT) {
@@ -76,7 +78,7 @@ export async function GET(request: Request) {
   // em /api/markets e /api/btc-blocks. As do BCE mudam uma vez por dia; sem
   // isto, cada separador aberto pedia-as de minuto a minuto ao nosso servidor.
   const corpo = { rates, updatedAt: Date.now() };
-  // Só se guarda quando o BTC veio de uma fonte: o recurso não é para repetir.
-  if (rates.BTC !== FALLBACK.BTC) memoria = corpo;
+  // Só se guarda quando as duas fontes responderam: o recurso não é para repetir.
+  if (fiatOk && rates.BTC !== FALLBACK.BTC) memoria = corpo;
   return NextResponse.json(corpo, { headers: CABECALHOS });
 }
