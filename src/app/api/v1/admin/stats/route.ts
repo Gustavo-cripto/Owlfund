@@ -49,6 +49,13 @@ async function countOf(
 const head = (admin: Admin, table: string) =>
   admin.from(table).select("*", { count: "exact", head: true });
 
+// Resultado guardado 5 minutos por pedido (?top=N…): os bots consultam estas
+// estatísticas várias vezes por hora e cada cálculo lê milhares de visitas,
+// todas as contas e as carteiras. 1 nov 2026: a Vercel pausou o site por
+// excesso de CPU no plano Hobby.
+const CACHE_MS = 5 * 60_000;
+const cache = new Map<string, { em: number; corpo: unknown }>();
+
 export async function GET(req: NextRequest) {
   if (!verifyAdminAuth(req)) {
     const res = apiJson(
@@ -57,6 +64,9 @@ export async function GET(req: NextRequest) {
     res.headers.set("WWW-Authenticate", 'Bearer realm="ChainFolioAI Admin"');
     return res;
   }
+  const chaveCache = req.nextUrl.search;
+  const guardado = cache.get(chaveCache);
+  if (guardado && Date.now() - guardado.em < CACHE_MS && req.nextUrl.searchParams.get("fresco") !== "1") return apiJson(guardado.corpo);
 
   let admin: Admin;
   try {
@@ -409,7 +419,7 @@ export async function GET(req: NextRequest) {
     ({ porRede: betaSignups.bySource30d, porCampanha: betaSignups.byCampaign30d } = agruparOrigens(porOrigem));
   } catch { /* bloco vazio em caso de erro */ }
 
-  return apiJson({
+  const corpo = {
     generatedAt: ISO(now),
     // Prontidão para o lançamento (só sim/não por env var) — scripts/launch-check.sh
     launch: launchReadiness(),
@@ -426,5 +436,7 @@ export async function GET(req: NextRequest) {
     betaSignups,
     // Funil de pessoas (7 e 30 dias) + retencao a 7 dias — src/lib/analytics/funil.ts
     funnel: await calcularFunil(admin).catch(() => null),
-  });
+  };
+  cache.set(chaveCache, { em: Date.now(), corpo });
+  return apiJson(corpo);
 }

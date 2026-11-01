@@ -10,6 +10,7 @@ import { defiKey, networkToMoralisChain, normalizeChain } from "@/lib/wallets/fo
 import type { PosicaoDefi } from "@/lib/defi/posicoes";
 
 export const EVENTO_DEFI_RELIDO = "cf-defi-relido";
+const RELER_APOS_MS = 10 * 60_000;
 
 type Pedido = { chave: string; url: string };
 
@@ -41,6 +42,10 @@ function pedidos(snap: WalletSnapshot): Pedido[] {
  * null se alguma leitura falhou (nesse caso não grava nada).
  */
 export async function relerDefiDaConta(snap: WalletSnapshot): Promise<number | null> {
+  // No máximo uma releitura a cada 10 minutos (as Carteiras também carimbam
+  // defiPosicoesEm): andar entre Painel, Portefólio e Carteiras relia tudo de
+  // cada vez — 1 nov 2026, site pausado por excesso de CPU na Vercel.
+  if (typeof snap.defiPosicoesEm === "number" && Date.now() - snap.defiPosicoesEm < RELER_APOS_MS) return null;
   const lista = pedidos(snap);
   const resultados = await Promise.all(lista.map(async (p) => {
     try {
