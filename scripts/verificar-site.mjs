@@ -35,7 +35,7 @@ const aviso = (m) => console.log(`  ⚠️  ${m}`);
 // VERCEL_AUTOMATION_BYPASS_SECRET no ambiente, os pedidos ao próprio site levam
 // o cabeçalho que as abre. Nunca vai para fontes externas.
 const BYPASS = (process.env.VERCEL_AUTOMATION_BYPASS_SECRET ?? "").trim();
-const comBypass = (url, opts) => (BYPASS && String(url).startsWith(BASE)
+const comBypass = (url, opts) => (BYPASS && (String(url) === BASE || String(url).startsWith(BASE + "/"))
   ? { ...opts, headers: { ...(opts.headers ?? {}), "x-vercel-protection-bypass": BYPASS } }
   : opts);
 

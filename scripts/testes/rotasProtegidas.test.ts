@@ -1,0 +1,14 @@
+import { isProtectedPath } from "@/lib/auth/redirects";
+let fails = 0;
+const eq = (name: string, got: boolean, want: boolean) => { const ok = got === want; if (!ok) fails++; console.log(`${ok ? "✅" : "❌"} ${name}: ${got}${ok ? "" : ` (esperado ${want})`}`); };
+eq("/portfolio", isProtectedPath("/portfolio"), true);
+eq("/admin/beta", isProtectedPath("/admin/beta"), true);
+eq("pré-carregamento /portfolio.rsc", isProtectedPath("/portfolio.rsc"), true);
+eq("pré-carregamento /portfolio.prefetch.rsc", isProtectedPath("/portfolio.prefetch.rsc"), true);
+eq("segmento /portfolio.segments/_full.segment.rsc", isProtectedPath("/portfolio.segments/_full.segment.rsc"), true);
+eq("segmento /admin/beta.segments/_tree.segment.rsc", isProtectedPath("/admin/beta.segments/_tree.segment.rsc"), true);
+eq("pública /pricing", isProtectedPath("/pricing"), false);
+eq("pública /pricing.rsc", isProtectedPath("/pricing.rsc"), false);
+eq("parecida /portfolios", isProtectedPath("/portfolios"), false);
+eq("/", isProtectedPath("/"), false);
+console.log(fails === 0 ? "\nTODOS OK" : `\n${fails} FALHA(S)`); process.exit(fails ? 1 : 0);

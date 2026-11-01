@@ -227,15 +227,21 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   return comOrigem(response);
 }
 
-// Só páginas. O middleware não faz nada de útil em /api (não conta visitas, não
-// muda de língua, nenhuma rota /api é protegida aqui — cada uma verifica a sua
-// sessão), nem em ficheiros (robots.txt, sitemap.xml, .well-known, imagens):
-// corria em todos — 23 mil invocações por semana, incluindo a chamada que ele
-// próprio faz a /api/track — e era parte do CPU que pausou o site no Hobby
-// (31 out 2026). Nenhuma página tem ponto no caminho, por isso "tem extensão"
-// é o mesmo que "é um ficheiro".
+// Fica de fora o que não precisa dele, e era o grosso das invocações (23 mil
+// por semana; parte do CPU que pausou o site no Hobby a 31 out 2026):
+//  - rotas /api públicas ou com chave, que nunca leem a sessão por cookie —
+//    MCP, beacons (/api/track, que o próprio middleware chama, /api/evento),
+//    cotações, crons, /api/v1, webhook do Telegram;
+//  - ficheiros (robots.txt, sitemap.xml, .well-known, imagens, fontes), por
+//    lista fechada de extensões. NÃO "qualquer extensão": os pré-carregamentos
+//    do Next (/admin/beta.segments/….segment.rsc) também têm ponto e, sem o
+//    middleware, abriam sem login (auditoria 1 nov 2026).
+// As outras /api CONTINUAM a passar aqui: é o middleware que renova e grava os
+// cookies da sessão. O requireUser só lê (não grava) — se fosse ele a renovar
+// um token expirado, o refresh token novo perdia-se e o Supabase, ao ver o
+// antigo reutilizado, podia terminar a sessão da pessoa.
 export const config = {
   matcher: [
-    "/((?!api/|_next/static|_next/image|\\.well-known/|.*\\.[a-zA-Z0-9]+$).*)",
+    "/((?!api/(?:mcp|track|evento|markets|fx|btc-blocks|fear-greed|client-error|cron|v1|telegram-webhook)(?:/|$)|_next/static|_next/image|\\.well-known/|.*\\.(?:txt|xml|ico|png|jpe?g|gif|webp|avif|svg|webmanifest|woff2?|pdf)$).*)",
   ],
 };
