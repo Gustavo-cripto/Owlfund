@@ -14,7 +14,7 @@ import { mascararEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300; // plano Pro (nov 2026): antes 60 s, o limite do Hobby
 
 // Tudo o que o email diz por si (fora do texto da IA), nas 4 linguas.
 const L: Record<Lang, { crypto: string; trad: string; briefing: string; cta: string; foot: string; unsub: string }> = {

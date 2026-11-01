@@ -20,7 +20,7 @@ import { langFromMetadata, resolveLang, signupLangByEmail } from "@/lib/user/lan
 // (7 e 1) dispara cada aviso uma única vez, sem precisar de coluna de dedupe.
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300; // plano Pro (nov 2026): antes 60 s, o limite do Hobby
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const REMINDER_DAYS = [7, 1];

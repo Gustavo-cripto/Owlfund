@@ -5,7 +5,7 @@ import { apiJson } from "@/lib/api/response";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120; // plano Pro: antes 60 s
 
 // GET /api/v1/nfts?chain=eth — NFTs das carteiras EVM do dono da chave.
 export async function GET(req: NextRequest) {

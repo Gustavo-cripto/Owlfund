@@ -7,10 +7,10 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300; // plano Pro (nov 2026): antes 60 s, o limite do Hobby
 
-// Uma vez por dia (ver vercel.json — o plano Hobby da Vercel só permite crons
-// diários; de meia em meia hora exige o plano Pro). Lê os saldos de todas as
+// De duas em duas horas (ver vercel.json; no plano Hobby era uma vez por dia,
+// o único ritmo que ele permitia — desde nov 2026 o site está no Pro). Lê os saldos de todas as
 // contas de exchange guardadas no servidor e actualiza a cache: é o que dá
 // "saldo actualizado com a app fechada". Com a app aberta, é o próprio GET de
 // /api/cex-keys que actualiza o que tiver mais de 30 minutos. Cinco de cada

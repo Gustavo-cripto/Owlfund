@@ -6,7 +6,7 @@ import { scanWatchlist, type WatchEntry } from "@/lib/api/whales";
 import { verifyCronAuth } from "@/lib/api/cron-auth";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 300; // plano Pro (nov 2026): antes 60 s, o limite do Hobby
 export const dynamic = "force-dynamic";
 
 // GET — chamado por um cron (Vercel ou externo) com Authorization: Bearer <CRON_SECRET>.

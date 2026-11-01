@@ -26,7 +26,10 @@ const mal = (msg) => { falhas++; console.log(`  ❌ ${msg}`); };
 async function pedir(caminho, init = {}) {
   const t0 = Date.now();
   try {
-    const res = await fetch(BASE + caminho, { signal: AbortSignal.timeout(TIMEOUT), ...init });
+    // Versões de teste da Vercel: ver VERCEL_AUTOMATION_BYPASS_SECRET em verificar-site.mjs.
+    const bypass = (process.env.VERCEL_AUTOMATION_BYPASS_SECRET ?? "").trim();
+    const headers = bypass ? { ...(init.headers ?? {}), "x-vercel-protection-bypass": bypass } : init.headers;
+    const res = await fetch(BASE + caminho, { signal: AbortSignal.timeout(TIMEOUT), ...init, ...(headers ? { headers } : {}) });
     const texto = await res.text();
     let json = null;
     try { json = JSON.parse(texto); } catch { /* nem tudo é JSON */ }

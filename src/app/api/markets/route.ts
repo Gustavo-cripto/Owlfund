@@ -32,6 +32,9 @@ const CACHE = { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=6
 // versões em separado, porque o endereço é diferente.
 const TICKER_LINHAS = 15;
 
+// Idade máxima do resultado em memória que se reutiliza sem ir às fontes.
+const FRESCO_MS = 120_000;
+
 // `?nospark=1` é o meio-termo: todas as moedas, todos os campos, menos as linhas
 // de sete dias. A página /carteiras precisa de todas as moedas que a pessoa tem,
 // mas nunca desenha sparklines — e era o que carregava 500 KB por nada, duas
@@ -242,6 +245,18 @@ export async function GET(request: Request) {
   const parametros = new URL(request.url).searchParams;
   const soAFita = parametros.get("ticker") === "1";
   const semSparkline = parametros.get("nospark") === "1";
+
+  // A rede de distribuição guarda três versões (completa, ?nospark, ?ticker) em
+  // cada região, e cada uma que expira fazia esta função ir buscar e cruzar
+  // tudo outra vez: era a rota que mais CPU gastava na Vercel (31 % em out
+  // 2026, ~190 ms de CPU por chamada a ler as listas inteiras da OKX e da
+  // CoinEx). Com o resultado dos últimos 2 min ainda em memória, as outras
+  // versões e regiões tiram-se dele sem ir lá fora.
+  const fresco = lastGood<Record<string, unknown>>("markets", FRESCO_MS);
+  if (fresco) {
+    const corpo = soAFita ? paraFita(fresco.value) : semSparkline ? semLinhas(fresco.value) : fresco.value;
+    return NextResponse.json(corpo, { headers: CACHE });
+  }
   // Precos (OKX + CoinEx) desta chamada, para a reserva do catch (ver la em baixo).
   let tickersDaCoinEx: ReturnType<typeof extractCoinExTickers> | null = null;
   try {

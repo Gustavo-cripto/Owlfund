@@ -31,10 +31,18 @@ const erro = (m) => { console.log(`  ❌ ${m}`); falhas++; };
 const ok = (m) => console.log(`  ✅ ${m}`);
 const aviso = (m) => console.log(`  ⚠️  ${m}`);
 
+// Versões de teste (preview) da Vercel estão protegidas: com
+// VERCEL_AUTOMATION_BYPASS_SECRET no ambiente, os pedidos ao próprio site levam
+// o cabeçalho que as abre. Nunca vai para fontes externas.
+const BYPASS = (process.env.VERCEL_AUTOMATION_BYPASS_SECRET ?? "").trim();
+const comBypass = (url, opts) => (BYPASS && String(url).startsWith(BASE)
+  ? { ...opts, headers: { ...(opts.headers ?? {}), "x-vercel-protection-bypass": BYPASS } }
+  : opts);
+
 const pedir = async (url, opts = {}) => {
   const t0 = Date.now();
   try {
-    const res = await fetch(url, { redirect: "manual", ...opts });
+    const res = await fetch(url, { redirect: "manual", ...comBypass(url, opts) });
     return { res, ms: Date.now() - t0, texto: opts.method === "HEAD" ? "" : await res.text() };
   } catch (e) {
     return { res: null, ms: Date.now() - t0, texto: "", falha: String(e).slice(0, 80) };

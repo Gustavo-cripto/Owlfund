@@ -227,8 +227,15 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   return comOrigem(response);
 }
 
+// Só páginas. O middleware não faz nada de útil em /api (não conta visitas, não
+// muda de língua, nenhuma rota /api é protegida aqui — cada uma verifica a sua
+// sessão), nem em ficheiros (robots.txt, sitemap.xml, .well-known, imagens):
+// corria em todos — 23 mil invocações por semana, incluindo a chamada que ele
+// próprio faz a /api/track — e era parte do CPU que pausou o site no Hobby
+// (31 out 2026). Nenhuma página tem ponto no caminho, por isso "tem extensão"
+// é o mesmo que "é um ficheiro".
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!api/|_next/static|_next/image|\\.well-known/|.*\\.[a-zA-Z0-9]+$).*)",
   ],
 };

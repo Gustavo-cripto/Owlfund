@@ -22,7 +22,7 @@ import { boasVindas } from "@/lib/emails/boasVindas";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300; // plano Pro (nov 2026): antes 60 s, o limite do Hobby
 
 const TO = process.env.BETA_SIGNUP_TO ?? "suporte@chainfolioai.com";
 const DAY = 86_400_000;
