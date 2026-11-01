@@ -25,7 +25,7 @@
     },
     {
       "path": "/api/cron/whale-alerts",
-      "schedule": "30 9 * * *"
+      "schedule": "15 * * * *"
     },
     {
       "path": "/api/cron/cleanup",
@@ -41,7 +41,7 @@
     },
     {
       "path": "/api/cron/cex-refresh",
-      "schedule": "20 5 * * *"
+      "schedule": "20 */2 * * *"
     },
     {
       "path": "/api/cron/resumo-semanal",

@@ -8,7 +8,7 @@ import { sendTelegram, tgEsc } from "@/lib/notify/telegram";
 // CRON_SECRET deve estar definido nas env vars da Vercel. Gerar com: openssl rand -hex 32
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300; // plano Pro (nov 2026): antes 60 s, o limite do Hobby
 
 export async function GET(request: Request) {
   // Autenticação partilhada (lib/api/cron-auth): CRON_SECRET obrigatório e

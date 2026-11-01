@@ -5,7 +5,7 @@ import { apiJson } from "@/lib/api/response";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;  // le contratos em 5 redes; nao cabe nos 10 s por omissao
+export const maxDuration = 120; // le contratos em 5 redes; com muitas carteiras passava dos 60 s do Hobby
 
 // GET /api/v1/defi — posições de lending do dono da chave: depositado, emprestado, líquido.
 export async function GET(req: NextRequest) {

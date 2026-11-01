@@ -8,7 +8,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 // Ler doze tabelas mais as contas e comprimir leva tempo; o valor por omissão cortava a meio.
-export const maxDuration = 60;
+export const maxDuration = 300; // plano Pro (nov 2026): antes 60 s, o limite do Hobby
 
 // Cópia de segurança diária. Existe porque o plano gratuito do Supabase não
 // inclui cópias nenhumas — ver src/lib/backup/dump.ts, que explica o alcance

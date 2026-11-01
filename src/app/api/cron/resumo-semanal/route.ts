@@ -20,7 +20,7 @@ import type { PosicaoDefi } from "@/lib/defi/posicoes";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300; // plano Pro (nov 2026): antes 60 s, o limite do Hobby
 
 const MAX_UTILIZADORES = 150;
 const PARES_EUR: Array<["btc" | "eth" | "sol" | "ada", string, string]> = [["btc", "BTC-EUR", "BTC"], ["eth", "ETH-EUR", "ETH"], ["sol", "SOL-EUR", "SOL"], ["ada", "ADA-EUR", "ADA"]];

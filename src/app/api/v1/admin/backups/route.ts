@@ -7,7 +7,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 // O POST corre a cópia inteira; o valor por omissão cortava a meio.
-export const maxDuration = 60;
+export const maxDuration = 300; // plano Pro (nov 2026): antes 60 s, o limite do Hobby
 
 // Lista as cópias de segurança e devolve um endereço temporário para
 // descarregar uma. Existe porque uma cópia que não se consegue tirar de lá não

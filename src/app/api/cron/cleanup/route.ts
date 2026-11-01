@@ -5,7 +5,7 @@ import { dedupeSnapshots } from "@/lib/snapshots/dedupe";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300; // plano Pro (nov 2026): antes 60 s, o limite do Hobby
 
 // GET  chamado por um cron (Vercel ou externo) com Authorization: Bearer <CRON_SECRET>.
 // Poda as tabelas que crescem sem fim: janelas de rate-limit ja passadas, o log

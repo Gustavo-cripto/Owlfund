@@ -11,11 +11,15 @@ import { precoOkx } from "@/lib/market/okxSpot";
 // O endereço é `api.frankfurter.dev/v1/`: o antigo `api.frankfurter.app`
 // passou a responder 301 e só funcionava porque o fetch segue redireções —
 // uma dependência silenciosa que mais dia menos dia deixava de funcionar.
-export const revalidate = 60;
+export const revalidate = 300;
 
 const FIAT = ["USD", "GBP", "CHF", "CAD", "AUD", "BRL", "PLN", "MXN", "SGD"] as const;
 
 type Rates = Record<string, number>;
+
+const CACHE_S = 300;
+const CABECALHOS = { "Cache-Control": `public, s-maxage=${CACHE_S}, stale-while-revalidate=1800` };
+let memoria: { rates: Rates; updatedAt: number } | null = null;
 
 // Só até a chamada responder. Não precisam de ser exatos.
 const FALLBACK: Rates = {
@@ -27,13 +31,20 @@ export async function GET(request: Request) {
   // Rota publica (alimenta paginas sem sessao): limite por IP, sem sessao.
   const limitado = await rateLimitPublicPartilhado(request, "fx", 120);
   if (limitado) return limitado;
+  // Era a 3.ª rota com mais CPU na Vercel (20 mil chamadas em out 2026) para
+  // valores que mudam uma vez por dia (BCE) — o BTC é o único que mexe, e para
+  // converter saldos 5 min chegam. Reutiliza-se o último resultado desta
+  // instância em vez de ir lá fora a cada região/versão que expira.
+  if (memoria && Date.now() - memoria.updatedAt < CACHE_S * 1000) {
+    return NextResponse.json(memoria, { headers: CABECALHOS });
+  }
   const rates: Rates = { ...FALLBACK };
 
   try {
     // BTC em EUR: OKX primeiro (par BTC-EUR, lote F) — o CoinGecko so e
     // chamado se a OKX falhar, para poupar o orcamento mensal.
     const [fiatRes, btcOkx] = await Promise.all([
-      fetch(`https://api.frankfurter.dev/v1/latest?base=EUR&symbols=${FIAT.join(",")}`, { next: { revalidate: 60 } }),
+      fetch(`https://api.frankfurter.dev/v1/latest?base=EUR&symbols=${FIAT.join(",")}`, { next: { revalidate: 3600 } }), // BCE: uma vez por dia
       precoOkx("BTC-EUR"),
     ]);
 
@@ -64,6 +75,8 @@ export async function GET(request: Request) {
   // Taxas públicas, iguais para todos: guardadas na rede de distribuição, como
   // em /api/markets e /api/btc-blocks. As do BCE mudam uma vez por dia; sem
   // isto, cada separador aberto pedia-as de minuto a minuto ao nosso servidor.
-  return NextResponse.json({ rates, updatedAt: Date.now() },
-    { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=600" } });
+  const corpo = { rates, updatedAt: Date.now() };
+  // Só se guarda quando o BTC veio de uma fonte: o recurso não é para repetir.
+  if (rates.BTC !== FALLBACK.BTC) memoria = corpo;
+  return NextResponse.json(corpo, { headers: CABECALHOS });
 }
