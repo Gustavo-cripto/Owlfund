@@ -18,7 +18,7 @@
   "dependencies": {
     "@emurgo/cardano-serialization-lib-browser": "^15.0.3",
     "@fabianbormann/cardano-peer-connect": "^1.2.19",
-    "@modelcontextprotocol/sdk": "^1.26.0",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@solana/web3.js": "^1.98.4",
     "@stripe/stripe-js": "^8.6.4",
     "@supabase/ssr": "^0.8.0",
@@ -38,7 +38,7 @@
     "sats-connect": "^4.2.1",
     "stripe": "^20.2.0",
     "viem": "^2.44.4",
-    "zod": "^3.25.76"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
@@ -76,6 +76,10 @@
     "braces": "^3.0.3",
     "micromatch": "^4.0.8",
     "fast-glob": "^3.3.3",
-    "brace-expansion": "^2.0.2"
+    "brace-expansion": "^2.0.2",
+    "zod": "$zod",
+    "mcp-handler": {
+      "@modelcontextprotocol/sdk": "$@modelcontextprotocol/sdk"
+    }
   }
 }

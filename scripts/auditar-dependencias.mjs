@@ -27,31 +27,13 @@ import { writeFileSync } from "node:fs";
 const resumo = [];
 
 /** Exceções aceites: pacote → { motivo, ate (AAAA-MM-DD) }. */
-const EXCECOES = {
-  // Cadeia react-native/metro puxada por @walletconnect/keyvaluestorage →
-  // @react-native-async-storage/async-storage. Só se executa numa app React
-  // Native; no site (browser + Node na Vercel) nunca é importada.
-  "react-native": { motivo: "só corre em app React Native; o site nunca a importa (via WalletConnect)", ate: "2027-01-31" },
-  "@react-native/community-cli-plugin": { motivo: "CLI do React Native, nunca executada no site", ate: "2027-01-31" },
-  "@react-native/virtualized-lists": { motivo: "componente React Native, nunca executado no site", ate: "2027-01-31" },
-  "metro": { motivo: "bundler do React Native, nunca executado no site", ate: "2027-01-31" },
-  "metro-config": { motivo: "bundler do React Native, nunca executado no site", ate: "2027-01-31" },
-  "metro-file-map": { motivo: "bundler do React Native, nunca executado no site", ate: "2027-01-31" },
-  "metro-transform-worker": { motivo: "bundler do React Native, nunca executado no site", ate: "2027-01-31" },
-  // braces/micromatch: o aviso GHSA-vfj7-8cjw-p6xm cobre todas as versões 3.x
-  // (<=3.0.3) e a única correção é o Tailwind 4 (major). Só se usam no build
-  // (chokidar/tailwindcss 3), com padrões nossos, nunca com entrada de utilizador.
-  "braces": { motivo: "só no build (tailwindcss 3 → chokidar); a correção é Tailwind 4", ate: "2027-01-31" },
-  "micromatch": { motivo: "só no build (tailwindcss 3); a correção é Tailwind 4", ate: "2027-01-31" },
-  // GHSA-6qxp-vccf-f47h (9 out 2026): o SDK, como CLIENTE OAuth, pode mandar
-  // credenciais para um servidor de autorização escolhido pelo servidor MCP.
-  // Nós somos só o servidor MCP (src/app/api/[transport]/route.ts importa
-  // apenas um tipo de server/auth); o cliente OAuth do SDK nunca corre. A
-  // correção (SDK 1.31+) exige o mcp-handler 2, que muda para
-  // @modelcontextprotocol/server (major): migração à parte, até à data abaixo.
-  "@modelcontextprotocol/sdk": { motivo: "só afeta o cliente OAuth do SDK; nós só usamos o lado do servidor; correção exige mcp-handler 2 (major)", ate: "2026-12-31" },
-  "mcp-handler": { motivo: "aviso herdado do @modelcontextprotocol/sdk 1.26 (cliente OAuth, que não usamos); correção é o mcp-handler 2 (major)", ate: "2026-12-31" },
-};
+// Vazia desde 2 nov 2026: a cadeia react-native/metro e o braces/micromatch
+// deixaram de aparecer; o @modelcontextprotocol/sdk (GHSA-6qxp-vccf-f47h)
+// ficou resolvido com o SDK 1.32 sem passar ao mcp-handler 2 — o package.json
+// tem um override que deixa o mcp-handler 1.1 (que fixa o SDK em 1.26) usar o
+// SDK do projeto; e a zod 4.6.7 é forçada em todas as dependências
+// (GHSA-mrhx-c7xc-m3w5; a Reown e a Coinbase traziam cópias da zod 3).
+const EXCECOES = {};
 
 const hoje = new Date().toISOString().slice(0, 10);
 
