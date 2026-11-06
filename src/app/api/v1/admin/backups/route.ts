@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { verifyAdminAuth } from "@/lib/api/admin-auth";
+import { EXTENSAO_CIFRADA } from "@/lib/backup/cifra";
 import { BUCKET, correrCopia, enviarPorEmail, espelhar } from "@/lib/backup/dump";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
   if (ficheiro) {
     // Só nomes que a cópia gera. Sem isto, o parâmetro dava para pedir
     // qualquer caminho dentro do balde.
-    if (!/^\d{4}-\d{2}-\d{2}\.json\.gz$/.test(ficheiro)) {
+    if (!/^\d{4}-\d{2}-\d{2}\.json\.gz(?:\.cifrado)?$/.test(ficheiro)) {
       return NextResponse.json({ error: "bad_file" }, { status: 400 });
     }
     const { data, error } = await admin.storage.from(BUCKET).createSignedUrl(ficheiro, VALIDADE_SEGUNDOS);
@@ -50,7 +51,7 @@ export async function GET(request: Request) {
   if (error) return NextResponse.json({ error: "list_failed" }, { status: 503 });
 
   const copias = (data ?? [])
-    .filter((f) => f.name.endsWith(".json.gz"))
+    .filter((f) => f.name.endsWith(".json.gz") || f.name.endsWith(EXTENSAO_CIFRADA))
     .map((f) => ({
       file: f.name,
       date: f.name.slice(0, 10),
@@ -90,8 +91,8 @@ export async function POST(request: Request) {
   try {
     const r = await correrCopia(admin, hoje);
     const [espelho, email] = await Promise.all([
-      espelhar(r.ficheiro, r.gz),
-      enviarPorEmail(r.ficheiro, r.gz, {
+      espelhar(r.ficheiro, r.conteudo),
+      enviarPorEmail(r.ficheiro, r.conteudo, {
         linhas: Object.values(r.contagens).reduce((s, n) => s + n, 0),
         contagens: r.contagens,
         ausentes: r.ausentes,
@@ -100,6 +101,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       file: r.ficheiro,
+      cifrada: r.cifrada,
       kb: Math.round(r.bytes / 1024),
       linhas: Object.values(r.contagens).reduce((s, n) => s + n, 0),
       contagens: r.contagens,

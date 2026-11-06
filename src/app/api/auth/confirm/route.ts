@@ -11,6 +11,7 @@ import { COOKIE_RECUPERACAO, RECUPERACAO_MAX_AGE, destinoDaConfirmacao } from "@
 import { origemDoCookie } from "@/lib/origem";
 import { eDoProprioSite } from "@/lib/auth/proprioSite";
 import { acolherContaNova } from "@/lib/beta/contaNova";
+import { clientIp } from "@/lib/utils/rateLimit";
 
 // Confirmacao de email e ligacao magica por `token_hash` (modelos em
 // supabase/email-templates/*.html): /api/auth/confirm?token_hash=…&type=…&lang=xx
@@ -117,7 +118,7 @@ export async function POST(request: Request) {
     if (type !== "recovery" && type !== "email_change" && uid) {
       try { await getSupabaseAdmin().from("page_views").insert({ path: `${PREFIXO_EVENTO}email_confirmado`, is_bot: false }); } catch { /* medir nunca trava a entrada */ }
       // Conta criada pela ligação mágica: Premium do beta, Telegram e boas-vindas (uma vez; nunca lança).
-      try { await acolherContaNova(getSupabaseAdmin(), sessao?.user, { cookie: request.headers.get("cookie") }); } catch { /* sem admin */ }
+      try { await acolherContaNova(getSupabaseAdmin(), sessao?.user, { cookie: request.headers.get("cookie"), ip: clientIp(request) }); } catch { /* sem admin */ }
     }
     if (type !== "recovery" && !pediuDestino && uid) {
       try { contaNova = await contaSemCarteiras(getSupabaseAdmin(), uid); } catch { /* sem admin: fica o destino normal */ }

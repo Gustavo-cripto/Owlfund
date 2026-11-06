@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { acolherContaNova } from "@/lib/beta/contaNova";
+import { clientIp } from "@/lib/utils/rateLimit";
 
 // Acolher quem acabou de criar conta por palavra-passe ou por carteira: esses
 // registos não passam pelo servidor (o Supabase devolve logo a sessão ao
@@ -14,7 +15,7 @@ export async function POST(req: Request) {
   try {
     const supabase = await createClient();
     const { data } = await supabase.auth.getUser();
-    if (data.user) await acolherContaNova(getSupabaseAdmin(), data.user, { cookie: req.headers.get("cookie") });
+    if (data.user) await acolherContaNova(getSupabaseAdmin(), data.user, { cookie: req.headers.get("cookie"), ip: clientIp(req) });
     else console.info("[boas-vindas] pedido sem sessão (cookie ainda não chegou ao servidor?)");
   } catch (e) {
     console.error("[auth/boas-vindas]", e instanceof Error ? e.message : e);

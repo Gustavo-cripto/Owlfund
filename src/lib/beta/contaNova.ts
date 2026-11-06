@@ -15,6 +15,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { markSent } from "@/lib/email";
+import { primeiroAvisoDoDia, travaoDeContas } from "@/lib/beta/travaoContas";
 import { enviarBoasVindas } from "@/lib/emails/boasVindas";
 import { BETA_CUTOFF_ISO, betaAberto } from "@/lib/plans";
 import { sendTelegram, tgEsc } from "@/lib/notify/telegram";
@@ -49,13 +50,30 @@ async function ligarPremium(admin: SupabaseClient, userId: string): Promise<Date
   return fim;
 }
 
-export async function acolherContaNova(admin: SupabaseClient, conta: Conta | null | undefined, opts: { cookie?: string | null } = {}): Promise<void> {
+export async function acolherContaNova(admin: SupabaseClient, conta: Conta | null | undefined, opts: { cookie?: string | null; ip?: string | null } = {}): Promise<void> {
   try {
     if (!conta?.id || !conta.created_at) return;
     if (Date.now() - Date.parse(conta.created_at) > JANELA_MS) return;
     const email = (conta.email ?? "").trim().toLowerCase();
     // Contas do teste noturno (e2e/conta-nova.spec.ts): nem Premium, nem Telegram, nem email.
     if (/\+e2e[^@]*@/i.test(email)) return;
+    // O travão corre ANTES do registo de "acolhida": esse registo gasta a única
+    // passagem, e quem batesse no teto nunca mais recebia o Premium. Por isso quem
+    // já foi acolhido sai antes de contar: cada entrada nos 3 dias passa por aqui.
+    const { data: registo } = await admin.from("notification_log").select("user_id").eq("user_id", conta.id).eq("kind", "conta_nova").maybeSingle();
+    if (!registo) {
+      const travao = await travaoDeContas(admin, opts.ip);
+      if (travao !== "ok") {
+        console.warn("[conta-nova] travão:", travao);
+        if (await primeiroAvisoDoDia(admin, travao)) {
+          await sendTelegram(
+            `🛑 <b>Travão das contas novas</b>\nHoje ${travao === "ip" ? "um mesmo IP" : "o total do dia"} passou o teto: as contas seguintes ficam em Free, sem Premium, sem email e sem aviso.\n` +
+              "Pode ser abuso. Se for gente real, ativa-as em /admin/beta ou sobe CONTAS_NOVAS_POR_IP_DIA / CONTAS_NOVAS_POR_DIA na Vercel. Este aviso só sai uma vez por dia.",
+          ).catch(() => false);
+        }
+        return;
+      }
+    }
     // Uma vez por conta, mesmo com dois pedidos ao mesmo tempo.
     if (!(await markSent(admin, conta.id, "conta_nova", false))) {
       // Já acolhida: as boas-vindas têm o seu próprio registo (não duplicam).
