@@ -305,6 +305,11 @@ export default function WalletsPage() {
   const [defiPartial, setDefiPartial] = useState<Record<string, boolean>>({});
   const [nftPartial, setNftPartial] = useState<Record<string, boolean>>({});
   const [cexHlTotalUsd, setCexHlTotalUsd] = useState(0);
+  const [venueTotalUsd, setVenueTotalUsd] = useState(0);
+  const aoMudarTotalExchanges = useCallback((usd: number, venueUsd: number) => {
+    setCexHlTotalUsd(usd);
+    setVenueTotalUsd(venueUsd);
+  }, []);
   const [usdToEurRate, setUsdToEurRate] = useState(0.92);
   const [defiLoading, setDefiLoading] = useState<Record<string, boolean>>({});
   const [defiErrors, setDefiErrors] = useState<Record<string, string | null>>({});
@@ -1483,15 +1488,20 @@ export default function WalletsPage() {
     if (!hidratado) return;
     const defi = defiPronto ? { defiUsd: totalDefiUsd } : {};
     // Store as USD; portfolio page converts to EUR via usdToEur from /api/prices.
+    // A data só muda com o valor: renová-la sem mudança dava a este aparelho a
+    // "versão mais recente" por ter aberto a página (ver gravarSeMudou).
+    const antes = loadWalletSnapshot();
+    const exchangesAntes = (antes.cexUsd ?? 0) - (antes.venueUsd ?? 0);
+    const cexEm = Math.abs(cexHlTotalUsd - venueTotalUsd - exchangesAntes) > 0.005 ? { cexEm: Date.now() } : {};
     if (cexHlTotalUsd > 0) {
       cexJaTeveValor.current = true;
-      updateWalletSnapshot({ cexUsd: cexHlTotalUsd, ...defi });
+      updateWalletSnapshot({ cexUsd: cexHlTotalUsd, venueUsd: venueTotalUsd, ...cexEm, ...defi });
     } else if (cexJaTeveValor.current) {
-      updateWalletSnapshot({ cexUsd: 0, ...defi });
+      updateWalletSnapshot({ cexUsd: 0, venueUsd: 0, ...cexEm, ...defi });
     } else if (defiPronto) {
       updateWalletSnapshot(defi);
     }
-  }, [hidratado, defiPronto, cexHlTotalUsd, totalDefiUsd]);
+  }, [hidratado, defiPronto, cexHlTotalUsd, venueTotalUsd, totalDefiUsd]);
 
   useEffect(() => {
     if (!hidratado) return;
@@ -3657,7 +3667,7 @@ export default function WalletsPage() {
         {/* ── CEX + Hyperliquid + Ledger ── */}
         {isPro ? (
           <CexSection
-            onTotalChange={setCexHlTotalUsd}
+            onTotalChange={aoMudarTotalExchanges}
             onSaldosChange={setSaldosExchanges}
             usdToEur={usdToEurRate}
             onAddColdWalletAddress={(addr, net, label) => { const err = addManualAddress(addr, net, label, "cold"); medirCarteira(err); return err; }}

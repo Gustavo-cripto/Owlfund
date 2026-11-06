@@ -3,6 +3,7 @@ import { internalError } from "@/lib/api/response";
 import { createServerClient } from "@supabase/ssr";
 import { cookies, headers } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
+import { blobSemRelacao } from "@/lib/portfolios/guardaNuvem";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -66,9 +67,9 @@ export async function POST(req: NextRequest) {
   const bruto = await req.text();
   if (bruto.length > MAX_BYTES) return NextResponse.json({ error: "Payload too large" }, { status: 413 });
 
-  let body: { data?: unknown };
+  let body: { data?: unknown; leuNuvem?: unknown };
   try {
-    body = JSON.parse(bruto) as { data?: unknown };
+    body = JSON.parse(bruto) as { data?: unknown; leuNuvem?: unknown };
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
@@ -87,6 +88,20 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+  // O site lê a nuvem antes de enviar e diz que leu. Quem não o diz (separador
+  // com código antigo, app móvel) não pode substituir uma conta com dados por
+  // outra sem nada em comum (auditoria 6 nov 2026).
+  if (body.leuNuvem !== true) {
+    const { data: guardado, error: erroLeitura } = await admin
+      .from("wallet_config")
+      .select("data")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (erroLeitura) return internalError(erroLeitura);
+    if (blobSemRelacao(guardado?.data, body.data)) {
+      return NextResponse.json({ error: "Stale device: read the cloud first" }, { status: 409 });
+    }
+  }
   const { error } = await admin
     .from("wallet_config")
     .upsert({ user_id: user.id, data: body.data, updated_at: new Date().toISOString() }, { onConflict: "user_id" });

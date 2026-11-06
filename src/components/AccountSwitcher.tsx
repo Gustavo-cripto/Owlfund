@@ -25,11 +25,17 @@ import {
   setActiveAccountId,
   type Account,
 } from "@/lib/portfolios/accounts";
-import { pushWalletCloud } from "@/lib/portfolios/cloudSync";
+import { lerNuvemAgora, pushWalletCloud } from "@/lib/portfolios/cloudSync";
 import { comSupabase } from "@/lib/supabase/lazy";
 
 type Plan = "free" | "pro" | "premium";
 const MAX_BY_PLAN: Record<Plan, number> = ACCOUNT_LIMITS;
+
+// O reload a seguir cancelava o envio a meio. Espera por ele, com um limite.
+const enviarAntesDeRecarregar = () => Promise.race([
+  pushWalletCloud(),
+  new Promise<void>((fim) => setTimeout(fim, 8000)),
+]);
 
 export default function AccountSwitcher() {
   const { t } = useLanguage();
@@ -113,10 +119,10 @@ export default function AccountSwitcher() {
     window.location.reload();
   };
 
-  const onNew = () => {
+  const onNew = async () => {
     if (!canCreate) return;
     createAccount(); // auto-nomeia "Conta N" e fica ativa
-    pushWalletCloud();
+    await enviarAntesDeRecarregar();
     window.location.reload();
   };
 
@@ -142,12 +148,19 @@ export default function AccountSwitcher() {
   const onDeleteRow = async (a: Account) => {
     if (accounts.length <= 1) return;
     if (!(await askConfirm({ message: t("acs_delete_confirm").replace("{name}", a.name), danger: true, okLabel: t("remove") }))) return;
+    // Antes de apagar: o registo funde-se por união, e ler a nuvem DEPOIS trazia
+    // a conta apagada de volta. Sem conseguir ler, não se apaga.
+    if (!(await lerNuvemAgora())) {
+      await askConfirm({ message: t("acs_delete_offline") });
+      return;
+    }
     const wasActive = a.id === activeId;
     deleteAccount(a.id);
-    pushWalletCloud();
     if (wasActive) {
+      await enviarAntesDeRecarregar();
       window.location.reload();
     } else {
+      void pushWalletCloud();
       setAccounts(listAccounts());
     }
   };

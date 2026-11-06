@@ -42,6 +42,7 @@ export function somarMeses(data: string, meses: number): string {
  * prazo (isento ou com taxa reduzida). null se o país não tem prazo.
  */
 export function primeiroDiaLongo(pais: Pick<Country, "regime" | "regras">, compra: string): string | null {
+  if (!Number.isFinite(Date.parse(compra))) return null;   // uma data má nunca derruba a página
   const p = pais.regras?.prazo;
   const dias = p?.tipo === "dias" ? p.n : pais.regime.longDays;
   if (p?.tipo !== "meses" && !(dias > 0)) return null;

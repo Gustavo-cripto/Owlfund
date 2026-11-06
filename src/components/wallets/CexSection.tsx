@@ -112,7 +112,8 @@ export default function CexSection({
   tokensErrorByAddress = {},
   onRetryTokens,
 }: {
-  onTotalChange?: (usd: number) => void;
+  /** Total com as corretoras à mão, e a parte que é delas (essa é por portefólio). */
+  onTotalChange?: (usd: number, venueUsd: number) => void;
   /**
    * Saldos de cada conta (moeda → quantidade), para o histórico de
    * movimentações. null enquanto alguma conta está a carregar ou a lista do
@@ -336,7 +337,7 @@ export default function CexSection({
     const cexUsd = cexAccounts.reduce((sum, a) => sum + accountUsd(a.balances), 0)
       + serverCex.reduce((sum, a) => sum + accountUsd(a.balances ?? []), 0);
     const hlUsd = hlAccounts.reduce((sum, a) => sum + hlSpotUsd(a.spotBalances) + (a.perpValue ?? 0), 0);
-    onTotalChange(cexUsd + hlUsd + venueUsd);
+    onTotalChange(cexUsd + hlUsd + venueUsd, venueUsd);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cexAccounts, hlAccounts, serverCex, onTotalChange, tokenPricesUsd, venueUsd]);
 

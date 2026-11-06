@@ -20,8 +20,8 @@ import type { jsPDF } from "jspdf";  // so o tipo: a biblioteca (~300 kB) carreg
 import { downloadBlob, isStaleChunkError, loadExcelJS } from "@/lib/export/excel";
 import { cleanDecimalInput, parseDecimal } from "@/lib/format/decimal";
 import { ACCOUNTS_EVENT } from "@/lib/portfolios/accounts";
-import { pushWalletCloud } from "@/lib/portfolios/cloudSync";
-import { chronoCompare, deleteTrade, loadTrades, tradeId, upsertTrade } from "@/lib/portfolios/trades";
+import { lerNuvemAgora, pushWalletCloud } from "@/lib/portfolios/cloudSync";
+import { chronoCompare, dataReal, deleteTrade, loadTrades, tradeId, upsertTrade } from "@/lib/portfolios/trades";
 import { resumirImposto } from "@/lib/api/taxMath";
 import { anoFiscalDe, classificarLote, comTaxaPessoal, fimDoAnoFiscal, regimeNaData, resumirAnos, rotuloAnoFiscal, primeiroDiaLongo, taxaMinima, type ResumoAno, type TaxaPessoal } from "@/lib/tax/regras";
 import { protegerTextoPdf } from "@/lib/export/pdfTexto";
@@ -291,18 +291,31 @@ export default function FiscalidadePage() {
   // fica também lá — e vice-versa.
   const [trades, setTrades] = useState<TradeEntry[]>([]);
   const [fromHistory, setFromHistory] = useState(0);
+  const [datasInvalidas, setDatasInvalidas] = useState(0);
+  // Sem ler a nuvem, uma venda registada noutro aparelho faltava no imposto e no
+  // PDF, sem aviso (auditoria 6 nov 2026).
+  const [nuvem, setNuvem] = useState<"a_ler" | "lida" | "falhou">("a_ler");
   useEffect(() => {
     const load = () => {
       // Ordem canonica a montante: o comparador oficial desempata o mesmo dia
       // por tipo (compra -> taxa -> venda). Sem isto, uma compra e uma venda no
       // MESMO dia chegavam ao FIFO pela ordem do localStorage, que e a inversa.
-      const hist = loadTrades().sort(chronoCompare);
+      const todas = loadTrades();
+      // Uma data impossível partia a página toda (datas americanas de CSV antigos).
+      const hist = todas.filter((h) => dataReal(h.date)).sort(chronoCompare);
+      setDatasInvalidas(todas.length - hist.length);
       setTrades(hist.map(h => ({ id: h.id, asset: h.asset, type: h.type, amount: h.quantity, price: h.priceEur, fee: h.feeEur ?? 0, ...(h.feeAsset ? { feeAsset: h.feeAsset, feeQty: h.feeInput ?? 0 } : {}), date: h.date, exchange: h.exchange, ...(h.swapId ? { swapId: h.swapId } : {}) })));
       setFromHistory(hist.length);
     };
     load();
+    let vivo = true;
+    void lerNuvemAgora().then((ok) => {
+      if (!vivo) return;
+      setNuvem(ok ? "lida" : "falhou");
+      load();
+    });
     window.addEventListener(ACCOUNTS_EVENT, load);
-    return () => window.removeEventListener(ACCOUNTS_EVENT, load);
+    return () => { vivo = false; window.removeEventListener(ACCOUNTS_EVENT, load); };
   }, []);
   const [newTrade, setNewTrade] = useState<TradeEntry>(emptyTrade());
   // O que a pessoa escreve, tal e qual (aceita virgula): os numeros derivam daqui.
@@ -1230,6 +1243,16 @@ export default function FiscalidadePage() {
           {/* Moeda do relatorio: dizer sempre como e feita a conversao, e avisar
               quando faltou alguma taxa — um numero errado numa declaracao e pior
               do que numero nenhum. */}
+          {nuvem !== "lida" && (
+            <p role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/[0.06] px-4 py-2.5 text-xs leading-relaxed text-amber-200">
+              {nuvem === "a_ler" ? t("fisc_nuvem_a_ler") : t("fisc_nuvem_falhou")}
+            </p>
+          )}
+          {datasInvalidas > 0 && (
+            <p role="alert" className="rounded-xl border border-amber-500/30 bg-amber-500/[0.06] px-4 py-2.5 text-xs leading-relaxed text-amber-200">
+              {t("fisc_datas_invalidas").replace("{n}", String(datasInvalidas))}
+            </p>
+          )}
           {reportCurrency !== "EUR" && (
             <p className="rounded-xl border border-sky-500/30 bg-sky-500/[0.06] px-4 py-2.5 text-xs leading-relaxed text-sky-200">
               💱 {t("fisc_fx_note")}{fxLoading ? ` · ${t("loading")}` : ""}
@@ -1394,8 +1417,8 @@ export default function FiscalidadePage() {
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{t("fisc_tax_events")} ({eventosDoAno.length})</p>
                   <div className="flex items-center gap-2">
                     {isPro ? (
-                      <button onClick={exportXLSX}
-                        className="flex items-center gap-2 rounded-xl border border-orange-500/40 px-3 py-1.5 text-xs font-semibold text-orange-300 hover:bg-orange-500/10 transition">
+                      <button onClick={exportXLSX} disabled={nuvem === "a_ler"}
+                        className="flex items-center gap-2 rounded-xl border border-orange-500/40 px-3 py-1.5 text-xs font-semibold text-orange-300 hover:bg-orange-500/10 transition disabled:opacity-50">
                         ↓ {t("fisc_export_csv")}
                       </button>
                     ) : (
@@ -1405,8 +1428,8 @@ export default function FiscalidadePage() {
                       </a>
                     )}
                     {isPro ? (
-                      <button onClick={exportPDF}
-                        className="flex items-center gap-2 rounded-xl border border-violet-500/40 bg-violet-500/5 px-3 py-1.5 text-xs font-semibold text-violet-300 hover:bg-violet-500/10 transition">
+                      <button onClick={exportPDF} disabled={nuvem === "a_ler"}
+                        className="flex items-center gap-2 rounded-xl border border-violet-500/40 bg-violet-500/5 px-3 py-1.5 text-xs font-semibold text-violet-300 hover:bg-violet-500/10 transition disabled:opacity-50">
                         ↓ {t("fisc_export_pdf")}
                       </button>
                     ) : (

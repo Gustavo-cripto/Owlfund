@@ -1,5 +1,5 @@
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { chronoCompare, computeFifo, parseTrades, type Trade } from "@/lib/portfolios/trades";
+import { chronoCompare, computeFifo, dataReal, parseTrades, type Trade } from "@/lib/portfolios/trades";
 import { metricas, seriePontos, variacoes, type PnlChange, type SnapRow } from "@/lib/api/pnlMath";
 import { daConta } from "@/lib/portfolio/posicao";
 import { semCopiasDoCron } from "@/lib/portfolio/copias";
@@ -110,7 +110,7 @@ async function tradesDoUtilizador(userId: string): Promise<Trade[]> {
   const out: Trade[] = [];
   for (const porConta of Object.values(blob.data)) {
     const raw = porConta?.[TRADES_KEY];
-    if (typeof raw === "string") out.push(...parseTrades(raw).filter((t) => !t.deleted));
+    if (typeof raw === "string") out.push(...parseTrades(raw).filter((t) => !t.deleted && dataReal(t.date)));
   }
   return out;
 }
