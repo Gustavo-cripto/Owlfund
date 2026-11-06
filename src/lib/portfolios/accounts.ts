@@ -48,6 +48,7 @@ export const PERSONAL_KEYS = [
   "smart-money-alerts",           // alertas dessa lista
   "owlfund.market.favorites.v1",  // favoritos do /mercado
   "owlfund.nickname",             // o nome por que a IA trata a pessoa
+  "cfa-exemplo-recusado-v1",      // esta pessoa já tirou o exemplo (lib/demo/exemplo.ts)
   // `cfa-demo-address` fica de fora de propósito: é quase sempre de quem está
   // a criar conta agora (demonstração → registo → Carteiras pré-preenchida),
   // e é um endereço público. Apagá-lo aqui partia esse passo em qualquer

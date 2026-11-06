@@ -583,16 +583,6 @@ export default function PortfolioPage() {
         if (typeof count === "number") setSnapshotCount(count);
       } catch { /* fica o tamanho da lista */ }
 
-      const latest = rows[0];
-      if (latest?.data) {
-        const localSnapshot = loadWalletSnapshot();
-        const latestTotal = snapshotTotal(latest.data);
-        const localTotal = snapshotTotal(localSnapshot);
-        if (latestTotal > 0 || localTotal === 0) {
-          // Use ref to always get latest prices, avoiding race condition
-          setWallets(snapshotToWallets(latest.data, tokenPricesRef.current));
-        }
-      }
 
       setIsSnapshotsLoading(false);
       setIsLoadingAuth(false);

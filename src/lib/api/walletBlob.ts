@@ -10,6 +10,7 @@
 //   plano → WalletSnapshot (uma conta so, sem id)
 //
 // Sem base de dados nem segredos aqui: quem chama passa a funcao de mascarar.
+import { somarDefi, somarExchanges } from "@/lib/wallets/somaContas";
 
 const WALLETS_BASE = "portfolio-wallets";
 export const WALLET_ARRAYS = ["eth", "sol", "btc", "ada", "other"] as const;
@@ -114,6 +115,14 @@ export type ContaMascarada = { accountId: string; name: string | null; wallets: 
 export function contasMascaradas(blob: unknown, mask: (address: string) => string): ContaMascarada[] {
   return contasDoBlob(blob)
     .map(({ accountId, name, snapshot }) => ({ accountId, name, wallets: whitelistSnapshot(snapshot, mask) ?? {} }));
+}
+
+/** Totais que nao se podem somar conta a conta, lidos do blob em claro (ver somaContas.ts). */
+export function totaisPartilhados(blob: unknown): { cexUsd?: number; defiUsd?: number } {
+  const snapshots = contasDoBlob(blob).map((c) => c.snapshot);
+  const cexUsd = somarExchanges(snapshots);
+  const defiUsd = somarDefi(snapshots);
+  return { ...(cexUsd !== undefined ? { cexUsd } : {}), ...(defiUsd !== undefined ? { defiUsd } : {}) };
 }
 
 /** Uniao de todas as contas (listas concatenadas, totais somados) — a vista "Todas". */

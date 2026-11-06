@@ -1,6 +1,6 @@
 import { createHmac } from "crypto";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { contasMascaradas, juntarContas, whitelistSnapshot } from "@/lib/api/walletBlob";
+import { contasMascaradas, juntarContas, totaisPartilhados, whitelistSnapshot } from "@/lib/api/walletBlob";
 
 // Leituras dos dados do utilizador, partilhadas pela API REST e pelo MCP.
 
@@ -83,7 +83,7 @@ export async function getWallets(userId: string): Promise<WalletsResult> {
   return {
     updatedAt: data?.updated_at ?? null,
     accounts,
-    wallets: data?.data != null ? juntarContas(accounts) : null,
+    wallets: data?.data != null ? { ...juntarContas(accounts), ...totaisPartilhados(data.data) } : null,
     note: "wallets merges every account; accounts keeps them apart. Addresses are pseudonymised (wallet_…), never in clear text.",
   };
 }

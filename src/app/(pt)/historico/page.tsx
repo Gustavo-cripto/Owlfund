@@ -8,7 +8,7 @@ import { useRequireAuth } from "@/lib/auth/useRequireAuth";
 import { ACCOUNTS_EVENT, ALL_ACCOUNTS_ID, getActiveAccountId } from "@/lib/portfolios/accounts";
 import { pullWalletCloud, pushWalletCloud } from "@/lib/portfolios/cloudSync";
 import {
-  computeFifo, deleteTrade, loadTrades, parseTradesCsv, restoreTrade, tradeId, tradesToCsv, upsertTrade, writeTradesRaw,
+  computeFifo, csvPreco, csvQty, deleteTrade, loadTrades, parseTradesCsv, restoreTrade, tradeId, tradesToCsv, upsertTrade, writeTradesRaw,
   type Trade, type TradeType,
 } from "@/lib/portfolios/trades";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
@@ -402,7 +402,8 @@ export default function HistoricoPage() {
     const now = Date.now();
     const incoming = importPreview.trades.map((x) => ({ ...x, updatedAt: now }));
     // Ignora duplicados exatos já existentes (mesmo ativo/data/tipo/qty/preço).
-    const key = (x: Trade) => `${x.asset}|${x.date}|${x.type}|${x.quantity}|${x.priceEur}`;
+    // Compara-se como o CSV escreve: um float cru nunca voltava igual do ficheiro.
+    const key = (x: Trade) => `${x.asset}|${x.date}|${x.type}|${Number(csvQty(x.quantity))}|${Number(csvPreco(x.priceEur))}`;
     const existing = new Set(txs.map(key));
     const fresh = incoming.filter((x) => !existing.has(key(x)));
     const all = [...fresh, ...txs];

@@ -24,6 +24,7 @@ const MAX_LOOKBACK_DAYS = 10;
 
 const shiftDay = (iso: string, days: number): string => {
   const d = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return iso;   // uma data má nunca derruba a página
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 };

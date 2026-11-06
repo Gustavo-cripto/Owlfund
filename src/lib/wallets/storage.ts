@@ -1,3 +1,4 @@
+import { somarDefi, somarExchanges } from "@/lib/wallets/somaContas";
 import { accKey, gravarSeMudou, allAccountIds, isAllAccountsActive, readNamespaced } from "@/lib/portfolios/accounts";
 import type { PosicaoDefi } from "@/lib/defi/posicoes";
 
@@ -17,6 +18,10 @@ export type WalletSnapshot = {
   ada?: StoredWalletEntry[];
   other?: StoredWalletEntry[];
   cexUsd?: number;
+  /** Parte do cexUsd que é das corretoras à mão (essas são por portefólio). */
+  venueUsd?: number;
+  /** Quando o valor das exchanges mudou pela última vez (ver somaContas.ts). */
+  cexEm?: number;
   defiUsd?: number;
   /** Total dos ativos registados manualmente (já em EUR). */
   manualEur?: number;
@@ -49,6 +54,8 @@ const normalizeSnapshot = (value: unknown): WalletSnapshot => {
     ada: normalizeEntry(raw.ada),
     other: normalizeEntry(raw.other),
     cexUsd: typeof raw.cexUsd === "number" ? raw.cexUsd : undefined,
+    venueUsd: typeof raw.venueUsd === "number" ? raw.venueUsd : undefined,
+    cexEm: typeof raw.cexEm === "number" ? raw.cexEm : undefined,
     defiUsd: typeof raw.defiUsd === "number" ? raw.defiUsd : undefined,
     manualEur: typeof raw.manualEur === "number" ? raw.manualEur : undefined,
     tokensUsd: typeof raw.tokensUsd === "number" ? raw.tokensUsd : undefined,
@@ -67,16 +74,20 @@ export const loadWalletSnapshot = (): WalletSnapshot => {
     // Vista combinada "Todas": junta as carteiras de todas as contas.
     if (isAllAccountsActive()) {
       const merged: WalletSnapshot = {};
+      const contas: WalletSnapshot[] = [];
       for (const id of allAccountIds()) {
         const raw = readNamespaced(id, "portfolio-wallets");
         if (!raw) continue;
         const snap = normalizeSnapshot(JSON.parse(raw));
+        // O exemplo são carteiras de outras pessoas: entravam no total e na
+        // fotografia da vista Todas, que não tem a faixa de "Remover exemplo".
+        const comExemplo = (["eth", "sol", "btc", "ada", "other"] as const).some((k) => snap[k]?.some((e) => e.source === "demo"));
         (["eth", "sol", "btc", "ada", "other"] as const).forEach((k) => {
-          const arr = snap[k];
+          const arr = snap[k]?.filter((e) => e.source !== "demo");
           if (arr?.length) merged[k] = [...(merged[k] ?? []), ...arr];
         });
-        if (typeof snap.cexUsd === "number") merged.cexUsd = (merged.cexUsd ?? 0) + snap.cexUsd;
-        if (typeof snap.defiUsd === "number") merged.defiUsd = (merged.defiUsd ?? 0) + snap.defiUsd;
+        if (comExemplo) { snap.defiUsd = undefined; snap.tokensUsd = undefined; snap.defiPosicoes = undefined; }
+        contas.push(snap);
         if (typeof snap.manualEur === "number") merged.manualEur = (merged.manualEur ?? 0) + snap.manualEur;
         if (typeof snap.tokensUsd === "number") merged.tokensUsd = (merged.tokensUsd ?? 0) + snap.tokensUsd;
         if (typeof snap.traditionalEur === "number") merged.traditionalEur = (merged.traditionalEur ?? 0) + snap.traditionalEur;
@@ -84,6 +95,8 @@ export const loadWalletSnapshot = (): WalletSnapshot => {
         if (snap.defiPosicoes) merged.defiPosicoes = { ...(merged.defiPosicoes ?? {}), ...snap.defiPosicoes };
         if (snap.defiPosicoesEm) merged.defiPosicoesEm = Math.max(merged.defiPosicoesEm ?? 0, snap.defiPosicoesEm);
       }
+      merged.cexUsd = somarExchanges(contas);
+      merged.defiUsd = somarDefi(contas);
       return merged;
     }
     const raw = window.localStorage.getItem(walletsKey());
@@ -113,6 +126,8 @@ export const updateWalletSnapshot = (patch: WalletSnapshot) => {
     }
   });
   if (typeof patch.cexUsd === "number") next.cexUsd = patch.cexUsd;
+  if (typeof patch.venueUsd === "number") next.venueUsd = patch.venueUsd;
+  if (typeof patch.cexEm === "number") next.cexEm = patch.cexEm;
   if (typeof patch.defiUsd === "number") next.defiUsd = patch.defiUsd;
   if (typeof patch.manualEur === "number") next.manualEur = patch.manualEur;
   if (typeof patch.tokensUsd === "number") next.tokensUsd = patch.tokensUsd;

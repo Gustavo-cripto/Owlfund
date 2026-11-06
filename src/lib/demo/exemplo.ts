@@ -5,7 +5,7 @@
 // remover o exemplo ou ao juntar uma carteira a sério.
 
 import { loadWalletSnapshot, updateWalletSnapshot, type StoredWalletEntry, type WalletSnapshot } from "@/lib/wallets/storage";
-import { ALL_ACCOUNTS_ID, accKey, getActiveAccountId } from "@/lib/portfolios/accounts";
+import { ALL_ACCOUNTS_ID, accKey, allAccountIds, contaVazia, getActiveAccountId } from "@/lib/portfolios/accounts";
 
 /** Endereços públicos muito conhecidos (os mesmos da demonstração da página inicial). */
 export const EXEMPLOS = {
@@ -92,7 +92,9 @@ export async function ativarExemplo(): Promise<boolean> {
 export async function ativarExemploAutomatico(contaCriadaEm?: string | null): Promise<boolean> {
   if (!temWindow() || getActiveAccountId() === ALL_ACCOUNTS_ID) return false;
   try {
-    if (localStorage.getItem(accKey(RECUSADO)) || localStorage.getItem(accKey(MARCA))) return false;
+    if (localStorage.getItem(RECUSADO) || localStorage.getItem(accKey(RECUSADO)) || localStorage.getItem(accKey(MARCA))) return false;
+    // Só na primeira conta: um portefólio novo de quem já tem outro não é uma conta nova.
+    if (!allAccountIds().every((id) => contaVazia(id))) return false;
   } catch { return false; }
   const criada = contaCriadaEm ? Date.parse(contaCriadaEm) : NaN;
   if (!Number.isFinite(criada) || Date.now() - criada > JANELA_CONTA_NOVA_MS) return false;
@@ -111,6 +113,6 @@ export function removerExemplo(): void {
   const ficam = [limpa(s.eth), limpa(s.sol), limpa(s.btc), limpa(s.ada)];
   const semCarteiras = ficam.every((l) => l.length === 0);
   updateWalletSnapshot({ eth: ficam[0], sol: ficam[1], btc: ficam[2], ada: ficam[3], defiPosicoes: posicoes, defiPosicoesEm: Date.now(), ...(semCarteiras ? { defiUsd: 0 } : {}) });
-  try { localStorage.removeItem(accKey(MARCA)); localStorage.setItem(accKey(RECUSADO), String(Date.now())); } catch { /* ignore */ }
+  try { localStorage.removeItem(accKey(MARCA)); localStorage.setItem(RECUSADO, String(Date.now())); } catch { /* ignore */ }
   window.dispatchEvent(new CustomEvent(EVENTO_EXEMPLO));
 }

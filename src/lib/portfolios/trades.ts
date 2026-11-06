@@ -84,6 +84,24 @@ const num = (v: unknown): number => {
   return Number.isFinite(n) ? n : NaN;
 };
 
+const DIA_MS = 86_400_000;
+
+/** A data existe mesmo no calendário? (2024-02-31 e 2024-13-45 não existem) */
+export function dataReal(d: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
+  const t = Date.parse(`${d}T00:00:00Z`);
+  return Number.isFinite(t) && new Date(t).toISOString().slice(0, 10) === d;
+}
+
+// O importador lia 12/31/2024 como dd/mm e gravava 2024-31-12. Essa troca é a
+// única coisa que se repara; o resto fica como está, para a pessoa o ver e corrigir.
+function repararData(d: string): string {
+  if (dataReal(d)) return d;
+  const [ano, mes, dia] = d.split("-");
+  const trocada = `${ano}-${dia}-${mes}`;
+  return Number(mes) > 12 && dataReal(trocada) ? trocada : d;
+}
+
 /** Valida/repara um registo vindo do storage; devolve null se irrecuperável. */
 export function sanitizeTrade(raw: unknown): Trade | null {
   if (!raw || typeof raw !== "object") return null;
@@ -99,7 +117,7 @@ export function sanitizeTrade(raw: unknown): Trade | null {
   const feeEur = num(r.feeEur) > 0 ? num(r.feeEur) : undefined;
   const feeInput = feeEur !== undefined && num(r.feeInput) >= 0 ? num(r.feeInput) : undefined;
   const feeAsset = feeEur !== undefined && feeInput !== undefined && typeof r.feeAsset === "string" && /^[A-Z0-9.]{2,12}$/.test(r.feeAsset) ? r.feeAsset : undefined;
-  const date = typeof r.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : "";
+  const date = typeof r.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? repararData(r.date) : "";
   const swapId = typeof r.swapId === "string" && /^[A-Za-z0-9_-]{4,64}$/.test(r.swapId) ? r.swapId : undefined;
   const deleted = r.deleted === true;
   const updatedAt = Number.isFinite(num(r.updatedAt)) ? num(r.updatedAt) : undefined;
@@ -296,6 +314,8 @@ export function computeFifo(trades: Trade[], metodo: CostMethod = "fifo"): FifoR
 // fee_eur / fee_original (taxa em EUR e tal como foi escrita) vieram depois, e
 // tambem no fim, pela mesma razao: ficheiros antigos continuam a importar.
 // fee_asset: token em que a taxa foi paga (vazio = na moeda do preco).
+// As colunas de preço unitário têm casas a sério: arredondadas a 2, um token a
+// 0,00001234 € voltava com custo 0 e a reimportação duplicava tudo.
 export const CSV_HEADER = ["date", "type", "asset", "quantity", "price_eur", "total_eur", "exchange", "notes", "currency", "price_original", "fee_eur", "fee_original", "fee_asset", "swap_id"] as const;
 
 /**
@@ -306,6 +326,13 @@ export const CSV_HEADER = ["date", "type", "asset", "quantity", "price_eur", "to
  * as folhas de cálculo em qualquer língua leem sem confusão.
  */
 export const csvMoney = (n: number): string => (Number.isFinite(n) ? (Math.round(n * 100) / 100).toFixed(2) : "0.00");
+/** Preço unitário: até 12 algarismos significativos, sem notação científica. */
+export const csvPreco = (n: number): string => {
+  if (!Number.isFinite(n) || n === 0) return "0";
+  const casas = Math.min(Math.max(11 - Math.floor(Math.log10(Math.abs(n))), 0), 20);
+  const s = n.toFixed(casas);
+  return s.includes(".") ? s.replace(/\.?0+$/, "") : s;
+};
 export const csvQty = (n: number): string => {
   if (!Number.isFinite(n)) return "0";
   const s = n.toFixed(8).replace(/\.?0+$/, "");
@@ -326,12 +353,12 @@ export function tradesToCsv(trades: Trade[]): string {
       t.type === "compra" ? "buy" : t.type === "venda" ? "sell" : "fee",
       t.asset,
       csvQty(t.quantity),
-      csvMoney(t.priceEur),
+      csvPreco(t.priceEur),
       csvMoney(t.quantity * t.priceEur),
       t.exchange,
       t.notes,
       t.currency ?? "EUR",
-      csvMoney(t.priceInput ?? t.priceEur),
+      csvPreco(t.priceInput ?? t.priceEur),
       csvMoney(t.feeEur ?? 0),
       t.feeAsset ? csvQty(feeOriginal) : csvMoney(feeOriginal),
       t.feeAsset ?? "",
@@ -357,23 +384,79 @@ function splitCsvLine(line: string, sep: string): string[] {
   return out.map(s => s.trim());
 }
 
-const normDate = (s: string): string => {
-  const v = s.trim();
-  if (/^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10);
-  const m = v.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})/);            // dd/mm/yyyy (formato europeu)
-  if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
-  const d = new Date(v);
-  return Number.isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
+const DATA_NUMERICA = /^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})/;
+
+/** A ordem de um ficheiro: mm/dd só quando alguma data o prova; por omissão, dd/mm. */
+export function ordemDasDatas(celulas: string[]): "dmy" | "mdy" {
+  let provaDmy = false;
+  let provaMdy = false;
+  for (const c of celulas) {
+    const m = c.trim().match(DATA_NUMERICA);
+    if (!m) continue;
+    if (Number(m[1]) > 12) provaDmy = true;
+    if (Number(m[2]) > 12) provaMdy = true;
+  }
+  return provaMdy && !provaDmy ? "mdy" : "dmy";
+}
+
+/** Data real no calendário e não futura (um dia de folga para os fusos). "" se não for. */
+const dataAceitavel = (iso: string): string => {
+  if (!dataReal(iso)) return "";
+  const amanha = new Date(Date.now() + DIA_MS).toLocaleDateString("sv-SE");
+  return iso <= amanha ? iso : "";
 };
 
-const normNum = (s: string): number => {
+const normDate = (s: string, ordem: "dmy" | "mdy" = "dmy"): string => {
+  const v = s.trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(v)) return dataAceitavel(v.slice(0, 10));
+  const m = v.match(DATA_NUMERICA);
+  if (m) {
+    const [dia, mes] = ordem === "mdy" ? [m[2], m[1]] : [m[1], m[2]];
+    return dataAceitavel(`${m[3]}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`);
+  }
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? "" : dataAceitavel(d.toISOString().slice(0, 10));
+};
+
+/** Qual é o separador decimal do ficheiro, se alguma célula o provar. */
+export function decimalDoFicheiro(celulas: string[]): "," | "." | null {
+  let virgula = false;
+  let ponto = false;
+  for (const c of celulas) {
+    const v = c.replace(/[€$£\s]/g, "").replace(/^-/, "");
+    if (/^\d{1,3}(\.\d{3})+,\d+$/.test(v) || /^\d+,(\d{1,2}|\d{4,})$/.test(v) || /^0,\d+$/.test(v)) virgula = true;
+    if (/^\d{1,3}(,\d{3})+\.\d+$/.test(v) || /^\d+\.(\d{1,2}|\d{4,})$/.test(v) || /^0\.\d+$/.test(v)) ponto = true;
+  }
+  return virgula === ponto ? null : virgula ? "," : ".";
+}
+
+const normNum = (s: string, decimal: "," | "." | null = null): number => {
   let v = s.replace(/[€$£\s]/g, "");
+  const repetido = (sep: string) => v.split(sep).length > 2;
   // "1.234,56" → 1234.56 ; "1,234.56" → 1234.56 ; "0,5" → 0.5
   if (v.includes(",") && v.includes(".")) v = v.lastIndexOf(",") > v.lastIndexOf(".") ? v.replace(/\./g, "").replace(",", ".") : v.replace(/,/g, "");
+  // Separador repetido só pode ser de milhares: "1,234,567" e "1.234.567".
+  else if (repetido(",")) v = v.replace(/,/g, "");
+  else if (repetido(".")) v = v.replace(/\./g, "");
+  // Um só, com 3 dígitos a seguir ("65,000"): quem decide é o resto do ficheiro.
+  else if (/^-?[1-9]\d{0,2},\d{3}$/.test(v) && decimal === ".") v = v.replace(",", "");
+  else if (/^-?[1-9]\d{0,2}\.\d{3}$/.test(v) && decimal === ",") v = v.replace(".", "");
   else if (v.includes(",")) v = v.replace(",", ".");
   const n = parseFloat(v);
   return Number.isFinite(n) ? n : NaN;
 };
+
+// Moedas e estáveis cujo nome acaba como um par (FDUSD não é o par FD/USD).
+const MOEDA_DO_PAR = /^(EUR|USD|USDT|USDC|GBP|BTC|ETH)$/;
+const NUNCA_CORTAR = new Set(["FDUSD", "TUSD", "BUSD", "PYUSD", "CRVUSD", "GUSD", "LUSD", "SUSD", "USDE", "USDD", "AGEUR", "EURC", "EURT", "EURS", "USDT", "USDC", "USD", "EUR"]);
+
+/** Símbolo a partir da coluna do ativo: "BTC/EUR" e "BTCUSDT" dão BTC; "USDC/EUR" dá USDC; "FDUSD" fica. */
+export function simboloDoAtivo(cell: string): string {
+  const bruto = cell.toUpperCase().trim();
+  const [primeira, ...resto] = bruto.split(/[/\-_ ]/);
+  const semSufixo = MOEDA_DO_PAR.test(resto[0] ?? "") || NUNCA_CORTAR.has(primeira) ? primeira : primeira.replace(/(EUR|USDT|USDC|USD)$/, (m) => (primeira.length > m.length ? "" : m));
+  return semSufixo.replace(/[^A-Z0-9.]/g, "").slice(0, 12);
+}
 
 const BUY_WORDS = ["buy", "compra", "achat", "bid", "purchase"];
 const SELL_WORDS = ["sell", "venda", "vente", "ask", "sale"];
@@ -407,26 +490,28 @@ export function parseTradesCsv(text: string): { trades: Trade[]; skipped: number
   const cSwap = col("swapid", "swap");
   if (cDate < 0 || cAsset < 0 || cQty < 0 || cPrice < 0) return { trades: [], skipped: 0, error: "columns" };
   const trades: Trade[] = []; let skipped = 0;
-  for (const line of lines.slice(1)) {
-    const cells = splitCsvLine(line, sep);
-    const date = normDate(cells[cDate] ?? "");
-    const rawAsset = (cells[cAsset] ?? "").toUpperCase();
-    const asset = rawAsset.split(/[\/\-_ ]/)[0].replace(/(EUR|USDT|USDC|USD)$/, (m) => rawAsset.length > m.length ? "" : m).replace(/[^A-Z0-9.]/g, "").slice(0, 12);
-    const quantity = normNum(cells[cQty] ?? "");
-    const priceEur = normNum(cells[cPrice] ?? "");
+  const linhas = lines.slice(1).map((line) => splitCsvLine(line, sep));
+  const ordem = ordemDasDatas(linhas.map((c) => c[cDate] ?? ""));
+  const decimal = decimalDoFicheiro(linhas.flatMap((c) => [c[cQty] ?? "", c[cPrice] ?? ""]));
+  const normNumFicheiro = (s: string) => normNum(s, decimal);
+  for (const cells of linhas) {
+    const date = normDate(cells[cDate] ?? "", ordem);
+    const asset = simboloDoAtivo(cells[cAsset] ?? "");
+    const quantity = normNumFicheiro(cells[cQty] ?? "");
+    const priceEur = normNumFicheiro(cells[cPrice] ?? "");
     const typeRaw = (cells[cType] ?? "buy").toLowerCase();
     const type: TradeType = SELL_WORDS.some(w => typeRaw.includes(w)) ? "venda" : BUY_WORDS.some(w => typeRaw.includes(w)) ? "compra" : FEE_WORDS.some(w => typeRaw.includes(w)) ? "taxa" : quantity < 0 ? "venda" : "compra";
     const q = Math.abs(quantity);
     if (!date || !asset || !(q > 0) || !(priceEur >= 0)) { skipped++; continue; }
     const curRaw = cCur >= 0 ? (cells[cCur] ?? "").trim().toUpperCase() : "";
     const currency = /^[A-Z]{3}$/.test(curRaw) ? curRaw : undefined;
-    const priceInput = cOrig >= 0 ? normNum(cells[cOrig] ?? "") : NaN;
-    const feeRaw = cFee >= 0 ? Math.abs(normNum(cells[cFee] ?? "")) : NaN;
+    const priceInput = cOrig >= 0 ? normNumFicheiro(cells[cOrig] ?? "") : NaN;
+    const feeRaw = cFee >= 0 ? Math.abs(normNumFicheiro(cells[cFee] ?? "")) : NaN;
     const feeEur = feeRaw > 0 ? feeRaw : undefined;
     const feeAssetRaw = cFeeAsset >= 0 ? (cells[cFeeAsset] ?? "").trim().toUpperCase() : "";
     const feeAsset = /^[A-Z0-9.]{2,12}$/.test(feeAssetRaw) && !/^[A-Z]{3}$/.test(feeAssetRaw) || ["ETH", "SOL", "BNB", "POL", "BTC", "TRX", "ADA", "DOT", "ARB"].includes(feeAssetRaw) ? feeAssetRaw : undefined;
     // fee_original: na moeda (com `currency`) ou, com fee_asset, em unidades do token.
-    const feeInput = feeEur !== undefined && cFeeOrig >= 0 && (currency || feeAsset) ? Math.abs(normNum(cells[cFeeOrig] ?? "")) : NaN;
+    const feeInput = feeEur !== undefined && cFeeOrig >= 0 && (currency || feeAsset) ? Math.abs(normNumFicheiro(cells[cFeeOrig] ?? "")) : NaN;
     const swapRaw = cSwap >= 0 ? (cells[cSwap] ?? "").trim() : "";
     const swapId = /^[A-Za-z0-9_-]{4,64}$/.test(swapRaw) && type !== "taxa" ? swapRaw : undefined;
     trades.push({
