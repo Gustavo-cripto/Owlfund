@@ -46,8 +46,8 @@ export async function GET(request: Request) {
     // Os dois últimos são melhorias: se não estiverem configurados, seguem-se
     // em frente sem se queixar.
     const [espelho, email] = await Promise.all([
-      espelhar(r.ficheiro, r.gz),
-      enviarPorEmail(r.ficheiro, r.gz, { linhas: Object.values(r.contagens).reduce((s, n) => s + n, 0), contagens: r.contagens, ausentes: r.ausentes }),
+      espelhar(r.ficheiro, r.conteudo),
+      enviarPorEmail(r.ficheiro, r.conteudo, { linhas: Object.values(r.contagens).reduce((s, n) => s + n, 0), contagens: r.contagens, ausentes: r.ausentes }),
     ]);
 
     const apagados = await podar(admin, DIAS_A_GUARDAR);
@@ -81,6 +81,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       ok: r.falhas.length === 0,
       ficheiro: r.ficheiro,
+      cifrada: r.cifrada,
       kb,
       linhas,
       contagens: r.contagens,

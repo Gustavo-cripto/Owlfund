@@ -7,6 +7,7 @@ import { COOKIE_LANG, contaSemCarteiras, langDoPedido } from "@/lib/auth/contaNo
 import { origemDoCookie } from "@/lib/origem";
 import { pageUrl } from "@/lib/i18n/routes";
 import { acolherContaNova } from "@/lib/beta/contaNova";
+import { clientIp } from "@/lib/utils/rateLimit";
 
 // Callback do Supabase para o fluxo PKCE (`?code=`): OAuth Google e os emails
 // antigos com {{ .ConfirmationURL }}. Os emails novos usam token_hash e vao a
@@ -68,7 +69,7 @@ export async function GET(request: Request) {
       const uid = sessao?.user?.id ?? "";
       await gravarOrigemNaConta(request, supabase, sessao?.user);
       // Conta nova pelo Google (ou por um email antigo): Premium do beta, Telegram e boas-vindas (uma vez; nunca lança).
-      try { await acolherContaNova(getSupabaseAdmin(), sessao?.user, { cookie: request.headers.get("cookie") }); } catch { /* sem admin */ }
+      try { await acolherContaNova(getSupabaseAdmin(), sessao?.user, { cookie: request.headers.get("cookie"), ip: clientIp(request) }); } catch { /* sem admin */ }
       if (!pediuDestino && uid) {
         try { if (await contaSemCarteiras(getSupabaseAdmin(), uid)) destino = "/wallets"; } catch { /* sem admin: fica o destino normal */ }
       }

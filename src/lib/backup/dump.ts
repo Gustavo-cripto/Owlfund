@@ -2,6 +2,8 @@ import { gzipSync } from "zlib";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { cifrarCopia, EXTENSAO_CIFRADA } from "@/lib/backup/cifra";
+
 // Cópia de segurança da base de dados, feita por nós.
 //
 // PORQUÊ: o plano gratuito do Supabase não inclui cópias nenhumas. Verificado
@@ -109,10 +111,13 @@ async function lerContas(admin: SupabaseClient): Promise<unknown[]> {
   return contas;
 }
 
+const tipoDoFicheiro = (ficheiro: string) => (ficheiro.endsWith(EXTENSAO_CIFRADA) ? "application/octet-stream" : "application/gzip");
+
 export type Resultado = {
   ficheiro: string;
-  /** O ficheiro comprimido, para quem chama o enviar por email ou espelhar. */
-  gz: Buffer;
+  /** O ficheiro final (comprimido e, com BACKUP_PUBLIC_KEY, cifrado), para quem chama o enviar por email ou espelhar. */
+  conteudo: Buffer;
+  cifrada: boolean;
   bytes: number;
   contagens: Record<string, number>;
   /** Leituras que falharam a sério. Motivo para avisar. */
@@ -166,10 +171,15 @@ export async function correrCopia(admin: SupabaseClient, hoje: string): Promise<
 
   const payload = JSON.stringify({ geradoEm: new Date().toISOString(), contagens, falhas, ausentes, dados: conteudo });
   const gz = gzipSync(Buffer.from(payload, "utf8"), { level: 9 });
-  const ficheiro = `${hoje}.json.gz`;
+  // Cifra-se antes de sair daqui, para todos os destinos. Sem a chave fica como
+  // estava até 6 nov 2026, e o email e a resposta dizem-no.
+  const chavePublica = process.env.BACKUP_PUBLIC_KEY?.trim();
+  const cifrada = !!chavePublica;
+  const conteudoFinal = chavePublica ? cifrarCopia(gz, chavePublica) : gz;
+  const ficheiro = `${hoje}${cifrada ? EXTENSAO_CIFRADA : ".json.gz"}`;
 
-  const { error } = await admin.storage.from(BUCKET).upload(ficheiro, gz, {
-    contentType: "application/gzip",
+  const { error } = await admin.storage.from(BUCKET).upload(ficheiro, conteudoFinal, {
+    contentType: tipoDoFicheiro(ficheiro),
     upsert: true,
   });
   if (error) throw new Error(`upload: ${error.message}`);
@@ -182,7 +192,7 @@ export async function correrCopia(admin: SupabaseClient, hoje: string): Promise<
     { contentType: "application/json", upsert: true },
   );
 
-  return { ficheiro, gz, bytes: gz.byteLength, contagens, falhas, ausentes, encolheram };
+  return { ficheiro, conteudo: conteudoFinal, cifrada, bytes: conteudoFinal.byteLength, contagens, falhas, ausentes, encolheram };
 }
 
 /** Uma tabela que encolhe de repente é o primeiro sinal de perda de dados. */
@@ -269,7 +279,7 @@ export function diagnosticarEspelho(url: string, key: string): string | null {
   return null;
 }
 
-export async function espelhar(ficheiro: string, gz: Buffer): Promise<EstadoEspelho> {
+export async function espelhar(ficheiro: string, conteudo: Buffer): Promise<EstadoEspelho> {
   const url = process.env.BACKUP_MIRROR_URL;
   const key = process.env.BACKUP_MIRROR_SERVICE_KEY;
   if (!url || !key) return { estado: "sem-configuracao" };
@@ -279,8 +289,8 @@ export async function espelhar(ficheiro: string, gz: Buffer): Promise<EstadoEspe
     const { createClient } = await import("@supabase/supabase-js");
     const espelho = createClient(url.trim(), key.trim(), { auth: { persistSession: false } });
     try { await espelho.storage.createBucket(BUCKET, { public: false }); } catch { /* já existe */ }
-    const { error } = await espelho.storage.from(BUCKET).upload(ficheiro, gz, {
-      contentType: "application/gzip", upsert: true,
+    const { error } = await espelho.storage.from(BUCKET).upload(ficheiro, conteudo, {
+      contentType: tipoDoFicheiro(ficheiro), upsert: true,
     });
     if (error) throw new Error(error.message);
     return { estado: "feito" };
@@ -305,13 +315,14 @@ const MAX_ANEXO_MB = 10;
 
 export async function enviarPorEmail(
   ficheiro: string,
-  gz: Buffer,
+  conteudo: Buffer,
   resumo: { linhas: number; contagens: Record<string, number>; ausentes: string[] },
 ): Promise<"enviado" | "grande-demais" | "desligado" | "falhou"> {
   const para = process.env.BACKUP_EMAIL_TO ?? process.env.BETA_SIGNUP_TO ?? "suporte@chainfolioai.com";
   if (process.env.BACKUP_EMAIL_ENABLED === "false") return "desligado";
 
-  const mb = gz.byteLength / (1024 * 1024);
+  const cifrada = ficheiro.endsWith(EXTENSAO_CIFRADA);
+  const mb = conteudo.byteLength / (1024 * 1024);
   const tabelas = Object.entries(resumo.contagens)
     .sort((a, b) => b[1] - a[1])
     .map(([t, n]) => `<tr><td style="padding:3px 12px 3px 0;color:#94a3b8">${t}</td><td style="padding:3px 0;color:#e2e8f0;text-align:right">${n}</td></tr>`)
@@ -319,8 +330,9 @@ export async function enviarPorEmail(
 
   const corpo = `
     <p style="color:#fff;font-size:16px;font-weight:700;margin:0 0 10px">Cópia de segurança de ${ficheiro.slice(0, 10)}</p>
-    <p style="margin:0 0 14px">${resumo.linhas} linhas, ${Math.max(1, Math.round(gz.byteLength / 1024))} kB comprimidos.
-    ${mb > MAX_ANEXO_MB ? "<b>O ficheiro é grande demais para ir em anexo</b> — descarrega-o em /api/v1/admin/backups." : "Vai em anexo."}</p>
+    <p style="margin:0 0 14px">${resumo.linhas} linhas, ${Math.max(1, Math.round(conteudo.byteLength / 1024))} kB comprimidos.
+    ${mb > MAX_ANEXO_MB ? "<b>O ficheiro é grande demais para ir em anexo</b> — descarrega-o em /api/v1/admin/backups." : "Vai em anexo."}
+    ${cifrada ? "Está cifrada: abre-se com scripts/decifrar-copia.mjs e a chave privada, que não está na Vercel." : "<b>Vai SEM cifra</b>, porque falta BACKUP_PUBLIC_KEY na Vercel."}</p>
     <table style="border-collapse:collapse;font-size:13px">${tabelas}</table>
     ${resumo.ausentes.length ? `<p style="margin:14px 0 0;color:#94a3b8;font-size:12px">Tabelas que ainda não existem (normal, o SQL só corre quando a funcionalidade entrar): ${resumo.ausentes.join(", ")}.</p>` : ""}
     <p style="margin:14px 0 0;color:#64748b;font-size:12px">Guarda este email. É a única cópia que fica FORA do Supabase, e por isso a única que sobrevive a perder a conta.</p>`;
@@ -337,7 +349,7 @@ export async function enviarPorEmail(
       subject: `[backup] ChainFolioAI ${ficheiro.slice(0, 10)} — ${resumo.linhas} linhas`,
       html: shell(corpo),
       ...(mb <= MAX_ANEXO_MB
-        ? { attachments: [{ filename: ficheiro, content: gz, contentType: "application/gzip" }] }
+        ? { attachments: [{ filename: ficheiro, content: conteudo, contentType: tipoDoFicheiro(ficheiro) }] }
         : {}),
     });
     if (error) throw new Error(error.message);
