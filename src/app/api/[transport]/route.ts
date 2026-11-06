@@ -11,6 +11,7 @@ import { getDefiPositions, getNfts } from "@/lib/api/onchain";
 import { getKnownWhales } from "@/lib/api/known-whales";
 import { getFearGreed, getAsset, computeFire, getNews, getBtcBlocks } from "@/lib/api/investing";
 import { responderPortefolio } from "@/lib/api/ai";
+import { loteComDemasiadasFerramentas } from "@/lib/api/mcpLotes";
 
 const ADDRESS_RE = /^(0x[a-fA-F0-9]{40}|(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,62}|[1-9A-HJ-NP-Za-km-z]{32,44})$/;
 
@@ -375,8 +376,17 @@ const METODOS_PUBLICOS = new Set([
 
 async function mcp(req: Request): Promise<Response> {
   const temChave = req.headers.has("authorization") || req.headers.has("x-api-key");
-  if (!temChave && req.method === "POST") {
+  if (req.method === "POST") {
     const corpo = (await req.clone().json().catch(() => null)) as unknown;
+    // Antes da chave: o limite de 60/min conta pedidos HTTP, e o SDK corria até
+    // 100 ferramentas num pedido só (auditoria 6 nov 2026).
+    if (loteComDemasiadasFerramentas(corpo)) {
+      return Response.json(
+        { jsonrpc: "2.0", id: null, error: { code: -32600, message: "Envia uma tools/call por pedido: os lotes JSON-RPC saíram do protocolo MCP (2025-06-18) e cada pedido conta uma vez no limite." } },
+        { status: 400 },
+      );
+    }
+    if (temChave) return authHandler(req);
     const mensagens = Array.isArray(corpo) ? corpo : [corpo];
     const soDescoberta = mensagens.length > 0 && mensagens.every((m) => {
       const metodo = (m as { method?: unknown } | null)?.method;

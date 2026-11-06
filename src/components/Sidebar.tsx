@@ -9,6 +9,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { comSupabase, getSupabase } from "@/lib/supabase/lazy";
 import PlanBadge from "@/components/PlanBadge";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { usePerguntarChavesAoSair } from "@/lib/auth/usePerguntarChavesAoSair";
 import { pageUrl } from "@/lib/i18n/routes";
 import type { Lang, TranslationKey } from "@/lib/i18n/translations";
 
@@ -155,6 +156,7 @@ const NAV_ITEMS = [
 ];
 
 export default function Sidebar() {
+  const perguntarChavesAoSair = usePerguntarChavesAoSair();
   const pathname = usePathname();
   const { lang, setLang, t } = useLanguage();
   const [email, setEmail] = useState<string | null>(null);
@@ -203,6 +205,7 @@ export default function Sidebar() {
   };
 
   const handleLogout = async () => {
+    await perguntarChavesAoSair();
     // Quem chega aqui tem sessao, logo a biblioteca ja foi carregada pelo efeito.
     const supabase = await getSupabase();
     await supabase.auth.signOut();

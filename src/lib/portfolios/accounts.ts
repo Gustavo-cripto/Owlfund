@@ -49,6 +49,14 @@ export const PERSONAL_KEYS = [
   "owlfund.market.favorites.v1",  // favoritos do /mercado
   "owlfund.nickname",             // o nome por que a IA trata a pessoa
   "cfa-exemplo-recusado-v1",      // esta pessoa já tirou o exemplo (lib/demo/exemplo.ts)
+  // Auditoria 6 nov 2026: ficaram de fora da regra de 28 set, e a pessoa seguinte
+  // lia os saldos da exchange de quem saiu com as chaves dele. Quem voltar a
+  // entrar depois de outra pessoa tem de as ligar de novo; o cofre no servidor
+  // (Carteiras, "guardar no servidor") não tem esse efeito.
+  "cex-accounts-v1",              // chaves de API de exchange guardadas só neste browser
+  "hl-accounts-v1",               // endereços Hyperliquid
+  "owlfund.chat.messages.v3",     // a conversa com o Chain
+  "portfolio-note",               // nota antiga, sem prefixo de conta (ainda lida como reserva)
   // `cfa-demo-address` fica de fora de propósito: é quase sempre de quem está
   // a criar conta agora (demonstração → registo → Carteiras pré-preenchida),
   // e é um endereço público. Apagá-lo aqui partia esse passo em qualquer
@@ -168,6 +176,43 @@ export function claimLocalData(userId: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** Há chaves de API de exchange guardadas só neste browser? */
+export function temChavesExchangeLocais(): boolean {
+  if (!hasWindow()) return false;
+  try {
+    const lista = JSON.parse(window.localStorage.getItem("cex-accounts-v1") ?? "[]") as unknown;
+    return Array.isArray(lista) && lista.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/** Tira as chaves de API de exchange deste browser (pergunta-se ao sair). */
+export function esquecerChavesExchangeLocais(): void {
+  if (!hasWindow()) return;
+  try { window.localStorage.removeItem("cex-accounts-v1"); } catch { /* ignore */ }
+}
+
+/**
+ * Apagar a conta: nada desta pessoa pode ficar no browser, chaves de exchange
+ * incluídas. Tem de cobrir PERSONAL_KEYS à parte, porque esse caminho não passa
+ * pelo claimLocalData: apaga-se aqui também o dono do browser (cf.owner.v1), e
+ * sem dono a pessoa seguinte não limpa nada ao entrar.
+ */
+export function limparDadosLocais(): void {
+  if (!hasWindow()) return;
+  try {
+    const pessoais = new Set<string>(PERSONAL_KEYS);
+    for (const k of Object.keys(window.localStorage)) {
+      if (
+        pessoais.has(k) || k.startsWith("fire-plan-v1:") ||
+        k.startsWith("cf.") || k.startsWith("owlfund") || k.startsWith("portfolio-") ||
+        k.startsWith("trade-history") || k.startsWith("gestor") || k.startsWith("chain-")
+      ) window.localStorage.removeItem(k);
+    }
+  } catch { /* ignore */ }
 }
 
 export function listAccounts(): Account[] {
