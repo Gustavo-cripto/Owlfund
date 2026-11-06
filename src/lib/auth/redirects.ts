@@ -10,10 +10,26 @@ export const PROTECTED_PATHS = [
 // Além das protegidas, páginas públicas para onde faz sentido voltar após login.
 const EXTRA_NEXT = ["/beta", "/pricing", "/developers", "/como-funciona"] as const;
 
+/**
+ * O caminho tal como o Next o vai encaminhar: ele descodifica antes de escolher a
+ * rota, e sem isto /%61dmin/beta abria a página sem sessão (auditoria 6 nov 2026).
+ * Só os códigos ASCII, que são os únicos que podem formar um caminho protegido;
+ * assim um "%" malformado nunca lança nem dá 500 no middleware.
+ */
+function caminhoDescodificado(pathname: string): string {
+  let atual = pathname;
+  for (let i = 0; i < 3; i++) {
+    const seguinte = atual.replace(/%([0-7][0-9a-f])/gi, (_, h: string) => String.fromCharCode(parseInt(h, 16)));
+    if (seguinte === atual) break;
+    atual = seguinte;
+  }
+  return atual;
+}
+
 export function isProtectedPath(pathname: string): boolean {
   // Os pré-carregamentos do Next pedem a mesma página com sufixo
   // (/portfolio.rsc, /portfolio.segments/_full.segment.rsc): contam como ela.
-  const pagina = pathname.replace(/\.(?:segments\/.*|prefetch\.rsc|rsc)$/, "");
+  const pagina = caminhoDescodificado(pathname).replace(/\.(?:segments\/.*|prefetch\.rsc|rsc)$/, "");
   return PROTECTED_PATHS.some((p) => pagina === p || pagina.startsWith(`${p}/`));
 }
 

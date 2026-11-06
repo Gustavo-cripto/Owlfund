@@ -125,6 +125,16 @@ const call = await pedir("/api/mcp", corpoMcp("tools/call", { name: "global", ar
 if (call.res?.status === 401) ok("tools/call exige chave (401) — o limite real");
 else mal(`tools/call devolveu ${call.res?.status ?? call.erro} SEM CHAVE — possível fuga de dados`);
 
+// 3b2) Um lote com várias ferramentas é recusado antes de ver a chave: contava
+// como um só pedido no limite de 60/min (auditoria 6 nov 2026).
+const lote = await pedir("/api/mcp", {
+  method: "POST",
+  headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+  body: JSON.stringify([1, 2].map((id) => ({ jsonrpc: "2.0", id, method: "tools/call", params: { name: "global", arguments: {} } }))),
+});
+if (lote.res?.status === 400) ok("lote com várias ferramentas é recusado (400)");
+else mal(`lote de tools/call devolveu ${lote.res?.status ?? lote.erro} — deveria ser 400`);
+
 // 3c) O GET continua a dar 401, com o cabeçalho que diz onde está a documentação
 const mcp = await pedir("/api/mcp");
 if (mcp.res?.status === 401) ok("GET /api/mcp exige chave (401)");

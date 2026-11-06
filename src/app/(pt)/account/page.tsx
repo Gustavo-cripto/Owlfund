@@ -15,7 +15,8 @@ import { CRYPTO_PAYMENTS_ENABLED } from "@/lib/payments/config";
 import { useTurnstile } from "@/components/Turnstile";
 import { preencherContagens } from "@/lib/api/catalog";
 import { useConfirm } from "@/components/ConfirmDialog";
-import { NAMESPACED_BASE_KEYS, ACCOUNTS_EVENT, listAccounts, readNamespaced } from "@/lib/portfolios/accounts";
+import { NAMESPACED_BASE_KEYS, ACCOUNTS_EVENT, limparDadosLocais, listAccounts, readNamespaced } from "@/lib/portfolios/accounts";
+import { usePerguntarChavesAoSair } from "@/lib/auth/usePerguntarChavesAoSair";
 
 const LOCALE_BY_LANG: Record<string, string> = { pt: "pt-PT", en: "en-GB", es: "es-ES", fr: "fr-FR" };
 // Durante o beta os pagamentos estão congelados: CTAs de upgrade → /beta e sem preços.
@@ -377,6 +378,7 @@ export default function AccountPage() {
   const captchaPw = useTurnstile(lang);
   const captchaDel = useTurnstile(lang);
   const askConfirm = useConfirm();
+  const perguntarChavesAoSair = usePerguntarChavesAoSair();
   const locale = LOCALE_BY_LANG[lang] ?? "pt-PT";
   const {
     theme, currency, hideBalances, numberFormat,
@@ -494,12 +496,6 @@ export default function AccountPage() {
     }
   };
 
-  const clearLocalData = () => {
-    try {
-      const keys = Object.keys(window.localStorage);
-      for (const k of keys) if (k.startsWith("cf.") || k.startsWith("owlfund") || k.startsWith("portfolio-") || k.startsWith("trade-history") || k.startsWith("gestor") || k.startsWith("chain-")) window.localStorage.removeItem(k);
-    } catch { /* ignore */ }
-  };
   const handleDeleteAccount = async () => {
     if (deleteInput.trim().toUpperCase() !== t("ac_delete_word").toUpperCase()) return;
     if (!(await askConfirm({ message: t("ac_delete_final_confirm"), danger: true, title: t("ac_delete_account"), okLabel: t("ac_delete_button") }))) return;
@@ -515,7 +511,7 @@ export default function AccountPage() {
       }
       const res = await fetch("/api/account/delete", { method: "POST" });
       if (!res.ok) { setDeleteError(t("ac_delete_error")); setDeleting(false); return; }
-      clearLocalData();
+      limparDadosLocais();
       await supabase.auth.signOut();
       window.location.href = "/";
     } catch {
@@ -668,6 +664,7 @@ export default function AccountPage() {
   };
 
   const handleLogout = async () => {
+    await perguntarChavesAoSair();
     await supabase.auth.signOut();
     window.location.href = "/";
   };
