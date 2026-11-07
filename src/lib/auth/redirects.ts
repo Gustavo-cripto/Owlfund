@@ -16,7 +16,7 @@ const EXTRA_NEXT = ["/beta", "/pricing", "/developers", "/como-funciona"] as con
  * Só os códigos ASCII, que são os únicos que podem formar um caminho protegido;
  * assim um "%" malformado nunca lança nem dá 500 no middleware.
  */
-function caminhoDescodificado(pathname: string): string {
+export function caminhoDescodificado(pathname: string): string {
   let atual = pathname;
   for (let i = 0; i < 3; i++) {
     const seguinte = atual.replace(/%([0-7][0-9a-f])/gi, (_, h: string) => String.fromCharCode(parseInt(h, 16)));

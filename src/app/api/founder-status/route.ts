@@ -1,5 +1,6 @@
 // Estado de fundador do utilizador com sessão iniciada (para a página de planos).
 // Auth por Bearer token (app móvel) ou cookies SSR (site).
+import { falta2fa } from "@/lib/auth/nivelSessao";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
@@ -18,7 +19,7 @@ export async function GET(request: Request) {
     try {
       const client = createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: false } });
       const { data } = await client.auth.getUser(token);
-      if (data.user) userId = data.user.id;
+      if (data.user && !falta2fa(data.user, token)) userId = data.user.id;
     } catch { /* fallback cookies */ }
   }
 

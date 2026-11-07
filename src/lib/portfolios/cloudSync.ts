@@ -124,6 +124,8 @@ async function lerDaNuvem(): Promise<boolean> {
     // Se o dispositivo tiver dados de outro utilizador, limpa antes de fundir.
     claimLocalData(user.id);
     const res = await fetch("/api/wallet-sync");
+    // A conta ganhou 2FA noutro aparelho: esta sessão tem de passar pelo código.
+    if (res.status === 403) { window.location.href = "/login"; return false; }
     if (!res.ok) return false;
     const json = (await res.json()) as { data?: unknown };
     ultimaLeituraOk = true;

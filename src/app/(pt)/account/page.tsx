@@ -478,9 +478,16 @@ export default function AccountPage() {
       if (needsCurrentPassword) {
         if (!currentPassword) { setPwMsg({ type: "err", text: t("ac_current_password_required") }); return; }
         if (captchaPw.ativo && !captchaPw.token) { setPwMsg({ type: "err", text: t("lg_captcha_falta") }); return; }
-        const { error: reErr } = await supabase.auth.signInWithPassword({ email: email ?? "", password: currentPassword, options: { ...captchaPw.captcha } });
+        // No servidor: aqui no browser, signInWithPassword trocava a sessão por uma
+        // aal1, e quem tem 2FA ficava logo sem acesso às rotas.
+        const conf = await fetch("/api/account/confirmar-palavra-passe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password: currentPassword, ...captchaPw.captcha }),
+        });
         captchaPw.renovar();
-        if (reErr) { setPwMsg({ type: "err", text: t("ac_current_password_wrong") }); return; }
+        if (conf.status === 401) { setPwMsg({ type: "err", text: t("ac_current_password_wrong") }); return; }
+        if (!conf.ok) { setPwMsg({ type: "err", text: t("ac_password_error") }); return; }
       }
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) setPwMsg({ type: "err", text: t("ac_password_error") });
@@ -505,11 +512,15 @@ export default function AccountPage() {
       if (needsCurrentPassword) {
         if (!deletePassword) { setDeleteError(t("ac_current_password_required")); setDeleting(false); return; }
         if (captchaDel.ativo && !captchaDel.token) { setDeleteError(t("lg_captcha_falta")); setDeleting(false); return; }
-        const { error: reErr } = await supabase.auth.signInWithPassword({ email: email ?? "", password: deletePassword, options: { ...captchaDel.captcha } });
-        captchaDel.renovar();
-        if (reErr) { setDeleteError(t("ac_current_password_wrong")); setDeleting(false); return; }
       }
-      const res = await fetch("/api/account/delete", { method: "POST" });
+      // A palavra-passe confirma-se na própria rota, no servidor.
+      const res = await fetch("/api/account/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(needsCurrentPassword ? { password: deletePassword, ...captchaDel.captcha } : {}),
+      });
+      captchaDel.renovar();
+      if (res.status === 401 && needsCurrentPassword) { setDeleteError(t("ac_current_password_wrong")); setDeleting(false); return; }
       if (!res.ok) { setDeleteError(t("ac_delete_error")); setDeleting(false); return; }
       limparDadosLocais();
       await supabase.auth.signOut();

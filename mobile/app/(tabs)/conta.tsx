@@ -23,11 +23,12 @@ import { SITE_URL } from '@/lib/supabase';
 export default function ContaScreen() {
   const { mode } = useAppTheme();
   const palette = Colors[mode ?? 'dark'];
-  const { session, isLoading, signIn, signOut } = useAuth();
+  const { session, isLoading, precisaCodigo, signIn, confirmarCodigo, signOut } = useAuth();
   const { source, refreshCloud, portfolio } = usePortfolio();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [codigo, setCodigo] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -40,6 +41,19 @@ export default function ContaScreen() {
     else {
       setMsg({ ok: true, text: 'Sessão iniciada — a sincronizar o portfólio…' });
       setPassword('');
+    }
+    setBusy(false);
+  };
+
+  const doCodigo = async () => {
+    if (busy || !codigo.trim()) return;
+    setBusy(true);
+    setMsg(null);
+    const { error } = await confirmarCodigo(codigo);
+    if (error) setMsg({ ok: false, text: error });
+    else {
+      setMsg({ ok: true, text: 'Sessão iniciada — a sincronizar o portfólio…' });
+      setCodigo('');
     }
     setBusy(false);
   };
@@ -140,6 +154,35 @@ export default function ContaScreen() {
                   ]}>
                   <Text style={[styles.btnText, { color: '#fb7185' }]}>Terminar sessão</Text>
                 </Pressable>
+              </>
+            ) : precisaCodigo ? (
+              <>
+                <Text style={[styles.label, { color: palette.muted }]}>Código de 2FA</Text>
+                <TextInput
+                  value={codigo}
+                  onChangeText={setCodigo}
+                  placeholder="123456"
+                  placeholderTextColor={palette.muted}
+                  keyboardType="number-pad"
+                  autoComplete="one-time-code"
+                  onSubmitEditing={doCodigo}
+                  style={[styles.input, { color: palette.text, borderColor: 'rgba(148,163,184,0.35)' }]}
+                />
+                <Pressable
+                  onPress={doCodigo}
+                  disabled={busy || !codigo.trim()}
+                  style={({ pressed }) => [
+                    styles.btn,
+                    { backgroundColor: '#f97316', opacity: busy || pressed || !codigo.trim() ? 0.6 : 1 },
+                  ]}>
+                  <Text style={styles.btnTextDark}>{busy ? 'A confirmar…' : 'Confirmar código'}</Text>
+                </Pressable>
+                <Pressable onPress={doLogout} disabled={busy}>
+                  <Text style={[styles.link, { color: palette.muted }]}>Cancelar e voltar a entrar</Text>
+                </Pressable>
+                <Text style={[styles.link, { color: palette.muted }]}>
+                  Perdeste o acesso à app autenticadora? Usa um código de recuperação no site.
+                </Text>
               </>
             ) : (
               <>

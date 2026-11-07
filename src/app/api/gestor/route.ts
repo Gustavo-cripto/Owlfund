@@ -1,3 +1,5 @@
+import { falta2fa } from "@/lib/auth/nivelSessao";
+import { resposta2fa } from "@/lib/auth/resposta2fa";
 import { NextRequest, NextResponse } from "next/server";
 import { PLATFORM_KNOWLEDGE } from "@/lib/ai/plataforma";
 import { maskAddress } from "@/lib/api/data";
@@ -183,6 +185,7 @@ export async function POST(req: NextRequest) {
             global: { headers: { Authorization: `Bearer ${token}` } },
           });
           const { data: viaToken } = await viaTokenClient.auth.getUser(token);
+          if (viaToken.user && falta2fa(viaToken.user, token)) return resposta2fa();
           user = viaToken.user ?? null;
           if (user) db = viaTokenClient;
         } catch { /* fica null */ }

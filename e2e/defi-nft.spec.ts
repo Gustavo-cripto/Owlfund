@@ -38,7 +38,7 @@ test("ligar um endereço mostra DeFi, posições e NFTs", async ({ page }) => {
     await expect(linha.getByText(/Erro ao carregar NFTs/)).toHaveCount(0);
     await expect(linha).toHaveText(/NFT:\s*\d+\s*(item|itens)/, { timeout: 90_000 });
   } finally {
-    const r = await page.request.post("/api/account/delete").catch(() => null);
+    const r = await page.request.post("/api/account/delete", { data: { password } }).catch(() => null);
     if (criada) expect(r?.ok(), `Não foi possível apagar a conta de teste ${email} (${r?.status()})`).toBeTruthy();
   }
 });
