@@ -624,7 +624,11 @@ function LiquidationsFeed({ symbol }: { symbol: string }) {
     } catch {
       setStatus("error");
     }
-    return () => { try { ws?.close(); } catch { /* noop */ } };
+    return () => {
+      // Sem os handlers: ao trocar de ativo, o fecho do antigo não pode pintar o novo de erro.
+      if (ws) { ws.onopen = null; ws.onerror = null; ws.onclose = null; ws.onmessage = null; }
+      try { ws?.close(); } catch { /* noop */ }
+    };
   }, [symbol]);
 
   return (
@@ -639,7 +643,7 @@ function LiquidationsFeed({ symbol }: { symbol: string }) {
       <div className="mt-3 max-h-40 space-y-1 overflow-y-auto">
         {liqs.length === 0 ? (
           <p className="py-4 text-center text-[11px] text-slate-500">
-            {status === "error" ? t("mc_liq_note") : t("mc_liq_waiting")}
+            {status === "error" ? t("mc_liq_offline") : t("mc_liq_waiting")}
           </p>
         ) : (
           liqs.map((l) => (

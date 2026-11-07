@@ -1,3 +1,4 @@
+import { cronVigiado } from "@/lib/cron/cronVigiado";
 import { NextResponse } from "next/server";
 import { verifyCronAuth } from "@/lib/api/cron-auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -31,7 +32,7 @@ type Ultima = {
   defiPosicoes?: Record<string, PosicaoDefi[]>;
 };
 
-export async function GET(request: Request) {
+async function executar(request: Request) {
   if (!(await verifyCronAuth(request))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!(process.env.RESEND_API_KEY ?? "").trim()) return NextResponse.json({ error: "RESEND_API_KEY em falta" }, { status: 503 });
 
@@ -124,5 +125,12 @@ export async function GET(request: Request) {
     }
   }
 
+  // Corre uma vez por semana: quem falhou só volta a ter hipótese se alguém o relançar
+  // (o que é seguro: quem já recebeu está marcado em notification_log).
+  if (erros.length) {
+    return NextResponse.json({ aviso: `resumo por enviar a: ${erros.join(", ")}. Relançar o cron na Vercel.`, semana, enviados }, { status: 500 });
+  }
   return NextResponse.json({ semana, premium: premium.length, enviados, semDados, jaEnviados, erros });
 }
+
+export const GET = cronVigiado("resumo-semanal", executar);

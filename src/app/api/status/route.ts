@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { alchemyNftUrl } from "@/lib/providers/alchemy";
 import { rateLimitPublicPartilhado } from "@/lib/api/requireUser";
+import { cronsAtrasados, type LinhaCron } from "@/lib/cron/vigia";
 import { cgFetch } from "@/lib/market/coingecko";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
@@ -15,7 +16,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 export const revalidate = 300;
 
 type Estado = "ok" | "degradado" | "falha" | "nao_configurado";
-type Servico = { id: string; nome: string; funcao: string; estado: Estado; ms: number | null; codigo?: number };
+type Servico = { id: string; nome: string; funcao: string; estado: Estado; ms: number | null; codigo?: number; detalhe?: string };
 
 const TIMEOUT_MS = 6_000;
 
@@ -84,6 +85,21 @@ async function verificarSnapshots(): Promise<{ estado: Estado; ms: number | null
   }
 }
 
+// Os outros crons (lib/cron/vigia.ts). Sem a tabela cron_runs não se avalia nada;
+// um cron atrasado é "degradado", com os nomes, e a verificação noturna avisa no Telegram.
+async function verificarCrons(): Promise<{ estado: Estado; ms: number | null; detalhe?: string }> {
+  const t0 = Date.now();
+  try {
+    const { data, error } = await getSupabaseAdmin().from("cron_runs").select("cron, ultimo_ok_em, criado_em");
+    if (error) return { estado: "nao_configurado", ms: null };
+    if (!data || data.length === 0) return { estado: "ok", ms: Date.now() - t0 };
+    const atrasados = cronsAtrasados(data as LinhaCron[], Date.now());
+    return { estado: atrasados.length ? "degradado" : "ok", ms: Date.now() - t0, ...(atrasados.length ? { detalhe: atrasados.join(", ") } : {}) };
+  } catch {
+    return { estado: "nao_configurado", ms: null };
+  }
+}
+
 export async function GET(req: Request) {
   const limitado = await rateLimitPublicPartilhado(req, "status", 30);
   if (limitado) return limitado;
@@ -123,17 +139,19 @@ export async function GET(req: Request) {
       run: telegramToken ? () => get(`https://api.telegram.org/bot${telegramToken}/getMe`) : null },
   ];
 
-  const [servicosPing, snapshots] = await Promise.all([
+  const [servicosPing, snapshots, crons] = await Promise.all([
     Promise.all(checks.map(async (c) => {
       if (!c.run) return { id: c.id, nome: c.nome, funcao: c.funcao, estado: "nao_configurado" as Estado, ms: null };
       const r = await ping(c.run);
       return { id: c.id, nome: c.nome, funcao: c.funcao, estado: r.estado, ms: r.ms, ...(r.codigo && r.estado !== "ok" ? { codigo: r.codigo } : {}) };
     })),
     verificarSnapshots(),
+    verificarCrons(),
   ]);
   const servicos: Servico[] = [
     ...servicosPing,
     { id: "snapshots", nome: "Snapshots", funcao: "histórico do Portefólio (cron das 00:00 UTC)", estado: snapshots.estado, ms: snapshots.ms },
+    { id: "crons", nome: "Crons", funcao: "limpezas, avisos e leituras em segundo plano", estado: crons.estado, ms: crons.ms, ...(crons.detalhe ? { detalhe: crons.detalhe } : {}) },
   ];
 
   const geral: Estado = servicos.some((s) => s.estado === "falha") ? "falha"

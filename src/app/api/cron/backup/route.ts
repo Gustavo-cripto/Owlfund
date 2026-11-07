@@ -1,3 +1,4 @@
+import { cronVigiado } from "@/lib/cron/cronVigiado";
 import { NextResponse } from "next/server";
 
 import { verifyCronAuth } from "@/lib/api/cron-auth";
@@ -18,7 +19,7 @@ export const maxDuration = 300; // plano Pro (nov 2026): antes 60 s, o limite do
 // encolheu de repente. Um sucesso silencioso não enche a conversa.
 const DIAS_A_GUARDAR = 14;
 
-export async function GET(request: Request) {
+async function executar(request: Request) {
   if (!(await verifyCronAuth(request))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   let admin: ReturnType<typeof getSupabaseAdmin>;
@@ -106,3 +107,5 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: "backup_failed" }, { status: 500 });
   }
 }
+
+export const GET = cronVigiado("backup", executar, { avisa: false });

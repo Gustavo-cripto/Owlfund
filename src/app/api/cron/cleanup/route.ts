@@ -1,3 +1,4 @@
+import { cronVigiado } from "@/lib/cron/cronVigiado";
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { verifyCronAuth } from "@/lib/api/cron-auth";
@@ -11,7 +12,7 @@ export const maxDuration = 300; // plano Pro (nov 2026): antes 60 s, o limite do
 // Poda as tabelas que crescem sem fim: janelas de rate-limit ja passadas, o log
 // de deduplicacao de alertas antigo e as visualizacoes de pagina antigas.
 // Correr uma vez por dia e suficiente.
-export async function GET(request: Request) {
+async function executar(request: Request) {
   if (!(await verifyCronAuth(request))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   let admin: ReturnType<typeof getSupabaseAdmin>;
@@ -36,7 +37,20 @@ export async function GET(request: Request) {
 
   // Snapshots repetidos no mesmo dia (dias ja fechados): fica o ultimo de cada dia.
   let snapshotsDeduped = 0;
-  try { snapshotsDeduped = (await dedupeSnapshots(admin, { apply: true })).deleted; } catch (e) { console.error("[cleanup] snapshots", e instanceof Error ? e.message : e); }
+  let erroDedupe: string | null = null;
+  try { snapshotsDeduped = (await dedupeSnapshots(admin, { apply: true })).deleted; } catch (e) {
+    erroDedupe = e instanceof Error ? e.message : String(e);
+    console.error("[cleanup] snapshots", erroDedupe);
+  }
+
+  // O supabase-js devolve o erro, não o lança: sem isto, a limpeza falhava com ok:true.
+  const erros = [
+    rate.error && `api_rate_limits: ${rate.error.message}`,
+    alerts.error && `whale_alert_log: ${alerts.error.message}`,
+    views.error && `page_views: ${views.error.message}`,
+    erroDedupe && `snapshots: ${erroDedupe}`,
+  ].filter(Boolean);
+  if (erros.length) return NextResponse.json({ aviso: erros.join(" · ") }, { status: 500 });
 
   return NextResponse.json({
     ok: true,
@@ -49,3 +63,5 @@ export async function GET(request: Request) {
     timestamp: now,
   });
 }
+
+export const GET = cronVigiado("cleanup", executar);
