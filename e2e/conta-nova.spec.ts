@@ -67,7 +67,7 @@ test("conta nova: regista, entra, vê o exemplo e liga uma carteira", async ({ p
     // Tenta sempre: o teste pode falhar depois de o Supabase criar a conta e
     // antes de chegar a /wallets (17 out ficaram assim duas contas +e2e).
     // Sem sessão a rota responde 401 e não há nada a apagar.
-    const r = await page.request.post("/api/account/delete").catch(() => null);
+    const r = await page.request.post("/api/account/delete", { data: { password } }).catch(() => null);
     if (criada) expect(r?.ok(), `Não foi possível apagar a conta de teste ${email} (${r?.status()})`).toBeTruthy();
   }
 });

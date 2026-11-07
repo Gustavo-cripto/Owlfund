@@ -4,10 +4,14 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies, headers } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
 import { blobSemRelacao } from "@/lib/portfolios/guardaNuvem";
+import { falta2fa, falta2faNaSessao } from "@/lib/auth/nivelSessao";
+import { resposta2fa } from "@/lib/auth/resposta2fa";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+
+const PRECISA_2FA = "precisa-2fa" as const;
 
 async function getAuthUser() {
   // 1) Sessão por cookies (site).
@@ -16,7 +20,7 @@ async function getAuthUser() {
     cookies: { get: (name) => cookieStore.get(name)?.value, set: () => {}, remove: () => {} },
   });
   const { data } = await supabase.auth.getUser();
-  if (data.user) return data.user;
+  if (data.user) return (await falta2faNaSessao(supabase, data.user)) ? PRECISA_2FA : data.user;
 
   // 2) Bearer token (app mobile) — valida o JWT junto do Supabase.
   const h = await headers();
@@ -26,6 +30,7 @@ async function getAuthUser() {
   try {
     const anon = createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: false } });
     const { data: viaToken } = await anon.auth.getUser(token);
+    if (viaToken.user && falta2fa(viaToken.user, token)) return PRECISA_2FA;
     return viaToken.user ?? null;
   } catch {
     return null;
@@ -35,6 +40,7 @@ async function getAuthUser() {
 // GET — carrega config de carteiras do Supabase
 export async function GET() {
   const user = await getAuthUser();
+  if (user === PRECISA_2FA) return resposta2fa();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
@@ -51,6 +57,7 @@ export async function GET() {
 // POST — guarda config de carteiras no Supabase
 export async function POST(req: NextRequest) {
   const user = await getAuthUser();
+  if (user === PRECISA_2FA) return resposta2fa();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   if (!serviceKey) return NextResponse.json({ error: "Service key not configured" }, { status: 503 });

@@ -2,7 +2,9 @@ import { createServerClient } from "@supabase/ssr";
 import { eInterno } from "@/lib/analytics/interno";
 import { eAberturaDePagina } from "@/lib/analytics/abertura";
 import { NextResponse, type NextRequest, type NextFetchEvent } from "next/server";
-import { isProtectedPath } from "@/lib/auth/redirects";
+import { caminhoDescodificado, isProtectedPath } from "@/lib/auth/redirects";
+import { falta2faNaSessao, rotaAceitaSem2fa } from "@/lib/auth/nivelSessao";
+import { resposta2fa } from "@/lib/auth/resposta2fa";
 import { isBotUserAgent } from "@/lib/analytics/bots";
 import { pageFromPath, pageUrl } from "@/lib/i18n/routes";
 import type { Lang } from "@/lib/i18n/translations";
@@ -217,6 +219,17 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // Conta com 2FA e sessão só com palavra-passe: nenhuma rota lhe responde, exceto
+  // as de acabar de entrar (auditoria 6 nov 2026). Aqui e não rota a rota, para uma
+  // rota nova ficar protegida sozinha. Os cookies renovados têm de seguir na
+  // resposta: perder um refresh token novo pode terminar a sessão da pessoa.
+  const caminho = caminhoDescodificado(request.nextUrl.pathname);
+  if (user && caminho.startsWith("/api/") && !rotaAceitaSem2fa(caminho) && (await falta2faNaSessao(supabase, user))) {
+    const recusa = resposta2fa();
+    for (const c of response.cookies.getAll()) recusa.cookies.set(c);
+    return comOrigem(recusa);
+  }
 
   if (isProtectedPath(request.nextUrl.pathname) && !user) {
     const loginUrl = new URL("/login", request.url);

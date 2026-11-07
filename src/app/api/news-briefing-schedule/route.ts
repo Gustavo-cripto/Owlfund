@@ -1,3 +1,4 @@
+import { falta2fa } from "@/lib/auth/nivelSessao";
 import { NextResponse } from "next/server";
 import { internalError } from "@/lib/api/response";
 import { apiMsg } from "@/lib/api/apiMessages";
@@ -13,6 +14,7 @@ async function getUser(authHeader: string | null) {
   const token = authHeader.slice(7);
   const client = createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: false } });
   const { data } = await client.auth.getUser(token);
+  if (data.user && falta2fa(data.user, token)) return null;
   return data.user ?? null;
 }
 

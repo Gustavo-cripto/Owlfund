@@ -1,3 +1,4 @@
+import { falta2fa } from "@/lib/auth/nivelSessao";
 import { NextResponse } from "next/server";
 import { apiMsg } from "@/lib/api/apiMessages";
 import { createClient } from "@supabase/supabase-js";
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
     try {
       const client = createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: false } });
       const { data } = await client.auth.getUser(accessToken);
-      if (data.user) user = data.user;
+      if (data.user && !falta2fa(data.user, accessToken)) user = data.user;
     } catch {
       // continua para o fallback
     }

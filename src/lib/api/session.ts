@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { isPremiumPriceId } from "@/lib/payments/priceIds";
 import { cookies } from "next/headers";
+import { falta2faNaSessao } from "@/lib/auth/nivelSessao";
 
 // Sessão por cookie + verificação Premium, partilhada pelas rotas de webhooks
 // e sincronização (que são chamadas pela app com o utilizador autenticado).
@@ -14,6 +15,9 @@ export async function getSessionUser() {
     cookies: { get: (name) => cookieStore.get(name)?.value, set: () => {}, remove: () => {} },
   });
   const { data } = await supabase.auth.getUser();
+  // Conta com 2FA e sessão só com palavra-passe conta como sem sessão. O middleware
+  // já responde 403 a estas; isto fica para o caso de a rota sair do matcher.
+  if (data.user && (await falta2faNaSessao(supabase, data.user))) return { supabase, user: null };
   return { supabase, user: data.user };
 }
 

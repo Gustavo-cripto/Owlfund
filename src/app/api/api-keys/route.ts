@@ -4,6 +4,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { createHash, randomBytes } from "crypto";
+import { falta2faNaSessao } from "@/lib/auth/nivelSessao";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -14,6 +15,8 @@ async function getUser() {
     cookies: { get: (name) => cookieStore.get(name)?.value, set: () => {}, remove: () => {} },
   });
   const { data } = await supabase.auth.getUser();
+  // Uma chave de API não expira nem pede código: criá-la exige a sessão completa.
+  if (data.user && (await falta2faNaSessao(supabase, data.user))) return { supabase, user: null };
   return { supabase, user: data.user };
 }
 

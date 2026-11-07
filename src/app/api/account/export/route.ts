@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { falta2faNaSessao } from "@/lib/auth/nivelSessao";
+import { resposta2fa } from "@/lib/auth/resposta2fa";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -15,6 +17,7 @@ export async function GET() {
   });
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+  if (await falta2faNaSessao(supabase, user)) return resposta2fa();
 
   const userId = user.id;
 

@@ -2,6 +2,7 @@
 // ou o código HTTP a responder. Para as rotas novas de /api/admin.
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { falta2faNaSessao } from "@/lib/auth/nivelSessao";
 
 export function emailsAdmin(): string[] {
   return (process.env.ADMIN_EMAILS ?? "").split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
@@ -17,5 +18,6 @@ export async function adminDaSessao(): Promise<{ ok: true; id: string; email: st
   if (!data.user || !email) return { ok: false, status: 401 };
   const admins = emailsAdmin();
   if (!admins.length || !admins.includes(email)) return { ok: false, status: 403 };
+  if (await falta2faNaSessao(supabase, data.user)) return { ok: false, status: 403 };
   return { ok: true, id: data.user.id, email };
 }

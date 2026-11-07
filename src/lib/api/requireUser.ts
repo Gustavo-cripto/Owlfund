@@ -10,6 +10,8 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { rateLimit, clientIp } from "@/lib/utils/rateLimit";
+import { falta2fa, falta2faNaSessao } from "@/lib/auth/nivelSessao";
+import { resposta2fa } from "@/lib/auth/resposta2fa";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
@@ -29,6 +31,7 @@ export async function requireUser(
       cookies: { get: (name) => cookieStore.get(name)?.value, set: () => {}, remove: () => {} },
     });
     const { data } = await supabase.auth.getUser();
+    if (data.user && (await falta2faNaSessao(supabase, data.user))) return { ok: false, response: resposta2fa() };
     userId = data.user?.id ?? null;
   } catch { /* sem cookie */ }
 
@@ -39,6 +42,7 @@ export async function requireUser(
       try {
         const client = createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: false } });
         const { data } = await client.auth.getUser(token);
+        if (data.user && falta2fa(data.user, token)) return { ok: false, response: resposta2fa() };
         userId = data.user?.id ?? null;
       } catch { /* inválido */ }
     }

@@ -78,7 +78,7 @@ export function useRequireAuth(redirectTo: string = "/login") {
 
         // Se a conta tem 2FA ativo mas a sessão ainda é aal1, exige o desafio no
         // login. Uma falha AQUI não pode expulsar: quem já tem sessão válida
-        // passa, e cada rota do servidor volta a verificar por sua conta.
+        // passa, e o servidor recusa na mesma quem falta o código (lib/auth/nivelSessao.ts).
         try {
           const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
           if (!isMounted) return;
