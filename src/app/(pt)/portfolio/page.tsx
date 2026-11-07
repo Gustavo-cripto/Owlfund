@@ -29,6 +29,7 @@ import { exemploAtivo } from "@/lib/demo/exemplo";
 import { baseDaPosicao, daConta, posicaoAjustada } from "@/lib/portfolio/posicao";
 import { semCopiasDoCron } from "@/lib/portfolio/copias";
 import { getEvmBalance } from "@/lib/wallets/evm";
+import { lerSaldoEvmNoServidor } from "@/lib/wallets/saldoEvmServidor";
 import { getSolBalance } from "@/lib/wallets/solana";
 import { getBtcBalanceFromAddress } from "@/lib/wallets/bitcoin";
 import { getAdaBalanceByAddress } from "@/lib/wallets/cardano";
@@ -480,7 +481,11 @@ export default function PortfolioPage() {
       };
 
       const [eth, sol, btc, ada] = await Promise.allSettled([
-        refreshEntries(snapshot.eth, (a, e) => getEvmBalance(a as `0x${string}`, (e.network ?? "Ethereum") as Parameters<typeof getEvmBalance>[1])),
+        // Só os RPCs da rede Ethereum passam na CSP; as outras redes vão pelo servidor.
+        refreshEntries(snapshot.eth, (a, e) => {
+          const rede = e.network ?? "Ethereum";
+          return rede === "Ethereum" ? getEvmBalance(a as `0x${string}`, "Ethereum") : lerSaldoEvmNoServidor(a, rede);
+        }),
         refreshEntries(snapshot.sol, (a) => getSolBalance(a)),
         refreshEntries(snapshot.btc, (a) => getBtcBalanceFromAddress(a).then(String)),
         refreshEntries(snapshot.ada, (a) => getAdaBalanceByAddress(a).then(String)),

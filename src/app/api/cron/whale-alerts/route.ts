@@ -1,3 +1,4 @@
+import { cronVigiado } from "@/lib/cron/cronVigiado";
 import { NextResponse } from "next/server";
 import { activeSubscribers } from "@/lib/api/entitlement";
 import { createHmac, createHash } from "crypto";
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
 // GET — chamado por um cron (Vercel ou externo) com Authorization: Bearer <CRON_SECRET>.
 // Varre a watchlist de cada utilizador com webhook ativo, deteta movimentos
 // grandes ("large_transfer") e faz POST assinado para o URL do utilizador.
-export async function GET(request: Request) {
+async function executar(request: Request) {
   if (!(await verifyCronAuth(request))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   let admin: ReturnType<typeof getSupabaseAdmin>;
@@ -22,11 +23,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
   }
 
-  const { data: configs } = await admin
+  const { data: configs, error: erroConfigs } = await admin
     .from("webhook_config")
     .select("user_id, url, secret")
     .eq("enabled", true)
     .limit(200);
+  if (erroConfigs) return NextResponse.json({ error: `webhook_config: ${erroConfigs.message}` }, { status: 503 });
 
   // Os webhooks sao exclusivos do Premium, mas nada apagava a configuracao
   // quando a subscricao acabava: o cron continuava a varrer e a entregar de
@@ -43,23 +45,25 @@ export async function GET(request: Request) {
       premium = new Set([...planos.entries()].filter(([, p]) => p === "premium").map(([id]) => id));
     } catch (e) {
       console.error("[whale-alerts] planos indisponiveis, nada entregue nesta passagem:", e instanceof Error ? e.message : e);
-      return NextResponse.json({ ok: true, usersScanned: 0, sent: 0, skipped: "plans_unavailable" });
+      return NextResponse.json({ error: "plans_unavailable", usersScanned: 0, sent: 0 }, { status: 503 });
     }
   }
 
   let usersScanned = 0;
   let sent = 0;
   let semPlano = 0;
+  let falhasLeitura = 0;
 
   for (const cfg of configs ?? []) {
     if (!premium.has(cfg.user_id as string)) { semPlano++; continue; }
     usersScanned++;
 
-    const { data: rows } = await admin
+    const { data: rows, error: erroLista } = await admin
       .from("smart_money_watchlist")
       .select("address, chain, label")
       .eq("user_id", cfg.user_id)
       .limit(10);
+    if (erroLista) { falhasLeitura++; continue; }
 
     const watchlist: WatchEntry[] = (rows ?? []).map((r) => ({
       address: r.address,
@@ -68,7 +72,15 @@ export async function GET(request: Request) {
     }));
     if (!watchlist.length) continue;
 
-    const { movements } = await scanWatchlist(watchlist);
+    // Uma leitura partida não pode deixar os utilizadores seguintes sem alertas.
+    let movements: Awaited<ReturnType<typeof scanWatchlist>>["movements"];
+    try {
+      ({ movements } = await scanWatchlist(watchlist));
+    } catch (e) {
+      console.error("[whale-alerts] scan:", e instanceof Error ? e.message : e);
+      falhasLeitura++;
+      continue;
+    }
     const large = movements.filter((m) => m.type === "large_transfer");
 
     for (const m of large) {
@@ -130,5 +142,11 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, usersScanned, sent, semPlano, timestamp: Date.now() });
+  // Só o "falharam todos" é falha do cron; a entrega a um webhook de cliente em baixo nunca é.
+  if (usersScanned > 0 && falhasLeitura === usersScanned) {
+    return NextResponse.json({ aviso: `leitura falhou nos ${usersScanned} utilizadores`, usersScanned, sent }, { status: 500 });
+  }
+  return NextResponse.json({ ok: true, usersScanned, sent, semPlano, falhasLeitura, timestamp: Date.now() });
 }
+
+export const GET = cronVigiado("whale-alerts", executar);

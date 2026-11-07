@@ -1,3 +1,4 @@
+import { cronVigiado } from "@/lib/cron/cronVigiado";
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { verifyCronAuth } from "@/lib/api/cron-auth";
@@ -10,7 +11,7 @@ import { sendTelegram, tgEsc } from "@/lib/notify/telegram";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // plano Pro (nov 2026): antes 60 s, o limite do Hobby
 
-export async function GET(request: Request) {
+async function executar(request: Request) {
   // Autenticação partilhada (lib/api/cron-auth): CRON_SECRET obrigatório e
   // comparação em tempo constante. Antes existia aqui uma cópia local que
   // rebentava com 500 quando o header vinha vazio (zero-length key).
@@ -125,3 +126,5 @@ export async function GET(request: Request) {
 
   return NextResponse.json({ ok: true, saved, skipped, failed, total: profiles.length });
 }
+
+export const GET = cronVigiado("snapshot", executar, { avisa: false });

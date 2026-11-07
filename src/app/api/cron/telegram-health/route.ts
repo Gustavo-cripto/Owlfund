@@ -1,3 +1,4 @@
+import { cronVigiado } from "@/lib/cron/cronVigiado";
 import { NextResponse } from "next/server";
 import { rateLimitPublic } from "@/lib/api/requireUser";
 import { REPLY_TO, sendEmail, esc } from "@/lib/email";
@@ -23,7 +24,7 @@ export const runtime = "nodejs";
 let ultimoAviso = 0;
 const podeAvisar = () => { const ok = Date.now() - ultimoAviso > 6 * 3_600_000; if (ok) ultimoAviso = Date.now(); return ok; };
 
-export async function GET(request: Request) {
+async function executar(request: Request) {
   const limitado = rateLimitPublic(request, "telegram-health", 6);
   if (limitado) return limitado;
 
@@ -62,3 +63,5 @@ export async function GET(request: Request) {
     { status: r.ok || !r.error ? 200 : 503, headers: { "Cache-Control": "no-store" } },
   );
 }
+
+export const GET = cronVigiado("telegram-health", executar, { avisa: false });

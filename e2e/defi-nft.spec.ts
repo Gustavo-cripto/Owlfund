@@ -30,7 +30,8 @@ test("ligar um endereço mostra DeFi, posições e NFTs", async ({ page }) => {
     await expect(page.getByText(/Carteiras:\s*1\/3/)).toBeVisible({ timeout: 15_000 });
 
     // A linha da carteira na lista Ethereum: DeFi com valor (não "—" nem erro) e NFT com itens.
-    const linha = page.locator("div", { has: page.getByText(/0xd8dA…6045|0xd8dA6BF2/i) }).filter({ hasText: /DeFi:/ }).first();
+    // Pelo data-testid: o endereço fica escondido (••••••••) por omissão, e a conta só tem esta carteira.
+    const linha = page.getByTestId("carteira-eth").first();
     await expect(linha).toBeVisible({ timeout: 30_000 });
     await expect(linha.getByText(/Erro ao carregar DeFi/)).toHaveCount(0);
     await expect(linha).toHaveText(/DeFi:\s*(€|\$)?\s*[\d.,]+/, { timeout: 90_000 });

@@ -1,8 +1,9 @@
+import { cronVigiado } from "@/lib/cron/cronVigiado";
 import { NextResponse } from "next/server";
 import { internalError } from "@/lib/api/response";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { verifyCronAuth } from "@/lib/api/cron-auth";
-import { FROM_BILLING, fmtDate, markSent, sendEmail } from "@/lib/email";
+import { FROM_BILLING, fmtDate, markSent, mascararEmail, sendEmail } from "@/lib/email";
 import type { Lang } from "@/lib/i18n/translations";
 import { langFromMetadata, resolveLang, signupLangByEmail } from "@/lib/user/lang";
 
@@ -76,7 +77,7 @@ function reminderHtml(lang: Lang, plan: string, endLabel: string, days: number, 
   </div>`;
 }
 
-export async function GET(request: Request) {
+async function executar(request: Request) {
   if (!(await verifyCronAuth(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -94,13 +95,14 @@ export async function GET(request: Request) {
   if (resendKey) {
     try {
       const horizonIso = new Date(now.getTime() + 8 * DAY_MS).toISOString();
-      const { data: upcoming } = await admin
+      const { data: upcoming, error: erroProximas } = await admin
         .from("subscriptions")
         .select("user_id, current_period_end, price_id")
         .eq("source", "crypto")
         .eq("status", "active")
         .gt("current_period_end", nowIso)
         .lt("current_period_end", horizonIso);
+      if (erroProximas) throw new Error(erroProximas.message);
 
       if (upcoming && upcoming.length > 0) {
         const signupLang = await signupLangByEmail(admin);
@@ -128,7 +130,12 @@ export async function GET(request: Request) {
             html: reminderHtml(lang, plan, endLabel, daysLeft, `${siteUrl}/account`),
             tag: "crypto_reminder",
           });
-          if (ok) reminded++; else remindErrors.push(email);
+          if (ok) reminded++;
+          else {
+            // Envio falhado: liberta a marca para o cron de amanhã voltar a tentar.
+            remindErrors.push(mascararEmail(email));
+            try { await admin.from("notification_log").delete().match({ user_id: sub.user_id, kind }); } catch { /* fica marcado */ }
+          }
         }
       }
     } catch (e) {
@@ -151,10 +158,10 @@ export async function GET(request: Request) {
     return internalError(error, { reminded });
   }
 
-  return NextResponse.json({
-    expired: data?.length ?? 0,
-    reminded,
-    remindErrors: remindErrors.length ? remindErrors : undefined,
-    at: nowIso,
-  });
+  if (remindErrors.length) {
+    return NextResponse.json({ aviso: `avisos de renovação por enviar: ${remindErrors.join(", ")}`, expired: data?.length ?? 0, reminded }, { status: 500 });
+  }
+  return NextResponse.json({ expired: data?.length ?? 0, reminded, at: nowIso });
 }
+
+export const GET = cronVigiado("crypto-expiry", executar);

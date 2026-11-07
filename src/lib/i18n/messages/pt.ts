@@ -1905,7 +1905,7 @@ export const pt = {
     mc_putcall_desc: "Opções: rácio puts/calls (>1 = mais puts = medo)",
     mc_liq_live: "Liquidações ao vivo",
     mc_liq_waiting: "À espera de liquidações…",
-    mc_liq_note: "O histórico de liquidações não é gratuito (exclusivo da Coinglass) — consulta-o no site deles.",
+    mc_liq_offline: "Sem ligação às liquidações da Binance neste momento. Tenta mais tarde ou consulta a Coinglass.",
     mc_loading_markets: "A carregar mercados...",
     mc_search_ph: "Pesquisar (ex: BTC, Ethereum)",
     mc_show_fav_on: "A mostrar favoritos",
@@ -2855,6 +2855,7 @@ export const pt = {
 
     // ── Lote E (robustez): /estado — serviço "Snapshots diários" ──
     st_f_snapshots: "histórico do Portefólio (cron diário)",
+    st_f_crons: "limpezas, avisos e leituras em segundo plano",
     // ── Lote B (set 2026) · emails e ativacao ──
     ac_product_emails: "Emails do produto",
     ac_product_emails_desc: "Boas-vindas, lembretes e novidades da tua conta. Os avisos sobre o fim do período de teste chegam sempre.",

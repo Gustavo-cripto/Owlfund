@@ -1896,7 +1896,7 @@ export const es: Record<TranslationKey, string> = {
     mc_putcall_desc: "Opciones: ratio puts/calls (>1 = más puts = miedo)",
     mc_liq_live: "Liquidaciones en vivo",
     mc_liq_waiting: "Esperando liquidaciones…",
-    mc_liq_note: "El historial de liquidaciones no es gratis (exclusivo Coinglass) — ábrelo allí.",
+    mc_liq_offline: "Sin conexión a las liquidaciones de Binance ahora mismo. Inténtalo más tarde o consulta Coinglass.",
     mc_loading_markets: "Cargando mercados...",
     mc_search_ph: "Buscar (ej: BTC, Ethereum)",
     mc_show_fav_on: "Mostrando favoritos",
@@ -2840,6 +2840,7 @@ export const es: Record<TranslationKey, string> = {
 
     // ── Lote E (robustez): /estado — serviço "Snapshots diários" ──
     st_f_snapshots: "historial de la Cartera (cron diario)",
+    st_f_crons: "limpiezas, avisos y lecturas en segundo plano",
     // ── Lote B (set 2026) · emails e ativacao ──
     ac_product_emails: "Correos del producto",
     ac_product_emails_desc: "Bienvenida, recordatorios y novedades de tu cuenta. Los avisos sobre el fin del periodo de prueba llegan siempre.",

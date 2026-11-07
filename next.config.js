@@ -78,6 +78,9 @@ const securityHeaders = [
         "wss://*.peerjs.com",
         "https://js.stripe.com",
         "https://api.stripe.com",
+        // Liquidações ao vivo em /mercado: WebSocket aberto pelo browser (o servidor
+        // não serve, a Binance bloqueia datacenters). Sem isto, nunca ligava em produção.
+        "wss://fstream.binance.com",
       ].join(" "),
       // iFrames: apenas TradingView
       // js.stripe.com / hooks.stripe.com: o Stripe.js cria um iframe proprio

@@ -64,6 +64,7 @@ export default function EthCarteirasLista({
         return (
           <div
             key={`${item.address}-${item.network}`}
+            data-testid="carteira-eth"
             className="rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-300"
           >
             <div className="flex flex-wrap items-start justify-between gap-2">

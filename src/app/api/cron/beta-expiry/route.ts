@@ -6,6 +6,7 @@
 //  Idempotente: cada marco é registado em notification_log (o cron pode correr
 //  2× e um dia falhado é apanhado no seguinte). Idioma do tester lido de
 //  beta_signups (pt/en; es/fr caem em en).
+import { cronVigiado } from "@/lib/cron/cronVigiado";
 import { NextResponse } from "next/server";
 import { temDados } from "@/lib/analytics/funil";
 import { loadOptouts } from "@/lib/emailOptout";
@@ -271,7 +272,7 @@ const COPY: {
   },
 };
 
-export async function GET(request: Request) {
+async function executar(request: Request) {
   if (!(await verifyCronAuth(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -293,13 +294,15 @@ export async function GET(request: Request) {
   // ── 0) Expirar testers manuais cujo período terminou → Free ───────────────
   let expired = 0;
   try {
-    const { data } = await admin
+    const { data, error } = await admin
       .from("subscriptions")
       .update({ status: "canceled" })
       .eq("source", "manual")
       .eq("status", "active")
       .lt("current_period_end", nowIso)
       .select("user_id");
+    // O supabase-js devolve o erro, não o lança: sem isto o catch nunca corria.
+    if (error) throw new Error(error.message);
     expired = data?.length ?? 0;
   } catch (e) { falhou("expirar", e); }
 
@@ -543,3 +546,5 @@ export async function GET(request: Request) {
   }
   return NextResponse.json({ ok: true, ...resumo });
 }
+
+export const GET = cronVigiado("beta-expiry", executar, { avisa: false });

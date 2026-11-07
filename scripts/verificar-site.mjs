@@ -200,12 +200,12 @@ console.log(`\n── 6) /api/status (o que o servidor vê)`);
     const NOSSOS = new Set(["supabase", "snapshots"]);
     const maus = (st.servicos ?? []).filter((s) => s.estado === "falha" || s.estado === "degradado");
     for (const s of st.servicos ?? []) {
-      const linha = `${String(s.nome).padEnd(20)} ${String(s.estado).padEnd(16)}${s.codigo ? ` código ${s.codigo}` : ""}${s.ms != null ? `  ${s.ms} ms` : ""}`;
+      const linha = `${String(s.nome).padEnd(20)} ${String(s.estado).padEnd(16)}${s.codigo ? ` código ${s.codigo}` : ""}${s.detalhe ? ` ${s.detalhe}` : ""}${s.ms != null ? `  ${s.ms} ms` : ""}`;
       (s.estado === "falha" && NOSSOS.has(s.id) ? erro : s.estado === "falha" || s.estado === "degradado" ? aviso : ok)(linha);
     }
     if (maus.length || externasEmBaixo.length) {
-      const linhas = [...maus.map((s) => `• ${s.nome}: ${s.estado}${s.codigo ? ` (${s.codigo})` : ""}`), ...externasEmBaixo.map((h) => `• ${h} (visto do GitHub)`)];
-      const texto = `🟡 chainfolioai.com: fornecedor externo com problemas (o site está a responder)\n${linhas.join("\n")}\nVer ${BASE}/estado`;
+      const linhas = [...maus.map((s) => `• ${s.nome}: ${s.estado}${s.codigo ? ` (${s.codigo})` : ""}${s.detalhe ? ` (${s.detalhe})` : ""}`), ...externasEmBaixo.map((h) => `• ${h} (visto do GitHub)`)];
+      const texto = `🟡 chainfolioai.com: serviços com problemas (o site está a responder)\n${linhas.join("\n")}\nVer ${BASE}/estado`;
       const enviado = await avisarTelegram(texto);
       aviso(enviado ? "aviso enviado ao Telegram" : "sem TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID — aviso só aqui");
     }

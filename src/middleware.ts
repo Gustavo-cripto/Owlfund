@@ -255,6 +255,6 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
 // antigo reutilizado, podia terminar a sessão da pessoa.
 export const config = {
   matcher: [
-    "/((?!api/(?:mcp|track|evento|markets|fx|btc-blocks|fear-greed|client-error|cron|v1|telegram-webhook)(?:/|$)|_next/static|_next/image|\\.well-known/|.*\\.(?:txt|xml|ico|png|jpe?g|gif|webp|avif|svg|webmanifest|woff2?|pdf)$).*)",
+    "/((?!api/(?:mcp|track|evento|markets|fx|btc-blocks|fear-greed|client-error|cron|bots|v1|telegram-webhook)(?:/|$)|_next/static|_next/image|\\.well-known/|.*\\.(?:txt|xml|ico|png|jpe?g|gif|webp|avif|svg|webmanifest|woff2?|pdf)$).*)",
   ],
 };

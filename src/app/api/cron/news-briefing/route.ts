@@ -1,3 +1,4 @@
+import { cronVigiado } from "@/lib/cron/cronVigiado";
 import { NextResponse } from "next/server";
 import { activeSubscribers, type Plan } from "@/lib/api/entitlement";
 import { generateAiText } from "@/lib/ai/groq";
@@ -108,7 +109,7 @@ function buildEmailHtml(briefing: string, mode: "crypto" | "tradicional", date: 
 </html>`;
 }
 
-export async function GET(request: Request) {
+async function executar(request: Request) {
   // CRON_SECRET é obrigatório (fail-closed). O Vercel cron envia
   // Authorization: Bearer {CRON_SECRET} quando a env var está definida.
   // Não confiar no header x-vercel-cron (é falsificável por qualquer cliente).
@@ -221,3 +222,5 @@ export async function GET(request: Request) {
   }
   return NextResponse.json(resumo);
 }
+
+export const GET = cronVigiado("news-briefing", executar, { avisa: false });
