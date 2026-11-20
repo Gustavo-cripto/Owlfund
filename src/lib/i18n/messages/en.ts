@@ -1734,6 +1734,8 @@ export const en: Record<TranslationKey, string> = {
     mc_no_pair_chart: "{s} has no USDT pair on the exchanges we use (OKX and CoinEx), so we show no chart. Price and market cap come from CoinGecko.",
     mc_open_coingecko: "View on CoinGecko",
     mc_tab_portfolio: "My portfolio",
+    mc_anon_cta: "You are viewing the market without an account. Create a free account to see your portfolio, traditional markets, derivatives and AI news.",
+    mc_anon_btn: "Create free account",
     mc_pf_desc: "The assets in your accounts, view only. Click an asset to open its chart.",
     mc_pf_title: "My assets",
     mc_pf_hint: "Click a row to see the chart.",

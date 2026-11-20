@@ -6,7 +6,8 @@
 //   2. a conta aparece no /admin/beta como tester (subscrição manual) e fica uma
 //      linha "activated" em beta_signups, como as ativações à mão;
 //   3. aviso no Telegram do dono, sem botões (já está ativo);
-//   4. boas-vindas por email a dizer que o Premium já está ativo.
+//   4. boas-vindas por email a dizer que o Premium já está ativo;
+//   5. email ao dono (DONO_EMAIL_AVISOS, na Vercel: o repo é público), 20 nov 2026.
 //
 // Corre uma vez por conta (notification_log, kind "conta_nova"), a partir do
 // registo por palavra-passe (/api/auth/boas-vindas), da ligação mágica
@@ -14,7 +15,7 @@
 // formulário chama a mesma rota). Nunca lança: entrar nunca falha por isto.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { markSent } from "@/lib/email";
+import { esc, markSent, sendEmail, shell, SITE } from "@/lib/email";
 import { primeiroAvisoDoDia, travaoDeContas } from "@/lib/beta/travaoContas";
 import { enviarBoasVindas } from "@/lib/emails/boasVindas";
 import { BETA_CUTOFF_ISO, betaAberto } from "@/lib/plans";
@@ -103,9 +104,35 @@ export async function acolherContaNova(admin: SupabaseClient, conta: Conta | nul
         (src ? `\n📣 via ${tgEsc(src)}` : "") +
         (premiumAte ? `\n✅ Premium ativado automaticamente até ${premiumAte.toLocaleDateString("pt-PT", { day: "2-digit", month: "long", year: "numeric" })}` : ""),
     ).catch(() => false);
+    await avisarDonoPorEmail({ email, via, src, premiumAte });
 
     if (email) await enviarBoasVindas(admin, conta, { premiumAte });
   } catch (e) {
     console.error("[conta-nova]", e instanceof Error ? e.message : e);
   }
+}
+
+/** Email ao dono por cada conta nova. Sem DONO_EMAIL_AVISOS não faz nada. Nunca lança. */
+async function avisarDonoPorEmail(o: { email: string; via: string; src: string; premiumAte: Date | null }): Promise<void> {
+  const destinos = (process.env.DONO_EMAIL_AVISOS ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+  if (!destinos.length) return;
+  const quando = new Date().toLocaleString("pt-PT", { timeZone: "Europe/Lisbon", dateStyle: "short", timeStyle: "short" });
+  const linhas = [
+    `<b>Email:</b> ${o.email ? esc(o.email) : "(carteira, sem email)"}`,
+    `<b>Entrou por:</b> ${esc(o.via)}`,
+    o.src ? `<b>Origem:</b> ${esc(o.src)}` : "",
+    o.premiumAte ? `<b>Premium:</b> ativado até ${o.premiumAte.toLocaleDateString("pt-PT", { day: "2-digit", month: "long", year: "numeric" })}` : "",
+    `<b>Quando:</b> ${esc(quando)}`,
+  ].filter(Boolean);
+  const html = shell(
+    `<p style="margin:0 0 12px;color:#fff;font-size:16px;font-weight:700">🎉 Nova conta</p>` +
+      `<p style="margin:0">${linhas.join("<br>")}</p>` +
+      `<p style="margin:16px 0 0"><a href="${SITE}/admin/beta" style="color:#fb923c">Abrir o /admin/beta</a></p>`,
+    { title: "aviso interno" },
+  );
+  await Promise.all(
+    destinos.map((to) =>
+      sendEmail({ to, subject: `Nova conta: ${o.email || "carteira"}`, html, unsubscribe: false, tag: "conta-nova-dono" }).catch(() => false),
+    ),
+  );
 }

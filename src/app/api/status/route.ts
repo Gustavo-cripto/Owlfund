@@ -16,7 +16,8 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 export const revalidate = 300;
 
 type Estado = "ok" | "degradado" | "falha" | "nao_configurado";
-type Servico = { id: string; nome: string; funcao: string; estado: Estado; ms: number | null; codigo?: number; detalhe?: string };
+// reserva: fonte usada só quando a principal falha; se cair sozinha, o geral fica no máximo "degradado".
+type Servico = { id: string; nome: string; funcao: string; estado: Estado; ms: number | null; codigo?: number; detalhe?: string; reserva?: boolean };
 
 const TIMEOUT_MS = 6_000;
 
@@ -111,7 +112,7 @@ export async function GET(req: Request) {
   const twelveKey = (process.env.TWELVEDATA_API_KEY ?? "").trim();
   const telegramToken = (process.env.TELEGRAM_BOT_TOKEN ?? "").trim();
 
-  const checks: Array<{ id: string; nome: string; funcao: string; run: (() => Promise<Response>) | null }> = [
+  const checks: Array<{ id: string; nome: string; funcao: string; run: (() => Promise<Response>) | null; reserva?: boolean }> = [
     // O /auth/v1/health responde 401 sem a chave publica (anon) no cabecalho.
     { id: "supabase", nome: "Supabase", funcao: "contas e dados",
       run: supabaseUrl ? () => get(`${supabaseUrl}/auth/v1/health`, { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "" } }) : null },
@@ -121,6 +122,9 @@ export async function GET(req: Request) {
       run: pingCoinGecko },
     { id: "mempool", nome: "mempool.space", funcao: "blocos e saldos Bitcoin",
       run: () => get("https://mempool.space/api/blocks/tip/height") },
+    // Reserva do mempool em 5 sítios (saldo BTC, blocos, baleias, token-balances, bitcoin.ts), 20 nov 2026.
+    { id: "blockstream", nome: "Blockstream", funcao: "reserva do mempool.space (blocos e saldos Bitcoin)", reserva: true,
+      run: () => get("https://blockstream.info/api/blocks/tip/height") },
     { id: "alchemy", nome: "Alchemy", funcao: "tokens e NFTs (9 redes EVM)",
       run: alchemyKey ? () => get(`https://eth-mainnet.g.alchemy.com/v2/${alchemyKey}`, {
         method: "POST", headers: { "content-type": "application/json" },
@@ -141,9 +145,10 @@ export async function GET(req: Request) {
 
   const [servicosPing, snapshots, crons] = await Promise.all([
     Promise.all(checks.map(async (c) => {
-      if (!c.run) return { id: c.id, nome: c.nome, funcao: c.funcao, estado: "nao_configurado" as Estado, ms: null };
+      const extra = c.reserva ? { reserva: true } : {};
+      if (!c.run) return { id: c.id, nome: c.nome, funcao: c.funcao, estado: "nao_configurado" as Estado, ms: null, ...extra };
       const r = await ping(c.run);
-      return { id: c.id, nome: c.nome, funcao: c.funcao, estado: r.estado, ms: r.ms, ...(r.codigo && r.estado !== "ok" ? { codigo: r.codigo } : {}) };
+      return { id: c.id, nome: c.nome, funcao: c.funcao, estado: r.estado, ms: r.ms, ...(r.codigo && r.estado !== "ok" ? { codigo: r.codigo } : {}), ...extra };
     })),
     verificarSnapshots(),
     verificarCrons(),
@@ -154,7 +159,8 @@ export async function GET(req: Request) {
     { id: "crons", nome: "Crons", funcao: "limpezas, avisos e leituras em segundo plano", estado: crons.estado, ms: crons.ms, ...(crons.detalhe ? { detalhe: crons.detalhe } : {}) },
   ];
 
-  const geral: Estado = servicos.some((s) => s.estado === "falha") ? "falha"
+  const geral: Estado = servicos.some((s) => s.estado === "falha" && !s.reserva) ? "falha"
+    : servicos.some((s) => s.estado === "falha" && s.reserva) ? "degradado"
     : servicos.some((s) => s.estado === "degradado") ? "degradado" : "ok";
 
   return NextResponse.json(

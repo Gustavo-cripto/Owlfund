@@ -862,17 +862,19 @@ function DerivativesPanel({ data, loading, symbol, updatedAt, error, onRefresh }
 }
 
 export default function MercadoPage() {
-  const { userId } = useRequireAuth("/login");
+  // Público desde 20 nov 2026: sem conta vê só o mercado cripto (rotas públicas).
+  const { userId, anonimo } = useRequireAuth("/login", { opcional: true });
   const { t, lang } = useLanguage();
   const { format: fmtCur, rates: fxRates, formatMarketUsd: fmtMkt, currency: curCode } = useCurrencyFormat();
   const [userPlan, setUserPlan] = useState<"unknown" | "free" | "pro" | "premium">("unknown");
   useEffect(() => {
+    if (!userId) return;
     fetch("/api/subscription").then(r => r.json()).then((d: { plan?: string }) => {
       if (d.plan === "premium") setUserPlan("premium");
       else if (d.plan === "pro") setUserPlan("pro");
       else setUserPlan("free");
     }).catch(() => setUserPlan("free"));
-  }, []);
+  }, [userId]);
   // Durante o beta (pagamentos congelados) os CTAs de upgrade viram convite ao beta.
   const paymentsFrozen = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED !== "true";
   const [marketMode, setMarketMode] = useState<"crypto" | "tradicional" | "portefolio" | "noticias">("crypto");
@@ -985,7 +987,7 @@ export default function MercadoPage() {
   // Sentimento da comunidade (CoinGecko) do ativo selecionado, com cache por id.
   useEffect(() => {
     const id = selected?.id;
-    if (!id) { setCommunitySentiment(null); return; }
+    if (!id || anonimo) { setCommunitySentiment(null); return; }
     const cached = sentimentCacheRef.current[id];
     if (cached) { setCommunitySentiment(cached); return; }
     let cancelled = false;
@@ -999,12 +1001,12 @@ export default function MercadoPage() {
       })
       .catch(() => { if (!cancelled) setCommunitySentiment(null); });
     return () => { cancelled = true; };
-  }, [selected?.id]);
+  }, [selected?.id, anonimo]);
 
   // Derivados (OKX) do ativo selecionado: o painel completo e o resumo por
   // baixo do gráfico do TradingView usam os mesmos dados.
   useEffect(() => {
-    if (marketMode !== "crypto") return;
+    if (marketMode !== "crypto" || anonimo) return; // /api/derivatives exige sessão
     const base = selected?.symbol ?? "BTC";
     const cached = derivativesCacheRef.current[base];
     const FRESH_MS = 5 * 60_000;
@@ -1031,7 +1033,7 @@ export default function MercadoPage() {
       .finally(() => { if (!cancelled) setDerivativesLoading(false); });
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [marketMode, selected?.symbol, derivativesTick]);
+  }, [marketMode, selected?.symbol, derivativesTick, anonimo]);
 
   const refreshTraditionalQuote = async (symbol?: string) => {
     if (!symbol) return;
@@ -1379,13 +1381,21 @@ export default function MercadoPage() {
             wrap
             valor={marketMode}
             aoMudar={setMarketMode}
-            opcoes={[
+            opcoes={anonimo ? [{ id: "crypto", label: t("mc_crypto_market") }] : [
               { id: "crypto", label: t("mc_crypto_market") },
               { id: "tradicional", label: t("mc_trad_market") },
               { id: "portefolio", label: t("mc_tab_portfolio") },
               { id: "noticias", label: t("mc_news_ai") },
             ]}
           />
+          {anonimo && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-orange-400/30 bg-orange-500/[0.06] px-4 py-3 text-sm text-slate-300">
+              <p className="max-w-2xl">{t("mc_anon_cta")}</p>
+              <a href="/login?mode=signup&next=%2Fmercado" className="rounded-xl border border-orange-400/50 px-4 py-2 text-xs font-semibold text-orange-200 hover:bg-orange-500/10">
+                {t("mc_anon_btn")}
+              </a>
+            </div>
+          )}
         </div>
 
         {marketMode === "portefolio" && (
@@ -1444,7 +1454,7 @@ export default function MercadoPage() {
                 tamanho="sm"
                 valor={chartSource}
                 aoMudar={(v) => { setChartSource(v); if (v !== "tradingview") setFsReserva(false); }}
-                opcoes={[
+                opcoes={anonimo ? [{ id: "tradingview", label: "TradingView" }] : [
                   { id: "tradingview", label: "TradingView" },
                   { id: "coinglass", label: t("mc_tab_sentiment") },
                 ]}
@@ -1519,7 +1529,8 @@ export default function MercadoPage() {
               />
             )}
           </div>
-          {chartSource === "tradingview" && (
+          {/* Sem conta não: indicadores e derivados exigem sessão, e a posição viria do localStorage deste browser. */}
+          {chartSource === "tradingview" && !anonimo && (
             <PainelAtivo
               linha={selected ?? rows.find((r) => r.symbol === "BTC") ?? null}
               rows={rows}

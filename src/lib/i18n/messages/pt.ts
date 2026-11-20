@@ -1743,6 +1743,8 @@ export const pt = {
     mc_no_pair_chart: "O {s} não tem par em USDT nas exchanges que usamos (OKX e CoinEx), por isso não mostramos gráfico. Preço e capitalização vêm da CoinGecko.",
     mc_open_coingecko: "Ver na CoinGecko",
     mc_tab_portfolio: "O meu portefólio",
+    mc_anon_cta: "Estás a ver o mercado sem conta. Cria uma conta grátis para ver o teu portefólio, os mercados tradicionais, os derivados e as notícias com IA.",
+    mc_anon_btn: "Criar conta grátis",
     mc_pf_desc: "Os ativos das tuas contas, só para ver. Clica num ativo para abrir o gráfico.",
     mc_pf_title: "Os meus ativos",
     mc_pf_hint: "Clica numa linha para ver o gráfico.",

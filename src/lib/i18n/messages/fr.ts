@@ -1734,6 +1734,8 @@ export const fr: Record<TranslationKey, string> = {
     mc_no_pair_chart: "{s} n'a pas de paire en USDT sur les plateformes que nous utilisons (OKX et CoinEx), nous n'affichons donc pas de graphique. Le prix et la capitalisation viennent de CoinGecko.",
     mc_open_coingecko: "Voir sur CoinGecko",
     mc_tab_portfolio: "Mon portefeuille",
+    mc_anon_cta: "Vous consultez le marché sans compte. Créez un compte gratuit pour voir votre portefeuille, les marchés traditionnels, les dérivés et les actualités IA.",
+    mc_anon_btn: "Créer un compte gratuit",
     mc_pf_desc: "Les actifs de vos comptes, en consultation seule. Cliquez sur un actif pour ouvrir son graphique.",
     mc_pf_title: "Mes actifs",
     mc_pf_hint: "Cliquez sur une ligne pour voir le graphique.",
