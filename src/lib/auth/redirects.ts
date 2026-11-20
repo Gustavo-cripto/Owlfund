@@ -3,12 +3,13 @@
 // descartava /mercado, /fiscalidade, … e o OAuth perdia sempre o next.
 
 export const PROTECTED_PATHS = [
-  "/dashboard", "/wallets", "/portfolio", "/mercado", "/smart-money", "/fiscalidade",
+  "/dashboard", "/wallets", "/portfolio", "/smart-money", "/fiscalidade",
   "/fire", "/account", "/gestor", "/historico", "/admin", "/crypto",
 ] as const;
 
 // Além das protegidas, páginas públicas para onde faz sentido voltar após login.
-const EXTRA_NEXT = ["/beta", "/pricing", "/developers", "/como-funciona"] as const;
+// /mercado é público desde 20 nov 2026 (só dados de mercado), mas continua a ser um destino.
+const EXTRA_NEXT = ["/mercado", "/beta", "/pricing", "/developers", "/como-funciona"] as const;
 
 /**
  * O caminho tal como o Next o vai encaminhar: ele descodifica antes de escolher a

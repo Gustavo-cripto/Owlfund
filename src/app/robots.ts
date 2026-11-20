@@ -14,7 +14,6 @@ const PRIVATE_PATHS = [
   "/fiscalidade",
   "/gestor",
   "/historico",
-  "/mercado",
   "/portfolio",
   "/smart-money",
   "/wallets",

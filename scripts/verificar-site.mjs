@@ -85,7 +85,7 @@ for (const p of SEMENTES) {
 }
 
 console.log(`\n── 2) ${links.size} links internos distintos encontrados nessas páginas`);
-const PRIVADAS = /^\/(dashboard|portfolio|wallets|mercado|smart-money|gestor|fiscalidade|historico|fire|account|admin|crypto)(\/|$)/;
+const PRIVADAS = /^\/(dashboard|portfolio|wallets|smart-money|gestor|fiscalidade|historico|fire|account|admin|crypto)(\/|$)/;
 let quebrados = 0;
 for (const [href, origens] of [...links].sort()) {
   const { res, falha } = await pedir(BASE + href, { method: "HEAD" });

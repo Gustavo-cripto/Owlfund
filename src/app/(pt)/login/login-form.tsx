@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { marcarEvento } from "@/lib/analytics/eventos";
 import Segmentos from "@/components/ui/Segmentos";
 import Link from "next/link";
@@ -279,9 +279,17 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
   // quase sempre ainda não tem conta (o /login está no top 3 das visitas):
   // mostra-se o registo e o link mágico já abertos. Quem já entrou aqui uma vez
   // (marca cfa-ja-entrou) continua a ver a entrada.
+  // Quem já tocou na página (clicou em Entrar, escreveu o email antes de a página
+  // acabar de carregar) nunca é trocado para o registo por este efeito (20 nov 2026).
+  const tocou = useRef(false);
+  const marcarToque = () => { tocou.current = true; };
   useEffect(() => {
     // ?error= (link expirado/inválido) e ?email= vêm de quem JÁ tem conta: fica em Entrar.
     if (modeParam || errorParam || emailParam) return;
+    if (tocou.current) return;
+    // Escreveu antes da hidratação: o React não viu o toque, mas o campo tem texto ou foco.
+    const ativo = typeof document !== "undefined" ? document.activeElement : null;
+    if (ativo instanceof HTMLInputElement || Array.from(document.querySelectorAll("input")).some((i) => i.value)) return;
     try { if (!localStorage.getItem("cfa-ja-entrou")) { setMode("signup"); setMagicOpen(true); } } catch { /* sem localStorage */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -395,7 +403,7 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
     "w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 outline-none transition focus:border-orange-400 focus:ring-1 focus:ring-orange-400/40";
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
+    <div className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100" onPointerDownCapture={marcarToque} onKeyDownCapture={marcarToque}>
       <div className="pointer-events-none absolute inset-0" aria-hidden>
         <div className="absolute -top-40 left-1/2 h-[420px] w-[620px] -translate-x-1/2 rounded-full bg-orange-500/10 blur-[130px]" />
         <div className="absolute bottom-0 right-0 h-[360px] w-[420px] rounded-full bg-slate-700/20 blur-[110px]" />
@@ -503,7 +511,7 @@ export default function LoginForm({ nextParam, modeParam, emailParam, errorParam
             className="mb-5"
             cheio
             valor={mode}
-            aoMudar={(m) => { setMode(m); setMessage(null); setIsError(false); setSignedUp(false); setCanResend(false); }}
+            aoMudar={(m) => { tocou.current = true; setMode(m); setMessage(null); setIsError(false); setSignedUp(false); setCanResend(false); }}
             opcoes={[{ id: "login", label: t("lg_tab_login") }, { id: "signup", label: t("lg_tab_signup") }]}
           />
 

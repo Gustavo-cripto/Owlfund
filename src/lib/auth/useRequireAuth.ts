@@ -40,10 +40,16 @@ function semSessao(erro: unknown): boolean {
 
 const dorme = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export function useRequireAuth(redirectTo: string = "/login") {
+/**
+ * `opcional: true` (páginas públicas, como o /mercado desde 20 nov 2026): sem
+ * sessão não redireciona; devolve `anonimo: true` e a página mostra só o que é público.
+ */
+export function useRequireAuth(redirectTo: string = "/login", opts: { opcional?: boolean } = {}) {
   const supabase = createClient();
+  const opcional = !!opts.opcional;
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [anonimo, setAnonimo] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -57,7 +63,11 @@ export function useRequireAuth(redirectTo: string = "/login") {
           const { data, error } = await supabase.auth.getUser();
           user = data?.user ?? null;
           if (!user) {
-            if (semSessao(error)) { if (isMounted) window.location.href = redirectTo; return; }
+            if (semSessao(error)) {
+              if (!isMounted) return;
+              if (opcional) { setAnonimo(true); setIsLoading(false); } else window.location.href = redirectTo;
+              return;
+            }
             falhou = true;
             console.error(`[auth] sessão não confirmada (tentativa ${tentativa}/${TENTATIVAS}):`, error?.message);
           }
@@ -70,7 +80,10 @@ export function useRequireAuth(redirectTo: string = "/login") {
 
         if (falhou) {
           // Só desiste depois de tentar mesmo. Antes bastava um soluço da rede.
-          if (tentativa === TENTATIVAS) { window.location.href = redirectTo; return; }
+          if (tentativa === TENTATIVAS) {
+            if (opcional) { setAnonimo(true); setIsLoading(false); } else window.location.href = redirectTo;
+            return;
+          }
           await dorme(ESPERA_MS * tentativa);
           if (!isMounted) return;
           continue;
@@ -107,7 +120,7 @@ export function useRequireAuth(redirectTo: string = "/login") {
     return () => {
       isMounted = false;
     };
-  }, [redirectTo, supabase]);
+  }, [redirectTo, supabase, opcional]);
 
-  return { isLoading, userId };
+  return { isLoading, userId, anonimo };
 }
